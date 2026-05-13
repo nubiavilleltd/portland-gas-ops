@@ -35,9 +35,9 @@ export default function DataTable<T extends { id: string }>({
   const router = useRouter();
 
   return (
-    <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+    <div className="bg-brand-card border border-brand-border rounded-xl md:rounded-2xl overflow-hidden">
+      <div className="overflow-x-auto -mx-px">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-brand-border bg-gray-50">
               {columns.map((col) => (

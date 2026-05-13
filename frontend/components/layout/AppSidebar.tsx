@@ -3,18 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home,
-  ShoppingCart,
-  Package,
-  Receipt,
-  Truck,
-  Wrench,
-  ShieldCheck,
-  AlertTriangle,
-  BarChart3,
-  Users,
-  Settings,
-  LogOut,
+  Home, ShoppingCart, Package, Receipt, Truck, Wrench,
+  ShieldCheck, AlertTriangle, BarChart3, Users, Settings, LogOut, X,
 } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -66,7 +56,12 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export default function AppSidebar() {
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function AppSidebar({ isOpen, onClose }: Props) {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const { logout } = useAuth();
@@ -76,16 +71,34 @@ export default function AppSidebar() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 w-64 bg-brand-dark flex flex-col overflow-y-auto">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="h-9 w-9 rounded-lg bg-brand-purple flex items-center justify-center shrink-0">
-          <span className="text-white text-sm font-bold tracking-tight">PG</span>
+    <aside
+      className={cn(
+        // Base: fixed full-height sidebar
+        "fixed inset-y-0 left-0 z-30 w-64 bg-brand-dark flex flex-col overflow-y-auto transition-transform duration-300 ease-in-out",
+        // Mobile: slide in/out. Desktop: always visible
+        isOpen ? "translate-x-0" : "-translate-x-full",
+        "lg:translate-x-0"
+      )}
+    >
+      {/* Logo + mobile close button */}
+      <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-brand-purple flex items-center justify-center shrink-0">
+            <span className="text-white text-sm font-bold tracking-tight">PG</span>
+          </div>
+          <div>
+            <p className="text-white text-sm font-semibold leading-none">Portland Gas</p>
+            <p className="text-purple-400 text-xs mt-0.5">Operations</p>
+          </div>
         </div>
-        <div>
-          <p className="text-white text-sm font-semibold leading-none">Portland Gas</p>
-          <p className="text-purple-400 text-xs mt-0.5">Operations</p>
-        </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={onClose}
+          className="lg:hidden text-gray-400 hover:text-white p-1 transition-colors"
+          aria-label="Close sidebar"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Nav */}
@@ -101,6 +114,7 @@ export default function AppSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onClose} // close on mobile after navigation
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors mb-0.5",
                     active
@@ -126,7 +140,9 @@ export default function AppSidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-xs font-medium truncate">{user.name}</p>
-              <p className="text-gray-400 text-[10px] truncate capitalize">{user.role.replace(/_/g, " ")}</p>
+              <p className="text-gray-400 text-[10px] truncate capitalize">
+                {user.role.replace(/_/g, " ")}
+              </p>
             </div>
             <button
               onClick={logout}
