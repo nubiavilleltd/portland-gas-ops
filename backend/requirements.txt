@@ -1,3 +1,4 @@
+# Python 3.12 required. Run: python --version to confirm before installing.
 fastapi
 uvicorn[standard]
 sqlalchemy

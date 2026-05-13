@@ -12,10 +12,25 @@ FastAPI application serving the internal ERP platform for Portland Gas Limited.
 - **python-jose** — JWT tokens
 - **passlib[bcrypt]** — password hashing
 
+## Python version
+
+**This project requires Python 3.12.** Do not use 3.11 or 3.13 — library versions in `requirements.txt` are tested against 3.12 only.
+
+Check yours before starting:
+```bash
+python3 --version   # must say Python 3.12.x
+```
+
+If you have a different version, install 3.12 via [pyenv](https://github.com/pyenv/pyenv):
+```bash
+pyenv install 3.12
+pyenv local 3.12    # writes .python-version — pyenv will auto-switch in this folder
+```
+
 ## Quick start
 
 ```bash
-python -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
