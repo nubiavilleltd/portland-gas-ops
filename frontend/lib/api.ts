@@ -1,0 +1,126 @@
+import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
+import { API_URL } from "./constants";
+
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true, // send HTTP-only cookies automatically
+  headers: { "Content-Type": "application/json" },
+});
+
+// ─── Request interceptor — attach Bearer token ────────────────────────────────
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  // Dynamically import to avoid SSR issues
+  if (typeof window !== "undefined") {
+    const { useAuthStore } = await import("@/store/authStore");
+    const token = useAuthStore.getState().accessToken;
+    if (token && config.headers) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
+// ─── Response interceptor — silent refresh on 401 ────────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+}> = [];
+
+function processQueue(error: unknown, token: string | null = null) {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token);
+  });
+  failedQueue = [];
+}
+
+api.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  async (error) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (originalRequest.headers) {
+              originalRequest.headers["Authorization"] = `Bearer ${token}`;
+            }
+            return api(originalRequest);
+          })
+          .catch(Promise.reject.bind(Promise));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // refresh_token is sent automatically via withCredentials (HTTP-only cookie)
+        const { data } = await axios.post(
+          `${API_URL}/api/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
+        const newToken: string = data.access_token;
+
+        // Persist new token
+        const { saveTokens } = await import("./auth");
+        await saveTokens(newToken);
+
+        processQueue(null, newToken);
+
+        if (originalRequest.headers) {
+          originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
+        }
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+
+        // Refresh failed — clear session and redirect to login
+        const { clearTokens } = await import("./auth");
+        await clearTokens();
+
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// ─── Typed helpers ─────────────────────────────────────────────────────────────
+export async function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  const res = await api.get<T>(url, { params });
+  return res.data;
+}
+
+export async function post<T>(url: string, data?: unknown): Promise<T> {
+  const res = await api.post<T>(url, data);
+  return res.data;
+}
+
+export async function put<T>(url: string, data?: unknown): Promise<T> {
+  const res = await api.put<T>(url, data);
+  return res.data;
+}
+
+export async function patch<T>(url: string, data?: unknown): Promise<T> {
+  const res = await api.patch<T>(url, data);
+  return res.data;
+}
+
+export async function del<T>(url: string): Promise<T> {
+  const res = await api.delete<T>(url);
+  return res.data;
+}
+
+export default api;
