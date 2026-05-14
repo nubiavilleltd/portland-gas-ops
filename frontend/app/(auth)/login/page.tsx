@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import FormInput from "@/components/forms/FormInput";
+import AuthBrand from "@/components/auth/AuthBrand";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/useToast";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -17,9 +19,12 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const params = useSearchParams();
+  const justVerified = params.get("verified") === "1";
   const { login } = useAuth();
+  const toast = useToast();
   const [apiError, setApiError] = useState<string | null>(null);
 
   const {
@@ -32,6 +37,7 @@ export default function LoginPage() {
     setApiError(null);
     try {
       await login(data.email, data.password, data.remember_me ?? false);
+      toast.success("Welcome back!");
       router.replace("/home");
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { detail?: string } } };
@@ -48,17 +54,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="h-14 w-14 rounded-2xl bg-brand-purple flex items-center justify-center mb-4">
-            <span className="text-white text-2xl font-bold tracking-tight">PG</span>
-          </div>
-          <h1 className="text-lg font-semibold text-brand-text-primary">Portland Gas</h1>
-          <p className="text-sm text-brand-purple">Operations Platform</p>
-        </div>
+        <AuthBrand />
 
         <div className="bg-white border border-brand-border rounded-2xl p-8 shadow-sm">
           <h2 className="text-base font-semibold text-brand-text-primary mb-1">Sign in</h2>
           <p className="text-sm text-brand-text-secondary mb-6">Enter your credentials to continue</p>
+
+          {justVerified && (
+            <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-4">
+              Your email has been verified. You can now sign in.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <FormInput label="Email address" type="email" placeholder="you@portlandgas.com" required autoComplete="email" error={errors.email?.message} {...register("email")} />
@@ -92,5 +98,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }

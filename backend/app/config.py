@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # Database SSL (set to true for cloud databases like Aiven)
     DATABASE_SSL: bool = False
 
+    # Publicly accessible URL for the logo used in email templates
+    # In production set this to your Vercel URL e.g. https://yourapp.vercel.app
+    LOGO_URL: Optional[str] = None
+
     # OTP
     OTP_EXPIRE_MINUTES: int = 10
 

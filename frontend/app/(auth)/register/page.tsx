@@ -7,12 +7,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import FormInput from "@/components/forms/FormInput";
+import AuthBrand from "@/components/auth/AuthBrand";
+import PasswordChecklist from "@/components/auth/PasswordChecklist";
 import { post } from "@/lib/api";
+import { passwordSchema } from "@/lib/validations";
 
 const schema = z.object({
   name: z.string().min(2, "Full name is required"),
   email: z.string().email("Enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: passwordSchema,
   confirm_password: z.string(),
 }).refine((d) => d.password === d.confirm_password, {
   message: "Passwords do not match",
@@ -24,8 +27,10 @@ type FormData = z.infer<typeof schema>;
 export default function RegisterPage() {
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
+  const [showChecklist, setShowChecklist] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const passwordValue = watch("password", "");
 
   async function onSubmit(data: FormData) {
     setApiError(null);
@@ -49,24 +54,31 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="h-14 w-14 rounded-2xl bg-brand-purple flex items-center justify-center mb-4">
-            <span className="text-white text-2xl font-bold tracking-tight">PG</span>
-          </div>
-          <h1 className="text-lg font-semibold text-brand-text-primary">Portland Gas</h1>
-          <p className="text-sm text-brand-purple">Operations Platform</p>
-        </div>
+        <AuthBrand />
 
         <div className="bg-white border border-brand-border rounded-2xl p-8 shadow-sm">
           <h2 className="text-base font-semibold text-brand-text-primary mb-1">Create account</h2>
-          <p className="text-sm text-brand-text-secondary mb-6">
-            Fill in your details to request access
-          </p>
+          <p className="text-sm text-brand-text-secondary mb-6">Fill in your details to request access</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <FormInput label="Full name" placeholder="Chukwuemeka Obi" required error={errors.name?.message} {...register("name")} />
             <FormInput label="Email address" type="email" placeholder="you@portlandgas.com" required autoComplete="email" error={errors.email?.message} {...register("email")} />
-            <FormInput label="Password" type="password" placeholder="At least 8 characters" required autoComplete="new-password" error={errors.password?.message} {...register("password")} />
+
+            <div className="flex flex-col gap-1">
+              <FormInput
+                label="Password"
+                type="password"
+                placeholder="At least 8 characters"
+                required
+                autoComplete="new-password"
+                error={errors.password?.message}
+                {...register("password")}
+                onFocus={() => setShowChecklist(true)}
+                onBlur={() => setShowChecklist(false)}
+              />
+              <PasswordChecklist password={passwordValue} visible={showChecklist} />
+            </div>
+
             <FormInput label="Confirm password" type="password" placeholder="Repeat your password" required autoComplete="new-password" error={errors.confirm_password?.message} {...register("confirm_password")} />
 
             {apiError && (

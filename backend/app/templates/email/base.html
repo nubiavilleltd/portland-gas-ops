@@ -12,6 +12,7 @@
     .header { background: #0d0d12; padding: 28px 32px; display: flex; align-items: center; gap: 14px; }
     .logo-mark { width: 40px; height: 40px; background: #7c3aed; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
     .logo-mark span { color: #ffffff; font-size: 14px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-img { width: 40px; height: 40px; border-radius: 10px; background: #ffffff; object-fit: contain; padding: 4px; }
     .brand-name { color: #ffffff; font-size: 15px; font-weight: 600; }
     .brand-sub { color: #a78bfa; font-size: 12px; margin-top: 1px; }
     .body { padding: 36px 32px; }
@@ -32,12 +33,9 @@
   <div class="wrapper">
     <div class="card">
 
-      <!-- Header — edit brand name/colours here -->
+      <!-- Header -->
       <div class="header">
-        <div class="logo-mark"><span>PG</span></div>
-        <!-- If you have a logo image, replace the logo-mark div above with:
-             <img src="https://yourdomain.com/logo-white.png" alt="Portland Gas" height="36" />
-        -->
+        {{logo_html}}
         <div>
           <div class="brand-name">Portland Gas Limited</div>
           <div class="brand-sub">Operations Platform</div>

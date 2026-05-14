@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import logo from "@/public/Portland-gas-logo.png";
 import { usePathname } from "next/navigation";
 import {
   Home, ShoppingCart, Package, Receipt, Truck, Wrench,
@@ -52,7 +54,10 @@ const navGroups: NavGroup[] = [
   },
   {
     group: "SYSTEM",
-    items: [{ label: "Admin", href: "/admin", icon: Settings }],
+    items: [
+      { label: "Admin", href: "/admin", icon: Settings },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
   },
 ];
 
@@ -83,8 +88,8 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
       {/* Logo + mobile close button */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-brand-purple flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-bold tracking-tight">PG</span>
+          <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shrink-0 p-1">
+            <Image src={logo} alt="Portland Gas" width={28} height={28} />
           </div>
           <div>
             <p className="text-white text-sm font-semibold leading-none">Portland Gas</p>

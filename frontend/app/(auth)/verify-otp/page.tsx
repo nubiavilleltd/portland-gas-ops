@@ -2,22 +2,23 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import AuthBrand from "@/components/auth/AuthBrand";
 import { post } from "@/lib/api";
+import { useToast } from "@/hooks/useToast";
 
 function VerifyOTPContent() {
   const router = useRouter();
   const params = useSearchParams();
   const userId = params.get("user_id") ?? "";
+  const toast = useToast();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Countdown timer after resend
   useEffect(() => {
     if (countdown <= 0) return;
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -55,10 +56,15 @@ function VerifyOTPContent() {
     setLoading(true);
     try {
       await post("/api/auth/verify-otp", { user_id: userId, code });
+      toast.success("Email verified! You can now sign in.");
       router.push("/login?verified=1");
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setError(error?.response?.data?.detail ?? "Invalid or expired code. Try again.");
+      const error = err as { response?: { status?: number; data?: { detail?: string } } };
+      if (error?.response?.status === 429) {
+        setError("Too many attempts. Please wait a minute and try again.");
+      } else {
+        setError(error?.response?.data?.detail ?? "Invalid or expired code. Try again.");
+      }
       setOtp(["", "", "", "", "", ""]);
       inputs.current[0]?.focus();
     } finally {
@@ -69,15 +75,18 @@ function VerifyOTPContent() {
   async function handleResend() {
     if (countdown > 0 || !userId) return;
     setResending(true);
-    setResendSuccess(false);
     setError(null);
     try {
       await post("/api/auth/resend-otp", { user_id: userId });
-      setResendSuccess(true);
+      toast.success("A new code has been sent to your email.");
       setCountdown(60);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setError(error?.response?.data?.detail ?? "Could not resend code. Try again.");
+      const error = err as { response?: { status?: number; data?: { detail?: string } } };
+      if (error?.response?.status === 429) {
+        toast.error("Too many attempts. Please wait a minute.");
+      } else {
+        toast.error(error?.response?.data?.detail ?? "Could not resend code. Try again.");
+      }
     } finally {
       setResending(false);
     }
@@ -86,13 +95,7 @@ function VerifyOTPContent() {
   return (
     <div className="min-h-screen bg-brand-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="h-14 w-14 rounded-2xl bg-brand-purple flex items-center justify-center mb-4">
-            <span className="text-white text-2xl font-bold">PG</span>
-          </div>
-          <h1 className="text-lg font-semibold text-brand-text-primary">Portland Gas</h1>
-          <p className="text-sm text-brand-purple">Operations Platform</p>
-        </div>
+        <AuthBrand />
 
         <div className="bg-white border border-brand-border rounded-2xl p-8 shadow-sm">
           <h2 className="text-base font-semibold text-brand-text-primary mb-1">Verify your email</h2>
@@ -101,7 +104,6 @@ function VerifyOTPContent() {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* OTP input boxes */}
             <div className="flex gap-2 justify-between" onPaste={handlePaste}>
               {otp.map((digit, i) => (
                 <input
@@ -120,11 +122,6 @@ function VerifyOTPContent() {
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
-            )}
-            {resendSuccess && (
-              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                A new code has been sent to your email.
-              </p>
             )}
 
             <button type="submit" disabled={loading} className="w-full h-10 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60">

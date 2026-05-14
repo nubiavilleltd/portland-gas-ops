@@ -29,7 +29,19 @@ def _load_template(template_name: str) -> str:
 def _load_base(subject: str, body_content: str) -> str:
     """Inject body content into the base layout."""
     base = _load_template("base.html")
-    return base.replace("{{subject}}", subject).replace("{{body_content}}", body_content)
+
+    if settings.LOGO_URL:
+        logo_src = f"{settings.LOGO_URL.rstrip('/')}/Portland-gas-logo.png"
+        logo_html = f'<img src="{logo_src}" alt="Portland Gas" class="logo-img" />'
+    else:
+        logo_html = '<div class="logo-mark"><span>PG</span></div>'
+
+    return (
+        base
+        .replace("{{subject}}", subject)
+        .replace("{{body_content}}", body_content)
+        .replace("{{logo_html}}", logo_html)
+    )
 
 
 def _render(template_name: str, variables: dict) -> str:

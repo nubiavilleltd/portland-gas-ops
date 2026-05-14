@@ -1,7 +1,8 @@
+import re
 from fastapi import APIRouter, Depends, Response, Cookie, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -19,6 +20,21 @@ limiter = Limiter(key_func=get_remote_address)
 
 # ─── Request schemas ──────────────────────────────────────────────────────────
 
+def _validate_password(v: str) -> str:
+    errors = []
+    if len(v) < 8:
+        errors.append("at least 8 characters")
+    if not re.search(r"[A-Z]", v):
+        errors.append("one uppercase letter")
+    if not re.search(r"[0-9]", v):
+        errors.append("one number")
+    if not re.search(r"[^A-Za-z0-9]", v):
+        errors.append("one special character")
+    if errors:
+        raise ValueError("Password must contain: " + ", ".join(errors))
+    return v
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -29,6 +45,11 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password(v)
 
 
 class VerifyOTPRequest(BaseModel):
@@ -49,10 +70,20 @@ class ResetPasswordRequest(BaseModel):
     code: str
     new_password: str
 
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password(v)
+
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password(v)
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
