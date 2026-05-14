@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import FormInput from "@/components/forms/FormInput";
+import { post } from "@/lib/api";
 
 const schema = z.object({ email: z.string().email("Enter a valid email address") });
 type FormData = z.infer<typeof schema>;
@@ -12,9 +13,9 @@ type FormData = z.infer<typeof schema>;
 export default function ForgotPasswordPage() {
   const { register, handleSubmit, formState: { errors, isSubmitting, isSubmitSuccessful } } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  async function onSubmit(_data: FormData) {
-    // TODO: call POST /api/auth/forgot-password
-    await new Promise((r) => setTimeout(r, 800));
+  async function onSubmit(data: FormData) {
+    // Backend always returns the same message — never leaks whether email exists
+    try { await post("/api/auth/forgot-password", { email: data.email }); } catch { /* swallow */ }
   }
 
   return (
@@ -27,14 +28,14 @@ export default function ForgotPasswordPage() {
           <h1 className="text-lg font-semibold text-brand-text-primary">Portland Gas</h1>
           <p className="text-sm text-brand-purple">Operations Platform</p>
         </div>
+
         <div className="bg-white border border-brand-border rounded-2xl p-8 shadow-sm">
           <h2 className="text-base font-semibold text-brand-text-primary mb-1">Reset password</h2>
-          <p className="text-sm text-brand-text-secondary mb-6">
-            Enter your email and we&apos;ll send you a reset link.
-          </p>
+          <p className="text-sm text-brand-text-secondary mb-6">Enter your email and we&apos;ll send you a reset link.</p>
+
           {isSubmitSuccessful ? (
             <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-              If that email exists in our system, you&apos;ll receive a reset link shortly.
+              If that email is registered you will receive a reset link shortly. Check your inbox.
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
@@ -44,9 +45,8 @@ export default function ForgotPasswordPage() {
               </button>
             </form>
           )}
-          <Link href="/login" className="block text-center text-sm text-brand-purple mt-4 hover:underline">
-            Back to sign in
-          </Link>
+
+          <Link href="/login" className="block text-center text-sm text-brand-purple mt-4 hover:underline">Back to sign in</Link>
         </div>
       </div>
     </div>

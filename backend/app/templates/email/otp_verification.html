@@ -1,0 +1,21 @@
+<!-- Injected into base.html {{body_content}} -->
+<!-- Edit greeting, body copy, and expiry note here freely -->
+
+<h1>Verify your email address</h1>
+
+<p>Hi {{name}},</p>
+
+<p>
+  Welcome to Portland Gas Operations Platform. To activate your account,
+  enter the 6-digit code below in the app.
+</p>
+
+<div class="otp-box">
+  <div class="otp-code">{{otp_code}}</div>
+  <div class="otp-note">This code expires in {{expire_minutes}} minutes. Do not share it with anyone.</div>
+</div>
+
+<p>
+  If you did not create an account on Portland Gas Operations Platform,
+  you can safely ignore this email.
+</p>

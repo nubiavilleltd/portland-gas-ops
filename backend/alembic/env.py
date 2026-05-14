@@ -11,7 +11,7 @@ from app.config import settings
 from app.database import Base
 
 # Import all models so Alembic can detect them
-from app.models import user, token, approval, procurement, fleet  # noqa: F401
+from app.models import user, token, approval, procurement, fleet, otp  # noqa: F401
 
 config = context.config
 
