@@ -1,15 +1,15 @@
 """
-Email service using Resend SDK.
+Email service using Brevo (formerly Sendinblue) API.
 
 Templates live in app/templates/email/. Edit the HTML files there — no Python
 changes needed for copy/layout updates.
 
-When RESEND_API_KEY is not set, all emails are logged to the console instead
+When BREVO_API_KEY is not set, all emails are logged to the console instead
 of being sent. This lets the team develop and test without a live API key.
 """
 
-import os
 import logging
+import httpx
 from pathlib import Path
 from app.config import settings
 
@@ -19,7 +19,6 @@ TEMPLATE_DIR = Path(__file__).parent.parent / "templates" / "email"
 
 
 def _load_template(template_name: str) -> str:
-    """Read a body template file and return its contents."""
     path = TEMPLATE_DIR / template_name
     if not path.exists():
         raise FileNotFoundError(f"Email template not found: {path}")
@@ -27,7 +26,6 @@ def _load_template(template_name: str) -> str:
 
 
 def _load_base(subject: str, body_content: str) -> str:
-    """Inject body content into the base layout."""
     base = _load_template("base.html")
 
     if settings.LOGO_URL:
@@ -45,7 +43,6 @@ def _load_base(subject: str, body_content: str) -> str:
 
 
 def _render(template_name: str, variables: dict) -> str:
-    """Load a body template, substitute variables, then wrap in base layout."""
     body = _load_template(template_name)
     for key, value in variables.items():
         body = body.replace("{{" + key + "}}", str(value))
@@ -55,28 +52,37 @@ def _render(template_name: str, variables: dict) -> str:
 
 def _send(to_email: str, subject: str, html: str) -> None:
     """
-    Send an email via Resend, or log to console if API key not configured.
-    Drop your RESEND_API_KEY into .env and this will start sending live emails
+    Send an email via Brevo, or log to console if API key not configured.
+    Drop your BREVO_API_KEY into .env and this will start sending live emails
     with no other code changes.
     """
-    if not settings.RESEND_API_KEY:
+    if not settings.BREVO_API_KEY:
         logger.warning(
-            "RESEND_API_KEY not set — email not sent. Would have sent to: %s | Subject: %s",
+            "BREVO_API_KEY not set — email not sent. Would have sent to: %s | Subject: %s",
             to_email,
             subject,
         )
         return
 
-    import resend
-    resend.api_key = settings.RESEND_API_KEY
-
     try:
-        resend.Emails.send({
-            "from": f"{settings.RESEND_FROM_NAME} <{settings.RESEND_FROM_EMAIL}>",
-            "to": [to_email],
-            "subject": subject,
-            "html": html,
-        })
+        response = httpx.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": settings.BREVO_API_KEY,
+                "Content-Type": "application/json",
+            },
+            json={
+                "sender": {
+                    "name": settings.BREVO_FROM_NAME,
+                    "email": settings.BREVO_FROM_EMAIL,
+                },
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html,
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
         logger.info("Email sent to %s — subject: %s", to_email, subject)
     except Exception as exc:
         logger.error("Failed to send email to %s: %s", to_email, exc)
