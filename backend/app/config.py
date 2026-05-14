@@ -13,10 +13,10 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
     ENVIRONMENT: str = "development"
 
-    # Resend — optional until API key is provided
-    RESEND_API_KEY: Optional[str] = None
-    RESEND_FROM_EMAIL: str = "noreply@portlandgas.com"
-    RESEND_FROM_NAME: str = "Portland Gas Operations"
+    # Brevo — optional until API key is provided
+    BREVO_API_KEY: Optional[str] = None
+    BREVO_FROM_EMAIL: str = "ebukaezeanya14@gmail.com"
+    BREVO_FROM_NAME: str = "Portland Gas Operations"
 
     # Database SSL (set to true for cloud databases like Aiven)
     DATABASE_SSL: bool = False

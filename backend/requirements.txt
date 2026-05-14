@@ -1,7 +1,6 @@
 # Python 3.12 required. Run: python --version to confirm before installing.
 fastapi
 slowapi
-resend
 uvicorn[standard]
 sqlalchemy
 alembic
