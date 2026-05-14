@@ -16,8 +16,8 @@ export function useAuth() {
   const router = useRouter();
   const { setUser, setAccessToken } = useAuthStore();
 
-  async function login(email: string, password: string): Promise<User> {
-    const data = await post<LoginResponse>("/api/auth/login", { email, password });
+  async function login(email: string, password: string, remember_me = false): Promise<User> {
+    const data = await post<LoginResponse>("/api/auth/login", { email, password, remember_me });
     await saveTokens(data.access_token);
     setAccessToken(data.access_token);
     setUser(data.user);
@@ -28,7 +28,7 @@ export function useAuth() {
     try {
       await post("/api/auth/logout");
     } catch {
-      // ignore API errors — clear locally regardless
+      // clear locally regardless
     } finally {
       await clearTokens();
       router.push("/login");

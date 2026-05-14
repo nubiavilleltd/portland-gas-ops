@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.routers import (
     auth,
@@ -16,6 +20,9 @@ from app.routers import (
     dashboard,
 )
 
+# Rate limiter — shared instance, routers import this
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Portland Gas Operations API",
     description="Internal ERP API for Portland Gas Limited",
@@ -23,6 +30,10 @@ app = FastAPI(
     docs_url="/api/docs" if settings.ENVIRONMENT == "development" else None,
     redoc_url="/api/redoc" if settings.ENVIRONMENT == "development" else None,
 )
+
+# Attach rate limiter state and handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
