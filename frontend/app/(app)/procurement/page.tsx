@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import Button from "@/components/ui/Button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { ProcurementRequest } from "@/types";
 
@@ -33,9 +33,9 @@ export default function ProcurementPage() {
         title="Purchase Requests"
         description="Manage purchase requisitions and vendor approvals"
         action={
-          <Link href="/procurement/new" className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors">
-            <Plus size={16} /> New Request
-          </Link>
+          <Button href="/procurement/new" leftIcon={<Plus size={16} />}>
+            New Request
+          </Button>
         }
         className="mb-6"
       />

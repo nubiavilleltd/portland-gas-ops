@@ -10,6 +10,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
+import Button from "@/components/ui/Button";
 
 const schema = z.object({
   customer_id: z.string().min(1, "Select a customer"),
@@ -27,7 +28,8 @@ export default function NewOrderPage() {
   const router = useRouter();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  async function onSubmit(_data: FormData) {
+  async function onSubmit(data: FormData) {
+    void data;
     await new Promise((r) => setTimeout(r, 600));
     router.push("/orders");
   }
@@ -47,8 +49,12 @@ export default function NewOrderPage() {
           <FormDatePicker label="Requested Delivery Date" {...register("delivery_date")} />
           <FormTextarea label="Notes" placeholder="Any special delivery instructions…" {...register("notes")} />
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60">{isSubmitting ? "Creating…" : "Create Order"}</button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting} loadingText="Creating...">
+              Create Order
+            </Button>
           </div>
         </form>
       </div>

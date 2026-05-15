@@ -45,3 +45,11 @@ export function initials(name: string): string {
 export function capitalize(str: string): string {
   return str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+export function toTitleCase(str: string): string {
+  return str
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
