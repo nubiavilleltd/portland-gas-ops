@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import Button from "@/components/ui/Button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { GasOrder } from "@/types";
 
@@ -30,9 +30,9 @@ export default function OrdersPage() {
   return (
     <AppLayout pageTitle="Orders & Dispatch">
       <PageHeader title="Gas Orders" description="Track gas orders, dispatch and delivery" action={
-        <Link href="/orders/new" className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors">
-          <Plus size={16} /> New Order
-        </Link>
+        <Button href="/orders/new" leftIcon={<Plus size={16} />}>
+          New Order
+        </Button>
       } className="mb-6" />
       <DataTable columns={columns} data={MOCK} rowHref={(r) => `/orders/${r.id}`} />
     </AppLayout>

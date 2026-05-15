@@ -10,6 +10,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
+import Button from "@/components/ui/Button";
 
 const schema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -38,7 +39,8 @@ export default function NewProcurementPage() {
   const router = useRouter();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  async function onSubmit(_data: FormData) {
+  async function onSubmit(data: FormData) {
+    void data;
     // TODO: call post<ProcurementResponse>("/api/procurement", data)
     await new Promise((r) => setTimeout(r, 600));
     router.push("/procurement");
@@ -61,12 +63,12 @@ export default function NewProcurementPage() {
           <FormDatePicker label="Required By" {...register("required_by")} />
           <FormTextarea label="Description / Justification" placeholder="Describe what is needed and why…" {...register("description")} />
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors">
+            <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel
-            </button>
-            <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60">
-              {isSubmitting ? "Submitting…" : "Submit Request"}
-            </button>
+            </Button>
+            <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+              Submit Request
+            </Button>
           </div>
         </form>
       </div>
