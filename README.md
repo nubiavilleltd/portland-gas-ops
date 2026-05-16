@@ -85,6 +85,17 @@ git push origin feature/your-feature
 ```
 
 ---
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full contribution guide covering:
+
+- Branch naming and workflow
+- How to open a Pull Request
+- Frontend and backend project structure
+- How to add a new feature
+- Commit message conventions
+
+---
 
 ## Deployment
 

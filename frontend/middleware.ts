@@ -5,9 +5,10 @@ const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", 
 
 export function middleware(request: NextRequest) {
   // Dev bypass: set NEXT_PUBLIC_DEV_BYPASS_AUTH=true in .env.local to skip auth
-  if (process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true") {
-    return NextResponse.next();
-  }
+  return NextResponse.next();
+  // if (process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true") {
+  //   return NextResponse.next();
+  // }
 
   const { pathname } = request.nextUrl;
 
