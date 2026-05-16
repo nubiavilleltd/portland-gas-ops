@@ -1,27 +1,231 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import Button from "@/components/ui/Button";
+import ApprovalBadge from "@/components/ui/ApprovalBadge";
 
-import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 
-import Button from "@/components/ui/Button";
-
+import { dispatches } from "@/lib/mock/dispatches";
 import { formatCurrency } from "@/lib/utils";
+
+type DeliveryStatus =
+  | "assigned"
+  | "in_transit"
+  | "delivered"
+  | "failed";
+
+type DispatchForm = {
+  driver_id: string;
+  vehicle_id: string;
+  dispatch_date: string;
+  estimated_delivery_date: string;
+  delivery_status: DeliveryStatus;
+  notes: string;
+};
+
+const DRIVER_OPTIONS = [
+  {
+    value: "musa",
+    label: "Musa Abdullahi",
+  },
+
+  {
+    value: "john",
+    label: "John Okafor",
+  },
+
+  {
+    value: "ibrahim",
+    label: "Ibrahim Bello",
+  },
+];
+
+const VEHICLE_OPTIONS = [
+  {
+    value: "trk-001",
+    label: "LNG-TRK-001",
+  },
+
+  {
+    value: "trk-002",
+    label: "LNG-TRK-002",
+  },
+
+  {
+    value: "trk-003",
+    label: "LNG-TRK-003",
+  },
+];
+
+const STATUS_CONFIG: Record<
+  DeliveryStatus,
+  {
+    label: string;
+    badgeStatus:
+      | "pending"
+      | "approved"
+      | "rejected"
+      | "in_progress"
+      | "draft";
+  }
+> = {
+  assigned: {
+    label: "Assigned",
+    badgeStatus: "pending",
+  },
+
+  in_transit: {
+    label: "In Transit",
+    badgeStatus: "in_progress",
+  },
+
+  delivered: {
+    label: "Delivered",
+    badgeStatus: "approved",
+  },
+
+  failed: {
+    label: "Failed Delivery",
+    badgeStatus: "rejected",
+  },
+};
 
 export default function DispatchOrderPage() {
   const router = useRouter();
+
+  // Later from route params
+  const orderId = "1";
+
+  const existingDispatch = dispatches.find(
+    (dispatch) => dispatch.order_id === orderId
+  );
+
+  const [form, setForm] = useState<DispatchForm>({
+    driver_id: existingDispatch?.driver_id || "",
+
+    vehicle_id: existingDispatch?.vehicle_id || "",
+
+    dispatch_date:
+      existingDispatch?.dispatch_date || "",
+
+    estimated_delivery_date:
+      existingDispatch?.estimated_delivery_date || "",
+
+    delivery_status:
+      (existingDispatch?.delivery_status as DeliveryStatus) ||
+      "assigned",
+
+    notes:
+      existingDispatch?.notes || "",
+  });
+
+  const isCompleted =
+    form.delivery_status === "delivered";
+
+  const isFailed =
+    form.delivery_status === "failed";
+
+  const disableDispatchFields =
+    isCompleted;
+
+  function updateField<K extends keyof DispatchForm>(
+    field: K,
+    value: DispatchForm[K]
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  function handleSaveDispatch() {
+    console.log("CREATE DISPATCH", form);
+
+    // Later:
+    // POST /dispatches
+
+    router.push(`/orders/${orderId}`);
+  }
+
+  function handleUpdateDispatch() {
+    console.log("UPDATE DISPATCH", form);
+
+    // Later:
+    // PUT /dispatches/:id
+
+    router.push(`/orders/${orderId}`);
+  }
+
+  function handleMarkInTransit() {
+    updateField(
+      "delivery_status",
+      "in_transit"
+    );
+
+    console.log("STATUS => IN TRANSIT");
+
+    // Later:
+    // PATCH /dispatches/:id/status
+  }
+
+  function handleMarkDelivered() {
+    updateField(
+      "delivery_status",
+      "delivered"
+    );
+
+    console.log("STATUS => DELIVERED");
+
+    // Later:
+    // PATCH /dispatches/:id/status
+  }
+
+  function handleMarkFailed() {
+    updateField(
+      "delivery_status",
+      "failed"
+    );
+
+    console.log("STATUS => FAILED");
+
+    // Later:
+    // PATCH /dispatches/:id/status
+  }
+
+  function handleRetryTransit() {
+    updateField(
+      "delivery_status",
+      "in_transit"
+    );
+
+    console.log("STATUS => RETRY TRANSIT");
+
+    // Later:
+    // PATCH /dispatches/:id/status
+  }
+
+  const statusMeta = useMemo(() => {
+    return STATUS_CONFIG[
+      form.delivery_status
+    ];
+  }, [form.delivery_status]);
 
   return (
     <AppLayout pageTitle="Dispatch Order">
 
       <PageHeader
-        title="Dispatch Order"
+        title={
+          existingDispatch
+            ? "Update Dispatch"
+            : "Create Dispatch"
+        }
         description="Assign logistics and manage delivery workflow"
         className="mb-6"
       />
@@ -31,9 +235,25 @@ export default function DispatchOrderPage() {
         {/* ORDER SUMMARY */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
 
-          <h2 className="text-base font-semibold mb-5">
-            Order Summary
-          </h2>
+          <div className="flex items-start justify-between mb-6">
+
+            <div>
+
+              <h2 className="text-base font-semibold">
+                Order Summary
+              </h2>
+
+              <p className="text-sm text-brand-text-secondary mt-1">
+                Logistics dispatch workflow
+              </p>
+
+            </div>
+
+            <ApprovalBadge
+              status={statusMeta.badgeStatus}
+            />
+
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 text-sm">
 
@@ -84,91 +304,88 @@ export default function DispatchOrderPage() {
         {/* DISPATCH INFORMATION */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
 
-          <h2 className="text-base font-semibold mb-5">
-            Dispatch Information
-          </h2>
+          <div className="flex items-start justify-between mb-6">
+
+            <div>
+
+              <h2 className="text-base font-semibold">
+                Dispatch Information
+              </h2>
+
+              <p className="text-sm text-brand-text-secondary mt-1">
+                Driver, vehicle and delivery workflow
+              </p>
+
+            </div>
+
+            <div className="text-right">
+
+              <p className="text-xs text-brand-text-secondary mb-2">
+                Delivery Status
+              </p>
+
+              <ApprovalBadge
+                status={statusMeta.badgeStatus}
+              />
+
+            </div>
+
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
             <FormSelect
               label="Assign Driver"
               required
-              options={[
-                {
-                  value: "musa",
-                  label: "Musa Abdullahi",
-                },
-
-                {
-                  value: "john",
-                  label: "John Okafor",
-                },
-
-                {
-                  value: "ibrahim",
-                  label: "Ibrahim Bello",
-                },
-              ]}
+              disabled={disableDispatchFields}
+              value={form.driver_id}
+              onChange={(e) =>
+                updateField(
+                  "driver_id",
+                  e.target.value
+                )
+              }
+              options={DRIVER_OPTIONS}
             />
 
             <FormSelect
               label="Assign Vehicle"
               required
-              options={[
-                {
-                  value: "trk-001",
-                  label: "LNG-TRK-001",
-                },
-
-                {
-                  value: "trk-002",
-                  label: "LNG-TRK-002",
-                },
-
-                {
-                  value: "trk-003",
-                  label: "LNG-TRK-003",
-                },
-              ]}
+              disabled={disableDispatchFields}
+              value={form.vehicle_id}
+              onChange={(e) =>
+                updateField(
+                  "vehicle_id",
+                  e.target.value
+                )
+              }
+              options={VEHICLE_OPTIONS}
             />
 
             <FormDatePicker
               label="Dispatch Date"
+              disabled={disableDispatchFields}
+              value={form.dispatch_date}
+              onChange={(value) =>
+                updateField(
+                  "dispatch_date",
+                  value
+                )
+              }
             />
 
             <FormDatePicker
               label="Estimated Delivery Date"
-            />
-
-            <FormSelect
-              label="Delivery Status"
-              required
-              options={[
-                {
-                  value: "assigned",
-                  label: "Assigned",
-                },
-
-                {
-                  value: "dispatched",
-                  label: "Dispatched",
-                },
-
-                {
-                  value: "in_transit",
-                  label: "In Transit",
-                },
-
-                {
-                  value: "delivered",
-                  label: "Delivered",
-                },
-
-                {
-                  value: "failed",
-                  label: "Failed Delivery",
-                },
-              ]}
+              disabled={disableDispatchFields}
+              value={
+                form.estimated_delivery_date
+              }
+              onChange={(value) =>
+                updateField(
+                  "estimated_delivery_date",
+                  value
+                )
+              }
             />
 
           </div>
@@ -178,13 +395,21 @@ export default function DispatchOrderPage() {
             <FormTextarea
               label="Dispatch Notes"
               placeholder="Driver instructions, delivery notes, customer directions..."
+              disabled={disableDispatchFields}
+              value={form.notes}
+              onChange={(e) =>
+                updateField(
+                  "notes",
+                  e.target.value
+                )
+              }
             />
 
           </div>
 
         </div>
 
-        {/* DELIVERY LOCATION */}
+        {/* DELIVERY INFORMATION */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
 
           <h2 className="text-base font-semibold mb-5">
@@ -219,7 +444,7 @@ export default function DispatchOrderPage() {
         </div>
 
         {/* ACTIONS */}
-        <div className="flex items-center justify-end gap-3 pb-10">
+        <div className="flex items-center justify-end gap-3 pb-10 flex-wrap">
 
           <Button
             variant="outline"
@@ -228,13 +453,99 @@ export default function DispatchOrderPage() {
             Cancel
           </Button>
 
-          <Button variant="secondary">
-            Save Dispatch
-          </Button>
+          {!existingDispatch && (
+            <Button
+              variant="secondary"
+              onClick={handleSaveDispatch}
+            >
+              Save Dispatch
+            </Button>
+          )}
 
-          <Button>
-            Mark In Transit
-          </Button>
+          {existingDispatch && !isCompleted && (
+            <Button
+              variant="secondary"
+              onClick={handleUpdateDispatch}
+            >
+              Update Dispatch
+            </Button>
+          )}
+
+          {/* ASSIGNED */}
+          {existingDispatch &&
+            form.delivery_status ===
+              "assigned" && (
+              <Button
+                onClick={
+                  handleMarkInTransit
+                }
+              >
+                Mark In Transit
+              </Button>
+            )}
+
+          {/* IN TRANSIT */}
+          {existingDispatch &&
+            form.delivery_status ===
+              "in_transit" && (
+              <>
+                <Button
+                  onClick={
+                    handleMarkDelivered
+                  }
+                >
+                  Mark Delivered
+                </Button>
+
+                <Button
+                  variant="danger"
+                  onClick={
+                    handleMarkFailed
+                  }
+                >
+                  Mark Failed
+                </Button>
+              </>
+            )}
+
+          {/* FAILED */}
+          {existingDispatch &&
+            isFailed && (
+              <Button
+                onClick={
+                  handleRetryTransit
+                }
+              >
+                Retry Transit
+              </Button>
+            )}
+
+          {/* DELIVERED */}
+          {existingDispatch &&
+            isCompleted && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    router.push(
+                      `/invoices/new?orderId=${orderId}`
+                    )
+                  }
+                >
+                  Generate Invoice
+                </Button>
+
+                <Button
+                  onClick={() =>
+                    router.push(
+                      `/payments/new?orderId=${orderId}`
+                    )
+                  }
+                >
+                  Record Payment
+                </Button>
+              </>
+            )}
 
         </div>
 
