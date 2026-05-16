@@ -1,5 +1,6 @@
 export * from "./user";
 export * from "./approval";
+export * from "./vendor";
 export * from "./procurement";
 export * from "./fleet";
 export * from "./asset";

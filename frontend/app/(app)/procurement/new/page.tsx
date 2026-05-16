@@ -1,75 +1,715 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Plus, Trash2, Paperclip, X, ChevronDown, UserPlus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
+import { useCreateProcurement } from "@/hooks/useProcurement";
+import { useVendors, useCreateVendor } from "@/hooks/useVendors";
+import { useToast } from "@/hooks/useToast";
+import { formatCurrency } from "@/lib/utils";
+import type { ProcurementCategory, ProcurementPriority, ItemUnit } from "@/types";
+
+// ── Zod schema ─────────────────────────────────────────────────────────────────
+
+const itemSchema = z.object({
+  description: z.string().min(1, "Description is required").max(500, "Max 500 characters"),
+  quantity: z.string()
+    .min(1, "Required")
+    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, "Must be greater than 0"),
+  unit: z.string().min(1, "Required"),
+  unit_cost: z.string()
+    .min(1, "Required")
+    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, "Must be greater than 0"),
+  total_cost: z.string(),
+});
+
+const MAX_FILE_MB = 10;
+const ALLOWED_FILE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/png",
+  "image/jpeg",
+];
 
 const schema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  department: z.string().min(1, "Select a department"),
-  estimated_amount: z.string().optional(),
-  vendor_name: z.string().optional(),
-  vendor_contact: z.string().optional(),
+  title: z.string().min(3, "Title must be at least 3 characters").max(255, "Max 255 characters"),
+  category: z.string().min(1, "Select a category"),
+  priority: z.string().min(1, "Select priority"),
+  justification: z.string().max(2000, "Max 2000 characters").optional(),
   required_by: z.string().optional(),
-  description: z.string().optional(),
+  vendor_id: z.string().optional(),
+  items: z.array(itemSchema).min(1, "Add at least one item"),
 });
 
 type FormData = z.infer<typeof schema>;
 
-const deptOptions = [
-  { value: "operations", label: "Operations" },
-  { value: "finance", label: "Finance" },
-  { value: "safety", label: "Safety" },
-  { value: "hr", label: "HR" },
+// ── Options ────────────────────────────────────────────────────────────────────
+
+const categoryOptions = [
+  { value: "consumables", label: "Consumables" },
+  { value: "technical", label: "Technical" },
+  { value: "services", label: "Services" },
+  { value: "capital", label: "Capital" },
+];
+
+const priorityOptions = [
+  { value: "routine", label: "Routine" },
+  { value: "urgent", label: "Urgent" },
+  { value: "emergency", label: "Emergency" },
+];
+
+const vendorCategoryOptions = [
+  { value: "equipment", label: "Equipment" },
+  { value: "ppe", label: "PPE" },
+  { value: "technical", label: "Technical" },
+  { value: "consumables", label: "Consumables" },
+  { value: "food_beverage", label: "Food & Beverage" },
+  { value: "services", label: "Services" },
   { value: "it", label: "IT" },
   { value: "logistics", label: "Logistics" },
-  { value: "executive", label: "Executive" },
-  { value: "engineering", label: "Engineering" },
 ];
+
+const unitOptions = [
+  { value: "pieces", label: "Pieces" },
+  { value: "litres", label: "Litres" },
+  { value: "kg", label: "KG" },
+  { value: "boxes", label: "Boxes" },
+  { value: "metres", label: "Metres" },
+  { value: "hours", label: "Hours" },
+  { value: "sets", label: "Sets" },
+  { value: "cartons", label: "Cartons" },
+  { value: "units", label: "Units" },
+];
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export default function NewProcurementPage() {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const toast = useToast();
+  const createMutation = useCreateProcurement();
+  const createVendorMutation = useCreateVendor();
+  const { data: vendors = [] } = useVendors();
 
-  async function onSubmit(_data: FormData) {
-    // TODO: call post<ProcurementResponse>("/api/procurement", data)
-    await new Promise((r) => setTimeout(r, 600));
-    router.push("/procurement");
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [vendorSearch, setVendorSearch] = useState("");
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [selectedVendorName, setSelectedVendorName] = useState<string>("");
+
+  // "select" | "create" — which vendor mode is active
+  const [vendorMode, setVendorMode] = useState<"select" | "create">("select");
+  const [newVendor, setNewVendor] = useState({
+    name: "", category: "", phone: "", email: "", address: "",
+    contact_person: "",
+  });
+  const [newVendorErrors, setNewVendorErrors] = useState<Record<string, string>>({});
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      priority: "routine",
+      items: [{ description: "", quantity: "1", unit: "pieces", unit_cost: "0", total_cost: "0" }],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  const watchedItems = watch("items");
+
+  // Auto-calculate total_cost when qty or unit_cost changes
+  const updateTotal = useCallback(
+    (index: number) => {
+      const qty = parseFloat(watchedItems[index]?.quantity ?? "0") || 0;
+      const cost = parseFloat(watchedItems[index]?.unit_cost ?? "0") || 0;
+      setValue(`items.${index}.total_cost`, String(qty * cost));
+    },
+    [watchedItems, setValue]
+  );
+
+  const grandTotal = watchedItems.reduce((sum, item) => sum + (parseFloat(item.total_cost) || 0), 0);
+
+  // Vendor picker helpers
+  const filteredVendors = vendors.filter((v) =>
+    v.name.toLowerCase().includes(vendorSearch.toLowerCase())
+  );
+
+  function selectVendor(id: string, name: string) {
+    setValue("vendor_id", id);
+    setSelectedVendorName(name);
+    setVendorDropdownOpen(false);
+    setVendorSearch("");
+  }
+
+  function clearVendor() {
+    setValue("vendor_id", "");
+    setSelectedVendorName("");
+  }
+
+  async function saveNewVendor() {
+    const errs: Record<string, string> = {};
+    if (!newVendor.name.trim()) errs.name = "Vendor name is required";
+    if (!newVendor.category) errs.category = "Category is required";
+    if (Object.keys(errs).length) { setNewVendorErrors(errs); return; }
+    setNewVendorErrors({});
+
+    try {
+      const created = await createVendorMutation.mutateAsync({
+        name: newVendor.name.trim(),
+        category: newVendor.category,
+        contact_person: newVendor.contact_person || undefined,
+        phone: newVendor.phone || undefined,
+        email: newVendor.email || undefined,
+        address: newVendor.address || undefined,
+      } as never);
+      selectVendor(created.id, created.name);
+      setVendorMode("select");
+      setNewVendor({ name: "", category: "", phone: "", email: "", address: "", contact_person: "" });
+      toast.success(`Vendor "${created.name}" created and selected`);
+    } catch {
+      toast.error("Failed to create vendor. Please try again.");
+    }
+  }
+
+  async function onSubmit(formData: FormData) {
+    try {
+      await createMutation.mutateAsync({
+        data: {
+          title: formData.title,
+          category: formData.category as ProcurementCategory,
+          priority: formData.priority as ProcurementPriority,
+          justification: formData.justification,
+          required_by: formData.required_by || undefined,
+          vendor_id: formData.vendor_id || undefined,
+          items: formData.items.map((item) => ({
+            description: item.description,
+            quantity: parseFloat(item.quantity) || 0,
+            unit: item.unit as ItemUnit,
+            unit_cost: parseFloat(item.unit_cost) || 0,
+            total_cost: parseFloat(item.total_cost) || 0,
+          })),
+        },
+        file: attachedFile,
+      });
+      toast.success("Purchase request submitted successfully");
+      router.push("/procurement");
+    } catch {
+      toast.error("Failed to submit request. Please try again.");
+    }
   }
 
   return (
     <AppLayout pageTitle="Procurement">
-      <PageHeader title="New Purchase Request" description="Submit a new procurement requisition for approval" className="mb-6" />
-      <div className="bg-white border border-brand-border rounded-2xl p-6 max-w-2xl">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <FormInput label="Request Title" required placeholder="e.g. Generator fuel supply — Q3 2024" error={errors.title?.message} {...register("title")} />
-          <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Department" required options={deptOptions} placeholder="Select department" error={errors.department?.message} {...register("department")} />
-            <FormInput label="Estimated Amount (₦)" type="number" placeholder="0.00" error={errors.estimated_amount?.message} {...register("estimated_amount")} />
+      <PageHeader
+        title="New Purchase Request"
+        description="Fill in the details below and submit for procurement review"
+        className="mb-6"
+      />
+
+      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
+
+        {/* ── Section 1: Request Details ───────────────────────────────────── */}
+        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
+            <h2 className="text-sm font-semibold text-brand-text-primary">Request Details</h2>
+            <p className="text-xs text-brand-text-secondary mt-0.5">Basic information about this purchase request</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Vendor Name" placeholder="e.g. Total Energies Nigeria" {...register("vendor_name")} />
-            <FormInput label="Vendor Contact" placeholder="email or phone" {...register("vendor_contact")} />
+          <div className="p-6 space-y-5">
+            <FormInput
+              label="Request Title"
+              required
+              placeholder="e.g. Generator fuel supply — Q3 2025"
+              error={errors.title?.message}
+              {...register("title")}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormSelect
+                label="Category"
+                required
+                options={categoryOptions}
+                placeholder="Select category"
+                error={errors.category?.message}
+                {...register("category")}
+              />
+              <FormSelect
+                label="Priority"
+                required
+                options={priorityOptions}
+                error={errors.priority?.message}
+                {...register("priority")}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormDatePicker label="Required By" {...register("required_by")} />
+            </div>
+            <FormTextarea
+              label="Justification / Purpose"
+              placeholder="Describe what is needed and why — this appears on the Purchase Order document"
+              rows={3}
+              {...register("justification")}
+            />
           </div>
-          <FormDatePicker label="Required By" {...register("required_by")} />
-          <FormTextarea label="Description / Justification" placeholder="Describe what is needed and why…" {...register("description")} />
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors">
-              Cancel
+        </div>
+
+        {/* ── Section 2: Vendor ────────────────────────────────────────────── */}
+        {/* No overflow-hidden — dropdown needs to escape the card boundary */}
+        <div className="bg-white border border-brand-border rounded-2xl">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-brand-text-primary">Vendor</h2>
+              <p className="text-xs text-brand-text-secondary mt-0.5">Optional — select an existing vendor or add a new one</p>
+            </div>
+            {/* Toggle between select and create */}
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                type="button"
+                onClick={() => setVendorMode("select")}
+                className={["px-3 py-1 text-xs font-medium rounded-md transition-colors", vendorMode === "select" ? "bg-white text-brand-text-primary shadow-sm" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}
+              >
+                Select existing
+              </button>
+              <button
+                type="button"
+                onClick={() => setVendorMode("create")}
+                className={["flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors", vendorMode === "create" ? "bg-white text-brand-text-primary shadow-sm" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}
+              >
+                <UserPlus size={11} /> Add new
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {vendorMode === "select" ? (
+              /* ── Select existing vendor ─────────────────────────────────── */
+              <div className="relative">
+                <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor</label>
+
+                {selectedVendorName ? (
+                  <div className="flex items-center justify-between h-10 px-3 rounded-lg border border-brand-border bg-white text-sm text-brand-text-primary">
+                    <span>{selectedVendorName}</span>
+                    <button type="button" onClick={clearVendor} className="text-gray-400 hover:text-gray-600">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div
+                      className="flex items-center h-10 px-3 rounded-lg border border-brand-border bg-white gap-2 cursor-text"
+                      onClick={() => setVendorDropdownOpen(true)}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search vendors…"
+                        value={vendorSearch}
+                        onChange={(e) => { setVendorSearch(e.target.value); setVendorDropdownOpen(true); }}
+                        onFocus={() => setVendorDropdownOpen(true)}
+                        className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+                      />
+                      <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                    </div>
+
+                    {vendorDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setVendorDropdownOpen(false)} />
+                        <div className="absolute z-20 top-full mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden">
+                          {filteredVendors.length === 0 ? (
+                            <div className="px-4 py-3">
+                              <p className="text-sm text-brand-text-secondary">No vendors found</p>
+                              <button
+                                type="button"
+                                className="mt-2 text-xs text-brand-purple font-medium hover:underline"
+                                onClick={() => { setVendorDropdownOpen(false); setVendorMode("create"); if (vendorSearch) setNewVendor((v) => ({ ...v, name: vendorSearch })); }}
+                              >
+                                + Add &quot;{vendorSearch}&quot; as new vendor
+                              </button>
+                            </div>
+                          ) : (
+                            <ul className="max-h-52 overflow-y-auto">
+                              {filteredVendors.map((vendor) => (
+                                <li key={vendor.id}>
+                                  <button
+                                    type="button"
+                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition-colors"
+                                    onClick={() => selectVendor(vendor.id, vendor.name)}
+                                  >
+                                    <span className="font-medium text-brand-text-primary">{vendor.name}</span>
+                                    <span className="ml-2 text-xs text-brand-text-secondary capitalize">
+                                      {vendor.category.replace(/_/g, " ")}
+                                    </span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-brand-text-secondary mt-1">
+                  Vendor details will be included on the Purchase Order PDF
+                </p>
+              </div>
+            ) : (
+              /* ── Create new vendor ──────────────────────────────────────── */
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-brand-text-primary">
+                      Vendor Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Atlas Copco Nigeria"
+                      value={newVendor.name}
+                      onChange={(e) => setNewVendor((v) => ({ ...v, name: e.target.value }))}
+                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                    />
+                    {newVendorErrors.name && <p className="text-xs text-red-600">{newVendorErrors.name}</p>}
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-brand-text-primary">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newVendor.category}
+                      onChange={(e) => setNewVendor((v) => ({ ...v, category: e.target.value }))}
+                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
+                    >
+                      <option value="">Select category</option>
+                      {vendorCategoryOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {newVendorErrors.category && <p className="text-xs text-red-600">{newVendorErrors.category}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-brand-text-primary">Contact Person</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Emeka Okonkwo"
+                      value={newVendor.contact_person}
+                      onChange={(e) => setNewVendor((v) => ({ ...v, contact_person: e.target.value }))}
+                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-brand-text-primary">Phone</label>
+                    <input
+                      type="text"
+                      placeholder="+234 800 000 0000"
+                      value={newVendor.phone}
+                      onChange={(e) => setNewVendor((v) => ({ ...v, phone: e.target.value }))}
+                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-brand-text-primary">Email</label>
+                    <input
+                      type="email"
+                      placeholder="vendor@company.com"
+                      value={newVendor.email}
+                      onChange={(e) => setNewVendor((v) => ({ ...v, email: e.target.value }))}
+                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-brand-text-primary">Address</label>
+                    <input
+                      type="text"
+                      placeholder="Street, City, State"
+                      value={newVendor.address}
+                      onChange={(e) => setNewVendor((v) => ({ ...v, address: e.target.value }))}
+                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={saveNewVendor}
+                    disabled={createVendorMutation.isPending}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
+                  >
+                    {createVendorMutation.isPending ? (
+                      <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <UserPlus size={14} />
+                    )}
+                    {createVendorMutation.isPending ? "Saving…" : "Save & Select Vendor"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVendorMode("select")}
+                    className="text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-xs text-brand-text-secondary">
+                  Bank details can be added later from the Vendors page
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Section 3: Line Items ────────────────────────────────────────── */}
+        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
+            <h2 className="text-sm font-semibold text-brand-text-primary">Line Items</h2>
+            <p className="text-xs text-brand-text-secondary mt-0.5">Add each item being requested — costs are in Nigerian Naira (₦)</p>
+          </div>
+          <div className="p-6">
+            {errors.items?.root && (
+              <p className="text-xs text-red-600 mb-3">{errors.items.root.message}</p>
+            )}
+
+            {/* Items table */}
+            <div className="border border-brand-border rounded-xl overflow-hidden mb-4">
+              {/* Header */}
+              <div className="grid grid-cols-[1fr_80px_100px_120px_120px_40px] gap-0 bg-gray-50 border-b border-brand-border">
+                {["Description", "Qty", "Unit", "Unit Cost (₦)", "Total (₦)", ""].map((h) => (
+                  <div key={h} className="px-3 py-2.5 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
+                    {h}
+                  </div>
+                ))}
+              </div>
+
+              {/* Rows */}
+              {fields.map((field, i) => (
+                <div
+                  key={field.id}
+                  className={[
+                    "grid grid-cols-[1fr_80px_100px_120px_120px_40px] gap-0 border-b border-brand-border last:border-b-0",
+                    i % 2 === 1 ? "bg-gray-50/40" : "bg-white",
+                  ].join(" ")}
+                >
+                  {/* Description */}
+                  <div className="px-3 py-2">
+                    <input
+                      {...register(`items.${i}.description`)}
+                      placeholder="Item description"
+                      className="w-full text-sm outline-none bg-transparent placeholder:text-gray-400"
+                    />
+                    {errors.items?.[i]?.description && (
+                      <p className="text-[10px] text-red-500 mt-0.5">{errors.items[i]?.description?.message}</p>
+                    )}
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="px-3 py-2 border-l border-brand-border/50">
+                    <input
+                      {...register(`items.${i}.quantity`)}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="1"
+                      className={[
+                        "w-full text-sm outline-none bg-transparent placeholder:text-gray-400",
+                        errors.items?.[i]?.quantity ? "text-red-500" : "",
+                      ].join(" ")}
+                      onChange={(e) => {
+                        register(`items.${i}.quantity`).onChange(e);
+                        setTimeout(() => updateTotal(i), 0);
+                      }}
+                    />
+                    {errors.items?.[i]?.quantity && (
+                      <p className="text-[10px] text-red-500 mt-0.5">{errors.items[i]?.quantity?.message}</p>
+                    )}
+                  </div>
+
+                  {/* Unit */}
+                  <div className="px-2 py-2 border-l border-brand-border/50">
+                    <select
+                      {...register(`items.${i}.unit`)}
+                      className="w-full text-sm outline-none bg-transparent"
+                    >
+                      {unitOptions.map((u) => (
+                        <option key={u.value} value={u.value}>{u.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Unit Cost */}
+                  <div className="px-3 py-2 border-l border-brand-border/50">
+                    <input
+                      {...register(`items.${i}.unit_cost`)}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      className={[
+                        "w-full text-sm outline-none bg-transparent placeholder:text-gray-400",
+                        errors.items?.[i]?.unit_cost ? "text-red-500" : "",
+                      ].join(" ")}
+                      onChange={(e) => {
+                        register(`items.${i}.unit_cost`).onChange(e);
+                        setTimeout(() => updateTotal(i), 0);
+                      }}
+                    />
+                    {errors.items?.[i]?.unit_cost && (
+                      <p className="text-[10px] text-red-500 mt-0.5">{errors.items[i]?.unit_cost?.message}</p>
+                    )}
+                  </div>
+
+                  {/* Total */}
+                  <div className="px-3 py-2 border-l border-brand-border/50 flex items-center">
+                    <span className="text-sm text-brand-text-primary">
+                      {parseFloat(watchedItems[i]?.total_cost ?? "0") > 0
+                        ? formatCurrency(parseFloat(watchedItems[i].total_cost))
+                        : "—"}
+                    </span>
+                  </div>
+
+                  {/* Remove */}
+                  <div className="flex items-center justify-center border-l border-brand-border/50">
+                    {fields.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => remove(i)}
+                        className="text-gray-300 hover:text-red-400 transition-colors p-1"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Grand total row */}
+              <div className="grid grid-cols-[1fr_80px_100px_120px_120px_40px] gap-0 bg-brand-purple/5 border-t-2 border-brand-purple/20">
+                <div className="col-span-4 px-3 py-2.5 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
+                  Estimated Total
+                </div>
+                <div className="px-3 py-2.5 font-semibold text-sm text-brand-purple">
+                  {formatCurrency(grandTotal)}
+                </div>
+                <div />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => append({ description: "", quantity: "1", unit: "pieces", unit_cost: "0", total_cost: "0" })}
+              className="flex items-center gap-2 text-sm text-brand-purple hover:text-brand-purple-dark transition-colors font-medium"
+            >
+              <Plus size={15} /> Add Item
             </button>
-            <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60">
-              {isSubmitting ? "Submitting…" : "Submit Request"}
-            </button>
           </div>
-        </form>
-      </div>
+        </div>
+
+        {/* ── Section 4: Attachment ────────────────────────────────────────── */}
+        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
+            <h2 className="text-sm font-semibold text-brand-text-primary">Supporting Document</h2>
+            <p className="text-xs text-brand-text-secondary mt-0.5">Optional — attach a quote, spec sheet, or any supporting file</p>
+          </div>
+          <div className="p-6">
+            {attachedFile ? (
+              <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl">
+                <Paperclip size={14} className="text-brand-purple shrink-0" />
+                <span className="text-sm text-brand-text-primary flex-1 truncate">{attachedFile.name}</span>
+                <span className="text-xs text-brand-text-secondary">
+                  {(attachedFile.size / 1024).toFixed(0)} KB
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setAttachedFile(null); setFileError(null); }}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-brand-border rounded-xl py-8 cursor-pointer hover:border-brand-purple hover:bg-purple-50/30 transition-colors">
+                <Paperclip size={20} className="text-gray-400" />
+                <p className="text-sm text-brand-text-secondary">
+                  <span className="text-brand-purple font-medium">Click to attach</span> or drag and drop
+                </p>
+                <p className="text-xs text-gray-400">PDF, Word, Excel, images — max 10 MB</p>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    if (file) {
+                      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+                        setFileError("File type not allowed. Use PDF, Word, Excel, PNG or JPG.");
+                        e.target.value = "";
+                        return;
+                      }
+                      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+                        setFileError(`File too large. Maximum size is ${MAX_FILE_MB} MB.`);
+                        e.target.value = "";
+                        return;
+                      }
+                    }
+                    setFileError(null);
+                    setAttachedFile(file);
+                  }}
+                />
+              </label>
+            )}
+            {fileError && (
+              <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
+                <span>⚠</span> {fileError}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Actions ──────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between py-2">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || createMutation.isPending || !!fileError}
+            className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {createMutation.isPending ? (
+              <>
+                <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Submitting…
+              </>
+            ) : (
+              "Submit Purchase Request"
+            )}
+          </button>
+        </div>
+      </form>
     </AppLayout>
   );
 }

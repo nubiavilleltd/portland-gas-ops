@@ -6,7 +6,7 @@ import logo from "@/public/Portland-gas-logo.png";
 import { usePathname } from "next/navigation";
 import {
   Home, ShoppingCart, Package, Receipt, Truck, Wrench,
-  ShieldCheck, AlertTriangle, BarChart3, Users, Settings, LogOut, X,
+  ShieldCheck, AlertTriangle, BarChart3, Users, Settings, LogOut, X, Store,
 } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -32,6 +32,7 @@ const navGroups: NavGroup[] = [
     group: "OPERATIONS",
     items: [
       { label: "Procurement", href: "/procurement", icon: ShoppingCart },
+      { label: "Vendors", href: "/vendors", icon: Store },
       { label: "Orders", href: "/orders", icon: Package },
       { label: "Billing", href: "/billing", icon: Receipt },
       { label: "Fleet", href: "/fleet", icon: Truck },

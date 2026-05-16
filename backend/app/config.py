@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # Database SSL (set to true for cloud databases like Aiven)
     DATABASE_SSL: bool = False
 
+    # Cloudinary — file & PDF storage
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
+
     # Publicly accessible URL for the logo used in email templates
     # In production set this to your Vercel URL e.g. https://yourapp.vercel.app
     LOGO_URL: Optional[str] = None
