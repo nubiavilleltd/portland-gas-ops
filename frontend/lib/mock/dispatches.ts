@@ -1,4 +1,6 @@
-export const dispatches = [
+import { type DispatchForm } from "../modules/dispatch/types/dispatch.types";
+
+export const dispatches : DispatchForm[] = [
   {
     id: "d1",
 

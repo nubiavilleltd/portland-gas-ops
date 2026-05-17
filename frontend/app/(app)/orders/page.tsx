@@ -174,12 +174,6 @@
 //   );
 // }
 
-
-
-
-
-
-
 "use client";
 
 import { Plus } from "lucide-react";
@@ -191,19 +185,11 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import KpiCard from "@/components/ui/KpiCard";
 
-import {
-  formatCurrency,
-  formatDate,
-} from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
-import {
-  orders,
-  type Order,
-} from "@/lib/mock/orders";
+import { orders, type Order } from "@/lib/mock/orders";
 
-import {
-  getOrderKPIs,
-} from "@/lib/modules/orders/orders.selectors";
+import { getOrderKPIs } from "@/lib/modules/orders/selectors/orders.selectors";
 
 /* -------------------------------------------
    TABLE CONFIG (UI ONLY)
@@ -240,9 +226,7 @@ const columns: Column<Order>[] = [
   {
     key: "status",
     label: "Status",
-    render: (v) => (
-      <ApprovalBadge status={v as Order["status"]} />
-    ),
+    render: (v) => <ApprovalBadge status={v as Order["status"]} />,
   },
 ];
 
@@ -255,7 +239,6 @@ export default function OrdersPage() {
 
   return (
     <AppLayout pageTitle="Orders">
-
       {/* HEADER */}
       <PageHeader
         title="Orders"
@@ -273,7 +256,6 @@ export default function OrdersPage() {
 
       {/* KPI CARDS (UI ONLY) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-
         <KpiCard
           label="Total Orders"
           value={kpis.totalOrders}
@@ -293,7 +275,6 @@ export default function OrdersPage() {
           label="Total Revenue"
           value={formatCurrency(kpis.totalRevenue)}
         />
-
       </div>
 
       {/* TABLE */}
@@ -302,7 +283,6 @@ export default function OrdersPage() {
         data={orders}
         rowHref={(r) => `/orders/${r.id}`}
       />
-
     </AppLayout>
   );
 }
