@@ -115,17 +115,26 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
     );
 
     const selectedValue = isControlled ? String(value ?? "") : internalValue;
-    const selectedDate = parseDate(selectedValue);
+    const selectedDate = useMemo(() => parseDate(selectedValue), [selectedValue]);
     const [viewDate, setViewDate] = useState<Date>(selectedDate ?? today);
 
-    const minDate = parseDate(typeof min === "string" ? min : undefined);
-    const maxDate = parseDate(typeof max === "string" ? max : undefined);
+    const minValue = typeof min === "string" ? min : undefined;
+    const maxValue = typeof max === "string" ? max : undefined;
+    const minDate = useMemo(() => parseDate(minValue), [minValue]);
+    const maxDate = useMemo(() => parseDate(maxValue), [maxValue]);
 
     useEffect(() => {
-      if (selectedDate) {
-        setViewDate(selectedDate);
-      }
-    }, [selectedValue, selectedDate]);
+      if (!selectedDate) return;
+
+      setViewDate((current) => {
+        const sameVisibleDate =
+          current.getFullYear() === selectedDate.getFullYear() &&
+          current.getMonth() === selectedDate.getMonth() &&
+          current.getDate() === selectedDate.getDate();
+
+        return sameVisibleDate ? current : selectedDate;
+      });
+    }, [selectedDate]);
 
     useEffect(() => {
       if (!open) return;

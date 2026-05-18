@@ -20,6 +20,7 @@ const moduleGroups = [
     modules: [
       { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
       { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
+      { name: "Procurement", description: "Purchase requests & vendor management", icon: ShoppingCart, href: "/procurement" },
       { name: "Assets", description: "Equipment & maintenance scheduling", icon: Wrench, href: "/assets" },
     ],
   },
@@ -27,7 +28,6 @@ const moduleGroups = [
     title: "Finance",
     fullWidth: true,
     modules: [
-      { name: "Procurement", description: "Purchase requests & vendor management", icon: ShoppingCart, href: "/procurement" },
       { name: "Billing", description: "Invoices & payment tracking", icon: Receipt, href: "/billing" },
       { name: "Finance", description: "Budgets, expenses & reports", icon: BarChart3, href: "/finance" },
     ],
@@ -44,6 +44,11 @@ const moduleGroups = [
     fullWidth: true,
     modules: [
       { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr" },
+    ],
+  },
+  {
+    title: "Administration",
+    modules: [
       { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
     ],
   },
