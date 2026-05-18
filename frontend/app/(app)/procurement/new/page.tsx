@@ -226,8 +226,8 @@ export default function NewProcurementPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
 
         {/* ── Section 1: Request Details ───────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
+        <div className="bg-white border border-brand-border rounded-2xl">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <h2 className="text-sm font-semibold text-brand-text-primary">Request Details</h2>
             <p className="text-xs text-brand-text-secondary mt-0.5">Basic information about this purchase request</p>
           </div>
