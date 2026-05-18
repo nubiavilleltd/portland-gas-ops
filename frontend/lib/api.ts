@@ -124,4 +124,15 @@ export async function del<T>(url: string): Promise<T> {
   return res.data;
 }
 
+/**
+ * Send a multipart/form-data POST (for endpoints that accept file uploads).
+ * Axios automatically sets Content-Type: multipart/form-data when passed a FormData object.
+ */
+export async function postForm<T>(url: string, formData: FormData): Promise<T> {
+  const res = await api.post<T>(url, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
 export default api;

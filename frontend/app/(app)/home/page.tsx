@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   ShoppingCart, Package, Receipt, Truck, Wrench,
-  ShieldCheck, AlertTriangle, BarChart3, Users, Settings,
+  ShieldCheck, AlertTriangle, BarChart3, Users, Settings, Store,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ModuleCard from "@/components/ui/ModuleCard";
@@ -21,6 +21,7 @@ const moduleGroups = [
       { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
       { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
       { name: "Assets", description: "Equipment & maintenance scheduling", icon: Wrench, href: "/assets" },
+      { name: "Vendors", description: "Suppliers & service providers", icon: Store, href: "/vendors" },
     ],
   },
   {
