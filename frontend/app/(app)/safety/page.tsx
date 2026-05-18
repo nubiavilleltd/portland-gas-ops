@@ -24,7 +24,7 @@ const safetyProcesses = [
   {
     title: "Incident & Hazard Report",
     description: "Report incidents, hazards, near misses, and HSE corrective actions",
-    href: "/safety/incident-hazard",
+    href: "/safety/incidents",
     icon: <AlertTriangle className="h-5 w-5 md:h-6 md:w-6" />,
   },
   {

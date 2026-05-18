@@ -1,19 +1,23 @@
+import { Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
+import Button from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
+import IncidentHazardReportsTable from "../components/IncidentHazardReportsTable";
 
-export default function IncidentsPage() {
+export default function IncidentHazardPage() {
   return (
-    <AppLayout pageTitle="Incidents">
+    <AppLayout pageTitle="Incident & Hazard Reports">
       <PageHeader
-        title="Incidents"
-        description="Incident & near-miss reporting"
+        title="Incident & Hazard Reports"
+        description="Report incidents, hazards, near misses, and HSE corrective actions."
+        action={
+          <Button href="/safety/incidents/new" leftIcon={<Plus size={16} />}>
+            Create Incident/Hazard Report
+          </Button>
+        }
+        className="mb-6"
       />
-      <div className="mt-8 flex items-center justify-center p-12 bg-white rounded-xl border border-brand-border">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-brand-text-primary">Coming Soon</h3>
-          <p className="text-brand-text-secondary mt-2">This module is currently under development.</p>
-        </div>
-      </div>
+      <IncidentHazardReportsTable />
     </AppLayout>
   );
 }

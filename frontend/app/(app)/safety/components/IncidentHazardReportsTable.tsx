@@ -49,7 +49,7 @@ export default function IncidentHazardReportsTable() {
     <DataTable
       columns={columns}
       data={mockIncidentHazardReports}
-      rowHref={(report) => `/safety/incident-hazard/${report.id}`}
+      rowHref={(report) => `/safety/incidents/${report.id}`}
       emptyMessage="No incident or hazard reports found."
     />
   );

@@ -70,7 +70,7 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
     setReport((current) => (current ? { ...current, status: "submitted" } : current));
     addAudit({
       action: "Submitted",
-      actor: report.reporter.name,
+      actor: report?.reporter.name,
       role: "Reporter",
       dateTime: "2026-05-18 08:30 AM",
       comment: "Incident/hazard report submitted to HSE.",
@@ -80,8 +80,8 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
   function hseDecision(decision: "Approve/Close" | "Return") {
     const review: IncidentHazardHseReview = {
       inspector: "Samuel Bassey",
-      confirmedReportType: report.reportType || "Hazard",
-      confirmedSeverity: report.severityEstimate || "Medium",
+      confirmedReportType: report?.reportType || "Hazard",
+      confirmedSeverity: report?.severityEstimate || "Medium",
       findings: "HSE reviewed the report and confirmed the reported condition.",
       rootCause: "Initial mock root cause pending deeper investigation.",
       correctiveActionRequired: correctiveActionRequired === "Yes",
@@ -121,7 +121,7 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
     <div className="space-y-5">
       <button
         type="button"
-        onClick={() => router.push("/safety/incident-hazard")}
+        onClick={() => router.push("/safety/incidents")}
         className="flex items-center gap-2 text-sm text-brand-text-secondary transition-colors hover:text-brand-text-primary"
       >
         <ArrowLeft size={14} />
