@@ -17,6 +17,30 @@ export type PermitType =
 export type InspectionStatus = "scheduled" | "in_progress" | "completed" | "overdue";
 export type IncidentSeverity = "minor" | "moderate" | "serious" | "critical";
 export type IncidentStatus = "open" | "under_investigation" | "closed";
+export type WorkAuthorizationStatus =
+  | "draft"
+  | "submitted"
+  | "pending_approval"
+  | "approved"
+  | "returned"
+  | "rejected"
+  | "cancelled";
+
+export interface WorkAuthorizationRequest {
+  id: string;
+  reference: string | null;
+  title: string;
+  requester_name: string;
+  department: string;
+  work_location: string;
+  supervisor: string;
+  priority: "Low" | "Medium" | "High" | "Critical";
+  expected_start: string;
+  expected_end: string;
+  status: WorkAuthorizationStatus;
+  created_at: string;
+  updated_at: string | null;
+}
 
 export interface SafetyPermit {
   id: string;
