@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface Props extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -10,8 +10,31 @@ interface Props extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
 }
 
 const FormTextarea = forwardRef<HTMLTextAreaElement, Props>(
-  ({ label, error, hint, className, id, rows = 4, ...props }, ref) => {
+  (
+    {
+      label,
+      error,
+      hint,
+      className,
+      id,
+      rows = 4,
+      maxLength = 500,
+      value,
+      defaultValue,
+      onChange,
+      readOnly,
+      ...props
+    },
+    ref
+  ) => {
     const textareaId = id ?? label.toLowerCase().replace(/\s+/g, "-");
+    const isControlled = value !== undefined;
+    const [uncontrolledLength, setUncontrolledLength] = useState(() =>
+      defaultValue === undefined ? 0 : String(defaultValue).length
+    );
+    const currentLength = isControlled ? String(value ?? "").length : uncontrolledLength;
+    const shouldBeReadOnly = readOnly ?? (value !== undefined && onChange === undefined);
+
     return (
       <div className="flex flex-col gap-1">
         <label htmlFor={textareaId} className="text-sm font-medium text-brand-text-primary">
@@ -22,15 +45,32 @@ const FormTextarea = forwardRef<HTMLTextAreaElement, Props>(
           ref={ref}
           id={textareaId}
           rows={rows}
+          maxLength={maxLength}
+          value={value}
+          defaultValue={defaultValue}
+          readOnly={shouldBeReadOnly}
           className={cn(
             "rounded-lg border border-brand-border bg-white px-3 py-2 text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow resize-none",
             error && "border-red-400 focus:ring-red-400",
             className
           )}
+          onChange={(event) => {
+            if (!isControlled) {
+              setUncontrolledLength(event.target.value.length);
+            }
+            onChange?.(event);
+          }}
           {...props}
         />
-        {hint && !error && <p className="text-xs text-brand-text-secondary">{hint}</p>}
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            {hint && !error && <p className="text-xs text-brand-text-secondary">{hint}</p>}
+            {error && <p className="text-xs text-red-600">{error}</p>}
+          </div>
+          <p className="ml-auto shrink-0 text-xs text-brand-text-secondary">
+            {currentLength}/{maxLength}
+          </p>
+        </div>
       </div>
     );
   }

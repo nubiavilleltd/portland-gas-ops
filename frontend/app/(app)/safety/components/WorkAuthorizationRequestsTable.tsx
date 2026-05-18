@@ -4,34 +4,47 @@ import { useEffect, useState } from "react";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { fetchWorkAuthorizationRequests } from "@/lib/mock/work-authorization-api";
-import { formatDateTime } from "@/lib/utils";
 import type { WorkAuthorizationRequest } from "@/types/safety";
 
 const columns: Column<WorkAuthorizationRequest>[] = [
   {
-    key: "reference",
+    key: "id",
     label: "Reference",
-    render: (value) =>
-      value ? (
-        String(value)
-      ) : (
-        <span className="text-brand-text-secondary">Not generated</span>
-      ),
   },
-  { key: "title", label: "Request" },
-  { key: "requester_name", label: "Requester" },
-  { key: "department", label: "Department" },
-  { key: "work_location", label: "Location" },
-  { key: "supervisor", label: "Supervisor" },
+  {
+    key: "title",
+    label: "Request",
+    render: (_, row) => row.requestDetails.title,
+  },
+  {
+    key: "requester",
+    label: "Requester",
+    render: (_, row) => row.requester.name,
+  },
+  {
+    key: "department",
+    label: "Department",
+    render: (_, row) => row.requester.department,
+  },
+  {
+    key: "location",
+    label: "Location",
+    render: (_, row) => row.requestDetails.location,
+  },
+  {
+    key: "supervisor",
+    label: "Supervisor",
+    render: (_, row) => row.requestDetails.supervisor,
+  },
   {
     key: "priority",
     label: "Priority",
-    render: (value) => <PriorityPill priority={String(value)} />,
+    render: (_, row) => <PriorityPill priority={row.requestDetails.priority} />,
   },
   {
-    key: "expected_start",
+    key: "expectedStartDateTime",
     label: "Expected Start",
-    render: (value) => formatDateTime(String(value)),
+    render: (_, row) => row.requestDetails.expectedStartDateTime,
   },
   {
     key: "status",
@@ -81,6 +94,7 @@ export default function WorkAuthorizationRequestsTable() {
     <DataTable
       columns={columns}
       data={requests}
+      rowHref={(request) => `/safety/work-authorization/${request.id}`}
       emptyMessage="No work authorization requests found."
     />
   );

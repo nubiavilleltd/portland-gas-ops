@@ -2,6 +2,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import {
+  AlertTriangle,
   ClipboardCheck,
   CheckCircle2,
   ShieldCheck,
@@ -19,6 +20,12 @@ const safetyProcesses = [
     description: "Confirm completed work, monitoring, and final close-out approval",
     href: "/safety/work-close-out",
     icon: <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6" />,
+  },
+  {
+    title: "Incident & Hazard Report",
+    description: "Report incidents, hazards, near misses, and HSE corrective actions",
+    href: "/safety/incident-hazard",
+    icon: <AlertTriangle className="h-5 w-5 md:h-6 md:w-6" />,
   },
   {
     title: "Regulatory Compliance",

@@ -14,6 +14,8 @@ const FormInput = forwardRef<HTMLInputElement, Props>(
   ({ label, error, hint, className, id, type, ...props }, ref) => {
     const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
     const isPassword = type === "password";
+    const shouldBeReadOnly =
+      props.readOnly ?? (props.value !== undefined && props.onChange === undefined);
     const [showPassword, setShowPassword] = useState(false);
 
     return (
@@ -27,6 +29,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(
             ref={ref}
             id={inputId}
             type={isPassword ? (showPassword ? "text" : "password") : type}
+            readOnly={shouldBeReadOnly}
             className={cn(
               "h-10 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
               isPassword && "pr-10",
