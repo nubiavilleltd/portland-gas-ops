@@ -9,14 +9,14 @@ interface Props {
 
 export default function PageHeader({ title, description, action, className }: Props) {
   return (
-    <div className={cn("flex items-start justify-between", className)}>
-      <div>
+    <div className={cn("flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6", className)}>
+      <div className="min-w-0">
         <h1 className="text-xl font-semibold text-brand-text-primary">{title}</h1>
         {description && (
           <p className="text-sm text-brand-text-secondary mt-0.5">{description}</p>
         )}
       </div>
-      {action && <div className="ml-4 shrink-0">{action}</div>}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

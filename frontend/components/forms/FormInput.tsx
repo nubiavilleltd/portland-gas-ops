@@ -27,6 +27,8 @@ const FormInput = forwardRef<HTMLInputElement, Props>(
             ref={ref}
             id={inputId}
             type={isPassword ? (showPassword ? "text" : "password") : type}
+            autoCapitalize={type === "email" || isPassword ? undefined : "none"}
+            autoCorrect={type === "email" || isPassword ? undefined : "off"}
             className={cn(
               "h-10 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
               isPassword && "pr-10",

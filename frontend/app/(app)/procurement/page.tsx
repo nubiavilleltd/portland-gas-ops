@@ -125,7 +125,7 @@ export default function ProcurementPage() {
         action={
           <Link
             href="/procurement/new"
-            className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors w-fit"
           >
             <Plus size={16} /> New Request
           </Link>
@@ -134,13 +134,13 @@ export default function ProcurementPage() {
       />
 
       {/* Status filter tabs */}
-      <div className="flex gap-1 mb-4 bg-white border border-brand-border rounded-xl p-1 w-fit">
+      <div className="inline-flex gap-1 mb-4 bg-white border border-brand-border rounded-xl p-1 max-w-full overflow-x-auto">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.label}
             onClick={() => setActiveStatus(tab.value)}
             className={[
-              "px-3 py-1.5 text-sm rounded-lg transition-colors",
+              "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap",
               activeStatus === tab.value
                 ? "bg-brand-purple text-white font-medium"
                 : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
@@ -163,11 +163,13 @@ export default function ProcurementPage() {
           description={activeStatus ? `No requests with status "${activeStatus}".` : "Raise your first request to get started."}
         />
       ) : (
-        <DataTable
-          columns={columns}
-          data={data}
-          rowHref={(row) => `/procurement/${row.id}`}
-        />
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <DataTable
+            columns={columns}
+            data={data}
+            rowHref={(row) => `/procurement/${row.id}`}
+          />
+        </div>
       )}
     </AppLayout>
   );

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { queryClient } from "@/components/Providers";
 import { post } from "@/lib/api";
 import { saveTokens, clearTokens } from "@/lib/auth";
 import type { User } from "@/types";
@@ -21,6 +22,8 @@ export function useAuth() {
     await saveTokens(data.access_token);
     setAccessToken(data.access_token);
     setUser(data.user);
+    // Clear stale cache from any previous user session
+    queryClient.clear();
     return data.user;
   }
 
@@ -31,6 +34,7 @@ export function useAuth() {
       // clear locally regardless
     } finally {
       await clearTokens();
+      queryClient.clear(); // Wipe all cached data so next user starts fresh
       router.push("/login");
     }
   }
