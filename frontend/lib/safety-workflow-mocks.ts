@@ -10,10 +10,8 @@ export type WorkflowStage =
   | "pending_approval"
   | "approved";
 
-export type SafetyWorkflowRole = "requester" | "supervisor" | "hse";
 export type ApprovalDecision = "Pending" | "Approve" | "Return" | "Reject";
-export type EmptyableBoolean = boolean | "";
-export type InspectionDecision = "Pass" | "Fail" | "N/A" | "";
+export type InspectionDecision = "Pass" | "Fail" | "N/A";
 
 export interface MockRequester {
   name: string;
@@ -30,10 +28,6 @@ export interface LookupEmployee {
   name: string;
   department: string;
   role: string;
-}
-
-export interface MockSafetyUser extends MockRequester {
-  workflowRole: SafetyWorkflowRole;
 }
 
 export interface AuditTrailItem {
@@ -78,17 +72,17 @@ export interface WorkAuthorizationRecord extends WorkflowRecordBase {
   workDescription: string;
   workCategories: string[];
   workersInvolved: string[];
-  contractorInvolved: EmptyableBoolean;
+  contractorInvolved: boolean;
   contractorName: string;
   toolsEquipment: string[];
   attachments: string[];
   riskTriggers: {
-    gasInvolved: EmptyableBoolean;
-    pressurizedSystem: EmptyableBoolean;
-    heatOrSparks: EmptyableBoolean;
-    electricalIsolation: EmptyableBoolean;
-    liftingEquipment: EmptyableBoolean;
-    ppeAvailable: EmptyableBoolean;
+    gasInvolved: boolean;
+    pressurizedSystem: boolean;
+    heatOrSparks: boolean;
+    electricalIsolation: boolean;
+    liftingEquipment: boolean;
+    ppeAvailable: boolean;
     additionalSafetyNote: string;
   };
   hseInspection: {
@@ -98,7 +92,7 @@ export interface WorkAuthorizationRecord extends WorkflowRecordBase {
     ppeAndSafetyKitsAvailable: InspectionDecision;
     toolsSafe: InspectionDecision;
     comments: string;
-    result: "Passed" | "Returned" | "Failed" | "";
+    result: "Passed" | "Returned" | "Failed";
     evidence: string[];
   };
 }
@@ -113,16 +107,16 @@ export interface WorkCloseOutRecord extends WorkflowRecordBase {
   approvedEndDateTime: string;
   actualStartDateTime: string;
   actualCompletionDateTime: string;
-  completedAsApproved: EmptyableBoolean;
+  completedAsApproved: boolean;
   explanationForChange: string;
   completionSummary: string;
-  incidentObserved: EmptyableBoolean;
+  incidentObserved: boolean;
   completionPhotos: string[];
   monitoring: {
-    monitoredDuringExecution: EmptyableBoolean;
-    stayedWithinScope: EmptyableBoolean;
-    ppeAndControlsMaintained: EmptyableBoolean;
-    unsafeConditionReportedOrAddressed: "Yes" | "No" | "N/A" | "";
+    monitoredDuringExecution: boolean;
+    stayedWithinScope: boolean;
+    ppeAndControlsMaintained: boolean;
+    unsafeConditionReportedOrAddressed: "Yes" | "No" | "N/A";
     comments: string;
   };
 }
@@ -132,19 +126,12 @@ export interface RegulatoryComplianceRecord extends WorkflowRecordBase {
   department: string;
   responsiblePerson: string;
   dueDate: string;
-  priority: "Low" | "Medium" | "High" | "Critical" | "";
+  priority: "Low" | "Medium" | "High" | "Critical";
   complianceTitle: string;
   complianceCategory: string;
   description: string;
   requirementSource: string;
-  frequency:
-    | "One-time"
-    | "Daily"
-    | "Weekly"
-    | "Monthly"
-    | "Quarterly"
-    | "Yearly"
-    | "";
+  frequency: "One-time" | "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Yearly";
   evidenceRequired: string[];
   evidenceUpload: string[];
   additionalNotes: string;
@@ -157,15 +144,15 @@ export interface IncidentHazardRecord extends WorkflowRecordBase {
   dateTimeObserved: string;
   relatedWorkAuthorization: string;
   description: string;
-  severityEstimate: "Low" | "Medium" | "High" | "Critical" | "";
-  anyoneInjured: EmptyableBoolean;
-  propertyDamaged: EmptyableBoolean;
+  severityEstimate: "Low" | "Medium" | "High" | "Critical";
+  anyoneInjured: boolean;
+  propertyDamaged: boolean;
   immediateActionTaken: string;
   photos: string[];
   review: {
-    confirmedSeverity: "Low" | "Medium" | "High" | "Critical" | "";
+    confirmedSeverity: "Low" | "Medium" | "High" | "Critical";
     rootCause: string;
-    correctiveActionRequired: EmptyableBoolean;
+    correctiveActionRequired: boolean;
     correctiveAction: string;
     actionOwner: string;
     targetCompletionDate: string;
@@ -233,33 +220,6 @@ export const mockRequester: MockRequester = {
   email: "daniel.okoro@company.com",
   phone: "+234 800 000 0000",
   requestDate: "2026-05-16",
-};
-
-export const mockSafetyUsers: Record<SafetyWorkflowRole, MockSafetyUser> = {
-  requester: {
-    ...mockRequester,
-    workflowRole: "requester",
-  },
-  supervisor: {
-    name: "Mary James",
-    employeeId: "EMP-00142",
-    department: "Engineering",
-    role: "Engineering Supervisor",
-    email: "mary.james@company.com",
-    phone: "+234 800 000 0101",
-    requestDate: "2026-05-18",
-    workflowRole: "supervisor",
-  },
-  hse: {
-    name: "Samuel Bassey",
-    employeeId: "EMP-00073",
-    department: "HSE",
-    role: "HSE Officer",
-    email: "samuel.bassey@company.com",
-    phone: "+234 800 000 0202",
-    requestDate: "2026-05-18",
-    workflowRole: "hse",
-  },
 };
 
 export const employeeLookup: LookupEmployee[] = [
@@ -797,152 +757,13 @@ export const workflowScenarios: {
   },
 };
 
-export function createInitialDraftForms(
-  requester: MockRequester = {
-    name: "",
-    employeeId: "",
-    department: "",
-    role: "",
-    email: "",
-    phone: "",
-    requestDate: "",
-  }
-): DraftWorkflowRecords {
-  const blankRequester: MockRequester = {
-    ...requester,
-  };
-
-  const blankApprovals: WorkflowApprovals = {
-    supervisor: {
-      name: "",
-      decision: "Pending",
-      comment: "",
-      dateTime: "",
-    },
-    hse: {
-      name: "",
-      decision: "Pending",
-      comment: "",
-      dateTime: "",
-    },
-  };
-
+export function createInitialDraftForms(): DraftWorkflowRecords {
   return {
-    work_authorization: {
-      formKey: "work_authorization",
-      stage: "draft",
-      reference: "",
-      requester: structuredClone(blankRequester),
-      requestTitle: "",
-      department: blankRequester.department,
-      supervisor: "",
-      workLocation: "",
-      exactWorkArea: "",
-      expectedStartDateTime: "",
-      expectedEndDateTime: "",
-      workDescription: "",
-      workCategories: [],
-      workersInvolved: [],
-      contractorInvolved: "",
-      contractorName: "",
-      toolsEquipment: [],
-      attachments: [],
-      riskTriggers: {
-        gasInvolved: "",
-        pressurizedSystem: "",
-        heatOrSparks: "",
-        electricalIsolation: "",
-        liftingEquipment: "",
-        ppeAvailable: "",
-        additionalSafetyNote: "",
-      },
-      hseInspection: {
-        workAreaSafe: "",
-        emergencyEquipmentAvailable: "",
-        gasPressureCheckCompleted: "",
-        ppeAndSafetyKitsAvailable: "",
-        toolsSafe: "",
-        comments: "",
-        result: "",
-        evidence: [],
-      },
-      approvals: structuredClone(blankApprovals),
-      auditTrail: [],
-    },
-    work_close_out: {
-      formKey: "work_close_out",
-      stage: "draft",
-      reference: "",
-      requester: structuredClone(blankRequester),
-      workAuthorizationReference: "",
-      requestTitle: "",
-      department: blankRequester.department,
-      workLocation: "",
-      approvedStartDateTime: "",
-      approvedEndDateTime: "",
-      actualStartDateTime: "",
-      actualCompletionDateTime: "",
-      completedAsApproved: "",
-      explanationForChange: "",
-      completionSummary: "",
-      incidentObserved: "",
-      completionPhotos: [],
-      monitoring: {
-        monitoredDuringExecution: "",
-        stayedWithinScope: "",
-        ppeAndControlsMaintained: "",
-        unsafeConditionReportedOrAddressed: "",
-        comments: "",
-      },
-      approvals: structuredClone(blankApprovals),
-      auditTrail: [],
-    },
-    regulatory_compliance: {
-      formKey: "regulatory_compliance",
-      stage: "draft",
-      reference: "",
-      requester: structuredClone(blankRequester),
-      department: blankRequester.department,
-      responsiblePerson: "",
-      dueDate: "",
-      priority: "",
-      complianceTitle: "",
-      complianceCategory: "",
-      description: "",
-      requirementSource: "",
-      frequency: "",
-      evidenceRequired: [],
-      evidenceUpload: [],
-      additionalNotes: "",
-      approvals: structuredClone(blankApprovals),
-      auditTrail: [],
-    },
-    incident_hazard: {
-      formKey: "incident_hazard",
-      stage: "draft",
-      reference: "",
-      requester: structuredClone(blankRequester),
-      reportType: "",
-      location: "",
-      dateTimeObserved: "",
-      relatedWorkAuthorization: "",
-      description: "",
-      severityEstimate: "",
-      anyoneInjured: "",
-      propertyDamaged: "",
-      immediateActionTaken: "",
-      photos: [],
-      review: {
-        confirmedSeverity: "",
-        rootCause: "",
-        correctiveActionRequired: "",
-        correctiveAction: "",
-        actionOwner: "",
-        targetCompletionDate: "",
-        completionEvidence: [],
-      },
-      approvals: structuredClone(blankApprovals),
-      auditTrail: [],
-    },
+    work_authorization: structuredClone(workflowScenarios.work_authorization.draft),
+    work_close_out: structuredClone(workflowScenarios.work_close_out.draft),
+    regulatory_compliance: structuredClone(
+      workflowScenarios.regulatory_compliance.draft
+    ),
+    incident_hazard: structuredClone(workflowScenarios.incident_hazard.draft),
   };
 }

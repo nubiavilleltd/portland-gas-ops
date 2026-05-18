@@ -1,29 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowLeft,
   AlertTriangle,
+  CheckCircle2,
   ClipboardCheck,
   FileSearch,
-  Save,
-  Send,
+  FileStack,
   ShieldCheck,
+  Sparkles,
+  Workflow,
+  Wrench,
 } from "lucide-react";
+import type { Column } from "@/components/ui/DataTable";
+import type { ApprovalStep, ApprovalStatus, DecisionStatus } from "@/types";
 import type {
+  AuditTrailItem,
   DraftWorkflowRecords,
   IncidentHazardRecord,
   RegulatoryComplianceRecord,
   SafetyWorkflowRecord,
   WorkAuthorizationRecord,
   WorkCloseOutRecord,
+  WorkflowApprovals,
   WorkflowFormKey,
+  WorkflowStage,
 } from "@/lib/safety-workflow-mocks";
 import {
   complianceCategoryOptions,
   contractorOptions,
   createInitialDraftForms,
+  departmentOptions,
   employeeLookup,
   evidenceRequiredOptions,
   frequencyOptions,
@@ -34,21 +42,29 @@ import {
   workAuthorizationLookup,
   workCategoryOptions,
   workLocationOptions,
+  workflowScenarios,
+  workflowStageLabels,
   workflowSummaries,
 } from "@/lib/safety-workflow-mocks";
-import { fetchInitialSafetyDraftForms } from "@/lib/safety-workflow-api";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import AppLayout from "@/components/layout/AppLayout";
+import ApprovalTimeline from "@/components/approval/ApprovalTimeline";
 import FormDatePicker from "@/components/forms/FormDatePicker";
+import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormInput from "@/components/forms/FormInput";
+import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
-import FormTagInput from "@/components/forms/FormTagInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormToggleGroup from "@/components/forms/FormToggleGroup";
+import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import DataTable from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
+import ReadOnlyField from "@/components/ui/ReadOnlyField";
+import StatCard from "@/components/ui/StatCard";
+import StatusStepper from "@/components/ui/StatusStepper";
 
 const formIcons: Record<WorkflowFormKey, LucideIcon> = {
   work_authorization: ShieldCheck,
@@ -56,6 +72,30 @@ const formIcons: Record<WorkflowFormKey, LucideIcon> = {
   regulatory_compliance: FileSearch,
   incident_hazard: AlertTriangle,
 };
+
+const stageOptions = [
+  { key: "draft", label: "Draft" },
+  { key: "submitted", label: "Submitted" },
+  { key: "pending_approval", label: "Pending Approval" },
+  { key: "approved", label: "Approved" },
+] as const;
+
+const yesNoOptions = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
+
+const yesNoNaOptions = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+  { value: "N/A", label: "N/A" },
+];
+
+const inspectionOptions = [
+  { value: "Pass", label: "Pass" },
+  { value: "Fail", label: "Fail" },
+  { value: "N/A", label: "N/A" },
+];
 
 const hseInspectionResultOptions = [
   { value: "Passed", label: "Passed" },
@@ -68,9 +108,24 @@ const employeeOptions = employeeLookup.map((employee) => ({
   label: employee.name,
 }));
 
+const departmentSelectOptions = departmentOptions.map((department) => ({
+  value: department,
+  label: department,
+}));
+
 const locationSelectOptions = workLocationOptions.map((location) => ({
   value: location,
   label: location,
+}));
+
+const workCategorySelectOptions = workCategoryOptions.map((category) => ({
+  value: category,
+  label: category,
+}));
+
+const toolsEquipmentSelectOptions = toolsEquipmentOptions.map((tool) => ({
+  value: tool,
+  label: tool,
 }));
 
 const contractorSelectOptions = contractorOptions.map((contractor) => ({
@@ -100,6 +155,11 @@ const prioritySelectOptions = priorityOptions.map((priority) => ({
   label: priority,
 }));
 
+const evidenceRequiredSelectOptions = evidenceRequiredOptions.map((item) => ({
+  value: item,
+  label: item,
+}));
+
 const reportTypeSelectOptions = reportTypeOptions.map((item) => ({
   value: item,
   label: item,
@@ -110,44 +170,32 @@ const workAuthorizationSelectOptions = workAuthorizationLookup.map((item) => ({
   label: `${item.id} - ${item.title}`,
 }));
 
-const yesNoOptions = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
+const auditTrailColumns: Column<AuditTrailItem>[] = [
+  { key: "action", label: "Action" },
+  { key: "actor", label: "Actor" },
+  { key: "role", label: "Role" },
+  {
+    key: "dateTime",
+    label: "Date/Time",
+    render: (value) => formatDateTime(String(value)),
+  },
+  { key: "comment", label: "Comment" },
 ];
 
-interface Props {
-  formKey: WorkflowFormKey;
-  backHref: string;
-  backLabel: string;
-}
-
-export default function SafetyWorkflowWorkspace({
-  formKey,
-  backHref,
-  backLabel,
-}: Props) {
+export default function SafetyWorkflowWorkspace() {
+  const [selectedForm, setSelectedForm] =
+    useState<WorkflowFormKey>("work_authorization");
+  const [selectedStage, setSelectedStage] = useState<WorkflowStage>("draft");
   const [draftForms, setDraftForms] =
     useState<DraftWorkflowRecords>(createInitialDraftForms);
-  const [loadingProfile, setLoadingProfile] = useState(true);
 
-  const currentRecord = draftForms[formKey];
-  const currentSummary = workflowSummaries[formKey];
-  const CurrentIcon = formIcons[formKey];
-  const editable = true;
-
-  useEffect(() => {
-    let active = true;
-
-    fetchInitialSafetyDraftForms("requester").then((nextDraftForms) => {
-      if (!active) return;
-      setDraftForms(nextDraftForms);
-      setLoadingProfile(false);
-    });
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const currentRecord =
+    selectedStage === "draft"
+      ? draftForms[selectedForm]
+      : workflowScenarios[selectedForm][selectedStage];
+  const currentSummary = workflowSummaries[selectedForm];
+  const CurrentIcon = formIcons[selectedForm];
+  const editable = selectedStage === "draft";
 
   function updateDraftRecord<K extends WorkflowFormKey>(
     formKey: K,
@@ -159,43 +207,222 @@ export default function SafetyWorkflowWorkspace({
     }));
   }
 
+  function resetDrafts() {
+    setDraftForms(createInitialDraftForms());
+    setSelectedStage("draft");
+  }
+
   return (
-    <AppLayout pageTitle={currentSummary.title}>
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
-        title={currentSummary.title}
-        description={currentSummary.description}
+        title="Safety & Compliance Workflows"
+        description="Design-only HSE workflow forms built on reusable UI primitives, with mock state transitions and no backend behavior yet."
         action={
-          <Button href={backHref} variant="outline" leftIcon={<ArrowLeft size={16} />}>
-            {backLabel}
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" href="/safety/demo">
+              Open UI Demo
+            </Button>
+            <Button variant="secondary" onClick={resetDrafts}>
+              Reset Draft Mock
+            </Button>
+          </div>
         }
         className="mb-6"
       />
 
-      <div className="mx-auto max-w-5xl space-y-4">
-        <Card
-          title="New Request"
-          description={
-            loadingProfile
-              ? "Loading requester details..."
-              : `Requester: ${currentRecord.requester.name || "Not loaded"}`
-          }
-          icon={<CurrentIcon size={20} />}
-          className="border-emerald-100 bg-gradient-to-b from-white to-emerald-50/40"
-          iconWrapperClassName="bg-emerald-50 text-emerald-800"
-        />
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Workflow Forms"
+            value="4"
+            subtitle="Authorization, close-out, compliance, and incident reporting"
+            icon={FileStack}
+          />
+          <StatCard
+            label="Approval Route"
+            value="2-step"
+            subtitle="Supervisor approval followed by HSE approval"
+            icon={Workflow}
+          />
+          <StatCard
+            label="New Reusables"
+            value="5"
+            subtitle="Only the missing building blocks were added for the spec"
+            icon={Wrench}
+          />
+          <StatCard
+            label="Current View"
+            value={workflowStageLabels[selectedStage]}
+            subtitle={currentSummary.title}
+            icon={CheckCircle2}
+          />
+        </div>
 
-        {formKey === "work_authorization"
+        <div className="grid gap-6 xl:grid-cols-[320px,1fr]">
+          <div className="space-y-4">
+            <Card
+              title="Workflow Forms"
+              description="Pick a form to review its mock layout, approval route, and status-driven UI."
+              content={
+                <div className="mt-4 space-y-3">
+                  {(
+                    Object.keys(workflowSummaries) as WorkflowFormKey[]
+                  ).map((formKey) => {
+                    const Icon = formIcons[formKey];
+                    const summary = workflowSummaries[formKey];
+                    const active = selectedForm === formKey;
+
+                    return (
+                      <button
+                        key={formKey}
+                        type="button"
+                        onClick={() => setSelectedForm(formKey)}
+                        className={[
+                          "w-full rounded-2xl border p-4 text-left transition-colors",
+                          active
+                            ? "border-brand-purple bg-brand-purple-faint"
+                            : "border-brand-border bg-white hover:border-brand-purple/40 hover:bg-gray-50",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="rounded-xl bg-brand-purple-faint p-2 text-brand-purple">
+                              <Icon size={18} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-brand-text-primary">
+                                {summary.title}
+                              </p>
+                              <p className="mt-1 text-xs leading-relaxed text-brand-text-secondary">
+                                {summary.description}
+                              </p>
+                            </div>
+                          </div>
+                          {active ? (
+                            <ApprovalBadge status={selectedStage} className="shrink-0" />
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              }
+            />
+
+            <Card
+              title="Mock States"
+              description="Draft is editable for illustration. Submitted and later states lock the fields and show the mock approval flow."
+              content={
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                    {stageOptions.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => setSelectedStage(option.key)}
+                        className={[
+                          "rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+                          selectedStage === option.key
+                            ? "border-brand-purple bg-brand-purple text-white"
+                            : "border-brand-border bg-white text-brand-text-secondary hover:bg-gray-50 hover:text-brand-text-primary",
+                        ].join(" ")}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="rounded-2xl border border-dashed border-brand-border bg-gray-50 p-4">
+                    <p className="text-sm font-medium text-brand-text-primary">
+                      Design phase note
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-brand-text-secondary">
+                      The page stays intentionally front-end only. The stage
+                      switcher, attachment areas, and approval panels are there
+                      to make the flow concrete without pretending the API or
+                      workflow engine already exists.
+                    </p>
+                  </div>
+                </div>
+              }
+            />
+          </div>
+
+          <div className="space-y-4">
+            <Card
+              title={currentSummary.title}
+              description={currentSummary.description}
+              icon={<CurrentIcon size={20} />}
+              action={<ApprovalBadge status={selectedStage} />}
+              content={
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <ReadOnlyField
+                      label={currentSummary.referenceLabel}
+                      value={currentRecord.reference}
+                    />
+                    <ReadOnlyField
+                      label="Module Flow"
+                      value="Supervisor Approval -> HSE Approval"
+                    />
+                    <ReadOnlyField
+                      label="Mock Mode"
+                      value={editable ? "Editable draft preview" : "Read-only status preview"}
+                    />
+                    <ReadOnlyField
+                      label="Requester"
+                      value={currentRecord.requester.name}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-brand-purple-faint px-3 py-1 font-medium text-brand-purple">
+                      Reusables first
+                    </span>
+                    <span className="rounded-full bg-gray-100 px-3 py-1 font-medium text-brand-text-secondary">
+                      Mock audit trail
+                    </span>
+                    <span className="rounded-full bg-gray-100 px-3 py-1 font-medium text-brand-text-secondary">
+                      Mock approval timeline
+                    </span>
+                    <span className="rounded-full bg-gray-100 px-3 py-1 font-medium text-brand-text-secondary">
+                      Conditional fields
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-brand-text-secondary">
+                    {currentSummary.note}
+                  </p>
+                </div>
+              }
+            />
+
+            <Card
+              title="Status Progress"
+              description="Shared workflow progression used across all HSE forms."
+              content={
+                <div className="mt-4">
+                  <StatusStepper
+                    steps={stageOptions.map((option) => ({
+                      key: option.key,
+                      label: option.label,
+                    }))}
+                    currentStep={selectedStage}
+                  />
+                </div>
+              }
+            />
+
+            <SummarySnapshotCard record={currentRecord} />
+
+            {selectedForm === "work_authorization"
               ? renderWorkAuthorization(
                   currentRecord as WorkAuthorizationRecord,
                   editable,
-                  false,
                   (updater) =>
                     updateDraftRecord("work_authorization", updater)
                 )
               : null}
 
-        {formKey === "work_close_out"
+            {selectedForm === "work_close_out"
               ? renderWorkCloseOut(
                   currentRecord as WorkCloseOutRecord,
                   editable,
@@ -203,7 +430,7 @@ export default function SafetyWorkflowWorkspace({
                 )
               : null}
 
-        {formKey === "regulatory_compliance"
+            {selectedForm === "regulatory_compliance"
               ? renderRegulatoryCompliance(
                   currentRecord as RegulatoryComplianceRecord,
                   editable,
@@ -212,30 +439,51 @@ export default function SafetyWorkflowWorkspace({
                 )
               : null}
 
-        {formKey === "incident_hazard"
+            {selectedForm === "incident_hazard"
               ? renderIncidentHazard(
                   currentRecord as IncidentHazardRecord,
                   editable,
-                  false,
                   (updater) => updateDraftRecord("incident_hazard", updater)
                 )
               : null}
 
-        <div className="sticky bottom-0 z-10 -mx-4 border-t border-brand-border bg-brand-bg/95 px-4 py-4 backdrop-blur md:-mx-6 md:px-6">
-          <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:justify-end">
-            <Button href={backHref} variant="outline">
-              Cancel
-            </Button>
-            <Button variant="secondary" leftIcon={<Save size={16} />}>
-              Save Draft
-            </Button>
-            <Button leftIcon={<Send size={16} />}>
-              Submit Request
-            </Button>
+            <ApprovalSection
+              stage={selectedStage}
+              approvals={currentRecord.approvals}
+            />
+
+            <Card
+              title="Audit Trail"
+              description="Mock activity captured for the selected form and state."
+              content={
+                <div className="mt-4">
+                  <DataTable columns={auditTrailColumns} data={currentRecord.auditTrail} />
+                </div>
+              }
+            />
           </div>
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+function SummarySnapshotCard({ record }: { record: SafetyWorkflowRecord }) {
+  const fields = getSummarySnapshotFields(record);
+
+  return (
+    <Card
+      title="Submission Snapshot"
+      description="A compact preview of the most important values for the current mock state."
+      icon={<Sparkles size={20} />}
+      content={
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {fields.map((field) => (
+            <ReadOnlyField key={field.label} label={field.label} value={field.value} />
+          ))}
+        </div>
+      }
+    />
   );
 }
 
@@ -247,18 +495,84 @@ function RequesterSection({
   return (
     <Card
       title="Requester Details"
-      description="Auto-filled employee details."
-      className="border-emerald-100"
+      description="Auto-filled mock employee data for this design phase."
       content={
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <FormInput label="Requester Name" value={requester.name} disabled />
-          <FormInput label="Department" value={requester.department} disabled />
-          <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormInput
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <ReadOnlyField label="Requester Name" value={requester.name} />
+          <ReadOnlyField label="Employee ID" value={requester.employeeId} />
+          <ReadOnlyField label="Department" value={requester.department} />
+          <ReadOnlyField label="Job Title / Role" value={requester.role} />
+          <ReadOnlyField label="Email" value={requester.email} />
+          <ReadOnlyField label="Phone / Extension" value={requester.phone} />
+          <ReadOnlyField
             label="Request Date"
-            value={requester.requestDate ? formatDate(requester.requestDate) : ""}
-            disabled
+            value={formatDate(requester.requestDate)}
+            className="md:col-span-2 xl:col-span-3"
           />
+        </div>
+      }
+    />
+  );
+}
+
+function ApprovalSection({
+  stage,
+  approvals,
+}: {
+  stage: WorkflowStage;
+  approvals: WorkflowApprovals;
+}) {
+  const steps = buildApprovalSteps(stage, approvals);
+
+  return (
+    <Card
+      title="Approver Section"
+      description="Two-level mock approval route shared across every HSE workflow."
+      content={
+        <div className="mt-4 space-y-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <ApprovalBadge status={stage} />
+            <span className="text-sm text-brand-text-secondary">
+              Supervisor Approval -&gt; HSE Approval
+            </span>
+          </div>
+
+          <ApprovalTimeline steps={steps} />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {(
+              [
+                ["supervisor", "Supervisor"],
+                ["hse", "HSE"],
+              ] as const
+            ).map(([roleKey, roleLabel]) => {
+              const actor = approvals[roleKey];
+
+              return (
+                <div
+                  key={roleKey}
+                  className="rounded-2xl border border-brand-border bg-gray-50/60 p-4"
+                >
+                  <p className="text-sm font-semibold text-brand-text-primary">
+                    {roleLabel} Approval
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <ReadOnlyField label="Approver" value={actor.name} />
+                    <ReadOnlyField label="Decision" value={actor.decision} />
+                    <ReadOnlyField
+                      label="Approval Date"
+                      value={actor.dateTime ? formatDateTime(actor.dateTime) : "Pending"}
+                    />
+                    <ReadOnlyField
+                      label="Comment"
+                      value={actor.comment || "Awaiting review"}
+                      className="sm:col-span-2"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       }
     />
@@ -290,43 +604,9 @@ function AttachmentList({
   );
 }
 
-function DisabledStatusField({
-  label,
-  value,
-  required,
-}: {
-  label: string;
-  value: string | boolean | null | undefined;
-  required?: boolean;
-}) {
-  const displayValue =
-    typeof value === "boolean" ? (value ? "Yes" : "No") : value ?? "";
-
-  return (
-    <FormInput
-      label={label}
-      required={required}
-      value={displayValue}
-      disabled
-      className="bg-gray-50 text-brand-text-secondary"
-    />
-  );
-}
-
-function booleanToToggleValue(value: boolean | "") {
-  if (value === true) return "yes";
-  if (value === false) return "no";
-  return "";
-}
-
-function toggleValueToBoolean(value: string) {
-  return value === "yes";
-}
-
 function renderWorkAuthorization(
   record: WorkAuthorizationRecord,
   editable: boolean,
-  showReviewSections: boolean,
   update: (updater: (record: WorkAuthorizationRecord) => WorkAuthorizationRecord) => void
 ) {
   return (
@@ -339,10 +619,30 @@ function renderWorkAuthorization(
         content={
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <FormInput
+              label="Request Title"
+              required
+              value={record.requestTitle}
+              disabled={!editable}
+              onChange={(event) =>
+                update((current) => ({
+                  ...current,
+                  requestTitle: event.target.value,
+                }))
+              }
+            />
+            <ReadOnlyField label="Request Reference" value={record.reference} />
+            <FormSelect
               label="Department"
               required
               value={record.department}
-              disabled
+              options={departmentSelectOptions}
+              disabled={!editable}
+              onValueChange={(value) =>
+                update((current) => ({
+                  ...current,
+                  department: value,
+                }))
+              }
             />
             <FormSelect
               label="Supervisor"
@@ -383,27 +683,27 @@ function renderWorkAuthorization(
                 }))
               }
             />
-            <FormDatePicker
-              label="Expected Start Date"
+            <FormDateTimeInput
+              label="Expected Start Date/Time"
               required
               value={record.expectedStartDateTime}
               disabled={!editable}
-              onValueChange={(value) =>
+              onChange={(event) =>
                 update((current) => ({
                   ...current,
-                  expectedStartDateTime: value,
+                  expectedStartDateTime: event.target.value,
                 }))
               }
             />
-            <FormDatePicker
-              label="Expected End Date"
+            <FormDateTimeInput
+              label="Expected End Date/Time"
               required
               value={record.expectedEndDateTime}
               disabled={!editable}
-              onValueChange={(value) =>
+              onChange={(event) =>
                 update((current) => ({
                   ...current,
-                  expectedEndDateTime: value,
+                  expectedEndDateTime: event.target.value,
                 }))
               }
             />
@@ -430,12 +730,12 @@ function renderWorkAuthorization(
             />
 
             <div className="grid gap-4 md:grid-cols-2">
-              <FormTagInput
+              <FormMultiSelect
                 label="Work Category"
                 required
+                creatable
                 value={record.workCategories}
-                suggestions={workCategoryOptions}
-                placeholder="Type work category, then add"
+                options={workCategorySelectOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
                   update((current) => ({
@@ -444,12 +744,11 @@ function renderWorkAuthorization(
                   }))
                 }
               />
-              <FormTagInput
+              <FormMultiSelect
                 label="Workers Involved"
                 required
                 value={record.workersInvolved}
-                suggestions={employeeLookup.map((employee) => employee.name)}
-                placeholder="Type worker name, then add"
+                options={employeeOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
                   update((current) => ({
@@ -461,15 +760,14 @@ function renderWorkAuthorization(
               <FormToggleGroup
                 label="Contractor Involved?"
                 required
-                value={booleanToToggleValue(record.contractorInvolved)}
+                value={record.contractorInvolved ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
                   update((current) => ({
                     ...current,
-                    contractorInvolved: toggleValueToBoolean(value),
-                    contractorName:
-                      value === "yes" ? current.contractorName : "",
+                    contractorInvolved: value === "yes",
+                    contractorName: value === "yes" ? current.contractorName : "",
                   }))
                 }
               />
@@ -489,12 +787,12 @@ function renderWorkAuthorization(
                   }
                 />
               ) : null}
-              <FormTagInput
+              <FormMultiSelect
                 label="Tools/Equipment To Be Used"
                 required
+                creatable
                 value={record.toolsEquipment}
-                suggestions={toolsEquipmentOptions}
-                placeholder="Type tool or equipment, then add"
+                options={toolsEquipmentSelectOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
                   update((current) => ({
@@ -525,7 +823,7 @@ function renderWorkAuthorization(
               <FormToggleGroup
                 label="Is gas/CNG/LNG involved?"
                 required
-                value={booleanToToggleValue(record.riskTriggers.gasInvolved)}
+                value={record.riskTriggers.gasInvolved ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -533,7 +831,7 @@ function renderWorkAuthorization(
                     ...current,
                     riskTriggers: {
                       ...current.riskTriggers,
-                      gasInvolved: toggleValueToBoolean(value),
+                      gasInvolved: value === "yes",
                     },
                   }))
                 }
@@ -541,7 +839,7 @@ function renderWorkAuthorization(
               <FormToggleGroup
                 label="Is a pressurized system involved?"
                 required
-                value={booleanToToggleValue(record.riskTriggers.pressurizedSystem)}
+                value={record.riskTriggers.pressurizedSystem ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -549,7 +847,7 @@ function renderWorkAuthorization(
                     ...current,
                     riskTriggers: {
                       ...current.riskTriggers,
-                      pressurizedSystem: toggleValueToBoolean(value),
+                      pressurizedSystem: value === "yes",
                     },
                   }))
                 }
@@ -557,7 +855,7 @@ function renderWorkAuthorization(
               <FormToggleGroup
                 label="Will there be heat, sparks, welding, cutting, or grinding?"
                 required
-                value={booleanToToggleValue(record.riskTriggers.heatOrSparks)}
+                value={record.riskTriggers.heatOrSparks ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -565,7 +863,7 @@ function renderWorkAuthorization(
                     ...current,
                     riskTriggers: {
                       ...current.riskTriggers,
-                      heatOrSparks: toggleValueToBoolean(value),
+                      heatOrSparks: value === "yes",
                     },
                   }))
                 }
@@ -573,9 +871,7 @@ function renderWorkAuthorization(
               <FormToggleGroup
                 label="Is electrical isolation required?"
                 required
-                value={booleanToToggleValue(
-                  record.riskTriggers.electricalIsolation
-                )}
+                value={record.riskTriggers.electricalIsolation ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -583,7 +879,7 @@ function renderWorkAuthorization(
                     ...current,
                     riskTriggers: {
                       ...current.riskTriggers,
-                      electricalIsolation: toggleValueToBoolean(value),
+                      electricalIsolation: value === "yes",
                     },
                   }))
                 }
@@ -591,7 +887,7 @@ function renderWorkAuthorization(
               <FormToggleGroup
                 label="Is lifting/heavy equipment involved?"
                 required
-                value={booleanToToggleValue(record.riskTriggers.liftingEquipment)}
+                value={record.riskTriggers.liftingEquipment ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -599,7 +895,7 @@ function renderWorkAuthorization(
                     ...current,
                     riskTriggers: {
                       ...current.riskTriggers,
-                      liftingEquipment: toggleValueToBoolean(value),
+                      liftingEquipment: value === "yes",
                     },
                   }))
                 }
@@ -607,7 +903,7 @@ function renderWorkAuthorization(
               <FormToggleGroup
                 label="Are all required PPE available?"
                 required
-                value={booleanToToggleValue(record.riskTriggers.ppeAvailable)}
+                value={record.riskTriggers.ppeAvailable ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -615,7 +911,7 @@ function renderWorkAuthorization(
                     ...current,
                     riskTriggers: {
                       ...current.riskTriggers,
-                      ppeAvailable: toggleValueToBoolean(value),
+                      ppeAvailable: value === "yes",
                     },
                   }))
                 }
@@ -640,87 +936,142 @@ function renderWorkAuthorization(
         }
       />
 
-      {showReviewSections ? (
-        <Card
-          title="HSE Inspection"
-          description="Only HSE reviewers see these checks after the requester submits."
-          content={
-            <div className="mt-4 space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <DisabledStatusField
-                  label="Work area is safe, clean, and accessible"
-                  required
-                  value={record.hseInspection.workAreaSafe}
-                />
-                <DisabledStatusField
-                  label="Fire extinguisher/emergency equipment is available"
-                  required
-                  value={record.hseInspection.emergencyEquipmentAvailable}
-                />
-                <DisabledStatusField
-                  label="Gas leak/pressure/abnormal condition check completed"
-                  required
-                  value={record.hseInspection.gasPressureCheckCompleted}
-                />
-                <DisabledStatusField
-                  label="Required PPE and safety kits are available"
-                  required
-                  value={record.hseInspection.ppeAndSafetyKitsAvailable}
-                />
-                <DisabledStatusField
-                  label="Tools/equipment are safe and suitable for the job"
-                  required
-                  value={record.hseInspection.toolsSafe}
-                />
-                <FormSelect
-                  label="HSE Inspection Result"
-                  required
-                  value={record.hseInspection.result}
-                  options={hseInspectionResultOptions}
-                  disabled={!editable}
-                  onValueChange={(value) =>
-                    update((current) => ({
-                      ...current,
-                      hseInspection: {
-                        ...current.hseInspection,
-                        result:
-                          value as WorkAuthorizationRecord["hseInspection"]["result"],
-                      },
-                    }))
-                  }
-                />
-              </div>
-
-              <FormTextarea
-                label="HSE Inspection Comments"
-                value={record.hseInspection.comments}
+      <Card
+        title="HSE Inspection"
+        description="Only the most important pre-work checks are shown in this first pass."
+        content={
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <FormToggleGroup
+                label="Work area is safe, clean, and accessible"
+                required
+                value={record.hseInspection.workAreaSafe}
+                options={inspectionOptions}
                 disabled={!editable}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   update((current) => ({
                     ...current,
                     hseInspection: {
                       ...current.hseInspection,
-                      comments: event.target.value,
+                      workAreaSafe: value as WorkAuthorizationRecord["hseInspection"]["workAreaSafe"],
                     },
                   }))
                 }
               />
-
-              <div className="space-y-3">
-                <FormFileUpload
-                  label="HSE Inspection Photo/Evidence"
-                  disabled={!editable}
-                  hint="Mock upload only for this phase."
-                />
-                <AttachmentList
-                  files={record.hseInspection.evidence}
-                  emptyLabel="No inspection evidence attached in this state."
-                />
-              </div>
+              <FormToggleGroup
+                label="Fire extinguisher/emergency equipment is available"
+                required
+                value={record.hseInspection.emergencyEquipmentAvailable}
+                options={inspectionOptions}
+                disabled={!editable}
+                onValueChange={(value) =>
+                  update((current) => ({
+                    ...current,
+                    hseInspection: {
+                      ...current.hseInspection,
+                      emergencyEquipmentAvailable:
+                        value as WorkAuthorizationRecord["hseInspection"]["emergencyEquipmentAvailable"],
+                    },
+                  }))
+                }
+              />
+              <FormToggleGroup
+                label="Gas leak/pressure/abnormal condition check completed"
+                required
+                value={record.hseInspection.gasPressureCheckCompleted}
+                options={inspectionOptions}
+                disabled={!editable}
+                onValueChange={(value) =>
+                  update((current) => ({
+                    ...current,
+                    hseInspection: {
+                      ...current.hseInspection,
+                      gasPressureCheckCompleted:
+                        value as WorkAuthorizationRecord["hseInspection"]["gasPressureCheckCompleted"],
+                    },
+                  }))
+                }
+              />
+              <FormToggleGroup
+                label="Required PPE and safety kits are available"
+                required
+                value={record.hseInspection.ppeAndSafetyKitsAvailable}
+                options={inspectionOptions}
+                disabled={!editable}
+                onValueChange={(value) =>
+                  update((current) => ({
+                    ...current,
+                    hseInspection: {
+                      ...current.hseInspection,
+                      ppeAndSafetyKitsAvailable:
+                        value as WorkAuthorizationRecord["hseInspection"]["ppeAndSafetyKitsAvailable"],
+                    },
+                  }))
+                }
+              />
+              <FormToggleGroup
+                label="Tools/equipment are safe and suitable for the job"
+                required
+                value={record.hseInspection.toolsSafe}
+                options={inspectionOptions}
+                disabled={!editable}
+                onValueChange={(value) =>
+                  update((current) => ({
+                    ...current,
+                    hseInspection: {
+                      ...current.hseInspection,
+                      toolsSafe: value as WorkAuthorizationRecord["hseInspection"]["toolsSafe"],
+                    },
+                  }))
+                }
+              />
+              <FormSelect
+                label="HSE Inspection Result"
+                required
+                value={record.hseInspection.result}
+                options={hseInspectionResultOptions}
+                disabled={!editable}
+                onValueChange={(value) =>
+                  update((current) => ({
+                    ...current,
+                    hseInspection: {
+                      ...current.hseInspection,
+                      result: value as WorkAuthorizationRecord["hseInspection"]["result"],
+                    },
+                  }))
+                }
+              />
             </div>
-          }
-        />
-      ) : null}
+
+            <FormTextarea
+              label="HSE Inspection Comments"
+              value={record.hseInspection.comments}
+              disabled={!editable}
+              onChange={(event) =>
+                update((current) => ({
+                  ...current,
+                  hseInspection: {
+                    ...current.hseInspection,
+                    comments: event.target.value,
+                  },
+                }))
+              }
+            />
+
+            <div className="space-y-3">
+              <FormFileUpload
+                label="HSE Inspection Photo/Evidence"
+                disabled={!editable}
+                hint="Mock upload only for this phase."
+              />
+              <AttachmentList
+                files={record.hseInspection.evidence}
+                emptyLabel="No inspection evidence attached in this state."
+              />
+            </div>
+          </div>
+        }
+      />
     </>
   );
 }
@@ -739,38 +1090,21 @@ function renderWorkCloseOut(
         description="The close-out keeps the approved work context visible and read-only."
         content={
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <FormSelect
+            <ReadOnlyField
               label="Work Authorization Reference"
               value={record.workAuthorizationReference}
-              options={workAuthorizationSelectOptions}
-              disabled={!editable}
-              onValueChange={(value) =>
-                update((current) => ({
-                  ...current,
-                  workAuthorizationReference: value,
-                }))
-              }
             />
-            <FormInput label="Request Title" value={record.requestTitle} disabled />
-            <FormInput label="Department" value={record.department} disabled />
-            <FormInput label="Work Location" value={record.workLocation} disabled />
-            <FormInput
+            <ReadOnlyField label="Close-Out Reference" value={record.reference} />
+            <ReadOnlyField label="Request Title" value={record.requestTitle} />
+            <ReadOnlyField label="Department" value={record.department} />
+            <ReadOnlyField label="Work Location" value={record.workLocation} />
+            <ReadOnlyField
               label="Approved Start"
-              value={
-                record.approvedStartDateTime
-                  ? formatDate(record.approvedStartDateTime)
-                  : ""
-              }
-              disabled
+              value={formatDateTime(record.approvedStartDateTime)}
             />
-            <FormInput
+            <ReadOnlyField
               label="Approved End"
-              value={
-                record.approvedEndDateTime
-                  ? formatDate(record.approvedEndDateTime)
-                  : ""
-              }
-              disabled
+              value={formatDateTime(record.approvedEndDateTime)}
             />
           </div>
         }
@@ -782,27 +1116,27 @@ function renderWorkCloseOut(
         content={
           <div className="mt-4 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <FormDatePicker
-                label="Actual Start Date"
+              <FormDateTimeInput
+                label="Actual Start Date/Time"
                 required
                 value={record.actualStartDateTime}
                 disabled={!editable}
-                onValueChange={(value) =>
+                onChange={(event) =>
                   update((current) => ({
                     ...current,
-                    actualStartDateTime: value,
+                    actualStartDateTime: event.target.value,
                   }))
                 }
               />
-              <FormDatePicker
-                label="Actual Completion Date"
+              <FormDateTimeInput
+                label="Actual Completion Date/Time"
                 required
                 value={record.actualCompletionDateTime}
                 disabled={!editable}
-                onValueChange={(value) =>
+                onChange={(event) =>
                   update((current) => ({
                     ...current,
-                    actualCompletionDateTime: value,
+                    actualCompletionDateTime: event.target.value,
                   }))
                 }
               />
@@ -811,20 +1145,20 @@ function renderWorkCloseOut(
             <FormToggleGroup
               label="Was the work completed as approved?"
               required
-              value={booleanToToggleValue(record.completedAsApproved)}
+              value={record.completedAsApproved ? "yes" : "no"}
               options={yesNoOptions}
               disabled={!editable}
               onValueChange={(value) =>
                 update((current) => ({
                   ...current,
-                  completedAsApproved: toggleValueToBoolean(value),
+                  completedAsApproved: value === "yes",
                   explanationForChange:
-                    value === "yes" ? "" : current.explanationForChange,
+                    value === "yes" ? current.explanationForChange : "",
                 }))
               }
             />
 
-            {record.completedAsApproved === false ? (
+            {!record.completedAsApproved ? (
               <FormTextarea
                 label="Explanation for Change"
                 required
@@ -855,13 +1189,13 @@ function renderWorkCloseOut(
             <FormToggleGroup
               label="Any incident, hazard, or near miss observed?"
               required
-              value={booleanToToggleValue(record.incidentObserved)}
+              value={record.incidentObserved ? "yes" : "no"}
               options={yesNoOptions}
               disabled={!editable}
               onValueChange={(value) =>
                 update((current) => ({
                   ...current,
-                  incidentObserved: toggleValueToBoolean(value),
+                  incidentObserved: value === "yes",
                 }))
               }
             />
@@ -887,9 +1221,7 @@ function renderWorkCloseOut(
               <FormToggleGroup
                 label="Work was monitored during execution"
                 required
-                value={booleanToToggleValue(
-                  record.monitoring.monitoredDuringExecution
-                )}
+                value={record.monitoring.monitoredDuringExecution ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -897,7 +1229,7 @@ function renderWorkCloseOut(
                     ...current,
                     monitoring: {
                       ...current.monitoring,
-                      monitoredDuringExecution: toggleValueToBoolean(value),
+                      monitoredDuringExecution: value === "yes",
                     },
                   }))
                 }
@@ -905,7 +1237,7 @@ function renderWorkCloseOut(
               <FormToggleGroup
                 label="Work stayed within the approved scope"
                 required
-                value={booleanToToggleValue(record.monitoring.stayedWithinScope)}
+                value={record.monitoring.stayedWithinScope ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -913,7 +1245,7 @@ function renderWorkCloseOut(
                     ...current,
                     monitoring: {
                       ...current.monitoring,
-                      stayedWithinScope: toggleValueToBoolean(value),
+                      stayedWithinScope: value === "yes",
                     },
                   }))
                 }
@@ -921,9 +1253,7 @@ function renderWorkCloseOut(
               <FormToggleGroup
                 label="Required PPE and safety controls were maintained"
                 required
-                value={booleanToToggleValue(
-                  record.monitoring.ppeAndControlsMaintained
-                )}
+                value={record.monitoring.ppeAndControlsMaintained ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
@@ -931,7 +1261,7 @@ function renderWorkCloseOut(
                     ...current,
                     monitoring: {
                       ...current.monitoring,
-                      ppeAndControlsMaintained: toggleValueToBoolean(value),
+                      ppeAndControlsMaintained: value === "yes",
                     },
                   }))
                 }
@@ -939,14 +1269,8 @@ function renderWorkCloseOut(
               <FormToggleGroup
                 label="Any unsafe condition was reported or addressed"
                 required
-                value={
-                  record.monitoring.unsafeConditionReportedOrAddressed === "Yes"
-                    ? "yes"
-                    : record.monitoring.unsafeConditionReportedOrAddressed === "No"
-                      ? "no"
-                      : ""
-                }
-                options={yesNoOptions}
+                value={record.monitoring.unsafeConditionReportedOrAddressed}
+                options={yesNoNaOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
                   update((current) => ({
@@ -954,7 +1278,7 @@ function renderWorkCloseOut(
                     monitoring: {
                       ...current.monitoring,
                       unsafeConditionReportedOrAddressed:
-                        value === "yes" ? "Yes" : "No",
+                        value as WorkCloseOutRecord["monitoring"]["unsafeConditionReportedOrAddressed"],
                     },
                   }))
                 }
@@ -1000,11 +1324,19 @@ function renderRegulatoryCompliance(
         description="Core compliance ownership, due date, and urgency settings."
         content={
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <FormInput
+            <ReadOnlyField label="Compliance Reference" value={record.reference} />
+            <FormSelect
               label="Department"
               required
               value={record.department}
-              disabled
+              options={departmentSelectOptions}
+              disabled={!editable}
+              onValueChange={(value) =>
+                update((current) => ({
+                  ...current,
+                  department: value,
+                }))
+              }
             />
             <FormSelect
               label="Responsible Person"
@@ -1126,12 +1458,12 @@ function renderRegulatoryCompliance(
               />
             </div>
 
-            <FormTagInput
+            <FormMultiSelect
               label="Evidence Required"
               required
+              creatable
               value={record.evidenceRequired}
-              suggestions={evidenceRequiredOptions}
-              placeholder="Type evidence, then add"
+              options={evidenceRequiredSelectOptions}
               disabled={!editable}
               onValueChange={(value) =>
                 update((current) => ({
@@ -1171,7 +1503,6 @@ function renderRegulatoryCompliance(
 function renderIncidentHazard(
   record: IncidentHazardRecord,
   editable: boolean,
-  showReviewSections: boolean,
   update: (updater: (record: IncidentHazardRecord) => IncidentHazardRecord) => void
 ) {
   return (
@@ -1183,6 +1514,7 @@ function renderIncidentHazard(
         description="Capture the type, location, observation time, and any related approved work."
         content={
           <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <ReadOnlyField label="Report Reference" value={record.reference} />
             <FormSelect
               label="Report Type"
               required
@@ -1211,15 +1543,15 @@ function renderIncidentHazard(
                 }))
               }
             />
-            <FormDatePicker
-              label="Date Observed"
+            <FormDateTimeInput
+              label="Date/Time Observed"
               required
               value={record.dateTimeObserved}
               disabled={!editable}
-              onValueChange={(value) =>
+              onChange={(event) =>
                 update((current) => ({
                   ...current,
-                  dateTimeObserved: value,
+                  dateTimeObserved: event.target.value,
                 }))
               }
             />
@@ -1275,26 +1607,26 @@ function renderIncidentHazard(
               <FormToggleGroup
                 label="Was anyone injured?"
                 required
-                value={booleanToToggleValue(record.anyoneInjured)}
+                value={record.anyoneInjured ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
                   update((current) => ({
                     ...current,
-                    anyoneInjured: toggleValueToBoolean(value),
+                    anyoneInjured: value === "yes",
                   }))
                 }
               />
               <FormToggleGroup
                 label="Was equipment/property damaged?"
                 required
-                value={booleanToToggleValue(record.propertyDamaged)}
+                value={record.propertyDamaged ? "yes" : "no"}
                 options={yesNoOptions}
                 disabled={!editable}
                 onValueChange={(value) =>
                   update((current) => ({
                     ...current,
-                    propertyDamaged: toggleValueToBoolean(value),
+                    propertyDamaged: value === "yes",
                   }))
                 }
               />
@@ -1325,137 +1657,261 @@ function renderIncidentHazard(
         }
       />
 
-      {showReviewSections ? (
-        <Card
-          title="Review & Corrective Action"
-          description="Supervisor and HSE can confirm severity and add follow-up actions where needed."
-          content={
-            <div className="mt-4 space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormSelect
-                  label="Confirmed Severity"
-                  required
-                  value={record.review.confirmedSeverity}
-                  options={prioritySelectOptions}
-                  disabled={!editable}
-                  onValueChange={(value) =>
-                    update((current) => ({
-                      ...current,
-                      review: {
-                        ...current.review,
-                        confirmedSeverity:
-                          value as IncidentHazardRecord["review"]["confirmedSeverity"],
-                      },
-                    }))
-                  }
-                />
-                <FormToggleGroup
-                  label="Corrective Action Required?"
-                  required
-                  value={booleanToToggleValue(record.review.correctiveActionRequired)}
-                  options={yesNoOptions}
-                  disabled={!editable}
-                  onValueChange={(value) =>
-                    update((current) => ({
-                      ...current,
-                      review: {
-                        ...current.review,
-                        correctiveActionRequired: toggleValueToBoolean(value),
-                        correctiveAction:
-                          value === "yes" ? current.review.correctiveAction : "",
-                        actionOwner:
-                          value === "yes" ? current.review.actionOwner : "",
-                        targetCompletionDate:
-                          value === "yes"
-                            ? current.review.targetCompletionDate
-                            : "",
-                      },
-                    }))
-                  }
-                />
-              </div>
-
-              <FormTextarea
-                label="Root Cause / Likely Cause"
-                value={record.review.rootCause}
+      <Card
+        title="Review & Corrective Action"
+        description="Supervisor and HSE can confirm severity and add follow-up actions where needed."
+        content={
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormSelect
+                label="Confirmed Severity"
+                required
+                value={record.review.confirmedSeverity}
+                options={prioritySelectOptions}
                 disabled={!editable}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   update((current) => ({
                     ...current,
                     review: {
                       ...current.review,
-                      rootCause: event.target.value,
+                      confirmedSeverity:
+                        value as IncidentHazardRecord["review"]["confirmedSeverity"],
                     },
                   }))
                 }
               />
+              <FormToggleGroup
+                label="Corrective Action Required?"
+                required
+                value={record.review.correctiveActionRequired ? "yes" : "no"}
+                options={yesNoOptions}
+                disabled={!editable}
+                onValueChange={(value) =>
+                  update((current) => ({
+                    ...current,
+                    review: {
+                      ...current.review,
+                      correctiveActionRequired: value === "yes",
+                      correctiveAction:
+                        value === "yes" ? current.review.correctiveAction : "",
+                      actionOwner:
+                        value === "yes" ? current.review.actionOwner : "",
+                      targetCompletionDate:
+                        value === "yes"
+                          ? current.review.targetCompletionDate
+                          : "",
+                    },
+                  }))
+                }
+              />
+            </div>
 
-              {record.review.correctiveActionRequired ? (
-                <>
-                  <FormTextarea
-                    label="Corrective Action"
+            <FormTextarea
+              label="Root Cause / Likely Cause"
+              value={record.review.rootCause}
+              disabled={!editable}
+              onChange={(event) =>
+                update((current) => ({
+                  ...current,
+                  review: {
+                    ...current.review,
+                    rootCause: event.target.value,
+                  },
+                }))
+              }
+            />
+
+            {record.review.correctiveActionRequired ? (
+              <>
+                <FormTextarea
+                  label="Corrective Action"
+                  required
+                  value={record.review.correctiveAction}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    update((current) => ({
+                      ...current,
+                      review: {
+                        ...current.review,
+                        correctiveAction: event.target.value,
+                      },
+                    }))
+                  }
+                />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormSelect
+                    label="Action Owner"
                     required
-                    value={record.review.correctiveAction}
+                    value={record.review.actionOwner}
+                    options={employeeOptions}
                     disabled={!editable}
-                    onChange={(event) =>
+                    onValueChange={(value) =>
                       update((current) => ({
                         ...current,
                         review: {
                           ...current.review,
-                          correctiveAction: event.target.value,
+                          actionOwner: value,
                         },
                       }))
                     }
                   />
+                  <FormDatePicker
+                    label="Target Completion Date"
+                    required
+                    value={record.review.targetCompletionDate}
+                    disabled={!editable}
+                    onValueChange={(value) =>
+                      update((current) => ({
+                        ...current,
+                        review: {
+                          ...current.review,
+                          targetCompletionDate: value,
+                        },
+                      }))
+                    }
+                  />
+                </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormSelect
-                      label="Action Owner"
-                      required
-                      value={record.review.actionOwner}
-                      options={employeeOptions}
-                      disabled={!editable}
-                      onValueChange={(value) =>
-                        update((current) => ({
-                          ...current,
-                          review: {
-                            ...current.review,
-                            actionOwner: value,
-                          },
-                        }))
-                      }
-                    />
-                    <FormDatePicker
-                      label="Target Completion Date"
-                      required
-                      value={record.review.targetCompletionDate}
-                      disabled={!editable}
-                      onValueChange={(value) =>
-                        update((current) => ({
-                          ...current,
-                          review: {
-                            ...current.review,
-                            targetCompletionDate: value,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <FormFileUpload
-                      label="Completion Evidence"
-                      disabled={!editable}
-                      hint="Mock upload only for this phase."
-                    />
-                    <AttachmentList files={record.review.completionEvidence} />
-                  </div>
-                </>
-              ) : null}
-            </div>
-          }
-        />
-      ) : null}
+                <div className="space-y-3">
+                  <FormFileUpload
+                    label="Completion Evidence"
+                    disabled={!editable}
+                    hint="Mock upload only for this phase."
+                  />
+                  <AttachmentList files={record.review.completionEvidence} />
+                </div>
+              </>
+            ) : null}
+          </div>
+        }
+      />
     </>
   );
+}
+
+function buildApprovalSteps(
+  stage: WorkflowStage,
+  approvals: WorkflowApprovals
+): ApprovalStep[] {
+  const supervisorStatus =
+    stage === "draft"
+      ? "draft"
+      : stage === "submitted"
+        ? "in_progress"
+        : mapDecisionToApprovalStatus(approvals.supervisor.decision);
+
+  const hseStatus =
+    stage === "draft"
+      ? "draft"
+      : stage === "submitted"
+        ? "pending"
+        : stage === "pending_approval"
+          ? "in_progress"
+          : mapDecisionToApprovalStatus(approvals.hse.decision);
+
+  return [
+    {
+      id: "approval-step-supervisor",
+      request_id: "mock-request",
+      step_number: 1,
+      step_type: "individual",
+      group_rule: null,
+      status: supervisorStatus,
+      completed_at: approvals.supervisor.dateTime || null,
+      assignees: [
+        {
+          id: "approval-assignee-supervisor",
+          step_id: "approval-step-supervisor",
+          user_id: "EMP-002",
+          user_name: approvals.supervisor.name,
+          decision: mapDecisionToDecisionStatus(approvals.supervisor.decision),
+          decided_at: approvals.supervisor.dateTime || null,
+          comment: approvals.supervisor.comment || null,
+        },
+      ],
+    },
+    {
+      id: "approval-step-hse",
+      request_id: "mock-request",
+      step_number: 2,
+      step_type: "individual",
+      group_rule: null,
+      status: hseStatus,
+      completed_at: approvals.hse.dateTime || null,
+      assignees: [
+        {
+          id: "approval-assignee-hse",
+          step_id: "approval-step-hse",
+          user_id: "EMP-003",
+          user_name: approvals.hse.name,
+          decision: mapDecisionToDecisionStatus(approvals.hse.decision),
+          decided_at: approvals.hse.dateTime || null,
+          comment: approvals.hse.comment || null,
+        },
+      ],
+    },
+  ];
+}
+
+function mapDecisionToApprovalStatus(decision: string): ApprovalStatus {
+  if (decision === "Approve") return "approved";
+  if (decision === "Return") return "returned";
+  if (decision === "Reject") return "rejected";
+  return "pending";
+}
+
+function mapDecisionToDecisionStatus(decision: string): DecisionStatus {
+  if (decision === "Approve") return "approved";
+  if (decision === "Return") return "returned";
+  if (decision === "Reject") return "rejected";
+  return "pending";
+}
+
+function getSummarySnapshotFields(record: SafetyWorkflowRecord) {
+  if (record.formKey === "work_authorization") {
+    return [
+      { label: "Department", value: record.department },
+      { label: "Location", value: record.workLocation },
+      { label: "Crew Size", value: `${record.workersInvolved.length} workers` },
+      {
+        label: "HSE Result",
+        value: record.hseInspection.result,
+      },
+    ];
+  }
+
+  if (record.formKey === "work_close_out") {
+    return [
+      { label: "Work Reference", value: record.workAuthorizationReference },
+      { label: "Location", value: record.workLocation },
+      {
+        label: "Completed As Approved",
+        value: record.completedAsApproved ? "Yes" : "No",
+      },
+      {
+        label: "Incidents Observed",
+        value: record.incidentObserved ? "Yes" : "No",
+      },
+    ];
+  }
+
+  if (record.formKey === "regulatory_compliance") {
+    return [
+      { label: "Department", value: record.department },
+      { label: "Responsible Person", value: record.responsiblePerson },
+      { label: "Due Date", value: formatDate(record.dueDate) },
+      { label: "Priority", value: record.priority },
+    ];
+  }
+
+  return [
+    { label: "Report Type", value: record.reportType },
+    { label: "Location", value: record.location },
+    { label: "Severity", value: record.severityEstimate },
+    {
+      label: "Related Work Auth",
+      value: record.relatedWorkAuthorization || "None linked",
+    },
+  ];
 }
