@@ -9,6 +9,7 @@ import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import {
   approvedWorkAuthorizationOptions,
   closeOutRequester,
@@ -87,13 +88,12 @@ export default function WorkCompletionForm() {
         <div className="grid gap-4 md:grid-cols-2">
           <FormDateTimeInput label="Actual Start Date/Time" required />
           <FormDateTimeInput label="Actual Completion Date/Time" required />
-          <FormSelect label="Was work completed?" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect
+          <FormToggleGroup label="Was work completed?" required options={yesNoOptions} />
+          <FormToggleGroup
             label="Was work completed as approved?"
             required
             options={yesNoOptions}
             value={completedAsApproved}
-            placeholder="Select answer"
             onValueChange={setCompletedAsApproved}
           />
           {completedAsApproved === "No" ? (
@@ -110,12 +110,11 @@ export default function WorkCompletionForm() {
             placeholder="Briefly describe what was completed"
             className="md:col-span-2"
           />
-          <FormSelect
+          <FormToggleGroup
             label="Any incident, hazard, or near miss observed?"
             required
             options={yesNoOptions}
             value={incidentObserved}
-            placeholder="Select answer"
             onValueChange={setIncidentObserved}
           />
           {incidentObserved === "Yes" ? (
@@ -147,25 +146,24 @@ export default function WorkCompletionForm() {
 
       <FormSection title="Monitoring Attestation">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormSelect label="Work was monitored during execution" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect label="Work stayed within approved scope" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect label="Required PPE and safety controls were maintained" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect label="Unsafe condition was reported/addressed if noticed" required options={yesNoNaOptions} placeholder="Select answer" />
+          <FormToggleGroup label="Work was monitored during execution" required options={yesNoOptions} />
+          <FormToggleGroup label="Work stayed within approved scope" required options={yesNoOptions} />
+          <FormToggleGroup label="Required PPE and safety controls were maintained" required options={yesNoOptions} />
+          <FormToggleGroup label="Unsafe condition was reported/addressed if noticed" required options={yesNoNaOptions} />
           <FormTextarea label="Monitoring Comment" placeholder="Add optional monitoring comment" className="md:col-span-2" />
         </div>
       </FormSection>
 
       <FormSection title="Area / Equipment Condition">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormSelect label="Work area cleaned after completion" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect label="Tools/equipment removed from work area" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect label="Vehicle/equipment/system left in safe condition" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect
+          <FormToggleGroup label="Work area cleaned after completion" required options={yesNoOptions} />
+          <FormToggleGroup label="Tools/equipment removed from work area" required options={yesNoOptions} />
+          <FormToggleGroup label="Vehicle/equipment/system left in safe condition" required options={yesNoOptions} />
+          <FormToggleGroup
             label="Any remaining hazard?"
             required
             options={yesNoOptions}
             value={remainingHazard}
-            placeholder="Select answer"
             onValueChange={setRemainingHazard}
           />
           {remainingHazard === "Yes" ? (

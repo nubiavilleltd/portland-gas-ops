@@ -9,6 +9,7 @@ import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import {
   incidentLocationOptions,
   incidentPriorityOptions,
@@ -64,9 +65,9 @@ export default function IncidentHazardForm() {
         <div className="grid gap-4 md:grid-cols-2">
           <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" />
           <FormSelect label="Severity Estimate" required options={toOptions(incidentPriorityOptions)} placeholder="Select severity" />
-          <FormSelect label="Was anyone injured?" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect label="Was equipment/property damaged?" required options={yesNoOptions} placeholder="Select answer" />
-          <FormSelect label="Is there gas/fire/environmental concern?" required options={yesNoOptions} placeholder="Select answer" />
+          <FormToggleGroup label="Was anyone injured?" required options={yesNoOptions} />
+          <FormToggleGroup label="Was equipment/property damaged?" required options={yesNoOptions} />
+          <FormToggleGroup label="Is there gas/fire/environmental concern?" required options={yesNoOptions} />
           <FormTextarea label="Immediate Action Taken" required placeholder="Describe immediate action taken" className="md:col-span-2" />
           <FormTextarea label="People Involved / Witnesses" placeholder="Optional" />
           <FormTextarea label="Additional Notes" placeholder="Optional" />

@@ -7,8 +7,8 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormInput from "@/components/forms/FormInput";
-import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import MockUserSwitcher from "./MockUserSwitcher";
 import {
   cloneWorkCloseOutRequest,
@@ -217,9 +217,9 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         <FormSection title="HSE Final Close-Out Approval">
           <div className="grid gap-4 md:grid-cols-2">
             <FormInput label="HSE Inspector" value={request.workAuthorization.hseApprover} disabled />
-            <FormSelect label="Did HSE inspect/verify close-out?" options={yesNoOptions} defaultValue="Yes" />
-            <FormSelect label="Area safe for normal operations?" options={yesNoOptions} defaultValue="Yes" />
-            <FormSelect label="Corrective action required?" options={yesNoOptions} defaultValue="No" />
+            <FormToggleGroup label="Did HSE inspect/verify close-out?" options={yesNoOptions} defaultValue="Yes" />
+            <FormToggleGroup label="Area safe for normal operations?" options={yesNoOptions} defaultValue="Yes" />
+            <FormToggleGroup label="Corrective action required?" options={yesNoOptions} defaultValue="No" />
             <FormTextarea
               label="HSE Comment"
               value={hseComment}
@@ -326,7 +326,7 @@ function MonitoringSection({
         <ReadOnlyYesNo label="Work was monitored during execution" value={monitoring.monitoredDuringExecution} editable={editable} />
         <ReadOnlyYesNo label="Work stayed within approved scope" value={monitoring.stayedWithinScope} editable={editable} />
         <ReadOnlyYesNo label="Required PPE and safety controls were maintained" value={monitoring.ppeAndControlsMaintained} editable={editable} />
-        <FormSelect label="Unsafe condition was reported/addressed if noticed" value={monitoring.unsafeConditionAddressed} options={yesNoNaOptions} disabled={!editable} />
+        <FormToggleGroup label="Unsafe condition was reported/addressed if noticed" value={monitoring.unsafeConditionAddressed} options={yesNoNaOptions} disabled={!editable} />
         <FormTextarea label="Monitoring Comment" value={monitoring.monitoringComment} disabled={!editable} className="md:col-span-2" />
       </div>
     </FormSection>
@@ -366,7 +366,7 @@ function ReadOnlyYesNo({
   editable: boolean;
 }) {
   return (
-    <FormSelect
+    <FormToggleGroup
       label={label}
       value={value ? "Yes" : "No"}
       options={yesNoOptions}

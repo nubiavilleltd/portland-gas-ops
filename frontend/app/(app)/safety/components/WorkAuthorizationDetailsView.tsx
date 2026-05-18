@@ -9,6 +9,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormFileUpload from "@/components/forms/FormFileUpload";
+import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import MockUserSwitcher from "./MockUserSwitcher";
 import type {
@@ -330,7 +331,7 @@ function WorkDetailsSection({
         <FormTextarea label="Work Description" defaultValue={request.workDetails.description} disabled={!editable} />
         <FormTextarea label="Reason for Work" defaultValue={request.workDetails.reason} disabled={!editable} />
         <FormInput label="Workers Involved" defaultValue={request.workDetails.workersInvolved.join(", ")} disabled={!editable} />
-        <FormSelect
+        <FormToggleGroup
           label="Contractor Required?"
           value={request.workDetails.contractorRequired ? "Yes" : "No"}
           options={yesNoOptions}
@@ -380,7 +381,7 @@ function ReadOnlyYesNo({
   editable: boolean;
 }) {
   return (
-    <FormSelect
+    <FormToggleGroup
       label={label}
       value={value ? "Yes" : "No"}
       options={yesNoOptions}

@@ -9,6 +9,7 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import IncidentHazardRoleSwitcher from "./IncidentHazardRoleSwitcher";
 import {
   cloneIncidentHazardReport,
@@ -249,7 +250,7 @@ function HseReviewAction({
         <FormSelect label="Confirmed Severity" required options={toOptions(incidentPriorityOptions)} defaultValue="Medium" />
         <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
         <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" />
-        <FormSelect
+        <FormToggleGroup
           label="Corrective Action Required?"
           required
           options={yesNoOptions}
@@ -307,11 +308,10 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
 
 function ReadOnlyYesNo({ label, value, editable }: { label: string; value: boolean | null; editable: boolean }) {
   return (
-    <FormSelect
+    <FormToggleGroup
       label={label}
       value={value === null ? "" : value ? "Yes" : "No"}
       options={yesNoOptions}
-      placeholder="Select answer"
       disabled={!editable}
     />
   );

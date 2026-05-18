@@ -10,6 +10,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import type { SelectOption } from "@/components/forms/SelectInput";
 import DatePicker from "@/components/forms/DatePicker";
 
@@ -169,12 +170,11 @@ export default function WorkAuthorizationForm() {
             placeholder="Explain why the work is needed"
             className="md:min-h-28"
           />
-          <FormSelect
+          <FormToggleGroup
             label="Contractor Required?"
             required
             options={yesNoOptions}
             value={contractorRequired}
-            placeholder="Select answer"
             onValueChange={setContractorRequired}
           />
           {contractorRequired === "Yes" ? (
@@ -210,35 +210,30 @@ export default function WorkAuthorizationForm() {
 
       <FormSection title="Safety / Risk Indicators">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormSelect
+          <FormToggleGroup
             label="Is gas/CNG/LNG involved?"
             required
             options={yesNoOptions}
-            placeholder="Select answer"
           />
-          <FormSelect
+          <FormToggleGroup
             label="Is a pressurized system involved?"
             required
             options={yesNoOptions}
-            placeholder="Select answer"
           />
-          <FormSelect
+          <FormToggleGroup
             label="Will the work involve heat, sparks, welding, cutting, or grinding?"
             required
             options={yesNoOptions}
-            placeholder="Select answer"
           />
-          <FormSelect
+          <FormToggleGroup
             label="Is electrical isolation required?"
             required
             options={yesNoOptions}
-            placeholder="Select answer"
           />
-          <FormSelect
+          <FormToggleGroup
             label="Is lifting/heavy equipment involved?"
             required
             options={yesNoOptions}
-            placeholder="Select answer"
           />
           <FormTextarea
             label="Additional Safety Note"

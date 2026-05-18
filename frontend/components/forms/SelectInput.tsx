@@ -197,7 +197,8 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
             "flex items-center justify-between gap-3",
             error && "border-red-400 focus:ring-red-400",
-            disabled && "cursor-not-allowed bg-gray-50 text-brand-text-secondary opacity-70",
+            disabled &&
+              "cursor-not-allowed border-gray-200  shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
             triggerClassName
           )}
         >

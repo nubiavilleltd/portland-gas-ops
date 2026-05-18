@@ -108,6 +108,7 @@ const FormToggleGroup = forwardRef<HTMLInputElement, Props>(
           id={inputId}
           className={cn(
             "grid gap-2 rounded-xl border border-brand-border bg-white p-1 sm:grid-flow-col sm:auto-cols-fr",
+            disabled && "border-gray-200 bg-gray-100",
             error && "border-red-400"
           )}
         >
@@ -125,7 +126,9 @@ const FormToggleGroup = forwardRef<HTMLInputElement, Props>(
                   isSelected
                     ? "bg-brand-purple text-white"
                     : "text-brand-text-secondary hover:bg-gray-50 hover:text-brand-text-primary",
-                  disabled && "cursor-not-allowed opacity-70"
+                  disabled &&
+                    "cursor-not-allowed text-brand-text-primary hover:bg-transparent hover:text-brand-text-primary",
+                  disabled && isSelected && "bg-gray-300 text-brand-text-primary"
                 )}
               >
                 {option.label}
