@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  ShoppingCart, Package, Receipt, Truck, Wrench,
+  ShoppingCart, Package, Receipt, Truck,
   ShieldCheck, AlertTriangle, BarChart3, Users, Settings, Store,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -20,15 +20,21 @@ const moduleGroups = [
     modules: [
       { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
       { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
-      { name: "Assets", description: "Equipment & maintenance scheduling", icon: Wrench, href: "/assets" },
+    ],
+  },
+  {
+    title: "Supply Chain",
+    fullWidth: true,
+    modules: [
+      { name: "Purchase Requests", description: "Raise & manage purchase requisitions", icon: ShoppingCart, href: "/procurement" },
       { name: "Vendors", description: "Suppliers & service providers", icon: Store, href: "/vendors" },
+      { name: "Assets", description: "Register, track & request company assets", icon: Package, href: "/assets" },
     ],
   },
   {
     title: "Finance",
     fullWidth: true,
     modules: [
-      { name: "Procurement", description: "Purchase requests & vendor management", icon: ShoppingCart, href: "/procurement" },
       { name: "Billing", description: "Invoices & payment tracking", icon: Receipt, href: "/billing" },
       { name: "Finance", description: "Budgets, expenses & reports", icon: BarChart3, href: "/finance" },
     ],
