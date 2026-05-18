@@ -1,0 +1,262 @@
+import type {
+  WorkAuthorizationApprovalResult,
+  WorkAuthorizationHseInspection,
+  WorkAuthorizationRequest,
+} from "@/types/safety";
+
+const requester = {
+  name: "Daniel Okoro",
+  department: "Engineering",
+  role: "CNG Conversion Technician",
+  requestDate: "2026-05-18",
+};
+
+const supervisorApprovedForHse: WorkAuthorizationApprovalResult = {
+  decision: "Approve",
+  approver: "Mary James",
+  dateTime: "2026-05-18 10:15 AM",
+  comment: "Work scope reviewed and approved for HSE inspection.",
+};
+
+const approvedHseInspection: WorkAuthorizationHseInspection = {
+  workAreaSafe: "Pass",
+  emergencyEquipmentAvailable: "Pass",
+  gasPressureCheckCompleted: "Pass",
+  ppeAndSafetyKitsAvailable: "Pass",
+  toolsSafe: "Pass",
+  inspectionDateTime: "2026-05-18 11:00 AM",
+  comments: "Area inspected. Fire extinguisher and PPE confirmed.",
+  result: "Passed",
+  evidence: [{ name: "hse-inspection-photo.jpg", type: "image" }],
+};
+
+export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
+  {
+    id: "WA-DRAFT-001",
+    status: "draft",
+    requester,
+    requestDetails: {
+      title: "Draft CNG vehicle inspection",
+      location: "Conversion Bay 1",
+      exactWorkArea: "Bay 1 - inspection lane",
+      expectedStartDateTime: "2026-05-20 09:00 AM",
+      expectedEndDateTime: "2026-05-20 12:00 PM",
+      supervisor: "Mary James",
+      priority: "Medium",
+    },
+    workDetails: {
+      typeOfWork: ["Vehicle Inspection", "CNG Conversion"],
+      description: "Inspect vehicle before CNG conversion work.",
+      reason: "Pre-conversion readiness check.",
+      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      contractorRequired: false,
+      contractorName: "",
+      contractorContactEmail: "",
+      toolsEquipment: ["Diagnostic Tool", "Hand Tools"],
+      specialInstructions: "",
+    },
+    riskIndicators: {
+      gasInvolved: true,
+      pressurizedSystem: false,
+      heatOrSparks: false,
+      electricalIsolation: false,
+      liftingEquipment: false,
+      additionalSafetyNote: "",
+    },
+    attachments: [{ name: "vehicle-before-inspection.jpg", type: "image" }],
+    supervisorApproval: null,
+    hseInspection: null,
+    hseApproval: null,
+    auditTrail: [],
+  },
+  {
+    id: "WA-SUB-001",
+    status: "submitted",
+    requester,
+    requestDetails: {
+      title: "CNG cylinder mounting work",
+      location: "Conversion Bay 2",
+      exactWorkArea: "Left-side inspection pit",
+      expectedStartDateTime: "2026-05-21 10:00 AM",
+      expectedEndDateTime: "2026-05-21 01:00 PM",
+      supervisor: "Mary James",
+      priority: "High",
+    },
+    workDetails: {
+      typeOfWork: ["CNG Cylinder Work", "Lifting Work"],
+      description: "Mount CNG cylinder bracket and inspect cylinder position.",
+      reason: "Required for vehicle conversion completion.",
+      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      contractorRequired: false,
+      contractorName: "",
+      contractorContactEmail: "",
+      toolsEquipment: ["Torque Wrench", "Cylinder Lifting Equipment", "Gas Detector"],
+      specialInstructions: "Confirm bracket alignment before tightening.",
+    },
+    riskIndicators: {
+      gasInvolved: true,
+      pressurizedSystem: true,
+      heatOrSparks: false,
+      electricalIsolation: false,
+      liftingEquipment: true,
+      additionalSafetyNote: "Cylinder handling required.",
+    },
+    attachments: [
+      { name: "bay-2-work-area.png", type: "image" },
+      { name: "method-statement.pdf", type: "document" },
+    ],
+    supervisorApproval: null,
+    hseInspection: null,
+    hseApproval: null,
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Daniel Okoro",
+        role: "Requester",
+        dateTime: "2026-05-18 09:30 AM",
+        comment: "Work authorization request submitted.",
+      },
+    ],
+  },
+  {
+    id: "WA-PEND-001",
+    status: "pending_approval",
+    requester,
+    requestDetails: {
+      title: "Gas system leak check",
+      location: "Inspection Bay",
+      exactWorkArea: "Inspection Bay - line pressure area",
+      expectedStartDateTime: "2026-05-22 11:00 AM",
+      expectedEndDateTime: "2026-05-22 02:00 PM",
+      supervisor: "Mary James",
+      priority: "High",
+    },
+    workDetails: {
+      typeOfWork: ["Gas System Work", "Vehicle Inspection"],
+      description: "Perform gas system leak check before vehicle release.",
+      reason: "Final safety validation before approval for use.",
+      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      contractorRequired: false,
+      contractorName: "",
+      contractorContactEmail: "",
+      toolsEquipment: ["Gas Detector", "Pressure Gauge", "Hand Tools"],
+      specialInstructions: "Do not proceed if pressure reading is abnormal.",
+    },
+    riskIndicators: {
+      gasInvolved: true,
+      pressurizedSystem: true,
+      heatOrSparks: false,
+      electricalIsolation: false,
+      liftingEquipment: false,
+      additionalSafetyNote: "Check ventilation before leak test.",
+    },
+    attachments: [{ name: "leak-check-area.jpg", type: "image" }],
+    supervisorApproval: supervisorApprovedForHse,
+    hseInspection: null,
+    hseApproval: null,
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Daniel Okoro",
+        role: "Requester",
+        dateTime: "2026-05-18 09:30 AM",
+        comment: "Work authorization request submitted.",
+      },
+      {
+        action: "Supervisor Approved",
+        actor: "Mary James",
+        role: "Supervisor",
+        dateTime: "2026-05-18 10:15 AM",
+        comment: "Work scope reviewed and approved for HSE inspection.",
+      },
+    ],
+  },
+  {
+    id: "WA-APP-001",
+    status: "approved",
+    requester,
+    requestDetails: {
+      title: "Hot work on cylinder mounting bracket",
+      location: "Maintenance Workshop",
+      exactWorkArea: "Workshop welding zone",
+      expectedStartDateTime: "2026-05-23 09:00 AM",
+      expectedEndDateTime: "2026-05-23 12:00 PM",
+      supervisor: "Mary James",
+      priority: "Critical",
+    },
+    workDetails: {
+      typeOfWork: ["Hot Work", "CNG Cylinder Work"],
+      description: "Weld reinforcement support on cylinder mounting bracket.",
+      reason: "Bracket reinforcement required before final installation.",
+      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      contractorRequired: true,
+      contractorName: "SafeWeld Engineering Ltd",
+      contractorContactEmail: "adewale.example",
+      toolsEquipment: ["Welding Machine", "Grinding Machine", "Fire Extinguisher", "PPE Kit"],
+      specialInstructions: "Ensure fire watch is present during work.",
+    },
+    riskIndicators: {
+      gasInvolved: true,
+      pressurizedSystem: false,
+      heatOrSparks: true,
+      electricalIsolation: true,
+      liftingEquipment: false,
+      additionalSafetyNote: "Cylinder must not be pressurized before hot work.",
+    },
+    attachments: [
+      { name: "welding-zone-before-work.jpg", type: "image" },
+      { name: "hot-work-method-statement.pdf", type: "document" },
+    ],
+    supervisorApproval: {
+      decision: "Approve",
+      approver: "Mary James",
+      dateTime: "2026-05-18 10:20 AM",
+      comment: "Work scope and timing approved.",
+    },
+    hseInspection: approvedHseInspection,
+    hseApproval: {
+      decision: "Approve",
+      approver: "Samuel Bassey",
+      dateTime: "2026-05-18 11:10 AM",
+      comment: "Cleared for controlled hot work.",
+    },
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Daniel Okoro",
+        role: "Requester",
+        dateTime: "2026-05-18 09:30 AM",
+        comment: "Work authorization request submitted.",
+      },
+      {
+        action: "Supervisor Approved",
+        actor: "Mary James",
+        role: "Supervisor",
+        dateTime: "2026-05-18 10:20 AM",
+        comment: "Work scope and timing approved.",
+      },
+      {
+        action: "HSE Inspection Completed",
+        actor: "Samuel Bassey",
+        role: "HSE Inspector",
+        dateTime: "2026-05-18 11:00 AM",
+        comment: "Inspection completed and passed.",
+      },
+      {
+        action: "HSE Approved",
+        actor: "Samuel Bassey",
+        role: "HSE Inspector",
+        dateTime: "2026-05-18 11:10 AM",
+        comment: "Request approved by HSE.",
+      },
+    ],
+  },
+];
+
+export function getMockWorkAuthorizationRequest(id: string) {
+  return mockWorkAuthorizationRequests.find((request) => request.id === id) ?? null;
+}
+
+export function cloneWorkAuthorizationRequest(request: WorkAuthorizationRequest) {
+  return structuredClone(request);
+}

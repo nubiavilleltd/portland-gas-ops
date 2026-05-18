@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,8 @@ const MONTHS = [
   "December",
 ];
 
-interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type"> {
+interface Props
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type"> {
   label: string;
   error?: string;
   hint?: string;
@@ -40,11 +42,14 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   dropdownClassName?: string;
 }
 
-function parseDate(value?: string) {
+function parseDateTime(value?: string) {
   if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
+  const [datePart, timePart = ""] = value.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
   if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
+
+  const [hour = 0, minute = 0] = timePart.split(":").map(Number);
+  return new Date(year, month - 1, day, hour || 0, minute || 0);
 }
 
 function toISODate(date: Date) {
@@ -54,14 +59,22 @@ function toISODate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function formatDisplayDate(value?: string) {
-  const parsed = parseDate(value);
+function toTimeValue(date: Date) {
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${hour}:${minute}`;
+}
+
+function formatDisplayDateTime(value?: string) {
+  const parsed = parseDateTime(value);
   if (!parsed) return "";
 
-  return parsed.toLocaleDateString("en-GB", {
+  return parsed.toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -80,7 +93,7 @@ function setNativeInputValue(input: HTMLInputElement, nextValue: string) {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-const DatePicker = forwardRef<HTMLInputElement, Props>(
+const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
   (
     {
       label,
@@ -94,7 +107,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       defaultValue,
       onValueChange,
       onBlur,
-      placeholder = "Select date",
+      placeholder = "Select date and time",
       disabled,
       required,
       min,
@@ -115,26 +128,34 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
     );
 
     const selectedValue = isControlled ? String(value ?? "") : internalValue;
-    const selectedDate = useMemo(() => parseDate(selectedValue), [selectedValue]);
-    const [viewDate, setViewDate] = useState<Date>(selectedDate ?? today);
+    const selectedDateTime = useMemo(
+      () => parseDateTime(selectedValue),
+      [selectedValue]
+    );
+    const [viewDate, setViewDate] = useState<Date>(selectedDateTime ?? today);
+    const selectedTime = selectedDateTime ? toTimeValue(selectedDateTime) : "";
 
-    const minValue = typeof min === "string" ? min : undefined;
-    const maxValue = typeof max === "string" ? max : undefined;
-    const minDate = useMemo(() => parseDate(minValue), [minValue]);
-    const maxDate = useMemo(() => parseDate(maxValue), [maxValue]);
+    const minDate = useMemo(
+      () => (typeof min === "string" ? parseDateTime(min) : null),
+      [min]
+    );
+    const maxDate = useMemo(
+      () => (typeof max === "string" ? parseDateTime(max) : null),
+      [max]
+    );
 
     useEffect(() => {
-      if (!selectedDate) return;
+      if (!selectedDateTime) return;
 
       setViewDate((current) => {
         const sameVisibleDate =
-          current.getFullYear() === selectedDate.getFullYear() &&
-          current.getMonth() === selectedDate.getMonth() &&
-          current.getDate() === selectedDate.getDate();
+          current.getFullYear() === selectedDateTime.getFullYear() &&
+          current.getMonth() === selectedDateTime.getMonth() &&
+          current.getDate() === selectedDateTime.getDate();
 
-        return sameVisibleDate ? current : selectedDate;
+        return sameVisibleDate ? current : selectedDateTime;
       });
-    }, [selectedDate]);
+    }, [selectedDateTime]);
 
     useEffect(() => {
       if (!open) return;
@@ -145,7 +166,9 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
           !containerRef.current.contains(event.target as Node)
         ) {
           setOpen(false);
-          onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
+          onBlur?.({
+            target: hiddenInputRef.current,
+          } as React.FocusEvent<HTMLInputElement>);
         }
       }
 
@@ -169,12 +192,6 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       }
     }
 
-    function isDayDisabled(day: Date) {
-      if (minDate && day < minDate) return true;
-      if (maxDate && day > maxDate) return true;
-      return false;
-    }
-
     function updateValue(nextValue: string) {
       if (!isControlled) {
         setInternalValue(nextValue);
@@ -187,15 +204,29 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       onValueChange?.(nextValue);
     }
 
+    function isDayDisabled(day: Date) {
+      if (minDate && day < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate())) {
+        return true;
+      }
+      if (maxDate && day > new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate())) {
+        return true;
+      }
+      return false;
+    }
+
     function selectDay(dayNumber: number) {
       const nextDate = new Date(
         viewDate.getFullYear(),
         viewDate.getMonth(),
         dayNumber
       );
-      updateValue(toISODate(nextDate));
-      setOpen(false);
-      onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
+      const nextTime = selectedTime || "09:00";
+      updateValue(`${toISODate(nextDate)}T${nextTime}`);
+    }
+
+    function updateTime(nextTime: string) {
+      const baseDate = selectedDateTime ?? viewDate;
+      updateValue(`${toISODate(baseDate)}T${nextTime}`);
     }
 
     const month = viewDate.getMonth();
@@ -213,7 +244,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
         <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="ml-1 text-red-500">*</span>}
         </label>
 
         <input
@@ -240,14 +271,15 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
             triggerClassName
           )}
         >
-          <div className="flex items-center gap-2">
-            <Calendar size={15} className="text-brand-text-secondary" />
+          <div className="flex min-w-0 items-center gap-2">
+            <Calendar size={15} className="shrink-0 text-brand-text-secondary" />
             <span
               className={cn(
+                "truncate",
                 selectedValue ? "text-brand-text-primary" : "text-brand-text-secondary"
               )}
             >
-              {selectedValue ? formatDisplayDate(selectedValue) : placeholder}
+              {selectedValue ? formatDisplayDateTime(selectedValue) : placeholder}
             </span>
           </div>
           <ChevronDown
@@ -270,7 +302,10 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
               <button
                 type="button"
                 onClick={() =>
-                  setViewDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))
+                  setViewDate(
+                    (current) =>
+                      new Date(current.getFullYear(), current.getMonth() - 1, 1)
+                  )
                 }
                 className="rounded-full p-1 text-brand-text-secondary transition-colors hover:bg-gray-100 hover:text-brand-text-primary"
               >
@@ -284,7 +319,10 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
               <button
                 type="button"
                 onClick={() =>
-                  setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))
+                  setViewDate(
+                    (current) =>
+                      new Date(current.getFullYear(), current.getMonth() + 1, 1)
+                  )
                 }
                 className="rounded-full p-1 text-brand-text-secondary transition-colors hover:bg-gray-100 hover:text-brand-text-primary"
               >
@@ -292,7 +330,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
               </button>
             </div>
 
-            <div className="grid grid-cols-7 px-3 pt-3 pb-1">
+            <div className="grid grid-cols-7 px-3 pb-1 pt-3">
               {DAYS.map((day) => (
                 <div
                   key={day}
@@ -310,10 +348,10 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
                 const currentDate = new Date(year, month, dayNumber);
                 const disabledDay = isDayDisabled(currentDate);
                 const isSelected =
-                  selectedDate &&
-                  dayNumber === selectedDate.getDate() &&
-                  month === selectedDate.getMonth() &&
-                  year === selectedDate.getFullYear();
+                  selectedDateTime &&
+                  dayNumber === selectedDateTime.getDate() &&
+                  month === selectedDateTime.getMonth() &&
+                  year === selectedDateTime.getFullYear();
                 const isToday =
                   dayNumber === today.getDate() &&
                   month === today.getMonth() &&
@@ -328,9 +366,9 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
                     className={cn(
                       "mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm transition-colors",
                       isSelected
-                        ? "bg-brand-purple text-white font-semibold"
+                        ? "bg-brand-purple font-semibold text-white"
                         : isToday
-                          ? "border border-brand-purple text-brand-purple font-semibold hover:bg-brand-purple-faint"
+                          ? "border border-brand-purple font-semibold text-brand-purple hover:bg-brand-purple-faint"
                           : disabledDay
                             ? "cursor-not-allowed text-gray-300"
                             : "text-brand-text-primary hover:bg-gray-100"
@@ -342,33 +380,65 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
               })}
             </div>
 
+            <div className="border-t border-gray-100 px-4 py-3">
+              <label
+                htmlFor={`${inputId}-time`}
+                className="mb-1 flex items-center gap-2 text-xs font-medium text-brand-text-secondary"
+              >
+                <Clock size={13} />
+                Time
+              </label>
+              <input
+                id={`${inputId}-time`}
+                type="time"
+                value={selectedTime || "09:00"}
+                onChange={(event) => updateTime(event.target.value)}
+                className="h-9 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary outline-none focus:border-transparent focus:ring-2 focus:ring-brand-purple"
+              />
+            </div>
+
             <div className="flex items-center justify-between border-t border-gray-100 px-4 py-2">
               <button
                 type="button"
                 onClick={() => {
-                  setViewDate(today);
-                  updateValue(toISODate(today));
-                  setOpen(false);
-                  onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
+                  const now = new Date();
+                  setViewDate(now);
+                  updateValue(`${toISODate(now)}T${toTimeValue(now)}`);
                 }}
                 className="text-xs font-medium text-brand-purple transition-colors hover:text-brand-purple-dark"
               >
-                Today
+                Now
               </button>
 
-              {!required && selectedValue ? (
+              <div className="flex items-center gap-4">
+                {!required && selectedValue ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateValue("");
+                      setOpen(false);
+                      onBlur?.({
+                        target: hiddenInputRef.current,
+                      } as React.FocusEvent<HTMLInputElement>);
+                    }}
+                    className="text-xs font-medium text-brand-text-secondary transition-colors hover:text-brand-text-primary"
+                  >
+                    Clear
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
-                    updateValue("");
                     setOpen(false);
-                    onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
+                    onBlur?.({
+                      target: hiddenInputRef.current,
+                    } as React.FocusEvent<HTMLInputElement>);
                   }}
-                  className="text-xs font-medium text-brand-text-secondary transition-colors hover:text-brand-text-primary"
+                  className="text-xs font-medium text-brand-purple transition-colors hover:text-brand-purple-dark"
                 >
-                  Clear
+                  Done
                 </button>
-              ) : null}
+              </div>
             </div>
           </div>
         )}
@@ -380,6 +450,6 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
   }
 );
 
-DatePicker.displayName = "DatePicker";
+FormDateTimeInput.displayName = "FormDateTimeInput";
 
-export default DatePicker;
+export default FormDateTimeInput;

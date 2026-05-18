@@ -7,17 +7,19 @@ import {
   useRef,
   useState,
 } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn, toTitleCase } from "@/lib/utils";
+import type { SelectOption } from "./SelectInput";
 
-export interface SelectOption {
-  value: string;
-  label: string;
-}
-
-interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "onChange"> {
+interface Props
+  extends Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    "size" | "onChange" | "value" | "defaultValue"
+  > {
   label: string;
   options: SelectOption[];
+  value?: string[];
+  defaultValue?: string[];
   placeholder?: string;
   error?: string;
   hint?: string;
@@ -25,7 +27,7 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   sortOptions?: boolean;
   searchPlaceholder?: string;
   creatable?: boolean;
-  onValueChange?: (value: string) => void;
+  onValueChange?: (value: string[]) => void;
   triggerClassName?: string;
   dropdownClassName?: string;
 }
@@ -41,12 +43,14 @@ function setNativeInputValue(input: HTMLInputElement, nextValue: string) {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-const SelectInput = forwardRef<HTMLInputElement, Props>(
+const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
   (
     {
       label,
       options,
-      placeholder = "Select an option",
+      value,
+      defaultValue,
+      placeholder = "Select one or more options",
       error,
       hint,
       searchable,
@@ -57,8 +61,6 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       triggerClassName,
       dropdownClassName,
       id,
-      value,
-      defaultValue,
       onBlur,
       onValueChange,
       disabled,
@@ -74,17 +76,22 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     const [open, setOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const isControlled = value !== undefined;
-    const [internalValue, setInternalValue] = useState(
-      typeof defaultValue === "string" ? defaultValue : ""
+    const [internalValue, setInternalValue] = useState<string[]>(
+      Array.isArray(defaultValue) ? defaultValue : []
     );
 
     const enableSearch = searchable ?? options.length > 5;
+    const selectedValues = useMemo(
+      () => (isControlled ? value ?? [] : internalValue),
+      [internalValue, isControlled, value]
+    );
+    const trimmedSearchQuery = searchQuery.trim();
 
     const normalizedOptions = useMemo(() => {
       const mappedOptions = options.map((option) => ({
-          ...option,
-          displayLabel: toTitleCase(option.label),
-        }));
+        ...option,
+        displayLabel: toTitleCase(option.label),
+      }));
 
       return sortOptions
         ? [...mappedOptions].sort((left, right) =>
@@ -93,26 +100,35 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
         : mappedOptions;
     }, [options, sortOptions]);
 
+    const selectedOptions = useMemo(
+      () =>
+        selectedValues.map((currentValue) => {
+          const existing = normalizedOptions.find(
+            (option) => option.value === currentValue
+          );
+
+          return (
+            existing ?? {
+              value: currentValue,
+              label: currentValue,
+              displayLabel: toTitleCase(currentValue),
+            }
+          );
+        }),
+      [normalizedOptions, selectedValues]
+    );
+
     const filteredOptions = useMemo(() => {
-      if (!enableSearch || !searchQuery.trim()) return normalizedOptions;
+      if (!enableSearch || !trimmedSearchQuery) return normalizedOptions;
 
-      const query = searchQuery.trim().toLowerCase();
-      return normalizedOptions.filter((option) =>
-        option.displayLabel.toLowerCase().includes(query)
+      const query = trimmedSearchQuery.toLowerCase();
+      return normalizedOptions.filter(
+        (option) =>
+          option.displayLabel.toLowerCase().includes(query) ||
+          option.value.toLowerCase().includes(query)
       );
-    }, [enableSearch, normalizedOptions, searchQuery]);
+    }, [enableSearch, normalizedOptions, trimmedSearchQuery]);
 
-    const selectedValue = isControlled ? String(value ?? "") : internalValue;
-    const selectedOption =
-      normalizedOptions.find((option) => option.value === selectedValue) ??
-      (selectedValue
-        ? {
-            value: selectedValue,
-            label: selectedValue,
-            displayLabel: toTitleCase(selectedValue),
-          }
-        : undefined);
-    const trimmedSearchQuery = searchQuery.trim();
     const canCreateOption =
       creatable &&
       trimmedSearchQuery.length > 0 &&
@@ -131,7 +147,9 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
           !containerRef.current.contains(event.target as Node)
         ) {
           setOpen(false);
-          onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
+          onBlur?.({
+            target: hiddenInputRef.current,
+          } as React.FocusEvent<HTMLInputElement>);
         }
       }
 
@@ -140,10 +158,10 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     }, [open, onBlur]);
 
     useEffect(() => {
-      if (isControlled && hiddenInputRef.current) {
-        hiddenInputRef.current.value = selectedValue;
+      if (hiddenInputRef.current) {
+        hiddenInputRef.current.value = selectedValues.join(", ");
       }
-    }, [isControlled, selectedValue]);
+    }, [selectedValues]);
 
     function setRefs(node: HTMLInputElement | null) {
       hiddenInputRef.current = node;
@@ -155,26 +173,38 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       }
     }
 
-    function handleSelect(nextValue: string) {
+    function updateValue(nextValue: string[]) {
       if (!isControlled) {
         setInternalValue(nextValue);
       }
 
       if (hiddenInputRef.current) {
-        setNativeInputValue(hiddenInputRef.current, nextValue);
+        setNativeInputValue(hiddenInputRef.current, nextValue.join(", "));
       }
 
       onValueChange?.(nextValue);
-      setOpen(false);
+    }
+
+    function toggleValue(nextValue: string) {
+      const exists = selectedValues.includes(nextValue);
+      const updatedValues = exists
+        ? selectedValues.filter((item) => item !== nextValue)
+        : [...selectedValues, nextValue];
+
+      updateValue(updatedValues);
+    }
+
+    function handleCreate() {
+      if (!trimmedSearchQuery) return;
+      toggleValue(trimmedSearchQuery);
       setSearchQuery("");
-      onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
     }
 
     return (
       <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
         <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="ml-1 text-red-500">*</span>}
         </label>
 
         <input
@@ -183,7 +213,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
           id={`${inputId}-value`}
           name={name}
           type="hidden"
-          value={selectedValue}
+          value={selectedValues.join(", ")}
           disabled={disabled}
           readOnly
         />
@@ -194,21 +224,38 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
           disabled={disabled}
           onClick={() => setOpen((current) => !current)}
           className={cn(
-            "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
-            "flex items-center justify-between gap-3",
+            "min-h-10 rounded-lg border border-brand-border bg-white px-3 py-2 text-left text-sm text-brand-text-primary transition-shadow",
+            "flex items-start justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
             error && "border-red-400 focus:ring-red-400",
             disabled &&
-              "cursor-not-allowed border-gray-200  shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
+              "cursor-not-allowed border-gray-200 bg-gray-100 shadow-none opacity-50 focus:ring-0 focus:border-gray-200",
             triggerClassName
           )}
         >
-          <span className={cn(!selectedOption && "text-brand-text-secondary")}>
-            {selectedOption ? selectedOption.displayLabel : placeholder}
-          </span>
+          <div className="flex min-h-6 flex-1 flex-wrap items-center gap-1.5">
+            {selectedOptions.length > 0 ? (
+              selectedOptions.map((option) => (
+                <span
+                  key={option.value}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
+                    disabled
+                      ? "bg-gray-200 text-brand-text-primary"
+                      : "bg-brand-purple-faint text-brand-purple"
+                  )}
+                >
+                  {option.displayLabel}
+                </span>
+              ))
+            ) : (
+              <span className="py-0.5 text-brand-text-secondary">{placeholder}</span>
+            )}
+          </div>
+
           <ChevronDown
             size={16}
             className={cn(
-              "shrink-0 text-brand-text-secondary transition-transform",
+              "mt-1 shrink-0 text-brand-text-secondary transition-transform",
               open && "rotate-180"
             )}
           />
@@ -236,27 +283,27 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
               </div>
             )}
 
-            <div className="max-h-60 overflow-y-auto">
-              {canCreateOption ? (
-                <button
-                  type="button"
-                  onClick={() => handleSelect(trimmedSearchQuery)}
-                  className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-brand-purple/40 bg-brand-purple-faint px-3 py-2 text-left text-sm text-brand-purple transition-colors hover:border-brand-purple hover:bg-brand-purple-mid"
-                >
-                  <span>Add &quot;{toTitleCase(trimmedSearchQuery)}&quot;</span>
-                  <Check size={15} className="shrink-0" />
-                </button>
-              ) : null}
+            {canCreateOption ? (
+              <button
+                type="button"
+                onClick={handleCreate}
+                className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-brand-purple/40 bg-brand-purple-faint px-3 py-2 text-left text-sm text-brand-purple transition-colors hover:border-brand-purple hover:bg-brand-purple-mid"
+              >
+                <span>Add &quot;{toTitleCase(trimmedSearchQuery)}&quot;</span>
+                <Check size={15} className="shrink-0" />
+              </button>
+            ) : null}
 
+            <div className="max-h-60 overflow-y-auto">
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((option) => {
-                  const isSelected = option.value === selectedValue;
+                  const isSelected = selectedValues.includes(option.value);
 
                   return (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => handleSelect(option.value)}
+                      onClick={() => toggleValue(option.value)}
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
                         isSelected
@@ -275,6 +322,22 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
                 </div>
               )}
             </div>
+
+            {selectedOptions.length > 0 ? (
+              <div className="mt-2 flex items-center justify-between border-t border-gray-100 px-1 pt-2">
+                <p className="text-xs text-brand-text-secondary">
+                  {selectedOptions.length} selected
+                </p>
+                <button
+                  type="button"
+                  onClick={() => updateValue([])}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-text-secondary transition-colors hover:text-brand-text-primary"
+                >
+                  <X size={12} />
+                  Clear all
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -285,6 +348,6 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
   }
 );
 
-SelectInput.displayName = "SelectInput";
+MultiSelectInput.displayName = "MultiSelectInput";
 
-export default SelectInput;
+export default MultiSelectInput;
