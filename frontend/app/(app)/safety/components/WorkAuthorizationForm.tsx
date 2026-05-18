@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
-import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import type { SelectOption } from "@/components/forms/SelectInput";
-import DatePicker from "@/components/forms/DatePicker";
+import { useToast } from "@/hooks/useToast";
 
 const requester = {
   name: "Daniel Okoro",
@@ -79,28 +79,22 @@ const contractorOptions = optionFromStrings([
 ]);
 
 export default function WorkAuthorizationForm() {
+  const router = useRouter();
+  const toast = useToast();
   const [contractorRequired, setContractorRequired] = useState("");
   const [workAreaFiles, setWorkAreaFiles] = useState<File[]>([]);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
-  const [submittedReference, setSubmittedReference] = useState("");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmittedReference("WA-2026-0001");
+    toast.success("Work authorization request submitted successfully.");
+    window.setTimeout(() => {
+      router.push("/safety/work-authorization");
+    }, 700);
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      {submittedReference ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-          <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-          <div>
-            <p className="font-medium">Request submitted successfully.</p>
-            <p className="mt-1">Mock reference generated: {submittedReference}</p>
-          </div>
-        </div>
-      ) : null}
-
       <FormSection title="Requester Details">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={requester.name} disabled />
@@ -124,7 +118,6 @@ export default function WorkAuthorizationForm() {
           <FormTextarea label="Exact Work Area" required placeholder="Describe the exact area" />
           <FormDateTimeInput label="Expected Start Date/Time" required />
           <FormDateTimeInput label="Expected End Date/Time" required />
-          <DatePicker label="Date of Last Similar Work at This Location" />
           <FormSelect
             label="Supervisor"
             required
@@ -188,8 +181,9 @@ export default function WorkAuthorizationForm() {
                 placeholder="Select or add contractor"
               />
               <FormInput
-                label="Contractor Contact Person"
-                placeholder="Enter contact person"
+                label="Contractor Contact Email"
+                type="email"
+                placeholder="Enter contractor contact email"
               />
             </>
           ) : null}
@@ -245,28 +239,24 @@ export default function WorkAuthorizationForm() {
       <FormSection title="Attachments">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3">
-            <FormFileUpload
+            <FileDropzone
               label="Work Area Images"
+              value={workAreaFiles}
+              onChange={setWorkAreaFiles}
               accept="image/*,.pdf,.doc,.docx"
-              multiple
+              maxFiles={10}
               hint="Images, PDFs, and documents are accepted. No upload will occur yet."
-              onChange={(event) =>
-                setWorkAreaFiles(Array.from(event.currentTarget.files ?? []))
-              }
             />
-            <SelectedFiles files={workAreaFiles} />
           </div>
           <div className="space-y-3">
-            <FormFileUpload
+            <FileDropzone
               label="Supporting Documents"
+              value={supportingFiles}
+              onChange={setSupportingFiles}
               accept="image/*,.pdf,.doc,.docx"
-              multiple
+              maxFiles={10}
               hint="Attach method statements, drawings, checklists, or photos."
-              onChange={(event) =>
-                setSupportingFiles(Array.from(event.currentTarget.files ?? []))
-              }
             />
-            <SelectedFiles files={supportingFiles} />
           </div>
           <FormTextarea
             label="Attachment Notes"
@@ -296,32 +286,4 @@ function FormSection({
       {children}
     </section>
   );
-}
-
-function SelectedFiles({ files }: { files: File[] }) {
-  if (files.length === 0) {
-    return <p className="text-xs text-brand-text-secondary">No files selected.</p>;
-  }
-
-  return (
-    <div className="rounded-xl border border-brand-border bg-gray-50 p-3">
-      <p className="text-xs font-medium text-brand-text-secondary">Selected files:</p>
-      <ul className="mt-2 space-y-1">
-        {files.map((file) => (
-          <li key={`${file.name}-${file.size}`} className="text-sm text-brand-text-primary">
-            {file.name}{" "}
-            <span className="text-xs text-brand-text-secondary">
-              ({formatFileSize(file.size)})
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function formatFileSize(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }

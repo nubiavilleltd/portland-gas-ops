@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
-import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
@@ -17,31 +17,26 @@ import {
   relatedWorkAuthorizationOptions,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
+import { useToast } from "@/hooks/useToast";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
 
 export default function IncidentHazardForm() {
+  const router = useRouter();
+  const toast = useToast();
   const [files, setFiles] = useState<File[]>([]);
-  const [submittedReference, setSubmittedReference] = useState("");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmittedReference("IH-2026-0001");
+    toast.success("Incident/hazard report submitted successfully.");
+    window.setTimeout(() => {
+      router.push("/safety/incidents");
+    }, 700);
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      {submittedReference ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-          <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-          <div>
-            <p className="font-medium">Incident/hazard report submitted.</p>
-            <p className="mt-1">Mock reference generated: {submittedReference}</p>
-          </div>
-        </div>
-      ) : null}
-
       <FormSection title="Reporter Details">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Reporter Name" value={mockReporter.name} disabled />
@@ -76,14 +71,14 @@ export default function IncidentHazardForm() {
 
       <FormSection title="Evidence / Attachments">
         <div className="space-y-3">
-          <FormFileUpload
+          <FileDropzone
             label="Photos / Videos / Documents"
+            value={files}
+            onChange={setFiles}
             accept="image/*,video/*,.pdf,.doc,.docx"
-            multiple
+            maxFiles={10}
             hint="Local selection only. No upload is performed."
-            onChange={(event) => setFiles(Array.from(event.currentTarget.files ?? []))}
           />
-          <SelectedFiles files={files} />
           <FormTextarea label="Evidence Notes" placeholder="Optional notes about attachments" />
         </div>
       </FormSection>
@@ -102,32 +97,4 @@ function FormSection({ title, children }: { title: string; children: React.React
       {children}
     </section>
   );
-}
-
-function SelectedFiles({ files }: { files: File[] }) {
-  if (files.length === 0) {
-    return <p className="text-xs text-brand-text-secondary">No files selected.</p>;
-  }
-
-  return (
-    <div className="rounded-xl border border-brand-border bg-gray-50 p-3">
-      <p className="text-xs font-medium text-brand-text-secondary">Selected files:</p>
-      <ul className="mt-2 space-y-1">
-        {files.map((file) => (
-          <li key={`${file.name}-${file.size}`} className="text-sm text-brand-text-primary">
-            {file.name}{" "}
-            <span className="text-xs text-brand-text-secondary">
-              ({formatFileSize(file.size)})
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function formatFileSize(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }

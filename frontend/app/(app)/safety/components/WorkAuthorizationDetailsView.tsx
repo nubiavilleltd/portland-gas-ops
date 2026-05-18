@@ -5,10 +5,10 @@ import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import MockUserSwitcher from "./MockUserSwitcher";
@@ -340,10 +340,10 @@ function WorkDetailsSection({
         {request.workDetails.contractorRequired ? (
           <>
             <FormInput label="Contractor Name" defaultValue={request.workDetails.contractorName} disabled={!editable} />
-            <FormInput label="Contractor Contact Person" defaultValue={request.workDetails.contractorContactPerson} disabled={!editable} />
+            <FormInput label="Contractor Contact Email" type="email" defaultValue={request.workDetails.contractorContactEmail} disabled={!editable} />
           </>
         ) : null}
-        <FormInput label="Tools/Equipment Required" defaultValue={request.workDetails.toolsEquipment.join(", ")} disabled={!editable} />
+        {/* <FormInput label="Tools/Equipment Required" defaultValue={request.workDetails.toolsEquipment.join(", ")} disabled={!editable} /> */}
         <FormTextarea label="Special Instructions" defaultValue={request.workDetails.specialInstructions} disabled={!editable} />
       </div>
     </FormSection>
@@ -397,15 +397,19 @@ function AttachmentsSection({
   request: WorkAuthorizationRequest;
   editable: boolean;
 }) {
+  const [newAttachments, setNewAttachments] = useState<File[]>([]);
+
   return (
     <FormSection title="Attachments">
       <AttachmentList attachments={request.attachments} />
       {editable ? (
         <div className="mt-4">
-          <FormFileUpload
+          <FileDropzone
             label="Add Attachments"
+            value={newAttachments}
+            onChange={setNewAttachments}
             accept="image/*,.pdf,.doc,.docx"
-            multiple
+            maxFiles={10}
             hint="Local selection only. No upload is performed."
           />
         </div>
@@ -491,17 +495,13 @@ function HseInspectionActionSection({
           placeholder="Add inspection comments"
         />
         <div className="md:col-span-2">
-          <FormFileUpload
+          <FileDropzone
             label="Inspection evidence/images"
+            value={evidence}
+            onChange={onEvidenceChange}
             accept="image/*,.pdf,.doc,.docx"
-            multiple
-            onChange={(event) => onEvidenceChange(Array.from(event.currentTarget.files ?? []))}
+            maxFiles={10}
           />
-          {evidence.length > 0 ? (
-            <p className="mt-2 text-xs text-brand-text-secondary">
-              {evidence.map((file) => file.name).join(", ")}
-            </p>
-          ) : null}
         </div>
       </div>
     </FormSection>

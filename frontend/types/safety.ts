@@ -52,7 +52,7 @@ export interface WorkAuthorizationWorkDetails {
   workersInvolved: string[];
   contractorRequired: boolean;
   contractorName: string;
-  contractorContactPerson: string;
+  contractorContactEmail: string;
   toolsEquipment: string[];
   specialInstructions: string;
 }

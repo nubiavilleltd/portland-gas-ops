@@ -20,19 +20,19 @@ const safetyProcesses = [
     description: "Confirm completed work, monitoring, and final close-out approval",
     href: "/safety/work-close-out",
     icon: <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6" />,
-  },
-  {
-    title: "Incident & Hazard Report",
-    description: "Report incidents, hazards, near misses, and HSE corrective actions",
-    href: "/safety/incidents",
-    icon: <AlertTriangle className="h-5 w-5 md:h-6 md:w-6" />,
-  },
-  {
-    title: "Regulatory Compliance",
-    description: "Raise compliance requests, certifications, inspections, and HSE approvals",
-    href: "/safety/regulatory-compliance",
-    icon: <ShieldCheck className="h-5 w-5 md:h-6 md:w-6" />,
-  },
+  }
+  // {
+  //   title: "Incident & Hazard Report",
+  //   description: "Report incidents, hazards, near misses, and HSE corrective actions",
+  //   href: "/safety/incidents",
+  //   icon: <AlertTriangle className="h-5 w-5 md:h-6 md:w-6" />,
+  // }
+  // {
+  //   title: "Regulatory Compliance",
+  //   description: "Raise compliance requests, certifications, inspections, and HSE approvals",
+  //   href: "/safety/regulatory-compliance",
+  //   icon: <ShieldCheck className="h-5 w-5 md:h-6 md:w-6" />,
+  // },
 ];
 
 export default function SafetyPage() {

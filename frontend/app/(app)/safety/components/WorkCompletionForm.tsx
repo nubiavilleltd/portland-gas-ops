@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
-import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
@@ -15,6 +15,7 @@ import {
   closeOutRequester,
 } from "@/lib/mock/work-close-out";
 import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
+import { useToast } from "@/hooks/useToast";
 
 const yesNoOptions = [
   { value: "Yes", label: "Yes" },
@@ -29,12 +30,13 @@ const workAuthorizationOptions = approvedWorkAuthorizationOptions.map((item) => 
 }));
 
 export default function WorkCompletionForm() {
+  const router = useRouter();
+  const toast = useToast();
   const [selectedWorkAuthorizationId, setSelectedWorkAuthorizationId] = useState("");
   const [completedAsApproved, setCompletedAsApproved] = useState("");
   const [incidentObserved, setIncidentObserved] = useState("");
   const [remainingHazard, setRemainingHazard] = useState("");
   const [completionFiles, setCompletionFiles] = useState<File[]>([]);
-  const [submittedReference, setSubmittedReference] = useState("");
 
   const selectedWorkAuthorization = useMemo(
     () =>
@@ -46,21 +48,14 @@ export default function WorkCompletionForm() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmittedReference("WC-2026-0001");
+    toast.success("Work close-out submitted successfully.");
+    window.setTimeout(() => {
+      router.push("/safety/work-close-out");
+    }, 700);
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      {submittedReference ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-          <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-          <div>
-            <p className="font-medium">Close-out submitted successfully.</p>
-            <p className="mt-1">Mock reference generated: {submittedReference}</p>
-          </div>
-        </div>
-      ) : null}
-
       <FormSection title="Requester Details">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={closeOutRequester.name} disabled />
@@ -125,16 +120,14 @@ export default function WorkCompletionForm() {
             />
           ) : null}
           <div className="space-y-3 md:col-span-2">
-            <FormFileUpload
+            <FileDropzone
               label="Completion Evidence"
+              value={completionFiles}
+              onChange={setCompletionFiles}
               accept="image/*,.pdf,.doc,.docx"
-              multiple
+              maxFiles={10}
               hint="Local selection only. No upload is performed."
-              onChange={(event) =>
-                setCompletionFiles(Array.from(event.currentTarget.files ?? []))
-              }
             />
-            <SelectedFiles files={completionFiles} />
           </div>
           <FormTextarea
             label="Completion Notes"
@@ -225,24 +218,5 @@ function FormSection({
       <h2 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h2>
       {children}
     </section>
-  );
-}
-
-function SelectedFiles({ files }: { files: File[] }) {
-  if (files.length === 0) {
-    return <p className="text-xs text-brand-text-secondary">No files selected.</p>;
-  }
-
-  return (
-    <div className="rounded-xl border border-brand-border bg-gray-50 p-3">
-      <p className="text-xs font-medium text-brand-text-secondary">Selected files:</p>
-      <ul className="mt-2 space-y-1">
-        {files.map((file) => (
-          <li key={`${file.name}-${file.size}`} className="text-sm text-brand-text-primary">
-            {file.name}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

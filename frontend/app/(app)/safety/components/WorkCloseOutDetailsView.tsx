@@ -5,7 +5,7 @@ import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
-import FormFileUpload from "@/components/forms/FormFileUpload";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormToggleGroup from "@/components/forms/FormToggleGroup";
@@ -283,6 +283,8 @@ function CompletionDetails({
   editable: boolean;
 }) {
   const details = request.completionDetails;
+  const [completionEvidence, setCompletionEvidence] = useState<File[]>([]);
+
   return (
     <FormSection title="Completion Details">
       <div className="grid gap-4 md:grid-cols-2">
@@ -304,7 +306,13 @@ function CompletionDetails({
         <AttachmentList attachments={details.completionEvidence} />
         {editable ? (
           <div className="mt-4">
-            <FormFileUpload label="Completion Evidence" accept="image/*,.pdf,.doc,.docx" multiple />
+            <FileDropzone
+              label="Completion Evidence"
+              value={completionEvidence}
+              onChange={setCompletionEvidence}
+              accept="image/*,.pdf,.doc,.docx"
+              maxFiles={10}
+            />
           </div>
         ) : null}
       </div>
