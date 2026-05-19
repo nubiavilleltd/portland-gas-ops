@@ -3,15 +3,16 @@
 import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import { customers } from "@/lib/mock/customers";
+// import { customers } from "@/lib/mock/customers";
 import { useParams } from "next/navigation";
+import { customers } from "@/lib/modules/customers/mock/customers.mock";
 
 export default function CustomerDetailsPage() {
   const router = useRouter();
 const params = useParams();
 const id = params.id as string;
 
-  const customer = customers.find((c) => c.id === params.id);
+  const customer = customers.find((c) => c.id === id);
 
   if (!customer) {
     return (

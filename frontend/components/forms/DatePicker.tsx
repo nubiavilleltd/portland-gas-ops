@@ -115,26 +115,17 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
     );
 
     const selectedValue = isControlled ? String(value ?? "") : internalValue;
-    const selectedDate = useMemo(() => parseDate(selectedValue), [selectedValue]);
+    const selectedDate = parseDate(selectedValue);
     const [viewDate, setViewDate] = useState<Date>(selectedDate ?? today);
 
-    const minValue = typeof min === "string" ? min : undefined;
-    const maxValue = typeof max === "string" ? max : undefined;
-    const minDate = useMemo(() => parseDate(minValue), [minValue]);
-    const maxDate = useMemo(() => parseDate(maxValue), [maxValue]);
+    const minDate = parseDate(typeof min === "string" ? min : undefined);
+    const maxDate = parseDate(typeof max === "string" ? max : undefined);
 
     useEffect(() => {
-      if (!selectedDate) return;
-
-      setViewDate((current) => {
-        const sameVisibleDate =
-          current.getFullYear() === selectedDate.getFullYear() &&
-          current.getMonth() === selectedDate.getMonth() &&
-          current.getDate() === selectedDate.getDate();
-
-        return sameVisibleDate ? current : selectedDate;
-      });
-    }, [selectedDate]);
+      if (selectedDate) {
+        setViewDate(selectedDate);
+      }
+    }, [selectedValue]); // selectedDate is derived from selectedValue — don't include it or it creates an infinite loop
 
     useEffect(() => {
       if (!open) return;
@@ -210,7 +201,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
     while (cells.length % 7 !== 0) cells.push(null);
 
     return (
-      <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
+      <div ref={containerRef} className={cn("relative flex flex-col gap-1", className)}>
         <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
@@ -235,18 +226,13 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
             "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left transition-shadow",
             "flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
             error && "border-red-400 focus:ring-red-400",
-            disabled &&
-              "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
+            disabled && "cursor-not-allowed bg-gray-50 text-brand-text-secondary opacity-70",
             triggerClassName
           )}
         >
           <div className="flex items-center gap-2">
             <Calendar size={15} className="text-brand-text-secondary" />
-            <span
-              className={cn(
-                selectedValue ? "text-brand-text-primary" : "text-brand-text-secondary"
-              )}
-            >
+            <span className={cn(selectedValue ? "text-brand-text-primary" : "text-brand-text-secondary")}>
               {selectedValue ? formatDisplayDate(selectedValue) : placeholder}
             </span>
           </div>
@@ -383,3 +369,4 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
 DatePicker.displayName = "DatePicker";
 
 export default DatePicker;
+ 

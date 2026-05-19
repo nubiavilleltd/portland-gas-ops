@@ -25,6 +25,7 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   sortOptions?: boolean;
   searchPlaceholder?: string;
   creatable?: boolean;
+  titleCaseOptions?: boolean;
   onValueChange?: (value: string) => void;
   triggerClassName?: string;
   dropdownClassName?: string;
@@ -53,6 +54,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       sortOptions = true,
       searchPlaceholder = "Search options",
       creatable = false,
+      titleCaseOptions = false,
       className,
       triggerClassName,
       dropdownClassName,
@@ -83,7 +85,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     const normalizedOptions = useMemo(() => {
       const mappedOptions = options.map((option) => ({
           ...option,
-          displayLabel: toTitleCase(option.label),
+          displayLabel: titleCaseOptions ? toTitleCase(option.label) : option.label,
         }));
 
       return sortOptions
@@ -91,7 +93,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             left.displayLabel.localeCompare(right.displayLabel)
           )
         : mappedOptions;
-    }, [options, sortOptions]);
+    }, [options, sortOptions, titleCaseOptions]);
 
     const filteredOptions = useMemo(() => {
       if (!enableSearch || !searchQuery.trim()) return normalizedOptions;
@@ -109,7 +111,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
         ? {
             value: selectedValue,
             label: selectedValue,
-            displayLabel: toTitleCase(selectedValue),
+            displayLabel: titleCaseOptions ? toTitleCase(selectedValue) : selectedValue,
           }
         : undefined);
     const trimmedSearchQuery = searchQuery.trim();
@@ -243,7 +245,9 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
                   onClick={() => handleSelect(trimmedSearchQuery)}
                   className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-brand-purple/40 bg-brand-purple-faint px-3 py-2 text-left text-sm text-brand-purple transition-colors hover:border-brand-purple hover:bg-brand-purple-mid"
                 >
-                  <span>Add &quot;{toTitleCase(trimmedSearchQuery)}&quot;</span>
+                  <span>
+                    Add &quot;{titleCaseOptions ? toTitleCase(trimmedSearchQuery) : trimmedSearchQuery}&quot;
+                  </span>
                   <Check size={15} className="shrink-0" />
                 </button>
               ) : null}
@@ -288,3 +292,4 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
 SelectInput.displayName = "SelectInput";
 
 export default SelectInput;
+ 
