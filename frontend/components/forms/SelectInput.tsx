@@ -24,6 +24,8 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   searchable?: boolean;
   sortOptions?: boolean;
   searchPlaceholder?: string;
+  creatable?: boolean;
+  titleCaseOptions?: boolean;
   onValueChange?: (value: string) => void;
   triggerClassName?: string;
   dropdownClassName?: string;
@@ -51,6 +53,8 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       searchable,
       sortOptions = true,
       searchPlaceholder = "Search options",
+      creatable = false,
+      titleCaseOptions = false,
       className,
       triggerClassName,
       dropdownClassName,
@@ -81,7 +85,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     const normalizedOptions = useMemo(() => {
       const mappedOptions = options.map((option) => ({
           ...option,
-          displayLabel: toTitleCase(option.label),
+          displayLabel: titleCaseOptions ? toTitleCase(option.label) : option.label,
         }));
 
       return sortOptions
@@ -89,7 +93,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             left.displayLabel.localeCompare(right.displayLabel)
           )
         : mappedOptions;
-    }, [options, sortOptions]);
+    }, [options, sortOptions, titleCaseOptions]);
 
     const filteredOptions = useMemo(() => {
       if (!enableSearch || !searchQuery.trim()) return normalizedOptions;
@@ -101,9 +105,24 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     }, [enableSearch, normalizedOptions, searchQuery]);
 
     const selectedValue = isControlled ? String(value ?? "") : internalValue;
-    const selectedOption = normalizedOptions.find(
-      (option) => option.value === selectedValue
-    );
+    const selectedOption =
+      normalizedOptions.find((option) => option.value === selectedValue) ??
+      (selectedValue
+        ? {
+            value: selectedValue,
+            label: selectedValue,
+            displayLabel: titleCaseOptions ? toTitleCase(selectedValue) : selectedValue,
+          }
+        : undefined);
+    const trimmedSearchQuery = searchQuery.trim();
+    const canCreateOption =
+      creatable &&
+      trimmedSearchQuery.length > 0 &&
+      !normalizedOptions.some(
+        (option) =>
+          option.value.toLowerCase() === trimmedSearchQuery.toLowerCase() ||
+          option.displayLabel.toLowerCase() === trimmedSearchQuery.toLowerCase()
+      );
 
     useEffect(() => {
       if (!open) return;
@@ -154,7 +173,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     }
 
     return (
-      <div ref={containerRef} className={cn("relative flex flex-col gap-1", className)}>
+      <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
         <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
@@ -180,7 +199,8 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
             "flex items-center justify-between gap-3",
             error && "border-red-400 focus:ring-red-400",
-            disabled && "cursor-not-allowed bg-gray-50 text-brand-text-secondary opacity-70",
+            disabled &&
+              "cursor-not-allowed border-gray-200  shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
             triggerClassName
           )}
         >
@@ -219,6 +239,19 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             )}
 
             <div className="max-h-60 overflow-y-auto">
+              {canCreateOption ? (
+                <button
+                  type="button"
+                  onClick={() => handleSelect(trimmedSearchQuery)}
+                  className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-brand-purple/40 bg-brand-purple-faint px-3 py-2 text-left text-sm text-brand-purple transition-colors hover:border-brand-purple hover:bg-brand-purple-mid"
+                >
+                  <span>
+                    Add &quot;{titleCaseOptions ? toTitleCase(trimmedSearchQuery) : trimmedSearchQuery}&quot;
+                  </span>
+                  <Check size={15} className="shrink-0" />
+                </button>
+              ) : null}
+
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((option) => {
                   const isSelected = option.value === selectedValue;
@@ -259,3 +292,4 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
 SelectInput.displayName = "SelectInput";
 
 export default SelectInput;
+ 

@@ -1,40 +1,150 @@
+// import AppLayout from "@/components/layout/AppLayout";
+// import OrdersHomeClient from "@/lib/modules/orders/components/OrdersHomeClient";
+// import { OrdersService } from "@/lib/services/api/orders.service";
+
+// export default async function OrdersHomePage() {
+//   const orders = await OrdersService.getOrders();
+//   const kpis = await OrdersService.getKPIs();
+
+//   return (
+//     <AppLayout pageTitle="Orders">
+//       <OrdersHomeClient
+//         orders={orders}
+//         kpis={kpis}
+//       />
+//     </AppLayout>
+//   );
+// }
+
+
+
+
+
 "use client";
 
-import { Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import DataTable, { type Column } from "@/components/ui/DataTable";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import type { GasOrder } from "@/types";
+import WorkspaceCard from "@/components/ui/WorkspaceCard";
 
-const MOCK: GasOrder[] = [
-  { id: "1", order_number: "ORD-20240512-C3D4", customer_id: "c1", customer_name: "Dangote Cement Plc", gas_type: "CNG", quantity_kg: 12000, unit_price: 850, total_amount: 10200000, status: "dispatched", delivery_address: "Obajana, Kogi State", delivery_date: "2024-05-14", vehicle_id: "v1", driver_id: "d1", notes: null, created_at: "2024-05-12", updated_at: null },
-  { id: "2", order_number: "ORD-20240511-E5F6", customer_id: "c2", customer_name: "Julius Berger Nigeria", gas_type: "LNG", quantity_kg: 8500, unit_price: 1200, total_amount: 10200000, status: "confirmed", delivery_address: "Abuja, FCT", delivery_date: "2024-05-15", vehicle_id: null, driver_id: null, notes: null, created_at: "2024-05-11", updated_at: null },
-  { id: "3", order_number: "ORD-20240510-G7H8", customer_id: "c3", customer_name: "MTN Nigeria HQ", gas_type: "CNG", quantity_kg: 5000, unit_price: 850, total_amount: 4250000, status: "delivered", delivery_address: "Falomo, Lagos Island", delivery_date: "2024-05-13", vehicle_id: "v2", driver_id: "d2", notes: null, created_at: "2024-05-10", updated_at: null },
-  { id: "4", order_number: "ORD-20240508-I9J0", customer_id: "c4", customer_name: "Flour Mills of Nigeria", gas_type: "CNG", quantity_kg: 9000, unit_price: 850, total_amount: 7650000, status: "draft", delivery_address: "Apapa, Lagos", delivery_date: null, vehicle_id: null, driver_id: null, notes: null, created_at: "2024-05-08", updated_at: null },
-];
+import { ClipboardList, Plus, Truck, FileText } from "lucide-react";
 
-const columns: Column<GasOrder>[] = [
-  { key: "order_number", label: "Order No." },
-  { key: "customer_name", label: "Customer" },
-  { key: "gas_type", label: "Type" },
-  { key: "quantity_kg", label: "Qty (kg)", render: (v) => `${Number(v).toLocaleString()} kg` },
-  { key: "total_amount", label: "Total", render: (v) => formatCurrency(Number(v)) },
-  { key: "delivery_date", label: "Delivery Date", render: (v) => formatDate(v as string) },
-  { key: "status", label: "Status", render: (v) => <ApprovalBadge status={v as GasOrder["status"]} /> },
-];
+import { getOrderKPIs } from "@/lib/modules/orders/selectors/orders.selectors";
+import { formatCurrency } from "@/lib/utils";
+import { orders } from "@/lib/modules/orders/mock/orders.mock";
 
-export default function OrdersPage() {
+export default function OrdersHomePage() {
+  // ── FIXED: use real selector instead of hardcoded numbers ──
+  const kpis = getOrderKPIs(orders);
+
   return (
-    <AppLayout pageTitle="Orders & Dispatch">
-      <PageHeader title="Gas Orders" description="Track gas orders, dispatch and delivery" action={
-        <Button href="/orders/new" leftIcon={<Plus size={16} />}>
-          New Order
-        </Button>
-      } className="mb-6" />
-      <DataTable columns={columns} data={MOCK} rowHref={(r) => `/orders/${r.id}`} />
+    <AppLayout pageTitle="Orders">
+
+      {/* HEADER */}
+      <PageHeader
+        title="Orders & Fulfillment"
+        description="Manage customer gas orders and fulfillment lifecycle"
+        action={
+          <Button href="/orders/new">
+            {/* <Plus className="w-4 h-4 mr-2" /> */}
+            Create Order
+          </Button>
+        }
+      />
+
+      {/* KPI SECTION — live data from selector */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mt-6">
+        <MetricCard title="Total Orders" value={kpis.totalOrders} />
+        <MetricCard title="Pending Dispatch" value={kpis.pendingDispatch} />
+        <MetricCard title="In Transit" value={kpis.inTransit} />
+        <MetricCard title="Delivered" value={kpis.delivered} />
+        <MetricCard title="Total Revenue" value={formatCurrency(kpis.totalRevenue)} isText />
+      </div>
+
+      {/* MAIN WORKSPACE */}
+      <div className="mt-10">
+        <h2 className="text-2xl font-semibold text-brand-text-primary">
+          Order Operations
+        </h2>
+
+        <p className="text-sm text-brand-text-secondary mt-1">
+          Access and manage customer orders and fulfillment workflows
+        </p>
+
+        <div className="grid gap-4 mt-5 sm:grid-cols-2 xl:grid-cols-3">
+          <WorkspaceCard
+            title="All Orders"
+            description="View, filter, and manage all customer orders"
+            href="/orders/list"
+            icon={ClipboardList}
+            stat={`${kpis.totalOrders} total`}
+          />
+
+          <WorkspaceCard
+            title="Pending Dispatch"
+            description="Confirmed orders awaiting trip assignment"
+            href="/orders/list"
+            icon={Truck}
+            stat={`${kpis.pendingDispatch} awaiting`}
+          />
+
+          <WorkspaceCard
+            title="Invoices"
+            description="Manage billing invoices and payment tracking"
+            href="/invoices"
+            icon={FileText}
+            stat={`${kpis.unpaidOrders} unpaid`}
+          />
+        </div>
+      </div>
+
+      {/* QUICK ACTIONS */}
+      <div className="mt-10 bg-white border border-brand-border rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-brand-text-primary">
+          Quick Actions
+        </h2>
+
+        <p className="text-sm text-brand-text-secondary mt-1">
+          Frequently used order operations
+        </p>
+
+        <div className="flex flex-wrap gap-3 mt-5">
+          <Button href="/orders/new">
+            {/* <Plus className="w-4 h-4 mr-2" /> */}
+            Create Order
+          </Button>
+
+          <Button variant="outline" href="/orders/list">
+            {/* <ClipboardList className="w-4 h-4 mr-2" /> */}
+            View All Orders
+          </Button>
+
+          <Button variant="outline" href="/fleet/trips/new">
+            {/* <Truck className="w-4 h-4 mr-2" /> */}
+            Create Trip
+          </Button>
+        </div>
+      </div>
+
     </AppLayout>
+  );
+}
+
+function MetricCard({
+  title,
+  value,
+  isText,
+}: {
+  title: string;
+  value: number | string;
+  isText?: boolean;
+}) {
+  return (
+    <div className="bg-white border border-brand-border rounded-2xl p-5">
+      <p className="text-sm text-brand-text-secondary">{title}</p>
+      <h3 className={`font-semibold text-brand-text-primary mt-3 ${isText ? "text-xl" : "text-3xl"}`}>
+        {value}
+      </h3>
+    </div>
   );
 }

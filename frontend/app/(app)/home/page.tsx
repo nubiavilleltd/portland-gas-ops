@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import {
-  ShoppingCart, Package, Receipt, Truck, Wrench,
-  ShieldCheck, AlertTriangle, BarChart3, Users, Settings,
+  ShoppingCart, Package, Receipt, Truck,
+  ShieldCheck, AlertTriangle, BarChart3, Users, Settings, Store,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ModuleCard from "@/components/ui/ModuleCard";
@@ -20,14 +20,21 @@ const moduleGroups = [
     modules: [
       { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
       { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
-      { name: "Assets", description: "Equipment & maintenance scheduling", icon: Wrench, href: "/assets" },
+    ],
+  },
+  {
+    title: "Supply Chain",
+    fullWidth: true,
+    modules: [
+      { name: "Purchase Requests", description: "Raise & manage purchase requisitions", icon: ShoppingCart, href: "/procurement" },
+      { name: "Vendors", description: "Suppliers & service providers", icon: Store, href: "/vendors" },
+      { name: "Assets", description: "Register, track & request company assets", icon: Package, href: "/assets" },
     ],
   },
   {
     title: "Finance",
     fullWidth: true,
     modules: [
-      { name: "Procurement", description: "Purchase requests & vendor management", icon: ShoppingCart, href: "/procurement" },
       { name: "Billing", description: "Invoices & payment tracking", icon: Receipt, href: "/billing" },
       { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
     ],
@@ -36,7 +43,7 @@ const moduleGroups = [
     title: "Compliance & Safety",
     modules: [
       { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
-      { name: "Incidents", description: "Incident & near-miss reporting", icon: AlertTriangle, href: "/safety/incidents" },
+      { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
     ],
   },
   {
@@ -44,6 +51,11 @@ const moduleGroups = [
     fullWidth: true,
     modules: [
       { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr" },
+    ],
+  },
+  {
+    title: "Administration",
+    modules: [
       { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
     ],
   },
