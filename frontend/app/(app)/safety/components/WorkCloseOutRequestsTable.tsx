@@ -35,11 +35,17 @@ const columns: Column<WorkCloseOutRequest>[] = [
   },
 ];
 
+// Draft rows are hidden for now. Keep the mock draft records intact so draft
+// workflows can return later without rebuilding the data.
+const visibleWorkCloseOutRequests = mockWorkCloseOutRequests.filter(
+  (request) => request.status !== "draft"
+);
+
 export default function WorkCloseOutRequestsTable() {
   return (
     <DataTable
       columns={columns}
-      data={mockWorkCloseOutRequests}
+      data={visibleWorkCloseOutRequests}
       rowHref={(request) => `/safety/work-close-out/${request.id}`}
       emptyMessage="No work close-out requests found."
     />

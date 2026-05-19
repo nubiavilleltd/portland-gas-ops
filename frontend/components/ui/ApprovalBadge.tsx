@@ -35,6 +35,10 @@ interface Props {
   className?: string;
 }
 
+const labels: Record<string, string> = {
+  rejected: "Denied",
+};
+
 export default function ApprovalBadge({ status, className }: Props) {
   return (
     <span
@@ -44,7 +48,7 @@ export default function ApprovalBadge({ status, className }: Props) {
         className
       )}
     >
-      {capitalize(status)}
+      {labels[status] ?? capitalize(status)}
     </span>
   );
 }

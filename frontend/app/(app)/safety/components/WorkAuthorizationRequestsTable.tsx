@@ -63,7 +63,9 @@ export default function WorkAuthorizationRequestsTable() {
     fetchWorkAuthorizationRequests()
       .then((items) => {
         if (mounted) {
-          setRequests(items);
+          // Draft rows are hidden for now. Keep the mock draft records intact so
+          // draft workflows can return later without rebuilding the data.
+          setRequests(items.filter((item) => item.status !== "draft"));
         }
       })
       .finally(() => {

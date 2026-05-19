@@ -81,7 +81,7 @@ These may exist as UI states, but they should not complicate the main flow.
 | Status | Meaning |
 |---|---|
 | Returned | Supervisor or HSE returned the request for correction |
-| Rejected | Supervisor or HSE rejected the request |
+| Denied | Supervisor or HSE denied the request |
 | Cancelled | Requester cancelled the request |
 
 ---
@@ -387,7 +387,7 @@ cylinder-bracket-photo.jpg
 
 ## Purpose
 
-The supervisor reviews the work scope and approves, returns, or rejects it.
+The supervisor reviews the work scope and approves, returns, or denies it.
 
 The supervisor is **not** completing the HSE inspection.
 
@@ -404,8 +404,8 @@ status === "Submitted"
 | Field | Type | Required | Notes |
 |---|---|---:|---|
 | Supervisor name | Read-only / person lookup | Yes | Selected in Request Details |
-| Supervisor decision | Dropdown | Yes | Approve, Return, Reject |
-| Supervisor comment | Textarea | Conditional | Required if Return or Reject |
+| Supervisor decision | Dropdown | Yes | Approve, Return, Deny |
+| Supervisor comment | Textarea | Conditional | Required if Return or Deny |
 | Supervisor approval date/time | Read-only date/time | No | Mock auto-filled after decision |
 
 ## Decision options
@@ -414,7 +414,7 @@ status === "Submitted"
 const approvalDecisionOptions = [
   "Approve",
   "Return",
-  "Reject"
+  "Deny"
 ];
 ```
 
@@ -502,8 +502,8 @@ status === "Pending Approval"
 | Field | Type | Required | Notes |
 |---|---|---:|---|
 | HSE approver | Person lookup / read-only | Yes | HSE personnel reviewing |
-| HSE decision | Dropdown | Yes | Approve, Return, Reject |
-| HSE comment | Textarea | Conditional | Required if Return or Reject |
+| HSE decision | Dropdown | Yes | Approve, Return, Deny |
+| HSE comment | Textarea | Conditional | Required if Return or Deny |
 | HSE approval date/time | Read-only date/time | No | Mock auto-filled after decision |
 
 ## Mock status rule

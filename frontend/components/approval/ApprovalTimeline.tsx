@@ -21,6 +21,10 @@ interface Props {
   steps: ApprovalStep[];
 }
 
+const decisionLabels: Record<string, string> = {
+  rejected: "denied",
+};
+
 export default function ApprovalTimeline({ steps }: Props) {
   return (
     <div className="relative pl-6">
@@ -74,7 +78,7 @@ export default function ApprovalTimeline({ steps }: Props) {
                   assignee.decision === "returned" && "bg-orange-50 text-orange-700",
                   assignee.decision === "pending" && "bg-gray-100 text-gray-500",
                 )}>
-                  {assignee.decision}
+                  {decisionLabels[assignee.decision] ?? assignee.decision}
                 </span>
               </div>
             ))}

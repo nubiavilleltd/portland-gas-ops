@@ -44,11 +44,17 @@ const columns: Column<IncidentHazardReport>[] = [
   },
 ];
 
+// Draft rows are hidden for now. Keep the mock draft records intact so draft
+// workflows can return later without rebuilding the data.
+const visibleIncidentHazardReports = mockIncidentHazardReports.filter(
+  (report) => report.status !== "draft"
+);
+
 export default function IncidentHazardReportsTable() {
   return (
     <DataTable
       columns={columns}
-      data={mockIncidentHazardReports}
+      data={visibleIncidentHazardReports}
       rowHref={(report) => `/safety/incidents/${report.id}`}
       emptyMessage="No incident or hazard reports found."
     />

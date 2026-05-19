@@ -33,8 +33,13 @@ const yesNoNaOptions = [...yesNoOptions, { value: "N/A", label: "N/A" }];
 const decisionOptions = [
   { value: "Approve", label: "Approve" },
   { value: "Return", label: "Return" },
-  { value: "Reject", label: "Reject" },
+  { value: "Deny", label: "Deny" },
 ];
+
+function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
+  if (decision === "Deny") return "denied";
+  return `${decision.toLowerCase()}ed`;
+}
 
 export default function WorkCloseOutDetailsView({ requestId }: { requestId: string }) {
   const router = useRouter();
@@ -89,7 +94,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     });
   }
 
-  function supervisorDecision(decision: "Approve" | "Return" | "Reject") {
+  function supervisorDecision(decision: "Approve" | "Return" | "Deny") {
     const approval: WorkAuthorizationApprovalResult = {
       decision,
       approver: request.workAuthorization.supervisor,
@@ -98,7 +103,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         supervisorComment ||
         (decision === "Approve"
           ? "Completion reviewed and accepted."
-          : `Close-out ${decision.toLowerCase()}ed by supervisor.`),
+          : `Close-out ${decisionPastTense(decision)} by supervisor.`),
     };
 
     setRequest((current) =>
@@ -119,7 +124,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     });
   }
 
-  function hseDecision(decision: "Approve" | "Return" | "Reject") {
+  function hseDecision(decision: "Approve" | "Return" | "Deny") {
     const approval: WorkCloseOutHseApproval = {
       inspector: request.workAuthorization.hseApprover,
       verifiedCloseOut: true,
@@ -131,7 +136,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         hseComment ||
         (decision === "Approve"
           ? "Area verified safe. Close-out approved."
-          : `Close-out ${decision.toLowerCase()}ed by HSE.`),
+          : `Close-out ${decisionPastTense(decision)} by HSE.`),
       dateTime: "2026-05-18 03:40 PM",
     };
 
@@ -418,7 +423,7 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
 function DecisionButtons({
   onDecision,
 }: {
-  onDecision: (decision: "Approve" | "Return" | "Reject") => void;
+  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
@@ -426,8 +431,8 @@ function DecisionButtons({
         <Button
           key={option.value}
           type="button"
-          variant={option.value === "Approve" ? "primary" : option.value === "Reject" ? "danger" : "outline"}
-          onClick={() => onDecision(option.value as "Approve" | "Return" | "Reject")}
+          variant={option.value === "Approve" ? "primary" : option.value === "Deny" ? "danger" : "outline"}
+          onClick={() => onDecision(option.value as "Approve" | "Return" | "Deny")}
         >
           {option.label}
         </Button>

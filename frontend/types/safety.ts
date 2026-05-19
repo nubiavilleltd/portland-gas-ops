@@ -25,7 +25,7 @@ export type WorkAuthorizationStatus =
 
 export type WorkAuthorizationRole = "requester" | "supervisor" | "hse";
 
-export type WorkAuthorizationDecision = "Approve" | "Return" | "Reject";
+export type WorkAuthorizationDecision = "Approve" | "Return" | "Deny";
 export type WorkAuthorizationInspectionCheck = "Pass" | "Fail" | "N/A";
 
 export interface WorkAuthorizationRequester {

@@ -29,7 +29,7 @@ const yesNoOptions = [
 const decisionOptions = [
   { value: "Approve", label: "Approve" },
   { value: "Return", label: "Return" },
-  { value: "Reject", label: "Reject" },
+  { value: "Deny", label: "Deny" },
 ];
 
 const inspectionCheckOptions = [
@@ -44,6 +44,21 @@ const inspectionResultOptions = [
   { value: "Failed", label: "Failed" },
 ];
 
+function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
+  if (decision === "Deny") return "denied";
+  return `${decision.toLowerCase()}ed`;
+}
+
+type InspectionCheckValue = "Pass" | "Fail" | "N/A";
+
+const initialHseInspectionChecks = {
+  workAreaSafe: "Pass",
+  emergencyEquipmentAvailable: "Pass",
+  gasPressureCheckCompleted: "Pass",
+  ppeAndSafetyKitsAvailable: "Pass",
+  toolsSafe: "Pass",
+} satisfies Record<string, InspectionCheckValue>;
+
 export default function WorkAuthorizationDetailsView({ requestId }: { requestId: string }) {
   const router = useRouter();
   const [currentRole, setCurrentRole] = useState<WorkAuthorizationRole>("requester");
@@ -52,6 +67,11 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
   const [supervisorComment, setSupervisorComment] = useState("");
   const [hseComment, setHseComment] = useState("");
   const [hseEvidence, setHseEvidence] = useState<File[]>([]);
+  const [hseInspectionChecks, setHseInspectionChecks] = useState(initialHseInspectionChecks);
+
+  const hasFailedHseInspectionCheck = Object.values(hseInspectionChecks).some(
+    (value) => value === "Fail"
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -122,7 +142,7 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
     });
   }
 
-  function handleSupervisorDecision(decision: "Approve" | "Return" | "Reject") {
+  function handleSupervisorDecision(decision: "Approve" | "Return" | "Deny") {
     const result: WorkAuthorizationApprovalResult = {
       decision,
       approver: "Mary James",
@@ -131,7 +151,7 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
         supervisorComment ||
         (decision === "Approve"
           ? "Work scope reviewed and approved for HSE inspection."
-          : `Request ${decision.toLowerCase()}ed by supervisor.`),
+          : `Request ${decisionPastTense(decision)} by supervisor.`),
     };
 
     setRequest((current) =>
@@ -152,13 +172,13 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
     });
   }
 
-  function handleHseDecision(decision: "Approve" | "Return" | "Reject") {
+  function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
+    if (decision === "Approve" && hasFailedHseInspectionCheck) {
+      return;
+    }
+
     const inspection: WorkAuthorizationHseInspection = {
-      workAreaSafe: "Pass",
-      emergencyEquipmentAvailable: "Pass",
-      gasPressureCheckCompleted: "Pass",
-      ppeAndSafetyKitsAvailable: "Pass",
-      toolsSafe: "Pass",
+      ...hseInspectionChecks,
       inspectionDateTime: "2026-05-18 11:00 AM",
       comments: hseComment || "Area inspected and cleared for work.",
       result: decision === "Approve" ? "Passed" : decision === "Return" ? "Returned" : "Failed",
@@ -175,7 +195,7 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
         hseComment ||
         (decision === "Approve"
           ? "Request approved by HSE."
-          : `Request ${decision.toLowerCase()}ed by HSE.`),
+          : `Request ${decisionPastTense(decision)} by HSE.`),
     };
 
     setRequest((current) =>
@@ -262,11 +282,16 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
             <HseInspectionActionSection
               comment={hseComment}
               onCommentChange={setHseComment}
+              checks={hseInspectionChecks}
+              onCheckChange={(key, value) =>
+                setHseInspectionChecks((current) => ({ ...current, [key]: value }))
+              }
               evidence={hseEvidence}
               onEvidenceChange={setHseEvidence}
             />
             <HseFinalActionSection
               onDecision={handleHseDecision}
+              disableApprove={hasFailedHseInspectionCheck}
             />
           </>
         ) : (
@@ -450,7 +475,7 @@ function SupervisorActionSection({
 }: {
   comment: string;
   onCommentChange: (comment: string) => void;
-  onDecision: (decision: "Approve" | "Return" | "Reject") => void;
+  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
 }) {
   return (
     <FormSection title="Supervisor Approval">
@@ -470,22 +495,57 @@ function SupervisorActionSection({
 function HseInspectionActionSection({
   comment,
   onCommentChange,
+  checks,
+  onCheckChange,
   evidence,
   onEvidenceChange,
 }: {
   comment: string;
   onCommentChange: (comment: string) => void;
+  checks: typeof initialHseInspectionChecks;
+  onCheckChange: (key: keyof typeof initialHseInspectionChecks, value: InspectionCheckValue) => void;
   evidence: File[];
   onEvidenceChange: (files: File[]) => void;
 }) {
   return (
     <FormSection title="HSE Inspection Acknowledgement">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormSelect label="Work area is safe, clean, and accessible" options={inspectionCheckOptions} defaultValue="Pass" />
-        <FormSelect label="Fire extinguisher/emergency equipment is available" options={inspectionCheckOptions} defaultValue="Pass" />
-        <FormSelect label="Gas leak/pressure/abnormal condition check completed" options={inspectionCheckOptions} defaultValue="Pass" />
-        <FormSelect label="Required PPE and safety kits are available" options={inspectionCheckOptions} defaultValue="Pass" />
-        <FormSelect label="Tools/equipment are safe and suitable for the job" options={inspectionCheckOptions} defaultValue="Pass" />
+        <FormSelect
+          label="Work area is safe, clean, and accessible"
+          options={inspectionCheckOptions}
+          value={checks.workAreaSafe}
+          onValueChange={(value) => onCheckChange("workAreaSafe", value as InspectionCheckValue)}
+        />
+        <FormSelect
+          label="Fire extinguisher/emergency equipment is available"
+          options={inspectionCheckOptions}
+          value={checks.emergencyEquipmentAvailable}
+          onValueChange={(value) =>
+            onCheckChange("emergencyEquipmentAvailable", value as InspectionCheckValue)
+          }
+        />
+        <FormSelect
+          label="Gas leak/pressure/abnormal condition check completed"
+          options={inspectionCheckOptions}
+          value={checks.gasPressureCheckCompleted}
+          onValueChange={(value) =>
+            onCheckChange("gasPressureCheckCompleted", value as InspectionCheckValue)
+          }
+        />
+        <FormSelect
+          label="Required PPE and safety kits are available"
+          options={inspectionCheckOptions}
+          value={checks.ppeAndSafetyKitsAvailable}
+          onValueChange={(value) =>
+            onCheckChange("ppeAndSafetyKitsAvailable", value as InspectionCheckValue)
+          }
+        />
+        <FormSelect
+          label="Tools/equipment are safe and suitable for the job"
+          options={inspectionCheckOptions}
+          value={checks.toolsSafe}
+          onValueChange={(value) => onCheckChange("toolsSafe", value as InspectionCheckValue)}
+        />
         <FormInput label="Inspection date/time" defaultValue="2026-05-18 11:00 AM" />
         <FormSelect label="Inspection result" options={inspectionResultOptions} defaultValue="Passed" />
         <FormTextarea
@@ -510,20 +570,29 @@ function HseInspectionActionSection({
 
 function HseFinalActionSection({
   onDecision,
+  disableApprove,
 }: {
-  onDecision: (decision: "Approve" | "Return" | "Reject") => void;
+  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
+  disableApprove: boolean;
 }) {
   return (
     <FormSection title="HSE Final Approval">
-      <DecisionButtons onDecision={onDecision} />
+      {disableApprove ? (
+        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Approval is disabled because one or more inspection checks failed.
+        </p>
+      ) : null}
+      <DecisionButtons onDecision={onDecision} disableApprove={disableApprove} />
     </FormSection>
   );
 }
 
 function DecisionButtons({
   onDecision,
+  disableApprove = false,
 }: {
-  onDecision: (decision: "Approve" | "Return" | "Reject") => void;
+  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
+  disableApprove?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
@@ -531,8 +600,9 @@ function DecisionButtons({
         <Button
           key={option.value}
           type="button"
-          variant={option.value === "Approve" ? "primary" : option.value === "Reject" ? "danger" : "outline"}
-          onClick={() => onDecision(option.value as "Approve" | "Return" | "Reject")}
+          variant={option.value === "Approve" ? "primary" : option.value === "Deny" ? "danger" : "outline"}
+          disabled={option.value === "Approve" && disableApprove}
+          onClick={() => onDecision(option.value as "Approve" | "Return" | "Deny")}
         >
           {option.label}
         </Button>
