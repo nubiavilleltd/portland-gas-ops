@@ -36,7 +36,7 @@ const moduleGroups = [
     fullWidth: true,
     modules: [
       { name: "Billing", description: "Invoices & payment tracking", icon: Receipt, href: "/billing" },
-      { name: "Finance", description: "Budgets, expenses & reports", icon: BarChart3, href: "/finance" },
+      { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
     ],
   },
   {
