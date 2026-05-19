@@ -178,7 +178,7 @@ export default function DispatchTripPage() {
             onClick={handleDispatch}
             disabled={isSubmitting || !driver || !vehicle}
           >
-            <Send size={14} className="mr-1.5" />
+            {/* <Send size={14} className="mr-1.5" /> */}
             {isSubmitting ? "Dispatching..." : "Dispatch Trip"}
           </Button>
         </div>

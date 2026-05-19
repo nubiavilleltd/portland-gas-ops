@@ -46,7 +46,7 @@ export default function OrdersHomePage() {
         description="Manage customer gas orders and fulfillment lifecycle"
         action={
           <Button href="/orders/new">
-            <Plus className="w-4 h-4 mr-2" />
+            {/* <Plus className="w-4 h-4 mr-2" /> */}
             Create Order
           </Button>
         }
@@ -110,17 +110,17 @@ export default function OrdersHomePage() {
 
         <div className="flex flex-wrap gap-3 mt-5">
           <Button href="/orders/new">
-            <Plus className="w-4 h-4 mr-2" />
+            {/* <Plus className="w-4 h-4 mr-2" /> */}
             Create Order
           </Button>
 
           <Button variant="outline" href="/orders/list">
-            <ClipboardList className="w-4 h-4 mr-2" />
+            {/* <ClipboardList className="w-4 h-4 mr-2" /> */}
             View All Orders
           </Button>
 
           <Button variant="outline" href="/fleet/trips/new">
-            <Truck className="w-4 h-4 mr-2" />
+            {/* <Truck className="w-4 h-4 mr-2" /> */}
             Create Trip
           </Button>
         </div>

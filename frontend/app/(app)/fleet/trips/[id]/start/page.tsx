@@ -132,7 +132,7 @@ export default function StartTripPage() {
             Cancel
           </Button>
           <Button onClick={handleStart} disabled={isSubmitting}>
-            <Play size={14} className="mr-1.5" />
+            {/* <Play size={14} className="mr-1.5" /> */}
             {isSubmitting ? "Starting..." : "Start Trip"}
           </Button>
         </div>

@@ -200,7 +200,7 @@ export default function CompleteTripPage() {
             Cancel
           </Button>
           <Button onClick={handleComplete} disabled={isSubmitting}>
-            <CheckCircle size={14} className="mr-1.5" />
+            {/* <CheckCircle size={14} className="mr-1.5" /> */}
             {isSubmitting ? "Completing..." : "Complete Trip"}
           </Button>
         </div>
