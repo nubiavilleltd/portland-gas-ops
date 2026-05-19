@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import { customers } from "@/lib/mock/customers";
+// import { customers } from "@/lib/mock/customers";
 import { useParams } from "next/navigation";
+import { customers } from "@/lib/modules/customers/mock/customers.mock";
 
 export default function EditCustomerPage() {
   const router = useRouter();
 
   const params = useParams();
-const id = params.id as string;
 
   const existingCustomer = customers.find(
     (c) => c.id === params.id

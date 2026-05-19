@@ -1,4 +1,6 @@
-import { customers } from "@/lib/mock/customers";
+// import { customers } from "@/lib/mock/customers";
+
+import { customers } from "../../customers/mock/customers.mock";
 
 export const CUSTOMER_OPTIONS = customers.map(
   (customer) => ({

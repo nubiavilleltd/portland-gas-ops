@@ -5,7 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { invoices } from "@/lib/mock/invoices";
+import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 
 
 

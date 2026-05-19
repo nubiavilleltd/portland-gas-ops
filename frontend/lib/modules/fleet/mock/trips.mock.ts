@@ -1,26 +1,88 @@
-// import { Trip } from "../types/trip.types";
+// // import { Trip } from "../types/trip.types";
+
+// // export const trips: Trip[] = [
+// //   {
+// //     id: "trip-1",
+
+// //     reference_number: "TRP-20260517-001",
+
+// //     type: "station_transfer",
+
+// //     vehicle_id: "veh-1",
+
+// //     driver_id: "drv-2",
+
+// //     origin: "Portland Gas Depot",
+
+// //     destination: "Lekki Station",
+
+// //     departure_date: "2026-05-17T08:00:00",
+
+// //     status: "in_transit",
+
+// //     created_at: "2026-05-17",
+// //   },
+// // ];
+
+
+
+
+
+// export type TripStatus =
+//   | "pending"
+//   | "assigned"
+//   | "in_transit"
+//   | "completed"
+//   | "cancelled";
+
+// export interface Trip {
+//   id: string;
+//   trip_number: string;
+
+//   status: TripStatus;
+
+//   driver_id?: string;
+//   vehicle_id?: string;
+
+//   order_ids: string[];
+
+//   start_location: string;
+//   end_location: string;
+
+//   scheduled_date: string;
+
+//   started_at?: string;
+//   completed_at?: string;
+// }
 
 // export const trips: Trip[] = [
 //   {
 //     id: "trip-1",
+//     trip_number: "TRP-2026-001",
+//     status: "assigned",
 
-//     reference_number: "TRP-20260517-001",
+//     driver_id: "driver-1",
+//     vehicle_id: "vehicle-1",
 
-//     type: "station_transfer",
+//     order_ids: ["1", "2"],
 
-//     vehicle_id: "veh-1",
+//     start_location: "Lagos Depot",
+//     end_location: "Ikorodu Customer Hub",
 
-//     driver_id: "drv-2",
+//     scheduled_date: "2026-05-18",
+//   },
 
-//     origin: "Portland Gas Depot",
+//   {
+//     id: "trip-2",
+//     trip_number: "TRP-2026-002",
+//     status: "pending",
 
-//     destination: "Lekki Station",
+//     order_ids: ["3"],
 
-//     departure_date: "2026-05-17T08:00:00",
+//     start_location: "Lagos Depot",
+//     end_location: "Ajah Delivery Point",
 
-//     status: "in_transit",
-
-//     created_at: "2026-05-17",
+//     scheduled_date: "2026-05-19",
 //   },
 // ];
 
@@ -28,41 +90,22 @@
 
 
 
-export type TripStatus =
-  | "pending"
-  | "assigned"
-  | "in_transit"
-  | "completed"
-  | "cancelled";
 
-export interface Trip {
-  id: string;
-  trip_number: string;
+// ============================================================
+//  TRIPS MOCK DATA
+//  Types imported from trip.types.ts — NOT defined here.
+// ============================================================
 
-  status: TripStatus;
-
-  driver_id?: string;
-  vehicle_id?: string;
-
-  order_ids: string[];
-
-  start_location: string;
-  end_location: string;
-
-  scheduled_date: string;
-
-  started_at?: string;
-  completed_at?: string;
-}
+import type { Trip } from "../types/trip.types";
 
 export const trips: Trip[] = [
   {
     id: "trip-1",
     trip_number: "TRP-2026-001",
-    status: "assigned",
+    type: "order_delivery",
 
-    driver_id: "driver-1",
-    vehicle_id: "vehicle-1",
+    driver_id: "drv-1",
+    vehicle_id: "veh-1",
 
     order_ids: ["1", "2"],
 
@@ -70,18 +113,31 @@ export const trips: Trip[] = [
     end_location: "Ikorodu Customer Hub",
 
     scheduled_date: "2026-05-18",
+    dispatch_date: "2026-05-18T07:30:00",
+
+    status: "dispatched",
+
+    notes: "Customer requested morning delivery window (7am–10am).",
+    created_at: "2026-05-17",
   },
 
   {
     id: "trip-2",
     trip_number: "TRP-2026-002",
-    status: "pending",
+    type: "order_delivery",
+
+    driver_id: null,
+    vehicle_id: null,
 
     order_ids: ["3"],
 
     start_location: "Lagos Depot",
-    end_location: "Ajah Delivery Point",
+    end_location: "Falomo, Lagos",
 
     scheduled_date: "2026-05-19",
+
+    status: "pending",
+
+    created_at: "2026-05-17",
   },
 ];
