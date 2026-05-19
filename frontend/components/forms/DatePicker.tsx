@@ -121,26 +121,11 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
     const minDate = parseDate(typeof min === "string" ? min : undefined);
     const maxDate = parseDate(typeof max === "string" ? max : undefined);
 
-    // useEffect(() => {
-    //   if (selectedDate) {
-    //     setViewDate(selectedDate);
-    //   }
-    // }, [selectedValue, selectedDate]);
-
     useEffect(() => {
-  if (!selectedDate) return;
-
-  setViewDate((prev) => {
-    if (
-      prev.getFullYear() === selectedDate.getFullYear() &&
-      prev.getMonth() === selectedDate.getMonth() &&
-      prev.getDate() === selectedDate.getDate()
-    ) {
-      return prev;
-    }
-    return selectedDate;
-  });
-}, [selectedValue]);
+      if (selectedDate) {
+        setViewDate(selectedDate);
+      }
+    }, [selectedValue]); // selectedDate is derived from selectedValue — don't include it or it creates an infinite loop
 
     useEffect(() => {
       if (!open) return;
@@ -384,3 +369,4 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
 DatePicker.displayName = "DatePicker";
 
 export default DatePicker;
+ 

@@ -3,7 +3,9 @@ import { capitalize } from "@/lib/utils";
 
 const variants: Record<string, string> = {
   draft: "bg-gray-100 text-gray-600",
+  submitted: "bg-sky-50 text-sky-700 border border-sky-200",
   pending: "bg-amber-50 text-amber-700 border border-amber-200",
+  pending_approval: "bg-amber-50 text-amber-700 border border-amber-200",
   in_progress: "bg-blue-50 text-blue-700 border border-blue-200",
   approved: "bg-green-50 text-green-700 border border-green-200",
   rejected: "bg-red-50 text-red-700 border border-red-200",

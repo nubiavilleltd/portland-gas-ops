@@ -12,6 +12,7 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   searchable?: boolean;
   sortOptions?: boolean;
   searchPlaceholder?: string;
+  creatable?: boolean;
   onValueChange?: (value: string) => void;
 }
 

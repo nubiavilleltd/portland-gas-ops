@@ -11,9 +11,25 @@ interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 const FormInput = forwardRef<HTMLInputElement, Props>(
-  ({ label, error, hint, className, id, type, ...props }, ref) => {
+  (
+    {
+      label,
+      error,
+      hint,
+      className,
+      id,
+      type,
+      value,
+      onChange,
+      readOnly,
+      disabled,
+      ...props
+    },
+    ref
+  ) => {
     const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
     const isPassword = type === "password";
+    const shouldBeReadOnly = readOnly ?? (value !== undefined && onChange === undefined);
     const [showPassword, setShowPassword] = useState(false);
 
     return (
@@ -24,16 +40,24 @@ const FormInput = forwardRef<HTMLInputElement, Props>(
         </label>
         <div className="relative">
           <input
+            {...props}
             ref={ref}
             id={inputId}
             type={isPassword ? (showPassword ? "text" : "password") : type}
+            autoCapitalize={type === "email" || isPassword ? undefined : "none"}
+            autoCorrect={type === "email" || isPassword ? undefined : "off"}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            readOnly={shouldBeReadOnly}
             className={cn(
               "h-10 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
+              (disabled || shouldBeReadOnly) &&
+                "cursor-not-allowed border-gray-200 bg-black opacity-50 shadow-none focus:ring-0 focus:border-gray-200",
               isPassword && "pr-10",
               error && "border-red-400 focus:ring-red-400",
               className
             )}
-            {...props}
           />
           {isPassword && (
             <button
