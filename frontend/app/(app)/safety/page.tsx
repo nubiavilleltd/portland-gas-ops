@@ -2,10 +2,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import {
-  AlertTriangle,
   ClipboardCheck,
   CheckCircle2,
-  ShieldCheck,
 } from "lucide-react";
 
 const safetyProcesses = [

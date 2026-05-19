@@ -10,6 +10,7 @@ import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
 
 import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
+import type { Driver } from "@/lib/modules/fleet/types/driver.types";
 
 export default function AddDriverPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function AddDriverPage() {
 
     setLoading(true);
 
-    const newDriver = {
+    const newDriver: Driver = {
       id: `drv-${Date.now()}`,
 
       full_name: form.full_name,

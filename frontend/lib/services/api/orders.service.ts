@@ -361,7 +361,22 @@ export class OrdersService {
     const idx = orders.findIndex((o) => o.id === id);
     if (idx === -1) throw new Error(`Order ${id} not found`);
 
-    const updated = { ...orders[idx], ...input };
+    const existing = orders[idx];
+    const quantity =
+      input.quantity !== undefined ? parseFloat(input.quantity) : existing.quantity;
+    const unitPrice =
+      input.unit_price !== undefined ? parseFloat(input.unit_price) : existing.unit_price;
+    const updated: Order = {
+      ...existing,
+      ...input,
+      quantity,
+      unit_price: unitPrice,
+      total_amount: quantity * unitPrice,
+      delivery_date:
+        input.delivery_date !== undefined
+          ? input.delivery_date || null
+          : existing.delivery_date,
+    };
     orders[idx] = updated;
 
     // FUTURE: return fetch(`/api/orders/${id}`, { method: 'PATCH', body: JSON.stringify(input) }).then(r => r.json());

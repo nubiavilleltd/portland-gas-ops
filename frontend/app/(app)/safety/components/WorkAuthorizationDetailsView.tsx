@@ -49,15 +49,23 @@ function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
   return `${decision.toLowerCase()}ed`;
 }
 
-type InspectionCheckValue = "Pass" | "Fail" | "N/A";
+type HseInspectionCheckState = Pick<
+  WorkAuthorizationHseInspection,
+  | "workAreaSafe"
+  | "emergencyEquipmentAvailable"
+  | "gasPressureCheckCompleted"
+  | "ppeAndSafetyKitsAvailable"
+  | "toolsSafe"
+>;
+type InspectionCheckValue = HseInspectionCheckState[keyof HseInspectionCheckState];
 
-const initialHseInspectionChecks = {
+const initialHseInspectionChecks: HseInspectionCheckState = {
   workAreaSafe: "Pass",
   emergencyEquipmentAvailable: "Pass",
   gasPressureCheckCompleted: "Pass",
   ppeAndSafetyKitsAvailable: "Pass",
   toolsSafe: "Pass",
-} satisfies Record<string, InspectionCheckValue>;
+};
 
 export default function WorkAuthorizationDetailsView({ requestId }: { requestId: string }) {
   const router = useRouter();
@@ -130,6 +138,8 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
   }
 
   function handleRequesterSubmit() {
+    if (!request) return;
+
     setRequest((current) =>
       current ? { ...current, status: "submitted" } : current
     );

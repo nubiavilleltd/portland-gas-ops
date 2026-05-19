@@ -10,14 +10,27 @@ import {
   Users,
   Route,
   Wrench,
-  Plus,
 } from "lucide-react";
+import type { Driver } from "@/lib/modules/fleet/types/driver.types";
+import type { Trip } from "@/lib/modules/fleet/types/trip.types";
+import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+
+interface FleetHomeClientProps {
+  vehicles: Vehicle[];
+  drivers: Driver[];
+  trips: Trip[];
+}
+
+interface MetricCardProps {
+  title: string;
+  value: number;
+}
 
 export default function FleetHomeClient({
   vehicles,
   drivers,
   trips,
-}) {
+}: FleetHomeClientProps) {
   const activeTrips = trips.filter(
     (trip) => trip.status === "in_transit"
   );
@@ -101,7 +114,7 @@ export default function FleetHomeClient({
   );
 }
 
-function MetricCard({ title, value }) {
+function MetricCard({ title, value }: MetricCardProps) {
   return (
     <div className="bg-white border rounded-2xl p-5">
       <p className="text-sm text-gray-500">{title}</p>

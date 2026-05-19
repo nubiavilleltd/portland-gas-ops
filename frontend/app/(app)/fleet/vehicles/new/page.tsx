@@ -9,6 +9,7 @@ import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
 
 import { vehicles } from "@/lib/modules/fleet/mock/vehicles.mock";
+import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
 
 export default function AddVehiclePage() {
   const router = useRouter();
@@ -39,16 +40,19 @@ export default function AddVehiclePage() {
 
     setLoading(true);
 
-    const newVehicle = {
+    const today = new Date().toISOString().split("T")[0];
+    const newVehicle: Vehicle = {
       id: `veh-${Date.now()}`,
       name: form.name,
       plate_number: form.plate_number,
-      type: form.type,
+      type: form.type as Vehicle["type"],
       fuel_type: form.fuel_type,
       mileage: form.mileage ? Number(form.mileage) : 0,
 
       status: "available",
 
+      last_service_date: today,
+      next_service_date: today,
       created_at: new Date().toISOString(),
     };
 

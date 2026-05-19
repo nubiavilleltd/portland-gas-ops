@@ -46,6 +46,8 @@ export default function EditVehiclePage() {
   }
 
   function handleSave() {
+    if (!vehicle) return;
+
     // MOCK UPDATE (later replace with API)
     vehicle.name = form.name;
     vehicle.plate_number = form.plate_number;

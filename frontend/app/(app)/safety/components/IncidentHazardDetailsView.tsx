@@ -67,10 +67,12 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
   }
 
   function submitReport() {
+    if (!report) return;
+
     setReport((current) => (current ? { ...current, status: "submitted" } : current));
     addAudit({
       action: "Submitted",
-      actor: report?.reporter.name,
+      actor: report.reporter.name,
       role: "Reporter",
       dateTime: "2026-05-18 08:30 AM",
       comment: "Incident/hazard report submitted to HSE.",

@@ -414,13 +414,13 @@ export default function CreateInvoicePage() {
             <FormDatePicker
               label="Invoice Date"
               value={invoiceDate}
-              onChange={(value) => setValue("invoice_date", value)}
+              onValueChange={(value) => setValue("invoice_date", value)}
             />
 
             <FormDatePicker
               label="Due Date"
               value={watch("due_date")}
-              onChange={(value) => setValue("due_date", value)}
+              onValueChange={(value) => setValue("due_date", value)}
             />
 
             <div className="md:col-span-2">

@@ -45,28 +45,19 @@ export const createOrderSchema = z.object({
 
   product_name: z.string().min(1, "Select product"),
 
-  // Accept string input from HTML, transform to number for validation
   quantity: z
     .string()
     .min(1, "Enter quantity")
-    .transform((val) => parseFloat(val))
-    .pipe(
-      z
-        .number({ invalid_type_error: "Must be a number" })
-        .positive("Quantity must be positive")
-        .min(1, "Minimum quantity is 1")
-    ),
+    .refine((val) => Number.isFinite(Number(val)), "Must be a number")
+    .refine((val) => Number(val) > 0, "Quantity must be positive")
+    .refine((val) => Number(val) >= 1, "Minimum quantity is 1"),
 
   unit_price: z
     .string()
     .min(1, "Enter unit price")
-    .transform((val) => parseFloat(val))
-    .pipe(
-      z
-        .number({ invalid_type_error: "Must be a number" })
-        .positive("Unit price must be positive")
-        .min(0.01, "Unit price must be at least 0.01")
-    ),
+    .refine((val) => Number.isFinite(Number(val)), "Must be a number")
+    .refine((val) => Number(val) > 0, "Unit price must be positive")
+    .refine((val) => Number(val) >= 0.01, "Unit price must be at least 0.01"),
 
   delivery_address: z
     .string()

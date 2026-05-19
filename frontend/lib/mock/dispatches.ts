@@ -1,4 +1,15 @@
-import { type DispatchForm } from "../modules/dispatch/types/dispatch.types";
+interface DispatchForm {
+  id: string;
+  order_id: string;
+  driver_id: string;
+  driver_name: string;
+  vehicle_id: string;
+  vehicle_name: string;
+  dispatch_date: string;
+  estimated_delivery_date: string;
+  delivery_status: "assigned" | "dispatched" | "in_transit" | "delivered" | "failed";
+  notes?: string;
+}
 
 export const dispatches : DispatchForm[] = [
   {

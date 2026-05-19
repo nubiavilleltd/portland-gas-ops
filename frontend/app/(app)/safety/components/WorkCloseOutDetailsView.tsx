@@ -82,6 +82,8 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
   }
 
   function submitCloseOut() {
+    if (!request) return;
+
     setRequest((current) =>
       current ? { ...current, status: "submitted" } : current
     );
@@ -95,6 +97,8 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
   }
 
   function supervisorDecision(decision: "Approve" | "Return" | "Deny") {
+    if (!request) return;
+
     const approval: WorkAuthorizationApprovalResult = {
       decision,
       approver: request.workAuthorization.supervisor,
@@ -125,6 +129,8 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
   }
 
   function hseDecision(decision: "Approve" | "Return" | "Deny") {
+    if (!request) return;
+
     const approval: WorkCloseOutHseApproval = {
       inspector: request.workAuthorization.hseApprover,
       verifiedCloseOut: true,

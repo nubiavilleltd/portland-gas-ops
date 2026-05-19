@@ -1194,9 +1194,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle } from "lucide-react";
 
@@ -1210,16 +1210,18 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import { formatCurrency } from "@/lib/utils";
 import { PaymentForm, paymentSchema } from "@/lib/modules/payments/schemas/payment.schema";
 import { getInvoiceById } from "@/lib/modules/invoices/selectors/invoices.selectors";
-import { payments } from "@/lib/mock/payments";
+import { Payment, PaymentMethod, payments } from "@/lib/mock/payments";
 import { getPaymentSummary } from "@/lib/modules/orders/selectors/orders.selectors";
 import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 import { PaymentStatus } from "@/lib/modules/orders/types/orders.types";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 import { OrdersService } from "@/lib/services/api/orders.service";
+import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+
 
 /* ── INVOICE SELECTOR ─────────────────────────────────────── */
-function InvoiceSelector({ onSelect }: { onSelect: (invoice: any) => void }) {
+function InvoiceSelector({ onSelect }: { onSelect: (invoice: Invoice) => void }) {
   const [query, setQuery] = useState("");
 
   const filtered = invoices.filter((inv) =>
@@ -1286,8 +1288,13 @@ export default function CreatePaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialInvoiceId = searchParams.get("invoiceId");
+  const initialInvoice = initialInvoiceId ? getInvoiceById(initialInvoiceId) : undefined;
+  const initialPaymentSummary = initialInvoice
+    ? getPaymentSummary(initialInvoice.id)
+    : { amountPaid: 0 };
+  const [initialPaymentDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(initialInvoice ?? null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const paymentSummary = selectedInvoice
@@ -1300,28 +1307,32 @@ export default function CreatePaymentPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     setValue,
-    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<PaymentForm>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
-      payment_date: new Date().toISOString().split("T")[0],
-      amount: 0,
+      payment_date: initialPaymentDate,
+      amount: initialInvoice
+        ? initialInvoice.total_amount - initialPaymentSummary.amountPaid
+        : 0,
       reference: "",
       payment_method: "bank_transfer",
     },
   });
 
-  function selectInvoice(invoice: any, updateUrl = false) {
+  const paymentDate = useWatch({ control, name: "payment_date" });
+
+  const selectInvoice = useCallback((invoice: Invoice, updateUrl = false) => {
     setSelectedInvoice(invoice);
     const summary = getPaymentSummary(invoice.id);
     const remaining = invoice.total_amount - summary.amountPaid;
 
     reset({
-      payment_date: new Date().toISOString().split("T")[0],
+      payment_date: initialPaymentDate,
       amount: remaining,
       reference: "",
       payment_method: "bank_transfer",
@@ -1330,14 +1341,7 @@ export default function CreatePaymentPage() {
     if (updateUrl) {
       router.replace(`/payments/new?invoiceId=${invoice.id}`);
     }
-  }
-
-  // Hydrate from URL on mount
-  useEffect(() => {
-    if (!initialInvoiceId) return;
-    const invoice = getInvoiceById(initialInvoiceId);
-    if (invoice) selectInvoice(invoice, false);
-  }, [initialInvoiceId]);
+  }, [initialPaymentDate, reset, router]);
 
   async function onSubmit(data: PaymentForm) {
     if (!selectedInvoice) return;
@@ -1354,12 +1358,13 @@ export default function CreatePaymentPage() {
       }
 
       // Persist new payment to mock array
-      const newPayment = {
-        id: `pay-${Date.now()}`,
+      const nextPaymentSequence = payments.length + 1;
+      const newPayment: Payment = {
+        id: `pay-${nextPaymentSequence}`,
         invoice_id: selectedInvoice.id,
-        payment_reference: data.reference || `PAY-${Date.now()}`,
+        payment_reference: data.reference || `PAY-${nextPaymentSequence}`,
         amount: paymentAmount,
-        payment_method: data.payment_method as any,
+        payment_method: data.payment_method as PaymentMethod,
         payment_date: data.payment_date,
         recorded_by: "Admin User",
       };
@@ -1367,23 +1372,24 @@ export default function CreatePaymentPage() {
 
       // Update invoice status in mock
       const newAmountPaid = paymentSummary.amountPaid + paymentAmount;
-      const invoiceIdx = invoices.findIndex((i) => i.id === selectedInvoice.id);
-      if (invoiceIdx !== -1) {
-        const newStatus =
-          newAmountPaid >= selectedInvoice.total_amount
+      const newStatus =
+        newAmountPaid >= selectedInvoice.total_amount
+          ? "paid"
+          : "partially_paid";
+      setSelectedInvoice((current) =>
+        current && current.id === selectedInvoice.id
+          ? { ...current, status: newStatus }
+          : current
+      );
+
+      // Cascade payment status to linked order
+      const linkedOrder = getOrderById(selectedInvoice.order_id);
+      if (linkedOrder) {
+        const orderPaymentStatus: PaymentStatus =
+          newStatus === "paid"
             ? "paid"
             : "partially_paid";
-        invoices[invoiceIdx].status = newStatus;
-
-        // Cascade payment status to linked order
-        const linkedOrder = getOrderById(selectedInvoice.order_id);
-        if (linkedOrder) {
-          const orderPaymentStatus: PaymentStatus =
-            newStatus === "paid"
-              ? "paid"
-              : "partially_paid";
-          await OrdersService.updatePaymentStatus(linkedOrder.id, orderPaymentStatus);
-        }
+        await OrdersService.updatePaymentStatus(linkedOrder.id, orderPaymentStatus);
       }
 
       router.push(`/invoices/${selectedInvoice.id}`);
@@ -1457,8 +1463,8 @@ export default function CreatePaymentPage() {
               >
                 <FormDatePicker
                   label="Payment Date"
-                  value={watch("payment_date")}
-                  onChange={(value) => setValue("payment_date", value)}
+                  value={paymentDate}
+                  onValueChange={(value) => setValue("payment_date", value)}
                 />
 
                 <FormInput

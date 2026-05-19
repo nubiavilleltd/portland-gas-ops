@@ -133,7 +133,7 @@ export default function DriverDetailPage() {
 
             </div>
 
-          ) : driver.status === "inactive" ? (
+          ) : driver.status === "suspended" ? (
 
             <div className="text-sm">
               <p className="font-medium text-red-600">

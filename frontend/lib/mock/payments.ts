@@ -1,3 +1,5 @@
+export type PaymentMethod = "bank_transfer" | "cash" | "card" | "cheque";
+
 export interface Payment {
   id: string;
 
@@ -7,10 +9,7 @@ export interface Payment {
 
   amount: number;
 
-  payment_method:
-    | "bank_transfer"
-    | "cash"
-    | "cheque";
+  payment_method: PaymentMethod;
 
   payment_date: string;
 
