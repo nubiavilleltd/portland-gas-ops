@@ -1194,7 +1194,7 @@
 
 "use client";
 
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1285,6 +1285,14 @@ function InvoiceSelector({ onSelect }: { onSelect: (invoice: Invoice) => void })
 
 /* ── MAIN PAGE ─────────────────────────────────────────────── */
 export default function CreatePaymentPage() {
+  return (
+    <Suspense fallback={null}>
+      <CreatePaymentPageContent />
+    </Suspense>
+  );
+}
+
+function CreatePaymentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialInvoiceId = searchParams.get("invoiceId");

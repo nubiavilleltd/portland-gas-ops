@@ -1,6 +1,7 @@
 
 "use client";
 
+import { Suspense } from "react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, AlertCircle, Package } from "lucide-react";
@@ -25,6 +26,14 @@ const TRIP_TYPE_OPTIONS: { value: Trip["type"]; label: string }[] = [
 ];
 
 export default function CreateTripPage() {
+  return (
+    <Suspense fallback={null}>
+      <CreateTripPageContent />
+    </Suspense>
+  );
+}
+
+function CreateTripPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 

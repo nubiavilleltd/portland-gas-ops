@@ -2,8 +2,8 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useSearchParams } from "next/navigation";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import FormInput from "@/components/forms/FormInput";
@@ -24,15 +24,14 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 function ResetPasswordContent() {
-  const router = useRouter();
   const params = useSearchParams();
   const userId = params.get("user_id") ?? "";
   const code = params.get("code") ?? "";
   const toast = useToast();
   const [showChecklist, setShowChecklist] = useState(false);
 
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting, isSubmitSuccessful } } = useForm<FormData>({ resolver: zodResolver(schema) });
-  const passwordValue = watch("new_password", "");
+  const { register, control, handleSubmit, formState: { errors, isSubmitting, isSubmitSuccessful } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const passwordValue = useWatch({ control, name: "new_password", defaultValue: "" });
 
   async function onSubmit(data: FormData) {
     try {

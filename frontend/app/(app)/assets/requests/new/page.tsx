@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Trash2, ChevronDown, X, AlertCircle } from "lucide-react";
@@ -43,9 +43,9 @@ interface LineItem {
   search: string;
 }
 
-function makeItem(asset?: Asset): LineItem {
+function makeItem(asset?: Asset, index = 1): LineItem {
   return {
-    id: Math.random().toString(36).slice(2),
+    id: asset ? `asset-${asset.id}` : `item-${index}`,
     asset_id: asset?.id ?? "",
     asset: asset ?? null,
     quantity: 1,
@@ -83,11 +83,13 @@ function NewAssetRequestForm() {
   // If preloadAsset loads after component mount, update first row
   useEffect(() => {
     if (preloadAsset && items[0].asset_id === "") {
-      setItems((prev) => {
+      const timeoutId = window.setTimeout(() => setItems((prev) => {
         const next = [...prev];
         next[0] = { ...next[0], asset_id: preloadAsset.id, asset: preloadAsset, quantity: 1 };
         return next;
-      });
+      }), 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preloadAsset?.id]);
@@ -95,7 +97,7 @@ function NewAssetRequestForm() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -104,7 +106,7 @@ function NewAssetRequestForm() {
     },
   });
 
-  const requestType = watch("request_type");
+  const requestType = useWatch({ control, name: "request_type" });
 
   // ── Item helpers ─────────────────────────────────────────────────────────────
 
@@ -442,7 +444,7 @@ function NewAssetRequestForm() {
 
             <button
               type="button"
-              onClick={() => setItems((prev) => [...prev, makeItem()])}
+              onClick={() => setItems((prev) => [...prev, makeItem(undefined, prev.length + 1)])}
               className="flex items-center gap-2 text-sm text-brand-purple hover:text-brand-purple-dark transition-colors font-medium"
             >
               <Plus size={15} /> Add Item

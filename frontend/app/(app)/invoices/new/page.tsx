@@ -211,9 +211,9 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 
@@ -234,11 +234,19 @@ import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentS
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 import { OrdersService } from "@/lib/services/api/orders.service";
 
-function generateInvoiceNumber() {
-  return `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+function generateInvoiceNumber(sequence: number) {
+  return `INV-2026-${String(sequence).padStart(4, "0")}`;
 }
 
 export default function CreateInvoicePage() {
+  return (
+    <Suspense fallback={null}>
+      <CreateInvoicePageContent />
+    </Suspense>
+  );
+}
+
+function CreateInvoicePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -250,10 +258,10 @@ export default function CreateInvoicePage() {
 
   const {
     register,
+    control,
     handleSubmit,
     setValue,
-    watch,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<InvoiceForm>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
@@ -263,7 +271,8 @@ export default function CreateInvoicePage() {
     },
   });
 
-  const invoiceDate = watch("invoice_date");
+  const invoiceDate = useWatch({ control, name: "invoice_date" });
+  const dueDate = useWatch({ control, name: "due_date" });
 
   if (!order) {
     return (
@@ -271,7 +280,7 @@ export default function CreateInvoicePage() {
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
           <h2 className="font-semibold mb-2">Order Not Found</h2>
           <p className="text-sm text-brand-text-secondary mb-4">
-            No order was specified. Please go back and use the "Generate Invoice"
+            No order was specified. Please go back and use the &quot;Generate Invoice&quot;
             button from the order detail page.
           </p>
           <Button href="/orders/list" variant="outline">
@@ -321,9 +330,10 @@ export default function CreateInvoicePage() {
   async function onSubmit(data: InvoiceForm) {
     setSubmitError(null);
     try {
-      const invoiceNumber = generateInvoiceNumber();
+      const nextInvoiceSequence = invoices.length + 1;
+      const invoiceNumber = generateInvoiceNumber(nextInvoiceSequence);
       const newInvoice = {
-        id: `inv-${Date.now()}`,
+        id: `inv-${nextInvoiceSequence}`,
         order_id: orderId,
         invoice_number: invoiceNumber,
         total_amount: order!.total_amount,
@@ -419,7 +429,7 @@ export default function CreateInvoicePage() {
 
             <FormDatePicker
               label="Due Date"
-              value={watch("due_date")}
+              value={dueDate}
               onValueChange={(value) => setValue("due_date", value)}
             />
 
