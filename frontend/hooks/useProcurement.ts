@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, patch, del, postForm } from "@/lib/api";
+import { procurementStore } from "@/lib/mockStore";
+// import { get, patch, del, postForm } from "@/lib/api";
 import type {
   ProcurementRequest,
   ProcurementListItem,
@@ -9,41 +10,41 @@ import type {
   ProcurementStatus,
 } from "@/types";
 
+// ── MOCK implementations ───────────────────────────────────────────────────────
+
 export function useProcurementList(status?: ProcurementStatus) {
   return useQuery<ProcurementListItem[]>({
     queryKey: ["procurement", "list", status ?? "all"],
-    queryFn: () =>
-      get<ProcurementListItem[]>("/api/procurement/", status ? { status } : undefined),
-    staleTime: 30 * 1000,
+    queryFn: () => {
+      let list = procurementStore.getList();
+      if (status) list = list.filter((p) => p.status === status);
+      return Promise.resolve(list);
+    },
+    staleTime: Infinity,
   });
 }
 
 export function useProcurement(id: string) {
   return useQuery<ProcurementRequest>({
     queryKey: ["procurement", id],
-    queryFn: () => get<ProcurementRequest>(`/api/procurement/${id}`),
+    queryFn: () => {
+      const p = procurementStore.getById(id);
+      if (!p) throw new Error("Procurement request not found");
+      return Promise.resolve(p);
+    },
     enabled: !!id,
   });
 }
 
 export function useCreateProcurement() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({
       data,
-      file,
     }: {
       data: ProcurementCreateInput;
       file?: File | null;
-    }) => {
-      const formData = new FormData();
-      formData.append("data", JSON.stringify(data));
-      if (file) {
-        formData.append("attachment", file);
-      }
-      return postForm<ProcurementRequest>("/api/procurement/", formData);
-    },
+    }) => Promise.resolve(procurementStore.add(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["procurement", "list"] });
     },
@@ -52,10 +53,11 @@ export function useCreateProcurement() {
 
 export function useUpdateProcurementStatus(id: string) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (status: ProcurementStatus) =>
-      patch<ProcurementRequest>(`/api/procurement/${id}/status`, { status }),
+    mutationFn: (status: ProcurementStatus) => {
+      procurementStore.updateStatus(id, status);
+      return Promise.resolve(procurementStore.getById(id)!);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["procurement"] });
     },
@@ -64,11 +66,69 @@ export function useUpdateProcurementStatus(id: string) {
 
 export function useCancelProcurement(id: string) {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: () => del(`/api/procurement/${id}`),
+    mutationFn: () => {
+      procurementStore.remove(id);
+      return Promise.resolve();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["procurement"] });
     },
   });
 }
+
+// ── ORIGINAL (uncomment to re-enable backend) ──────────────────────────────────
+// export function useProcurementList(status?: ProcurementStatus) {
+//   return useQuery<ProcurementListItem[]>({
+//     queryKey: ["procurement", "list", status ?? "all"],
+//     queryFn: () =>
+//       get<ProcurementListItem[]>("/api/procurement/", status ? { status } : undefined),
+//     staleTime: 30 * 1000,
+//   });
+// }
+// export function useProcurement(id: string) {
+//   return useQuery<ProcurementRequest>({
+//     queryKey: ["procurement", id],
+//     queryFn: () => get<ProcurementRequest>(`/api/procurement/${id}`),
+//     enabled: !!id,
+//   });
+// }
+// export function useCreateProcurement() {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: ({
+//       data,
+//       file,
+//     }: {
+//       data: ProcurementCreateInput;
+//       file?: File | null;
+//     }) => {
+//       const formData = new FormData();
+//       formData.append("data", JSON.stringify(data));
+//       if (file) formData.append("attachment", file);
+//       return postForm<ProcurementRequest>("/api/procurement/", formData);
+//     },
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: ["procurement", "list"] });
+//     },
+//   });
+// }
+// export function useUpdateProcurementStatus(id: string) {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: (status: ProcurementStatus) =>
+//       patch<ProcurementRequest>(`/api/procurement/${id}/status`, { status }),
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: ["procurement"] });
+//     },
+//   });
+// }
+// export function useCancelProcurement(id: string) {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: () => del(`/api/procurement/${id}`),
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: ["procurement"] });
+//     },
+//   });
+// }

@@ -96,192 +96,11 @@
 //         onSubmit={handleSubmit(onSubmit)}
 //         className="space-y-6"
 //       >
-//         {/* CUSTOMER INFO */}
-//         <div className="bg-white border border-brand-border rounded-2xl p-6">
-//           <h2 className="text-base font-semibold mb-5">Customer Information</h2>
-
-//           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-//             {/* 
-//             <FormSelect
-//               label="Customer"
-//               required
-//               options={customers.map((c) => ({
-//                 value: c.id,
-//                 label: c.name,
-//               }))}
-//               {...register("customer_id")}
-//             /> */}
-
-//             <Controller
-//               control={control}
-//               name="customer_id"
-//               render={({ field }) => (
-//                 <FormSelect
-//                   label="Customer"
-//                   options={customers.map((c) => ({
-//                     value: c.id,
-//                     label: c.name,
-//                   }))}
-//                   value={field.value}
-//                   onValueChange={field.onChange}
-//                 />
-//               )}
-//             />
-
-//             <FormInput
-//               label="Order Type"
-//               {...register("order_type")}
-//             />
-//           </div>
-//         </div>
-
-//         {/* ORDER ITEMS */}
-//         <div className="bg-white border border-brand-border rounded-2xl p-6">
-//           <div className="flex items-center justify-between mb-5">
-//             <div>
-//               <h2 className="text-base font-semibold">Order Items</h2>
-
-//               <p className="text-sm text-brand-text-secondary">
-//                 Modify products and pricing
-//               </p>
-//             </div>
-
-//             <Button
-//               type="button"
-//               variant="outline"
-//               onClick={() =>
-//                 append({
-//                   product_name: "",
-//                   quantity: 1,
-//                   unit_price: 0,
-//                 })
-//               }
-//             >
-//               + Add Item
-//             </Button>
-//           </div>
-
-//           {fields.map((field, index) => {
-//             const item = items?.[index];
-
-//             return (
-//               <div
-//                 key={field.id}
-//                 className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end"
-//               >
-//                 <FormInput
-//                   label="Product"
-//                   {...register(`order_items.${index}.product_name`)}
-//                 />
-
-//                 <FormInput
-//                   label="Quantity"
-//                   type="number"
-//                   {...register(`order_items.${index}.quantity`, {
-//                     valueAsNumber: true,
-//                   })}
-//                 />
-
-//                 <FormInput
-//                   label="Unit Price"
-//                   type="number"
-//                   {...register(`order_items.${index}.unit_price`, {
-//                     valueAsNumber: true,
-//                   })}
-//                 />
-
-//                 <div className="flex items-center justify-between gap-3">
-//                   <span className="text-sm font-medium">
-//                     {formatCurrency(
-//                       (item?.quantity || 0) * (item?.unit_price || 0),
-//                     )}
-//                   </span>
-
-//                   <Button
-//                     type="button"
-//                     variant="outline"
-//                     onClick={() => remove(index)}
-//                   >
-//                     Remove
-//                   </Button>
-//                 </div>
-//               </div>
-//             );
-//           })}
-//         </div>
-
-//         {/* DELIVERY */}
-//         <div className="bg-white border border-brand-border rounded-2xl p-6">
-//           <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
-
-//           <div className="space-y-5">
-//             <FormInput
-//               label="Delivery Address"
-//               required
-//               {...register("delivery_address")}
-//             />
-
-//             {/* <FormDatePicker
-//               label="Delivery Date"
-//               {...register("delivery_date")}
-//             /> */}
-
-//             <Controller
-//               control={control}
-//               name="delivery_date"
-//               render={({ field }) => (
-//                 <FormDatePicker
-//                   label="Delivery Date"
-//                   value={field.value}
-//                   onChange={field.onChange}
-//                 />
-//               )}
-//             />
-
-//             <FormTextarea
-//               label="Notes"
-//               {...register("notes")}
-//             />
-//           </div>
-//         </div>
-
-//         {/* SUMMARY */}
-//         <div className="bg-white border border-brand-border rounded-2xl p-6">
-//           <div className="flex items-center justify-between text-sm">
-//             <span className="text-brand-text-secondary">Subtotal</span>
-
-//             <span className="font-semibold">{formatCurrency(subtotal)}</span>
-//           </div>
-//         </div>
-
-//         {/* ACTIONS */}
-//         <div className="flex justify-end gap-3 pb-10">
-//           <Button
-//             type="button"
-//             variant="outline"
-//             onClick={() => router.back()}
-//           >
-//             Cancel
-//           </Button>
-
-//           <Button
-//             type="submit"
-//             loading={isSubmitting}
-//           >
-//             Save Changes
-//           </Button>
-//         </div>
+//         {/* ... */}
 //       </form>
 //     </AppLayout>
 //   );
 // }
-
-
-
-
-
-
-
 
 "use client";
 
@@ -366,7 +185,6 @@ export default function EditOrderPage() {
     );
   }
 
-  // Guard: only draft orders should be editable
   if (order.order_status !== "draft") {
     return (
       <AppLayout pageTitle="Cannot Edit Order">
@@ -387,7 +205,6 @@ export default function EditOrderPage() {
   async function onSubmit(data: EditOrderFormData) {
     setSubmitError(null);
     try {
-      // Flatten items into order fields (single-item model for now)
       const primaryItem = data.order_items[0];
       await OrdersService.updateOrder(id, {
         customer_id: data.customer_id,
@@ -395,7 +212,6 @@ export default function EditOrderPage() {
         delivery_address: data.delivery_address,
         delivery_date: data.delivery_date,
         notes: data.notes,
-        // Recalculate from items
         quantity: String(primaryItem.quantity),
         unit_price: String(primaryItem.unit_price),
       });
@@ -409,7 +225,6 @@ export default function EditOrderPage() {
 
   return (
     <AppLayout pageTitle="Edit Order">
-
       <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
@@ -425,11 +240,8 @@ export default function EditOrderPage() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-
-        {/* CUSTOMER INFO */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <h2 className="text-base font-semibold mb-5">Customer Information</h2>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Controller
               control={control}
@@ -448,7 +260,6 @@ export default function EditOrderPage() {
                 />
               )}
             />
-
             <FormInput
               label="Order Type"
               error={errors.order_type?.message}
@@ -457,16 +268,12 @@ export default function EditOrderPage() {
           </div>
         </div>
 
-        {/* ORDER ITEMS */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-base font-semibold">Order Items</h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Modify products and pricing
-              </p>
+              <p className="text-sm text-brand-text-secondary mt-1">Modify products and pricing</p>
             </div>
-
             <Button
               type="button"
               variant="outline"
@@ -479,46 +286,16 @@ export default function EditOrderPage() {
           {fields.map((field, index) => {
             const item = items?.[index];
             return (
-              <div
-                key={field.id}
-                className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end"
-              >
-                <FormInput
-                  label="Product"
-                  {...register(`order_items.${index}.product_name`)}
-                />
-
-                <FormInput
-                  label="Quantity (kg)"
-                  type="number"
-                  {...register(`order_items.${index}.quantity`, {
-                    valueAsNumber: true,
-                  })}
-                />
-
-                <FormInput
-                  label="Unit Price (₦)"
-                  type="number"
-                  {...register(`order_items.${index}.unit_price`, {
-                    valueAsNumber: true,
-                  })}
-                />
-
+              <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end">
+                <FormInput label="Product" {...register(`order_items.${index}.product_name`)} />
+                <FormInput label="Quantity (kg)" type="number" {...register(`order_items.${index}.quantity`, { valueAsNumber: true })} />
+                <FormInput label="Unit Price (₦)" type="number" {...register(`order_items.${index}.unit_price`, { valueAsNumber: true })} />
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium">
-                    {formatCurrency(
-                      (item?.quantity || 0) * (item?.unit_price || 0)
-                    )}
+                    {formatCurrency((item?.quantity || 0) * (item?.unit_price || 0))}
                   </span>
-
                   {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => remove(index)}
-                    >
-                      Remove
-                    </Button>
+                    <Button type="button" variant="outline" onClick={() => remove(index)}>Remove</Button>
                   )}
                 </div>
               </div>
@@ -526,38 +303,21 @@ export default function EditOrderPage() {
           })}
         </div>
 
-        {/* DELIVERY */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
-
           <div className="space-y-5">
-            <FormInput
-              label="Delivery Address"
-              required
-              error={errors.delivery_address?.message}
-              {...register("delivery_address")}
-            />
-
+            <FormInput label="Delivery Address" required error={errors.delivery_address?.message} {...register("delivery_address")} />
             <Controller
               control={control}
               name="delivery_date"
               render={({ field }) => (
-                <FormDatePicker
-                  label="Delivery Date"
-                  value={field.value}
-                  onChange={field.onChange}
-                />
+                <FormDatePicker label="Delivery Date" value={field.value} onChange={field.onChange} />
               )}
             />
-
-            <FormTextarea
-              label="Notes"
-              {...register("notes")}
-            />
+            <FormTextarea label="Notes" {...register("notes")} />
           </div>
         </div>
 
-        {/* SUMMARY */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-center justify-between text-sm">
             <span className="text-brand-text-secondary">Subtotal</span>
@@ -565,7 +325,6 @@ export default function EditOrderPage() {
           </div>
         </div>
 
-        {/* ERROR */}
         {submitError && (
           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
             <AlertCircle size={16} className="shrink-0" />
@@ -573,22 +332,11 @@ export default function EditOrderPage() {
           </div>
         )}
 
-        {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-
-          <Button type="submit" loading={isSubmitting} loadingText="Saving...">
-            Save Changes
-          </Button>
+          <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+          <Button type="submit" loading={isSubmitting} loadingText="Saving...">Save Changes</Button>
         </div>
-
       </form>
     </AppLayout>
   );
 }
-
-
-
-

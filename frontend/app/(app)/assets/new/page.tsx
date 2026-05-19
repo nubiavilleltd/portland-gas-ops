@@ -24,8 +24,8 @@ const schema = z.object({
   serial_number: z.string().optional(),
   purchase_date: z.string().optional(),
   purchase_cost: z.string().optional(),
-  condition: z.enum(["new", "good", "fair", "poor"], { required_error: "Select a condition" }),
-  status: z.enum(["available", "in_use", "under_maintenance", "decommissioned"], { required_error: "Select a status" }),
+  condition: z.enum(["new", "good", "fair", "poor"], { error: "Select a condition" }),
+  status: z.enum(["available", "in_use", "under_maintenance", "decommissioned"], { error: "Select a status" }),
   maintenance_type: z.enum(["routine", "inspection", "calibration", "repair"]).optional(),
   maintenance_frequency_months: z.string().optional(),
   total_quantity: z.string().refine(
