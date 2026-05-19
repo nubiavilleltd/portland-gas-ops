@@ -1,0 +1,331 @@
+"use client";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import AppLayout from "@/components/layout/AppLayout";
+import PageHeader from "@/components/ui/PageHeader";
+import Button from "@/components/ui/Button";
+import FormInput from "@/components/forms/FormInput";
+import FormSelect from "@/components/forms/FormSelect";
+import FormTextarea from "@/components/forms/FormTextarea";
+import FormDatePicker from "@/components/forms/FormDatePicker";
+import FormFileUpload from "@/components/forms/FormFileUpload";
+import DataTable from "@/components/data-table/data-table";
+import { cashRequisitionColumns } from "@/components/data-table/columns";
+import WorkflowPath from "../_components/WorkflowPath";
+import ApprovalStepper from "../_components/ApprovalStepper";
+import ActivityHistory from "../_components/ActivityHistory";
+import {
+  DEPT_OPTIONS,
+  CURRENCY_OPTIONS,
+  PRIORITY_OPTIONS,
+  genRef,
+  SEED_CASH_REQUESTS,
+  type CashRequest,
+} from "../_components/_data";
+
+const schema = z.object({
+  requester_name:      z.string().min(2, "Name is required"),
+  department:          z.string().min(1, "Select a department"),
+  date:                z.string().min(1, "Date is required"),
+  amount:              z.string().min(1, "Amount is required"),
+  currency:            z.string().min(1, "Select a currency"),
+  title:               z.string().min(3, "Title is required"),
+  description:         z.string().min(5, "Description is required"),
+  budget_code:         z.string().min(1, "Budget code is required"),
+  expected_retirement: z.string().min(1, "Date is required"),
+  priority:            z.string().min(1, "Select a priority"),
+});
+
+type FormData = z.infer<typeof schema>;
+
+type View = "list" | "form" | "submitted";
+
+interface SubmittedInfo {
+  ref: string;
+  requester: string;
+  department: string;
+  submittedAt: Date;
+}
+
+const APPROVAL_ROUTE = ["Initiator (You)", "Line Manager", "Finance Review", "Processed"];
+
+export default function CashRequisitionsPage() {
+  const [view, setView] = useState<View>("list");
+  const [items, setItems] = useState<CashRequest[]>(SEED_CASH_REQUESTS);
+  const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
+
+  const form = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { formState: { errors, isSubmitting } } = form;
+
+  function onSubmit(data: FormData) {
+    const ref = genRef("CRQ");
+    setItems((prev) => [
+      {
+        id: ref,
+        ref,
+        title: data.title,
+        department: data.department,
+        amount: parseFloat(data.amount),
+        requester: data.requester_name,
+        date: data.date,
+        status: "pending",
+        budgetCode: data.budget_code,
+        priority: data.priority,
+        description: data.description,
+      },
+      ...prev,
+    ]);
+    setSubmitted({ ref, requester: data.requester_name, department: data.department, submittedAt: new Date() });
+    setView("submitted");
+  }
+
+  function goBack() {
+    setView("list");
+    form.reset();
+    setSubmitted(null);
+  }
+
+  return (
+    <AppLayout pageTitle="Cash Requisition">
+
+      {/* ── LIST ── */}
+      {view === "list" && (
+        <>
+          <PageHeader
+            title="Cash Requisitions"
+            description="Manage cash requests and approvals"
+            className="mb-6"
+          />
+          <DataTable
+            columns={cashRequisitionColumns}
+            data={items}
+            rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
+            onNewRequest={() => setView("form")}
+            newRequestLabel="New Request"
+            emptyMessage="No cash requisitions yet"
+            emptyDescription="Submit your first cash request to get started"
+          />
+        </>
+      )}
+
+      {/* ── FORM ── */}
+      {view === "form" && (
+        <>
+          <button
+            onClick={goBack}
+            className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
+          >
+            <ArrowLeft size={16} />
+            Back to Cash Requisitions
+          </button>
+
+          <PageHeader
+            title="New Cash Requisition"
+            description="Request petty cash or operational funds"
+            className="mb-6"
+          />
+
+          <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden max-w-4xl">
+            <div className="h-1.5 w-full bg-linear-to-r from-brand-purple to-brand-purple-light" />
+
+            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 lg:p-8 space-y-8">
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
+                  Requester Details
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <FormInput
+                    label="Requester Name"
+                    required
+                    placeholder="Your full name"
+                    error={errors.requester_name?.message}
+                    {...form.register("requester_name")}
+                  />
+                  <FormSelect
+                    label="Department"
+                    required
+                    options={DEPT_OPTIONS}
+                    placeholder="Select department"
+                    error={errors.department?.message}
+                    {...form.register("department")}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
+                  Request Details
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <FormInput
+                    label="Title / Purpose"
+                    required
+                    placeholder="Brief title for this request"
+                    error={errors.title?.message}
+                    {...form.register("title")}
+                  />
+                  <FormDatePicker
+                    label="Request Date"
+                    required
+                    error={errors.date?.message}
+                    {...form.register("date")}
+                  />
+                  <FormInput
+                    label="Amount Requested (₦)"
+                    type="number"
+                    required
+                    placeholder="0.00"
+                    error={errors.amount?.message}
+                    {...form.register("amount")}
+                  />
+                  <FormSelect
+                    label="Currency"
+                    required
+                    options={CURRENCY_OPTIONS}
+                    sortOptions={false}
+                    placeholder="Select currency"
+                    error={errors.currency?.message}
+                    {...form.register("currency")}
+                  />
+                  <FormSelect
+                    label="Priority"
+                    required
+                    options={PRIORITY_OPTIONS}
+                    sortOptions={false}
+                    placeholder="Select priority"
+                    error={errors.priority?.message}
+                    {...form.register("priority")}
+                  />
+                  <FormDatePicker
+                    label="Expected Retirement Date"
+                    required
+                    error={errors.expected_retirement?.message}
+                    {...form.register("expected_retirement")}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
+                  Financial & Justification
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  <FormInput
+                    label="Budget Code / GL Account"
+                    required
+                    placeholder="e.g. OPEX-2026-OPS"
+                    error={errors.budget_code?.message}
+                    {...form.register("budget_code")}
+                  />
+                  <div className="md:col-span-1" />
+                  <div className="md:col-span-2">
+                    <FormTextarea
+                      label="Description / Justification"
+                      required
+                      placeholder="Describe what is needed and why..."
+                      rows={4}
+                      error={errors.description?.message}
+                      {...form.register("description")}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <FormFileUpload label="Supporting Documents" hint="Attach quotes, receipts, or any relevant documents (optional)" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-brand-border bg-gray-50 px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
+                  Approval Route
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {APPROVAL_ROUTE.map((step, i, arr) => (
+                    <div key={step} className="flex items-center gap-2">
+                      <span
+                        className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
+                          i === 0
+                            ? "bg-brand-purple-faint text-brand-purple border-brand-purple-mid"
+                            : "bg-white text-brand-text-secondary border-brand-border"
+                        }`}
+                      >
+                        {step}
+                      </span>
+                      {i < arr.length - 1 && (
+                        <span className="text-brand-text-secondary text-xs">→</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-brand-border">
+                <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+                  Submit for Approval
+                </Button>
+                <Button type="button" variant="outline" onClick={() => form.reset()}>
+                  Clear Form
+                </Button>
+                <Button type="button" variant="ghost" className="sm:ml-auto" onClick={goBack}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* ── SUBMITTED ── */}
+      {view === "submitted" && submitted && (
+        <>
+          <button
+            onClick={goBack}
+            className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
+          >
+            <ArrowLeft size={16} />
+            Back to Cash Requisitions
+          </button>
+
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
+            <CheckCircle2 size={22} className="text-green-600 shrink-0 mt-0.5" />
+            <div>
+              <h2 className="font-semibold text-green-800">Request Submitted Successfully</h2>
+              <p className="text-sm text-green-700 mt-0.5">
+                Reference:{" "}
+                <span className="font-mono font-bold">{submitted.ref}</span> — Your request has been routed to the first approver.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <ApprovalStepper currentStep={1} />
+            <WorkflowPath
+              initiator={submitted.requester}
+              department={submitted.department}
+              currentStep={1}
+            />
+            <ActivityHistory
+              initiator={submitted.requester}
+              department={submitted.department}
+              submittedAt={submitted.submittedAt}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-3 mt-6">
+            <Button onClick={goBack}>View All Requests</Button>
+            <Button
+              variant="outline"
+              onClick={() => { form.reset(); setView("form"); }}
+            >
+              Submit Another
+            </Button>
+          </div>
+        </>
+      )}
+    </AppLayout>
+  );
+}

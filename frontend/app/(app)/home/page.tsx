@@ -36,14 +36,14 @@ const moduleGroups = [
     fullWidth: true,
     modules: [
       { name: "Billing", description: "Invoices & payment tracking", icon: Receipt, href: "/billing" },
-      { name: "Finance", description: "Budgets, expenses & reports", icon: BarChart3, href: "/finance" },
+      { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
     ],
   },
   {
     title: "Compliance & Safety",
     modules: [
       { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
-      { name: "Incidents", description: "Incident & near-miss reporting", icon: AlertTriangle, href: "/safety/incidents" },
+      { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
     ],
   },
   {
@@ -51,6 +51,11 @@ const moduleGroups = [
     fullWidth: true,
     modules: [
       { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr" },
+    ],
+  },
+  {
+    title: "Administration",
+    modules: [
       { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
     ],
   },

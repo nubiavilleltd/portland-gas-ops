@@ -101,7 +101,7 @@ export default function NewCustomerPage() {
             </label>
             <textarea
               placeholder="Enter full address"
-              className="w-full border border-gray-200 rounded-lg p-3 min-h-[100px]"
+              className="w-full border border-gray-200 rounded-lg p-3 min-h-25"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />

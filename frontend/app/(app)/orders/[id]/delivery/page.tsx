@@ -23,7 +23,7 @@ export default function OrderDeliveryPage() {
           <MapPin size={16} className="text-brand-purple mt-0.5" />
           <div><p className="text-xs text-brand-text-secondary">Delivery Address</p><p className="text-sm font-medium">Obajana, Kogi State</p></div>
         </div>
-        <p className="text-xs text-brand-text-secondary mt-4">TODO: Integrate real-time delivery tracking map</p>
+        {/* <p className="text-xs text-brand-text-secondary mt-4">TODO: Integrate real-time delivery tracking map</p> */}
       </div>
     </AppLayout>
   );

@@ -125,7 +125,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       if (selectedDate) {
         setViewDate(selectedDate);
       }
-    }, [selectedValue]); // selectedDate is derived from selectedValue — don't include it or it creates an infinite loop
+    }, [selectedValue]);
 
     useEffect(() => {
       if (!open) return;
@@ -369,3 +369,4 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
 DatePicker.displayName = "DatePicker";
 
 export default DatePicker;
+ 

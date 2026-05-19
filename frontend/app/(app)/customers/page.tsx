@@ -55,7 +55,8 @@ import Link from "next/link";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { customers } from "@/lib/mock/customers";
+import { customers } from "@/lib/modules/customers/mock/customers.mock";
+// import { customers } from "@/lib/mock/customers";
 
 type Customer = {
   id: string;
