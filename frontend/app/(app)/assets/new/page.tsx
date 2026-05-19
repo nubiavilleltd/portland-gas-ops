@@ -24,8 +24,8 @@ const schema = z.object({
   serial_number: z.string().optional(),
   purchase_date: z.string().optional(),
   purchase_cost: z.string().optional(),
-  condition: z.enum(["new", "good", "fair", "poor"], { required_error: "Select a condition" }),
-  status: z.enum(["available", "in_use", "under_maintenance", "decommissioned"], { required_error: "Select a status" }),
+  condition: z.enum(["new", "good", "fair", "poor"], { error: "Select a condition" }),
+  status: z.enum(["available", "in_use", "under_maintenance", "decommissioned"], { error: "Select a status" }),
   maintenance_type: z.enum(["routine", "inspection", "calibration", "repair"]).optional(),
   maintenance_frequency_months: z.string().optional(),
   total_quantity: z.string().refine(
@@ -85,15 +85,14 @@ export default function RegisterAssetPage() {
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
   const createAsset = useCreateAsset();
   const { data: categories = [] } = useAssetCategories();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   if (user && !isAdmin) {
     router.replace("/assets");
     return null;
   }
-
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
 
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
 

@@ -21,7 +21,7 @@ const sizeStyles = {
 type ButtonVariant = keyof typeof variantStyles;
 type ButtonSize = keyof typeof sizeStyles;
 
-interface Props extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "disabled"> {
+interface Props extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "disabled" | "content"> {
   href?: string;
   variant?: ButtonVariant;
   size?: ButtonSize;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,7 +66,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function NewAssetRequestPage() {
+function NewAssetRequestForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
@@ -476,5 +476,13 @@ export default function NewAssetRequestPage() {
         </div>
       </form>
     </AppLayout>
+  );
+}
+
+export default function NewAssetRequestPage() {
+  return (
+    <Suspense>
+      <NewAssetRequestForm />
+    </Suspense>
   );
 }
