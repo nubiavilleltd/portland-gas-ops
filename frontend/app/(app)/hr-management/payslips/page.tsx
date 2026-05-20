@@ -1,21 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, Eye } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import { SEED_PAYSLIPS, PAYROLL_PERIODS, type PaySlip } from "../_components/_data";
+import FormSelect from "@/components/forms/FormSelect";
+import FormInput from "@/components/forms/FormInput";
+import DataTable from "@/components/data-table/data-table";
+import Modal from "../_components/Modal";
+import { createPaySlipColumns } from "../_components/columns";
+import { SEED_PAYSLIPS, SEED_EMPLOYEES, PAYROLL_PERIODS, type PaySlip } from "../_components/_data";
+
+const PERIOD_OPTIONS = PAYROLL_PERIODS.map((p) => ({ value: p, label: p }));
+const EMPLOYEE_OPTIONS = SEED_EMPLOYEES.map((e) => ({
+  value: e.id,
+  label: `${e.firstName} ${e.lastName}`,
+}));
 
 const fmt = (n: number) => `₦${n.toLocaleString("en-NG")}`;
 
+type FormState = {
+  employeeId: string;
+  period: string;
+  basic: string;
+  housing: string;
+  transport: string;
+  meal: string;
+  paye: string;
+  pension: string;
+  nhf: string;
+  loan: string;
+};
+
+const EMPTY_FORM: FormState = {
+  employeeId: "", period: "", basic: "", housing: "", transport: "", meal: "",
+  paye: "", pension: "", nhf: "", loan: "",
+};
+
 export default function PaySlipsPage() {
-  const [slips] = useState<PaySlip[]>(SEED_PAYSLIPS);
+  const [slips, setSlips] = useState<PaySlip[]>(SEED_PAYSLIPS);
   const [period, setPeriod] = useState("April 2026");
   const [selected, setSelected] = useState<PaySlip | null>(null);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   const filtered = slips.filter((s) => s.period === period);
+  const columns = useMemo(() => createPaySlipColumns(setSelected), []);
+
+  const u = (k: keyof FormState, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  function addSlip() {
+    const emp = SEED_EMPLOYEES.find((e) => e.id === form.employeeId);
+    if (!emp || !form.period) return;
+
+    const n = (v: string) => Number(v) || 0;
+    const basic = n(form.basic);
+    const housing = n(form.housing);
+    const transport = n(form.transport);
+    const meal = n(form.meal);
+    const paye = n(form.paye);
+    const pension = n(form.pension);
+    const nhf = n(form.nhf);
+    const loan = n(form.loan);
+    const net = basic + housing + transport + meal - paye - pension - nhf - loan;
+    const empId = `PG-${emp.id.padStart(3, "0")}`;
+
+    setSlips((prev) => [
+      {
+        id: String(Date.now()),
+        employee: `${emp.firstName} ${emp.lastName}`,
+        empId,
+        department: emp.department,
+        period: form.period,
+        basic, housing, transport, meal,
+        paye, pension, nhf, loan,
+        net,
+      },
+      ...prev,
+    ]);
+    setModal(false);
+    setForm(EMPTY_FORM);
+    setPeriod(form.period);
+  }
 
   // ── Pay slip detail ───────────────────────────────────────────────────────
   if (selected) {
@@ -48,16 +116,15 @@ export default function PaySlipsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Earnings */}
               <div className="border border-brand-border rounded-xl overflow-hidden">
                 <div className="px-5 py-3 font-bold text-sm text-white bg-emerald-600">Earnings</div>
                 <table className="w-full text-sm">
                   <tbody>
                     {[
-                      ["Basic Salary",       s.basic],
-                      ["Housing Allowance",  s.housing],
-                      ["Transport Allowance",s.transport],
-                      ["Meal Allowance",     s.meal],
+                      ["Basic Salary",        s.basic],
+                      ["Housing Allowance",   s.housing],
+                      ["Transport Allowance", s.transport],
+                      ["Meal Allowance",      s.meal],
                     ].map(([label, value]) => (
                       <tr key={String(label)} className="border-t border-brand-border">
                         <td className="px-5 py-2.5 text-brand-text-secondary">{label}</td>
@@ -72,7 +139,6 @@ export default function PaySlipsPage() {
                 </table>
               </div>
 
-              {/* Deductions */}
               <div className="border border-brand-border rounded-xl overflow-hidden">
                 <div className="px-5 py-3 font-bold text-sm text-white bg-red-500">Deductions</div>
                 <table className="w-full text-sm">
@@ -97,7 +163,6 @@ export default function PaySlipsPage() {
               </div>
             </div>
 
-            {/* Net pay */}
             <div className="mt-5 p-5 rounded-xl border-2 border-brand-purple bg-brand-purple-faint">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-bold text-brand-text-primary">Net Pay</span>
@@ -119,59 +184,69 @@ export default function PaySlipsPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <PageHeader title="Pay Slips" description="View and download monthly pay slips" />
-        <select
-          className="rounded-xl border border-brand-border bg-brand-card px-3 py-2.5 text-sm text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple-mid transition w-full sm:w-48 appearance-none"
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-        >
-          {PAYROLL_PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </div>
-
-      <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[660px]">
-            <thead>
-              <tr className="border-b border-brand-border bg-gray-50/60 text-left">
-                {["Employee", "Employee ID", "Department", "Period", "Basic", "Net Pay", ""].map((h) => (
-                  <th key={h} className="px-5 py-3 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => (
-                <tr
-                  key={s.id}
-                  className="border-t border-brand-border hover:bg-gray-50/50 transition cursor-pointer"
-                  onClick={() => setSelected(s)}
-                >
-                  <td className="px-5 py-3 font-medium text-brand-text-primary">{s.employee}</td>
-                  <td className="px-5 py-3 font-mono text-xs text-brand-text-secondary">{s.empId}</td>
-                  <td className="px-5 py-3 text-brand-text-secondary">{s.department}</td>
-                  <td className="px-5 py-3 text-brand-text-secondary">{s.period}</td>
-                  <td className="px-5 py-3 font-semibold text-brand-text-primary">{fmt(s.basic)}</td>
-                  <td className="px-5 py-3 font-bold text-brand-purple">{fmt(s.net)}</td>
-                  <td className="px-5 py-3">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setSelected(s); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-brand-text-secondary hover:bg-gray-200 transition"
-                    >
-                      <Eye size={12} /> View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-brand-text-secondary text-sm">
-                    No pay slips for {period}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="w-full sm:w-48">
+          <FormSelect
+            id="period-filter"
+            options={PERIOD_OPTIONS}
+            value={period}
+            onValueChange={(v) => setPeriod(v)}
+          />
         </div>
       </div>
+
+      <DataTable
+        columns={columns}
+        data={filtered}
+        hideStatusFilter
+        onNewRequest={() => { setModal(true); setForm(EMPTY_FORM); }}
+        newRequestLabel="New Pay Slip"
+        emptyMessage={`No pay slips for ${period}`}
+        emptyDescription="Try selecting a different pay period"
+      />
+
+      <Modal open={modal} title="New Pay Slip" onClose={() => setModal(false)}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+          <FormSelect
+            label="Employee"
+            required
+            options={EMPLOYEE_OPTIONS}
+            placeholder="Select employee"
+            value={form.employeeId}
+            onValueChange={(v) => u("employeeId", v)}
+          />
+          <FormSelect
+            label="Pay Period"
+            required
+            options={PERIOD_OPTIONS}
+            placeholder="Select period"
+            value={form.period}
+            onValueChange={(v) => u("period", v)}
+          />
+
+          <p className="md:col-span-2 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide pt-2 border-t border-brand-border">
+            Earnings
+          </p>
+          <FormInput label="Basic Salary" type="number" min={0} placeholder="0" value={form.basic} onChange={(e) => u("basic", e.target.value)} />
+          <FormInput label="Housing Allowance" type="number" min={0} placeholder="0" value={form.housing} onChange={(e) => u("housing", e.target.value)} />
+          <FormInput label="Transport Allowance" type="number" min={0} placeholder="0" value={form.transport} onChange={(e) => u("transport", e.target.value)} />
+          <FormInput label="Meal Allowance" type="number" min={0} placeholder="0" value={form.meal} onChange={(e) => u("meal", e.target.value)} />
+
+          <p className="md:col-span-2 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide pt-2 border-t border-brand-border">
+            Deductions
+          </p>
+          <FormInput label="PAYE Tax" type="number" min={0} placeholder="0" value={form.paye} onChange={(e) => u("paye", e.target.value)} />
+          <FormInput label="Pension" type="number" min={0} placeholder="0" value={form.pension} onChange={(e) => u("pension", e.target.value)} />
+          <FormInput label="NHF" type="number" min={0} placeholder="0" value={form.nhf} onChange={(e) => u("nhf", e.target.value)} />
+          <FormInput label="Loan Repayment" type="number" min={0} placeholder="0" value={form.loan} onChange={(e) => u("loan", e.target.value)} />
+        </div>
+
+        <div className="flex gap-3 mt-6 pt-4 border-t border-brand-border">
+          <Button onClick={addSlip} disabled={!form.employeeId || !form.period}>
+            Save Pay Slip
+          </Button>
+          <Button variant="outline" onClick={() => setModal(false)}>Cancel</Button>
+        </div>
+      </Modal>
     </AppLayout>
   );
 }

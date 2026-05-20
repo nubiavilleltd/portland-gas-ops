@@ -19,10 +19,11 @@ interface DataTableProps<T extends { id: string; status?: string }> {
   data: T[];
   isLoading?: boolean;
   rowHref?: (row: T) => string;
-  onNewRequest: () => void;
+  onNewRequest?: () => void;
   newRequestLabel?: string;
   emptyMessage?: string;
   emptyDescription?: string;
+  hideStatusFilter?: boolean;
 }
 
 type SortDir = "asc" | "desc";
@@ -44,6 +45,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
   newRequestLabel = "New Request",
   emptyMessage = "No records found",
   emptyDescription = "Try adjusting your search or filters",
+  hideStatusFilter = false,
 }: DataTableProps<T>) {
   const router = useRouter();
 
@@ -146,8 +148,9 @@ export default function DataTable<T extends { id: string; status?: string }>({
         onSearchChange={handleSearchChange}
         statusFilter={statusFilter}
         onStatusFilterChange={handleStatusChange}
-        onNewRequest={onNewRequest}
-        newRequestLabel={newRequestLabel}
+        onNewRequest={onNewRequest ?? (() => {})}
+        newRequestLabel={onNewRequest ? newRequestLabel : undefined}
+        hideStatusFilter={hideStatusFilter}
       />
 
       <div className="bg-brand-card border border-brand-border rounded-xl md:rounded-2xl overflow-hidden shadow-sm">

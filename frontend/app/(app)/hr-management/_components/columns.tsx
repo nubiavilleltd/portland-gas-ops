@@ -1,8 +1,8 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Eye, Download, Pencil, Trash2 } from "lucide-react";
 import type { Column } from "@/components/data-table/data-table";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { formatDate } from "@/lib/utils";
-import type { Employee, LeaveRequest, PayrollRun } from "./_data";
+import type { Employee, EmployeeRecord, LeaveRequest, PaySlip, PayrollRun } from "./_data";
 
 const fmt = (n: number) => (n === 0 ? "—" : `₦${n.toLocaleString("en-NG")}`);
 
@@ -55,6 +55,102 @@ export function createEmployeeColumns(
             title="Delete"
           >
             <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+}
+
+export function createEmployeeRecordColumns(
+  onDelete: (id: string) => void,
+): Column<EmployeeRecord>[] {
+  return [
+    {
+      key: "employee",
+      label: "Employee",
+      sortable: true,
+      render: (v) => <span className="font-medium text-brand-text-primary">{String(v)}</span>,
+    },
+    { key: "docType", label: "Document Type", sortable: true },
+    {
+      key: "fileName",
+      label: "File Name",
+      sortable: true,
+      render: (v) => <span className="font-mono text-xs text-brand-text-secondary">{String(v)}</span>,
+    },
+    {
+      key: "uploadDate",
+      label: "Upload Date",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{String(v)}</span>,
+    },
+    {
+      key: "uploadedBy",
+      label: "Uploaded By",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary">{String(v)}</span>,
+    },
+    {
+      key: "id",
+      label: "",
+      render: (_, row) => (
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <button className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition" title="View">
+            <Eye size={14} />
+          </button>
+          <button className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition" title="Download">
+            <Download size={14} />
+          </button>
+          <button onClick={() => onDelete(row.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition" title="Delete">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+}
+
+export function createPaySlipColumns(
+  onView: (slip: PaySlip) => void,
+): Column<PaySlip>[] {
+  return [
+    {
+      key: "employee",
+      label: "Employee",
+      sortable: true,
+      render: (v) => <span className="font-medium text-brand-text-primary">{String(v)}</span>,
+    },
+    {
+      key: "empId",
+      label: "Employee ID",
+      sortable: true,
+      render: (v) => <span className="font-mono text-xs text-brand-text-secondary">{String(v)}</span>,
+    },
+    { key: "department", label: "Department", sortable: true },
+    { key: "period", label: "Period", sortable: true },
+    {
+      key: "basic",
+      label: "Basic",
+      sortable: true,
+      render: (v) => <span className="font-semibold text-brand-text-primary">{fmt(Number(v))}</span>,
+    },
+    {
+      key: "net",
+      label: "Net Pay",
+      sortable: true,
+      render: (v) => <span className="font-bold text-brand-purple">{fmt(Number(v))}</span>,
+    },
+    {
+      key: "id",
+      label: "",
+      render: (_, row) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => onView(row)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-brand-text-secondary hover:bg-gray-200 transition"
+          >
+            <Eye size={12} /> View
           </button>
         </div>
       ),
