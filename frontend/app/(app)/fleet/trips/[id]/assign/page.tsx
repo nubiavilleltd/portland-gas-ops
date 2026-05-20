@@ -7,6 +7,7 @@ import { ArrowLeft, User, Truck, AlertCircle } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
+import SelectInput from "@/components/forms/SelectInput";
 // import { TripStatusBadge } from "@/components/ui/TripStatusBadge";
 
 import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
@@ -26,6 +27,16 @@ export default function AssignTripPage() {
 
   const availableDrivers = getAvailableDrivers();
   const availableVehicles = getAvailableVehicles();
+
+  const driverOptions = availableDrivers.map((driver) => ({
+    label: `${driver.full_name} · ${driver.experience_years} yrs · ${driver.license_number}`,
+    value: driver.id,
+  }));
+
+  const vehicleOptions = availableVehicles.map((vehicle) => ({
+    label: `${vehicle.name} · ${vehicle.plate_number} · ${vehicle.capacity?.toLocaleString() ?? "—"} kg`,
+    value: vehicle.id,
+  }));
 
   const [selectedDriverId, setSelectedDriverId] = useState(trip?.driver_id ?? "");
   const [selectedVehicleId, setSelectedVehicleId] = useState(trip?.vehicle_id ?? "");
@@ -63,7 +74,11 @@ export default function AssignTripPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await TripsService.assignDriverAndVehicle(tripId, selectedDriverId, selectedVehicleId);
+      await TripsService.assignDriverAndVehicle(
+        tripId,
+        selectedDriverId,
+        selectedVehicleId
+      );
       router.push(`/fleet/trips/${tripId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to assign trip");
@@ -99,6 +114,7 @@ export default function AssignTripPage() {
             </div>
             <TripStatusBadge status={trip.status} />
           </div>
+
           <div className="grid grid-cols-3 gap-4 text-sm">
             <InfoRow label="From" value={trip.start_location} />
             <InfoRow label="To" value={trip.end_location} />
@@ -107,7 +123,7 @@ export default function AssignTripPage() {
           </div>
         </div>
 
-        {/* DRIVER SELECTION */}
+        {/* DRIVER SELECTION (NOW DROPDOWN) */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <User size={18} className="text-brand-purple" />
@@ -119,37 +135,18 @@ export default function AssignTripPage() {
               No available drivers. All drivers are currently assigned or off duty.
             </div>
           ) : (
-            <div className="space-y-2">
-              {availableDrivers.map((driver) => (
-                <label
-                  key={driver.id}
-                  className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
-                    selectedDriverId === driver.id
-                      ? "border-brand-purple bg-brand-purple-faint"
-                      : "border-brand-border hover:border-brand-purple hover:bg-gray-50"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="driver"
-                    value={driver.id}
-                    checked={selectedDriverId === driver.id}
-                    onChange={() => setSelectedDriverId(driver.id)}
-                    className="accent-brand-purple"
-                  />
-                  <div>
-                    <p className="font-medium text-sm">{driver.full_name}</p>
-                    <p className="text-xs text-brand-text-secondary">
-                      {driver.experience_years} yrs experience · {driver.license_number}
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
+            <SelectInput
+              label="Driver"
+              placeholder="Select a driver"
+              options={driverOptions}
+              value={selectedDriverId}
+              onValueChange={setSelectedDriverId}
+              searchable
+            />
           )}
         </div>
 
-        {/* VEHICLE SELECTION */}
+        {/* VEHICLE SELECTION (NOW DROPDOWN) */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Truck size={18} className="text-brand-purple" />
@@ -161,33 +158,14 @@ export default function AssignTripPage() {
               No available vehicles. All vehicles are in use or under maintenance.
             </div>
           ) : (
-            <div className="space-y-2">
-              {availableVehicles.map((vehicle) => (
-                <label
-                  key={vehicle.id}
-                  className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-colors ${
-                    selectedVehicleId === vehicle.id
-                      ? "border-brand-purple bg-brand-purple-faint"
-                      : "border-brand-border hover:border-brand-purple hover:bg-gray-50"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="vehicle"
-                    value={vehicle.id}
-                    checked={selectedVehicleId === vehicle.id}
-                    onChange={() => setSelectedVehicleId(vehicle.id)}
-                    className="accent-brand-purple"
-                  />
-                  <div>
-                    <p className="font-medium text-sm">{vehicle.name}</p>
-                    <p className="text-xs text-brand-text-secondary">
-                      {vehicle.plate_number} · {vehicle.capacity?.toLocaleString() ?? "—"} kg capacity
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
+            <SelectInput
+              label="Vehicle"
+              placeholder="Select a vehicle"
+              options={vehicleOptions}
+              value={selectedVehicleId}
+              onValueChange={setSelectedVehicleId}
+              searchable
+            />
           )}
         </div>
 
