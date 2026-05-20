@@ -596,6 +596,7 @@ export default function NewOrderPage() {
             type="button"
             variant="secondary"
             disabled={isSubmitting}
+            className="bg-purple-300 text-purple-800"
             onClick={handleSubmit(onSaveDraft)}
           >
             Save Draft
