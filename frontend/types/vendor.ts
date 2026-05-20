@@ -21,6 +21,8 @@ export interface Vendor {
   bank_name: string | null;
   account_name: string | null;
   account_number: string | null;
+  vendor_code: string | null;  // e.g. "AT-K7M2"
+  logo_url: string | null;
   status: VendorStatus;
   added_by: string | null;
   is_active: boolean;

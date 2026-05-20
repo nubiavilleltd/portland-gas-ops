@@ -38,9 +38,9 @@ export function useCreateVendor() {
         phone: data.phone ?? null,
         email: data.email ?? null,
         address: data.address ?? null,
-        bank_name: null,
-        account_name: null,
-        account_number: null,
+        bank_name: data.bank_name ?? null,
+        account_name: data.account_name ?? null,
+        account_number: data.account_number ?? null,
         status: "active",
         added_by: null,
       });

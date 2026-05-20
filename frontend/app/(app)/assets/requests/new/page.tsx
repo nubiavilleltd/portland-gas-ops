@@ -201,70 +201,44 @@ function NewAssetRequestForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
 
-        {/* ── Section 1: Request Details ───────────────────────────────────── */}
+        {/* ── Section 1: Request Type ──────────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Request Details</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Choose request type and describe your need</p>
+            <h2 className="text-sm font-semibold text-brand-text-primary">Request Type</h2>
+            <p className="text-xs text-brand-text-secondary mt-0.5">Is this a temporary loan or a permanent requisition?</p>
           </div>
-          <div className="p-6 space-y-5">
-
-            {/* Request type toggle */}
-            <div>
-              <label className="block text-sm font-medium text-brand-text-primary mb-2">
-                Request Type <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-                {(["loan", "requisition"] as const).map((type) => (
-                  <label
-                    key={type}
-                    className={[
-                      "px-4 py-1.5 text-sm font-medium rounded-md cursor-pointer transition-colors",
-                      requestType === type
-                        ? "bg-white text-brand-text-primary shadow-sm"
-                        : "text-brand-text-secondary hover:text-brand-text-primary",
-                    ].join(" ")}
-                  >
-                    <input
-                      type="radio"
-                      value={type}
-                      className="sr-only"
-                      {...register("request_type")}
-                    />
-                    {capitalize(type)}
-                  </label>
-                ))}
-              </div>
-              {requestType === "loan" && (
-                <p className="text-xs text-brand-text-secondary mt-1.5">
-                  Asset will be returned after the specified return date.
-                </p>
-              )}
-              {requestType === "requisition" && (
-                <p className="text-xs text-brand-text-secondary mt-1.5">
-                  Asset will be permanently assigned — no return required.
-                </p>
-              )}
+          <div className="p-6">
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+              {(["loan", "requisition"] as const).map((type) => (
+                <label
+                  key={type}
+                  className={[
+                    "px-4 py-1.5 text-sm font-medium rounded-md cursor-pointer transition-colors",
+                    requestType === type
+                      ? "bg-white text-brand-text-primary shadow-sm"
+                      : "text-brand-text-secondary hover:text-brand-text-primary",
+                  ].join(" ")}
+                >
+                  <input
+                    type="radio"
+                    value={type}
+                    className="sr-only"
+                    {...register("request_type")}
+                  />
+                  {capitalize(type)}
+                </label>
+              ))}
             </div>
-
-            {/* Return date — loan only */}
             {requestType === "loan" && (
-              <FormDatePicker
-                label="Return Date"
-                required
-                error={errors.return_date?.message}
-                {...register("return_date")}
-              />
+              <p className="text-xs text-brand-text-secondary mt-2">
+                Asset will be returned after the specified return date.
+              </p>
             )}
-
-            <FormTextarea
-              label="Purpose / Description"
-              required
-              placeholder="Describe what you need the asset for and how long you need it…"
-              rows={3}
-              error={errors.purpose?.message}
-              {...register("purpose")}
-            />
+            {requestType === "requisition" && (
+              <p className="text-xs text-brand-text-secondary mt-2">
+                Asset will be permanently assigned — no return required.
+              </p>
+            )}
           </div>
         </div>
 
@@ -449,6 +423,32 @@ function NewAssetRequestForm() {
             >
               <Plus size={15} /> Add Item
             </button>
+          </div>
+        </div>
+
+        {/* ── Section 3: Purpose & Return Date ────────────────────────────── */}
+        <div className="bg-white border border-brand-border rounded-2xl">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+            <h2 className="text-sm font-semibold text-brand-text-primary">Purpose & Details</h2>
+            <p className="text-xs text-brand-text-secondary mt-0.5">Describe why you need these assets</p>
+          </div>
+          <div className="p-6 space-y-5">
+            <FormTextarea
+              label="Purpose / Description"
+              required
+              placeholder="Describe what you need the asset(s) for…"
+              rows={3}
+              error={errors.purpose?.message}
+              {...register("purpose")}
+            />
+            {requestType === "loan" && (
+              <FormDatePicker
+                label="Return Date"
+                required
+                error={errors.return_date?.message}
+                {...register("return_date")}
+              />
+            )}
           </div>
         </div>
 

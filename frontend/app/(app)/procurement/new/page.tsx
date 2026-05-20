@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Paperclip, X, ChevronDown, UserPlus } from "lucide-react";
+import { Plus, Trash2, Paperclip, X, ChevronDown } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import { useCreateProcurement } from "@/hooks/useProcurement";
-import { useVendors, useCreateVendor } from "@/hooks/useVendors";
+import { useVendors } from "@/hooks/useVendors";
 import { useToast } from "@/hooks/useToast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, capitalize } from "@/lib/utils";
 import type { ProcurementCategory, ProcurementPriority, ItemUnit } from "@/types";
 
 // ── Zod schema ─────────────────────────────────────────────────────────────────
@@ -44,7 +43,6 @@ const ALLOWED_FILE_TYPES = [
 ];
 
 const schema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(255, "Max 255 characters"),
   category: z.string().min(1, "Select a category"),
   priority: z.string().min(1, "Select priority"),
   justification: z.string().max(2000, "Max 2000 characters").optional(),
@@ -61,24 +59,12 @@ const categoryOptions = [
   { value: "consumables", label: "Consumables" },
   { value: "technical", label: "Technical" },
   { value: "services", label: "Services" },
-  { value: "capital", label: "Capital" },
 ];
 
 const priorityOptions = [
   { value: "routine", label: "Routine" },
   { value: "urgent", label: "Urgent" },
   { value: "emergency", label: "Emergency" },
-];
-
-const vendorCategoryOptions = [
-  { value: "equipment", label: "Equipment" },
-  { value: "ppe", label: "PPE" },
-  { value: "technical", label: "Technical" },
-  { value: "consumables", label: "Consumables" },
-  { value: "food_beverage", label: "Food & Beverage" },
-  { value: "services", label: "Services" },
-  { value: "it", label: "IT" },
-  { value: "logistics", label: "Logistics" },
 ];
 
 const unitOptions = [
@@ -99,7 +85,6 @@ export default function NewProcurementPage() {
   const router = useRouter();
   const toast = useToast();
   const createMutation = useCreateProcurement();
-  const createVendorMutation = useCreateVendor();
   const { data: vendors = [] } = useVendors();
 
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -107,14 +92,6 @@ export default function NewProcurementPage() {
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [selectedVendorName, setSelectedVendorName] = useState<string>("");
-
-  // "select" | "create" — which vendor mode is active
-  const [vendorMode, setVendorMode] = useState<"select" | "create">("select");
-  const [newVendor, setNewVendor] = useState({
-    name: "", category: "", phone: "", email: "", address: "",
-    contact_person: "",
-  });
-  const [newVendorErrors, setNewVendorErrors] = useState<Record<string, string>>({});
 
   const {
     register,
@@ -133,6 +110,7 @@ export default function NewProcurementPage() {
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const watchedItems = watch("items");
+  const watchedCategory = watch("category");
 
   // Auto-calculate total_cost when qty or unit_cost changes
   const updateTotal = useCallback(
@@ -163,36 +141,11 @@ export default function NewProcurementPage() {
     setSelectedVendorName("");
   }
 
-  async function saveNewVendor() {
-    const errs: Record<string, string> = {};
-    if (!newVendor.name.trim()) errs.name = "Vendor name is required";
-    if (!newVendor.category) errs.category = "Category is required";
-    if (Object.keys(errs).length) { setNewVendorErrors(errs); return; }
-    setNewVendorErrors({});
-
-    try {
-      const created = await createVendorMutation.mutateAsync({
-        name: newVendor.name.trim(),
-        category: newVendor.category,
-        contact_person: newVendor.contact_person || undefined,
-        phone: newVendor.phone || undefined,
-        email: newVendor.email || undefined,
-        address: newVendor.address || undefined,
-      } as never);
-      selectVendor(created.id, created.name);
-      setVendorMode("select");
-      setNewVendor({ name: "", category: "", phone: "", email: "", address: "", contact_person: "" });
-      toast.success(`Vendor "${created.name}" created and selected`);
-    } catch {
-      toast.error("Failed to create vendor. Please try again.");
-    }
-  }
-
   async function onSubmit(formData: FormData) {
     try {
       await createMutation.mutateAsync({
         data: {
-          title: formData.title,
+          title: `${capitalize(formData.category)} request`,
           category: formData.category as ProcurementCategory,
           priority: formData.priority as ProcurementPriority,
           justification: formData.justification,
@@ -232,13 +185,6 @@ export default function NewProcurementPage() {
             <p className="text-xs text-brand-text-secondary mt-0.5">Basic information about this purchase request</p>
           </div>
           <div className="p-6 space-y-5">
-            <FormInput
-              label="Request Title"
-              required
-              placeholder="e.g. Generator fuel supply — Q3 2025"
-              error={errors.title?.message}
-              {...register("title")}
-            />
             <div className="grid grid-cols-2 gap-4">
               <FormSelect
                 label="Category"
@@ -256,6 +202,11 @@ export default function NewProcurementPage() {
                 {...register("priority")}
               />
             </div>
+            {watchedCategory && (
+              <p className="text-xs text-brand-text-secondary -mt-2">
+                Request title will be auto-generated: <span className="font-medium text-brand-text-primary">&ldquo;{capitalize(watchedCategory)} request&rdquo;</span>
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <FormDatePicker label="Required By" {...register("required_by")} />
             </div>
@@ -271,211 +222,77 @@ export default function NewProcurementPage() {
         {/* ── Section 2: Vendor ────────────────────────────────────────────── */}
         {/* No overflow-hidden — dropdown needs to escape the card boundary */}
         <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <div>
               <h2 className="text-sm font-semibold text-brand-text-primary">Vendor</h2>
-              <p className="text-xs text-brand-text-secondary mt-0.5">Optional — select an existing vendor or add a new one</p>
-            </div>
-            {/* Toggle between select and create */}
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button
-                type="button"
-                onClick={() => setVendorMode("select")}
-                className={["px-3 py-1 text-xs font-medium rounded-md transition-colors", vendorMode === "select" ? "bg-white text-brand-text-primary shadow-sm" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}
-              >
-                Select existing
-              </button>
-              <button
-                type="button"
-                onClick={() => setVendorMode("create")}
-                className={["flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors", vendorMode === "create" ? "bg-white text-brand-text-primary shadow-sm" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}
-              >
-                <UserPlus size={11} /> Add new
-              </button>
+              <p className="text-xs text-brand-text-secondary mt-0.5">Optional — select an existing vendor</p>
             </div>
           </div>
 
           <div className="p-6">
-            {vendorMode === "select" ? (
-              /* ── Select existing vendor ─────────────────────────────────── */
-              <div className="relative">
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor</label>
+            {/* ── Select existing vendor ─────────────────────────────────── */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor</label>
 
-                {selectedVendorName ? (
-                  <div className="flex items-center justify-between h-10 px-3 rounded-lg border border-brand-border bg-white text-sm text-brand-text-primary">
-                    <span>{selectedVendorName}</span>
-                    <button type="button" onClick={clearVendor} className="text-gray-400 hover:text-gray-600">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div
-                      className="flex items-center h-10 px-3 rounded-lg border border-brand-border bg-white gap-2 cursor-text"
-                      onClick={() => setVendorDropdownOpen(true)}
-                    >
-                      <input
-                        type="text"
-                        placeholder="Search vendors…"
-                        value={vendorSearch}
-                        onChange={(e) => { setVendorSearch(e.target.value); setVendorDropdownOpen(true); }}
-                        onFocus={() => setVendorDropdownOpen(true)}
-                        className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
-                      />
-                      <ChevronDown size={14} className="text-gray-400 shrink-0" />
-                    </div>
-
-                    {vendorDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setVendorDropdownOpen(false)} />
-                        <div className="absolute z-20 top-full mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden">
-                          {filteredVendors.length === 0 ? (
-                            <div className="px-4 py-3">
-                              <p className="text-sm text-brand-text-secondary">No vendors found</p>
-                              <button
-                                type="button"
-                                className="mt-2 text-xs text-brand-purple font-medium hover:underline"
-                                onClick={() => { setVendorDropdownOpen(false); setVendorMode("create"); if (vendorSearch) setNewVendor((v) => ({ ...v, name: vendorSearch })); }}
-                              >
-                                + Add &quot;{vendorSearch}&quot; as new vendor
-                              </button>
-                            </div>
-                          ) : (
-                            <ul className="max-h-52 overflow-y-auto">
-                              {filteredVendors.map((vendor) => (
-                                <li key={vendor.id}>
-                                  <button
-                                    type="button"
-                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition-colors"
-                                    onClick={() => selectVendor(vendor.id, vendor.name)}
-                                  >
-                                    <span className="font-medium text-brand-text-primary">{vendor.name}</span>
-                                    <span className="ml-2 text-xs text-brand-text-secondary capitalize">
-                                      {vendor.category.replace(/_/g, " ")}
-                                    </span>
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-                <p className="text-xs text-brand-text-secondary mt-1">
-                  Vendor details will be included on the Purchase Order PDF
-                </p>
-              </div>
-            ) : (
-              /* ── Create new vendor ──────────────────────────────────────── */
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">
-                      Vendor Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Atlas Copco Nigeria"
-                      value={newVendor.name}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, name: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                    {newVendorErrors.name && <p className="text-xs text-red-600">{newVendorErrors.name}</p>}
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={newVendor.category}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, category: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
-                    >
-                      <option value="">Select category</option>
-                      {vendorCategoryOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                    {newVendorErrors.category && <p className="text-xs text-red-600">{newVendorErrors.category}</p>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Contact Person</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Emeka Okonkwo"
-                      value={newVendor.contact_person}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, contact_person: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Phone</label>
-                    <input
-                      type="text"
-                      placeholder="+234 800 000 0000"
-                      value={newVendor.phone}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, phone: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Email</label>
-                    <input
-                      type="email"
-                      placeholder="vendor@company.com"
-                      value={newVendor.email}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, email: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Address</label>
-                    <input
-                      type="text"
-                      placeholder="Street, City, State"
-                      value={newVendor.address}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, address: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={saveNewVendor}
-                    disabled={createVendorMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
-                  >
-                    {createVendorMutation.isPending ? (
-                      <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <UserPlus size={14} />
-                    )}
-                    {createVendorMutation.isPending ? "Saving…" : "Save & Select Vendor"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVendorMode("select")}
-                    className="text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-                  >
-                    Cancel
+              {selectedVendorName ? (
+                <div className="flex items-center justify-between h-10 px-3 rounded-lg border border-brand-border bg-white text-sm text-brand-text-primary">
+                  <span>{selectedVendorName}</span>
+                  <button type="button" onClick={clearVendor} className="text-gray-400 hover:text-gray-600">
+                    <X size={14} />
                   </button>
                 </div>
-                <p className="text-xs text-brand-text-secondary">
-                  Bank details can be added later from the Vendors page
-                </p>
-              </div>
-            )}
+              ) : (
+                <div>
+                  <div
+                    className="flex items-center h-10 px-3 rounded-lg border border-brand-border bg-white gap-2 cursor-text"
+                    onClick={() => setVendorDropdownOpen(true)}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Search vendors…"
+                      value={vendorSearch}
+                      onChange={(e) => { setVendorSearch(e.target.value); setVendorDropdownOpen(true); }}
+                      onFocus={() => setVendorDropdownOpen(true)}
+                      className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+                    />
+                    <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                  </div>
+
+                  {vendorDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setVendorDropdownOpen(false)} />
+                      <div className="absolute z-20 top-full mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden">
+                        {filteredVendors.length === 0 ? (
+                          <div className="px-4 py-3">
+                            <p className="text-sm text-brand-text-secondary">No vendors found</p>
+                          </div>
+                        ) : (
+                          <ul className="max-h-52 overflow-y-auto">
+                            {filteredVendors.map((vendor) => (
+                              <li key={vendor.id}>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition-colors"
+                                  onClick={() => selectVendor(vendor.id, vendor.name)}
+                                >
+                                  <span className="font-medium text-brand-text-primary">{vendor.name}</span>
+                                  <span className="ml-2 text-xs text-brand-text-secondary capitalize">
+                                    {vendor.category.replace(/_/g, " ")}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-brand-text-secondary mt-1">
+                Vendor details will be included on the Purchase Order PDF
+              </p>
+            </div>
           </div>
         </div>
 

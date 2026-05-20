@@ -12,7 +12,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import { useCreateAsset, useAssetCategories } from "@/hooks/useAssets";
+import { useCreateAsset, useAssetCategories, useAssetTypes } from "@/hooks/useAssets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 
@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/useToast";
 const schema = z.object({
   name: z.string().min(1, "Asset name is required").max(255, "Max 255 characters"),
   category_id: z.string().optional(),
+  asset_type_id: z.string().optional(),
   serial_number: z.string().optional(),
   purchase_date: z.string().optional(),
   purchase_cost: z.string().optional(),
@@ -38,6 +39,18 @@ const schema = z.object({
   ),
   assigned_to: z.string().optional(),
   description: z.string().optional(),
+  // Vehicle-specific fields (only used when category is Vehicles)
+  plate_number: z.string().optional(),
+  vehicle_type: z.enum(["sedan", "suv", "pickup_truck", "van", "bus", "motorcycle", "tanker"]).optional(),
+  fuel_type: z.enum(["petrol", "diesel", "electric", "hybrid", "cng"]).optional(),
+  year_of_manufacture: z.string().optional(),
+  color: z.string().optional(),
+  engine_number: z.string().optional(),
+  chassis_number: z.string().optional(),
+  mileage_at_registration: z.string().optional(),
+  seating_capacity: z.string().optional(),
+  insurance_expiry_date: z.string().optional(),
+  road_worthiness_expiry_date: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -73,6 +86,24 @@ const frequencyOptions = [
   { value: "24", label: "Every 2 years" },
 ];
 
+const vehicleTypeOptions = [
+  { value: "sedan", label: "Sedan" },
+  { value: "suv", label: "SUV" },
+  { value: "pickup_truck", label: "Pickup Truck" },
+  { value: "van", label: "Van" },
+  { value: "bus", label: "Bus" },
+  { value: "motorcycle", label: "Motorcycle" },
+  { value: "tanker", label: "Tanker" },
+];
+
+const fuelTypeOptions = [
+  { value: "petrol", label: "Petrol" },
+  { value: "diesel", label: "Diesel" },
+  { value: "electric", label: "Electric" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "cng", label: "CNG (Compressed Natural Gas)" },
+];
+
 const MAX_IMAGE_MB = 5;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
@@ -86,11 +117,6 @@ export default function RegisterAssetPage() {
   const createAsset = useCreateAsset();
   const { data: categories = [] } = useAssetCategories();
 
-  if (user && !isAdmin) {
-    router.replace("/assets");
-    return null;
-  }
-
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -100,6 +126,8 @@ export default function RegisterAssetPage() {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -108,8 +136,28 @@ export default function RegisterAssetPage() {
       status: "available",
       total_quantity: "1",
       low_stock_threshold: "1",
+      category_id: "",
+      asset_type_id: "",
     },
   });
+
+  const watchedCategoryId = watch("category_id");
+
+  // Fetch all asset types, filtered client-side by selected category
+  const { data: allAssetTypes = [] } = useAssetTypes();
+  const assetTypeOptions = watchedCategoryId
+    ? allAssetTypes
+        .filter((t) => t.category_id === watchedCategoryId)
+        .map((t) => ({ value: t.id, label: t.name }))
+    : [];
+
+  const selectedCategory = categories.find((c) => c.id === watchedCategoryId);
+  const isVehicleCategory = selectedCategory?.name.toLowerCase().includes("vehicle") ?? false;
+
+  if (user && !isAdmin) {
+    router.replace("/assets");
+    return null;
+  }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -144,6 +192,7 @@ export default function RegisterAssetPage() {
         data: {
           name: formData.name,
           category_id: formData.category_id || undefined,
+          asset_type_id: formData.asset_type_id || undefined,
           serial_number: formData.serial_number || undefined,
           purchase_date: formData.purchase_date || undefined,
           purchase_cost: formData.purchase_cost ? parseFloat(formData.purchase_cost) : undefined,
@@ -157,6 +206,19 @@ export default function RegisterAssetPage() {
           maintenance_frequency_months: formData.maintenance_frequency_months
             ? parseInt(formData.maintenance_frequency_months)
             : undefined,
+          vehicle_details: isVehicleCategory ? {
+            plate_number: formData.plate_number || null,
+            vehicle_type: (formData.vehicle_type as import("@/types").AssetVehicleType) || null,
+            fuel_type: (formData.fuel_type as import("@/types").AssetFuelType) || null,
+            year_of_manufacture: formData.year_of_manufacture ? parseInt(formData.year_of_manufacture) : null,
+            color: formData.color || null,
+            engine_number: formData.engine_number || null,
+            chassis_number: formData.chassis_number || null,
+            mileage_at_registration: formData.mileage_at_registration ? parseFloat(formData.mileage_at_registration) : null,
+            seating_capacity: formData.seating_capacity ? parseInt(formData.seating_capacity) : null,
+            insurance_expiry_date: formData.insurance_expiry_date || null,
+            road_worthiness_expiry_date: formData.road_worthiness_expiry_date || null,
+          } : null,
         },
         image: imageFile,
       });
@@ -206,7 +268,9 @@ export default function RegisterAssetPage() {
                 options={categoryOptions}
                 placeholder="Select category"
                 error={errors.category_id?.message}
-                {...register("category_id")}
+                {...register("category_id", {
+                  onChange: () => { setValue("asset_type_id", ""); },
+                })}
               />
               <FormInput
                 label="Serial Number"
@@ -215,6 +279,23 @@ export default function RegisterAssetPage() {
                 {...register("serial_number")}
               />
             </div>
+
+            {/* Asset Type select */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <FormSelect
+                  label="Asset Type"
+                  options={assetTypeOptions}
+                  placeholder="Select type (optional)"
+                  error={errors.asset_type_id?.message}
+                  {...register("asset_type_id")}
+                />
+                <p className="text-xs text-brand-text-secondary mt-1">
+                  Asset tag will be auto-generated after registration
+                </p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <FormSelect
                 label="Condition"
@@ -290,7 +371,105 @@ export default function RegisterAssetPage() {
           </div>
         </div>
 
-        {/* ── Section 3: Description + Image ──────────────────────────────── */}
+        {/* ── Section 3: Vehicle Details (conditional) ────────────────────── */}
+        {isVehicleCategory && (
+          <div className="bg-white border border-brand-border rounded-2xl">
+            <div className="px-6 py-4 border-b border-brand-border bg-blue-50/50 rounded-t-2xl">
+              <h2 className="text-sm font-semibold text-brand-text-primary">Vehicle Details</h2>
+              <p className="text-xs text-brand-text-secondary mt-0.5">Registration and specification details for this vehicle</p>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <FormInput
+                  label="Plate Number"
+                  placeholder="e.g. KJA-234-PH"
+                  error={errors.plate_number?.message}
+                  {...register("plate_number")}
+                />
+                <FormSelect
+                  label="Vehicle Type"
+                  options={vehicleTypeOptions}
+                  placeholder="Select vehicle type"
+                  error={errors.vehicle_type?.message}
+                  {...register("vehicle_type")}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormSelect
+                  label="Fuel Type"
+                  options={fuelTypeOptions}
+                  placeholder="Select fuel type"
+                  error={errors.fuel_type?.message}
+                  {...register("fuel_type")}
+                />
+                <FormInput
+                  label="Year of Manufacture"
+                  type="number"
+                  min="1900"
+                  max={new Date().getFullYear()}
+                  placeholder={String(new Date().getFullYear())}
+                  error={errors.year_of_manufacture?.message}
+                  {...register("year_of_manufacture")}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormInput
+                  label="Color"
+                  placeholder="e.g. White"
+                  error={errors.color?.message}
+                  {...register("color")}
+                />
+                <FormInput
+                  label="Seating Capacity"
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 5"
+                  error={errors.seating_capacity?.message}
+                  {...register("seating_capacity")}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormInput
+                  label="Engine Number"
+                  placeholder="e.g. 2GD-FTV-PH001"
+                  error={errors.engine_number?.message}
+                  {...register("engine_number")}
+                />
+                <FormInput
+                  label="Chassis Number (VIN)"
+                  placeholder="e.g. MROFZ29G100123456"
+                  error={errors.chassis_number?.message}
+                  {...register("chassis_number")}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormInput
+                  label="Mileage at Registration (km)"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 12"
+                  hint="Odometer reading at the time of registration"
+                  error={errors.mileage_at_registration?.message}
+                  {...register("mileage_at_registration")}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormDatePicker
+                  label="Insurance Expiry Date"
+                  error={errors.insurance_expiry_date?.message}
+                  {...register("insurance_expiry_date")}
+                />
+                <FormDatePicker
+                  label="Road Worthiness Expiry Date"
+                  error={errors.road_worthiness_expiry_date?.message}
+                  {...register("road_worthiness_expiry_date")}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Section 5: Description + Image ──────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <h2 className="text-sm font-semibold text-brand-text-primary">Description &amp; Image</h2>
@@ -352,7 +531,7 @@ export default function RegisterAssetPage() {
           </div>
         </div>
 
-        {/* ── Section 4: Maintenance Schedule ─────────────────────────────── */}
+        {/* ── Section 6: Maintenance Schedule ─────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <h2 className="text-sm font-semibold text-brand-text-primary">Maintenance Schedule</h2>

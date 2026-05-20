@@ -15,6 +15,7 @@ import {
   Wrench,
   Plus,
   ClipboardList,
+  Car,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
@@ -720,6 +721,36 @@ export default function AssetDetailPage() {
                     <div className="mt-5 pt-5 border-t border-brand-border">
                       <p className="text-xs text-brand-text-secondary mb-1">Description</p>
                       <p className="text-sm text-brand-text-primary">{asset.description}</p>
+                    </div>
+                  )}
+
+                  {/* Vehicle details */}
+                  {asset.vehicle_details && (
+                    <div className="mt-5 pt-5 border-t border-brand-border">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Car size={14} className="text-brand-purple" />
+                        <p className="text-sm font-semibold text-brand-text-primary">Vehicle Details</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
+                        {[
+                          ["Plate Number", asset.vehicle_details.plate_number ?? "—"],
+                          ["Vehicle Type", asset.vehicle_details.vehicle_type ? capitalize(asset.vehicle_details.vehicle_type.replace(/_/g, " ")) : "—"],
+                          ["Fuel Type", asset.vehicle_details.fuel_type ? capitalize(asset.vehicle_details.fuel_type) : "—"],
+                          ["Year of Manufacture", asset.vehicle_details.year_of_manufacture ? String(asset.vehicle_details.year_of_manufacture) : "—"],
+                          ["Color", asset.vehicle_details.color ?? "—"],
+                          ["Seating Capacity", asset.vehicle_details.seating_capacity ? `${asset.vehicle_details.seating_capacity} seats` : "—"],
+                          ["Engine Number", asset.vehicle_details.engine_number ?? "—"],
+                          ["Chassis Number (VIN)", asset.vehicle_details.chassis_number ?? "—"],
+                          ["Mileage at Registration", asset.vehicle_details.mileage_at_registration != null ? `${asset.vehicle_details.mileage_at_registration.toLocaleString()} km` : "—"],
+                          ["Insurance Expiry", formatDate(asset.vehicle_details.insurance_expiry_date)],
+                          ["Road Worthiness Expiry", formatDate(asset.vehicle_details.road_worthiness_expiry_date)],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <p className="text-xs text-brand-text-secondary mb-0.5">{label}</p>
+                            <p className="font-medium text-brand-text-primary">{value}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
