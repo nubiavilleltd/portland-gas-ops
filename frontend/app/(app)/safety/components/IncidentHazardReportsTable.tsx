@@ -1,9 +1,8 @@
 "use client";
 
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { mockIncidentHazardReports } from "@/lib/mock/incident-hazard";
-import type { IncidentHazardReport } from "@/types/safety";
+import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
 
 const columns: Column<IncidentHazardReport>[] = [
   { key: "id", label: "Reference" },
@@ -35,7 +34,7 @@ const columns: Column<IncidentHazardReport>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => <ApprovalBadge status={String(value)} />,
+    render: (value) => <IncidentHazardStatusBadge status={value as IncidentHazardStatus} />,
   },
   {
     key: "dateTimeObserved",
@@ -58,5 +57,25 @@ export default function IncidentHazardReportsTable() {
       rowHref={(report) => `/safety/incidents/${report.id}`}
       emptyMessage="No incident or hazard reports found."
     />
+  );
+}
+
+function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus }) {
+  const labelByStatus: Record<IncidentHazardStatus, string> = {
+    draft: "Draft",
+    submitted: "Submitted",
+    approved: "Resolved",
+  };
+
+  const classByStatus: Record<IncidentHazardStatus, string> = {
+    draft: "bg-gray-100 text-gray-600",
+    submitted: "bg-amber-100 text-amber-700",
+    approved: "bg-green-100 text-green-700",
+  };
+
+  return (
+    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${classByStatus[status]}`}>
+      {labelByStatus[status]}
+    </span>
   );
 }

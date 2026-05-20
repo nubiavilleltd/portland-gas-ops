@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api";
+import { useToast } from "@/hooks/useToast";
 import type { ApprovalRequest } from "@/types";
 
 interface PendingApprovalsResponse {
@@ -27,11 +28,13 @@ export function useApproval(id: string) {
 
 export function useApprovalActions(id: string) {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const approve = useMutation({
     mutationFn: (comment?: string) =>
       post(`/api/approvals/${id}/approve`, { comment }),
     onSuccess: () => {
+      toast.success("Updated successfully");
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
     },
   });
@@ -40,6 +43,7 @@ export function useApprovalActions(id: string) {
     mutationFn: (comment?: string) =>
       post(`/api/approvals/${id}/reject`, { comment }),
     onSuccess: () => {
+      toast.success("Updated successfully");
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
     },
   });

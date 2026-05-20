@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  ShoppingCart, Package, Receipt, Truck,
+  ShoppingCart, Package, Truck,
   ShieldCheck, AlertTriangle, BarChart3, Users, Settings, Store,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -15,6 +15,33 @@ import type { UserRole } from "@/types";
 
 const moduleGroups = [
   {
+    title: "Administration",
+    modules: [
+      { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
+    ],
+  },
+  {
+    title: "Compliance & Safety",
+    modules: [
+      { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
+      { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
+    ],
+  },
+  {
+    title: "Finance",
+    fullWidth: true,
+    modules: [
+      { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
+    ],
+  },
+  {
+    title: "HR Management",
+    fullWidth: true,
+    modules: [
+      { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr" },
+    ],
+  },
+  {
     title: "Operations",
     fullWidth: true,
     modules: [
@@ -26,37 +53,9 @@ const moduleGroups = [
     title: "Supply Chain",
     fullWidth: true,
     modules: [
+      { name: "Assets", description: "Register, track & request company assets", icon: Package, href: "/assets" },
       { name: "Purchase Requests", description: "Raise & manage purchase requisitions", icon: ShoppingCart, href: "/procurement" },
       { name: "Vendors", description: "Suppliers & service providers", icon: Store, href: "/vendors" },
-      { name: "Assets", description: "Register, track & request company assets", icon: Package, href: "/assets" },
-    ],
-  },
-  {
-    title: "Finance",
-    fullWidth: true,
-    modules: [
-      { name: "Billing", description: "Invoices & payment tracking", icon: Receipt, href: "/billing" },
-      { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
-    ],
-  },
-  {
-    title: "Compliance & Safety",
-    modules: [
-      { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
-      { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
-    ],
-  },
-  {
-    title: "HR Management",
-    fullWidth: true,
-    modules: [
-      { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr" },
-    ],
-  },
-  {
-    title: "Administration",
-    modules: [
-      { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
     ],
   },
 ];
@@ -73,15 +72,12 @@ export default function HomePage() {
   const { data: pendingApprovals } = useMyApprovals();
 
   return (
-    <AppLayout pageTitle="Portland Gas Operations">
+    <AppLayout>
       {/* Welcome row */}
       <div className="mb-2">
         <h2 className="text-2xl font-semibold text-brand-text-primary">
           Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""}
         </h2>
-        <p className="text-sm text-brand-text-secondary mt-1">
-          What would you like to work on today?
-        </p>
       </div>
 
       <div className="grid gap-x-4 gap-y-8 mt-8 xl:grid-cols-2">

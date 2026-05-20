@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
@@ -22,12 +21,13 @@ import type {
   IncidentHazardHseReview,
   IncidentHazardReport,
   IncidentHazardRole,
+  IncidentHazardStatus,
   WorkAuthorizationAuditTrailItem,
 } from "@/types/safety";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
-const hseDecisionOptions = toOptions(["Approve/Close", "Return"]);
+const hseDecisionOptions = toOptions(["Resolved", "Not Resolved"]);
 const employeeOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
 
 export default function IncidentHazardDetailsView({ reportId }: { reportId: string }) {
@@ -79,7 +79,7 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
     });
   }
 
-  function hseDecision(decision: "Approve/Close" | "Return") {
+  function hseDecision(decision: "Resolved" | "Not Resolved") {
     const review: IncidentHazardHseReview = {
       inspector: "Samuel Bassey",
       confirmedReportType: report?.reportType || "Hazard",
@@ -96,22 +96,22 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
       decision,
       comment:
         hseComment ||
-        (decision === "Approve/Close"
-          ? "HSE reviewed and closed the report."
-          : "Report returned by HSE."),
+        (decision === "Resolved"
+          ? "HSE reviewed and resolved the report."
+          : "HSE reviewed the report and marked it not resolved."),
       reviewDateTime: "2026-05-18 10:00 AM",
     };
     setReport((current) =>
       current
         ? {
             ...current,
-            status: decision === "Approve/Close" ? "approved" : current.status,
+            status: decision === "Resolved" ? "approved" : current.status,
             hseReview: review,
           }
         : current
     );
     addAudit({
-      action: decision === "Approve/Close" ? "Closed by HSE" : "Returned by HSE",
+      action: decision === "Resolved" ? "Resolved by HSE" : "Marked Not Resolved by HSE",
       actor: review.inspector,
       role: "HSE Inspector",
       dateTime: review.reviewDateTime,
@@ -143,7 +143,7 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
               Viewing as {currentRole === "hse" ? "HSE Inspector" : "Reporter"}
             </p>
           </div>
-          <ApprovalBadge status={report.status} />
+          <IncidentHazardStatusBadge status={report.status} />
         </div>
       </section>
 
@@ -242,7 +242,7 @@ function HseReviewAction({
   onCommentChange: (comment: string) => void;
   correctiveActionRequired: string;
   onCorrectiveActionRequiredChange: (value: string) => void;
-  onDecision: (decision: "Approve/Close" | "Return") => void;
+  onDecision: (decision: "Resolved" | "Not Resolved") => void;
 }) {
   return (
     <FormSection title="HSE Review & Corrective Action">
@@ -266,7 +266,7 @@ function HseReviewAction({
             <FormDatePicker label="Target Completion Date" required />
           </>
         ) : null}
-        <FormSelect label="HSE Decision" required options={hseDecisionOptions} defaultValue="Approve/Close" />
+        <FormSelect label="HSE Resolution" required options={hseDecisionOptions} defaultValue="Resolved" />
         <FormTextarea
           label="HSE Comment"
           value={comment}
@@ -276,8 +276,8 @@ function HseReviewAction({
         <FormInput label="HSE Review Date/Time" value="2026-05-18 10:00 AM" disabled />
       </div>
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button type="button" onClick={() => onDecision("Approve/Close")}>Approve/Close</Button>
-        <Button type="button" variant="outline" onClick={() => onDecision("Return")}>Return</Button>
+        <Button type="button" onClick={() => onDecision("Resolved")}>Resolved</Button>
+        <Button type="button" variant="outline" onClick={() => onDecision("Not Resolved")}>Not Resolved</Button>
       </div>
     </FormSection>
   );
@@ -300,7 +300,7 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
             <FormInput label="Target Completion Date" value={review.targetCompletionDate} disabled />
           </>
         ) : null}
-        <FormInput label="HSE Decision" value={review.decision} disabled />
+        <FormInput label="HSE Resolution" value={review.decision} disabled />
         <FormTextarea label="HSE Comment" value={review.comment} disabled />
         <FormInput label="HSE Review Date/Time" value={review.reviewDateTime} disabled />
       </div>
@@ -369,12 +369,34 @@ function StatusNote({ report, currentRole }: { report: IncidentHazardReport; cur
     note = currentRole === "hse" ? "This report is waiting for HSE review." : "Waiting for HSE review.";
   } else if (report.status === "draft" && currentRole === "hse") {
     note = "This report is still in draft and has not been submitted.";
+  } else if (report.status === "approved") {
+    note = "This report has been resolved by HSE.";
   }
   if (!note) return null;
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       {note}
     </div>
+  );
+}
+
+function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus }) {
+  const labelByStatus: Record<IncidentHazardStatus, string> = {
+    draft: "Draft",
+    submitted: "Submitted",
+    approved: "Resolved",
+  };
+
+  const classByStatus: Record<IncidentHazardStatus, string> = {
+    draft: "bg-gray-100 text-gray-600",
+    submitted: "bg-amber-100 text-amber-700",
+    approved: "bg-green-100 text-green-700",
+  };
+
+  return (
+    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${classByStatus[status]}`}>
+      {labelByStatus[status]}
+    </span>
   );
 }
 

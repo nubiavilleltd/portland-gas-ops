@@ -190,7 +190,7 @@ export interface WorkCloseOutRequest {
 export type IncidentHazardStatus = "draft" | "submitted" | "approved";
 export type IncidentHazardRole = "reporter" | "hse";
 export type IncidentHazardPriority = "Low" | "Medium" | "High" | "Critical";
-export type IncidentHazardDecision = "Approve/Close" | "Return";
+export type IncidentHazardDecision = "Resolved" | "Not Resolved";
 
 export interface IncidentHazardReporter {
   name: string;
