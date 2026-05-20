@@ -50,12 +50,12 @@ export default function VehicleDetailPage() {
         action={
           <div className="flex gap-2">
 
-            <Button
+            {/* <Button
               variant="outline"
               href={`/fleet/vehicles/${vehicle.id}/edit`}
             >
               Edit Vehicle
-            </Button>
+            </Button> */}
 
             <Button
               variant="outline"
@@ -64,11 +64,11 @@ export default function VehicleDetailPage() {
               Assign Trip
             </Button>
 
-            <Button
+            {/* <Button
               href={`/fleet/maintenance/new?vehicleId=${vehicle.id}`}
             >
               Schedule Maintenance
-            </Button>
+            </Button> */}
 
           </div>
         }
