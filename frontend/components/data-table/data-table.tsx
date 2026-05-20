@@ -18,7 +18,7 @@ interface DataTableProps<T extends { id: string; status?: string }> {
   columns: Column<T>[];
   data: T[];
   isLoading?: boolean;
-  rowHref: (row: T) => string;
+  rowHref?: (row: T) => string;
   onNewRequest: () => void;
   newRequestLabel?: string;
   emptyMessage?: string;
@@ -123,15 +123,18 @@ export default function DataTable<T extends { id: string; status?: string }>({
   const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   const allColumns = useMemo(
-    () => [
-      ...columns,
-      {
-        key: ACTIONS_KEY as keyof T,
-        label: "Actions",
-        sortable: false,
-      } as Column<T>,
-    ],
-    [columns]
+    () =>
+      rowHref
+        ? [
+            ...columns,
+            {
+              key: ACTIONS_KEY as keyof T,
+              label: "Actions",
+              sortable: false,
+            } as Column<T>,
+          ]
+        : columns,
+    [columns, rowHref]
   );
 
   const skeletonRows = Array.from({ length: 6 });
@@ -202,8 +205,8 @@ export default function DataTable<T extends { id: string; status?: string }>({
                 paginated.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() => router.push(rowHref(row))}
-                    className="border-b border-brand-border last:border-0 hover:bg-brand-purple-faint cursor-pointer transition-colors group"
+                    onClick={() => rowHref && router.push(rowHref(row))}
+                    className={`border-b border-brand-border last:border-0 hover:bg-brand-purple-faint transition-colors group ${rowHref ? "cursor-pointer" : ""}`}
                   >
                     {allColumns.map((col) => {
                       if (String(col.key) === ACTIONS_KEY) {
@@ -217,7 +220,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
                               size="sm"
                               variant="secondary"
                               leftIcon={<Eye size={14} />}
-                              onClick={() => router.push(rowHref(row))}
+                              onClick={() => rowHref && router.push(rowHref(row))}
                               className="opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <span className="hidden sm:inline">View</span>
