@@ -42,24 +42,23 @@ export default function OrdersHomePage() {
 
       {/* HEADER */}
       <PageHeader
-        title="Orders & Fulfillment"
-        description="Manage customer gas orders and fulfillment lifecycle"
+        title=""
+        // description="Manage customer gas orders and fulfillment lifecycle"
         action={
           <Button href="/orders/new">
-            {/* <Plus className="w-4 h-4 mr-2" /> */}
             Create Order
           </Button>
         }
       />
 
       {/* KPI SECTION — live data from selector */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mt-6">
+      {/* <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mt-6">
         <MetricCard title="Total Orders" value={kpis.totalOrders} />
         <MetricCard title="Pending Dispatch" value={kpis.pendingDispatch} />
         <MetricCard title="In Transit" value={kpis.inTransit} />
         <MetricCard title="Delivered" value={kpis.delivered} />
         <MetricCard title="Total Revenue" value={formatCurrency(kpis.totalRevenue)} isText />
-      </div>
+      </div> */}
 
       {/* MAIN WORKSPACE */}
       <div className="mt-10">
@@ -98,33 +97,7 @@ export default function OrdersHomePage() {
         </div>
       </div>
 
-      {/* QUICK ACTIONS */}
-      <div className="mt-10 bg-white border border-brand-border rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-brand-text-primary">
-          Quick Actions
-        </h2>
-
-        <p className="text-sm text-brand-text-secondary mt-1">
-          Frequently used order operations
-        </p>
-
-        <div className="flex flex-wrap gap-3 mt-5">
-          <Button href="/orders/new">
-            {/* <Plus className="w-4 h-4 mr-2" /> */}
-            Create Order
-          </Button>
-
-          <Button variant="outline" href="/orders/list">
-            {/* <ClipboardList className="w-4 h-4 mr-2" /> */}
-            View All Orders
-          </Button>
-
-          <Button variant="outline" href="/fleet/trips/new">
-            {/* <Truck className="w-4 h-4 mr-2" /> */}
-            Create Trip
-          </Button>
-        </div>
-      </div>
+   
 
     </AppLayout>
   );

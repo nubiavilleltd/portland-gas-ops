@@ -8,6 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import FormInput from "@/components/forms/FormInput";
+import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 
 import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
 import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
@@ -29,6 +30,9 @@ export default function EditDriverPage() {
     status: "available",
   });
 
+  // 👇 NEW: profile picture state (NO REWORK, just extension)
+  const [profilePic, setProfilePic] = useState<File | null>(null);
+
   const [loading, setLoading] = useState(false);
 
   /* --------------------------------------------
@@ -45,6 +49,9 @@ export default function EditDriverPage() {
       experience_years: String(existingDriver.experience_years || ""),
       status: existingDriver.status || "available",
     });
+
+    // no file hydration (correct behavior for File-based upload)
+    setProfilePic(null);
   }, [existingDriver]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -68,7 +75,6 @@ export default function EditDriverPage() {
       return;
     }
 
-    // UPDATE MOCK STORE
     drivers[driverIndex] = {
       ...drivers[driverIndex],
 
@@ -78,6 +84,9 @@ export default function EditDriverPage() {
       license_number: form.license_number,
       experience_years: Number(form.experience_years),
       status: form.status as any,
+
+      // 👇 placeholder for backend upload integration later
+      // profile_image: profilePic ? URL.createObjectURL(profilePic) : drivers[driverIndex].profile_image,
     };
 
     console.log("Driver updated:", drivers[driverIndex]);
@@ -104,6 +113,14 @@ export default function EditDriverPage() {
       />
 
       <div className="bg-white border border-brand-border rounded-2xl p-6">
+
+        {/* 👇 NEW PROFILE PIC FIELD */}
+        <div className="mb-6">
+          <ProfilePicUpload
+            value={profilePic}
+            onChange={setProfilePic}
+          />
+        </div>
 
         <form
           onSubmit={handleSubmit}
