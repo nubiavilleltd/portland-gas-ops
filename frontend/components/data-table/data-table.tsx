@@ -18,11 +18,12 @@ interface DataTableProps<T extends { id: string; status?: string }> {
   columns: Column<T>[];
   data: T[];
   isLoading?: boolean;
-  rowHref: (row: T) => string;
-  onNewRequest: () => void;
+  rowHref?: (row: T) => string;
+  onNewRequest?: () => void;
   newRequestLabel?: string;
   emptyMessage?: string;
   emptyDescription?: string;
+  hideStatusFilter?: boolean;
 }
 
 type SortDir = "asc" | "desc";
@@ -44,6 +45,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
   newRequestLabel = "New Request",
   emptyMessage = "No records found",
   emptyDescription = "Try adjusting your search or filters",
+  hideStatusFilter = false,
 }: DataTableProps<T>) {
   const router = useRouter();
 
@@ -123,15 +125,18 @@ export default function DataTable<T extends { id: string; status?: string }>({
   const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   const allColumns = useMemo(
-    () => [
-      ...columns,
-      {
-        key: ACTIONS_KEY as keyof T,
-        label: "Actions",
-        sortable: false,
-      } as Column<T>,
-    ],
-    [columns]
+    () =>
+      rowHref
+        ? [
+            ...columns,
+            {
+              key: ACTIONS_KEY as keyof T,
+              label: "Actions",
+              sortable: false,
+            } as Column<T>,
+          ]
+        : columns,
+    [columns, rowHref]
   );
 
   const skeletonRows = Array.from({ length: 6 });
@@ -143,8 +148,9 @@ export default function DataTable<T extends { id: string; status?: string }>({
         onSearchChange={handleSearchChange}
         statusFilter={statusFilter}
         onStatusFilterChange={handleStatusChange}
-        onNewRequest={onNewRequest}
-        newRequestLabel={newRequestLabel}
+        onNewRequest={onNewRequest ?? (() => {})}
+        newRequestLabel={onNewRequest ? newRequestLabel : undefined}
+        hideStatusFilter={hideStatusFilter}
       />
 
       <div className="bg-brand-card border border-brand-border rounded-xl md:rounded-2xl overflow-hidden shadow-sm">
@@ -202,8 +208,8 @@ export default function DataTable<T extends { id: string; status?: string }>({
                 paginated.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() => router.push(rowHref(row))}
-                    className="border-b border-brand-border last:border-0 hover:bg-brand-purple-faint cursor-pointer transition-colors group"
+                    onClick={() => rowHref && router.push(rowHref(row))}
+                    className={`border-b border-brand-border last:border-0 hover:bg-brand-purple-faint transition-colors group ${rowHref ? "cursor-pointer" : ""}`}
                   >
                     {allColumns.map((col) => {
                       if (String(col.key) === ACTIONS_KEY) {
@@ -217,7 +223,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
                               size="sm"
                               variant="secondary"
                               leftIcon={<Eye size={14} />}
-                              onClick={() => router.push(rowHref(row))}
+                              onClick={() => rowHref && router.push(rowHref(row))}
                               className="opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <span className="hidden sm:inline">View</span>

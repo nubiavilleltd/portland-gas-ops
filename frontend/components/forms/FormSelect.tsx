@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import SelectInput, { type SelectOption } from "./SelectInput";
 
 interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "onChange"> {
-  label: string;
+  label?: string;
   options: SelectOption[];
   placeholder?: string;
   error?: string;

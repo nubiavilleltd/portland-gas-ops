@@ -16,7 +16,7 @@ export interface SelectOption {
 }
 
 interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "onChange"> {
-  label: string;
+  label?: string;
   options: SelectOption[];
   placeholder?: string;
   error?: string;
@@ -70,7 +70,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     },
     ref
   ) => {
-    const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
+    const inputId = id ?? (label ? label.toLowerCase().replace(/\s+/g, "-") : "select-input");
     const hiddenInputRef = useRef<HTMLInputElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [open, setOpen] = useState(false);
