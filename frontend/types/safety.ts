@@ -187,8 +187,14 @@ export interface WorkCloseOutRequest {
   auditTrail: WorkAuthorizationAuditTrailItem[];
 }
 
-export type IncidentHazardStatus = "draft" | "submitted" | "approved";
-export type IncidentHazardRole = "reporter" | "hse";
+export type IncidentHazardStatus =
+  | "draft"
+  | "submitted"
+  | "recommended_to_action_owner"
+  | "action_owner_completed"
+  | "approved"
+  | "not_resolved";
+export type IncidentHazardRole = "reporter" | "hse" | "action_owner";
 export type IncidentHazardPriority = "Low" | "Medium" | "High" | "Critical";
 export type IncidentHazardDecision = "Resolved" | "Not Resolved";
 
@@ -214,9 +220,15 @@ export interface IncidentHazardHseReview {
   correctiveActionDetails: string;
   actionOwner: string;
   targetCompletionDate: string;
-  decision: IncidentHazardDecision;
+  decision: IncidentHazardDecision | "";
   comment: string;
   reviewDateTime: string;
+}
+
+export interface IncidentHazardActionOwnerCompletion {
+  owner: string;
+  completedDateTime: string;
+  comment: string;
 }
 
 export interface IncidentHazardReport {
@@ -238,6 +250,7 @@ export interface IncidentHazardReport {
   additionalNotes: string;
   attachments: IncidentHazardAttachment[];
   hseReview: IncidentHazardHseReview | null;
+  actionOwnerCompletion: IncidentHazardActionOwnerCompletion | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
 }
 

@@ -64,13 +64,19 @@ function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus })
   const labelByStatus: Record<IncidentHazardStatus, string> = {
     draft: "Draft",
     submitted: "Submitted",
+    recommended_to_action_owner: "Recommended to Action Owner",
+    action_owner_completed: "Action Owner Completed",
     approved: "Resolved",
+    not_resolved: "Not Resolved",
   };
 
   const classByStatus: Record<IncidentHazardStatus, string> = {
     draft: "bg-gray-100 text-gray-600",
     submitted: "bg-amber-100 text-amber-700",
+    recommended_to_action_owner: "bg-blue-100 text-blue-700",
+    action_owner_completed: "bg-purple-100 text-purple-700",
     approved: "bg-green-100 text-green-700",
+    not_resolved: "bg-red-100 text-red-700",
   };
 
   return (
