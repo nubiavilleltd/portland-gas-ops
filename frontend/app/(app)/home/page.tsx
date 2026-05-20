@@ -40,9 +40,7 @@ const moduleGroups = [
     title: "HR Management",
     fullWidth: true,
     modules: [
-      { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr-management" },
-      { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
-    
+      { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr-management" },    
     ],
   },
   {
