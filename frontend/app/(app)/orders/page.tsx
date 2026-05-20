@@ -42,8 +42,8 @@ export default function OrdersHomePage() {
 
       {/* HEADER */}
       <PageHeader
-        title=""
-        // description="Manage customer gas orders and fulfillment lifecycle"
+        title="Order Operations"
+        description="Access and manage customer orders and fulfillment workflows"
         action={
           <Button href="/orders/new">
             Create Order
@@ -62,13 +62,13 @@ export default function OrdersHomePage() {
 
       {/* MAIN WORKSPACE */}
       <div className="mt-10">
-        <h2 className="text-2xl font-semibold text-brand-text-primary">
+        {/* <h2 className="text-2xl font-semibold text-brand-text-primary">
           Order Operations
-        </h2>
+        </h2> */}
 
-        <p className="text-sm text-brand-text-secondary mt-1">
+        {/* <p className="text-sm text-brand-text-secondary mt-1">
           Access and manage customer orders and fulfillment workflows
-        </p>
+        </p> */}
 
         <div className="grid gap-4 mt-5 sm:grid-cols-2 xl:grid-cols-3">
           <WorkspaceCard

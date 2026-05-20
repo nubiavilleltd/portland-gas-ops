@@ -153,7 +153,7 @@ export default function OrderDetailPage() {
 
             {/* DRAFT → CONFIRM */}
             {isDraft && (
-              <Button href={`/orders/${id}/confirm`} variant="secondary">
+              <Button href={`/orders/${id}/confirm`}>
                 Confirm Order
               </Button>
             )}
