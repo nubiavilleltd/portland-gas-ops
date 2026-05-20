@@ -200,6 +200,15 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
       setSearchQuery("");
     }
 
+    function clearSelections() {
+      updateValue([]);
+      setOpen(false);
+      setSearchQuery("");
+      onBlur?.({
+        target: hiddenInputRef.current,
+      } as React.FocusEvent<HTMLInputElement>);
+    }
+
     return (
       <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
         <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
@@ -218,48 +227,61 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
           readOnly
         />
 
-        <button
-          type="button"
-          id={inputId}
-          disabled={disabled}
-          onClick={() => setOpen((current) => !current)}
-          className={cn(
-            "min-h-10 rounded-lg border border-brand-border bg-white px-3 py-2 text-left text-sm text-brand-text-primary transition-shadow",
-            "flex items-start justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
-            error && "border-red-400 focus:ring-red-400",
-            disabled &&
-              "cursor-not-allowed border-gray-200 bg-gray-100 shadow-none opacity-50 focus:ring-0 focus:border-gray-200",
-            triggerClassName
-          )}
-        >
-          <div className="flex min-h-6 flex-1 flex-wrap items-center gap-1.5">
-            {selectedOptions.length > 0 ? (
-              selectedOptions.map((option) => (
-                <span
-                  key={option.value}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
-                    disabled
-                      ? "bg-gray-200 text-brand-text-primary"
-                      : "bg-brand-purple-faint text-brand-purple"
-                  )}
-                >
-                  {option.displayLabel}
-                </span>
-              ))
-            ) : (
-              <span className="py-0.5 text-brand-text-secondary">{placeholder}</span>
+        <div className="relative">
+          <button
+            type="button"
+            id={inputId}
+            disabled={disabled}
+            onClick={() => setOpen((current) => !current)}
+            className={cn(
+              "min-h-10 w-full rounded-lg border border-brand-border bg-white px-3 py-2 pr-16 text-left text-sm text-brand-text-primary transition-shadow",
+              "flex items-start gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
+              error && "border-red-400 focus:ring-red-400",
+              disabled &&
+                "cursor-not-allowed border-gray-200 bg-gray-100 shadow-none opacity-50 focus:ring-0 focus:border-gray-200",
+              triggerClassName
             )}
-          </div>
+          >
+            <div className="flex min-h-6 flex-1 flex-wrap items-center gap-1.5">
+              {selectedOptions.length > 0 ? (
+                selectedOptions.map((option) => (
+                  <span
+                    key={option.value}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
+                      disabled
+                        ? "bg-gray-200 text-brand-text-primary"
+                        : "bg-brand-purple-faint text-brand-purple"
+                    )}
+                  >
+                    {option.displayLabel}
+                  </span>
+                ))
+              ) : (
+                <span className="py-0.5 text-brand-text-secondary">{placeholder}</span>
+              )}
+            </div>
+          </button>
+
+          {selectedOptions.length > 0 && !disabled ? (
+            <button
+              type="button"
+              aria-label={`Clear ${label}`}
+              onClick={clearSelections}
+              className="absolute right-9 top-2 flex h-6 w-6 items-center justify-center rounded-full text-brand-text-secondary transition-colors hover:bg-gray-100 hover:text-brand-text-primary"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
 
           <ChevronDown
             size={16}
             className={cn(
-              "mt-1 shrink-0 text-brand-text-secondary transition-transform",
+              "pointer-events-none absolute right-3 top-3 shrink-0 text-brand-text-secondary transition-transform",
               open && "rotate-180"
             )}
           />
-        </button>
+        </div>
 
         {open && !disabled && (
           <div
@@ -322,22 +344,6 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
                 </div>
               )}
             </div>
-
-            {selectedOptions.length > 0 ? (
-              <div className="mt-2 flex items-center justify-between border-t border-gray-100 px-1 pt-2">
-                <p className="text-xs text-brand-text-secondary">
-                  {selectedOptions.length} selected
-                </p>
-                <button
-                  type="button"
-                  onClick={() => updateValue([])}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-text-secondary transition-colors hover:text-brand-text-primary"
-                >
-                  <X size={12} />
-                  Clear all
-                </button>
-              </div>
-            ) : null}
           </div>
         )}
 

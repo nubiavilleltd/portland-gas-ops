@@ -16,12 +16,14 @@ import type { UserRole } from "@/types";
 const moduleGroups = [
   {
     title: "Administration",
+    fullWidth: true,
     modules: [
       { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
     ],
   },
   {
     title: "Compliance & Safety",
+    fullWidth: true,
     modules: [
       { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
       { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },

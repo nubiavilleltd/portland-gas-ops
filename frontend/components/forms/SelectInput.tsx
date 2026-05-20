@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn, toTitleCase } from "@/lib/utils";
 
 export interface SelectOption {
@@ -172,6 +172,21 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
     }
 
+    function handleClearSelected() {
+      if (!isControlled) {
+        setInternalValue("");
+      }
+
+      if (hiddenInputRef.current) {
+        setNativeInputValue(hiddenInputRef.current, "");
+      }
+
+      onValueChange?.("");
+      setOpen(false);
+      setSearchQuery("");
+      onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
+    }
+
     return (
       <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
         <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
@@ -190,31 +205,45 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
           readOnly
         />
 
-        <button
-          type="button"
-          id={inputId}
-          disabled={disabled}
-          onClick={() => setOpen((current) => !current)}
-          className={cn(
-            "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
-            "flex items-center justify-between gap-3",
-            error && "border-red-400 focus:ring-red-400",
-            disabled &&
-              "cursor-not-allowed border-gray-200  shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
-            triggerClassName
-          )}
-        >
-          <span className={cn(!selectedOption && "text-brand-text-secondary")}>
-            {selectedOption ? selectedOption.displayLabel : placeholder}
-          </span>
+        <div className="relative">
+          <button
+            type="button"
+            id={inputId}
+            disabled={disabled}
+            onClick={() => setOpen((current) => !current)}
+            className={cn(
+              "h-10 w-full rounded-lg border border-brand-border bg-white px-3 pr-16 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
+              "flex items-center gap-3",
+              error && "border-red-400 focus:ring-red-400",
+              disabled &&
+                "cursor-not-allowed border-gray-200  shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
+              triggerClassName
+            )}
+          >
+            <span className={cn("min-w-0 flex-1 truncate", !selectedOption && "text-brand-text-secondary")}>
+              {selectedOption ? selectedOption.displayLabel : placeholder}
+            </span>
+          </button>
+
+          {selectedOption && !disabled ? (
+            <button
+              type="button"
+              aria-label={`Clear ${label}`}
+              onClick={handleClearSelected}
+              className="absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-brand-text-secondary transition-colors hover:bg-gray-100 hover:text-brand-text-primary"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+
           <ChevronDown
             size={16}
             className={cn(
-              "shrink-0 text-brand-text-secondary transition-transform",
+              "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 shrink-0 text-brand-text-secondary transition-transform",
               open && "rotate-180"
             )}
           />
-        </button>
+        </div>
 
         {open && !disabled && (
           <div
@@ -239,6 +268,20 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             )}
 
             <div className="max-h-60 overflow-y-auto">
+              <button
+                type="button"
+                onClick={handleClearSelected}
+                className={cn(
+                  "mb-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                  selectedValue
+                    ? "text-brand-text-secondary hover:bg-gray-50"
+                    : "bg-gray-50 text-brand-text-secondary"
+                )}
+              >
+                <span>{placeholder}</span>
+                {!selectedValue ? <Check size={15} className="shrink-0" /> : null}
+              </button>
+
               {canCreateOption ? (
                 <button
                   type="button"

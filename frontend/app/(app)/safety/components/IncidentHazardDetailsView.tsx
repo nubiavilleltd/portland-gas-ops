@@ -248,8 +248,8 @@ function HseReviewAction({
     <FormSection title="HSE Review & Corrective Action">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
-        <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} defaultValue="Hazard" />
-        <FormSelect label="Confirmed Severity" required options={toOptions(incidentPriorityOptions)} defaultValue="Medium" />
+        <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
+        <FormSelect label="Confirmed Severity" required options={toOptions(incidentPriorityOptions)} placeholder="Select confirmed severity" />
         <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
         <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" />
         <FormToggleGroup
@@ -266,7 +266,7 @@ function HseReviewAction({
             <FormDatePicker label="Target Completion Date" required />
           </>
         ) : null}
-        <FormSelect label="HSE Resolution" required options={hseDecisionOptions} defaultValue="Resolved" />
+        <FormSelect label="HSE Resolution" required options={hseDecisionOptions} placeholder="Select resolution" />
         <FormTextarea
           label="HSE Comment"
           value={comment}
