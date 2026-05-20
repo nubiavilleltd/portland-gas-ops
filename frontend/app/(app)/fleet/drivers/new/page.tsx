@@ -8,6 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import FormInput from "@/components/forms/FormInput";
+import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 
 import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
 import type { Driver } from "@/lib/modules/fleet/types/driver.types";
@@ -21,11 +22,15 @@ export default function AddDriverPage() {
     phone_number: "",
     license_number: "",
     experience_years: "",
+    address: "",
   });
 
+  const [profilePic, setProfilePic] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
@@ -34,7 +39,6 @@ export default function AddDriverPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
     setLoading(true);
 
     const newDriver: Driver = {
@@ -46,18 +50,24 @@ export default function AddDriverPage() {
       license_number: form.license_number,
       experience_years: Number(form.experience_years),
 
-      status: "available", // default fleet state
+      status: "available",
 
-      created_at: new Date().toISOString().split("T")[0],
-    };
+      created_at:
+        new Date().toISOString().split("T")[0],
 
-    // MOCK SAVE (replace later with API)
+      // optional future field (safe to ignore backend for now)
+      profile_image: profilePic
+        ? URL.createObjectURL(profilePic)
+        : undefined,
+
+      address: form.address,
+    } as Driver;
+
     drivers.push(newDriver);
 
     console.log("Driver created:", newDriver);
 
     setLoading(false);
-
     router.push("/fleet/drivers");
   }
 
@@ -73,6 +83,18 @@ export default function AddDriverPage() {
           onSubmit={handleSubmit}
           className="grid grid-cols-1 md:grid-cols-2 gap-5"
         >
+          {/* PROFILE PIC */}
+          <div className="md:col-span-2">
+            <ProfilePicUpload
+              value={profilePic}
+              onChange={setProfilePic}
+              shape="circle"
+              size={110}
+              fallback={form.full_name?.[0] ?? "D"}
+              label="Driver Profile Picture"
+            />
+          </div>
+
           <FormInput
             label="Full Name"
             name="full_name"
@@ -106,6 +128,14 @@ export default function AddDriverPage() {
             name="experience_years"
             type="number"
             value={form.experience_years}
+            onChange={handleChange}
+          />
+
+          {/* NEW FIELD */}
+          <FormInput
+            label="Home Address"
+            name="address"
+            value={form.address}
             onChange={handleChange}
           />
 
