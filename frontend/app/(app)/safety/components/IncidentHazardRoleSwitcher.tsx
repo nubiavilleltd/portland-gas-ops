@@ -6,6 +6,7 @@ import type { IncidentHazardRole } from "@/types/safety";
 const roles: { value: IncidentHazardRole; label: string }[] = [
   { value: "reporter", label: "Reporter" },
   { value: "hse", label: "HSE Inspector" },
+  { value: "action_owner", label: "Action Owner" },
 ];
 
 export default function IncidentHazardRoleSwitcher({
@@ -21,7 +22,7 @@ export default function IncidentHazardRoleSwitcher({
         <div>
           <p className="text-sm font-semibold text-brand-text-primary">Mock user role</p>
           <p className="mt-1 text-sm text-brand-text-secondary">
-            Switch roles to preview reporter and HSE views.
+            Switch roles to preview reporter, HSE, and action owner views.
           </p>
         </div>
         <div className="flex w-full rounded-xl border border-brand-border bg-gray-50 p-1 md:w-auto">

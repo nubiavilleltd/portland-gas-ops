@@ -157,12 +157,12 @@ export default function WorkAuthorizationForm() {
             placeholder="Describe the work to be performed"
             className="md:min-h-28"
           />
-          <FormTextarea
+          {/* <FormTextarea
             label="Reason for Work"
             required
             placeholder="Explain why the work is needed"
             className="md:min-h-28"
-          />
+          /> */}
           <FormToggleGroup
             label="Contractor Required?"
             required
@@ -195,10 +195,10 @@ export default function WorkAuthorizationForm() {
             options={toolsEquipmentOptions}
             placeholder="Select tools or equipment"
           />
-          <FormTextarea
+          {/* <FormTextarea
             label="Special Instructions"
             placeholder="Add any special instructions"
-          />
+          /> */}
         </div>
       </FormSection>
 

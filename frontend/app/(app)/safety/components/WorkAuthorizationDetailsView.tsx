@@ -58,14 +58,23 @@ type HseInspectionCheckState = Pick<
   | "toolsSafe"
 >;
 type InspectionCheckValue = HseInspectionCheckState[keyof HseInspectionCheckState];
+type EditableInspectionCheckValue = InspectionCheckValue | "";
+type EditableHseInspectionCheckState = Record<
+  keyof HseInspectionCheckState,
+  EditableInspectionCheckValue
+>;
 
-const initialHseInspectionChecks: HseInspectionCheckState = {
-  workAreaSafe: "Pass",
-  emergencyEquipmentAvailable: "Pass",
-  gasPressureCheckCompleted: "Pass",
-  ppeAndSafetyKitsAvailable: "Pass",
-  toolsSafe: "Pass",
+const initialHseInspectionChecks: EditableHseInspectionCheckState = {
+  workAreaSafe: "",
+  emergencyEquipmentAvailable: "",
+  gasPressureCheckCompleted: "",
+  ppeAndSafetyKitsAvailable: "",
+  toolsSafe: "",
 };
+
+function toInspectionCheckValue(value: EditableInspectionCheckValue): InspectionCheckValue {
+  return value || "N/A";
+}
 
 export default function WorkAuthorizationDetailsView({ requestId }: { requestId: string }) {
   const router = useRouter();
@@ -188,7 +197,11 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
     }
 
     const inspection: WorkAuthorizationHseInspection = {
-      ...hseInspectionChecks,
+      workAreaSafe: toInspectionCheckValue(hseInspectionChecks.workAreaSafe),
+      emergencyEquipmentAvailable: toInspectionCheckValue(hseInspectionChecks.emergencyEquipmentAvailable),
+      gasPressureCheckCompleted: toInspectionCheckValue(hseInspectionChecks.gasPressureCheckCompleted),
+      ppeAndSafetyKitsAvailable: toInspectionCheckValue(hseInspectionChecks.ppeAndSafetyKitsAvailable),
+      toolsSafe: toInspectionCheckValue(hseInspectionChecks.toolsSafe),
       inspectionDateTime: "2026-05-18 11:00 AM",
       comments: hseComment || "Area inspected and cleared for work.",
       result: decision === "Approve" ? "Passed" : decision === "Return" ? "Returned" : "Failed",
@@ -364,7 +377,7 @@ function WorkDetailsSection({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Type of Work" defaultValue={request.workDetails.typeOfWork.join(", ")} disabled={!editable} />
         <FormTextarea label="Work Description" defaultValue={request.workDetails.description} disabled={!editable} />
-        <FormTextarea label="Reason for Work" defaultValue={request.workDetails.reason} disabled={!editable} />
+        {/* <FormTextarea label="Reason for Work" defaultValue={request.workDetails.reason} disabled={!editable} /> */}
         <FormInput label="Workers Involved" defaultValue={request.workDetails.workersInvolved.join(", ")} disabled={!editable} />
         <FormToggleGroup
           label="Contractor Required?"
@@ -378,8 +391,8 @@ function WorkDetailsSection({
             <FormInput label="Contractor Contact Email" type="email" defaultValue={request.workDetails.contractorContactEmail} disabled={!editable} />
           </>
         ) : null}
-        {/* <FormInput label="Tools/Equipment Required" defaultValue={request.workDetails.toolsEquipment.join(", ")} disabled={!editable} /> */}
-        <FormTextarea label="Special Instructions" defaultValue={request.workDetails.specialInstructions} disabled={!editable} />
+        <FormInput label="Tools/Equipment Required" defaultValue={request.workDetails.toolsEquipment.join(", ")} disabled={!editable} />
+        {/* <FormTextarea label="Special Instructions" defaultValue={request.workDetails.specialInstructions} disabled={!editable} /> */}
       </div>
     </FormSection>
   );
@@ -513,7 +526,7 @@ function HseInspectionActionSection({
   comment: string;
   onCommentChange: (comment: string) => void;
   checks: typeof initialHseInspectionChecks;
-  onCheckChange: (key: keyof typeof initialHseInspectionChecks, value: InspectionCheckValue) => void;
+  onCheckChange: (key: keyof typeof initialHseInspectionChecks, value: EditableInspectionCheckValue) => void;
   evidence: File[];
   onEvidenceChange: (files: File[]) => void;
 }) {
@@ -523,41 +536,46 @@ function HseInspectionActionSection({
         <FormSelect
           label="Work area is safe, clean, and accessible"
           options={inspectionCheckOptions}
+          placeholder="Select inspection result"
           value={checks.workAreaSafe}
-          onValueChange={(value) => onCheckChange("workAreaSafe", value as InspectionCheckValue)}
+          onValueChange={(value) => onCheckChange("workAreaSafe", value as EditableInspectionCheckValue)}
         />
         <FormSelect
           label="Fire extinguisher/emergency equipment is available"
           options={inspectionCheckOptions}
+          placeholder="Select inspection result"
           value={checks.emergencyEquipmentAvailable}
           onValueChange={(value) =>
-            onCheckChange("emergencyEquipmentAvailable", value as InspectionCheckValue)
+            onCheckChange("emergencyEquipmentAvailable", value as EditableInspectionCheckValue)
           }
         />
         <FormSelect
           label="Gas leak/pressure/abnormal condition check completed"
           options={inspectionCheckOptions}
+          placeholder="Select inspection result"
           value={checks.gasPressureCheckCompleted}
           onValueChange={(value) =>
-            onCheckChange("gasPressureCheckCompleted", value as InspectionCheckValue)
+            onCheckChange("gasPressureCheckCompleted", value as EditableInspectionCheckValue)
           }
         />
         <FormSelect
           label="Required PPE and safety kits are available"
           options={inspectionCheckOptions}
+          placeholder="Select inspection result"
           value={checks.ppeAndSafetyKitsAvailable}
           onValueChange={(value) =>
-            onCheckChange("ppeAndSafetyKitsAvailable", value as InspectionCheckValue)
+            onCheckChange("ppeAndSafetyKitsAvailable", value as EditableInspectionCheckValue)
           }
         />
         <FormSelect
           label="Tools/equipment are safe and suitable for the job"
           options={inspectionCheckOptions}
+          placeholder="Select inspection result"
           value={checks.toolsSafe}
-          onValueChange={(value) => onCheckChange("toolsSafe", value as InspectionCheckValue)}
+          onValueChange={(value) => onCheckChange("toolsSafe", value as EditableInspectionCheckValue)}
         />
         <FormInput label="Inspection date/time" defaultValue="2026-05-18 11:00 AM" />
-        <FormSelect label="Inspection result" options={inspectionResultOptions} defaultValue="Passed" />
+        <FormSelect label="Inspection result" options={inspectionResultOptions} placeholder="Select inspection result" />
         <FormTextarea
           label="Inspection comments"
           value={comment}

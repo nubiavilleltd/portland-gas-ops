@@ -77,6 +77,12 @@ function AssetCard({ asset }: { asset: Asset }) {
         {asset.category && (
           <p className="text-xs text-brand-text-secondary">{asset.category.name}</p>
         )}
+        {asset.asset_tag && (
+          <span className="self-start text-[10px] font-mono text-brand-text-secondary bg-gray-100 px-1.5 py-0.5 rounded">{asset.asset_tag}</span>
+        )}
+        {asset.asset_type && (
+          <p className="text-xs text-brand-text-secondary">{asset.asset_type.name}</p>
+        )}
 
         <div className="flex items-center justify-between mt-auto pt-2 border-t border-brand-border">
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${conditionStyle}`}>
@@ -121,6 +127,11 @@ const TABLE_COLUMNS: Column<Asset>[] = [
         </div>
       </div>
     ),
+  },
+  {
+    key: "asset_tag",
+    label: "Tag",
+    render: (v) => v ? <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{String(v)}</span> : <span className="text-brand-text-secondary">—</span>,
   },
   {
     key: "category",

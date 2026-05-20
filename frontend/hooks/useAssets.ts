@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { categoryStore, assetStore, assetRequestStore, maintenanceLogStore } from "@/lib/mockStore";
+import { categoryStore, assetStore, assetTypeStore, assetRequestStore, maintenanceLogStore } from "@/lib/mockStore";
 // import { get, post, patch, del, postForm } from "@/lib/api";
-import type { Asset, AssetCategory, AssetRequest, AssetRequestListItem, AssetRequestStatus, AssetMaintenanceLog } from "@/types";
+import type { Asset, AssetCategory, AssetType, AssetRequest, AssetRequestListItem, AssetRequestStatus, AssetMaintenanceLog } from "@/types";
 
 // ── Categories ─────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,44 @@ export function useDeleteAssetCategory() {
       return Promise.resolve();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-categories"] }),
+  });
+}
+
+// ── Asset Types ────────────────────────────────────────────────────────────────
+
+export function useAssetTypes(categoryId?: string) {
+  return useQuery<AssetType[]>({
+    queryKey: ["asset-types", categoryId ?? "all"],
+    queryFn: () => Promise.resolve(
+      categoryId ? assetTypeStore.getByCategory(categoryId) : assetTypeStore.getAll()
+    ),
+    staleTime: Infinity,
+  });
+}
+
+export function useCreateAssetType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; category_id: string }) =>
+      Promise.resolve(assetTypeStore.add(data)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-types"] }),
+  });
+}
+
+export function useUpdateAssetType(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string }) =>
+      Promise.resolve(assetTypeStore.update(id, data)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-types"] }),
+  });
+}
+
+export function useDeleteAssetType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => { assetTypeStore.remove(id); return Promise.resolve(); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-types"] }),
   });
 }
 

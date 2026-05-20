@@ -59,6 +59,7 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     additionalNotes: "",
     attachments: [],
     hseReview: null,
+    actionOwnerCompletion: null,
     auditTrail: [],
   },
   {
@@ -81,6 +82,7 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     additionalNotes: "",
     attachments: [{ name: "gas-storage-area-photo.png", type: "image" }],
     hseReview: null,
+    actionOwnerCompletion: null,
     auditTrail: [
       {
         action: "Submitted",
@@ -121,9 +123,14 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
         "Rebrief workshop team on tool return procedure and mark tool storage points.",
       actionOwner: "Workshop Supervisor",
       targetCompletionDate: "2026-05-22",
-      decision: "Approve/Close",
-      comment: "Closed with corrective action assigned.",
+      decision: "Resolved",
+      comment: "Resolved with corrective action assigned.",
       reviewDateTime: "2026-05-18 10:00 AM",
+    },
+    actionOwnerCompletion: {
+      owner: "Workshop Supervisor",
+      completedDateTime: "2026-05-18 09:30 AM",
+      comment: "Workshop team rebriefed and tool storage points were marked.",
     },
     auditTrail: [
       {
@@ -134,11 +141,11 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
         comment: "Near miss report submitted.",
       },
       {
-        action: "Closed by HSE",
+        action: "Resolved by HSE",
         actor: "Samuel Bassey",
         role: "HSE Inspector",
         dateTime: "2026-05-18 10:00 AM",
-        comment: "HSE reviewed and closed the report.",
+        comment: "HSE reviewed and resolved the report.",
       },
     ],
   },
