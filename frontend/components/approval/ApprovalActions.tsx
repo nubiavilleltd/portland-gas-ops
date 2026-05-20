@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Download, RotateCcw, XCircle, CheckCircle } from "lucide-react";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import FormTextarea from "@/components/forms/FormTextarea";
 
 interface Props {
@@ -28,7 +27,7 @@ export default function ApprovalActions({ onApprove, onReject, onReturn, loading
 
   const dialogConfig = {
     approve: { title: "Approve Request", message: "Confirm that you are approving this request.", confirmLabel: "Approve", destructive: false },
-    reject: { title: "Reject Request", message: "This action will reject the request. It cannot be undone without resubmission.", confirmLabel: "Reject", destructive: true },
+    reject: { title: "Deny Request", message: "This action will deny the request. It cannot be undone without resubmission.", confirmLabel: "Deny", destructive: true },
     return: { title: "Return to Submitter", message: "The request will be returned to the submitter for revision.", confirmLabel: "Return", destructive: false },
   };
 
@@ -59,7 +58,7 @@ export default function ApprovalActions({ onApprove, onReject, onReturn, loading
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
         >
           <XCircle size={14} />
-          Reject
+          Deny
         </button>
         <button
           disabled={loading}

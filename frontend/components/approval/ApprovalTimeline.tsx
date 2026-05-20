@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, XCircle, RotateCcw } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw } from "lucide-react";
 import type { ApprovalStep, ApprovalStatus } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,10 @@ const stepIcon: Record<ApprovalStatus, React.ReactNode> = {
 interface Props {
   steps: ApprovalStep[];
 }
+
+const decisionLabels: Record<string, string> = {
+  rejected: "denied",
+};
 
 export default function ApprovalTimeline({ steps }: Props) {
   return (
@@ -59,7 +63,9 @@ export default function ApprovalTimeline({ steps }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-brand-text-primary">{assignee.user_name ?? "Assignee"}</p>
                   {assignee.comment && (
-                    <p className="text-xs text-brand-text-secondary mt-0.5 italic">"{assignee.comment}"</p>
+                    <p className="text-xs text-brand-text-secondary mt-0.5 italic">
+                      &ldquo;{assignee.comment}&rdquo;
+                    </p>
                   )}
                   {assignee.decided_at && (
                     <p className="text-xs text-brand-text-secondary mt-0.5">{formatDateTime(assignee.decided_at)}</p>
@@ -72,7 +78,7 @@ export default function ApprovalTimeline({ steps }: Props) {
                   assignee.decision === "returned" && "bg-orange-50 text-orange-700",
                   assignee.decision === "pending" && "bg-gray-100 text-gray-500",
                 )}>
-                  {assignee.decision}
+                  {decisionLabels[assignee.decision] ?? assignee.decision}
                 </span>
               </div>
             ))}

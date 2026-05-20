@@ -7,8 +7,8 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   CheckCircle,
-  FileText,
-  FolderOpen,
+  // FileText,
+  ClipboardList,
   Settings,
   LogOut,
   X,
@@ -26,8 +26,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Home", href: "/home", icon: Home },
   { label: "My Approvals", href: "/approvals", icon: CheckCircle },
-  { label: "Drafts", href: "/drafts", icon: FileText },
-  { label: "My Files", href: "/files", icon: FolderOpen },
+  { label: "My Requests", href: "/assets/requests", icon: ClipboardList },
+  // Drafts are hidden for now, but kept here so the nav item can return later.
+  // { label: "Drafts", href: "/drafts", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

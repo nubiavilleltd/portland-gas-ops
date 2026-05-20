@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import {
-  ShoppingCart, Package, Receipt, Truck, Wrench,
-  ShieldCheck, AlertTriangle, BarChart3, Users, Settings,
+  ShoppingCart, Package, Truck,
+  ShieldCheck, AlertTriangle, BarChart3, Users, Settings, Store,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ModuleCard from "@/components/ui/ModuleCard";
@@ -15,28 +15,25 @@ import type { UserRole } from "@/types";
 
 const moduleGroups = [
   {
-    title: "Operations",
+    title: "Administration",
     fullWidth: true,
     modules: [
-      { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
-      { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
-      { name: "Assets", description: "Equipment & maintenance scheduling", icon: Wrench, href: "/assets" },
+      { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
+    ],
+  },
+  {
+    title: "Compliance & Safety",
+    fullWidth: true,
+    modules: [
+      { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
+      { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
     ],
   },
   {
     title: "Finance",
     fullWidth: true,
     modules: [
-      { name: "Procurement", description: "Purchase requests & vendor management", icon: ShoppingCart, href: "/procurement" },
-      { name: "Billing", description: "Invoices & payment tracking", icon: Receipt, href: "/billing" },
       { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
-    ],
-  },
-  {
-    title: "Compliance & Safety",
-    modules: [
-      { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
-      { name: "Incidents", description: "Incident & near-miss reporting", icon: AlertTriangle, href: "/safety/incidents" },
     ],
   },
   {
@@ -45,6 +42,24 @@ const moduleGroups = [
     modules: [
       { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr-management" },
       { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
+    
+    ],
+  },
+  {
+    title: "Operations",
+    fullWidth: true,
+    modules: [
+      { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
+      { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
+    ],
+  },
+  {
+    title: "Supply Chain",
+    fullWidth: true,
+    modules: [
+      { name: "Assets", description: "Register, track & request company assets", icon: Package, href: "/assets" },
+      { name: "Purchase Requests", description: "Raise & manage purchase requisitions", icon: ShoppingCart, href: "/procurement" },
+      { name: "Vendors", description: "Suppliers & service providers", icon: Store, href: "/vendors" },
     ],
   },
 ];
@@ -61,15 +76,12 @@ export default function HomePage() {
   const { data: pendingApprovals } = useMyApprovals();
 
   return (
-    <AppLayout pageTitle="Portland Gas Operations">
+    <AppLayout>
       {/* Welcome row */}
       <div className="mb-2">
         <h2 className="text-2xl font-semibold text-brand-text-primary">
           Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""}
         </h2>
-        <p className="text-sm text-brand-text-secondary mt-1">
-          What would you like to work on today?
-        </p>
       </div>
 
       <div className="grid gap-x-4 gap-y-8 mt-8 xl:grid-cols-2">

@@ -1,45 +1,176 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { Plus, FileText, Download } from "lucide-react";
+import { API_URL } from "@/lib/constants";
+import { useAuthStore } from "@/store/authStore";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import Button from "@/components/ui/Button";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import type { ProcurementRequest } from "@/types";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import EmptyState from "@/components/ui/EmptyState";
+import { formatDate, capitalize } from "@/lib/utils";
+import { useProcurementList } from "@/hooks/useProcurement";
+import type { ProcurementListItem, ProcurementStatus } from "@/types";
 
-const MOCK: ProcurementRequest[] = [
-  { id: "1", reference: "PRQ-20240510-A1B2", title: "Generator fuel supply — Q3 2024", description: null, department: "operations", estimated_amount: 4500000, status: "pending", vendor_name: "Total Energies Nigeria", vendor_contact: null, required_by: "2024-07-01", created_by: "user-1", is_active: true, created_at: "2024-05-10", updated_at: null },
-  { id: "2", reference: "PRQ-20240508-C3D4", title: "Safety PPE restock — Apapa terminal", description: null, department: "safety", estimated_amount: 820000, status: "approved", vendor_name: "SafeGuard Supplies Ltd", vendor_contact: null, required_by: "2024-05-25", created_by: "user-2", is_active: true, created_at: "2024-05-08", updated_at: null },
-  { id: "3", reference: "PRQ-20240505-E5F6", title: "Compressor maintenance parts — PH depot", description: null, department: "engineering", estimated_amount: 2100000, status: "in_progress", vendor_name: "Atlas Copco Nigeria", vendor_contact: null, required_by: "2024-06-10", created_by: "user-3", is_active: true, created_at: "2024-05-05", updated_at: null },
-  { id: "4", reference: "PRQ-20240501-G7H8", title: "Office consumables — Lagos HQ", description: null, department: "it", estimated_amount: 150000, status: "draft", vendor_name: null, vendor_contact: null, required_by: null, created_by: "user-4", is_active: true, created_at: "2024-05-01", updated_at: null },
+const STATUS_TABS: { label: string; value: ProcurementStatus | undefined }[] = [
+  { label: "All", value: undefined },
+  { label: "Submitted", value: "submitted" },
+  { label: "Ordered", value: "ordered" },
+  { label: "Delivered", value: "delivered" },
+  { label: "Cancelled", value: "cancelled" },
 ];
 
-const columns: Column<ProcurementRequest>[] = [
-  { key: "reference", label: "Reference" },
+const columns: Column<ProcurementListItem>[] = [
+  { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
   { key: "title", label: "Title" },
-  { key: "department", label: "Department", render: (v) => <span className="capitalize">{String(v)}</span> },
-  { key: "estimated_amount", label: "Estimated Amount", render: (v) => v ? formatCurrency(Number(v)) : "—" },
-  { key: "vendor_name", label: "Vendor" },
-  { key: "required_by", label: "Required By", render: (v) => formatDate(v as string) },
-  { key: "status", label: "Status", render: (v) => <ApprovalBadge status={v as ProcurementRequest["status"]} /> },
+  {
+    key: "category",
+    label: "Category",
+    render: (v) => <span className="capitalize">{String(v).replace(/_/g, " ")}</span>,
+  },
+  {
+    key: "priority",
+    label: "Priority",
+    render: (v) => {
+      const colours: Record<string, string> = {
+        routine: "text-gray-500",
+        urgent: "text-amber-600 font-medium",
+        emergency: "text-red-600 font-semibold",
+      };
+      return <span className={colours[String(v)] ?? ""}>{capitalize(String(v))}</span>;
+    },
+  },
+  {
+    key: "vendor",
+    label: "Vendor",
+    render: (v) => (v as ProcurementListItem["vendor"])?.name ?? <span className="text-brand-text-secondary">—</span>,
+  },
+  {
+    key: "required_by",
+    label: "Required By",
+    render: (v) => formatDate(v as string | null),
+  },
+  {
+    key: "status",
+    label: "Status",
+    render: (v) => <ApprovalBadge status={String(v)} />,
+  },
+  {
+    key: "po_url",
+    label: "PO",
+    render: (v, row) =>
+      v ? (
+        <PODownloadCell requestId={row.id} reference={row.reference} />
+      ) : (
+        <span className="text-brand-text-secondary text-xs">—</span>
+      ),
+  },
 ];
+
+function PODownloadCell({ requestId, reference }: { requestId: string; reference: string }) {
+  const [loading, setLoading] = useState(false);
+  const token = useAuthStore((s) => s.accessToken);
+
+  async function handleDownload(e: React.MouseEvent) {
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`${API_URL}/api/procurement/${requestId}/download-po`, {
+        headers,
+        credentials: "include",   // sends access_token cookie, same as axios withCredentials
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${reference}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Could not download the PDF. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={loading}
+      className="inline-flex items-center gap-1 text-xs text-brand-purple hover:underline disabled:opacity-50"
+    >
+      <Download size={12} />
+      {loading ? "…" : "Download"}
+    </button>
+  );
+}
 
 export default function ProcurementPage() {
+  const [activeStatus, setActiveStatus] = useState<ProcurementStatus | undefined>(undefined);
+  const { data, isLoading, isError } = useProcurementList(activeStatus);
+
   return (
     <AppLayout pageTitle="Procurement">
       <PageHeader
         title="Purchase Requests"
-        description="Manage purchase requisitions and vendor approvals"
+        description="Raise and manage purchase requisitions"
         action={
-          <Button href="/procurement/new" leftIcon={<Plus size={16} />}>
-            New Request
-          </Button>
+          <Link
+            href="/procurement/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors w-fit"
+          >
+            <Plus size={16} /> New Request
+          </Link>
         }
         className="mb-6"
       />
-      <DataTable columns={columns} data={MOCK} rowHref={(row) => `/procurement/${row.id}`} />
+
+      {/* Status filter tabs */}
+      <div className="inline-flex gap-1 mb-4 bg-white border border-brand-border rounded-xl p-1 max-w-full overflow-x-auto">
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.label}
+            onClick={() => setActiveStatus(tab.value)}
+            className={[
+              "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap",
+              activeStatus === tab.value
+                ? "bg-brand-purple text-white font-medium"
+                : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
+            ].join(" ")}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16">
+          <LoadingSpinner />
+        </div>
+      ) : isError ? (
+        <EmptyState title="Could not load requests" description="Check your connection and try again." />
+      ) : !data?.length ? (
+        <EmptyState
+          title="No procurement requests"
+          description={activeStatus ? `No requests with status "${activeStatus}".` : "Raise your first request to get started."}
+        />
+      ) : (
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <DataTable
+            columns={columns}
+            data={data}
+            rowHref={(row) => `/procurement/${row.id}`}
+          />
+        </div>
+      )}
     </AppLayout>
   );
 }

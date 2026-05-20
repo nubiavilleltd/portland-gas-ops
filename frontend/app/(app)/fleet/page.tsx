@@ -1,13 +1,22 @@
-import AppLayout from "@/components/layout/AppLayout";
-import PageHeader from "@/components/ui/PageHeader";
-import EmptyState from "@/components/ui/EmptyState";
 
-export default function ModulePage() {
-  const name = "fleet";
+
+import FleetHomeClient from "@/lib/modules/fleet/components/FleetHomeClient";
+import { VehiclesService } from "@/lib/services/api/vehicles.service";
+import { DriversService } from "@/lib/services/api/drivers.service";
+import { TripsService } from "@/lib/services/api/trips.service";
+
+export default async function FleetPage() {
+  const [vehicles, drivers, trips] = await Promise.all([
+    VehiclesService.getVehicles(),
+    DriversService.getDrivers(),
+    TripsService.getTrips(),
+  ]);
+
   return (
-    <AppLayout pageTitle={name}>
-      <PageHeader title={name} description="This module is under active development." className="mb-6" />
-      <EmptyState title="Coming soon" description="This module page will be built next. The backend API stubs are ready." />
-    </AppLayout>
+    <FleetHomeClient
+      vehicles={vehicles}
+      drivers={drivers}
+      trips={trips}
+    />
   );
 }

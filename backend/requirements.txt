@@ -1,6 +1,8 @@
 # Python 3.12 required. Run: python --version to confirm before installing.
 fastapi
 slowapi
+cloudinary
+fpdf2
 uvicorn[standard]
 sqlalchemy
 alembic
