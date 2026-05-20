@@ -98,33 +98,7 @@ export default function OrdersHomePage() {
         </div>
       </div>
 
-      {/* QUICK ACTIONS */}
-      <div className="mt-10 bg-white border border-brand-border rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-brand-text-primary">
-          Quick Actions
-        </h2>
-
-        <p className="text-sm text-brand-text-secondary mt-1">
-          Frequently used order operations
-        </p>
-
-        <div className="flex flex-wrap gap-3 mt-5">
-          <Button href="/orders/new">
-            {/* <Plus className="w-4 h-4 mr-2" /> */}
-            Create Order
-          </Button>
-
-          <Button variant="outline" href="/orders/list">
-            {/* <ClipboardList className="w-4 h-4 mr-2" /> */}
-            View All Orders
-          </Button>
-
-          <Button variant="outline" href="/fleet/trips/new">
-            {/* <Truck className="w-4 h-4 mr-2" /> */}
-            Create Trip
-          </Button>
-        </div>
-      </div>
+   
 
     </AppLayout>
   );
