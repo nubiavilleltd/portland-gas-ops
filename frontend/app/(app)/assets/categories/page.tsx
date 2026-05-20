@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, X, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, X } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -13,10 +13,13 @@ import {
   useCreateAssetCategory,
   useUpdateAssetCategory,
   useDeleteAssetCategory,
+  useAssetTypes,
+  useCreateAssetType,
+  useDeleteAssetType,
 } from "@/hooks/useAssets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
-import type { AssetCategory } from "@/types";
+import type { AssetCategory, AssetType } from "@/types";
 
 // ── Colour palette ─────────────────────────────────────────────────────────────
 
@@ -162,6 +165,168 @@ function CategoryModal({ initial, onClose }: CategoryModalProps) {
   );
 }
 
+// ── Add Asset Type Inline Form ─────────────────────────────────────────────────
+
+function AddTypeInline({
+  categoryId,
+  onDone,
+}: {
+  categoryId: string;
+  onDone: () => void;
+}) {
+  const toast = useToast();
+  const createType = useCreateAssetType();
+  const [typeName, setTypeName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!typeName.trim()) { setError("Name is required"); return; }
+    setError(null);
+    try {
+      await createType.mutateAsync({ name: typeName.trim(), category_id: categoryId });
+      toast.success("Asset type added");
+      setTypeName("");
+      onDone();
+    } catch {
+      toast.error("Failed to add asset type");
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-2">
+      <input
+        type="text"
+        value={typeName}
+        onChange={(e) => { setTypeName(e.target.value); setError(null); }}
+        placeholder="e.g. Laptop"
+        autoFocus
+        className="h-8 rounded-lg border border-brand-border px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-purple flex-1 min-w-0"
+      />
+      <button
+        type="submit"
+        disabled={createType.isPending}
+        className="h-8 px-3 text-xs font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 shrink-0"
+      >
+        {createType.isPending ? "Adding…" : "Add"}
+      </button>
+      <button
+        type="button"
+        onClick={onDone}
+        className="h-8 px-2 text-xs text-brand-text-secondary hover:text-brand-text-primary transition-colors shrink-0"
+      >
+        <X size={14} />
+      </button>
+      {error && <p className="text-xs text-red-600 shrink-0">{error}</p>}
+    </form>
+  );
+}
+
+// ── Category Row ───────────────────────────────────────────────────────────────
+
+function CategoryRow({
+  cat,
+  types,
+  onEdit,
+  onDelete,
+}: {
+  cat: AssetCategory;
+  types: AssetType[];
+  onEdit: (cat: AssetCategory) => void;
+  onDelete: (cat: AssetCategory) => void;
+}) {
+  const toast = useToast();
+  const deleteType = useDeleteAssetType();
+  const [addingType, setAddingType] = useState(false);
+
+  async function handleDeleteType(typeId: string, typeName: string) {
+    try {
+      await deleteType.mutateAsync(typeId);
+      toast.success(`"${typeName}" removed`);
+    } catch {
+      toast.error("Failed to remove type");
+    }
+  }
+
+  return (
+    <div className="bg-white border border-brand-border rounded-xl p-4">
+      <div className="flex items-start gap-4">
+        {/* Left: colour dot + name */}
+        <div className="flex items-center gap-2.5 shrink-0 min-w-[160px]">
+          <div
+            className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center"
+            style={{ backgroundColor: `${cat.colour}20` }}
+          >
+            <div className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: cat.colour }} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-brand-text-primary">{cat.name}</p>
+            <span className="text-[10px] text-brand-text-secondary font-mono">{cat.colour}</span>
+          </div>
+        </div>
+
+        {/* Middle: type chips */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center flex-wrap gap-1.5">
+            {types.map((t) => (
+              <span
+                key={t.id}
+                className="inline-flex items-center gap-1 bg-gray-100 text-brand-text-primary text-xs rounded-full px-2 py-0.5"
+              >
+                <span className="font-mono text-[10px] text-brand-text-secondary">{t.prefix}</span>
+                {t.name}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteType(t.id, t.name)}
+                  className="text-gray-400 hover:text-red-500 transition-colors ml-0.5"
+                  title={`Remove ${t.name}`}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+            {types.length === 0 && !addingType && (
+              <span className="text-xs text-brand-text-secondary italic">No types yet</span>
+            )}
+          </div>
+
+          {/* Inline add form */}
+          {addingType && (
+            <AddTypeInline categoryId={cat.id} onDone={() => setAddingType(false)} />
+          )}
+        </div>
+
+        {/* Right: actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          {!addingType && (
+            <button
+              onClick={() => setAddingType(true)}
+              className="h-7 px-2 flex items-center gap-1 text-xs font-medium rounded-lg text-brand-purple hover:bg-purple-50 transition-colors"
+              title="Add type"
+            >
+              <Plus size={12} /> Add Type
+            </button>
+          )}
+          <button
+            onClick={() => onEdit(cat)}
+            className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+            title="Edit category"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            onClick={() => onDelete(cat)}
+            className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-500 transition-colors"
+            title="Delete category"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function AssetCategoriesPage() {
@@ -170,6 +335,7 @@ export default function AssetCategoriesPage() {
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
   const { data: categories = [], isLoading, isError } = useAssetCategories();
+  const { data: allTypes = [] } = useAssetTypes();
   const deleteCategory = useDeleteAssetCategory();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -206,7 +372,7 @@ export default function AssetCategoriesPage() {
     <AppLayout pageTitle="Assets">
       <PageHeader
         title="Asset Categories"
-        description="Manage categories for organising assets"
+        description="Manage categories and asset types for organising assets"
         action={
           <div className="flex items-center gap-2">
             <button
@@ -244,50 +410,15 @@ export default function AssetCategoriesPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="flex flex-col gap-3">
           {categories.map((cat) => (
-            <div
+            <CategoryRow
               key={cat.id}
-              className="bg-white border border-brand-border rounded-xl p-4 flex items-center gap-3 hover:shadow-sm transition-shadow"
-            >
-              {/* Colour dot */}
-              <div
-                className="h-9 w-9 rounded-lg shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: `${cat.colour}20` }}
-              >
-                <Tag size={14} style={{ color: cat.colour }} />
-              </div>
-
-              {/* Name */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-brand-text-primary truncate">{cat.name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <div
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: cat.colour }}
-                  />
-                  <span className="text-[10px] text-brand-text-secondary font-mono">{cat.colour}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => openEdit(cat)}
-                  className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
-                  title="Edit"
-                >
-                  <Pencil size={13} />
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(cat)}
-                  className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-500 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            </div>
+              cat={cat}
+              types={allTypes.filter((t) => t.category_id === cat.id)}
+              onEdit={openEdit}
+              onDelete={setDeleteTarget}
+            />
           ))}
         </div>
       )}

@@ -12,11 +12,39 @@ export interface AssetCategory {
   created_at: string;
 }
 
+export interface AssetType {
+  id: string;
+  name: string;
+  category_id: string;
+  prefix: string;       // first 2 letters of name, uppercase, e.g. "LA" for Laptop
+  created_at: string;
+}
+
+export type AssetVehicleType = "sedan" | "suv" | "pickup_truck" | "van" | "bus" | "motorcycle" | "tanker";
+export type AssetFuelType = "petrol" | "diesel" | "electric" | "hybrid" | "cng";
+
+export interface VehicleDetails {
+  plate_number: string | null;
+  vehicle_type: AssetVehicleType | null;
+  fuel_type: AssetFuelType | null;
+  year_of_manufacture: number | null;
+  color: string | null;
+  engine_number: string | null;
+  chassis_number: string | null;
+  mileage_at_registration: number | null;
+  seating_capacity: number | null;
+  insurance_expiry_date: string | null;
+  road_worthiness_expiry_date: string | null;
+}
+
 export interface Asset {
   id: string;
   name: string;
   category_id: string | null;
   category: AssetCategory | null;
+  asset_type_id: string | null;
+  asset_type: AssetType | null;
+  asset_tag: string | null;   // e.g. "LA-A3K9"
   serial_number: string | null;
   purchase_date: string | null;
   purchase_cost: number | null;
@@ -33,6 +61,7 @@ export interface Asset {
   maintenance_frequency_months: number | null;
   next_maintenance_due: string | null;
   is_maintenance_due: boolean;
+  vehicle_details: VehicleDetails | null;
   added_by: string | null;
   is_active: boolean;
   created_at: string;

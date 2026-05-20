@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, Pencil, Trash2, Building2, Phone, Mail, MapPin } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Phone, Mail, MapPin, LayoutGrid, Table2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DataTable, { type Column } from "@/components/ui/DataTable";
 import { useVendors, useCreateVendor, useUpdateVendor, useDeleteVendor } from "@/hooks/useVendors";
 import { useToast } from "@/hooks/useToast";
 import { capitalize } from "@/lib/utils";
@@ -34,6 +35,17 @@ const CATEGORY_COLOURS: Record<VendorCategory, string> = {
   logistics:     "bg-teal-100 text-teal-700",
 };
 
+const AVATAR_COLOURS: Record<VendorCategory, string> = {
+  equipment:     "bg-blue-500",
+  ppe:           "bg-orange-500",
+  technical:     "bg-purple-500",
+  consumables:   "bg-green-500",
+  food_beverage: "bg-yellow-500",
+  services:      "bg-pink-500",
+  it:            "bg-indigo-500",
+  logistics:     "bg-teal-500",
+};
+
 const EMPTY_FORM = {
   name: "",
   category: "" as VendorCategory | "",
@@ -41,9 +53,6 @@ const EMPTY_FORM = {
   phone: "",
   email: "",
   address: "",
-  bank_name: "",
-  account_name: "",
-  account_number: "",
 };
 
 type FormData = typeof EMPTY_FORM;
@@ -89,122 +98,85 @@ function VendorFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-brand-border px-6 py-4 rounded-t-2xl flex items-center justify-between">
           <h2 className="text-lg font-semibold text-brand-text-primary">{title}</h2>
           <button onClick={onClose} className="text-brand-text-secondary hover:text-brand-text-primary text-xl leading-none">&times;</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Basic info */}
-          <section>
-            <h3 className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-3">Basic Information</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor Name <span className="text-red-500">*</span></label>
-                <input
-                  value={form.name}
-                  onChange={(e) => set("name", e.target.value)}
-                  placeholder="e.g. Persianas Furniture Limited"
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-                />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Category <span className="text-red-500">*</span></label>
-                <select
-                  value={form.category}
-                  onChange={(e) => set("category", e.target.value)}
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30 bg-white"
-                >
-                  <option value="">Select category…</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-                {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Contact Person</label>
-                <input
-                  value={form.contact_person}
-                  onChange={(e) => set("contact_person", e.target.value)}
-                  placeholder="e.g. Emeka Okafor"
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Phone</label>
-                <input
-                  value={form.phone}
-                  onChange={(e) => set("phone", e.target.value)}
-                  placeholder="+234 (0) 800 000 0000"
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  placeholder="vendor@example.com"
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-                />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Address</label>
-                <textarea
-                  value={form.address}
-                  onChange={(e) => set("address", e.target.value)}
-                  placeholder="Street, City, State"
-                  rows={2}
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30 resize-none"
-                />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor Name <span className="text-red-500">*</span></label>
+              <input
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                placeholder="e.g. Persianas Furniture Limited"
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
-          </section>
 
-          {/* Bank details */}
-          <section>
-            <h3 className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-3">Bank Details <span className="font-normal normal-case">(optional)</span></h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Bank Name</label>
-                <input
-                  value={form.bank_name}
-                  onChange={(e) => set("bank_name", e.target.value)}
-                  placeholder="e.g. GTBank"
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Account Name</label>
-                <input
-                  value={form.account_name}
-                  onChange={(e) => set("account_name", e.target.value)}
-                  placeholder="Account holder name"
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Account Number</label>
-                <input
-                  value={form.account_number}
-                  onChange={(e) => set("account_number", e.target.value)}
-                  placeholder="0123456789"
-                  className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Category <span className="text-red-500">*</span></label>
+              <select
+                value={form.category}
+                onChange={(e) => set("category", e.target.value)}
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30 bg-white"
+              >
+                <option value="">Select category…</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
             </div>
-          </section>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Contact Person</label>
+              <input
+                value={form.contact_person}
+                onChange={(e) => set("contact_person", e.target.value)}
+                placeholder="e.g. Emeka Okafor"
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Phone</label>
+              <input
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+                placeholder="+234 (0) 800 000 0000"
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
+                placeholder="vendor@example.com"
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Address</label>
+              <textarea
+                value={form.address}
+                onChange={(e) => set("address", e.target.value)}
+                placeholder="Street, City, State"
+                rows={2}
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30 resize-none"
+              />
+            </div>
+          </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors">
@@ -235,20 +207,35 @@ function VendorCard({
   onDelete: (v: Vendor) => void;
 }) {
   const catColour = CATEGORY_COLOURS[vendor.category] ?? "bg-gray-100 text-gray-600";
+  const avatarColour = AVATAR_COLOURS[vendor.category] ?? "bg-gray-500";
+  const initials = vendor.name.charAt(0).toUpperCase();
 
   return (
     <div className="bg-white border border-brand-border rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
       {/* Top row */}
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-semibold text-brand-text-primary leading-tight">{vendor.name}</p>
+      <div className="flex items-start gap-3">
+        {/* Avatar */}
+        <div className={`h-10 w-10 rounded-xl shrink-0 flex items-center justify-center text-white font-semibold text-sm ${avatarColour}`}>
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold text-brand-text-primary leading-tight truncate">{vendor.name}</p>
+              {vendor.vendor_code && (
+                <span className="inline-block mt-0.5 text-[10px] font-mono bg-gray-100 text-brand-text-secondary px-1.5 py-0.5 rounded">
+                  {vendor.vendor_code}
+                </span>
+              )}
+            </div>
+            <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${catColour}`}>
+              {capitalize(vendor.category.replace(/_/g, " "))}
+            </span>
+          </div>
           {vendor.contact_person && (
             <p className="text-xs text-brand-text-secondary mt-0.5">{vendor.contact_person}</p>
           )}
         </div>
-        <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${catColour}`}>
-          {capitalize(vendor.category.replace(/_/g, " "))}
-        </span>
       </div>
 
       {/* Contact details */}
@@ -263,15 +250,6 @@ function VendorCard({
           <div className="flex items-start gap-1.5"><MapPin size={11} className="mt-0.5 shrink-0" />{vendor.address}</div>
         )}
       </div>
-
-      {/* Bank details */}
-      {vendor.bank_name && (
-        <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-brand-text-secondary space-y-0.5">
-          <p className="font-medium text-brand-text-primary">{vendor.bank_name}</p>
-          {vendor.account_name && <p>{vendor.account_name}</p>}
-          {vendor.account_number && <p className="font-mono">{vendor.account_number}</p>}
-        </div>
-      )}
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1 border-t border-brand-border">
@@ -292,6 +270,78 @@ function VendorCard({
   );
 }
 
+// ── Table columns ──────────────────────────────────────────────────────────────
+
+const TABLE_COLUMNS: Column<Vendor>[] = [
+  {
+    key: "vendor_code",
+    label: "Code",
+    render: (_, vendor) =>
+      vendor.vendor_code ? (
+        <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded text-brand-text-secondary">{vendor.vendor_code}</span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
+  {
+    key: "name",
+    label: "Vendor",
+    render: (_, vendor) => {
+      const avatarColour = AVATAR_COLOURS[vendor.category] ?? "bg-gray-500";
+      return (
+        <div className="flex items-center gap-2.5">
+          <div className={`h-8 w-8 rounded-lg shrink-0 flex items-center justify-center text-white font-semibold text-xs ${avatarColour}`}>
+            {vendor.name.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-sm font-medium text-brand-text-primary">{vendor.name}</span>
+        </div>
+      );
+    },
+  },
+  {
+    key: "category",
+    label: "Category",
+    render: (_, vendor) => {
+      const catColour = CATEGORY_COLOURS[vendor.category] ?? "bg-gray-100 text-gray-600";
+      return (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${catColour}`}>
+          {capitalize(vendor.category.replace(/_/g, " "))}
+        </span>
+      );
+    },
+  },
+  {
+    key: "contact_person",
+    label: "Contact",
+    render: (_, vendor) =>
+      vendor.contact_person ? (
+        <span className="text-sm text-brand-text-primary">{vendor.contact_person}</span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
+  {
+    key: "phone",
+    label: "Phone",
+    render: (_, vendor) =>
+      vendor.phone ? (
+        <span className="text-sm text-brand-text-primary">{vendor.phone}</span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
+  {
+    key: "email",
+    label: "Email",
+    render: (_, vendor) =>
+      vendor.email ? (
+        <span className="text-sm text-brand-text-primary">{vendor.email}</span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
+];
+
 // ── Page ────────────────────────────────────────────────────────────────────────
 export default function VendorsPage() {
   const toast = useToast();
@@ -299,6 +349,7 @@ export default function VendorsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Vendor | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Vendor | null>(null);
+  const [view, setView] = useState<"card" | "table">("card");
 
   const { data: vendors = [], isLoading, isError } = useVendors(search || undefined);
   const createVendor = useCreateVendor();
@@ -342,9 +393,6 @@ export default function VendorsPage() {
         phone: editTarget.phone ?? "",
         email: editTarget.email ?? "",
         address: editTarget.address ?? "",
-        bank_name: editTarget.bank_name ?? "",
-        account_name: editTarget.account_name ?? "",
-        account_number: editTarget.account_number ?? "",
       }
     : EMPTY_FORM;
 
@@ -363,15 +411,44 @@ export default function VendorsPage() {
         }
       />
 
-      {/* Search */}
-      <div className="mb-6 relative max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search vendors…"
-          className="w-full pl-9 pr-4 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-        />
+      {/* Search + view toggle */}
+      <div className="mb-6 flex items-center gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search vendors…"
+            className="w-full pl-9 pr-4 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+          />
+        </div>
+        {/* View toggle */}
+        <div className="flex items-center gap-0.5 bg-white border border-brand-border rounded-lg p-0.5 shrink-0">
+          <button
+            onClick={() => setView("card")}
+            title="Card view"
+            className={[
+              "p-1.5 rounded-md transition-colors",
+              view === "card"
+                ? "bg-brand-purple text-white"
+                : "text-brand-text-secondary hover:text-brand-text-primary",
+            ].join(" ")}
+          >
+            <LayoutGrid size={14} />
+          </button>
+          <button
+            onClick={() => setView("table")}
+            title="Table view"
+            className={[
+              "p-1.5 rounded-md transition-colors",
+              view === "table"
+                ? "bg-brand-purple text-white"
+                : "text-brand-text-secondary hover:text-brand-text-primary",
+            ].join(" ")}
+          >
+            <Table2 size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -397,16 +474,24 @@ export default function VendorsPage() {
       ) : (
         <>
           <p className="text-xs text-brand-text-secondary mb-4">{vendors.length} vendor{vendors.length !== 1 ? "s" : ""}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vendors.map((v) => (
-              <VendorCard
-                key={v.id}
-                vendor={v}
-                onEdit={setEditTarget}
-                onDelete={setDeleteTarget}
-              />
-            ))}
-          </div>
+          {view === "card" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {vendors.map((v) => (
+                <VendorCard
+                  key={v.id}
+                  vendor={v}
+                  onEdit={setEditTarget}
+                  onDelete={setDeleteTarget}
+                />
+              ))}
+            </div>
+          ) : (
+            <DataTable
+              columns={TABLE_COLUMNS}
+              data={vendors}
+              emptyMessage="No vendors found."
+            />
+          )}
         </>
       )}
 
