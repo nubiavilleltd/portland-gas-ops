@@ -1,29 +1,39 @@
 "use client";
 
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, Truck,
   ShieldCheck, AlertTriangle, BarChart3, Users, Settings, Store,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
-import ModuleCard from "@/components/ui/ModuleCard";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMyApprovals } from "@/hooks/useApprovals";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
-const moduleGroups = [
+type HomeModule = {
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  href: string;
+};
+
+type HomeModuleGroup = {
+  title: string;
+  modules: HomeModule[];
+};
+
+const moduleGroups: HomeModuleGroup[] = [
   {
     title: "Administration",
-    fullWidth: true,
     modules: [
       { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
     ],
   },
   {
     title: "Compliance & Safety",
-    fullWidth: true,
     modules: [
       { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
       { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
@@ -31,21 +41,18 @@ const moduleGroups = [
   },
   {
     title: "Finance",
-    fullWidth: true,
     modules: [
       { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
     ],
   },
   {
     title: "HR Management",
-    fullWidth: true,
     modules: [
       { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr-management" },    
     ],
   },
   {
     title: "Operations",
-    fullWidth: true,
     modules: [
       { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
       { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
@@ -53,7 +60,6 @@ const moduleGroups = [
   },
   {
     title: "Supply Chain",
-    fullWidth: true,
     modules: [
       { name: "Assets", description: "Register, track & request company assets", icon: Package, href: "/assets" },
       { name: "Purchase Requests", description: "Raise & manage purchase requisitions", icon: ShoppingCart, href: "/procurement" },
@@ -82,28 +88,25 @@ export default function HomePage() {
         </h2>
       </div>
 
-      <div className="grid gap-x-4 gap-y-8 mt-8 xl:grid-cols-2">
+      <div className="mt-5 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {moduleGroups.map((group) => (
           <section
             key={group.title}
-            className={cn(group.fullWidth && "xl:col-span-2")}
+            className="rounded-xl border border-brand-border bg-white p-3"
           >
-            <h3 className="text-2xl font-semibold text-brand-text-primary">
-              {group.title}
-            </h3>
-            <div
-              className={cn(
-                "grid gap-3 md:gap-4 mt-4",
-                group.fullWidth ? "sm:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2"
-              )}
-            >
+            <div className="mb-2 flex items-center justify-between gap-3 border-b border-brand-border pb-2">
+              <h3 className="text-sm font-semibold text-brand-text-primary">
+                {group.title}
+              </h3>
+              <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-brand-text-secondary">
+                {group.modules.length} {group.modules.length === 1 ? "process" : "processes"}
+              </span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {group.modules.map((mod) => (
-                <ModuleCard
+                <ProcessLink
                   key={mod.href}
-                  name={mod.name}
-                  description={mod.description}
-                  icon={mod.icon}
-                  href={mod.href}
+                  module={mod}
                   disabled={!canAccessModule(mod.href, user?.role)}
                 />
               ))}
@@ -148,5 +151,40 @@ export default function HomePage() {
         </div>
       )}
     </AppLayout>
+  );
+}
+
+function ProcessLink({
+  module,
+  disabled,
+}: {
+  module: HomeModule;
+  disabled: boolean;
+}) {
+  const Icon = module.icon;
+
+  return (
+    <Link
+      href={disabled ? "#" : module.href}
+      aria-disabled={disabled}
+      className={cn(
+        "group flex min-h-[58px] items-center gap-3 rounded-lg px-3 py-2 transition-all",
+        disabled
+          ? "pointer-events-none opacity-50"
+          : "hover:border-brand-purple hover:bg-white hover:shadow-sm"
+      )}
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-brand-purple ring-1 ring-brand-border">
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-brand-text-primary">
+          {module.name}
+        </span>
+        <span className="mt-0.5 line-clamp-1 text-xs text-brand-text-secondary">
+          {module.description}
+        </span>
+      </span>
+    </Link>
   );
 }

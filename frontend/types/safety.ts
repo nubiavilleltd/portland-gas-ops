@@ -21,7 +21,9 @@ export type WorkAuthorizationStatus =
   | "draft"
   | "submitted"
   | "pending_approval"
-  | "approved";
+  | "approved"
+  | "returned"
+  | "denied";
 
 export type WorkAuthorizationRole = "requester" | "supervisor" | "hse";
 
@@ -116,7 +118,9 @@ export type WorkCloseOutStatus =
   | "draft"
   | "submitted"
   | "pending_approval"
-  | "approved";
+  | "approved"
+  | "returned"
+  | "denied";
 
 export interface ApprovedWorkAuthorizationOption {
   id: string;

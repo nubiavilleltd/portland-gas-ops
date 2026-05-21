@@ -129,11 +129,11 @@ export default function WorkCompletionForm() {
               hint="Local selection only. No upload is performed."
             />
           </div>
-          <FormTextarea
+          {/* <FormTextarea
             label="Completion Notes"
             placeholder="Add optional completion notes"
             className="md:col-span-2"
-          />
+          /> */}
         </div>
       </FormSection>
 
@@ -143,7 +143,7 @@ export default function WorkCompletionForm() {
           <FormToggleGroup label="Work stayed within approved scope" required options={yesNoOptions} />
           <FormToggleGroup label="Required PPE and safety controls were maintained" required options={yesNoOptions} />
           <FormToggleGroup label="Unsafe condition was reported/addressed if noticed" required options={yesNoNaOptions} />
-          <FormTextarea label="Monitoring Comment" placeholder="Add optional monitoring comment" className="md:col-span-2" />
+          {/* <FormTextarea label="Monitoring Comment" placeholder="Add optional monitoring comment" className="md:col-span-2" /> */}
         </div>
       </FormSection>
 
