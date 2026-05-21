@@ -495,7 +495,7 @@ function CreateTripForm() {
             {...register("end_location")}
           />
 
-          <Controller
+          {/* <Controller
             control={control}
             name="scheduled_date"
             render={({ field }) => (
@@ -507,7 +507,13 @@ function CreateTripForm() {
                 error={errors.scheduled_date?.message}
               />
             )}
-          />
+          /> */}
+
+           <FormDatePicker
+                label="Scheduled Date"
+                required
+                {...register("scheduled_date")}
+              />
 
           <FormTextarea
             label="Notes"
