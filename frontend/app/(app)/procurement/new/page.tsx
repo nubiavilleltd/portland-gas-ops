@@ -58,7 +58,7 @@ type FormData = z.infer<typeof schema>;
 const categoryOptions = [
   { value: "consumables", label: "Consumables" },
   { value: "technical", label: "Technical" },
-  { value: "services", label: "Services" },
+  //{ value: "services", label: "Services" },
 ];
 
 const priorityOptions = [
@@ -202,11 +202,11 @@ export default function NewProcurementPage() {
                 {...register("priority")}
               />
             </div>
-            {watchedCategory && (
+            {/* {watchedCategory && (
               <p className="text-xs text-brand-text-secondary -mt-2">
                 Request title will be auto-generated: <span className="font-medium text-brand-text-primary">&ldquo;{capitalize(watchedCategory)} request&rdquo;</span>
               </p>
-            )}
+            )*/ }
             <div className="grid grid-cols-2 gap-4">
               <FormDatePicker label="Required By" {...register("required_by")} />
             </div>
