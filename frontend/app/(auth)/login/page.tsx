@@ -87,10 +87,6 @@ function LoginContent() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-brand-text-secondary mt-5">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-brand-purple font-medium hover:underline">Create one</Link>
-          </p>
         </div>
 
         <p className="text-center text-xs text-brand-text-secondary mt-6">
