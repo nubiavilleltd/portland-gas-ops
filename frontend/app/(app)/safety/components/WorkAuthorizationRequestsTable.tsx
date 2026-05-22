@@ -39,6 +39,7 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "priority",
     label: "Priority",
+    getSearchValue: (row) => row.requestDetails.priority,
     render: (_, row) => <PriorityPill priority={row.requestDetails.priority} />,
   },
   {
@@ -96,6 +97,7 @@ export default function WorkAuthorizationRequestsTable() {
     <DataTable
       columns={columns}
       data={requests}
+      showActions={true}
       rowHref={(request) => `/safety/work-authorization/${request.id}`}
       emptyMessage="No work authorization requests found."
     />

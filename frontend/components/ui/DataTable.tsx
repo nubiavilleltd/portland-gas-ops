@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import ApprovalBadge from "./ApprovalBadge";
 import Button from "./Button";
-import SelectInput from "@/components/forms/SelectInput";
 import { cn } from "@/lib/utils";
 import type { ApprovalStatus } from "@/types";
 
@@ -44,6 +43,26 @@ export interface DataTableSearchField<T> {
   getValue?: (row: T) => unknown;
 }
 
+export interface DataTableAction<T> {
+  key: string;
+  label: React.ReactNode;
+  ariaLabel?: string | ((row: T) => string);
+  icon?: React.ReactNode | ((row: T) => React.ReactNode);
+  href?: (row: T) => string;
+  onClick?: (row: T, event: React.MouseEvent<HTMLButtonElement>) => void;
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
+  className?: string | ((row: T) => string);
+  labelClassName?: string;
+  hideLabelOnMobile?: boolean;
+  disabled?: boolean | ((row: T) => boolean);
+  loading?: boolean | ((row: T) => boolean);
+  loadingText?: string;
+  hidden?: boolean | ((row: T) => boolean);
+  title?: string | ((row: T) => string);
+  render?: (row: T) => React.ReactNode;
+}
+
 interface Props<T extends { id: string }> {
   columns: Column<T>[];
   data: T[];
@@ -67,7 +86,12 @@ interface Props<T extends { id: string }> {
   pageSize?: number;
   pageSizeOptions?: number[];
   showActions?: boolean;
+  actions?: DataTableAction<T>[];
   actionLabel?: string;
+  actionsLabel?: string;
+  actionsHeaderClassName?: string;
+  actionsCellClassName?: string | ((row: T) => string);
+  actionsContainerClassName?: string | ((row: T) => string);
   onNewRequest?: () => void;
   newRequestLabel?: string;
   toolbarActions?: React.ReactNode;
@@ -81,19 +105,6 @@ type SortDir = "asc" | "desc";
 
 const DEFAULT_PAGE_SIZE = 10;
 const ACTIONS_KEY = "__actions__";
-
-const defaultStatusOptions = [
-  { value: "", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "submitted", label: "Submitted" },
-  { value: "pending", label: "Pending" },
-  { value: "pending_approval", label: "Pending Approval" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "approved", label: "Approved" },
-  { value: "returned", label: "Returned" },
-  { value: "denied", label: "Denied" },
-  { value: "rejected", label: "Rejected" },
-];
 
 function isApprovalStatus(value: unknown): value is ApprovalStatus {
   return (
@@ -129,30 +140,50 @@ function normalizeSortValue(value: unknown) {
   return String(value ?? "").toLowerCase();
 }
 
+function getColumnSearchValue<T>(column: Column<T>, row: T) {
+  const rawValue = getNestedValue(row, String(column.key));
+
+  if (column.getSearchValue) {
+    return column.getSearchValue(row);
+  }
+
+  if (!column.render) {
+    return rawValue;
+  }
+
+  const renderedValue = column.render(rawValue, row);
+
+  if (
+    typeof renderedValue === "string" ||
+    typeof renderedValue === "number" ||
+    typeof renderedValue === "boolean"
+  ) {
+    return renderedValue;
+  }
+
+  return rawValue;
+}
+
 export default function DataTable<T extends { id: string }>({
   columns,
   data,
   rowHref,
   emptyMessage = "No records found.",
-  emptyDescription = "Try adjusting your search or filters.",
+  emptyDescription = "Try adjusting your search.",
   isLoading = false,
   searchable = true,
   searchPlaceholder = "Search...",
-  searchFields = [],
-  getSearchValues,
-  filters = [],
-  showStatusFilter,
-  statusFilterKey = "status",
-  statusFilterLabel = "Status",
-  statusFilterPlaceholder = "All statuses",
-  statusFilterOptions = defaultStatusOptions,
-  getStatusFilterValue,
   sortable = true,
   paginated = true,
   pageSize = DEFAULT_PAGE_SIZE,
   pageSizeOptions = [10, 25, 50, 100],
-  showActions,
+  showActions = false,
+  actions = [],
   actionLabel = "View",
+  actionsLabel = "Actions",
+  actionsHeaderClassName,
+  actionsCellClassName,
+  actionsContainerClassName,
   onNewRequest,
   newRequestLabel = "New Request",
   toolbarActions,
@@ -163,46 +194,28 @@ export default function DataTable<T extends { id: string }>({
 }: Props<T>) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
-  const normalizedStatusFilterKey = String(statusFilterKey);
-  const shouldShowStatusFilter =
-    showStatusFilter ??
-    data.some((row) =>
-      getStatusFilterValue
-        ? getStatusFilterValue(row) !== undefined
-        : getValue(row, normalizedStatusFilterKey) !== undefined,
-    );
-  const activeFilters = useMemo(
+  const shouldShowToolbar = searchable || onNewRequest || toolbarActions;
+  const defaultViewAction = useMemo<DataTableAction<T>[]>(
     () =>
-      shouldShowStatusFilter
+      showActions && rowHref && actions.length === 0
         ? [
             {
-              key: normalizedStatusFilterKey,
-              label: statusFilterLabel,
-              placeholder: statusFilterPlaceholder,
-              options: statusFilterOptions,
-              getValue: getStatusFilterValue,
+              key: "view",
+              label: actionLabel,
+              icon: <Eye size={14} />,
+              href: rowHref,
+              variant: "secondary",
             },
-            ...filters,
           ]
-        : filters,
-    [
-      filters,
-      getStatusFilterValue,
-      normalizedStatusFilterKey,
-      shouldShowStatusFilter,
-      statusFilterLabel,
-      statusFilterOptions,
-      statusFilterPlaceholder,
-    ],
+        : [],
+    [actionLabel, actions.length, rowHref, showActions],
   );
-  const shouldShowToolbar =
-    searchable || activeFilters.length > 0 || onNewRequest || toolbarActions;
-  const shouldShowActions = showActions ?? Boolean(rowHref);
+  const tableActions = actions.length > 0 ? actions : defaultViewAction;
+  const shouldShowActions = showActions || tableActions.length > 0;
 
   function resetToFirstPage() {
     setPage(1);
@@ -222,11 +235,6 @@ export default function DataTable<T extends { id: string }>({
     resetToFirstPage();
   }
 
-  function handleFilterChange(key: string, value: string) {
-    setFilterValues((current) => ({ ...current, [key]: value }));
-    resetToFirstPage();
-  }
-
   const visibleColumns = useMemo(
     () =>
       shouldShowActions
@@ -234,67 +242,32 @@ export default function DataTable<T extends { id: string }>({
             ...columns,
             {
               key: ACTIONS_KEY,
-              label: "Actions",
+              label: actionsLabel,
               sortable: false,
               searchable: false,
+              headerClassName: actionsHeaderClassName,
             } satisfies Column<T>,
           ]
         : columns,
-    [columns, shouldShowActions],
+    [actionsHeaderClassName, actionsLabel, columns, shouldShowActions],
   );
 
   const filteredData = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return data.filter((row) => {
-      const defaultSearchValues = [
-        getValue(row, normalizedStatusFilterKey),
-        getValue(row, "status"),
-        getValue(row, "reference"),
-        getValue(row, "ref"),
-        getValue(row, "reference_id"),
-        getValue(row, "id"),
-        getValue(row, "requestTitle"),
-        getValue(row, "title"),
-        getNestedValue(row, "requestDetails.title"),
-        getValue(row, "requesterName"),
-        getNestedValue(row, "requester.name"),
-        getNestedValue(row, "reporter.name"),
-        getValue(row, "requester"),
-      ];
-      const propSearchValues = searchFields.map((field) =>
-        field.getValue ? field.getValue(row) : field.key ? getNestedValue(row, String(field.key)) : "",
-      );
-      const customSearchValues = getSearchValues?.(row) ?? [];
-      const searchableValues = [
-        ...defaultSearchValues,
-        ...propSearchValues,
-        ...customSearchValues,
-      ];
-      const matchesSearch =
+      const visibleColumnSearchValues = columns
+        .filter((column) => column.searchable !== false)
+        .map((column) => getColumnSearchValue(column, row));
+
+      return (
         !query ||
-        searchableValues.some((value) =>
+        visibleColumnSearchValues.some((value) =>
           String(value ?? "").toLowerCase().includes(query),
-        );
-
-      if (!matchesSearch) return false;
-
-      return activeFilters.every((filter) => {
-        const selected = filterValues[filter.key];
-        if (!selected) return true;
-        const value = filter.getValue?.(row) ?? String(getValue(row, filter.key) ?? "");
-        return value === selected;
-      });
+        )
+      );
     });
-  }, [
-    activeFilters,
-    data,
-    filterValues,
-    getSearchValues,
-    normalizedStatusFilterKey,
-    search,
-    searchFields,
-  ]);
+  }, [columns, data, search]);
 
   const sortedData = useMemo(() => {
     if (!sortKey) return filteredData;
@@ -346,17 +319,6 @@ export default function DataTable<T extends { id: string }>({
               </div>
             ) : null}
 
-            {activeFilters.map((filter) => (
-              <div key={filter.key} className="w-48 shrink-0">
-                <SelectInput
-                  placeholder={filter.placeholder ?? "All"}
-                  sortOptions={false}
-                  value={filterValues[filter.key] ?? ""}
-                  onValueChange={(v) => handleFilterChange(filter.key, v)}
-                  options={filter.options.filter((o) => o.value !== "")}
-                />
-              </div>
-            ))}
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -445,18 +407,30 @@ export default function DataTable<T extends { id: string }>({
                         return (
                           <td
                             key={ACTIONS_KEY}
-                            className="px-4 py-2.5"
+                            className={cn(
+                              "px-4 py-2.5",
+                              typeof actionsCellClassName === "function"
+                                ? actionsCellClassName(row)
+                                : actionsCellClassName,
+                            )}
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              leftIcon={<Eye size={14} />}
-                              onClick={() => rowHref && router.push(rowHref(row))}
-                              className="opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100"
+                            <div
+                              className={cn(
+                                "flex flex-wrap items-center gap-2",
+                                typeof actionsContainerClassName === "function"
+                                  ? actionsContainerClassName(row)
+                                  : actionsContainerClassName,
+                              )}
                             >
-                              <span className="hidden sm:inline">{actionLabel}</span>
-                            </Button>
+                              {tableActions.map((action) => (
+                                <DataTableActionButton
+                                  key={action.key}
+                                  action={action}
+                                  row={row}
+                                />
+                              ))}
+                            </div>
                           </td>
                         );
                       }
@@ -502,6 +476,72 @@ export default function DataTable<T extends { id: string }>({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function resolveActionValue<T, V>(
+  value: V | ((row: T) => V) | undefined,
+  row: T,
+) {
+  return typeof value === "function" ? (value as (row: T) => V)(row) : value;
+}
+
+function DataTableActionButton<T extends { id: string }>({
+  action,
+  row,
+}: {
+  action: DataTableAction<T>;
+  row: T;
+}) {
+  const hidden = resolveActionValue(action.hidden, row);
+  if (hidden) return null;
+
+  if (action.render) {
+    return <>{action.render(row)}</>;
+  }
+
+  const href = action.href?.(row);
+  const icon = resolveActionValue(action.icon, row);
+  const disabled = resolveActionValue(action.disabled, row) ?? false;
+  const loading = resolveActionValue(action.loading, row) ?? false;
+  const className = resolveActionValue(action.className, row);
+  const title = resolveActionValue(action.title, row);
+  const ariaLabel = resolveActionValue(action.ariaLabel, row);
+  const hideLabelOnMobile = action.hideLabelOnMobile ?? true;
+  const label =
+    hideLabelOnMobile ? (
+      <span className={cn("hidden sm:inline", action.labelClassName)}>
+        {action.label}
+      </span>
+    ) : (
+      <span className={action.labelClassName}>{action.label}</span>
+    );
+
+  return (
+    <Button
+      href={href}
+      size={action.size ?? "sm"}
+      variant={action.variant ?? "secondary"}
+      leftIcon={icon}
+      disabled={disabled}
+      loading={loading}
+      loadingText={action.loadingText}
+      aria-label={
+        ariaLabel ??
+        (typeof action.label === "string" ? action.label : undefined)
+      }
+      title={title}
+      onClick={
+        href
+          ? undefined
+          : (event) => {
+              action.onClick?.(row, event);
+            }
+      }
+      className={className}
+    >
+      {label}
+    </Button>
   );
 }
 
