@@ -43,6 +43,26 @@ export interface DataTableSearchField<T> {
   getValue?: (row: T) => unknown;
 }
 
+export interface DataTableAction<T> {
+  key: string;
+  label: React.ReactNode;
+  ariaLabel?: string | ((row: T) => string);
+  icon?: React.ReactNode | ((row: T) => React.ReactNode);
+  href?: (row: T) => string;
+  onClick?: (row: T, event: React.MouseEvent<HTMLButtonElement>) => void;
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
+  className?: string | ((row: T) => string);
+  labelClassName?: string;
+  hideLabelOnMobile?: boolean;
+  disabled?: boolean | ((row: T) => boolean);
+  loading?: boolean | ((row: T) => boolean);
+  loadingText?: string;
+  hidden?: boolean | ((row: T) => boolean);
+  title?: string | ((row: T) => string);
+  render?: (row: T) => React.ReactNode;
+}
+
 interface Props<T extends { id: string }> {
   columns: Column<T>[];
   data: T[];
@@ -66,7 +86,12 @@ interface Props<T extends { id: string }> {
   pageSize?: number;
   pageSizeOptions?: number[];
   showActions?: boolean;
+  actions?: DataTableAction<T>[];
   actionLabel?: string;
+  actionsLabel?: string;
+  actionsHeaderClassName?: string;
+  actionsCellClassName?: string | ((row: T) => string);
+  actionsContainerClassName?: string | ((row: T) => string);
   onNewRequest?: () => void;
   newRequestLabel?: string;
   toolbarActions?: React.ReactNode;
@@ -150,8 +175,13 @@ export default function DataTable<T extends { id: string }>({
   paginated = true,
   pageSize = DEFAULT_PAGE_SIZE,
   pageSizeOptions = [10, 25, 50, 100],
-  showActions,
+  showActions = false,
+  actions = [],
   actionLabel = "View",
+  actionsLabel = "Actions",
+  actionsHeaderClassName,
+  actionsCellClassName,
+  actionsContainerClassName,
   onNewRequest,
   newRequestLabel = "New Request",
   toolbarActions,
@@ -201,7 +231,23 @@ export default function DataTable<T extends { id: string }>({
   );
   const shouldShowToolbar =
     searchable || activeFilters.length > 0 || onNewRequest || toolbarActions;
-  const shouldShowActions = showActions ?? Boolean(rowHref);
+  const defaultViewAction = useMemo<DataTableAction<T>[]>(
+    () =>
+      showActions && rowHref && actions.length === 0
+        ? [
+            {
+              key: "view",
+              label: actionLabel,
+              icon: <Eye size={14} />,
+              href: rowHref,
+              variant: "secondary",
+            },
+          ]
+        : [],
+    [actionLabel, actions.length, rowHref, showActions],
+  );
+  const tableActions = actions.length > 0 ? actions : defaultViewAction;
+  const shouldShowActions = showActions || tableActions.length > 0;
 
   function resetToFirstPage() {
     setPage(1);
@@ -233,13 +279,14 @@ export default function DataTable<T extends { id: string }>({
             ...columns,
             {
               key: ACTIONS_KEY,
-              label: "Actions",
+              label: actionsLabel,
               sortable: false,
               searchable: false,
+              headerClassName: actionsHeaderClassName,
             } satisfies Column<T>,
           ]
         : columns,
-    [columns, shouldShowActions],
+    [actionsHeaderClassName, actionsLabel, columns, shouldShowActions],
   );
 
   const filteredData = useMemo(() => {
@@ -455,18 +502,30 @@ export default function DataTable<T extends { id: string }>({
                         return (
                           <td
                             key={ACTIONS_KEY}
-                            className="px-4 py-2.5"
+                            className={cn(
+                              "px-4 py-2.5",
+                              typeof actionsCellClassName === "function"
+                                ? actionsCellClassName(row)
+                                : actionsCellClassName,
+                            )}
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              leftIcon={<Eye size={14} />}
-                              onClick={() => rowHref && router.push(rowHref(row))}
-                              className="opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100"
+                            <div
+                              className={cn(
+                                "flex flex-wrap items-center gap-2",
+                                typeof actionsContainerClassName === "function"
+                                  ? actionsContainerClassName(row)
+                                  : actionsContainerClassName,
+                              )}
                             >
-                              <span className="hidden sm:inline">{actionLabel}</span>
-                            </Button>
+                              {tableActions.map((action) => (
+                                <DataTableActionButton
+                                  key={action.key}
+                                  action={action}
+                                  row={row}
+                                />
+                              ))}
+                            </div>
                           </td>
                         );
                       }
@@ -512,6 +571,72 @@ export default function DataTable<T extends { id: string }>({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function resolveActionValue<T, V>(
+  value: V | ((row: T) => V) | undefined,
+  row: T,
+) {
+  return typeof value === "function" ? (value as (row: T) => V)(row) : value;
+}
+
+function DataTableActionButton<T extends { id: string }>({
+  action,
+  row,
+}: {
+  action: DataTableAction<T>;
+  row: T;
+}) {
+  const hidden = resolveActionValue(action.hidden, row);
+  if (hidden) return null;
+
+  if (action.render) {
+    return <>{action.render(row)}</>;
+  }
+
+  const href = action.href?.(row);
+  const icon = resolveActionValue(action.icon, row);
+  const disabled = resolveActionValue(action.disabled, row) ?? false;
+  const loading = resolveActionValue(action.loading, row) ?? false;
+  const className = resolveActionValue(action.className, row);
+  const title = resolveActionValue(action.title, row);
+  const ariaLabel = resolveActionValue(action.ariaLabel, row);
+  const hideLabelOnMobile = action.hideLabelOnMobile ?? true;
+  const label =
+    hideLabelOnMobile ? (
+      <span className={cn("hidden sm:inline", action.labelClassName)}>
+        {action.label}
+      </span>
+    ) : (
+      <span className={action.labelClassName}>{action.label}</span>
+    );
+
+  return (
+    <Button
+      href={href}
+      size={action.size ?? "sm"}
+      variant={action.variant ?? "secondary"}
+      leftIcon={icon}
+      disabled={disabled}
+      loading={loading}
+      loadingText={action.loadingText}
+      aria-label={
+        ariaLabel ??
+        (typeof action.label === "string" ? action.label : undefined)
+      }
+      title={title}
+      onClick={
+        href
+          ? undefined
+          : (event) => {
+              action.onClick?.(row, event);
+            }
+      }
+      className={className}
+    >
+      {label}
+    </Button>
   );
 }
 
