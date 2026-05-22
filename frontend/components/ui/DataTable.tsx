@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import ApprovalBadge from "./ApprovalBadge";
 import Button from "./Button";
+import SelectInput from "@/components/forms/SelectInput";
 import { cn } from "@/lib/utils";
 import type { ApprovalStatus } from "@/types";
 
@@ -346,24 +347,13 @@ export default function DataTable<T extends { id: string }>({
             ) : null}
 
             {activeFilters.map((filter) => (
-              <div key={filter.key} className="relative shrink-0">
-                {filter.label ? (
-                  <span className="sr-only">{filter.label}</span>
-                ) : null}
-                <select
+              <div key={filter.key} className="w-48 shrink-0">
+                <SelectInput
+                  placeholder={filter.placeholder ?? "All"}
+                  sortOptions={false}
                   value={filterValues[filter.key] ?? ""}
-                  onChange={(event) => handleFilterChange(filter.key, event.target.value)}
-                  className="h-10 min-w-40 appearance-none rounded-lg border border-brand-border bg-white pl-3 pr-8 text-sm text-brand-text-primary transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                >
-                  {filter.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-text-secondary"
+                  onValueChange={(v) => handleFilterChange(filter.key, v)}
+                  options={filter.options.filter((o) => o.value !== "")}
                 />
               </div>
             ))}

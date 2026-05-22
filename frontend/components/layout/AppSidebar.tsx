@@ -26,7 +26,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Home", href: "/home", icon: Home },
   { label: "My Approvals", href: "/approvals", icon: CheckCircle },
-  { label: "My Requests", href: "/my-requests", icon: ClipboardList },
+  { label: "My Requests", href: "/requests", icon: ClipboardList },
   // Drafts are hidden for now, but kept here so the nav item can return later.
   // { label: "Drafts", href: "/drafts", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },

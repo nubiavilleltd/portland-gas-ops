@@ -162,13 +162,11 @@ export default function ProcurementPage() {
           description={activeStatus ? `No requests with status "${activeStatus}".` : "Raise your first request to get started."}
         />
       ) : (
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <DataTable
-            columns={columns}
-            data={data}
-            rowHref={(row) => `/procurement/${row.id}`}
-          />
-        </div>
+        <DataTable
+          columns={columns}
+          data={data}
+          rowHref={(row) => `/procurement/${row.id}`}
+        />
       )}
     </AppLayout>
   );
