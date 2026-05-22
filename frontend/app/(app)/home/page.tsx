@@ -77,6 +77,7 @@ const moduleGroups: HomeModuleGroup[] = [
     modules: [
       { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
       { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
+      { name: "Work Initiation", description: "Define, review, and assign operational work", icon: ClipboardCheck, href: "/work-initiation" },
     ],
   },
   {

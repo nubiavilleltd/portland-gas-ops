@@ -102,11 +102,13 @@ function isApprovalStatus(value: unknown): value is ApprovalStatus {
       "pending",
       "pending_approval",
       "submitted",
+      "assigned",
       "in_progress",
       "approved",
       "rejected",
       "returned",
       "denied",
+      "unauthorized",
     ].includes(value)
   );
 }

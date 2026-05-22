@@ -3,6 +3,7 @@ import type {
   WorkAuthorizationHseInspection,
   WorkAuthorizationRequest,
 } from "@/types/safety";
+import { assignedWorkInitiationOptions } from "./work-initiation";
 
 const requester = {
   name: "Daniel Okoro",
@@ -23,7 +24,7 @@ const approvedHseInspection: WorkAuthorizationHseInspection = {
   emergencyEquipmentAvailable: "Pass",
   gasPressureCheckCompleted: "Pass",
   ppeAndSafetyKitsAvailable: "Pass",
-  toolsSafe: "Pass",
+  safetyControlsInPlace: "Pass",
   inspectionDateTime: "2026-05-18 11:00 AM",
   comments: "Area inspected. Fire extinguisher and PPE confirmed.",
   result: "Passed",
@@ -35,6 +36,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     id: "WA-DRAFT-001",
     status: "draft",
     requester,
+    workInitiation: assignedWorkInitiationOptions[0],
     requestDetails: {
       title: "Draft CNG vehicle inspection",
       location: "Conversion Bay 1",
@@ -61,6 +63,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       heatOrSparks: false,
       electricalIsolation: false,
       liftingEquipment: false,
+      ppeAvailable: true,
       additionalSafetyNote: "",
     },
     attachments: [{ name: "vehicle-before-inspection.jpg", type: "image" }],
@@ -73,6 +76,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     id: "WA-SUB-001",
     status: "submitted",
     requester,
+    workInitiation: assignedWorkInitiationOptions[0],
     requestDetails: {
       title: "CNG cylinder mounting work",
       location: "Conversion Bay 2",
@@ -99,6 +103,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       heatOrSparks: false,
       electricalIsolation: false,
       liftingEquipment: true,
+      ppeAvailable: true,
       additionalSafetyNote: "Cylinder handling required.",
     },
     attachments: [
@@ -122,6 +127,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     id: "WA-PEND-001",
     status: "pending_approval",
     requester,
+    workInitiation: assignedWorkInitiationOptions[1],
     requestDetails: {
       title: "Gas system leak check",
       location: "Inspection Bay",
@@ -148,6 +154,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       heatOrSparks: false,
       electricalIsolation: false,
       liftingEquipment: false,
+      ppeAvailable: true,
       additionalSafetyNote: "Check ventilation before leak test.",
     },
     attachments: [{ name: "leak-check-area.jpg", type: "image" }],
@@ -175,6 +182,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     id: "WA-APP-001",
     status: "approved",
     requester,
+    workInitiation: assignedWorkInitiationOptions[0],
     requestDetails: {
       title: "Hot work on cylinder mounting bracket",
       location: "Maintenance Workshop",
@@ -201,6 +209,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       heatOrSparks: true,
       electricalIsolation: true,
       liftingEquipment: false,
+      ppeAvailable: true,
       additionalSafetyNote: "Cylinder must not be pressurized before hot work.",
     },
     attachments: [

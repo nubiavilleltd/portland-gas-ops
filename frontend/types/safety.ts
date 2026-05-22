@@ -23,9 +23,19 @@ export type WorkAuthorizationStatus =
   | "pending_approval"
   | "approved"
   | "returned"
-  | "denied";
+  | "denied"
+  | "unauthorized";
 
 export type WorkAuthorizationRole = "requester" | "supervisor" | "hse";
+export type WorkInitiationRole = "requester" | "operations_reviewer" | "supervisor";
+
+export type WorkInitiationStatus =
+  | "draft"
+  | "submitted"
+  | "returned"
+  | "approved"
+  | "denied"
+  | "assigned";
 
 export type WorkAuthorizationDecision = "Approve" | "Return" | "Deny";
 export type WorkAuthorizationInspectionCheck = "Pass" | "Fail" | "N/A";
@@ -35,6 +45,68 @@ export interface WorkAuthorizationRequester {
   department: string;
   role: string;
   requestDate: string;
+}
+
+export interface WorkInitiationAssetDetails {
+  assetInvolved: boolean;
+  assetType: string;
+  assetReference: string;
+  vehiclePlateNumber: string;
+  vin: string;
+  clientCompany: string;
+}
+
+export interface WorkInitiationAssignment {
+  assignedDepartment: string;
+  assignedSupervisor: string;
+  assignedWorkers: string[];
+  contractorsNeeded: boolean;
+  selectedContractors: string[];
+  plannedStartDateTime: string;
+  plannedEndDateTime: string;
+  materialsRequired: string;
+}
+
+export interface AssignedWorkInitiationSummary {
+  id: string;
+  title: string;
+  status: "assigned";
+  workType: string;
+  priority: "Low" | "Medium" | "High" | "Critical";
+  location: string;
+  exactWorkArea: string;
+  workDescription: string;
+  assignedSupervisor: string;
+  assignedWorkers: string[];
+  contractorsNeeded: boolean;
+  selectedContractors: string[];
+  plannedStartDateTime: string;
+  plannedEndDateTime: string;
+}
+
+export interface WorkInitiationReview {
+  decision: WorkAuthorizationDecision;
+  reviewer: string;
+  dateTime: string;
+  comment: string;
+}
+
+export interface WorkInitiationRequest {
+  id: string;
+  status: WorkInitiationStatus;
+  requester: WorkAuthorizationRequester;
+  title: string;
+  workDescription: string;
+  reasonForWork: string;
+  workType: string;
+  priority: "Low" | "Medium" | "High" | "Critical";
+  location: string;
+  exactWorkArea: string;
+  attachments: WorkAuthorizationAttachment[];
+  assetDetails: WorkInitiationAssetDetails;
+  assignment: WorkInitiationAssignment;
+  operationalReview: WorkInitiationReview | null;
+  auditTrail: WorkAuthorizationAuditTrailItem[];
 }
 
 export interface WorkAuthorizationRequestDetails {
@@ -65,6 +137,7 @@ export interface WorkAuthorizationRiskIndicators {
   heatOrSparks: boolean;
   electricalIsolation: boolean;
   liftingEquipment: boolean;
+  ppeAvailable: boolean;
   additionalSafetyNote: string;
 }
 
@@ -85,7 +158,7 @@ export interface WorkAuthorizationHseInspection {
   emergencyEquipmentAvailable: WorkAuthorizationInspectionCheck;
   gasPressureCheckCompleted: WorkAuthorizationInspectionCheck;
   ppeAndSafetyKitsAvailable: WorkAuthorizationInspectionCheck;
-  toolsSafe: WorkAuthorizationInspectionCheck;
+  safetyControlsInPlace: WorkAuthorizationInspectionCheck;
   inspectionDateTime: string;
   comments: string;
   result: "Passed" | "Returned" | "Failed";
@@ -104,6 +177,7 @@ export interface WorkAuthorizationRequest {
   id: string;
   status: WorkAuthorizationStatus;
   requester: WorkAuthorizationRequester;
+  workInitiation: AssignedWorkInitiationSummary;
   requestDetails: WorkAuthorizationRequestDetails;
   workDetails: WorkAuthorizationWorkDetails;
   riskIndicators: WorkAuthorizationRiskIndicators;

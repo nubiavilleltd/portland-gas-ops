@@ -7,7 +7,6 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
-import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormToggleGroup from "@/components/forms/FormToggleGroup";
@@ -25,14 +24,6 @@ import type {
 const yesNoOptions = [
   { value: "Yes", label: "Yes" },
   { value: "No", label: "No" },
-];
-
-const riskIndicatorOptions = [
-  { value: "gasInvolved", label: "Gas/CNG/LNG involved" },
-  { value: "pressurizedSystem", label: "Pressurized system involved" },
-  { value: "heatOrSparks", label: "Heat, sparks, welding, cutting, or grinding" },
-  { value: "electricalIsolation", label: "Electrical isolation required" },
-  { value: "liftingEquipment", label: "Lifting/heavy equipment involved" },
 ];
 
 const decisionOptions = [
@@ -64,7 +55,7 @@ type HseInspectionCheckState = Pick<
   | "emergencyEquipmentAvailable"
   | "gasPressureCheckCompleted"
   | "ppeAndSafetyKitsAvailable"
-  | "toolsSafe"
+  | "safetyControlsInPlace"
 >;
 type InspectionCheckValue =
   HseInspectionCheckState[keyof HseInspectionCheckState];
@@ -81,7 +72,7 @@ const initialHseInspectionChecks: EditableHseInspectionCheckState = {
   emergencyEquipmentAvailable: "",
   gasPressureCheckCompleted: "",
   ppeAndSafetyKitsAvailable: "",
-  toolsSafe: "",
+  safetyControlsInPlace: "",
 };
 
 function toInspectionCheckValue(
@@ -139,21 +130,23 @@ export default function WorkAuthorizationDetailsView({
     const isApproved = request?.status === "approved";
     const isReturned = request?.status === "returned";
     const isDenied = request?.status === "denied";
+    const isUnauthorized = request?.status === "unauthorized";
 
     return {
       canEditDraft: currentRole === "requester" && (isDraft || isReturned),
       canSupervisorApprove: currentRole === "supervisor" && isSubmitted,
       canHseInspect: currentRole === "hse" && isPendingApproval,
       showSupervisorApproval: Boolean(
-        isPendingApproval || isApproved || isReturned || isDenied,
+        isPendingApproval || isApproved || isReturned || isDenied || isUnauthorized,
       ),
       showHseSection: Boolean(
         (currentRole === "hse" && isPendingApproval) ||
           isApproved ||
           isReturned ||
-          isDenied,
+          isDenied ||
+          isUnauthorized,
       ),
-      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
+      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied || isUnauthorized),
     };
   }, [currentRole, request?.status]);
 
@@ -264,7 +257,7 @@ export default function WorkAuthorizationDetailsView({
       ppeAndSafetyKitsAvailable: toInspectionCheckValue(
         hseInspectionChecks.ppeAndSafetyKitsAvailable,
       ),
-      toolsSafe: toInspectionCheckValue(hseInspectionChecks.toolsSafe),
+      safetyControlsInPlace: toInspectionCheckValue(hseInspectionChecks.safetyControlsInPlace),
       inspectionDateTime: "2026-05-18 11:00 AM",
       comments: hseComment || "Area inspected and cleared for work.",
       result:
@@ -310,7 +303,7 @@ export default function WorkAuthorizationDetailsView({
                 ? "approved"
                 : decision === "Return"
                   ? "returned"
-                  : "denied",
+                  : "unauthorized",
             hseInspection: inspection,
             hseApproval: approval,
           }
@@ -365,14 +358,7 @@ export default function WorkAuthorizationDetailsView({
       <StatusNote request={request} currentRole={currentRole} />
 
       <RequesterDetailsSection request={request} />
-      <RequestDetailsSection
-        request={request}
-        editable={permissions.canEditDraft}
-      />
-      <WorkDetailsSection
-        request={request}
-        editable={permissions.canEditDraft}
-      />
+      <AssignedWorkSummarySection request={request} />
       <RiskIndicatorsSection
         request={request}
         editable={permissions.canEditDraft}
@@ -481,109 +467,42 @@ function RequesterDetailsSection({
   );
 }
 
-function RequestDetailsSection({
+function AssignedWorkSummarySection({
   request,
-  editable,
 }: {
   request: WorkAuthorizationRequest;
-  editable: boolean;
 }) {
+  const work = request.workInitiation;
   return (
-    <FormSection title="Request Details">
+    <FormSection title="Assigned Work Summary">
       <div className="grid gap-4 md:grid-cols-2">
+        <FormInput label="Work Initiation Reference" value={work.id} disabled />
         <FormInput
-          label="Request Title"
-          defaultValue={request.requestDetails.title}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Work Location"
-          defaultValue={request.requestDetails.location}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Expected Start Date/Time"
-          defaultValue={request.requestDetails.expectedStartDateTime}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Expected End Date/Time"
-          defaultValue={request.requestDetails.expectedEndDateTime}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Supervisor"
-          defaultValue={request.requestDetails.supervisor}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Priority"
-          defaultValue={request.requestDetails.priority}
-          disabled={!editable}
-        />
-      </div>
-    </FormSection>
-  );
-}
-
-function WorkDetailsSection({
-  request,
-  editable,
-}: {
-  request: WorkAuthorizationRequest;
-  editable: boolean;
-}) {
-  return (
-    <FormSection title="Work Details">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput
-          label="Exact Work Area"
-          defaultValue={request.requestDetails.exactWorkArea}
-          disabled={!editable}
+          label="Work Title"
+          value={work.title}
+          disabled
         />
         <FormInput
           label="Type of Work"
-          defaultValue={request.workDetails.typeOfWork.join(", ")}
-          disabled={!editable}
+          value={work.workType}
+          disabled
         />
-        <FormTextarea
-          label="Work Description"
-          defaultValue={request.workDetails.description}
-          disabled={!editable}
-        />
-        {/* <FormTextarea label="Reason for Work" defaultValue={request.workDetails.reason} disabled={!editable} /> */}
+        <FormInput label="Priority" value={work.priority} disabled />
+        <FormInput label="Location" value={work.location} disabled />
+        <FormInput label="Exact Work Area" value={work.exactWorkArea} disabled />
+        <FormInput label="Assigned Supervisor" value={work.assignedSupervisor} disabled />
         <FormInput
-          label="Workers Involved"
-          defaultValue={request.workDetails.workersInvolved.join(", ")}
-          disabled={!editable}
+          label="Assigned Workers"
+          value={work.assignedWorkers.join(", ")}
+          disabled
         />
-        <FormToggleGroup
-          label="Contractor Required?"
-          value={request.workDetails.contractorRequired ? "Yes" : "No"}
-          options={yesNoOptions}
-          disabled={!editable}
-        />
-        {request.workDetails.contractorRequired ? (
-          <>
-            <FormInput
-              label="Contractor Name"
-              defaultValue={request.workDetails.contractorName}
-              disabled={!editable}
-            />
-            <FormInput
-              label="Contractor Contact Email"
-              type="email"
-              defaultValue={request.workDetails.contractorContactEmail}
-              disabled={!editable}
-            />
-          </>
+        <FormInput label="Contractors Needed" value={work.contractorsNeeded ? "Yes" : "No"} disabled />
+        {work.contractorsNeeded ? (
+          <FormInput label="Selected Contractors" value={work.selectedContractors.join(", ")} disabled />
         ) : null}
-        <FormInput
-          label="Tools/Equipment Required"
-          defaultValue={request.workDetails.toolsEquipment.join(", ")}
-          disabled={!editable}
-        />
-        {/* <FormTextarea label="Special Instructions" defaultValue={request.workDetails.specialInstructions} disabled={!editable} /> */}
+        <FormInput label="Planned Start Date/Time" value={work.plannedStartDateTime} disabled />
+        <FormInput label="Planned End Date/Time" value={work.plannedEndDateTime} disabled />
+        <FormTextarea label="Work Description" value={work.workDescription} disabled className="md:col-span-2" />
       </div>
     </FormSection>
   );
@@ -596,24 +515,15 @@ function RiskIndicatorsSection({
   request: WorkAuthorizationRequest;
   editable: boolean;
 }) {
-  const selectedRisks = riskIndicatorOptions
-    .filter((option) => {
-      const key = option.value as keyof typeof request.riskIndicators;
-      return request.riskIndicators[key] === true;
-    })
-    .map((option) => option.value);
-
   return (
     <FormSection title="Risk & Safety Indicators">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormMultiSelect
-          label="Risks Involved"
-          options={riskIndicatorOptions}
-          defaultValue={selectedRisks}
-          placeholder="Select all risks involved"
-          disabled={!editable}
-          className="md:col-span-2"
-        />
+        <ReadOnlyYesNo label="Is gas/CNG/LNG involved?" value={request.riskIndicators.gasInvolved} editable={editable} />
+        <ReadOnlyYesNo label="Is a pressurized system involved?" value={request.riskIndicators.pressurizedSystem} editable={editable} />
+        <ReadOnlyYesNo label="Will the work involve heat, sparks, welding, cutting, or grinding?" value={request.riskIndicators.heatOrSparks} editable={editable} />
+        <ReadOnlyYesNo label="Is electrical isolation required?" value={request.riskIndicators.electricalIsolation} editable={editable} />
+        <ReadOnlyYesNo label="Is lifting/heavy equipment involved?" value={request.riskIndicators.liftingEquipment} editable={editable} />
+        <ReadOnlyYesNo label="Are all required PPE available?" value={request.riskIndicators.ppeAvailable} editable={editable} />
         <FormTextarea
           label="Additional Safety Note"
           defaultValue={request.riskIndicators.additionalSafetyNote}
@@ -649,6 +559,25 @@ function AttachmentsSection({
         </div>
       ) : null}
     </FormSection>
+  );
+}
+
+function ReadOnlyYesNo({
+  label,
+  value,
+  editable,
+}: {
+  label: string;
+  value: boolean;
+  editable: boolean;
+}) {
+  return (
+    <FormToggleGroup
+      label={label}
+      value={value ? "Yes" : "No"}
+      options={yesNoOptions}
+      disabled={!editable}
+    />
   );
 }
 
@@ -788,12 +717,12 @@ function HseInspectionActionSection({
           }
         />
         <FormSelect
-          label="Tools/equipment are safe and suitable for the job"
+          label="Required safety controls are in place"
           options={inspectionCheckOptions}
           placeholder="Select inspection result"
-          value={checks.toolsSafe}
+          value={checks.safetyControlsInPlace}
           onValueChange={(value) =>
-            onCheckChange("toolsSafe", value as EditableInspectionCheckValue)
+            onCheckChange("safetyControlsInPlace", value as EditableInspectionCheckValue)
           }
         />
         <FormInput
@@ -947,8 +876,8 @@ function HseInspectionResultSection({
           disabled
         />
         <FormInput
-          label="Tools/equipment are safe and suitable for the job"
-          value={inspection.toolsSafe}
+          label="Required safety controls are in place"
+          value={inspection.safetyControlsInPlace}
           disabled
         />
         <FormInput
@@ -1023,6 +952,10 @@ function StatusNote({
         : "This request has been returned to the requester.";
   } else if (request.status === "denied") {
     note = "This request has been denied and is closed.";
+  } else if (request.status === "unauthorized") {
+    note = "This work authorization was denied by HSE. Work is unauthorized and a new authorization must be raised.";
+  } else if (request.status === "approved") {
+    note = "Work Authorized. HSE has approved and work can begin.";
   } else if (request.status === "submitted") {
     note =
       currentRole === "supervisor"
@@ -1052,8 +985,8 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
-      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">
           {title}
         </h3>

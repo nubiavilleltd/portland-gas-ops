@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { fetchWorkAuthorizationRequests } from "@/lib/mock/work-authorization-api";
 import type { WorkAuthorizationRequest } from "@/types/safety";
@@ -14,7 +13,7 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "title",
     label: "Request",
-    render: (_, row) => row.requestDetails.title,
+    render: (_, row) => row.workInitiation.title,
   },
   {
     key: "requester",
@@ -29,27 +28,27 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "location",
     label: "Location",
-    render: (_, row) => row.requestDetails.location,
+    render: (_, row) => row.workInitiation.location,
   },
   {
     key: "supervisor",
     label: "Supervisor",
-    render: (_, row) => row.requestDetails.supervisor,
+    render: (_, row) => row.workInitiation.assignedSupervisor,
   },
   {
     key: "priority",
     label: "Priority",
-    render: (_, row) => <PriorityPill priority={row.requestDetails.priority} />,
+    render: (_, row) => <PriorityPill priority={row.workInitiation.priority} />,
   },
   {
-    key: "expectedStartDateTime",
-    label: "Expected Start",
-    render: (_, row) => row.requestDetails.expectedStartDateTime,
+    key: "plannedStartDateTime",
+    label: "Planned Start",
+    render: (_, row) => row.workInitiation.plannedStartDateTime,
   },
   {
     key: "status",
     label: "Status",
-    render: (value) => <ApprovalBadge status={String(value)} />,
+    render: (value) => <WorkAuthorizationStatusBadge status={String(value)} />,
   },
 ];
 
@@ -98,7 +97,30 @@ export default function WorkAuthorizationRequestsTable() {
       data={requests}
       rowHref={(request) => `/safety/work-authorization/${request.id}`}
       emptyMessage="No work authorization requests found."
+      getSearchValues={(request) => [
+        request.workInitiation.title,
+        request.workInitiation.assignedSupervisor,
+        request.workInitiation.location,
+      ]}
     />
+  );
+}
+
+function WorkAuthorizationStatusBadge({ status }: { status: string }) {
+  const labelByStatus: Record<string, string> = {
+    approved: "Authorized",
+    unauthorized: "Unauthorized",
+    denied: "Denied",
+    returned: "Returned",
+    pending_approval: "Pending HSE Inspection",
+    submitted: "Submitted",
+    draft: "Draft",
+  };
+
+  return (
+    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+      {labelByStatus[status] ?? status}
+    </span>
   );
 }
 

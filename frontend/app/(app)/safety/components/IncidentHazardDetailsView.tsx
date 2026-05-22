@@ -680,8 +680,8 @@ function getIncidentHazardRoleLabel(role: IncidentHazardRole) {
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
-      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
       </div>
       <div className="p-5 md:p-6">{children}</div>
