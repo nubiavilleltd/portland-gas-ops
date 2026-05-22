@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>
-      <body className="min-h-screen bg-brand-bg antialiased">
+      <body className="min-h-screen bg-brand-bg antialiased" suppressHydrationWarning>
         {children}
         <Toaster position="top-right" richColors closeButton />
       </body>
