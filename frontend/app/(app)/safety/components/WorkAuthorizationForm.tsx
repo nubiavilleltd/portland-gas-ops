@@ -45,6 +45,14 @@ const workLocationOptions = optionFromStrings([
 const priorityOptions = optionFromStrings(["Low", "Medium", "High", "Critical"]);
 const yesNoOptions = optionFromStrings(["Yes", "No"]);
 
+const riskIndicatorOptions = optionFromStrings([
+  "Gas/CNG/LNG involved",
+  "Pressurized system involved",
+  "Heat, sparks, welding, cutting, or grinding",
+  "Electrical isolation required",
+  "Lifting/heavy equipment involved",
+]);
+
 const workTypeOptions = optionFromStrings([
   "CNG Conversion",
   "CNG Cylinder Work",
@@ -115,7 +123,6 @@ export default function WorkAuthorizationForm() {
             options={workLocationOptions}
             placeholder="Select or add location"
           />
-          <FormTextarea label="Exact Work Area" required placeholder="Describe the exact area" />
           <FormDateTimeInput label="Expected Start Date/Time" required />
           <FormDateTimeInput label="Expected End Date/Time" required />
           <FormSelect
@@ -136,6 +143,7 @@ export default function WorkAuthorizationForm() {
 
       <FormSection title="Work Details">
         <div className="grid gap-4 md:grid-cols-2">
+          <FormTextarea label="Exact Work Area" required placeholder="Describe the exact area" />
           <FormMultiSelect
             label="Type of Work"
             required
@@ -204,30 +212,12 @@ export default function WorkAuthorizationForm() {
 
       <FormSection title="Safety / Risk Indicators">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormToggleGroup
-            label="Is gas/CNG/LNG involved?"
+          <FormMultiSelect
+            label="Risks Involved"
             required
-            options={yesNoOptions}
-          />
-          <FormToggleGroup
-            label="Is a pressurized system involved?"
-            required
-            options={yesNoOptions}
-          />
-          <FormToggleGroup
-            label="Will the work involve heat, sparks, welding, cutting, or grinding?"
-            required
-            options={yesNoOptions}
-          />
-          <FormToggleGroup
-            label="Is electrical isolation required?"
-            required
-            options={yesNoOptions}
-          />
-          <FormToggleGroup
-            label="Is lifting/heavy equipment involved?"
-            required
-            options={yesNoOptions}
+            options={riskIndicatorOptions}
+            placeholder="Select all risks involved"
+            className="md:col-span-2"
           />
           <FormTextarea
             label="Additional Safety Note"
@@ -281,9 +271,11 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h2 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h2>
-      {children}
+    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
+      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+      </div>
+      <div className="p-5 md:p-6">{children}</div>
     </section>
   );
 }

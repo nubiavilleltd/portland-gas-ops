@@ -129,11 +129,11 @@ export default function WorkCompletionForm() {
               hint="Local selection only. No upload is performed."
             />
           </div>
-          <FormTextarea
+          {/* <FormTextarea
             label="Completion Notes"
             placeholder="Add optional completion notes"
             className="md:col-span-2"
-          />
+          /> */}
         </div>
       </FormSection>
 
@@ -143,7 +143,7 @@ export default function WorkCompletionForm() {
           <FormToggleGroup label="Work stayed within approved scope" required options={yesNoOptions} />
           <FormToggleGroup label="Required PPE and safety controls were maintained" required options={yesNoOptions} />
           <FormToggleGroup label="Unsafe condition was reported/addressed if noticed" required options={yesNoNaOptions} />
-          <FormTextarea label="Monitoring Comment" placeholder="Add optional monitoring comment" className="md:col-span-2" />
+          {/* <FormTextarea label="Monitoring Comment" placeholder="Add optional monitoring comment" className="md:col-span-2" /> */}
         </div>
       </FormSection>
 
@@ -214,9 +214,11 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h2 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h2>
-      {children}
+    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
+      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+      </div>
+      <div className="p-5 md:p-6">{children}</div>
     </section>
   );
 }

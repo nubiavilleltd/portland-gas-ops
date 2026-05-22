@@ -7,6 +7,7 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
+import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import MockUserSwitcher from "./MockUserSwitcher";
@@ -56,14 +57,20 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     const isSubmitted = request?.status === "submitted";
     const isPendingApproval = request?.status === "pending_approval";
     const isApproved = request?.status === "approved";
+    const isReturned = request?.status === "returned";
+    const isDenied = request?.status === "denied";
 
     return {
-      canRequesterEdit: currentRole === "requester" && isDraft,
+      canRequesterEdit: currentRole === "requester" && (isDraft || isReturned),
       canSupervisorApprove: currentRole === "supervisor" && isSubmitted,
       canHseApprove: currentRole === "hse" && isPendingApproval,
-      showSupervisorApproval: Boolean(isPendingApproval || isApproved),
-      showHseApproval: Boolean(isPendingApproval || isApproved),
-      showAuditTrail: Boolean(!isDraft || isApproved),
+      showSupervisorApproval: Boolean(
+        isPendingApproval || isApproved || isReturned || isDenied,
+      ),
+      showHseApproval: Boolean(
+        isPendingApproval || isApproved || isReturned || isDenied,
+      ),
+      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
     };
   }, [currentRole, request?.status]);
 
@@ -98,6 +105,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
 
   function supervisorDecision(decision: "Approve" | "Return" | "Deny") {
     if (!request) return;
+    if (decision === "Return" && !supervisorComment.trim()) return;
 
     const approval: WorkAuthorizationApprovalResult = {
       decision,
@@ -113,8 +121,13 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     setRequest((current) =>
       current
         ? {
-            ...current,
-            status: decision === "Approve" ? "pending_approval" : current.status,
+          ...current,
+            status:
+              decision === "Approve"
+                ? "pending_approval"
+                : decision === "Return"
+                  ? "returned"
+                  : "denied",
             supervisorApproval: approval,
           }
         : current
@@ -130,6 +143,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
 
   function hseDecision(decision: "Approve" | "Return" | "Deny") {
     if (!request) return;
+    if (decision === "Return" && !hseComment.trim()) return;
 
     const approval: WorkCloseOutHseApproval = {
       inspector: request.workAuthorization.hseApprover,
@@ -149,8 +163,13 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     setRequest((current) =>
       current
         ? {
-            ...current,
-            status: decision === "Approve" ? "approved" : current.status,
+          ...current,
+            status:
+              decision === "Approve"
+                ? "approved"
+                : decision === "Return"
+                  ? "returned"
+                  : "denied",
             hseApproval: approval,
           }
         : current
@@ -209,15 +228,21 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
 
       {permissions.canSupervisorApprove ? (
         <FormSection title="Supervisor Close-Out Approval">
-          <div className="space-y-4">
-            <FormInput label="Supervisor" value={request.workAuthorization.supervisor} disabled />
+          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
+            <div className="space-y-4">
+              <FormInput label="Supervisor" value={request.workAuthorization.supervisor} disabled />
+              <DecisionSubmitControl
+                onDecision={supervisorDecision}
+                returnReasonMissing={!supervisorComment.trim()}
+                returnReasonMessage="Add a supervisor comment before returning this close-out."
+              />
+            </div>
             <FormTextarea
               label="Supervisor Comment"
               value={supervisorComment}
               placeholder="Add close-out review notes"
               onChange={(event) => setSupervisorComment(event.target.value)}
             />
-            <DecisionButtons onDecision={supervisorDecision} />
           </div>
         </FormSection>
       ) : permissions.showSupervisorApproval && request.supervisorApproval ? (
@@ -231,16 +256,19 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
             <FormToggleGroup label="Did HSE inspect/verify close-out?" options={yesNoOptions} defaultValue="Yes" />
             <FormToggleGroup label="Area safe for normal operations?" options={yesNoOptions} defaultValue="Yes" />
             <FormToggleGroup label="Corrective action required?" options={yesNoOptions} defaultValue="No" />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
+            <DecisionSubmitControl
+              onDecision={hseDecision}
+              returnReasonMissing={!hseComment.trim()}
+              returnReasonMessage="Add an HSE comment before returning this close-out."
+            />
             <FormTextarea
               label="HSE Comment"
               value={hseComment}
               placeholder="Add final close-out verification notes"
               onChange={(event) => setHseComment(event.target.value)}
-              className="md:col-span-2"
             />
-          </div>
-          <div className="mt-4">
-            <DecisionButtons onDecision={hseDecision} />
           </div>
         </FormSection>
       ) : permissions.showHseApproval && request.hseApproval ? (
@@ -311,7 +339,7 @@ function CompletionDetails({
         {details.incidentObserved ? (
           <FormTextarea label="Incident/Hazard Note" value={details.incidentNote} disabled={!editable} />
         ) : null}
-        <FormTextarea label="Completion Notes" value={details.completionNotes} disabled={!editable} className="md:col-span-2" />
+        {/* <FormTextarea label="Completion Notes" value={details.completionNotes} disabled={!editable} className="md:col-span-2" /> */}
       </div>
       <div className="mt-4">
         <AttachmentList attachments={details.completionEvidence} />
@@ -346,7 +374,7 @@ function MonitoringSection({
         <ReadOnlyYesNo label="Work stayed within approved scope" value={monitoring.stayedWithinScope} editable={editable} />
         <ReadOnlyYesNo label="Required PPE and safety controls were maintained" value={monitoring.ppeAndControlsMaintained} editable={editable} />
         <FormToggleGroup label="Unsafe condition was reported/addressed if noticed" value={monitoring.unsafeConditionAddressed} options={yesNoNaOptions} disabled={!editable} />
-        <FormTextarea label="Monitoring Comment" value={monitoring.monitoringComment} disabled={!editable} className="md:col-span-2" />
+        {/* <FormTextarea label="Monitoring Comment" value={monitoring.monitoringComment} disabled={!editable} className="md:col-span-2" /> */}
       </div>
     </FormSection>
   );
@@ -426,23 +454,43 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
   );
 }
 
-function DecisionButtons({
+function DecisionSubmitControl({
   onDecision,
+  returnReasonMissing = false,
+  returnReasonMessage,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
+  returnReasonMissing?: boolean;
+  returnReasonMessage: string;
 }) {
+  const [decision, setDecision] = useState("");
+  const selectedDecision = decision as "Approve" | "Return" | "Deny";
+  const shouldRequireReturnReason =
+    selectedDecision === "Return" && returnReasonMissing;
+  const shouldDisableSubmit = !decision || shouldRequireReturnReason;
+
   return (
-    <div className="flex flex-wrap gap-3">
-      {decisionOptions.map((option) => (
-        <Button
-          key={option.value}
-          type="button"
-          variant={option.value === "Approve" ? "primary" : option.value === "Deny" ? "danger" : "outline"}
-          onClick={() => onDecision(option.value as "Approve" | "Return" | "Deny")}
-        >
-          {option.label}
-        </Button>
-      ))}
+    <div className="space-y-3">
+      <FormSelect
+        label="Decision"
+        options={decisionOptions}
+        placeholder="Select decision"
+        value={decision}
+        onValueChange={setDecision}
+      />
+      {shouldRequireReturnReason ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {returnReasonMessage}
+        </p>
+      ) : null}
+      <Button
+        type="button"
+        disabled={shouldDisableSubmit}
+        variant={selectedDecision === "Deny" ? "danger" : "primary"}
+        onClick={() => onDecision(selectedDecision)}
+      >
+        Submit
+      </Button>
     </div>
   );
 }
@@ -507,6 +555,13 @@ function StatusNote({
         : currentRole === "hse"
           ? "Waiting for supervisor approval before HSE close-out verification."
           : "Waiting for supervisor close-out approval.";
+  } else if (request.status === "returned") {
+    note =
+      currentRole === "requester"
+        ? "This close-out was returned. Review the comments, update the close-out, and resubmit."
+        : "This close-out has been returned to the requester.";
+  } else if (request.status === "denied") {
+    note = "This close-out has been denied and is closed.";
   } else if (request.status === "pending_approval") {
     note =
       currentRole === "hse"
@@ -527,9 +582,11 @@ function StatusNote({
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h3 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h3>
-      {children}
+    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
+      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+        <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
+      </div>
+      <div className="p-5 md:p-6">{children}</div>
     </section>
   );
 }
