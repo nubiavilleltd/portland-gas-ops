@@ -106,19 +106,6 @@ type SortDir = "asc" | "desc";
 const DEFAULT_PAGE_SIZE = 10;
 const ACTIONS_KEY = "__actions__";
 
-const defaultStatusOptions = [
-  { value: "", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "submitted", label: "Submitted" },
-  { value: "pending", label: "Pending" },
-  { value: "pending_approval", label: "Pending Approval" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "approved", label: "Approved" },
-  { value: "returned", label: "Returned" },
-  { value: "denied", label: "Denied" },
-  { value: "rejected", label: "Rejected" },
-];
-
 function isApprovalStatus(value: unknown): value is ApprovalStatus {
   return (
     typeof value === "string" &&
@@ -153,24 +140,39 @@ function normalizeSortValue(value: unknown) {
   return String(value ?? "").toLowerCase();
 }
 
+function getColumnSearchValue<T>(column: Column<T>, row: T) {
+  const rawValue = getNestedValue(row, String(column.key));
+
+  if (column.getSearchValue) {
+    return column.getSearchValue(row);
+  }
+
+  if (!column.render) {
+    return rawValue;
+  }
+
+  const renderedValue = column.render(rawValue, row);
+
+  if (
+    typeof renderedValue === "string" ||
+    typeof renderedValue === "number" ||
+    typeof renderedValue === "boolean"
+  ) {
+    return renderedValue;
+  }
+
+  return rawValue;
+}
+
 export default function DataTable<T extends { id: string }>({
   columns,
   data,
   rowHref,
   emptyMessage = "No records found.",
-  emptyDescription = "Try adjusting your search or filters.",
+  emptyDescription = "Try adjusting your search.",
   isLoading = false,
   searchable = true,
   searchPlaceholder = "Search...",
-  searchFields = [],
-  getSearchValues,
-  filters = [],
-  showStatusFilter,
-  statusFilterKey = "status",
-  statusFilterLabel = "Status",
-  statusFilterPlaceholder = "All statuses",
-  statusFilterOptions = defaultStatusOptions,
-  getStatusFilterValue,
   sortable = true,
   paginated = true,
   pageSize = DEFAULT_PAGE_SIZE,
@@ -192,45 +194,11 @@ export default function DataTable<T extends { id: string }>({
 }: Props<T>) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
-  const normalizedStatusFilterKey = String(statusFilterKey);
-  const shouldShowStatusFilter =
-    showStatusFilter ??
-    data.some((row) =>
-      getStatusFilterValue
-        ? getStatusFilterValue(row) !== undefined
-        : getValue(row, normalizedStatusFilterKey) !== undefined,
-    );
-  const activeFilters = useMemo(
-    () =>
-      shouldShowStatusFilter
-        ? [
-            {
-              key: normalizedStatusFilterKey,
-              label: statusFilterLabel,
-              placeholder: statusFilterPlaceholder,
-              options: statusFilterOptions,
-              getValue: getStatusFilterValue,
-            },
-            ...filters,
-          ]
-        : filters,
-    [
-      filters,
-      getStatusFilterValue,
-      normalizedStatusFilterKey,
-      shouldShowStatusFilter,
-      statusFilterLabel,
-      statusFilterOptions,
-      statusFilterPlaceholder,
-    ],
-  );
-  const shouldShowToolbar =
-    searchable || activeFilters.length > 0 || onNewRequest || toolbarActions;
+  const shouldShowToolbar = searchable || onNewRequest || toolbarActions;
   const defaultViewAction = useMemo<DataTableAction<T>[]>(
     () =>
       showActions && rowHref && actions.length === 0
@@ -267,11 +235,6 @@ export default function DataTable<T extends { id: string }>({
     resetToFirstPage();
   }
 
-  function handleFilterChange(key: string, value: string) {
-    setFilterValues((current) => ({ ...current, [key]: value }));
-    resetToFirstPage();
-  }
-
   const visibleColumns = useMemo(
     () =>
       shouldShowActions
@@ -293,54 +256,18 @@ export default function DataTable<T extends { id: string }>({
     const query = search.trim().toLowerCase();
 
     return data.filter((row) => {
-      const defaultSearchValues = [
-        getValue(row, normalizedStatusFilterKey),
-        getValue(row, "status"),
-        getValue(row, "reference"),
-        getValue(row, "ref"),
-        getValue(row, "reference_id"),
-        getValue(row, "id"),
-        getValue(row, "requestTitle"),
-        getValue(row, "title"),
-        getNestedValue(row, "requestDetails.title"),
-        getValue(row, "requesterName"),
-        getNestedValue(row, "requester.name"),
-        getNestedValue(row, "reporter.name"),
-        getValue(row, "requester"),
-      ];
-      const propSearchValues = searchFields.map((field) =>
-        field.getValue ? field.getValue(row) : field.key ? getNestedValue(row, String(field.key)) : "",
-      );
-      const customSearchValues = getSearchValues?.(row) ?? [];
-      const searchableValues = [
-        ...defaultSearchValues,
-        ...propSearchValues,
-        ...customSearchValues,
-      ];
-      const matchesSearch =
+      const visibleColumnSearchValues = columns
+        .filter((column) => column.searchable !== false)
+        .map((column) => getColumnSearchValue(column, row));
+
+      return (
         !query ||
-        searchableValues.some((value) =>
+        visibleColumnSearchValues.some((value) =>
           String(value ?? "").toLowerCase().includes(query),
-        );
-
-      if (!matchesSearch) return false;
-
-      return activeFilters.every((filter) => {
-        const selected = filterValues[filter.key];
-        if (!selected) return true;
-        const value = filter.getValue?.(row) ?? String(getValue(row, filter.key) ?? "");
-        return value === selected;
-      });
+        )
+      );
     });
-  }, [
-    activeFilters,
-    data,
-    filterValues,
-    getSearchValues,
-    normalizedStatusFilterKey,
-    search,
-    searchFields,
-  ]);
+  }, [columns, data, search]);
 
   const sortedData = useMemo(() => {
     if (!sortKey) return filteredData;
@@ -392,28 +319,6 @@ export default function DataTable<T extends { id: string }>({
               </div>
             ) : null}
 
-            {activeFilters.map((filter) => (
-              <div key={filter.key} className="relative shrink-0">
-                {filter.label ? (
-                  <span className="sr-only">{filter.label}</span>
-                ) : null}
-                <select
-                  value={filterValues[filter.key] ?? ""}
-                  onChange={(event) => handleFilterChange(filter.key, event.target.value)}
-                  className="h-10 min-w-40 appearance-none rounded-lg border border-brand-border bg-white pl-3 pr-8 text-sm text-brand-text-primary transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                >
-                  {filter.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-text-secondary"
-                />
-              </div>
-            ))}
           </div>
 
           <div className="flex flex-wrap gap-2">

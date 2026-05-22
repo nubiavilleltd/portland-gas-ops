@@ -39,6 +39,7 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "priority",
     label: "Priority",
+    getSearchValue: (row) => row.requestDetails.priority,
     render: (_, row) => <PriorityPill priority={row.requestDetails.priority} />,
   },
   {

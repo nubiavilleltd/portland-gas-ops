@@ -4,6 +4,15 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import { mockIncidentHazardReports } from "@/lib/mock/incident-hazard";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
 
+const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
+  draft: "Draft",
+  submitted: "Submitted",
+  recommended_to_action_owner: "Recommended to Action Owner",
+  action_owner_completed: "Action Owner Completed",
+  approved: "Resolved",
+  not_resolved: "Not Resolved",
+};
+
 const columns: Column<IncidentHazardReport>[] = [
   { key: "id", label: "Reference" },
   {
@@ -34,6 +43,7 @@ const columns: Column<IncidentHazardReport>[] = [
   {
     key: "status",
     label: "Status",
+    getSearchValue: (row) => incidentHazardStatusLabels[row.status],
     render: (value) => <IncidentHazardStatusBadge status={value as IncidentHazardStatus} />,
   },
   {
@@ -61,15 +71,6 @@ export default function IncidentHazardReportsTable() {
 }
 
 function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus }) {
-  const labelByStatus: Record<IncidentHazardStatus, string> = {
-    draft: "Draft",
-    submitted: "Submitted",
-    recommended_to_action_owner: "Recommended to Action Owner",
-    action_owner_completed: "Action Owner Completed",
-    approved: "Resolved",
-    not_resolved: "Not Resolved",
-  };
-
   const classByStatus: Record<IncidentHazardStatus, string> = {
     draft: "bg-gray-100 text-gray-600",
     submitted: "bg-amber-100 text-amber-700",
@@ -81,7 +82,7 @@ function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus })
 
   return (
     <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${classByStatus[status]}`}>
-      {labelByStatus[status]}
+      {incidentHazardStatusLabels[status]}
     </span>
   );
 }
