@@ -582,9 +582,11 @@ function StatusNote({
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h3 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h3>
-      {children}
+    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
+      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+        <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
+      </div>
+      <div className="p-5 md:p-6">{children}</div>
     </section>
   );
 }

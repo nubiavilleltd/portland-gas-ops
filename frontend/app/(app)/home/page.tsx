@@ -3,8 +3,22 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  ShoppingCart, Package, Truck,
-  ShieldCheck, AlertTriangle, BarChart3, Users, Settings, Store,
+  AlertTriangle,
+  Banknote,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  CreditCard,
+  DollarSign,
+  FileText,
+  FolderOpen,
+  Package,
+  ShoppingCart,
+  Settings,
+  Store,
+  Truck,
+  Users,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -36,19 +50,26 @@ const moduleGroups: HomeModuleGroup[] = [
     title: "Compliance & Safety",
     modules: [
       { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
-      { name: "Safety & Compliance", description: "Permits, inspections & certifications", icon: ShieldCheck, href: "/safety" },
+      { name: "Work Authorization", description: "Request and approve work before it starts", icon: ClipboardCheck, href: "/safety/work-authorization" },
+      { name: "Work Completion & Close-Out", description: "Confirm completed work and final close-out approval", icon: CheckCircle2, href: "/safety/work-close-out" },
     ],
   },
   {
     title: "Finance",
     modules: [
-      { name: "Finance", description: "Cash requisitions, invoices & approvals", icon: BarChart3, href: "/finance" },
+      { name: "Cash Requisition", description: "Petty cash and operational funds", icon: Banknote, href: "/finance/cash-requisitions" },
+      { name: "Invoice Processing", description: "Supplier invoices and approvals", icon: FileText, href: "/finance/invoices" },
     ],
   },
   {
     title: "HR Management",
     modules: [
-      { name: "HR Management", description: "Employees, leave & recruitment", icon: Users, href: "/hr-management" },    
+      { name: "Employee Profile", description: "Staff profiles and records", icon: Users, href: "/hr-management/employees" },
+      { name: "Employee Records", description: "Document vault", icon: FolderOpen, href: "/hr-management/employee-records" },
+      { name: "HR Policies", description: "Policy library and acknowledgements", icon: BookOpen, href: "/hr-management/policies" },
+      { name: "Leave Requests", description: "Leave applications and approvals", icon: CalendarDays, href: "/hr-management/leave-requests" },
+      { name: "Pay Slips", description: "Monthly pay slip viewer", icon: CreditCard, href: "/hr-management/payslips" },
+      { name: "Payroll", description: "Payroll runs and disbursements", icon: DollarSign, href: "/hr-management/payroll" },
     ],
   },
   {
@@ -98,9 +119,9 @@ export default function HomePage() {
               <h3 className="text-sm font-semibold text-brand-text-primary">
                 {group.title}
               </h3>
-              <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-brand-text-secondary">
+              {/* <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-brand-text-secondary">
                 {group.modules.length} {group.modules.length === 1 ? "process" : "processes"}
-              </span>
+              </span> */}
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {group.modules.map((mod) => (
