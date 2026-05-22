@@ -25,7 +25,6 @@ const STATUS_TABS: { label: string; value: ProcurementStatus | undefined }[] = [
 
 const columns: Column<ProcurementListItem>[] = [
   { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
-  { key: "title", label: "Title" },
   {
     key: "category",
     label: "Category",

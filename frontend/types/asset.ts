@@ -1,8 +1,9 @@
 export type AssetCondition = "new" | "good" | "fair" | "poor";
-export type AssetStatus = "available" | "in_use" | "under_maintenance" | "decommissioned";
+export type AssetStatus = "available" | "assigned" | "under_repair" | "retired";
 export type AssetRequestType = "loan" | "requisition";
 export type AssetRequestStatus = "pending" | "approved" | "rejected" | "returned";
 export type MaintenanceType = "routine" | "inspection" | "calibration" | "repair";
+export type AssetAssignmentEventType = "registered" | "assigned" | "returned" | "transferred" | "status_changed" | "retired";
 
 export interface AssetCategory {
   id: string;
@@ -14,9 +15,10 @@ export interface AssetCategory {
 
 export interface AssetType {
   id: string;
-  name: string;
   category_id: string;
-  prefix: string;       // first 2 letters of name, uppercase, e.g. "LA" for Laptop
+  name: string;
+  prefix: string; // 3-letter tag prefix, e.g. "LAP" for Laptop
+  is_active: boolean;
   created_at: string;
 }
 
@@ -42,9 +44,7 @@ export interface Asset {
   name: string;
   category_id: string | null;
   category: AssetCategory | null;
-  asset_type_id: string | null;
-  asset_type: AssetType | null;
-  asset_tag: string | null;   // e.g. "LA-A3K9"
+  asset_tag: string | null;         // e.g. "LAP-LKI-001" = Laptop, Lekki, #001
   serial_number: string | null;
   purchase_date: string | null;
   purchase_cost: number | null;
@@ -52,11 +52,8 @@ export interface Asset {
   status: AssetStatus;
   image_url: string | null;
   description: string | null;
-  assigned_to: string | null;
-  total_quantity: number;
-  available_quantity: number;
-  low_stock_threshold: number;
-  is_low_stock: boolean;
+  location: string | null;          // physical location (free text)
+  assigned_to_name: string | null;  // person/team asset is currently with
   maintenance_type: MaintenanceType | null;
   maintenance_frequency_months: number | null;
   next_maintenance_due: string | null;
@@ -66,6 +63,21 @@ export interface Asset {
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
+}
+
+export interface AssetAssignmentLog {
+  id: string;
+  asset_id: string;
+  asset_tag: string | null;
+  event_type: AssetAssignmentEventType;
+  from_person: string | null;
+  from_location: string | null;
+  to_person: string | null;
+  to_location: string | null;
+  notes: string | null;
+  performed_by: string | null;
+  performed_by_name: string | null;
+  performed_at: string;
 }
 
 export interface AssetMaintenanceLog {
@@ -83,10 +95,9 @@ export interface AssetMaintenanceLog {
 
 export interface AssetRequestItem {
   id: string;
-  asset_id: string;
-  asset: Asset | null;
+  asset_type_id: string;
+  asset_type: AssetType | null;
   quantity: number;
-  notes: string | null;
 }
 
 export interface AssetRequest {
@@ -129,16 +140,21 @@ export interface AssetCreateInput {
   condition: AssetCondition;
   status: AssetStatus;
   description?: string;
-  assigned_to?: string;
-  total_quantity: number;
-  low_stock_threshold: number;
+  location?: string;
+  assigned_to_name?: string;
   maintenance_type?: MaintenanceType;
   maintenance_frequency_months?: number;
+}
+
+export interface AssetTransferInput {
+  to_person: string;
+  to_location: string;
+  notes?: string;
 }
 
 export interface AssetRequestCreateInput {
   request_type: AssetRequestType;
   purpose: string;
   return_date?: string;
-  items: { asset_id: string; quantity: number; notes?: string }[];
+  items: { category_id: string; quantity: number }[];
 }

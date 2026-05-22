@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImageIcon, X } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
+import FileDropzone from "@/components/ui/FileDropzone";
 import { useCreateAsset, useAssetCategories, useAssetTypes } from "@/hooks/useAssets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
+import { SEED_EMPLOYEES } from "@/app/(app)/hr-management/_components/_data";
 
 // ── Zod schema ─────────────────────────────────────────────────────────────────
 
@@ -26,20 +27,13 @@ const schema = z.object({
   purchase_date: z.string().optional(),
   purchase_cost: z.string().optional(),
   condition: z.enum(["new", "good", "fair", "poor"], { error: "Select a condition" }),
-  status: z.enum(["available", "in_use", "under_maintenance", "decommissioned"], { error: "Select a status" }),
+  status: z.enum(["available", "assigned", "under_repair", "retired"], { error: "Select a status" }),
+  location: z.string().min(1, "Location is required"),
+  assigned_to_name: z.string().optional(),
+  description: z.string().optional(),
   maintenance_type: z.enum(["routine", "inspection", "calibration", "repair"]).optional(),
   maintenance_frequency_months: z.string().optional(),
-  total_quantity: z.string().refine(
-    (v) => !isNaN(parseInt(v)) && parseInt(v) >= 1,
-    "Must be at least 1"
-  ),
-  low_stock_threshold: z.string().refine(
-    (v) => !isNaN(parseInt(v)) && parseInt(v) >= 1,
-    "Must be at least 1"
-  ),
-  assigned_to: z.string().optional(),
-  description: z.string().optional(),
-  // Vehicle-specific fields (only used when category is Vehicles)
+  // Vehicle-specific fields
   plate_number: z.string().optional(),
   vehicle_type: z.enum(["sedan", "suv", "pickup_truck", "van", "bus", "motorcycle", "tanker"]).optional(),
   fuel_type: z.enum(["petrol", "diesel", "electric", "hybrid", "cng"]).optional(),
@@ -58,54 +52,51 @@ type FormData = z.infer<typeof schema>;
 // ── Options ────────────────────────────────────────────────────────────────────
 
 const conditionOptions = [
-  { value: "new", label: "New" },
+  { value: "new",  label: "New" },
   { value: "good", label: "Good" },
   { value: "fair", label: "Fair" },
   { value: "poor", label: "Poor" },
 ];
 
 const statusOptions = [
-  { value: "available", label: "Available" },
-  { value: "in_use", label: "In Use" },
-  { value: "under_maintenance", label: "Under Maintenance" },
-  { value: "decommissioned", label: "Decommissioned" },
+  { value: "available",    label: "Available" },
+  { value: "assigned",     label: "Assigned" },
+  { value: "under_repair", label: "Under Repair" },
+  { value: "retired",      label: "Retired" },
 ];
 
 const maintenanceTypeOptions = [
-  { value: "routine", label: "Routine Service" },
-  { value: "inspection", label: "Inspection" },
+  { value: "routine",     label: "Routine Service" },
+  { value: "inspection",  label: "Inspection" },
   { value: "calibration", label: "Calibration" },
-  { value: "repair", label: "Repair" },
+  { value: "repair",      label: "Repair" },
 ];
 
 const frequencyOptions = [
-  { value: "1", label: "Every month" },
-  { value: "3", label: "Every 3 months" },
-  { value: "6", label: "Every 6 months" },
+  { value: "1",  label: "Every month" },
+  { value: "3",  label: "Every 3 months" },
+  { value: "6",  label: "Every 6 months" },
   { value: "12", label: "Every year" },
   { value: "24", label: "Every 2 years" },
 ];
 
 const vehicleTypeOptions = [
-  { value: "sedan", label: "Sedan" },
-  { value: "suv", label: "SUV" },
+  { value: "sedan",        label: "Sedan" },
+  { value: "suv",          label: "SUV" },
   { value: "pickup_truck", label: "Pickup Truck" },
-  { value: "van", label: "Van" },
-  { value: "bus", label: "Bus" },
-  { value: "motorcycle", label: "Motorcycle" },
-  { value: "tanker", label: "Tanker" },
+  { value: "van",          label: "Van" },
+  { value: "bus",          label: "Bus" },
+  { value: "motorcycle",   label: "Motorcycle" },
+  { value: "tanker",       label: "Tanker" },
 ];
 
 const fuelTypeOptions = [
-  { value: "petrol", label: "Petrol" },
-  { value: "diesel", label: "Diesel" },
+  { value: "petrol",   label: "Petrol" },
+  { value: "diesel",   label: "Diesel" },
   { value: "electric", label: "Electric" },
-  { value: "hybrid", label: "Hybrid" },
-  { value: "cng", label: "CNG (Compressed Natural Gas)" },
+  { value: "hybrid",   label: "Hybrid" },
+  { value: "cng",      label: "CNG (Compressed Natural Gas)" },
 ];
-
-const MAX_IMAGE_MB = 5;
-const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -117,39 +108,32 @@ export default function RegisterAssetPage() {
   const createAsset = useCreateAsset();
   const { data: categories = [] } = useAssetCategories();
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  const employeeOptions = SEED_EMPLOYEES.map((e) => ({
+    value: `${e.firstName} ${e.lastName}`,
+    label: `${e.firstName} ${e.lastName} — ${e.title}`,
+  }));
 
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       condition: "new",
       status: "available",
-      total_quantity: "1",
-      low_stock_threshold: "1",
       category_id: "",
-      asset_type_id: "",
     },
   });
 
   const watchedCategoryId = watch("category_id");
 
-  // Fetch all asset types, filtered client-side by selected category
-  const { data: allAssetTypes = [] } = useAssetTypes();
-  const assetTypeOptions = watchedCategoryId
-    ? allAssetTypes
-        .filter((t) => t.category_id === watchedCategoryId)
-        .map((t) => ({ value: t.id, label: t.name }))
-    : [];
+  const { data: assetTypes = [] } = useAssetTypes(watchedCategoryId || undefined);
+  const assetTypeOptions = assetTypes.map((t) => ({ value: t.id, label: t.name }));
 
   const selectedCategory = categories.find((c) => c.id === watchedCategoryId);
   const isVehicleCategory = selectedCategory?.name.toLowerCase().includes("vehicle") ?? false;
@@ -159,48 +143,19 @@ export default function RegisterAssetPage() {
     return null;
   }
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    if (!file) return;
-
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setImageError("Only PNG, JPG, and WebP images are allowed.");
-      e.target.value = "";
-      return;
-    }
-    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-      setImageError(`Image too large. Maximum size is ${MAX_IMAGE_MB} MB.`);
-      e.target.value = "";
-      return;
-    }
-
-    setImageError(null);
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  }
-
-  function removeImage() {
-    setImageFile(null);
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImagePreview(null);
-    setImageError(null);
-  }
-
   async function onSubmit(formData: FormData) {
     try {
       await createAsset.mutateAsync({
         data: {
           name: formData.name,
           category_id: formData.category_id || undefined,
-          asset_type_id: formData.asset_type_id || undefined,
           serial_number: formData.serial_number || undefined,
           purchase_date: formData.purchase_date || undefined,
           purchase_cost: formData.purchase_cost ? parseFloat(formData.purchase_cost) : undefined,
           condition: formData.condition,
           status: formData.status,
-          total_quantity: parseInt(formData.total_quantity),
-          low_stock_threshold: parseInt(formData.low_stock_threshold),
-          assigned_to: formData.assigned_to || undefined,
+          location: formData.location,
+          assigned_to_name: formData.assigned_to_name || undefined,
           description: formData.description || undefined,
           maintenance_type: formData.maintenance_type || undefined,
           maintenance_frequency_months: formData.maintenance_frequency_months
@@ -220,7 +175,7 @@ export default function RegisterAssetPage() {
             road_worthiness_expiry_date: formData.road_worthiness_expiry_date || null,
           } : null,
         },
-        image: imageFile,
+        image: imageFiles[0] ?? null,
       });
       toast.success("Asset registered successfully");
       router.push("/assets");
@@ -246,7 +201,7 @@ export default function RegisterAssetPage() {
         className="mb-6"
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* ── Section 1: Asset Details ─────────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
@@ -255,22 +210,30 @@ export default function RegisterAssetPage() {
             <p className="text-xs text-brand-text-secondary mt-0.5">Basic information about this asset</p>
           </div>
           <div className="p-6 space-y-5">
-            <FormInput
-              label="Asset Name"
-              required
-              placeholder="e.g. Dell Latitude 5540 Laptop"
-              error={errors.name?.message}
-              {...register("name")}
-            />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-5">
+              <div className="col-span-3">
+                <FormInput
+                  label="Asset Name"
+                  required
+                  placeholder="e.g. Dell Latitude 5540 Laptop"
+                  error={errors.name?.message}
+                  {...register("name")}
+                />
+              </div>
               <FormSelect
                 label="Category"
                 options={categoryOptions}
                 placeholder="Select category"
                 error={errors.category_id?.message}
-                {...register("category_id", {
-                  onChange: () => { setValue("asset_type_id", ""); },
-                })}
+                {...register("category_id")}
+              />
+              <FormSelect
+                label="Asset Type"
+                options={assetTypeOptions}
+                placeholder={watchedCategoryId ? "Select asset type" : "Select a category first"}
+                disabled={!watchedCategoryId || assetTypeOptions.length === 0}
+                error={errors.asset_type_id?.message}
+                {...register("asset_type_id")}
               />
               <FormInput
                 label="Serial Number"
@@ -278,25 +241,6 @@ export default function RegisterAssetPage() {
                 error={errors.serial_number?.message}
                 {...register("serial_number")}
               />
-            </div>
-
-            {/* Asset Type select */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <FormSelect
-                  label="Asset Type"
-                  options={assetTypeOptions}
-                  placeholder="Select type (optional)"
-                  error={errors.asset_type_id?.message}
-                  {...register("asset_type_id")}
-                />
-                <p className="text-xs text-brand-text-secondary mt-1">
-                  Asset tag will be auto-generated after registration
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <FormSelect
                 label="Condition"
                 required
@@ -314,17 +258,20 @@ export default function RegisterAssetPage() {
                 {...register("status")}
               />
             </div>
+            <p className="text-xs text-brand-text-secondary">
+              Asset tag is auto-generated on save (e.g. <span className="font-mono">LAP-LKI-001</span>)
+            </p>
           </div>
         </div>
 
-        {/* ── Section 2: Purchase Info ─────────────────────────────────────── */}
+        {/* ── Section 2: Purchase Info + Assignment ───────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Purchase &amp; Quantity Info</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Cost, quantity, and assignment details</p>
+            <h2 className="text-sm font-semibold text-brand-text-primary">Purchase Info &amp; Assignment</h2>
+            <p className="text-xs text-brand-text-secondary mt-0.5">Cost, location and optional assignment</p>
           </div>
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="p-6">
+            <div className="grid grid-cols-3 gap-5">
               <FormDatePicker
                 label="Purchase Date"
                 error={errors.purchase_date?.message}
@@ -339,35 +286,23 @@ export default function RegisterAssetPage() {
                 error={errors.purchase_cost?.message}
                 {...register("purchase_cost")}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <FormInput
-                label="Total Quantity"
+                label="Location"
                 required
-                type="number"
-                min="1"
-                placeholder="1"
-                error={errors.total_quantity?.message}
-                {...register("total_quantity")}
+                placeholder="e.g. Lekki Office, Floor 2"
+                hint="Physical location where this asset will be kept"
+                error={errors.location?.message}
+                {...register("location")}
               />
-              <FormInput
-                label="Low Stock Threshold"
-                required
-                type="number"
-                min="1"
-                placeholder="1"
-                hint="Alert when available quantity falls below this"
-                error={errors.low_stock_threshold?.message}
-                {...register("low_stock_threshold")}
+              <FormSelect
+                label="Assigned To (Optional)"
+                options={employeeOptions}
+                placeholder="Select employee"
+                hint="Leave blank if not yet assigned"
+                error={errors.assigned_to_name?.message}
+                {...register("assigned_to_name")}
               />
             </div>
-            <FormInput
-              label="Assigned To"
-              placeholder="e.g. IT Department, John Okafor"
-              hint="Optional — department or person this asset is assigned to"
-              error={errors.assigned_to?.message}
-              {...register("assigned_to")}
-            />
           </div>
         </div>
 
@@ -378,8 +313,8 @@ export default function RegisterAssetPage() {
               <h2 className="text-sm font-semibold text-brand-text-primary">Vehicle Details</h2>
               <p className="text-xs text-brand-text-secondary mt-0.5">Registration and specification details for this vehicle</p>
             </div>
-            <div className="p-6 space-y-5">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-6">
+              <div className="grid grid-cols-3 gap-5">
                 <FormInput
                   label="Plate Number"
                   placeholder="e.g. KJA-234-PH"
@@ -393,8 +328,6 @@ export default function RegisterAssetPage() {
                   error={errors.vehicle_type?.message}
                   {...register("vehicle_type")}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <FormSelect
                   label="Fuel Type"
                   options={fuelTypeOptions}
@@ -411,8 +344,6 @@ export default function RegisterAssetPage() {
                   error={errors.year_of_manufacture?.message}
                   {...register("year_of_manufacture")}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <FormInput
                   label="Color"
                   placeholder="e.g. White"
@@ -427,8 +358,6 @@ export default function RegisterAssetPage() {
                   error={errors.seating_capacity?.message}
                   {...register("seating_capacity")}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <FormInput
                   label="Engine Number"
                   placeholder="e.g. 2GD-FTV-PH001"
@@ -441,19 +370,15 @@ export default function RegisterAssetPage() {
                   error={errors.chassis_number?.message}
                   {...register("chassis_number")}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <FormInput
                   label="Mileage at Registration (km)"
                   type="number"
                   min="0"
                   placeholder="e.g. 12"
-                  hint="Odometer reading at the time of registration"
+                  hint="Odometer reading at time of registration"
                   error={errors.mileage_at_registration?.message}
                   {...register("mileage_at_registration")}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <FormDatePicker
                   label="Insurance Expiry Date"
                   error={errors.insurance_expiry_date?.message}
@@ -469,7 +394,7 @@ export default function RegisterAssetPage() {
           </div>
         )}
 
-        {/* ── Section 5: Description + Image ──────────────────────────────── */}
+        {/* ── Section 4: Description & Image ──────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <h2 className="text-sm font-semibold text-brand-text-primary">Description &amp; Image</h2>
@@ -483,64 +408,26 @@ export default function RegisterAssetPage() {
               error={errors.description?.message}
               {...register("description")}
             />
-
-            {/* Image upload dropzone */}
-            {imagePreview ? (
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-2">Asset Image</label>
-                <div className="relative inline-block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imagePreview}
-                    alt="Asset preview"
-                    className="h-40 w-auto rounded-xl border border-brand-border object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={removeImage}
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-                <p className="text-xs text-brand-text-secondary mt-2">{imageFile?.name}</p>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-2">Asset Image</label>
-                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-brand-border rounded-xl py-8 cursor-pointer hover:border-brand-purple hover:bg-purple-50/30 transition-colors">
-                  <ImageIcon size={20} className="text-gray-400" />
-                  <p className="text-sm text-brand-text-secondary">
-                    <span className="text-brand-purple font-medium">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-400">PNG, JPG, WebP — max 5 MB</p>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".png,.jpg,.jpeg,.webp"
-                    onChange={handleImageChange}
-                  />
-                </label>
-                {imageError && (
-                  <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                    <span>&#9888;</span> {imageError}
-                  </p>
-                )}
-              </div>
-            )}
+            <FileDropzone
+              label="Asset Image"
+              value={imageFiles}
+              onChange={setImageFiles}
+              accept=".png,.jpg,.jpeg,.webp"
+              maxFiles={1}
+              maxSizeMB={5}
+              hint="PNG, JPG, or WebP — max 5 MB"
+            />
           </div>
         </div>
 
-        {/* ── Section 6: Maintenance Schedule ─────────────────────────────── */}
+        {/* ── Section 5: Maintenance Schedule ─────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <h2 className="text-sm font-semibold text-brand-text-primary">Maintenance Schedule</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">
-              Optional — the system will flag this asset when maintenance is due
-            </p>
+            <p className="text-xs text-brand-text-secondary mt-0.5">Optional — the system will flag this asset when maintenance is due</p>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-5">
               <FormSelect
                 label="Maintenance Type"
                 options={maintenanceTypeOptions}
@@ -549,7 +436,7 @@ export default function RegisterAssetPage() {
                 {...register("maintenance_type")}
               />
               <FormSelect
-                label="Frequency"
+                label="Maintenance Frequency"
                 options={frequencyOptions}
                 placeholder="Select frequency (optional)"
                 error={errors.maintenance_frequency_months?.message}
@@ -557,7 +444,7 @@ export default function RegisterAssetPage() {
               />
             </div>
             <p className="text-xs text-brand-text-secondary mt-3">
-              Next due date will be calculated automatically from the purchase date (or today if no purchase date).
+              Next due date is calculated automatically from the purchase date (or today if no purchase date).
             </p>
           </div>
         </div>
@@ -573,7 +460,7 @@ export default function RegisterAssetPage() {
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || createAsset.isPending || !!imageError}
+            disabled={isSubmitting || createAsset.isPending}
             className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
           >
             {createAsset.isPending ? (
