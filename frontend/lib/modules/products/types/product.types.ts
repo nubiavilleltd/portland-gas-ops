@@ -118,3 +118,18 @@ export interface UpdateProductInput {
   description?: string;
   status?: ProductStatus;
 }
+
+export const UNIT_LABELS: Record<ProductUnit, string> = {
+  kg:     "kg",
+  litre:  "L",
+  m3:     "m³",
+  unit:   "unit",
+  tonne:  "t",
+};
+
+
+export function getUnitLabel(
+  product: Pick<Product, "unit" | "unit_label">
+): string {
+  return UNIT_LABELS[product.unit];
+}

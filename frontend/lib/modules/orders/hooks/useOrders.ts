@@ -22,9 +22,12 @@ import { OrdersService } from "@/lib/services/api/orders.service";
 import type { Order, OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
     getOrderById,
+    getOrderDefaultValues,
     getOrderKPIs,
 } from "@/lib/modules/orders/selectors/orders.selectors";
 import { parseError } from "@/lib/errors";
+import { CreateOrderFormValues } from "../schemas/create-order.schema";
+import { useProducts } from "../../products/hooks/useProducts";
 
 // ── Shared result shape ────────────────────────────────────
 interface UseOrdersResult {
@@ -32,6 +35,12 @@ interface UseOrdersResult {
     isLoading: boolean;
     error: string | null;
     refetch: () => void;
+}
+
+interface UseOrderDefaultValuesResult {
+  defaultValues: Partial<CreateOrderFormValues> | undefined;
+  isLoading: boolean;
+  error: string | null;
 }
 
 // ── Base hook ─────────────────────────────────────────────
@@ -93,4 +102,20 @@ export function useOrderKPIs(): UseOrderKPIsResult {
     const { orders, isLoading, error, refetch } = useOrders();
     const kpis = isLoading ? EMPTY_KPIS : getOrderKPIs(orders);  // selector
     return { kpis, isLoading, error, refetch };
+}
+
+
+export function useOrderDefaultValues(id: string): UseOrderDefaultValuesResult {
+  const { order, isLoading: orderLoading, error: orderError } = useOrderById(id);
+  const { products, isLoading: productsLoading, error: productsError } = useProducts();
+
+  const isLoading = orderLoading || productsLoading;
+  const error = orderError ?? productsError;
+
+  const defaultValues =
+    order && !isLoading
+      ? getOrderDefaultValues(order, products)
+      : undefined;
+
+  return { defaultValues, isLoading, error };
 }

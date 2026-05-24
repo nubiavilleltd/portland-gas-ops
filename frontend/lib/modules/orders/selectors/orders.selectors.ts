@@ -149,6 +149,8 @@ import type {
   PaymentStatus,
   OrderKPIs,
 } from "@/lib/modules/orders/types/orders.types";
+import { Product } from "../../products/types/product.types";
+import { CreateOrderFormValues } from "../schemas/create-order.schema";
 
 // ── Single lookups ────────────────────────────────────────
 
@@ -241,5 +243,29 @@ export function getOrderKPIs(orders: Order[]): OrderKPIs {
         o.payment_status === "unpaid" || o.payment_status === "partially_paid"
     ).length,
     totalRevenue: orders.reduce((sum, o) => sum + o.total_amount, 0),
+  };
+}
+
+
+
+export function getOrderDefaultValues(
+  order: Order,
+  products: Product[]
+): Partial<CreateOrderFormValues> {
+  const matchedProduct = products.find((p) => p.name === order.product_name);
+
+  return {
+    customer_id:      order.customer_id,
+    order_type:       order.order_type as CreateOrderFormValues["order_type"],
+    delivery_address: order.delivery_address,
+    delivery_date:    order.delivery_date ?? "",
+    notes:            order.notes ?? "",
+    order_items: [
+      {
+        product_id: matchedProduct?.id ?? "",
+        quantity:   order.quantity,
+        unit_price: order.unit_price,
+      },
+    ],
   };
 }
