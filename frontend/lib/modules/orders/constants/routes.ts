@@ -11,7 +11,8 @@
 
 export const ORDER_ROUTES = {
     // Lists
-    list: () => "/orders",
+    home: () => "/orders",
+    list: () => "/orders/list",
 
     // Create / Edit
     new: () => "/orders/new",

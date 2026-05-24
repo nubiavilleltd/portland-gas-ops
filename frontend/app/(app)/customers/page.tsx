@@ -12,10 +12,10 @@ import type { Customer } from "@/lib/modules/customers/types/customer.types";
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 
 const columns: Column<Customer>[] = [
-  { key: "name",    label: "Customer Name" },
+  { key: "name", label: "Customer Name" },
   {
-    key:    "type",
-    label:  "Type",
+    key: "type",
+    label: "Type",
     render: (value) => (
       <span
         className={
@@ -28,22 +28,22 @@ const columns: Column<Customer>[] = [
       </span>
     ),
   },
-  { key: "phone",   label: "Phone" },
-  { key: "email",   label: "Email" },
+  { key: "phone", label: "Phone" },
+  { key: "email", label: "Email" },
   { key: "address", label: "Address" },
   {
-  key:    "status",
-  label:  "Status",
-  render: (value) => (
-    <span className={
-      value === "active"
-        ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
-        : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
-    }>
-      {value === "active" ? "Active" : "Inactive"}
-    </span>
-  ),
-},
+    key: "status",
+    label: "Status",
+    render: (value) => (
+      <span className={
+        value === "active"
+          ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
+          : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
+      }>
+        {value === "active" ? "Active" : "Inactive"}
+      </span>
+    ),
+  },
 ];
 
 export default function CustomersPage() {

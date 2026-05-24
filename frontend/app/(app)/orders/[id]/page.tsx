@@ -91,8 +91,8 @@ import Button from "@/components/ui/Button";
 import {
   getOrderById,
   getOrderDispatch,
-  getOrderInvoice,
-  getPaymentSummary,
+  // getOrderInvoice,
+  // getPaymentSummary,
   canConfirmOrder,
   isOrderReadyForInvoice,
   isOrderComplete,
@@ -102,14 +102,20 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import { useOrderById } from "@/lib/modules/orders/orders/hooks/useOrders";
 
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const order = getOrderById(id);
 
+  const {order} = useOrderById(id)
+
+  console.log("ordwr", {order})
+  // const order = getOrderById(id);
+
+  
   if (!order) {
     return (
       <AppLayout pageTitle="Order Not Found">
@@ -117,6 +123,7 @@ export default function OrderDetailPage() {
       </AppLayout>
     );
   }
+  return <p>Correct this!!!!</p>
 
   const invoice = getOrderInvoice(order.id);
   const paymentSummary = getPaymentSummary(invoice?.id);
