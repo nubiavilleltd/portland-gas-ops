@@ -1,41 +1,22 @@
-// import AppLayout from "@/components/layout/AppLayout";
-// import OrdersHomeClient from "@/lib/modules/orders/components/OrdersHomeClient";
-// import { OrdersService } from "@/lib/services/api/orders.service";
-
-// export default async function OrdersHomePage() {
-//   const orders = await OrdersService.getOrders();
-//   const kpis = await OrdersService.getKPIs();
-
-//   return (
-//     <AppLayout pageTitle="Orders">
-//       <OrdersHomeClient
-//         orders={orders}
-//         kpis={kpis}
-//       />
-//     </AppLayout>
-//   );
-// }
-
-
-
-
-
 "use client";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import WorkspaceCard from "@/components/ui/WorkspaceCard";
-import { ClipboardList, Plus, Truck, FileText, Package } from "lucide-react";
+import { ClipboardList, Truck, FileText, Package, Users } from "lucide-react";
 import { getOrderKPIs } from "@/lib/modules/orders/selectors/orders.selectors";
-import { formatCurrency } from "@/lib/utils";
 import { orders } from "@/lib/modules/orders/mock/orders.mock";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { getActiveProducts } from "@/lib/modules/products/selectors/products.selectors";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
+import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 
 export default function OrdersHomePage() {
   const kpis = getOrderKPIs(orders);
-  const { products } = useProducts();
+  const { products }  = useProducts();
+  const { customers } = useCustomers();
+
   const activeProductCount = getActiveProducts(products).length;
 
   return (
@@ -50,7 +31,7 @@ export default function OrdersHomePage() {
         }
       />
       <div className="mt-10">
-        <div className="grid gap-4 mt-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 mt-5 sm:grid-cols-2 xl:grid-cols-3">
           <WorkspaceCard
             title="All Orders"
             description="View, filter, and manage all customer orders"
@@ -58,13 +39,13 @@ export default function OrdersHomePage() {
             icon={ClipboardList}
             stat={`${kpis.totalOrders} total`}
           />
-          <WorkspaceCard
+          {/* <WorkspaceCard
             title="Pending Dispatch"
             description="Confirmed orders awaiting trip assignment"
             href="/orders/list"
             icon={Truck}
             stat={`${kpis.pendingDispatch} awaiting`}
-          />
+          /> */}
           <WorkspaceCard
             title="Invoices"
             description="Manage billing invoices and payment tracking"
@@ -78,6 +59,13 @@ export default function OrdersHomePage() {
             href={PRODUCT_ROUTES.list()}
             icon={Package}
             stat={`${activeProductCount} active`}
+          />
+          <WorkspaceCard
+            title="Customers"
+            description="Manage customer records and contact details"
+            href={CUSTOMER_ROUTES.list()}
+            icon={Users}
+            stat={`${customers.length} total`}
           />
         </div>
       </div>

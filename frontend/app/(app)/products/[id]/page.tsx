@@ -33,7 +33,6 @@ export default function ProductDetailPage() {
     const id = params.id as string;
 
     const { product, isLoading, error } = useProductById(id);
-    console.log("my product", {product})
     const [actionError, setActionError] = useState<string | null>(null);
     const [isToggling, setIsToggling] = useState(false);
 
