@@ -19,7 +19,6 @@ export class InvoicesService {
   }
 
   static async getInvoiceById(id: string): Promise<Invoice | undefined> {
-    const invoices
     return Promise.resolve(invoices.find((inv) => inv.id === id));
   }
 //   static async getInvoiceById(id: string): Promise<Invoice | undefined> {

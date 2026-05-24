@@ -84,7 +84,7 @@ export interface Product {
 
   name: string;
 
-  code: string;
+  code?: string;
 
   description?: string;
 
@@ -98,5 +98,23 @@ export interface Product {
 
   created_at: string;
 
-  updated_at: string;
+  updated_at?: string;
+}
+
+
+
+export interface CreateProductInput {
+  name: string;
+  unit: ProductUnit;
+  default_unit_price: number;  // always number here — no form concerns
+  description?: string;
+  status?: ProductStatus;
+}
+
+export interface UpdateProductInput {
+  name?: string;
+  unit?: ProductUnit;
+  default_unit_price?: number;
+  description?: string;
+  status?: ProductStatus;
 }

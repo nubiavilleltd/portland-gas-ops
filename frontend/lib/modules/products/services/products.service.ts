@@ -7,8 +7,8 @@
 
 import { products } from "@/lib/modules/products/mock/products.mock";
 import type {
-  Product,
   CreateProductInput,
+  Product,
   UpdateProductInput,
 } from "@/lib/modules/products/types/product.types";
 import { throwAppError } from "@/lib/errors";
@@ -21,13 +21,6 @@ export class ProductsService {
     return Promise.resolve([...products]);
   }
 
-  static async getActiveProducts(): Promise<Product[]> {
-    return Promise.resolve(products.filter((p) => p.status === "active"));
-  }
-
-  static async getProductById(id: string): Promise<Product | undefined> {
-    return Promise.resolve(products.find((p) => p.id === id));
-  }
 
   // ── CREATE ──────────────────────────────────────────────
 
@@ -41,11 +34,11 @@ export class ProductsService {
       id: `prod-${Date.now()}`,
       name: input.name.trim(),
       unit: input.unit,
-      unit_label: input.unit_label?.trim(),
       default_unit_price: input.default_unit_price,
       description: input.description?.trim(),
       status: "active",
       created_at: new Date().toISOString().slice(0, 10),
+      updated_at: new Date().toISOString().slice(0, 10),
     };
 
     products.push(newProduct);
@@ -74,8 +67,8 @@ export class ProductsService {
     Object.assign(product, {
       ...input,
       name:        input.name?.trim()        ?? product.name,
-      unit_label:  input.unit_label?.trim()  ?? product.unit_label,
       description: input.description?.trim() ?? product.description,
+      updated_at: new Date().toISOString().slice(0, 10)
     });
 
     return Promise.resolve(product);
