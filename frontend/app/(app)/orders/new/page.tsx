@@ -21,6 +21,7 @@ import {
 } from "@/lib/modules/orders/constants/order-form.constants";
 import { useCreateOrderForm } from "@/lib/modules/orders/hooks/useCreateOrderForm";
 import { OrdersService } from "@/lib/services/api/orders.service";
+import FormSection from "@/components/ui/FormSection";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -123,11 +124,7 @@ export default function NewOrderPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* CUSTOMER INFORMATION */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl"><h2 className="text-sm font-semibold text-brand-text-primary">Customer Information</h2></div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 px-6 py-4">
+      <FormSection title="Customer Information" description="Basic information about the customer"><div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Controller
               control={control}
               name="customer_id"
@@ -159,15 +156,11 @@ export default function NewOrderPage() {
               )}
             />
           </div>
-        </div>
+          </FormSection>
 
         {/* ORDER ITEMS */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-      
-
-            <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl"><h2 className="text-sm font-semibold text-brand-text-primary">Order Items</h2><p className="text-xs text-brand-text-secondary mt-0.5">Add products/services included in this order</p></div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start px-6 py-4">
+          <FormSection title="Order Items" description="Add products/services included in this order">
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
             <Controller
               control={control}
               name="product_name"
@@ -210,14 +203,11 @@ export default function NewOrderPage() {
               </div>
             </div>
           </div>
-        </div>
+         </FormSection>
 
         {/* DELIVERY INFORMATION */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          {/* <h2 className="text-base font-semibold mb-5">Delivery Information</h2> */}
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl"><h2 className="text-sm font-semibold text-brand-text-primary">Delivery Information</h2></div>
-
-          <div className="space-y-5 px-6 py-4">
+        <FormSection title="Delivery Information" description="">
+          <div className="space-y-5">
             <FormInput
               label="Delivery Address"
               required
@@ -239,13 +229,13 @@ export default function NewOrderPage() {
               {...register("notes")}
             />
           </div>
-        </div>
+        </FormSection>
+
+
 
         {/* ORDER SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-5">Order Summary</h2>
-
-          <div className="space-y-4 max-w-sm">
+        <FormSection title="Order Summary" description="">
+             <div className="space-y-4 max-w-sm">
             <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
             <SummaryRow label="Tax" value="₦0.00" />
 
@@ -256,7 +246,7 @@ export default function NewOrderPage() {
               </span>
             </div>
           </div>
-        </div>
+        </FormSection>
 
         {/* ERROR DISPLAY */}
         {submitError && (
