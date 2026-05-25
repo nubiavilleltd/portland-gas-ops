@@ -10,8 +10,8 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
+import { updateWorkAuthorization } from "@/lib/safety-demo-store";
 import MockUserSwitcher from "./MockUserSwitcher";
 import type {
   WorkAuthorizationApprovalResult,
@@ -22,23 +22,22 @@ import type {
   WorkAuthorizationRole,
 } from "@/types/safety";
 
-const yesNoOptions = [
-  { value: "Yes", label: "Yes" },
-  { value: "No", label: "No" },
-];
-
-const riskIndicatorOptions = [
-  { value: "gasInvolved", label: "Gas/CNG/LNG involved" },
-  { value: "pressurizedSystem", label: "Pressurized system involved" },
-  { value: "heatOrSparks", label: "Heat, sparks, welding, cutting, or grinding" },
-  { value: "electricalIsolation", label: "Electrical isolation required" },
-  { value: "liftingEquipment", label: "Lifting/heavy equipment involved" },
-];
-
 const decisionOptions = [
   { value: "Approve", label: "Approve" },
   { value: "Return", label: "Return" },
   { value: "Deny", label: "Deny" },
+];
+
+const riskIndicatorOptions = [
+  { value: "Gas/CNG/LNG involved", label: "Gas/CNG/LNG involved" },
+  { value: "Pressurized system involved", label: "Pressurized system involved" },
+  {
+    value: "Heat, sparks, welding, cutting, or grinding",
+    label: "Heat, sparks, welding, cutting, or grinding",
+  },
+  { value: "Electrical isolation required", label: "Electrical isolation required" },
+  { value: "Lifting/heavy equipment involved", label: "Lifting/heavy equipment involved" },
+  { value: "All required PPE available", label: "All required PPE available" },
 ];
 
 const inspectionCheckOptions = [
@@ -64,7 +63,7 @@ type HseInspectionCheckState = Pick<
   | "emergencyEquipmentAvailable"
   | "gasPressureCheckCompleted"
   | "ppeAndSafetyKitsAvailable"
-  | "toolsSafe"
+  | "safetyControlsInPlace"
 >;
 type InspectionCheckValue =
   HseInspectionCheckState[keyof HseInspectionCheckState];
@@ -81,7 +80,7 @@ const initialHseInspectionChecks: EditableHseInspectionCheckState = {
   emergencyEquipmentAvailable: "",
   gasPressureCheckCompleted: "",
   ppeAndSafetyKitsAvailable: "",
-  toolsSafe: "",
+  safetyControlsInPlace: "",
 };
 
 function toInspectionCheckValue(
@@ -100,7 +99,6 @@ export default function WorkAuthorizationDetailsView({
     useState<WorkAuthorizationRole>("requester");
   const [request, setRequest] = useState<WorkAuthorizationRequest | null>(null);
   const [loading, setLoading] = useState(true);
-  const [supervisorComment, setSupervisorComment] = useState("");
   const [hseComment, setHseComment] = useState("");
   const [hseEvidence, setHseEvidence] = useState<File[]>([]);
   const [hseInspectionChecks, setHseInspectionChecks] = useState(
@@ -135,25 +133,21 @@ export default function WorkAuthorizationDetailsView({
   const permissions = useMemo(() => {
     const isDraft = request?.status === "draft";
     const isSubmitted = request?.status === "submitted";
-    const isPendingApproval = request?.status === "pending_approval";
     const isApproved = request?.status === "approved";
     const isReturned = request?.status === "returned";
     const isDenied = request?.status === "denied";
+    const isUnauthorized = request?.status === "unauthorized";
 
     return {
       canEditDraft: currentRole === "requester" && (isDraft || isReturned),
-      canSupervisorApprove: currentRole === "supervisor" && isSubmitted,
-      canHseInspect: currentRole === "hse" && isPendingApproval,
-      showSupervisorApproval: Boolean(
-        isPendingApproval || isApproved || isReturned || isDenied,
-      ),
+      canHseInspect: currentRole === "hse" && isSubmitted,
       showHseSection: Boolean(
-        (currentRole === "hse" && isPendingApproval) ||
+        (currentRole === "hse" && isSubmitted) ||
           isApproved ||
           isReturned ||
-          isDenied,
+          isUnauthorized,
       ),
-      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
+      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied || isUnauthorized),
     };
   }, [currentRole, request?.status]);
 
@@ -179,70 +173,30 @@ export default function WorkAuthorizationDetailsView({
       </div>
     );
   }
+  const persistedRequestId = request.id;
 
-  function addAudit(item: WorkAuthorizationAuditTrailItem) {
-    setRequest((current) =>
-      current
-        ? { ...current, auditTrail: [...current.auditTrail, item] }
-        : current,
-    );
+  function persistUpdate(
+    update: (current: WorkAuthorizationRequest) => WorkAuthorizationRequest,
+  ) {
+    const updated = updateWorkAuthorization(persistedRequestId, update);
+    if (updated) setRequest(updated);
   }
 
   function handleRequesterSubmit() {
     if (!request) return;
 
-    setRequest((current) =>
-      current ? { ...current, status: "submitted" } : current,
-    );
-    addAudit({
+    const audit: WorkAuthorizationAuditTrailItem = {
       action: "Submitted",
       actor: request.requester.name,
       role: "Requester",
       dateTime: "2026-05-18 09:30 AM",
       comment: "Work authorization request submitted.",
-    });
-  }
-
-  function handleSupervisorDecision(decision: "Approve" | "Return" | "Deny") {
-    if (decision === "Return" && !supervisorComment.trim()) {
-      return;
-    }
-
-    const result: WorkAuthorizationApprovalResult = {
-      decision,
-      approver: "Mary James",
-      dateTime: "2026-05-18 10:15 AM",
-      comment:
-        supervisorComment ||
-        (decision === "Approve"
-          ? "Work scope reviewed and approved for HSE inspection."
-          : `Request ${decisionPastTense(decision)} by supervisor.`),
     };
-
-    setRequest((current) =>
-      current
-        ? {
-          ...current,
-            status:
-              decision === "Approve"
-                ? "pending_approval"
-                : decision === "Return"
-                  ? "returned"
-                  : "denied",
-            supervisorApproval: result,
-          }
-        : current,
-    );
-    addAudit({
-      action:
-        decision === "Approve"
-          ? "Supervisor Approved"
-          : `Supervisor ${decision}ed`,
-      actor: result.approver,
-      role: "Supervisor",
-      dateTime: result.dateTime,
-      comment: result.comment,
-    });
+    persistUpdate((current) => ({
+      ...current,
+      status: "submitted",
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
   function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
@@ -264,7 +218,7 @@ export default function WorkAuthorizationDetailsView({
       ppeAndSafetyKitsAvailable: toInspectionCheckValue(
         hseInspectionChecks.ppeAndSafetyKitsAvailable,
       ),
-      toolsSafe: toInspectionCheckValue(hseInspectionChecks.toolsSafe),
+      safetyControlsInPlace: toInspectionCheckValue(hseInspectionChecks.safetyControlsInPlace),
       inspectionDateTime: "2026-05-18 11:00 AM",
       comments: hseComment || "Area inspected and cleared for work.",
       result:
@@ -301,35 +255,32 @@ export default function WorkAuthorizationDetailsView({
       Cancel: "Cancelled",
     };
 
-    setRequest((current) =>
-      current
-        ? {
-            ...current,
-            status:
-              decision === "Approve"
-                ? "approved"
-                : decision === "Return"
-                  ? "returned"
-                  : "denied",
-            hseInspection: inspection,
-            hseApproval: approval,
-          }
-        : current,
-    );
-    addAudit({
+    const inspectionAudit: WorkAuthorizationAuditTrailItem = {
       action: "HSE Inspection Completed",
       actor: approval.approver,
       role: "HSE Inspector",
       dateTime: inspection.inspectionDateTime,
       comment: inspection.comments,
-    });
-    addAudit({
+    };
+    const decisionAudit: WorkAuthorizationAuditTrailItem = {
       action: `HSE ${pastTense[decision] || `${decision}ed`}`,
       actor: approval.approver,
       role: "HSE Inspector",
       dateTime: approval.dateTime,
       comment: approval.comment,
-    });
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status:
+        decision === "Approve"
+          ? "approved"
+          : decision === "Return"
+            ? "returned"
+            : "unauthorized",
+      hseInspection: inspection,
+      hseApproval: approval,
+      auditTrail: [...current.auditTrail, inspectionAudit, decisionAudit],
+    }));
   }
 
   return (
@@ -343,7 +294,7 @@ export default function WorkAuthorizationDetailsView({
         Back to Work Authorization
       </button>
 
-      <MockUserSwitcher value={currentRole} onChange={setCurrentRole} />
+      <MockUserSwitcher value={currentRole} onChange={setCurrentRole} showSupervisor={false} />
 
       <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -365,14 +316,7 @@ export default function WorkAuthorizationDetailsView({
       <StatusNote request={request} currentRole={currentRole} />
 
       <RequesterDetailsSection request={request} />
-      <RequestDetailsSection
-        request={request}
-        editable={permissions.canEditDraft}
-      />
-      <WorkDetailsSection
-        request={request}
-        editable={permissions.canEditDraft}
-      />
+      <AssignedWorkSummarySection request={request} />
       <RiskIndicatorsSection
         request={request}
         editable={permissions.canEditDraft}
@@ -387,19 +331,6 @@ export default function WorkAuthorizationDetailsView({
         <div className="flex justify-end">
           <Button onClick={handleRequesterSubmit}>Submit Request</Button>
         </div>
-      ) : null}
-
-      {permissions.canSupervisorApprove ? (
-        <SupervisorActionSection
-          comment={supervisorComment}
-          onCommentChange={setSupervisorComment}
-          onDecision={handleSupervisorDecision}
-        />
-      ) : permissions.showSupervisorApproval && request.supervisorApproval ? (
-        <ApprovalResultSection
-          title="Supervisor Approval Result"
-          result={request.supervisorApproval}
-        />
       ) : null}
 
       {permissions.showHseSection ? (
@@ -481,109 +412,49 @@ function RequesterDetailsSection({
   );
 }
 
-function RequestDetailsSection({
+function AssignedWorkSummarySection({
   request,
-  editable,
 }: {
   request: WorkAuthorizationRequest;
-  editable: boolean;
 }) {
+  const work = request.workInitiation;
   return (
-    <FormSection title="Request Details">
+    <FormSection title="Assigned Work Summary">
       <div className="grid gap-4 md:grid-cols-2">
+        <FormInput label="Work Initiation Reference" value={work.id} disabled />
         <FormInput
-          label="Request Title"
-          defaultValue={request.requestDetails.title}
-          disabled={!editable}
+          label="Work Title"
+          value={work.title}
+          disabled
         />
-        <FormInput
-          label="Work Location"
-          defaultValue={request.requestDetails.location}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Expected Start Date/Time"
-          defaultValue={request.requestDetails.expectedStartDateTime}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Expected End Date/Time"
-          defaultValue={request.requestDetails.expectedEndDateTime}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Supervisor"
-          defaultValue={request.requestDetails.supervisor}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Priority"
-          defaultValue={request.requestDetails.priority}
-          disabled={!editable}
-        />
-      </div>
-    </FormSection>
-  );
-}
-
-function WorkDetailsSection({
-  request,
-  editable,
-}: {
-  request: WorkAuthorizationRequest;
-  editable: boolean;
-}) {
-  return (
-    <FormSection title="Work Details">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput
-          label="Exact Work Area"
-          defaultValue={request.requestDetails.exactWorkArea}
-          disabled={!editable}
-        />
-        <FormInput
-          label="Type of Work"
-          defaultValue={request.workDetails.typeOfWork.join(", ")}
-          disabled={!editable}
-        />
-        <FormTextarea
-          label="Work Description"
-          defaultValue={request.workDetails.description}
-          disabled={!editable}
-        />
-        {/* <FormTextarea label="Reason for Work" defaultValue={request.workDetails.reason} disabled={!editable} /> */}
-        <FormInput
-          label="Workers Involved"
-          defaultValue={request.workDetails.workersInvolved.join(", ")}
-          disabled={!editable}
-        />
-        <FormToggleGroup
-          label="Contractor Required?"
-          value={request.workDetails.contractorRequired ? "Yes" : "No"}
-          options={yesNoOptions}
-          disabled={!editable}
-        />
-        {request.workDetails.contractorRequired ? (
-          <>
-            <FormInput
-              label="Contractor Name"
-              defaultValue={request.workDetails.contractorName}
-              disabled={!editable}
-            />
-            <FormInput
-              label="Contractor Contact Email"
-              type="email"
-              defaultValue={request.workDetails.contractorContactEmail}
-              disabled={!editable}
-            />
-          </>
+        <FormInput label="Work Category" value={work.workCategory} disabled />
+        {work.relatedIncidentHazardId ? (
+          <FormInput label="Related Incident/Hazard Request" value={work.relatedIncidentHazardId} disabled />
         ) : null}
         <FormInput
-          label="Tools/Equipment Required"
-          defaultValue={request.workDetails.toolsEquipment.join(", ")}
-          disabled={!editable}
+          label="Type of Work"
+          value={work.workType.join(", ")}
+          disabled
         />
-        {/* <FormTextarea label="Special Instructions" defaultValue={request.workDetails.specialInstructions} disabled={!editable} /> */}
+        <FormInput label="Priority" value={work.priority} disabled />
+        <FormInput label="Location" value={work.location} disabled />
+        <FormInput label="Exact Work Area" value={work.exactWorkArea} disabled />
+        <FormInput label="Assigned Supervisor" value={work.assignedSupervisor} disabled />
+        <FormInput
+          label="Assigned Workers"
+          value={work.assignedWorkers.join(", ")}
+          disabled
+        />
+        <FormInput label="Contractors Needed" value={work.contractorsNeeded ? "Yes" : "No"} disabled />
+        {work.contractorsNeeded ? (
+          <>
+            <FormInput label="Selected Contractor" value={work.selectedContractor} disabled />
+            <FormInput label="Contractor Contact Email" type="email" value={work.contractorContactEmail} disabled />
+          </>
+        ) : null}
+        <FormInput label="Planned Start Date/Time" value={work.plannedStartDateTime} disabled />
+        <FormInput label="Planned End Date/Time" value={work.plannedEndDateTime} disabled />
+        <FormTextarea label="Work Description" value={work.workDescription} disabled className="md:col-span-2" />
       </div>
     </FormSection>
   );
@@ -596,23 +467,25 @@ function RiskIndicatorsSection({
   request: WorkAuthorizationRequest;
   editable: boolean;
 }) {
-  const selectedRisks = riskIndicatorOptions
-    .filter((option) => {
-      const key = option.value as keyof typeof request.riskIndicators;
-      return request.riskIndicators[key] === true;
-    })
-    .map((option) => option.value);
+  const selectedRiskIndicators = [
+    request.riskIndicators.gasInvolved ? "Gas/CNG/LNG involved" : "",
+    request.riskIndicators.pressurizedSystem ? "Pressurized system involved" : "",
+    request.riskIndicators.heatOrSparks ? "Heat, sparks, welding, cutting, or grinding" : "",
+    request.riskIndicators.electricalIsolation ? "Electrical isolation required" : "",
+    request.riskIndicators.liftingEquipment ? "Lifting/heavy equipment involved" : "",
+    request.riskIndicators.ppeAvailable ? "All required PPE available" : "",
+  ].filter(Boolean);
 
   return (
     <FormSection title="Risk & Safety Indicators">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4">
         <FormMultiSelect
-          label="Risks Involved"
+          label="Risk Indicators"
           options={riskIndicatorOptions}
-          defaultValue={selectedRisks}
-          placeholder="Select all risks involved"
+          defaultValue={selectedRiskIndicators}
           disabled={!editable}
-          className="md:col-span-2"
+          searchable
+          placeholder="Select all risk indicators that apply"
         />
         <FormTextarea
           label="Additional Safety Note"
@@ -689,34 +562,6 @@ function AttachmentList({
   );
 }
 
-function SupervisorActionSection({
-  comment,
-  onCommentChange,
-  onDecision,
-}: {
-  comment: string;
-  onCommentChange: (comment: string) => void;
-  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
-}) {
-  return (
-    <FormSection title="Supervisor Approval">
-      <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-        <DecisionSubmitControl
-          onDecision={onDecision}
-          returnReasonMissing={!comment.trim()}
-          returnReasonMessage="Add a supervisor comment before returning this request."
-        />
-        <FormTextarea
-          label="Supervisor Comment"
-          value={comment}
-          onChange={(event) => onCommentChange(event.target.value)}
-          placeholder="Add review notes"
-        />
-      </div>
-    </FormSection>
-  );
-}
-
 function HseInspectionActionSection({
   comment,
   onCommentChange,
@@ -788,12 +633,12 @@ function HseInspectionActionSection({
           }
         />
         <FormSelect
-          label="Tools/equipment are safe and suitable for the job"
+          label="Required safety controls are in place"
           options={inspectionCheckOptions}
           placeholder="Select inspection result"
-          value={checks.toolsSafe}
+          value={checks.safetyControlsInPlace}
           onValueChange={(value) =>
-            onCheckChange("toolsSafe", value as EditableInspectionCheckValue)
+            onCheckChange("safetyControlsInPlace", value as EditableInspectionCheckValue)
           }
         />
         <FormInput
@@ -947,8 +792,8 @@ function HseInspectionResultSection({
           disabled
         />
         <FormInput
-          label="Tools/equipment are safe and suitable for the job"
-          value={inspection.toolsSafe}
+          label="Required safety controls are in place"
+          value={inspection.safetyControlsInPlace}
           disabled
         />
         <FormInput
@@ -1023,16 +868,15 @@ function StatusNote({
         : "This request has been returned to the requester.";
   } else if (request.status === "denied") {
     note = "This request has been denied and is closed.";
+  } else if (request.status === "unauthorized") {
+    note = "This work authorization was denied by HSE. Work is unauthorized and a new authorization must be raised.";
+  } else if (request.status === "approved") {
+    note = "Work Authorized. HSE has approved and work can begin.";
   } else if (request.status === "submitted") {
     note =
-      currentRole === "supervisor"
-        ? "This request is waiting for your supervisor review."
-        : "Waiting for supervisor approval.";
-  } else if (request.status === "pending_approval") {
-    note =
       currentRole === "hse"
-        ? "Supervisor has approved. HSE inspection and final approval are available."
-        : "Supervisor approval completed. Waiting for HSE inspection and approval.";
+        ? "This request is waiting for your HSE inspection and authorization decision."
+        : "Waiting for HSE inspection and authorization.";
   }
 
   if (!note) return null;
@@ -1052,8 +896,8 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
-      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">
           {title}
         </h3>

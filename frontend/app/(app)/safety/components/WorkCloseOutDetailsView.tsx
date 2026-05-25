@@ -9,18 +9,21 @@ import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
-import MockUserSwitcher from "./MockUserSwitcher";
+import WorkCloseOutRoleSwitcher from "./WorkCloseOutRoleSwitcher";
+import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
-  cloneWorkCloseOutRequest,
   getMockWorkCloseOutRequest,
 } from "@/lib/mock/work-close-out";
+import {
+  updateWorkCloseOut,
+  useSafetyDemoData,
+} from "@/lib/safety-demo-store";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
   WorkAuthorizationAuditTrailItem,
-  WorkAuthorizationRole,
   WorkCloseOutHseApproval,
+  WorkCloseOutRole,
   WorkCloseOutRequest,
 } from "@/types/safety";
 
@@ -45,12 +48,17 @@ function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
 export default function WorkCloseOutDetailsView({ requestId }: { requestId: string }) {
   const router = useRouter();
   const initialRequest = getMockWorkCloseOutRequest(requestId);
-  const [currentRole, setCurrentRole] = useState<WorkAuthorizationRole>("requester");
-  const [request, setRequest] = useState<WorkCloseOutRequest | null>(
-    initialRequest ? cloneWorkCloseOutRequest(initialRequest) : null
-  );
+  const { workCloseOuts } = useSafetyDemoData();
+  const request = workCloseOuts.find((item) => item.id === requestId) ?? initialRequest;
+  const [currentRole, setCurrentRole] = useState<WorkCloseOutRole>("requester");
   const [supervisorComment, setSupervisorComment] = useState("");
+  const [operationsHeadComment, setOperationsHeadComment] = useState("");
   const [hseComment, setHseComment] = useState("");
+  const [hseVerifiedCloseOut, setHseVerifiedCloseOut] = useState("");
+  const [hseAreaSafe, setHseAreaSafe] = useState("");
+  const [hseCorrectiveActionRequired, setHseCorrectiveActionRequired] = useState("");
+  const hseChecksIncomplete =
+    !hseVerifiedCloseOut || !hseAreaSafe || !hseCorrectiveActionRequired;
 
   const permissions = useMemo(() => {
     const isDraft = request?.status === "draft";
@@ -63,16 +71,33 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     return {
       canRequesterEdit: currentRole === "requester" && (isDraft || isReturned),
       canSupervisorApprove: currentRole === "supervisor" && isSubmitted,
-      canHseApprove: currentRole === "hse" && isPendingApproval,
+      canOperationsHeadApprove:
+        currentRole === "operations_head" &&
+        isPendingApproval &&
+        Boolean(request?.supervisorApproval) &&
+        !request?.operationsHeadApproval,
+      canHseApprove:
+        currentRole === "hse" &&
+        isPendingApproval &&
+        Boolean(request?.operationsHeadApproval),
       showSupervisorApproval: Boolean(
         isPendingApproval || isApproved || isReturned || isDenied,
       ),
+      showOperationsHeadApproval: Boolean(
+        request?.operationsHeadApproval || isApproved || isReturned || isDenied,
+      ),
       showHseApproval: Boolean(
-        isPendingApproval || isApproved || isReturned || isDenied,
+        request?.hseApproval || isApproved || isReturned || isDenied,
       ),
       showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
     };
-  }, [currentRole, request?.status]);
+  }, [
+    currentRole,
+    request?.status,
+    request?.supervisorApproval,
+    request?.operationsHeadApproval,
+    request?.hseApproval,
+  ]);
 
   if (!request) {
     return (
@@ -81,26 +106,30 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
       </div>
     );
   }
+  const persistedRequestId = request.id;
 
-  function addAudit(item: WorkAuthorizationAuditTrailItem) {
-    setRequest((current) =>
-      current ? { ...current, auditTrail: [...current.auditTrail, item] } : current
-    );
+  function persistUpdate(
+    update: (current: WorkCloseOutRequest) => WorkCloseOutRequest,
+  ) {
+    const updated = updateWorkCloseOut(persistedRequestId, update);
+    return updated;
   }
 
   function submitCloseOut() {
     if (!request) return;
 
-    setRequest((current) =>
-      current ? { ...current, status: "submitted" } : current
-    );
-    addAudit({
+    const audit: WorkAuthorizationAuditTrailItem = {
       action: "Submitted",
       actor: request.requester.name,
       role: "Requester",
       dateTime: "2026-05-18 02:30 PM",
       comment: "Work completion submitted for close-out.",
-    });
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status: "submitted",
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
   function supervisorDecision(decision: "Approve" | "Return" | "Deny") {
@@ -118,38 +147,36 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
           : `Close-out ${decisionPastTense(decision)} by supervisor.`),
     };
 
-    setRequest((current) =>
-      current
-        ? {
-          ...current,
-            status:
-              decision === "Approve"
-                ? "pending_approval"
-                : decision === "Return"
-                  ? "returned"
-                  : "denied",
-            supervisorApproval: approval,
-          }
-        : current
-    );
-    addAudit({
+    const audit: WorkAuthorizationAuditTrailItem = {
       action: decision === "Approve" ? "Supervisor Approved" : `Supervisor ${decision}ed`,
       actor: approval.approver,
       role: "Supervisor",
       dateTime: approval.dateTime,
       comment: approval.comment,
-    });
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status:
+        decision === "Approve"
+          ? "pending_approval"
+          : decision === "Return"
+            ? "returned"
+            : "denied",
+      supervisorApproval: approval,
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
   function hseDecision(decision: "Approve" | "Return" | "Deny") {
     if (!request) return;
+    if (hseChecksIncomplete) return;
     if (decision === "Return" && !hseComment.trim()) return;
 
     const approval: WorkCloseOutHseApproval = {
       inspector: request.workAuthorization.hseApprover,
-      verifiedCloseOut: true,
-      areaSafeForOperations: true,
-      correctiveActionRequired: false,
+      verifiedCloseOut: hseVerifiedCloseOut === "Yes",
+      areaSafeForOperations: hseAreaSafe === "Yes",
+      correctiveActionRequired: hseCorrectiveActionRequired === "Yes",
       correctiveActionDetails: "",
       decision,
       comment:
@@ -160,27 +187,59 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
       dateTime: "2026-05-18 03:40 PM",
     };
 
-    setRequest((current) =>
-      current
-        ? {
-          ...current,
-            status:
-              decision === "Approve"
-                ? "approved"
-                : decision === "Return"
-                  ? "returned"
-                  : "denied",
-            hseApproval: approval,
-          }
-        : current
-    );
-    addAudit({
+    const audit: WorkAuthorizationAuditTrailItem = {
       action: decision === "Approve" ? "HSE Approved" : `HSE ${decision}ed`,
       actor: approval.inspector,
       role: "HSE Inspector",
       dateTime: approval.dateTime,
       comment: approval.comment,
-    });
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status:
+        decision === "Approve"
+          ? "approved"
+          : decision === "Return"
+            ? "returned"
+            : "denied",
+      hseApproval: approval,
+      auditTrail: [...current.auditTrail, audit],
+    }));
+  }
+
+  function operationsHeadDecision(decision: "Approve" | "Return" | "Deny") {
+    if (!request) return;
+    if ((decision === "Return" || decision === "Deny") && !operationsHeadComment.trim()) return;
+
+    const approval: WorkAuthorizationApprovalResult = {
+      decision,
+      approver: "Grace Bello",
+      dateTime: "2026-05-18 03:20 PM",
+      comment:
+        operationsHeadComment ||
+        (decision === "Approve"
+          ? "Completion reviewed and recommended for HSE verification."
+          : `Close-out ${decisionPastTense(decision)} by Operations Head.`),
+    };
+
+    const audit: WorkAuthorizationAuditTrailItem = {
+      action: decision === "Approve" ? "Operations Head Approved" : `Operations Head ${decision}ed`,
+      actor: approval.approver,
+      role: "Operations Head",
+      dateTime: approval.dateTime,
+      comment: approval.comment,
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status:
+        decision === "Approve"
+          ? "pending_approval"
+          : decision === "Return"
+            ? "returned"
+            : "denied",
+      operationsHeadApproval: approval,
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
   return (
@@ -194,7 +253,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         Back to Work Close-Out
       </button>
 
-      <MockUserSwitcher value={currentRole} onChange={setCurrentRole} />
+      <WorkCloseOutRoleSwitcher value={currentRole} onChange={setCurrentRole} />
 
       <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -246,22 +305,66 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
           </div>
         </FormSection>
       ) : permissions.showSupervisorApproval && request.supervisorApproval ? (
-        <SupervisorResult result={request.supervisorApproval} />
+        <ApprovalResult title="Supervisor Close-Out Approval Result" result={request.supervisorApproval} />
+      ) : null}
+
+      {permissions.canOperationsHeadApprove ? (
+        <FormSection title="Operations Head Close-Out Approval">
+          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
+            <div className="space-y-4">
+              <FormInput label="Operations Head" value="Grace Bello" disabled />
+              <DecisionSubmitControl
+                onDecision={operationsHeadDecision}
+                returnReasonMissing={!operationsHeadComment.trim()}
+                returnReasonMessage="Add an Operations Head comment before returning this close-out."
+              />
+            </div>
+            <FormTextarea
+              label="Operations Head Comment"
+              value={operationsHeadComment}
+              placeholder="Add operational close-out review notes"
+              onChange={(event) => setOperationsHeadComment(event.target.value)}
+            />
+          </div>
+        </FormSection>
+      ) : permissions.showOperationsHeadApproval && request.operationsHeadApproval ? (
+        <ApprovalResult title="Operations Head Close-Out Approval Result" result={request.operationsHeadApproval} />
       ) : null}
 
       {permissions.canHseApprove ? (
         <FormSection title="HSE Final Close-Out Approval">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <FormInput label="HSE Inspector" value={request.workAuthorization.hseApprover} disabled />
-            <FormToggleGroup label="Did HSE inspect/verify close-out?" options={yesNoOptions} defaultValue="Yes" />
-            <FormToggleGroup label="Area safe for normal operations?" options={yesNoOptions} defaultValue="Yes" />
-            <FormToggleGroup label="Corrective action required?" options={yesNoOptions} defaultValue="No" />
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={[
+                {
+                  label: "Did HSE inspect/verify close-out?",
+                  required: true,
+                  value: hseVerifiedCloseOut,
+                  onValueChange: setHseVerifiedCloseOut,
+                },
+                {
+                  label: "Area safe for normal operations?",
+                  required: true,
+                  value: hseAreaSafe,
+                  onValueChange: setHseAreaSafe,
+                },
+                {
+                  label: "Corrective action required?",
+                  required: true,
+                  value: hseCorrectiveActionRequired,
+                  onValueChange: setHseCorrectiveActionRequired,
+                },
+              ]}
+            />
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <DecisionSubmitControl
               onDecision={hseDecision}
               returnReasonMissing={!hseComment.trim()}
               returnReasonMessage="Add an HSE comment before returning this close-out."
+              submissionDisabled={hseChecksIncomplete}
             />
             <FormTextarea
               label="HSE Comment"
@@ -329,13 +432,21 @@ function CompletionDetails({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Actual Start Date/Time" value={details.actualStartDateTime} disabled={!editable} />
         <FormInput label="Actual Completion Date/Time" value={details.actualCompletionDateTime} disabled={!editable} />
-        <ReadOnlyYesNo label="Was work completed?" value={details.workCompleted} editable={editable} />
-        <ReadOnlyYesNo label="Was work completed as approved?" value={details.completedAsApproved} editable={editable} />
+        <div className="md:col-span-2">
+          <SafetyChoiceTable
+            options={yesNoOptions}
+            disabled={!editable}
+            rows={[
+              { label: "Was work completed?", value: booleanToYesNo(details.workCompleted) },
+              { label: "Was work completed as approved?", value: booleanToYesNo(details.completedAsApproved) },
+              { label: "Any incident, hazard, or near miss observed?", value: booleanToYesNo(details.incidentObserved) },
+            ]}
+          />
+        </div>
         {!details.completedAsApproved ? (
           <FormTextarea label="Explanation for change/deviation" value={details.deviationExplanation} disabled={!editable} />
         ) : null}
         <FormTextarea label="Completion Summary" value={details.completionSummary} disabled={!editable} className="md:col-span-2" />
-        <ReadOnlyYesNo label="Any incident, hazard, or near miss observed?" value={details.incidentObserved} editable={editable} />
         {details.incidentObserved ? (
           <FormTextarea label="Incident/Hazard Note" value={details.incidentNote} disabled={!editable} />
         ) : null}
@@ -369,13 +480,16 @@ function MonitoringSection({
   const monitoring = request.monitoring;
   return (
     <FormSection title="Monitoring Attestation">
-      <div className="grid gap-4 md:grid-cols-2">
-        <ReadOnlyYesNo label="Work was monitored during execution" value={monitoring.monitoredDuringExecution} editable={editable} />
-        <ReadOnlyYesNo label="Work stayed within approved scope" value={monitoring.stayedWithinScope} editable={editable} />
-        <ReadOnlyYesNo label="Required PPE and safety controls were maintained" value={monitoring.ppeAndControlsMaintained} editable={editable} />
-        <FormToggleGroup label="Unsafe condition was reported/addressed if noticed" value={monitoring.unsafeConditionAddressed} options={yesNoNaOptions} disabled={!editable} />
-        {/* <FormTextarea label="Monitoring Comment" value={monitoring.monitoringComment} disabled={!editable} className="md:col-span-2" /> */}
-      </div>
+      <SafetyChoiceTable
+        options={yesNoNaOptions}
+        disabled={!editable}
+        rows={[
+          { label: "Work was monitored during execution", value: booleanToYesNo(monitoring.monitoredDuringExecution) },
+          { label: "Work stayed within approved scope", value: booleanToYesNo(monitoring.stayedWithinScope) },
+          { label: "Required PPE and safety controls were maintained", value: booleanToYesNo(monitoring.ppeAndControlsMaintained) },
+          { label: "Unsafe condition was reported/addressed if noticed", value: monitoring.unsafeConditionAddressed },
+        ]}
+      />
     </FormSection>
   );
 }
@@ -390,11 +504,17 @@ function AreaConditionSection({
   const area = request.areaCondition;
   return (
     <FormSection title="Area / Equipment Condition">
-      <div className="grid gap-4 md:grid-cols-2">
-        <ReadOnlyYesNo label="Work area cleaned after completion" value={area.workAreaCleaned} editable={editable} />
-        <ReadOnlyYesNo label="Tools/equipment removed from work area" value={area.toolsRemoved} editable={editable} />
-        <ReadOnlyYesNo label="Vehicle/equipment/system left in safe condition" value={area.systemSafe} editable={editable} />
-        <ReadOnlyYesNo label="Any remaining hazard?" value={area.remainingHazard} editable={editable} />
+      <div className="space-y-4">
+        <SafetyChoiceTable
+          options={yesNoOptions}
+          disabled={!editable}
+          rows={[
+            { label: "Work area cleaned after completion", value: booleanToYesNo(area.workAreaCleaned) },
+            { label: "Tools/equipment removed from work area", value: booleanToYesNo(area.toolsRemoved) },
+            { label: "Vehicle/equipment/system left in safe condition", value: booleanToYesNo(area.systemSafe) },
+            { label: "Any remaining hazard?", value: booleanToYesNo(area.remainingHazard) },
+          ]}
+        />
         {area.remainingHazard ? (
           <FormTextarea label="Remaining Hazard Details" value={area.remainingHazardDetails} disabled={!editable} className="md:col-span-2" />
         ) : null}
@@ -403,33 +523,24 @@ function AreaConditionSection({
   );
 }
 
-function ReadOnlyYesNo({
-  label,
-  value,
-  editable,
-}: {
-  label: string;
-  value: boolean;
-  editable: boolean;
-}) {
-  return (
-    <FormToggleGroup
-      label={label}
-      value={value ? "Yes" : "No"}
-      options={yesNoOptions}
-      disabled={!editable}
-    />
-  );
+function booleanToYesNo(value: boolean) {
+  return value ? "Yes" : "No";
 }
 
-function SupervisorResult({ result }: { result: WorkAuthorizationApprovalResult }) {
+function ApprovalResult({
+  result,
+  title,
+}: {
+  result: WorkAuthorizationApprovalResult;
+  title: string;
+}) {
   return (
-    <FormSection title="Supervisor Close-Out Approval Result">
+    <FormSection title={title}>
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Supervisor" value={result.approver} disabled />
-        <FormInput label="Supervisor Decision" value={result.decision} disabled />
-        <FormInput label="Supervisor Approval Date/Time" value={result.dateTime} disabled />
-        <FormTextarea label="Supervisor Comment" value={result.comment} disabled />
+        <FormInput label="Approver" value={result.approver} disabled />
+        <FormInput label="Decision" value={result.decision} disabled />
+        <FormInput label="Approval Date/Time" value={result.dateTime} disabled />
+        <FormTextarea label="Comment" value={result.comment} disabled />
       </div>
     </FormSection>
   );
@@ -440,9 +551,17 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
     <FormSection title="HSE Final Close-Out Approval Result">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value={result.inspector} disabled />
-        <ReadOnlyYesNo label="Did HSE inspect/verify close-out?" value={result.verifiedCloseOut} editable={false} />
-        <ReadOnlyYesNo label="Area safe for normal operations?" value={result.areaSafeForOperations} editable={false} />
-        <ReadOnlyYesNo label="Corrective action required?" value={result.correctiveActionRequired} editable={false} />
+        <div className="md:col-span-2">
+          <SafetyChoiceTable
+            options={yesNoOptions}
+            disabled
+            rows={[
+              { label: "Did HSE inspect/verify close-out?", value: booleanToYesNo(result.verifiedCloseOut) },
+              { label: "Area safe for normal operations?", value: booleanToYesNo(result.areaSafeForOperations) },
+              { label: "Corrective action required?", value: booleanToYesNo(result.correctiveActionRequired) },
+            ]}
+          />
+        </div>
         {result.correctiveActionRequired ? (
           <FormTextarea label="Corrective Action Details" value={result.correctiveActionDetails} disabled />
         ) : null}
@@ -458,16 +577,20 @@ function DecisionSubmitControl({
   onDecision,
   returnReasonMissing = false,
   returnReasonMessage,
+  submissionDisabled = false,
+  submissionDisabledMessage,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
   returnReasonMissing?: boolean;
   returnReasonMessage: string;
+  submissionDisabled?: boolean;
+  submissionDisabledMessage?: string;
 }) {
   const [decision, setDecision] = useState("");
   const selectedDecision = decision as "Approve" | "Return" | "Deny";
   const shouldRequireReturnReason =
     selectedDecision === "Return" && returnReasonMissing;
-  const shouldDisableSubmit = !decision || shouldRequireReturnReason;
+  const shouldDisableSubmit = !decision || shouldRequireReturnReason || submissionDisabled;
 
   return (
     <div className="space-y-3">
@@ -481,6 +604,11 @@ function DecisionSubmitControl({
       {shouldRequireReturnReason ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           {returnReasonMessage}
+        </p>
+      ) : null}
+      {submissionDisabled && submissionDisabledMessage ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {submissionDisabledMessage}
         </p>
       ) : null}
       <Button
@@ -544,7 +672,7 @@ function StatusNote({
   currentRole,
 }: {
   request: WorkCloseOutRequest;
-  currentRole: WorkAuthorizationRole;
+  currentRole: WorkCloseOutRole;
 }) {
   let note = "";
 
@@ -563,10 +691,17 @@ function StatusNote({
   } else if (request.status === "denied") {
     note = "This close-out has been denied and is closed.";
   } else if (request.status === "pending_approval") {
-    note =
-      currentRole === "hse"
-        ? "Supervisor approved. HSE final close-out approval is available."
-        : "Waiting for HSE final close-out approval.";
+    if (!request.operationsHeadApproval) {
+      note =
+        currentRole === "operations_head"
+          ? "Supervisor approved. Operations Head close-out review is available."
+          : "Supervisor approved. Waiting for Operations Head approval.";
+    } else {
+      note =
+        currentRole === "hse"
+          ? "Operations Head approved. HSE final close-out approval is available."
+          : "Operations Head approved. Waiting for HSE final close-out approval.";
+    }
   } else if (request.status === "draft" && currentRole !== "requester") {
     note = "This close-out is still in draft and has not been submitted.";
   }
@@ -582,8 +717,8 @@ function StatusNote({
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
-      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
       </div>
       <div className="p-5 md:p-6">{children}</div>

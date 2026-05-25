@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
+import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
+import type { AssignedWorkInitiationSummary } from "@/types/safety";
 
 const requester = {
   name: "Daniel Okoro",
@@ -24,77 +24,105 @@ const requester = {
 const optionFromStrings = (items: string[]): SelectOption[] =>
   items.map((item) => ({ value: item, label: item }));
 
-const employeeOptions = [
-  { value: "Mary James", label: "Mary James - Engineering Supervisor" },
-  { value: "Samuel Bassey", label: "Samuel Bassey - HSE Officer" },
-  { value: "Grace Bello", label: "Grace Bello - Operations Officer" },
-  { value: "Ibrahim Musa", label: "Ibrahim Musa - Technician" },
-];
-
-const workLocationOptions = optionFromStrings([
-  "Conversion Bay 1",
-  "Conversion Bay 2",
-  "Vehicle Yard",
-  "Gas Storage Area",
-  "Maintenance Workshop",
-  "Electrical Room",
-  "Loading Area",
-  "Inspection Bay",
-]);
-
-const priorityOptions = optionFromStrings(["Low", "Medium", "High", "Critical"]);
-const yesNoOptions = optionFromStrings(["Yes", "No"]);
-
 const riskIndicatorOptions = optionFromStrings([
   "Gas/CNG/LNG involved",
   "Pressurized system involved",
   "Heat, sparks, welding, cutting, or grinding",
   "Electrical isolation required",
   "Lifting/heavy equipment involved",
-]);
-
-const workTypeOptions = optionFromStrings([
-  "CNG Conversion",
-  "CNG Cylinder Work",
-  "Gas System Work",
-  "Electrical Work",
-  "Hot Work",
-  "Lifting Work",
-  "Vehicle Inspection",
-  "Transport Preparation",
-  "Maintenance",
-  "Calibration",
-  "General Engineering Work",
-]);
-
-const toolsEquipmentOptions = optionFromStrings([
-  "Hand Tools",
-  "Diagnostic Tool",
-  "Welding Machine",
-  "Grinding Machine",
-  "Cylinder Lifting Equipment",
-  "Gas Detector",
-  "Pressure Gauge",
-  "Electrical Tester",
-  "Torque Wrench",
-  "PPE Kit",
-]);
-
-const contractorOptions = optionFromStrings([
-  "ABC Engineering Services",
-  "SafeGas Technical Ltd",
-  "Prime Mechanical Contractors",
+  "All required PPE available",
 ]);
 
 export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
-  const [contractorRequired, setContractorRequired] = useState("");
-  const [workAreaFiles, setWorkAreaFiles] = useState<File[]>([]);
-  const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
+  const { workInitiations: storedWorkInitiations } = useSafetyDemoData();
+  const workInitiations: AssignedWorkInitiationSummary[] = storedWorkInitiations
+    .filter((request) => request.status === "approved" && request.operationalReview?.decision === "Approve")
+    .map((request) => ({
+      id: request.id,
+      title: request.title,
+      status: "approved",
+      workCategory: request.workCategory,
+      relatedIncidentHazardId: request.relatedIncidentHazardId,
+      workType: request.workType,
+      priority: request.priority,
+      location: request.location,
+      exactWorkArea: request.exactWorkArea,
+      workDescription: request.workDescription,
+      assignedSupervisor: request.assignment.assignedSupervisor,
+      assignedWorkers: request.assignment.assignedWorkers,
+      contractorsNeeded: request.assignment.contractorsNeeded,
+      selectedContractor: request.assignment.selectedContractor,
+      contractorContactEmail: request.assignment.contractorContactEmail,
+      plannedStartDateTime: request.assignment.plannedStartDateTime,
+      plannedEndDateTime: request.assignment.plannedEndDateTime,
+    }));
+  const [selectedWorkInitiationId, setSelectedWorkInitiationId] = useState("");
+  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
+  const [safetyNote, setSafetyNote] = useState("");
+  const [attachmentNotes, setAttachmentNotes] = useState("");
+  const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
+  const workInitiationOptions = workInitiations.map((item) => ({
+    value: item.id,
+    label: `${item.id} - ${item.title}`,
+  }));
+  const selectedWorkInitiation = workInitiations.find(
+    (item) => item.id === selectedWorkInitiationId,
+  );
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedWorkInitiation) return;
+    createWorkAuthorization((id) => ({
+      id,
+      status: "submitted",
+      requester,
+      workInitiation: selectedWorkInitiation,
+      requestDetails: {
+        title: selectedWorkInitiation.title,
+        location: selectedWorkInitiation.location,
+        exactWorkArea: selectedWorkInitiation.exactWorkArea,
+        expectedStartDateTime: selectedWorkInitiation.plannedStartDateTime,
+        expectedEndDateTime: selectedWorkInitiation.plannedEndDateTime,
+        supervisor: selectedWorkInitiation.assignedSupervisor,
+        priority: selectedWorkInitiation.priority,
+      },
+      workDetails: {
+        typeOfWork: selectedWorkInitiation.workType,
+        description: selectedWorkInitiation.workDescription,
+        reason: "",
+        workersInvolved: selectedWorkInitiation.assignedWorkers,
+        contractorRequired: selectedWorkInitiation.contractorsNeeded,
+        contractorName: selectedWorkInitiation.selectedContractor,
+        contractorContactEmail: selectedWorkInitiation.contractorContactEmail,
+        toolsEquipment: [],
+        specialInstructions: "",
+      },
+      riskIndicators: {
+        gasInvolved: riskIndicators.includes("Gas/CNG/LNG involved"),
+        pressurizedSystem: riskIndicators.includes("Pressurized system involved"),
+        heatOrSparks: riskIndicators.includes("Heat, sparks, welding, cutting, or grinding"),
+        electricalIsolation: riskIndicators.includes("Electrical isolation required"),
+        liftingEquipment: riskIndicators.includes("Lifting/heavy equipment involved"),
+        ppeAvailable: riskIndicators.includes("All required PPE available"),
+        additionalSafetyNote: safetyNote,
+      },
+      attachments: safetyFiles.map((file) => ({
+        name: file.name,
+        type: file.type.startsWith("image/") ? "image" : "document",
+      })),
+      supervisorApproval: null,
+      hseInspection: null,
+      hseApproval: null,
+      auditTrail: [{
+        action: "Submitted",
+        actor: requester.name,
+        role: "Requester",
+        dateTime: "2026-05-25 10:00 AM",
+        comment: attachmentNotes || "Work authorization request submitted for HSE review.",
+      }],
+    }));
     toast.success("Work authorization request submitted successfully.");
     window.setTimeout(() => {
       router.push("/safety/work-authorization");
@@ -112,146 +140,57 @@ export default function WorkAuthorizationForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Request Details">
+      <FormSection title="Work Initiation Lookup">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Request Title" required placeholder="Enter request title" />
           <FormSelect
-            label="Work Location"
+            label="Work Initiation Reference"
             required
             searchable
-            creatable
-            options={workLocationOptions}
-            placeholder="Select or add location"
-          />
-          <FormDateTimeInput label="Expected Start Date/Time" required />
-          <FormDateTimeInput label="Expected End Date/Time" required />
-          <FormSelect
-            label="Supervisor"
-            required
-            searchable
-            options={employeeOptions}
-            placeholder="Select supervisor"
-          />
-          <FormSelect
-            label="Priority"
-            required
-            options={priorityOptions}
-            placeholder="Select priority"
+            options={workInitiationOptions}
+            placeholder="Select assigned work initiation"
+            value={selectedWorkInitiationId}
+            onValueChange={setSelectedWorkInitiationId}
           />
         </div>
       </FormSection>
 
-      <FormSection title="Work Details">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormTextarea label="Exact Work Area" required placeholder="Describe the exact area" />
-          <FormMultiSelect
-            label="Type of Work"
-            required
-            searchable
-            creatable
-            options={workTypeOptions}
-            placeholder="Select work type"
-          />
-          <FormMultiSelect
-            label="Workers Involved"
-            required
-            searchable
-            options={employeeOptions}
-            placeholder="Select workers"
-          />
-          <FormTextarea
-            label="Work Description"
-            required
-            placeholder="Describe the work to be performed"
-            className="md:min-h-28"
-          />
-          {/* <FormTextarea
-            label="Reason for Work"
-            required
-            placeholder="Explain why the work is needed"
-            className="md:min-h-28"
-          /> */}
-          <FormToggleGroup
-            label="Contractor Required?"
-            required
-            options={yesNoOptions}
-            value={contractorRequired}
-            onValueChange={setContractorRequired}
-          />
-          {contractorRequired === "Yes" ? (
-            <>
-              <FormSelect
-                label="Contractor Name"
-                required
-                searchable
-                creatable
-                options={contractorOptions}
-                placeholder="Select or add contractor"
-              />
-              <FormInput
-                label="Contractor Contact Email"
-                type="email"
-                placeholder="Enter contractor contact email"
-              />
-            </>
-          ) : null}
-          <FormMultiSelect
-            label="Tools/Equipment Required"
-            required
-            searchable
-            creatable
-            options={toolsEquipmentOptions}
-            placeholder="Select tools or equipment"
-          />
-          {/* <FormTextarea
-            label="Special Instructions"
-            placeholder="Add any special instructions"
-          /> */}
-        </div>
-      </FormSection>
+      <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
 
       <FormSection title="Safety / Risk Indicators">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4">
           <FormMultiSelect
-            label="Risks Involved"
+            label="Risk Indicators"
             required
+            searchable
             options={riskIndicatorOptions}
-            placeholder="Select all risks involved"
-            className="md:col-span-2"
+            placeholder="Select all risk indicators that apply"
+            value={riskIndicators}
+            onValueChange={setRiskIndicators}
           />
           <FormTextarea
             label="Additional Safety Note"
             placeholder="Add any extra safety concern"
+            value={safetyNote}
+            onChange={(event) => setSafetyNote(event.target.value)}
           />
         </div>
       </FormSection>
 
-      <FormSection title="Attachments">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-3">
-            <FileDropzone
-              label="Work Area Images"
-              value={workAreaFiles}
-              onChange={setWorkAreaFiles}
-              accept="image/*,.pdf,.doc,.docx"
-              maxFiles={10}
-              hint="Images, PDFs, and documents are accepted. No upload will occur yet."
-            />
-          </div>
-          <div className="space-y-3">
-            <FileDropzone
-              label="Supporting Documents"
-              value={supportingFiles}
-              onChange={setSupportingFiles}
-              accept="image/*,.pdf,.doc,.docx"
-              maxFiles={10}
-              hint="Attach method statements, drawings, checklists, or photos."
-            />
-          </div>
+      <FormSection title="Attachments / Safety Evidence">
+        <div className="space-y-3">
+          <FileDropzone
+            label="Safety-related Images/Documents"
+            value={safetyFiles}
+            onChange={setSafetyFiles}
+            accept="image/*,.pdf,.doc,.docx"
+            maxFiles={10}
+            hint="Area images, safety checklists, hazard photos, PDFs, and documents are accepted."
+          />
           <FormTextarea
             label="Attachment Notes"
             placeholder="Add notes about the selected files"
-            className="md:col-span-2"
+            value={attachmentNotes}
+            onChange={(event) => setAttachmentNotes(event.target.value)}
           />
         </div>
       </FormSection>
@@ -263,6 +202,46 @@ export default function WorkAuthorizationForm() {
   );
 }
 
+function AssignedWorkSummary({
+  workInitiation,
+}: {
+  workInitiation: AssignedWorkInitiationSummary | undefined;
+}) {
+  return (
+    <FormSection title="Assigned Work Summary">
+      {!workInitiation ? (
+        <p className="text-sm text-brand-text-secondary">
+          Select an assigned Work Initiation to load approved work details.
+        </p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormInput label="Work Title" value={workInitiation.title} disabled />
+          <FormInput label="Work Category" value={workInitiation.workCategory} disabled />
+          {workInitiation.relatedIncidentHazardId ? (
+            <FormInput label="Related Incident/Hazard Request" value={workInitiation.relatedIncidentHazardId} disabled />
+          ) : null}
+          <FormInput label="Work Type" value={workInitiation.workType.join(", ")} disabled />
+          <FormInput label="Priority" value={workInitiation.priority} disabled />
+          <FormInput label="Location" value={workInitiation.location} disabled />
+          <FormInput label="Exact Work Area" value={workInitiation.exactWorkArea} disabled />
+          <FormInput label="Assigned Supervisor" value={workInitiation.assignedSupervisor} disabled />
+          <FormInput label="Assigned Workers" value={workInitiation.assignedWorkers.join(", ")} disabled />
+          <FormInput label="Contractors Needed" value={workInitiation.contractorsNeeded ? "Yes" : "No"} disabled />
+          {workInitiation.contractorsNeeded ? (
+            <>
+              <FormInput label="Selected Contractor" value={workInitiation.selectedContractor} disabled />
+              <FormInput label="Contractor Contact Email" type="email" value={workInitiation.contractorContactEmail} disabled />
+            </>
+          ) : null}
+          <FormInput label="Planned Start Date/Time" value={workInitiation.plannedStartDateTime} disabled />
+          <FormInput label="Planned End Date/Time" value={workInitiation.plannedEndDateTime} disabled />
+          <FormTextarea label="Work Description" value={workInitiation.workDescription} disabled className="md:col-span-2" />
+        </div>
+      )}
+    </FormSection>
+  );
+}
+
 function FormSection({
   title,
   children,
@@ -271,8 +250,8 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
-      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
       </div>
       <div className="p-5 md:p-6">{children}</div>

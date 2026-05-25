@@ -2,7 +2,7 @@
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { mockWorkCloseOutRequests } from "@/lib/mock/work-close-out";
+import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { WorkCloseOutRequest } from "@/types/safety";
 
 const columns: Column<WorkCloseOutRequest>[] = [
@@ -35,17 +35,14 @@ const columns: Column<WorkCloseOutRequest>[] = [
   },
 ];
 
-// Draft rows are hidden for now. Keep the mock draft records intact so draft
-// workflows can return later without rebuilding the data.
-const visibleWorkCloseOutRequests = mockWorkCloseOutRequests.filter(
-  (request) => request.status !== "draft"
-);
-
 export default function WorkCloseOutRequestsTable() {
+  const { workCloseOuts } = useSafetyDemoData();
+  const requests = workCloseOuts.filter((request) => request.status !== "draft");
+
   return (
     <DataTable
       columns={columns}
-      data={visibleWorkCloseOutRequests}
+      data={requests}
       rowHref={(request) => `/safety/work-close-out/${request.id}`}
       emptyMessage="No work close-out requests found."
     />

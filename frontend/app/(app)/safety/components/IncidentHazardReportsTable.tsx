@@ -1,20 +1,25 @@
 "use client";
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { mockIncidentHazardReports } from "@/lib/mock/incident-hazard";
+import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
-  recommended_to_action_owner: "Recommended to Action Owner",
-  action_owner_completed: "Action Owner Completed",
-  approved: "Resolved",
+  recommended: "Recommended",
+  resolved: "Resolved",
+  closed: "Closed",
   not_resolved: "Not Resolved",
 };
 
 const columns: Column<IncidentHazardReport>[] = [
   { key: "id", label: "Reference" },
+  {
+    key: "title",
+    label: "Title",
+    render: (value) => String(value || "-"),
+  },
   {
     key: "reportType",
     label: "Report Type",
@@ -55,15 +60,14 @@ const columns: Column<IncidentHazardReport>[] = [
 
 // Draft rows are hidden for now. Keep the mock draft records intact so draft
 // workflows can return later without rebuilding the data.
-const visibleIncidentHazardReports = mockIncidentHazardReports.filter(
-  (report) => report.status !== "draft"
-);
-
 export default function IncidentHazardReportsTable() {
+  const { incidentHazards } = useSafetyDemoData();
+  const reports = incidentHazards.filter((report) => report.status !== "draft");
+
   return (
     <DataTable
       columns={columns}
-      data={visibleIncidentHazardReports}
+      data={reports}
       rowHref={(report) => `/safety/incidents/${report.id}`}
       emptyMessage="No incident or hazard reports found."
     />
@@ -74,9 +78,9 @@ function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus })
   const classByStatus: Record<IncidentHazardStatus, string> = {
     draft: "bg-gray-100 text-gray-600",
     submitted: "bg-amber-100 text-amber-700",
-    recommended_to_action_owner: "bg-blue-100 text-blue-700",
-    action_owner_completed: "bg-purple-100 text-purple-700",
-    approved: "bg-green-100 text-green-700",
+    recommended: "bg-blue-100 text-blue-700",
+    resolved: "bg-green-100 text-green-700",
+    closed: "bg-slate-100 text-slate-700",
     not_resolved: "bg-red-100 text-red-700",
   };
 
