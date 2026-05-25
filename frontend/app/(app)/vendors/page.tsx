@@ -490,6 +490,7 @@ export default function VendorsPage() {
               columns={TABLE_COLUMNS}
               data={vendors}
               emptyMessage="No vendors found."
+              searchable={false}
             />
           )}
         </>

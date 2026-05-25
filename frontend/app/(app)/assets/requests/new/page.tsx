@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import FormSection from "@/components/ui/FormSection";
 import DynamicLineItems, { type LineItemColumn } from "@/components/ui/DynamicLineItems";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
@@ -102,129 +103,104 @@ function NewAssetRequestForm() {
         className="mb-6"
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* ── Section 1: Request Type ──────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Request Type</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Is this a temporary loan or a permanent requisition?</p>
+        <FormSection title="Request Type" description="Is this a temporary loan or a permanent requisition?" bodyClassName="p-6 space-y-0">
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+            {(["loan", "requisition"] as const).map((type) => (
+              <label
+                key={type}
+                className={[
+                  "px-4 py-1.5 text-sm font-medium rounded-md cursor-pointer transition-colors",
+                  requestType === type
+                    ? "bg-white text-brand-text-primary shadow-sm"
+                    : "text-brand-text-secondary hover:text-brand-text-primary",
+                ].join(" ")}
+              >
+                <input
+                  type="radio"
+                  value={type}
+                  className="sr-only"
+                  {...register("request_type")}
+                />
+                {capitalize(type)}
+              </label>
+            ))}
           </div>
-          <div className="p-6">
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-              {(["loan", "requisition"] as const).map((type) => (
-                <label
-                  key={type}
-                  className={[
-                    "px-4 py-1.5 text-sm font-medium rounded-md cursor-pointer transition-colors",
-                    requestType === type
-                      ? "bg-white text-brand-text-primary shadow-sm"
-                      : "text-brand-text-secondary hover:text-brand-text-primary",
-                  ].join(" ")}
-                >
-                  <input
-                    type="radio"
-                    value={type}
-                    className="sr-only"
-                    {...register("request_type")}
-                  />
-                  {capitalize(type)}
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-brand-text-secondary mt-2">
-              {requestType === "loan"
-                ? "Asset will be returned after the specified return date."
-                : "Asset will be permanently assigned — no return required."}
-            </p>
-          </div>
-        </div>
+          <p className="text-xs text-brand-text-secondary mt-2">
+            {requestType === "loan"
+              ? "Asset will be returned after the specified return date."
+              : "Asset will be permanently assigned — no return required."}
+          </p>
+        </FormSection>
 
         {/* ── Section 2: Items ─────────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Requested Items</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Select the asset type(s) you need</p>
-          </div>
-          <div className="p-6">
-            <DynamicLineItems<LineItem>
-              columns={[
-                {
-                  key: "asset_type_id",
-                  label: "Asset Type",
-                  width: "3fr",
-                  render: (value, onChange) => (
-                    <select
-                      value={value as string}
-                      onChange={(e) => onChange(e.target.value)}
-                      className="w-full text-sm bg-transparent outline-none"
-                    >
-                      <option value="">Select asset type…</option>
-                      {assetTypes.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  ),
-                },
-                {
-                  key: "quantity",
-                  label: "Qty",
-                  width: "80px",
-                  render: (value, onChange) => (
-                    <input
-                      type="number"
-                      min="1"
-                      value={value as number}
-                      onChange={(e) => onChange(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full text-sm bg-transparent outline-none text-center"
-                    />
-                  ),
-                },
-              ] as LineItemColumn<LineItem>[]}
-              rows={items}
-              onChange={setItems}
-              defaultRow={{ ...DEFAULT_LINE_ITEM }}
-              addLabel="Add Another Item"
-              error={itemsError ?? undefined}
-            />
-          </div>
-        </div>
+        <FormSection title="Requested Items" description="Select the asset type(s) you need" bodyClassName="p-6 space-y-0">
+          <DynamicLineItems<LineItem>
+            columns={[
+              {
+                key: "asset_type_id",
+                label: "Asset Type",
+                width: "3fr",
+                render: (value, onChange) => (
+                  <select
+                    value={value as string}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="w-full text-sm bg-transparent outline-none"
+                  >
+                    <option value="">Select asset type…</option>
+                    {assetTypes.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                ),
+              },
+              {
+                key: "quantity",
+                label: "Qty",
+                width: "80px",
+                render: (value, onChange) => (
+                  <input
+                    type="number"
+                    min="1"
+                    value={value as number}
+                    onChange={(e) => onChange(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full text-sm bg-transparent outline-none text-center"
+                  />
+                ),
+              },
+            ] as LineItemColumn<LineItem>[]}
+            rows={items}
+            onChange={setItems}
+            defaultRow={{ ...DEFAULT_LINE_ITEM }}
+            addLabel="Add Another Item"
+            error={itemsError ?? undefined}
+          />
+        </FormSection>
 
         {/* ── Section 3: Purpose & Return Date ────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Purpose &amp; Details</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Describe why you need these assets</p>
-          </div>
-          <div className="p-6 space-y-5">
-            <FormTextarea
-              label="Purpose / Description"
+        <FormSection title="Purpose & Details" description="Describe why you need these assets">
+          <FormTextarea
+            label="Purpose / Description"
+            required
+            placeholder="Describe what you need the asset(s) for…"
+            rows={3}
+            error={errors.purpose?.message}
+            {...register("purpose")}
+          />
+          {requestType === "loan" && (
+            <FormDatePicker
+              label="Return Date"
               required
-              placeholder="Describe what you need the asset(s) for…"
-              rows={3}
-              error={errors.purpose?.message}
-              {...register("purpose")}
+              error={errors.return_date?.message}
+              {...register("return_date")}
             />
-            {requestType === "loan" && (
-              <FormDatePicker
-                label="Return Date"
-                required
-                error={errors.return_date?.message}
-                {...register("return_date")}
-              />
-            )}
-          </div>
-        </div>
+          )}
+        </FormSection>
 
         {/* ── Actions ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between py-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+        <div className="py-2">
           <button
             type="submit"
             disabled={isSubmitting || createRequest.isPending}

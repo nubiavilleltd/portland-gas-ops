@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Trash2, X, ChevronDown } from "lucide-react";
 import FileDropzone from "@/components/ui/FileDropzone";
+import FormSection from "@/components/ui/FormSection";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormSelect from "@/components/forms/FormSelect";
@@ -166,62 +167,42 @@ export default function NewProcurementPage() {
         className="mb-6"
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* ── Section 1: Request Details ───────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Request Details</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Basic information about this purchase request</p>
-          </div>
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <FormSelect
-                label="Category"
-                required
-                options={categoryOptions}
-                placeholder="Select category"
-                error={errors.category?.message}
-                {...register("category")}
-              />
-              <FormSelect
-                label="Priority"
-                required
-                options={priorityOptions}
-                error={errors.priority?.message}
-                {...register("priority")}
-              />
-            </div>
-            {/* {watchedCategory && (
-              <p className="text-xs text-brand-text-secondary -mt-2">
-                Request title will be auto-generated: <span className="font-medium text-brand-text-primary">&ldquo;{capitalize(watchedCategory)} request&rdquo;</span>
-              </p>
-            )*/ }
-            <div className="grid grid-cols-2 gap-4">
-              <FormDatePicker label="Required By" {...register("required_by")} />
-            </div>
-            <FormTextarea
-              label="Justification / Purpose"
-              placeholder="Describe what is needed and why — this appears on the Purchase Order document"
-              rows={3}
-              {...register("justification")}
+        <FormSection title="Request Details" description="Basic information about this purchase request">
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Category"
+              required
+              options={categoryOptions}
+              placeholder="Select category"
+              error={errors.category?.message}
+              {...register("category")}
+            />
+            <FormSelect
+              label="Priority"
+              required
+              options={priorityOptions}
+              error={errors.priority?.message}
+              {...register("priority")}
             />
           </div>
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormDatePicker label="Required By" {...register("required_by")} />
+          </div>
+          <FormTextarea
+            label="Justification / Purpose"
+            placeholder="Describe what is needed and why — this appears on the Purchase Order document"
+            rows={3}
+            {...register("justification")}
+          />
+        </FormSection>
 
         {/* ── Section 2: Vendor ────────────────────────────────────────────── */}
         {/* No overflow-hidden — dropdown needs to escape the card boundary */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <div>
-              <h2 className="text-sm font-semibold text-brand-text-primary">Vendor</h2>
-              <p className="text-xs text-brand-text-secondary mt-0.5">Optional — select an existing vendor</p>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {/* ── Select existing vendor ─────────────────────────────────── */}
-            <div className="relative">
+        <FormSection title="Vendor" description="Optional — select an existing vendor" bodyClassName="p-6 space-y-0">
+          <div className="relative">
               <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor</label>
 
               {selectedVendorName ? (
@@ -283,16 +264,11 @@ export default function NewProcurementPage() {
                 Vendor details will be included on the Purchase Order PDF
               </p>
             </div>
-          </div>
-        </div>
+        </FormSection>
 
         {/* ── Section 3: Line Items ────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Line Items</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Add each item being requested — costs are in Nigerian Naira (₦)</p>
-          </div>
-          <div className="p-6">
+        <FormSection title="Line Items" description="Add each item being requested — costs are in Nigerian Naira (₦)" className="overflow-hidden" bodyClassName="p-6 space-y-0">
+          <div>
             {errors.items?.root && (
               <p className="text-xs text-red-600 mb-3">{errors.items.root.message}</p>
             )}
@@ -429,35 +405,22 @@ export default function NewProcurementPage() {
               <Plus size={15} /> Add Item
             </button>
           </div>
-        </div>
+        </FormSection>
 
         {/* ── Section 4: Attachment ────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Supporting Document</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Optional — attach a quote, spec sheet, or any supporting file</p>
-          </div>
-          <div className="p-6">
-            <FileDropzone
-              value={attachedFiles}
-              onChange={setAttachedFiles}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-              maxFiles={1}
-              maxSizeMB={10}
-              hint="PDF, Word, Excel, or images — max 10 MB"
-            />
-          </div>
-        </div>
+        <FormSection title="Supporting Document" description="Optional — attach a quote, spec sheet, or any supporting file" bodyClassName="p-6 space-y-0">
+          <FileDropzone
+            value={attachedFiles}
+            onChange={setAttachedFiles}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+            maxFiles={1}
+            maxSizeMB={10}
+            hint="PDF, Word, Excel, or images — max 10 MB"
+          />
+        </FormSection>
 
         {/* ── Actions ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between py-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+        <div className="py-2">
           <button
             type="submit"
             disabled={isSubmitting || createMutation.isPending}
