@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Search, Plus, ChevronDown } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -20,6 +21,7 @@ interface ToolbarProps {
   onNewRequest: () => void;
   newRequestLabel?: string;
   hideStatusFilter?: boolean;
+  toolbarExtra?: ReactNode;
 }
 
 export default function Toolbar({
@@ -30,6 +32,7 @@ export default function Toolbar({
   onNewRequest,
   newRequestLabel = "New Request",
   hideStatusFilter = false,
+  toolbarExtra,
 }: ToolbarProps) {
   return (
     <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -44,6 +47,7 @@ export default function Toolbar({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="w-full h-10 pl-9 pr-4 text-sm border border-brand-border rounded-lg bg-white text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition"
+          suppressHydrationWarning
         />
       </div>
 
@@ -66,6 +70,8 @@ export default function Toolbar({
           />
         </div>
       )}
+
+      {toolbarExtra}
 
       {newRequestLabel && (
         <Button leftIcon={<Plus size={16} />} onClick={onNewRequest} className="shrink-0">

@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  Users,
-  CalendarDays,
-  FolderOpen,
-  BookOpen,
-  CreditCard,
-  DollarSign,
-} from "lucide-react";
+import { Users, CalendarDays, CreditCard } from "lucide-react";
+// import { FolderOpen, BookOpen, DollarSign } from "lucide-react"; // restore when modules are re-enabled
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import ModuleCard from "@/components/ui/ModuleCard";
@@ -25,30 +19,15 @@ const MODULES = [
     icon: CalendarDays,
     href: "/hr-management/leave-requests",
   },
-  {
-    name: "Employee Records",
-    description: "Document vault",
-    icon: FolderOpen,
-    href: "/hr-management/employee-records",
-  },
-  {
-    name: "HR Policies",
-    description: "Policy library & acknowledgements",
-    icon: BookOpen,
-    href: "/hr-management/policies",
-  },
+  // { name: "Employee Records", description: "Document vault", icon: FolderOpen, href: "/hr-management/employee-records" },
+  // { name: "HR Policies", description: "Policy library & acknowledgements", icon: BookOpen, href: "/hr-management/policies" },
   {
     name: "Pay Slips",
     description: "Monthly pay slip viewer",
     icon: CreditCard,
     href: "/hr-management/payslips",
   },
-  {
-    name: "Payroll",
-    description: "Payroll runs & disbursements",
-    icon: DollarSign,
-    href: "/hr-management/payroll",
-  },
+  // { name: "Payroll", description: "Payroll runs & disbursements", icon: DollarSign, href: "/hr-management/payroll" },
 ];
 
 export default function HRManagementPage() {
