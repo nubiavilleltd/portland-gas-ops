@@ -9,7 +9,7 @@ export default function WorkAuthorizationDetailPage() {
   const params = useParams<{ id: string }>();
 
   return (
-    <AppLayout pageTitle="Work Authorization Details">
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Work Authorization Details"
         description="Review request details and simulate role-based workflow actions."

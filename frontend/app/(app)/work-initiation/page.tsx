@@ -6,7 +6,7 @@ import WorkInitiationRequestsTable from "./components/WorkInitiationRequestsTabl
 
 export default function WorkInitiationPage() {
   return (
-    <AppLayout pageTitle="Work Initiation">
+    <AppLayout pageTitle="Operations">
       <PageHeader
         title="Work Initiation"
         description="Define, review, approve, and assign operational work before safety authorization."

@@ -96,7 +96,6 @@ export default function WorkAuthorizationRequestsTable() {
     <DataTable
       columns={columns}
       data={requests}
-      showActions={true}
       rowHref={(request) => `/safety/work-authorization/${request.id}`}
       emptyMessage="No work authorization requests found."
       getSearchValues={(request) => [

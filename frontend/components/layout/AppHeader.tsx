@@ -1,7 +1,9 @@
 "use client";
 
 import { Bell, Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { getModuleGroupForPathname } from "@/config/module-groups";
 import { initials } from "@/lib/utils";
 
 interface Props {
@@ -11,6 +13,9 @@ interface Props {
 
 export default function AppHeader({ pageTitle, onMenuClick }: Props) {
   const { user } = useCurrentUser();
+  const pathname = usePathname();
+  const groupTitle = getModuleGroupForPathname(pathname)?.title;
+  const headerTitle = groupTitle ?? pageTitle;
 
   return (
     <header className="h-14 bg-white border-b border-brand-border flex items-center justify-between px-4 md:px-6 shrink-0">
@@ -24,9 +29,9 @@ export default function AppHeader({ pageTitle, onMenuClick }: Props) {
           <Menu size={20} />
         </button>
 
-        {pageTitle && (
+        {headerTitle && (
           <h2 className="text-sm font-semibold text-brand-text-primary hidden sm:block">
-            {pageTitle}
+            {headerTitle}
           </h2>
         )}
       </div>

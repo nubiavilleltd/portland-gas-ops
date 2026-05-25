@@ -6,7 +6,7 @@ import WorkAuthorizationRequestsTable from "../components/WorkAuthorizationReque
 
 export default function WorkAuthorizationPage() {
   return (
-    <AppLayout pageTitle="Work Authorization">
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Work Authorization"
         description="View facility work requests across every approval status."

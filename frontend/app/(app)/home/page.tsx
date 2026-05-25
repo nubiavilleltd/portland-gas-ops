@@ -1,94 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
-import {
-  AlertTriangle,
-  Banknote,
-  BookOpen,
-  CalendarDays,
-  CheckCircle2,
-  ClipboardCheck,
-  CreditCard,
-  DollarSign,
-  FileText,
-  FolderOpen,
-  Package,
-  ShoppingCart,
-  Settings,
-  Store,
-  Truck,
-  Users,
-} from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMyApprovals } from "@/hooks/useApprovals";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { homeModuleGroups, type ModuleProcess } from "@/config/module-groups";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
-
-type HomeModule = {
-  name: string;
-  description: string;
-  icon: LucideIcon;
-  href: string;
-};
-
-type HomeModuleGroup = {
-  title: string;
-  modules: HomeModule[];
-};
-
-const moduleGroups: HomeModuleGroup[] = [
-  {
-    title: "Administration",
-    modules: [
-      { name: "Admin", description: "Users, roles & system configuration", icon: Settings, href: "/admin" },
-    ],
-  },
-  {
-    title: "Compliance & Safety",
-    modules: [
-      { name: "Incident & Hazard Report",  description: "Report incidents, hazards, near misses, and HSE corrective actions", icon: AlertTriangle, href: "/safety/incidents" },
-      { name: "Work Authorization", description: "Request and approve work before it starts", icon: ClipboardCheck, href: "/safety/work-authorization" },
-      { name: "Work Completion & Close-Out", description: "Confirm completed work and final close-out approval", icon: CheckCircle2, href: "/safety/work-close-out" },
-    ],
-  },
-  {
-    title: "Finance",
-    modules: [
-      { name: "Cash Requisition", description: "Petty cash and operational funds", icon: Banknote, href: "/finance/cash-requisitions" },
-      { name: "Invoice Processing", description: "Supplier invoices and approvals", icon: FileText, href: "/finance/invoices" },
-    ],
-  },
-  {
-    title: "HR Management",
-    modules: [
-      { name: "Employee Profile", description: "Staff profiles and records", icon: Users, href: "/hr-management/employees" },
-      { name: "Employee Records", description: "Document vault", icon: FolderOpen, href: "/hr-management/employee-records" },
-      { name: "HR Policies", description: "Policy library and acknowledgements", icon: BookOpen, href: "/hr-management/policies" },
-      { name: "Leave Requests", description: "Leave applications and approvals", icon: CalendarDays, href: "/hr-management/leave-requests" },
-      { name: "Pay Slips", description: "Monthly pay slip viewer", icon: CreditCard, href: "/hr-management/payslips" },
-      { name: "Payroll", description: "Payroll runs and disbursements", icon: DollarSign, href: "/hr-management/payroll" },
-    ],
-  },
-  {
-    title: "Operations",
-    modules: [
-      { name: "Fleet Management", description: "Vehicles, drivers & maintenance", icon: Truck, href: "/fleet" },
-      { name: "Orders & Dispatch", description: "Gas orders, dispatch & delivery", icon: Package, href: "/orders" },
-      { name: "Work Initiation", description: "Define, review, and assign operational work", icon: ClipboardCheck, href: "/work-initiation" },
-    ],
-  },
-  {
-    title: "Supply Chain",
-    modules: [
-      { name: "Assets", description: "Register, track & request company assets", icon: Package, href: "/assets" },
-      { name: "Purchase Requests", description: "Raise & manage purchase requisitions", icon: ShoppingCart, href: "/procurement" },
-      { name: "Vendors", description: "Suppliers & service providers", icon: Store, href: "/vendors" },
-    ],
-  },
-];
 
 // TODO: implement real per-role access control
 function canAccessModule(href: string, role: UserRole | undefined): boolean {
@@ -111,7 +30,7 @@ export default function HomePage() {
       </div>
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-        {moduleGroups.map((group) => (
+        {homeModuleGroups.map((group) => (
           <section
             key={group.title}
             className="rounded-xl border border-brand-border bg-white p-3"
@@ -121,11 +40,11 @@ export default function HomePage() {
                 {group.title}
               </h3>
               {/* <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-brand-text-secondary">
-                {group.modules.length} {group.modules.length === 1 ? "process" : "processes"}
+                {group.processes.length} {group.processes.length === 1 ? "process" : "processes"}
               </span> */}
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              {group.modules.map((mod) => (
+              {group.processes.map((mod) => (
                 <ProcessLink
                   key={mod.href}
                   module={mod}
@@ -180,7 +99,7 @@ function ProcessLink({
   module,
   disabled,
 }: {
-  module: HomeModule;
+  module: ModuleProcess;
   disabled: boolean;
 }) {
   const Icon = module.icon;

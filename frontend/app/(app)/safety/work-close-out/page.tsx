@@ -6,7 +6,7 @@ import WorkCloseOutRequestsTable from "../components/WorkCloseOutRequestsTable";
 
 export default function WorkCloseOutPage() {
   return (
-    <AppLayout pageTitle="Work Completion & Close-Out">
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Work Completion & Close-Out"
         description="Confirm completed work, execution monitoring, and final close-out approval."

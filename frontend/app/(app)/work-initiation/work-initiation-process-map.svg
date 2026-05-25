@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1710" viewBox="0 0 1600 1710" fill="none">
+  <defs>
+    <style>
+      .title { font: 700 38px Arial, sans-serif; fill: #111827; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #667085; }
+      .section { font: 700 16px Arial, sans-serif; fill: #6941c6; letter-spacing: 1px; }
+      .node-title { font: 700 18px Arial, sans-serif; fill: #101828; }
+      .node-body { font: 400 15px Arial, sans-serif; fill: #667085; }
+      .status { font: 700 15px Arial, sans-serif; fill: #6941c6; }
+      .branch { font: 700 14px Arial, sans-serif; fill: #344054; }
+      .foot { font: 400 15px Arial, sans-serif; fill: #475467; }
+      .arrow { stroke: #98a2b3; stroke-width: 2.5; fill: none; }
+      .purple-arrow { stroke: #7f56d9; stroke-width: 3; fill: none; }
+      .red-arrow { stroke: #f04438; stroke-width: 2.5; fill: none; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#98A2B3" stroke-width="2" fill="none"/>
+    </marker>
+    <marker id="purpleArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#7F56D9" stroke-width="2" fill="none"/>
+    </marker>
+    <marker id="redArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#F04438" stroke-width="2" fill="none"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1710" fill="#F8F8FA"/>
+  <rect x="48" y="40" width="1504" height="1630" rx="28" fill="white" stroke="#EAECF0" stroke-width="2"/>
+
+  <text x="96" y="105" class="title">Work Initiation Process Map</text>
+  <text x="96" y="140" class="subtitle">Operational work definition, assignment, supervisor review, Operations HOD approval, and safety hand-off</text>
+
+  <rect x="96" y="180" width="1408" height="54" rx="14" fill="#F4F3FF"/>
+  <text x="120" y="213" class="section">STATUS PATH</text>
+  <text x="310" y="213" class="status">Draft</text>
+  <path d="M367 207H410" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="440" y="213" class="status">Submitted</text>
+  <path d="M540 207H584" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="616" y="213" class="status">Pending Approval</text>
+  <path d="M770 207H814" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="846" y="213" class="status">Approved</text>
+  <text x="1050" y="213" class="node-body">Branches: Returned or Denied</text>
+
+  <rect x="490" y="280" width="620" height="122" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="800" y="317" class="node-title" text-anchor="middle">Requester Raises Work Initiation</text>
+  <text x="800" y="344" class="node-body" text-anchor="middle">Work category, multi-select work type, location and assignments</text>
+  <text x="800" y="368" class="node-body" text-anchor="middle">Workers and optional contractor contact are planned</text>
+  <text x="800" y="390" class="status" text-anchor="middle">Status: Draft</text>
+
+  <path d="M800 402V446" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <path d="M800 456L1030 548L800 640L570 548Z" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="800" y="538" class="node-title" text-anchor="middle">Work Category</text>
+  <text x="800" y="566" class="node-body" text-anchor="middle">Incident / Hazard selected?</text>
+
+  <text x="1080" y="526" class="branch">YES</text>
+  <path d="M1030 548H1192V594" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="1076" y="605" width="390" height="110" rx="16" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="1271" y="642" class="node-title" text-anchor="middle">Link Recommended Incident</text>
+  <text x="1271" y="669" class="node-body" text-anchor="middle">Choose incident reference, title,</text>
+  <text x="1271" y="693" class="node-body" text-anchor="middle">requester and date for traceability</text>
+
+  <text x="468" y="526" class="branch">NO</text>
+  <path d="M570 548H400V594" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="134" y="605" width="452" height="110" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="360" y="642" class="node-title" text-anchor="middle">Continue Operational Request</text>
+  <text x="360" y="669" class="node-body" text-anchor="middle">Routine, maintenance, customer core work,</text>
+  <text x="360" y="693" class="node-body" text-anchor="middle">or other operational category</text>
+
+  <path d="M360 715V755H800" class="arrow"/>
+  <path d="M1271 715V755H800" class="arrow"/>
+  <path d="M800 755V793" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="560" y="804" width="480" height="82" rx="16" fill="#FFFAEB" stroke="#FEDF89" stroke-width="2"/>
+  <text x="800" y="838" class="node-title" text-anchor="middle">Submitted to Supervisor</text>
+  <text x="800" y="864" class="status" text-anchor="middle">Status: Submitted</text>
+
+  <path d="M800 886V926" class="arrow" marker-end="url(#arrow)"/>
+  <path d="M800 936L1010 1024L800 1112L590 1024Z" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="800" y="1013" class="node-title" text-anchor="middle">Supervisor Review</text>
+  <text x="800" y="1041" class="node-body" text-anchor="middle">Approve, Return, or Deny</text>
+
+  <text x="1056" y="1000" class="branch">APPROVE</text>
+  <path d="M1010 1024H1180V1075" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="1064" y="1086" width="400" height="100" rx="16" fill="#FFFAEB" stroke="#FEDF89" stroke-width="2"/>
+  <text x="1264" y="1122" class="node-title" text-anchor="middle">Pending Operations HOD Review</text>
+  <text x="1264" y="1152" class="status" text-anchor="middle">Status: Pending Approval</text>
+
+  <text x="464" y="1000" class="branch">RETURN / DENY</text>
+  <path d="M590 1024H400V1075" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="132" y="1086" width="470" height="110" rx="16" fill="#FEF3F2" stroke="#FECDCA" stroke-width="2"/>
+  <text x="367" y="1122" class="node-title" text-anchor="middle">Supervisor Does Not Approve</text>
+  <text x="367" y="1149" class="node-body" text-anchor="middle">Return requires correction; Deny closes request</text>
+  <text x="367" y="1173" class="status" text-anchor="middle">Status: Returned or Denied</text>
+
+  <path d="M1264 1186V1234" class="arrow" marker-end="url(#arrow)"/>
+  <path d="M1264 1244L1444 1322L1264 1400L1084 1322Z" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="1264" y="1312" class="node-title" text-anchor="middle">Operations HOD</text>
+  <text x="1264" y="1340" class="node-body" text-anchor="middle">Approve, Return, or Deny</text>
+
+  <text x="962" y="1298" class="branch">APPROVE</text>
+  <path d="M1084 1322H910V1370" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="620" y="1381" width="460" height="106" rx="16" fill="#ECFDF3" stroke="#ABEFC6" stroke-width="2"/>
+  <text x="850" y="1418" class="node-title" text-anchor="middle">Work Initiation Approved</text>
+  <text x="850" y="1445" class="node-body" text-anchor="middle">Assigned work is ready for safety review</text>
+  <text x="850" y="1469" class="status" text-anchor="middle">Status: Approved</text>
+
+  <text x="1392" y="1430" class="branch" text-anchor="end">RETURN / DENY</text>
+  <path d="M1264 1400V1460H1378" class="red-arrow" marker-end="url(#redArrow)"/>
+  <rect x="1110" y="1482" width="354" height="92" rx="16" fill="#FEF3F2" stroke="#FECDCA" stroke-width="2"/>
+  <text x="1287" y="1517" class="node-title" text-anchor="middle">Returned or Denied</text>
+  <text x="1287" y="1544" class="node-body" text-anchor="middle">Reason recorded by Operations HOD</text>
+
+  <path d="M850 1487V1528H650" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="184" y="1539" width="466" height="80" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="417" y="1573" class="node-title" text-anchor="middle">Work Authorization May Be Raised</text>
+  <text x="417" y="1600" class="node-body" text-anchor="middle">Approved initiation appears in the lookup</text>
+
+  <rect x="96" y="1634" width="1408" height="42" rx="12" fill="#F9FAFB"/>
+  <text x="120" y="1661" class="foot">Traceability rule: an Incident / Hazard category request preserves its recommended incident link through authorization and close-out.</text>
+</svg>

@@ -9,7 +9,7 @@ export default function WorkInitiationDetailsPage() {
   const params = useParams<{ id: string }>();
 
   return (
-    <AppLayout pageTitle="Work Initiation Details">
+    <AppLayout pageTitle="Operations">
       <PageHeader
         title="Work Initiation Details"
         description="Review operational work details, approvals, and assignment readiness."
