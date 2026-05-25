@@ -35,7 +35,11 @@ export default function IncidentHazardForm() {
   const [observedAt, setObservedAt] = useState("");
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
   const { workAuthorizations } = useSafetyDemoData();
-  const relatedAuthorizationOptions = workAuthorizations.map((request) => request.id);
+  const relatedAuthorizationOptions = workAuthorizations.map((request) => ({
+    value: request.id,
+    label: `${request.id} - ${request.workInitiation.title}`,
+    description: `${request.requester.name} | ${request.requester.requestDate}`,
+  }));
   const [priority, setPriority] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("");
@@ -106,7 +110,7 @@ export default function IncidentHazardForm() {
           <FormSelect label="Report Type" required searchable creatable options={toOptions(reportTypeOptions)} placeholder="Select or add report type" value={reportType} onValueChange={setReportType} />
           <FormSelect label="Location" required searchable creatable options={toOptions(incidentLocationOptions)} placeholder="Select or add location" value={location} onValueChange={setLocation} />
           <FormDateTimeInput label="Date/Time Observed" required value={observedAt} onValueChange={setObservedAt} />
-          <FormSelect label="Related Work Authorization" searchable options={toOptions(relatedAuthorizationOptions)} placeholder="Select related work authorization" value={relatedAuthorization} onValueChange={setRelatedAuthorization} />
+          <FormSelect label="Related Work Authorization" searchable options={relatedAuthorizationOptions} placeholder="Select related work authorization" dropdownClassName="md:min-w-[34rem]" value={relatedAuthorization} onValueChange={setRelatedAuthorization} />
           <FormSelect label="Priority/Urgency" required options={toOptions(incidentPriorityOptions)} placeholder="Select priority" value={priority} onValueChange={setPriority} />
         </div>
       </FormSection>

@@ -58,7 +58,8 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
     .filter((report) => report.status === "recommended")
     .map((report) => ({
       value: report.id,
-      label: `${report.id} - ${report.title || report.reportType} | ${report.reporter.name} | ${report.reporter.reportDate}`,
+      label: `${report.id} - ${report.title || report.reportType}`,
+      description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
   const [currentRole, setCurrentRole] = useState<WorkInitiationRole>("requester");
   const [supervisorComment, setSupervisorComment] = useState("");
@@ -325,6 +326,7 @@ function WorkDetails({
               options={incidentHazardRequestOptions}
               defaultValue={request.relatedIncidentHazardId}
               placeholder="Select related incident or hazard"
+              dropdownClassName="md:min-w-[34rem]"
             />
           ) : (
             <FormInput

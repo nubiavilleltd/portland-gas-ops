@@ -22,8 +22,7 @@ export type WorkAuthorizationStatus =
   | "submitted"
   | "approved"
   | "returned"
-  | "denied"
-  | "unauthorized";
+  | "denied";
 
 export type WorkAuthorizationRole = "requester" | "supervisor" | "hse";
 export type WorkInitiationRole = "requester" | "supervisor" | "operations_hod";
@@ -207,6 +206,7 @@ export interface ApprovedWorkAuthorizationOption {
   title: string;
   status: "approved";
   requester: string;
+  requestDate: string;
   department: string;
   location: string;
   exactWorkArea: string;

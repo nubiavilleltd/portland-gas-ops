@@ -80,7 +80,8 @@ export default function WorkInitiationForm() {
     .filter((report) => report.status === "recommended")
     .map((report) => ({
       value: report.id,
-      label: `${report.id} - ${report.title || report.reportType} | ${report.reporter.name} | ${report.reporter.reportDate}`,
+      label: `${report.id} - ${report.title || report.reportType}`,
+      description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
   const selectedIncident = incidentHazards.find((report) => report.id === relatedIncidentId);
   const workTypeOptions = toOptions(
@@ -190,6 +191,7 @@ export default function WorkInitiationForm() {
                 searchable
                 options={incidentHazardRequestOptions}
                 placeholder="Select recommended incident or hazard"
+                dropdownClassName="md:min-w-[34rem]"
                 value={relatedIncidentId}
                 onValueChange={handleRelatedIncidentChange}
               />

@@ -14,7 +14,7 @@ import type {
   WorkInitiationRequest,
 } from "@/types/safety";
 
-const STORAGE_KEY = "portland-gas-ops.safety-demo.v4";
+const STORAGE_KEY = "portland-gas-ops.safety-demo.v5";
 const CHANGE_EVENT = "safety-demo-data-changed";
 
 export interface SafetyDemoData {
@@ -230,6 +230,7 @@ function toApprovedAuthorizationOption(
     title: request.workInitiation.title,
     status: "approved",
     requester: request.requester.name,
+    requestDate: request.requester.requestDate,
     department: request.requester.department,
     location: request.workInitiation.location,
     exactWorkArea: request.workInitiation.exactWorkArea,

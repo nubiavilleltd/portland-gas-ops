@@ -246,7 +246,11 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
         report.hseReview?.correctiveActionRequired ? (
           <CorrectiveWorkResolution
             report={report}
-            completedWorkId={report.resolutionWorkCompletionId || completedWork?.id || ""}
+            completedWorkReference={
+              completedWork
+                ? `${completedWork.id} - ${completedWork.title} | ${completedWork.requester.name} | ${completedWork.requester.requestDate}`
+                : report.resolutionWorkCompletionId || ""
+            }
             canResolve={permissions.canActionOwnerResolve}
             onResolve={resolveRecommendedIncident}
           />
@@ -476,12 +480,12 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
 
 function CorrectiveWorkResolution({
   report,
-  completedWorkId,
+  completedWorkReference,
   canResolve,
   onResolve,
 }: {
   report: IncidentHazardReport;
-  completedWorkId: string;
+  completedWorkReference: string;
   canResolve: boolean;
   onResolve: () => void;
 }) {
@@ -492,12 +496,12 @@ function CorrectiveWorkResolution({
         <FormInput label="Action Owner" value={report.hseReview?.actionOwner || ""} disabled />
         <FormInput
           label="Related Completed Work Request"
-          value={completedWorkId || "No approved linked work completion available yet"}
+          value={completedWorkReference || "No approved linked work completion available yet"}
           disabled
           className="md:col-span-2"
         />
       </div>
-      {report.status === "recommended" && !completedWorkId ? (
+      {report.status === "recommended" && !completedWorkReference ? (
         <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           Create and complete linked work using this incident before it can be marked resolved.
         </p>

@@ -39,6 +39,7 @@ export default function WorkCompletionForm() {
       title: request.workInitiation.title,
       status: "approved",
       requester: request.requester.name,
+      requestDate: request.requester.requestDate,
       department: request.requester.department,
       location: request.workInitiation.location,
       exactWorkArea: request.workInitiation.exactWorkArea,
@@ -77,6 +78,7 @@ export default function WorkCompletionForm() {
   const workAuthorizationOptions = workAuthorizations.map((item) => ({
     value: item.id,
     label: `${item.id} - ${item.title}`,
+    description: `${item.requester} | ${item.requestDate}`,
   }));
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -153,6 +155,7 @@ export default function WorkCompletionForm() {
           options={workAuthorizationOptions}
           value={selectedWorkAuthorizationId}
           placeholder="Select approved work authorization"
+          dropdownClassName="md:min-w-[34rem]"
           onValueChange={setSelectedWorkAuthorizationId}
         />
       </FormSection>

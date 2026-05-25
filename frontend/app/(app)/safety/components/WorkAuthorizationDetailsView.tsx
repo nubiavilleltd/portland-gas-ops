@@ -136,7 +136,6 @@ export default function WorkAuthorizationDetailsView({
     const isApproved = request?.status === "approved";
     const isReturned = request?.status === "returned";
     const isDenied = request?.status === "denied";
-    const isUnauthorized = request?.status === "unauthorized";
 
     return {
       canEditDraft: currentRole === "requester" && (isDraft || isReturned),
@@ -145,9 +144,9 @@ export default function WorkAuthorizationDetailsView({
         (currentRole === "hse" && isSubmitted) ||
           isApproved ||
           isReturned ||
-          isUnauthorized,
+          isDenied,
       ),
-      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied || isUnauthorized),
+      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
     };
   }, [currentRole, request?.status]);
 
@@ -276,7 +275,7 @@ export default function WorkAuthorizationDetailsView({
           ? "approved"
           : decision === "Return"
             ? "returned"
-            : "unauthorized",
+            : "denied",
       hseInspection: inspection,
       hseApproval: approval,
       auditTrail: [...current.auditTrail, inspectionAudit, decisionAudit],
@@ -478,7 +477,7 @@ function RiskIndicatorsSection({
 
   return (
     <FormSection title="Risk & Safety Indicators">
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
         <FormMultiSelect
           label="Risk Indicators"
           options={riskIndicatorOptions}
@@ -868,10 +867,8 @@ function StatusNote({
         : "This request has been returned to the requester.";
   } else if (request.status === "denied") {
     note = "This request has been denied and is closed.";
-  } else if (request.status === "unauthorized") {
-    note = "This work authorization was denied by HSE. Work is unauthorized and a new authorization must be raised.";
   } else if (request.status === "approved") {
-    note = "Work Authorized. HSE has approved and work can begin.";
+    note = "Approved. HSE has confirmed the safety requirements and work can begin.";
   } else if (request.status === "submitted") {
     note =
       currentRole === "hse"

@@ -37,8 +37,9 @@ export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
   const { workInitiations: storedWorkInitiations } = useSafetyDemoData();
-  const workInitiations: AssignedWorkInitiationSummary[] = storedWorkInitiations
-    .filter((request) => request.status === "approved" && request.operationalReview?.decision === "Approve")
+  const approvedWorkInitiations = storedWorkInitiations
+    .filter((request) => request.status === "approved" && request.operationalReview?.decision === "Approve");
+  const workInitiations: AssignedWorkInitiationSummary[] = approvedWorkInitiations
     .map((request) => ({
       id: request.id,
       title: request.title,
@@ -63,9 +64,10 @@ export default function WorkAuthorizationForm() {
   const [safetyNote, setSafetyNote] = useState("");
   const [attachmentNotes, setAttachmentNotes] = useState("");
   const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
-  const workInitiationOptions = workInitiations.map((item) => ({
+  const workInitiationOptions = approvedWorkInitiations.map((item) => ({
     value: item.id,
     label: `${item.id} - ${item.title}`,
+    description: `${item.requester.name} | ${item.requester.requestDate}`,
   }));
   const selectedWorkInitiation = workInitiations.find(
     (item) => item.id === selectedWorkInitiationId,
@@ -147,7 +149,8 @@ export default function WorkAuthorizationForm() {
             required
             searchable
             options={workInitiationOptions}
-            placeholder="Select assigned work initiation"
+            placeholder="Select approved work initiation"
+            dropdownClassName="md:min-w-[34rem]"
             value={selectedWorkInitiationId}
             onValueChange={setSelectedWorkInitiationId}
           />
@@ -157,7 +160,7 @@ export default function WorkAuthorizationForm() {
       <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
 
       <FormSection title="Safety / Risk Indicators">
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
           <FormMultiSelect
             label="Risk Indicators"
             required
@@ -211,7 +214,7 @@ function AssignedWorkSummary({
     <FormSection title="Assigned Work Summary">
       {!workInitiation ? (
         <p className="text-sm text-brand-text-secondary">
-          Select an assigned Work Initiation to load approved work details.
+          Select an approved Work Initiation to load work details.
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

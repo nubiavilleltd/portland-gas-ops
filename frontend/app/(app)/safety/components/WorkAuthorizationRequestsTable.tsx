@@ -110,8 +110,7 @@ export default function WorkAuthorizationRequestsTable() {
 
 function WorkAuthorizationStatusBadge({ status }: { status: string }) {
   const labelByStatus: Record<string, string> = {
-    approved: "Authorized",
-    unauthorized: "Unauthorized",
+    approved: "Approved",
     denied: "Denied",
     returned: "Returned",
     submitted: "Submitted",

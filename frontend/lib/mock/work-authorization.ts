@@ -274,7 +274,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       decision: "Approve",
       approver: "Samuel Bassey",
       dateTime: "2026-05-24 09:30 AM",
-      comment: "Corrective repair work authorized with isolation controls.",
+      comment: "Corrective repair work approved with isolation controls.",
     },
     auditTrail: [
       {
@@ -289,7 +289,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
         actor: "Samuel Bassey",
         role: "HSE Inspector",
         dateTime: "2026-05-24 09:30 AM",
-        comment: "Corrective repair work authorized with isolation controls.",
+        comment: "Corrective repair work approved with isolation controls.",
       },
     ],
   },
