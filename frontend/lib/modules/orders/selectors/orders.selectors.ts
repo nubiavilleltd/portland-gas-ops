@@ -151,6 +151,7 @@ import type {
 } from "@/lib/modules/orders/types/orders.types";
 import { Product } from "../../products/types/product.types";
 import { CreateOrderFormValues } from "../schemas/create-order.schema";
+import { Payment } from "@/lib/mock/payments";
 
 // ── Single lookups ────────────────────────────────────────
 
@@ -196,6 +197,10 @@ export function getConfirmedUnassignedOrders(orders: Order[]): Order[] {
 export function canConfirmOrder(order: Order): boolean {
   return order.order_status === "draft";
 }
+export function canEditOrder(order: Order): boolean {
+  return order.order_status === "draft";
+}
+
 
 export function canAssignToTrip(order: Order): boolean {
   return (
@@ -221,6 +226,30 @@ export function isOrderReadyForDispatch(order: Order): boolean {
     return false;
   return true;
 }
+
+
+
+// ── Payment helpers ────────────────────────────────────────
+ 
+export function getPaymentsForInvoice(
+  payments: Payment[],
+  invoiceId: string
+): Payment[] {
+  return payments.filter((p) => p.invoice_id === invoiceId);
+}
+ 
+export function getPaymentSummary(
+  payments: Payment[],
+  invoiceId: string | undefined
+): { amountPaid: number; count: number } {
+  if (!invoiceId) return { amountPaid: 0, count: 0 };
+  const related = getPaymentsForInvoice(payments, invoiceId);
+  return {
+    amountPaid: related.reduce((sum, p) => sum + p.amount, 0),
+    count:      related.length,
+  };
+}
+
 
 // ── KPIs ──────────────────────────────────────────────────
 
