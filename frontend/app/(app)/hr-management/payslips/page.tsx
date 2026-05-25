@@ -240,8 +240,11 @@ function MonthPickerModal({
             </button>
           </div>
 
-          {/* month grid */}
-          <div className="grid grid-cols-4 gap-2 mb-6">
+          {/* month grid — inline style forces 3-column layout regardless of Tailwind purge */}
+          <div
+            className="mb-6"
+            style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px" }}
+          >
             {MONTHS.map((m, i) => {
               const isSelected = month === i;
               const isCurrent  = i === now.getMonth() && year === now.getFullYear();
@@ -250,16 +253,16 @@ function MonthPickerModal({
                   key={m}
                   onClick={() => setMonth(i)}
                   className={`
-                    relative h-11 rounded-xl text-sm font-medium transition-all
+                    relative py-2.5 rounded-xl text-sm font-medium transition-all text-center
                     ${isSelected
-                      ? "bg-brand-purple text-white shadow-md shadow-purple-200"
+                      ? "bg-brand-purple text-white shadow-sm"
                       : "hover:bg-brand-purple-faint text-brand-text-primary hover:text-brand-purple"
                     }
                   `}
                 >
                   {m}
                   {isCurrent && !isSelected && (
-                    <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-purple" />
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-purple" />
                   )}
                 </button>
               );
