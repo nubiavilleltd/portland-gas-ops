@@ -7,7 +7,7 @@ export default function NewWorkAuthorizationPage() {
     <AppLayout pageTitle="New Work Authorization">
       <PageHeader
         title="New Work Authorization"
-        description="Create a facility work request for supervisor and HSE review."
+        description="Create a safety authorization request for HSE review."
         className="mb-6"
       />
       <WorkAuthorizationForm />

@@ -9,13 +9,16 @@ import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import {
-  approvedWorkAuthorizationOptions,
   closeOutRequester,
 } from "@/lib/mock/work-close-out";
+import {
+  createWorkCloseOut,
+  useSafetyDemoData,
+} from "@/lib/safety-demo-store";
 import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
+import SafetyChoiceTable from "./SafetyChoiceTable";
 
 const yesNoOptions = [
   { value: "Yes", label: "Yes" },
@@ -24,30 +27,107 @@ const yesNoOptions = [
 
 const yesNoNaOptions = [...yesNoOptions, { value: "N/A", label: "N/A" }];
 
-const workAuthorizationOptions = approvedWorkAuthorizationOptions.map((item) => ({
-  value: item.id,
-  label: `${item.id} - ${item.title}`,
-}));
-
 export default function WorkCompletionForm() {
   const router = useRouter();
   const toast = useToast();
   const [selectedWorkAuthorizationId, setSelectedWorkAuthorizationId] = useState("");
+  const { workAuthorizations: storedWorkAuthorizations } = useSafetyDemoData();
+  const workAuthorizations: ApprovedWorkAuthorizationOption[] = storedWorkAuthorizations
+    .filter((request) => request.status === "approved")
+    .map((request) => ({
+      id: request.id,
+      title: request.workInitiation.title,
+      status: "approved",
+      requester: request.requester.name,
+      department: request.requester.department,
+      location: request.workInitiation.location,
+      exactWorkArea: request.workInitiation.exactWorkArea,
+      approvedStartDateTime: request.workInitiation.plannedStartDateTime,
+      approvedEndDateTime: request.workInitiation.plannedEndDateTime,
+      workTypes: request.workInitiation.workType,
+      supervisor: request.workInitiation.assignedSupervisor,
+      hseApprover: request.hseApproval?.approver ?? "Samuel Bassey",
+    }));
+  const [actualStartDateTime, setActualStartDateTime] = useState("");
+  const [actualCompletionDateTime, setActualCompletionDateTime] = useState("");
+  const [workCompleted, setWorkCompleted] = useState("");
   const [completedAsApproved, setCompletedAsApproved] = useState("");
   const [incidentObserved, setIncidentObserved] = useState("");
+  const [completionSummary, setCompletionSummary] = useState("");
+  const [deviationExplanation, setDeviationExplanation] = useState("");
+  const [incidentNote, setIncidentNote] = useState("");
+  const [monitoredDuringExecution, setMonitoredDuringExecution] = useState("");
+  const [stayedWithinScope, setStayedWithinScope] = useState("");
+  const [ppeAndControlsMaintained, setPpeAndControlsMaintained] = useState("");
+  const [unsafeConditionAddressed, setUnsafeConditionAddressed] = useState("");
+  const [workAreaCleaned, setWorkAreaCleaned] = useState("");
+  const [toolsRemoved, setToolsRemoved] = useState("");
+  const [systemSafe, setSystemSafe] = useState("");
   const [remainingHazard, setRemainingHazard] = useState("");
+  const [remainingHazardDetails, setRemainingHazardDetails] = useState("");
   const [completionFiles, setCompletionFiles] = useState<File[]>([]);
 
   const selectedWorkAuthorization = useMemo(
     () =>
-      approvedWorkAuthorizationOptions.find(
+      workAuthorizations.find(
         (item) => item.id === selectedWorkAuthorizationId
       ) ?? null,
-    [selectedWorkAuthorizationId]
+    [selectedWorkAuthorizationId, workAuthorizations]
   );
+  const workAuthorizationOptions = workAuthorizations.map((item) => ({
+    value: item.id,
+    label: `${item.id} - ${item.title}`,
+  }));
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedWorkAuthorization) return;
+    createWorkCloseOut((id) => ({
+      id,
+      status: "submitted",
+      title: `Close-out for ${selectedWorkAuthorization.title}`,
+      requester: closeOutRequester,
+      workAuthorization: selectedWorkAuthorization,
+      completionDetails: {
+        actualStartDateTime,
+        actualCompletionDateTime,
+        workCompleted: workCompleted === "Yes",
+        completedAsApproved: completedAsApproved === "Yes",
+        deviationExplanation,
+        completionSummary,
+        incidentObserved: incidentObserved === "Yes",
+        incidentNote,
+        completionEvidence: completionFiles.map((file) => ({
+          name: file.name,
+          type: file.type.startsWith("image/") ? "image" : "document",
+        })),
+        completionNotes: "",
+      },
+      monitoring: {
+        monitoredDuringExecution: monitoredDuringExecution === "Yes",
+        stayedWithinScope: stayedWithinScope === "Yes",
+        ppeAndControlsMaintained: ppeAndControlsMaintained === "Yes",
+        unsafeConditionAddressed: (unsafeConditionAddressed || "N/A") as "Yes" | "No" | "N/A",
+        monitoringComment: "",
+      },
+      areaCondition: {
+        workAreaCleaned: workAreaCleaned === "Yes",
+        toolsRemoved: toolsRemoved === "Yes",
+        systemSafe: systemSafe === "Yes",
+        remainingHazard: remainingHazard === "Yes",
+        remainingHazardDetails,
+      },
+      supervisorApproval: null,
+      operationsHeadApproval: null,
+      hseApproval: null,
+      auditTrail: [{
+        action: "Submitted",
+        actor: closeOutRequester.name,
+        role: "Requester",
+        dateTime: "2026-05-25 03:00 PM",
+        comment: "Work completion submitted for close-out.",
+      }],
+    }));
     toast.success("Work close-out submitted successfully.");
     window.setTimeout(() => {
       router.push("/safety/work-close-out");
@@ -81,15 +161,42 @@ export default function WorkCompletionForm() {
 
       <FormSection title="Completion Details">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormDateTimeInput label="Actual Start Date/Time" required />
-          <FormDateTimeInput label="Actual Completion Date/Time" required />
-          <FormToggleGroup label="Was work completed?" required options={yesNoOptions} />
-          <FormToggleGroup
-            label="Was work completed as approved?"
+          <FormDateTimeInput label="Actual Start Date/Time" required value={actualStartDateTime} onValueChange={setActualStartDateTime} />
+          <FormDateTimeInput label="Actual Completion Date/Time" required value={actualCompletionDateTime} onValueChange={setActualCompletionDateTime} />
+          <div className="md:col-span-2">
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={[
+                { label: "Was work completed?", required: true, value: workCompleted, onValueChange: setWorkCompleted },
+                {
+                  label: "Was work completed as approved?",
+                  required: true,
+                  value: completedAsApproved,
+                  onValueChange: setCompletedAsApproved,
+                },
+              ]}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={[
+                {
+                  label: "Any incident, hazard, or near miss observed?",
+                  required: true,
+                  value: incidentObserved,
+                  onValueChange: setIncidentObserved,
+                },
+              ]}
+            />
+          </div>
+          <FormTextarea
+            label="Completion Summary"
             required
-            options={yesNoOptions}
-            value={completedAsApproved}
-            onValueChange={setCompletedAsApproved}
+            placeholder="Briefly describe what was completed"
+            className="md:col-span-2"
+            value={completionSummary}
+            onChange={(event) => setCompletionSummary(event.target.value)}
           />
           {completedAsApproved === "No" ? (
             <FormTextarea
@@ -97,26 +204,17 @@ export default function WorkCompletionForm() {
               required
               placeholder="Explain the deviation from approved scope"
               className="md:col-span-2"
+              value={deviationExplanation}
+              onChange={(event) => setDeviationExplanation(event.target.value)}
             />
           ) : null}
-          <FormTextarea
-            label="Completion Summary"
-            required
-            placeholder="Briefly describe what was completed"
-            className="md:col-span-2"
-          />
-          <FormToggleGroup
-            label="Any incident, hazard, or near miss observed?"
-            required
-            options={yesNoOptions}
-            value={incidentObserved}
-            onValueChange={setIncidentObserved}
-          />
           {incidentObserved === "Yes" ? (
             <FormTextarea
               label="Incident/Hazard Note"
               required
               placeholder="Describe the incident, hazard, or near miss"
+              value={incidentNote}
+              onChange={(event) => setIncidentNote(event.target.value)}
             />
           ) : null}
           <div className="space-y-3 md:col-span-2">
@@ -138,26 +236,32 @@ export default function WorkCompletionForm() {
       </FormSection>
 
       <FormSection title="Monitoring Attestation">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormToggleGroup label="Work was monitored during execution" required options={yesNoOptions} />
-          <FormToggleGroup label="Work stayed within approved scope" required options={yesNoOptions} />
-          <FormToggleGroup label="Required PPE and safety controls were maintained" required options={yesNoOptions} />
-          <FormToggleGroup label="Unsafe condition was reported/addressed if noticed" required options={yesNoNaOptions} />
-          {/* <FormTextarea label="Monitoring Comment" placeholder="Add optional monitoring comment" className="md:col-span-2" /> */}
-        </div>
+        <SafetyChoiceTable
+          options={yesNoNaOptions}
+          rows={[
+            { label: "Work was monitored during execution", required: true, value: monitoredDuringExecution, onValueChange: setMonitoredDuringExecution },
+            { label: "Work stayed within approved scope", required: true, value: stayedWithinScope, onValueChange: setStayedWithinScope },
+            { label: "Required PPE and safety controls were maintained", required: true, value: ppeAndControlsMaintained, onValueChange: setPpeAndControlsMaintained },
+            { label: "Unsafe condition was reported/addressed if noticed", required: true, value: unsafeConditionAddressed, onValueChange: setUnsafeConditionAddressed },
+          ]}
+        />
       </FormSection>
 
       <FormSection title="Area / Equipment Condition">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormToggleGroup label="Work area cleaned after completion" required options={yesNoOptions} />
-          <FormToggleGroup label="Tools/equipment removed from work area" required options={yesNoOptions} />
-          <FormToggleGroup label="Vehicle/equipment/system left in safe condition" required options={yesNoOptions} />
-          <FormToggleGroup
-            label="Any remaining hazard?"
-            required
+        <div className="space-y-4">
+          <SafetyChoiceTable
             options={yesNoOptions}
-            value={remainingHazard}
-            onValueChange={setRemainingHazard}
+            rows={[
+              { label: "Work area cleaned after completion", required: true, value: workAreaCleaned, onValueChange: setWorkAreaCleaned },
+              { label: "Tools/equipment removed from work area", required: true, value: toolsRemoved, onValueChange: setToolsRemoved },
+              { label: "Vehicle/equipment/system left in safe condition", required: true, value: systemSafe, onValueChange: setSystemSafe },
+              {
+                label: "Any remaining hazard?",
+                required: true,
+                value: remainingHazard,
+                onValueChange: setRemainingHazard,
+              },
+            ]}
           />
           {remainingHazard === "Yes" ? (
             <FormTextarea
@@ -165,6 +269,8 @@ export default function WorkCompletionForm() {
               required
               placeholder="Describe remaining hazard"
               className="md:col-span-2"
+              value={remainingHazardDetails}
+              onChange={(event) => setRemainingHazardDetails(event.target.value)}
             />
           ) : null}
         </div>

@@ -5,8 +5,8 @@ import type { WorkInitiationRole } from "@/types/safety";
 
 const roles: { value: WorkInitiationRole; label: string }[] = [
   { value: "requester", label: "Requester" },
-  { value: "operations_reviewer", label: "Operations Reviewer" },
   { value: "supervisor", label: "Supervisor" },
+  { value: "operations_hod", label: "Operations HOD" },
 ];
 
 export default function WorkInitiationRoleSwitcher({
@@ -22,7 +22,7 @@ export default function WorkInitiationRoleSwitcher({
         <div>
           <p className="text-sm font-semibold text-brand-text-primary">Mock user role</p>
           <p className="mt-1 text-sm text-brand-text-secondary">
-            Switch roles to preview operational review and assignment.
+            Switch roles to preview supervisor and Operations HOD approvals.
           </p>
         </div>
         <div className="flex w-full rounded-xl border border-brand-border bg-gray-50 p-1 md:w-auto">

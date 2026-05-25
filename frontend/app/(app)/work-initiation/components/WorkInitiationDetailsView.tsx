@@ -12,9 +12,12 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import {
-  cloneWorkInitiationRequest,
+  contractorContactEmailByName,
   getMockWorkInitiationRequest,
+  workCategoryOptions,
+  workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
+import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -26,6 +29,7 @@ import WorkInitiationRoleSwitcher from "./WorkInitiationRoleSwitcher";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const decisionOptions = toOptions(["Approve", "Return", "Deny"]);
+const categoryOptions = toOptions(workCategoryOptions);
 const employeeOptions = toOptions(["Mary James", "Daniel Okoro", "Ibrahim Musa", "Grace Bello"]);
 const locationOptions = toOptions([
   "Conversion Bay 1",
@@ -48,17 +52,22 @@ const yesNoOptions = toOptions(["Yes", "No"]);
 export default function WorkInitiationDetailsView({ requestId }: { requestId: string }) {
   const router = useRouter();
   const initialRequest = getMockWorkInitiationRequest(requestId);
+  const { incidentHazards, workInitiations } = useSafetyDemoData();
+  const request = workInitiations.find((item) => item.id === requestId) ?? initialRequest;
+  const incidentHazardRequestOptions = incidentHazards
+    .filter((report) => report.status === "recommended")
+    .map((report) => ({
+      value: report.id,
+      label: `${report.id} - ${report.title || report.reportType} | ${report.reporter.name} | ${report.reporter.reportDate}`,
+    }));
   const [currentRole, setCurrentRole] = useState<WorkInitiationRole>("requester");
-  const [request, setRequest] = useState<WorkInitiationRequest | null>(
-    initialRequest ? cloneWorkInitiationRequest(initialRequest) : null,
-  );
-  const [reviewComment, setReviewComment] = useState("");
-  const [assignmentComment, setAssignmentComment] = useState("");
+  const [supervisorComment, setSupervisorComment] = useState("");
+  const [operationsHodComment, setOperationsHodComment] = useState("");
   const [assignedWorkers, setAssignedWorkers] = useState<string[]>(
     initialRequest?.assignment.assignedWorkers ?? [],
   );
-  const [selectedContractors, setSelectedContractors] = useState<string[]>(
-    initialRequest?.assignment.selectedContractors ?? [],
+  const [selectedContractor, setSelectedContractor] = useState(
+    initialRequest?.assignment.selectedContractor ?? "",
   );
 
   if (!request) {
@@ -68,83 +77,96 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
       </div>
     );
   }
+  const persistedRequestId = request.id;
 
   const canRequesterEdit =
     currentRole === "requester" && (request.status === "draft" || request.status === "returned");
-  const canReview = currentRole === "operations_reviewer" && request.status === "submitted";
-  const canAssign = currentRole === "supervisor" && request.status === "approved";
+  const canSupervisorReview = currentRole === "supervisor" && request.status === "submitted";
+  const canOperationsHodReview =
+    currentRole === "operations_hod" && request.status === "pending_approval";
 
-  function addAudit(item: WorkAuthorizationAuditTrailItem) {
-    setRequest((current) =>
-      current ? { ...current, auditTrail: [...current.auditTrail, item] } : current,
-    );
+  function persistUpdate(
+    update: (current: WorkInitiationRequest) => WorkInitiationRequest,
+  ) {
+    updateWorkInitiation(persistedRequestId, update);
   }
 
   function submitRequest() {
     if (!request) return;
-    setRequest((current) => (current ? { ...current, status: "submitted" } : current));
-    addAudit({
+    const audit: WorkAuthorizationAuditTrailItem = {
       action: "Submitted",
       actor: request.requester.name,
       role: "Requester",
       dateTime: "2026-05-18 09:30 AM",
       comment: "Work initiation request submitted.",
-    });
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status: "submitted",
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
-  function review(decision: WorkAuthorizationDecision) {
-    if ((decision === "Return" || decision === "Deny") && !reviewComment.trim()) return;
+  function supervisorReview(decision: WorkAuthorizationDecision) {
+    if (!request) return;
+    if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) return;
+    const nextStatus =
+      decision === "Approve" ? "pending_approval" : decision === "Return" ? "returned" : "denied";
+    const result = {
+      decision,
+      approver: request.assignment.assignedSupervisor || "Mary James",
+      dateTime: "2026-05-18 10:15 AM",
+      comment:
+        supervisorComment ||
+        (decision === "Approve"
+          ? "Work details reviewed and recommended to Operations HOD."
+          : `Work initiation ${decision.toLowerCase()}ed.`),
+    };
+    const audit: WorkAuthorizationAuditTrailItem = {
+      action: decision === "Approve" ? "Supervisor Approved" : `Supervisor ${decision}ed`,
+      actor: result.approver,
+      role: "Supervisor",
+      dateTime: result.dateTime,
+      comment: result.comment,
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status: nextStatus,
+      supervisorApproval: result,
+      auditTrail: [...current.auditTrail, audit],
+    }));
+  }
+
+  function operationsHodReview(decision: WorkAuthorizationDecision) {
+    if ((decision === "Return" || decision === "Deny") && !operationsHodComment.trim()) return;
     const nextStatus =
       decision === "Approve" ? "approved" : decision === "Return" ? "returned" : "denied";
     const result = {
       decision,
       reviewer: "Grace Bello",
-      dateTime: "2026-05-18 10:15 AM",
-      comment:
-        reviewComment ||
-        (decision === "Approve"
-          ? "Work approved for assignment."
-          : `Work initiation ${decision.toLowerCase()}ed.`),
-    };
-    setRequest((current) =>
-      current
-        ? {
-            ...current,
-            status: nextStatus,
-            operationalReview: result,
-          }
-        : current,
-    );
-    addAudit({
-      action: decision === "Approve" ? "Approved" : decision === "Return" ? "Returned" : "Denied",
-      actor: result.reviewer,
-      role: "Operations Reviewer",
-      dateTime: result.dateTime,
-      comment: result.comment,
-    });
-  }
-
-  function assignWork() {
-    setRequest((current) =>
-      current
-        ? {
-            ...current,
-            status: "assigned",
-            assignment: {
-              ...current.assignment,
-              assignedWorkers,
-              selectedContractors,
-            },
-          }
-        : current,
-    );
-    addAudit({
-      action: "Assigned",
-      actor: "Mary James",
-      role: "Supervisor",
       dateTime: "2026-05-18 10:45 AM",
-      comment: assignmentComment || "Workers assigned. Ready for Work Authorization.",
-    });
+      comment:
+        operationsHodComment ||
+        (decision === "Approve"
+          ? "Work approved by Operations HOD. Assignment confirmed for Work Authorization."
+          : `Work initiation ${decision.toLowerCase()}ed by Operations HOD.`),
+    };
+    const audit: WorkAuthorizationAuditTrailItem = {
+      action:
+        decision === "Approve"
+          ? "Operations HOD Approved"
+          : `Operations HOD ${decision}ed`,
+      actor: result.reviewer,
+      role: "Operations HOD",
+      dateTime: "2026-05-18 10:45 AM",
+      comment: result.comment,
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status: nextStatus,
+      operationalReview: result,
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
   return (
@@ -175,15 +197,19 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
 
       <StatusNote request={request} currentRole={currentRole} />
       <RequesterDetails request={request} />
-      <WorkDetails request={request} editable={canRequesterEdit} />
+      <WorkDetails
+        request={request}
+        editable={canRequesterEdit}
+        incidentHazardRequestOptions={incidentHazardRequestOptions}
+      />
       {/* <AssetDetails request={request} editable={canRequesterEdit} /> */}
       <AssignmentPlanning
         request={request}
-        editable={canRequesterEdit || canAssign}
+        editable={canRequesterEdit}
         assignedWorkers={assignedWorkers}
         onAssignedWorkersChange={setAssignedWorkers}
-        selectedContractors={selectedContractors}
-        onSelectedContractorsChange={setSelectedContractors}
+        selectedContractor={selectedContractor}
+        onSelectedContractorChange={setSelectedContractor}
       />
 
       {currentRole === "requester" && (request.status === "draft" || request.status === "returned") ? (
@@ -192,38 +218,50 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
         </div>
       ) : null}
 
-      {canReview ? (
-        <FormSection title="Operational Review">
+      {canSupervisorReview ? (
+        <FormSection title="Supervisor Review">
           <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <DecisionSubmitControl
-              onDecision={review}
-              reasonMissing={!reviewComment.trim()}
-              reasonMessage="Add a review comment before returning or denying this request."
+              onDecision={supervisorReview}
+              reasonMissing={!supervisorComment.trim()}
+              reasonMessage="Add a supervisor comment before returning or denying this request."
             />
             <FormTextarea
-              label="Review Comment"
-              value={reviewComment}
-              onChange={(event) => setReviewComment(event.target.value)}
-              placeholder="Add operational review notes"
+              label="Supervisor Comment"
+              value={supervisorComment}
+              onChange={(event) => setSupervisorComment(event.target.value)}
+              placeholder="Add supervisor review notes"
             />
+          </div>
+        </FormSection>
+      ) : request.supervisorApproval ? (
+        <ApprovalResult
+          title="Supervisor Review Result"
+          approver={request.supervisorApproval.approver}
+          decision={request.supervisorApproval.decision}
+          dateTime={request.supervisorApproval.dateTime}
+          comment={request.supervisorApproval.comment}
+        />
+      ) : null}
+
+      {canOperationsHodReview ? (
+        <FormSection title="Operations HOD Review">
+          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
+            <DecisionSubmitControl
+              onDecision={operationsHodReview}
+              reasonMissing={!operationsHodComment.trim()}
+              reasonMessage="Add an Operations HOD comment before returning or denying this request."
+            />
+          <FormTextarea
+              label="Operations HOD Comment"
+              value={operationsHodComment}
+              onChange={(event) => setOperationsHodComment(event.target.value)}
+              placeholder="Add operational approval notes"
+          />
           </div>
         </FormSection>
       ) : request.operationalReview ? (
         <ReviewResult request={request} />
-      ) : null}
-
-      {canAssign ? (
-        <FormSection title="Assignment Confirmation">
-          <FormTextarea
-            label="Assignment Comment"
-            value={assignmentComment}
-            onChange={(event) => setAssignmentComment(event.target.value)}
-            placeholder="Optional assignment note"
-          />
-          <div className="mt-4">
-            <Button type="button" onClick={assignWork}>Confirm Assignment</Button>
-          </div>
-        </FormSection>
       ) : null}
 
       {request.status !== "draft" ? <AuditTrail items={request.auditTrail} /> : null}
@@ -244,12 +282,72 @@ function RequesterDetails({ request }: { request: WorkInitiationRequest }) {
   );
 }
 
-function WorkDetails({ request, editable }: { request: WorkInitiationRequest; editable: boolean }) {
+function WorkDetails({
+  request,
+  editable,
+  incidentHazardRequestOptions,
+}: {
+  request: WorkInitiationRequest;
+  editable: boolean;
+  incidentHazardRequestOptions: { value: string; label: string }[];
+}) {
+  const [workCategory, setWorkCategory] = useState(request.workCategory);
+  const [workTypes, setWorkTypes] = useState<string[]>(request.workType);
+  const workTypeOptions = toOptions(
+    workCategory ? workTypeOptionsByCategory[workCategory] ?? [] : [],
+  );
+
+  function handleWorkCategoryChange(nextCategory: string) {
+    setWorkCategory(nextCategory);
+    setWorkTypes([]);
+  }
+
   return (
     <FormSection title="Work Details">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Work Title" defaultValue={request.title} disabled={!editable} />
-        <FormInput label="Work Type" defaultValue={request.workType} disabled={!editable} />
+        {editable ? (
+          <FormSelect
+            label="Work Category"
+            options={categoryOptions}
+            value={workCategory}
+            onValueChange={handleWorkCategoryChange}
+            placeholder="Select work category"
+          />
+        ) : (
+          <FormInput label="Work Category" value={request.workCategory} disabled />
+        )}
+        {workCategory === "Incident/Hazard" ? (
+          editable ? (
+            <FormSelect
+              label="Related Incident/Hazard Request"
+              searchable
+              options={incidentHazardRequestOptions}
+              defaultValue={request.relatedIncidentHazardId}
+              placeholder="Select related incident or hazard"
+            />
+          ) : (
+            <FormInput
+              label="Related Incident/Hazard Request"
+              value={request.relatedIncidentHazardId}
+              disabled
+            />
+          )
+        ) : null}
+        {editable ? (
+          <FormMultiSelect
+            label="Work Type"
+            searchable
+            creatable
+            options={workTypeOptions}
+            value={workTypes}
+            onValueChange={setWorkTypes}
+            placeholder={workCategory ? "Select or add work type" : "Select work category first"}
+            disabled={!workCategory}
+          />
+        ) : (
+          <FormInput label="Work Type" value={request.workType.join(", ")} disabled />
+        )}
         <FormInput label="Priority" defaultValue={request.priority} disabled={!editable} />
         <FormMultiSelect
           label="Location"
@@ -296,15 +394,15 @@ function AssignmentPlanning({
   editable,
   assignedWorkers,
   onAssignedWorkersChange,
-  selectedContractors,
-  onSelectedContractorsChange,
+  selectedContractor,
+  onSelectedContractorChange,
 }: {
   request: WorkInitiationRequest;
   editable: boolean;
   assignedWorkers: string[];
   onAssignedWorkersChange: (value: string[]) => void;
-  selectedContractors: string[];
-  onSelectedContractorsChange: (value: string[]) => void;
+  selectedContractor: string;
+  onSelectedContractorChange: (value: string) => void;
 }) {
   const assignment = request.assignment;
   return (
@@ -315,7 +413,24 @@ function AssignmentPlanning({
         <FormMultiSelect label="Assigned Workers" options={employeeOptions} value={assignedWorkers} onValueChange={onAssignedWorkersChange} disabled={!editable} />
         <FormToggleGroup label="Contractors Needed?" options={yesNoOptions} value={assignment.contractorsNeeded ? "Yes" : "No"} disabled={!editable} />
         {assignment.contractorsNeeded ? (
-          <FormMultiSelect label="Selected Contractors" options={contractorOptions} value={selectedContractors} onValueChange={onSelectedContractorsChange} disabled={!editable} />
+          <>
+            <FormSelect
+              label="Selected Contractor"
+              options={contractorOptions}
+              value={selectedContractor}
+              onValueChange={onSelectedContractorChange}
+              searchable
+              creatable
+              placeholder="Select contractor"
+              disabled={!editable}
+            />
+            <FormInput
+              label="Contractor Contact Email"
+              type="email"
+              value={contractorContactEmailByName[selectedContractor] ?? assignment.contractorContactEmail}
+              disabled
+            />
+          </>
         ) : null}
         <FormInput label="Planned Start Date/Time" defaultValue={assignment.plannedStartDateTime} disabled={!editable} />
         <FormInput label="Planned End Date/Time" defaultValue={assignment.plannedEndDateTime} disabled={!editable} />
@@ -352,12 +467,37 @@ function ReviewResult({ request }: { request: WorkInitiationRequest }) {
   const review = request.operationalReview;
   if (!review) return null;
   return (
-    <FormSection title="Operational Review Result">
+    <FormSection title="Operations HOD Review Result">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Reviewer" value={review.reviewer} disabled />
         <FormInput label="Review Decision" value={review.decision} disabled />
         <FormInput label="Review Date/Time" value={review.dateTime} disabled />
         <FormTextarea label="Review Comment" value={review.comment} disabled />
+      </div>
+    </FormSection>
+  );
+}
+
+function ApprovalResult({
+  title,
+  approver,
+  decision,
+  dateTime,
+  comment,
+}: {
+  title: string;
+  approver: string;
+  decision: WorkAuthorizationDecision;
+  dateTime: string;
+  comment: string;
+}) {
+  return (
+    <FormSection title={title}>
+      <div className="grid gap-4 md:grid-cols-2">
+        <FormInput label="Approver" value={approver} disabled />
+        <FormInput label="Decision" value={decision} disabled />
+        <FormInput label="Review Date/Time" value={dateTime} disabled />
+        <FormTextarea label="Comment" value={comment} disabled />
       </div>
     </FormSection>
   );
@@ -402,9 +542,9 @@ function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
 
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
-  if (request.status === "submitted") note = currentRole === "operations_reviewer" ? "This request is waiting for your operational review." : "Waiting for operational review.";
-  if (request.status === "approved") note = currentRole === "supervisor" ? "Work approved. Confirm assigned workers/contractors to make it eligible for Work Authorization." : "Work approved and waiting for assignment.";
-  if (request.status === "assigned") note = "Work assigned. This request is eligible for Work Authorization.";
+  if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your supervisor review." : "Waiting for supervisor approval.";
+  if (request.status === "pending_approval") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
+  if (request.status === "approved") note = "Work approved by Operations HOD. Its assigned team is eligible for Work Authorization.";
   if (request.status === "returned") note = currentRole === "requester" ? "This request was returned. Update and resubmit." : "This request was returned to the requester.";
   if (request.status === "denied") note = "This work initiation request has been denied and closed.";
   if (!note) return null;

@@ -114,7 +114,6 @@ function WorkAuthorizationStatusBadge({ status }: { status: string }) {
     unauthorized: "Unauthorized",
     denied: "Denied",
     returned: "Returned",
-    pending_approval: "Pending HSE Inspection",
     submitted: "Submitted",
     draft: "Draft",
   };

@@ -6,12 +6,13 @@ import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
+import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
-import { assignedWorkInitiationOptions } from "@/lib/mock/work-initiation";
+import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
+import type { AssignedWorkInitiationSummary } from "@/types/safety";
 
 const requester = {
   name: "Daniel Okoro",
@@ -23,24 +24,105 @@ const requester = {
 const optionFromStrings = (items: string[]): SelectOption[] =>
   items.map((item) => ({ value: item, label: item }));
 
-const yesNoOptions = optionFromStrings(["Yes", "No"]);
-
-const workInitiationOptions = assignedWorkInitiationOptions.map((item) => ({
-  value: item.id,
-  label: `${item.id} - ${item.title}`,
-}));
+const riskIndicatorOptions = optionFromStrings([
+  "Gas/CNG/LNG involved",
+  "Pressurized system involved",
+  "Heat, sparks, welding, cutting, or grinding",
+  "Electrical isolation required",
+  "Lifting/heavy equipment involved",
+  "All required PPE available",
+]);
 
 export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
+  const { workInitiations: storedWorkInitiations } = useSafetyDemoData();
+  const workInitiations: AssignedWorkInitiationSummary[] = storedWorkInitiations
+    .filter((request) => request.status === "approved" && request.operationalReview?.decision === "Approve")
+    .map((request) => ({
+      id: request.id,
+      title: request.title,
+      status: "approved",
+      workCategory: request.workCategory,
+      relatedIncidentHazardId: request.relatedIncidentHazardId,
+      workType: request.workType,
+      priority: request.priority,
+      location: request.location,
+      exactWorkArea: request.exactWorkArea,
+      workDescription: request.workDescription,
+      assignedSupervisor: request.assignment.assignedSupervisor,
+      assignedWorkers: request.assignment.assignedWorkers,
+      contractorsNeeded: request.assignment.contractorsNeeded,
+      selectedContractor: request.assignment.selectedContractor,
+      contractorContactEmail: request.assignment.contractorContactEmail,
+      plannedStartDateTime: request.assignment.plannedStartDateTime,
+      plannedEndDateTime: request.assignment.plannedEndDateTime,
+    }));
   const [selectedWorkInitiationId, setSelectedWorkInitiationId] = useState("");
+  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
+  const [safetyNote, setSafetyNote] = useState("");
+  const [attachmentNotes, setAttachmentNotes] = useState("");
   const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
-  const selectedWorkInitiation = assignedWorkInitiationOptions.find(
+  const workInitiationOptions = workInitiations.map((item) => ({
+    value: item.id,
+    label: `${item.id} - ${item.title}`,
+  }));
+  const selectedWorkInitiation = workInitiations.find(
     (item) => item.id === selectedWorkInitiationId,
   );
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedWorkInitiation) return;
+    createWorkAuthorization((id) => ({
+      id,
+      status: "submitted",
+      requester,
+      workInitiation: selectedWorkInitiation,
+      requestDetails: {
+        title: selectedWorkInitiation.title,
+        location: selectedWorkInitiation.location,
+        exactWorkArea: selectedWorkInitiation.exactWorkArea,
+        expectedStartDateTime: selectedWorkInitiation.plannedStartDateTime,
+        expectedEndDateTime: selectedWorkInitiation.plannedEndDateTime,
+        supervisor: selectedWorkInitiation.assignedSupervisor,
+        priority: selectedWorkInitiation.priority,
+      },
+      workDetails: {
+        typeOfWork: selectedWorkInitiation.workType,
+        description: selectedWorkInitiation.workDescription,
+        reason: "",
+        workersInvolved: selectedWorkInitiation.assignedWorkers,
+        contractorRequired: selectedWorkInitiation.contractorsNeeded,
+        contractorName: selectedWorkInitiation.selectedContractor,
+        contractorContactEmail: selectedWorkInitiation.contractorContactEmail,
+        toolsEquipment: [],
+        specialInstructions: "",
+      },
+      riskIndicators: {
+        gasInvolved: riskIndicators.includes("Gas/CNG/LNG involved"),
+        pressurizedSystem: riskIndicators.includes("Pressurized system involved"),
+        heatOrSparks: riskIndicators.includes("Heat, sparks, welding, cutting, or grinding"),
+        electricalIsolation: riskIndicators.includes("Electrical isolation required"),
+        liftingEquipment: riskIndicators.includes("Lifting/heavy equipment involved"),
+        ppeAvailable: riskIndicators.includes("All required PPE available"),
+        additionalSafetyNote: safetyNote,
+      },
+      attachments: safetyFiles.map((file) => ({
+        name: file.name,
+        type: file.type.startsWith("image/") ? "image" : "document",
+      })),
+      supervisorApproval: null,
+      hseInspection: null,
+      hseApproval: null,
+      auditTrail: [{
+        action: "Submitted",
+        actor: requester.name,
+        role: "Requester",
+        dateTime: "2026-05-25 10:00 AM",
+        comment: attachmentNotes || "Work authorization request submitted for HSE review.",
+      }],
+    }));
     toast.success("Work authorization request submitted successfully.");
     window.setTimeout(() => {
       router.push("/safety/work-authorization");
@@ -75,16 +157,21 @@ export default function WorkAuthorizationForm() {
       <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
 
       <FormSection title="Safety / Risk Indicators">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormToggleGroup label="Is gas/CNG/LNG involved?" required options={yesNoOptions} />
-          <FormToggleGroup label="Is a pressurized system involved?" required options={yesNoOptions} />
-          <FormToggleGroup label="Will the work involve heat, sparks, welding, cutting, or grinding?" required options={yesNoOptions} />
-          <FormToggleGroup label="Is electrical isolation required?" required options={yesNoOptions} />
-          <FormToggleGroup label="Is lifting/heavy equipment involved?" required options={yesNoOptions} />
-          <FormToggleGroup label="Are all required PPE available?" required options={yesNoOptions} />
+        <div className="grid gap-4">
+          <FormMultiSelect
+            label="Risk Indicators"
+            required
+            searchable
+            options={riskIndicatorOptions}
+            placeholder="Select all risk indicators that apply"
+            value={riskIndicators}
+            onValueChange={setRiskIndicators}
+          />
           <FormTextarea
             label="Additional Safety Note"
             placeholder="Add any extra safety concern"
+            value={safetyNote}
+            onChange={(event) => setSafetyNote(event.target.value)}
           />
         </div>
       </FormSection>
@@ -102,6 +189,8 @@ export default function WorkAuthorizationForm() {
           <FormTextarea
             label="Attachment Notes"
             placeholder="Add notes about the selected files"
+            value={attachmentNotes}
+            onChange={(event) => setAttachmentNotes(event.target.value)}
           />
         </div>
       </FormSection>
@@ -116,7 +205,7 @@ export default function WorkAuthorizationForm() {
 function AssignedWorkSummary({
   workInitiation,
 }: {
-  workInitiation: (typeof assignedWorkInitiationOptions)[number] | undefined;
+  workInitiation: AssignedWorkInitiationSummary | undefined;
 }) {
   return (
     <FormSection title="Assigned Work Summary">
@@ -127,7 +216,11 @@ function AssignedWorkSummary({
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Work Title" value={workInitiation.title} disabled />
-          <FormInput label="Work Type" value={workInitiation.workType} disabled />
+          <FormInput label="Work Category" value={workInitiation.workCategory} disabled />
+          {workInitiation.relatedIncidentHazardId ? (
+            <FormInput label="Related Incident/Hazard Request" value={workInitiation.relatedIncidentHazardId} disabled />
+          ) : null}
+          <FormInput label="Work Type" value={workInitiation.workType.join(", ")} disabled />
           <FormInput label="Priority" value={workInitiation.priority} disabled />
           <FormInput label="Location" value={workInitiation.location} disabled />
           <FormInput label="Exact Work Area" value={workInitiation.exactWorkArea} disabled />
@@ -135,7 +228,10 @@ function AssignedWorkSummary({
           <FormInput label="Assigned Workers" value={workInitiation.assignedWorkers.join(", ")} disabled />
           <FormInput label="Contractors Needed" value={workInitiation.contractorsNeeded ? "Yes" : "No"} disabled />
           {workInitiation.contractorsNeeded ? (
-            <FormInput label="Selected Contractors" value={workInitiation.selectedContractors.join(", ")} disabled />
+            <>
+              <FormInput label="Selected Contractor" value={workInitiation.selectedContractor} disabled />
+              <FormInput label="Contractor Contact Email" type="email" value={workInitiation.contractorContactEmail} disabled />
+            </>
           ) : null}
           <FormInput label="Planned Start Date/Time" value={workInitiation.plannedStartDateTime} disabled />
           <FormInput label="Planned End Date/Time" value={workInitiation.plannedEndDateTime} disabled />

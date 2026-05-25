@@ -1,20 +1,21 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { IncidentHazardRole } from "@/types/safety";
+import type { WorkCloseOutRole } from "@/types/safety";
 
-const roles: { value: IncidentHazardRole; label: string }[] = [
-  { value: "reporter", label: "Reporter" },
+const roleOptions: { value: WorkCloseOutRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "supervisor", label: "Supervisor" },
+  { value: "operations_head", label: "Operations Head" },
   { value: "hse", label: "HSE Inspector" },
-  { value: "action_owner", label: "Action Owner" },
 ];
 
-export default function IncidentHazardRoleSwitcher({
+export default function WorkCloseOutRoleSwitcher({
   value,
   onChange,
 }: {
-  value: IncidentHazardRole;
-  onChange: (role: IncidentHazardRole) => void;
+  value: WorkCloseOutRole;
+  onChange: (role: WorkCloseOutRole) => void;
 }) {
   return (
     <div className="rounded-2xl border border-brand-border bg-white p-4">
@@ -22,23 +23,23 @@ export default function IncidentHazardRoleSwitcher({
         <div>
           <p className="text-sm font-semibold text-brand-text-primary">Mock user role</p>
           <p className="mt-1 text-sm text-brand-text-secondary">
-            Switch roles to preview reporter, HSE, and assigned action-owner views.
+            Switch roles to preview Supervisor, Operations Head, and HSE close-out reviews.
           </p>
         </div>
         <div className="flex w-full rounded-xl border border-brand-border bg-gray-50 p-1 md:w-auto">
-          {roles.map((role) => (
+          {roleOptions.map((option) => (
             <button
-              key={role.value}
+              key={option.value}
               type="button"
-              onClick={() => onChange(role.value)}
+              onClick={() => onChange(option.value)}
               className={cn(
                 "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors md:flex-none",
-                value === role.value
+                value === option.value
                   ? "bg-brand-purple text-white"
-                  : "text-brand-text-secondary hover:text-brand-text-primary"
+                  : "text-brand-text-secondary hover:text-brand-text-primary",
               )}
             >
-              {role.label}
+              {option.label}
             </button>
           ))}
         </div>

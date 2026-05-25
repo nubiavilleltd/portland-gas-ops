@@ -1,5 +1,4 @@
 import type {
-  WorkAuthorizationApprovalResult,
   WorkAuthorizationHseInspection,
   WorkAuthorizationRequest,
 } from "@/types/safety";
@@ -10,13 +9,6 @@ const requester = {
   department: "Engineering",
   role: "CNG Conversion Technician",
   requestDate: "2026-05-18",
-};
-
-const supervisorApprovedForHse: WorkAuthorizationApprovalResult = {
-  decision: "Approve",
-  approver: "Mary James",
-  dateTime: "2026-05-18 10:15 AM",
-  comment: "Work scope reviewed and approved for HSE inspection.",
 };
 
 const approvedHseInspection: WorkAuthorizationHseInspection = {
@@ -124,8 +116,8 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     ],
   },
   {
-    id: "WA-PEND-001",
-    status: "pending_approval",
+    id: "WA-SUB-002",
+    status: "submitted",
     requester,
     workInitiation: assignedWorkInitiationOptions[1],
     requestDetails: {
@@ -158,7 +150,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       additionalSafetyNote: "Check ventilation before leak test.",
     },
     attachments: [{ name: "leak-check-area.jpg", type: "image" }],
-    supervisorApproval: supervisorApprovedForHse,
+    supervisorApproval: null,
     hseInspection: null,
     hseApproval: null,
     auditTrail: [
@@ -168,13 +160,6 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
         role: "Requester",
         dateTime: "2026-05-18 09:30 AM",
         comment: "Work authorization request submitted.",
-      },
-      {
-        action: "Supervisor Approved",
-        actor: "Mary James",
-        role: "Supervisor",
-        dateTime: "2026-05-18 10:15 AM",
-        comment: "Work scope reviewed and approved for HSE inspection.",
       },
     ],
   },
@@ -216,12 +201,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       { name: "welding-zone-before-work.jpg", type: "image" },
       { name: "hot-work-method-statement.pdf", type: "document" },
     ],
-    supervisorApproval: {
-      decision: "Approve",
-      approver: "Mary James",
-      dateTime: "2026-05-18 10:20 AM",
-      comment: "Work scope and timing approved.",
-    },
+    supervisorApproval: null,
     hseInspection: approvedHseInspection,
     hseApproval: {
       decision: "Approve",
@@ -238,13 +218,6 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
         comment: "Work authorization request submitted.",
       },
       {
-        action: "Supervisor Approved",
-        actor: "Mary James",
-        role: "Supervisor",
-        dateTime: "2026-05-18 10:20 AM",
-        comment: "Work scope and timing approved.",
-      },
-      {
         action: "HSE Inspection Completed",
         actor: "Samuel Bassey",
         role: "HSE Inspector",
@@ -257,6 +230,66 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
         role: "HSE Inspector",
         dateTime: "2026-05-18 11:10 AM",
         comment: "Request approved by HSE.",
+      },
+    ],
+  },
+  {
+    id: "WA-APP-002",
+    status: "approved",
+    requester,
+    workInitiation: assignedWorkInitiationOptions[1],
+    requestDetails: {
+      title: "Gas pipe leak corrective repair",
+      location: "Gas Storage Area",
+      exactWorkArea: "Pipe section near storage valve A",
+      expectedStartDateTime: "2026-05-24 10:00 AM",
+      expectedEndDateTime: "2026-05-24 02:00 PM",
+      supervisor: "Mary James",
+      priority: "Critical",
+    },
+    workDetails: {
+      typeOfWork: ["Gas System Repair", "Urgent Gas System Response"],
+      description: "Repair damaged gas pipe section and verify line safety.",
+      reason: "Corrective work recommended from linked incident report.",
+      workersInvolved: ["Ibrahim Musa"],
+      contractorRequired: false,
+      contractorName: "",
+      contractorContactEmail: "",
+      toolsEquipment: [],
+      specialInstructions: "Maintain isolation controls until verification is complete.",
+    },
+    riskIndicators: {
+      gasInvolved: true,
+      pressurizedSystem: true,
+      heatOrSparks: false,
+      electricalIsolation: false,
+      liftingEquipment: false,
+      ppeAvailable: true,
+      additionalSafetyNote: "Confirm the affected valve is isolated.",
+    },
+    attachments: [{ name: "gas-storage-repair-area.jpg", type: "image" }],
+    supervisorApproval: null,
+    hseInspection: approvedHseInspection,
+    hseApproval: {
+      decision: "Approve",
+      approver: "Samuel Bassey",
+      dateTime: "2026-05-24 09:30 AM",
+      comment: "Corrective repair work authorized with isolation controls.",
+    },
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Daniel Okoro",
+        role: "Requester",
+        dateTime: "2026-05-24 08:30 AM",
+        comment: "Work authorization submitted for corrective repair.",
+      },
+      {
+        action: "HSE Approved",
+        actor: "Samuel Bassey",
+        role: "HSE Inspector",
+        dateTime: "2026-05-24 09:30 AM",
+        comment: "Corrective repair work authorized with isolation controls.",
       },
     ],
   },

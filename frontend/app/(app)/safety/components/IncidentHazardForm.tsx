@@ -9,15 +9,18 @@ import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import {
   incidentLocationOptions,
   incidentPriorityOptions,
   mockReporter,
-  relatedWorkAuthorizationOptions,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
+import {
+  createIncidentHazardReport,
+  useSafetyDemoData,
+} from "@/lib/safety-demo-store";
 import { useToast } from "@/hooks/useToast";
+import SafetyChoiceTable from "./SafetyChoiceTable";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
@@ -26,9 +29,60 @@ export default function IncidentHazardForm() {
   const router = useRouter();
   const toast = useToast();
   const [files, setFiles] = useState<File[]>([]);
+  const [title, setTitle] = useState("");
+  const [reportType, setReportType] = useState("");
+  const [location, setLocation] = useState("");
+  const [observedAt, setObservedAt] = useState("");
+  const [relatedAuthorization, setRelatedAuthorization] = useState("");
+  const { workAuthorizations } = useSafetyDemoData();
+  const relatedAuthorizationOptions = workAuthorizations.map((request) => request.id);
+  const [priority, setPriority] = useState("");
+  const [description, setDescription] = useState("");
+  const [severity, setSeverity] = useState("");
+  const [anyoneInjured, setAnyoneInjured] = useState("");
+  const [propertyDamaged, setPropertyDamaged] = useState("");
+  const [gasConcern, setGasConcern] = useState("");
+  const [immediateAction, setImmediateAction] = useState("");
+  const [peopleInvolved, setPeopleInvolved] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState("");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    createIncidentHazardReport((id) => ({
+      id,
+      status: "submitted",
+      reporter: mockReporter,
+      title,
+      reportType,
+      location,
+      dateTimeObserved: observedAt,
+      relatedWorkAuthorization: relatedAuthorization,
+      priority: priority as "Low" | "Medium" | "High" | "Critical",
+      description,
+      severityEstimate: severity as "Low" | "Medium" | "High" | "Critical",
+      anyoneInjured: anyoneInjured === "Yes",
+      propertyDamaged: propertyDamaged === "Yes",
+      gasFireEnvironmentalConcern: gasConcern === "Yes",
+      immediateActionTaken: immediateAction,
+      peopleInvolved,
+      additionalNotes,
+      attachments: files.map((file) => ({
+        name: file.name,
+        type: file.type.startsWith("image/")
+          ? "image"
+          : file.type.startsWith("video/")
+            ? "video"
+            : "document",
+      })),
+      hseReview: null,
+      auditTrail: [{
+        action: "Submitted",
+        actor: mockReporter.name,
+        role: "Reporter",
+        dateTime: "2026-05-25 08:30 AM",
+        comment: "Incident/hazard report submitted for HSE review.",
+      }],
+    }));
     toast.success("Incident/hazard report submitted successfully.");
     window.setTimeout(() => {
       router.push("/safety/incidents");
@@ -48,24 +102,32 @@ export default function IncidentHazardForm() {
 
       <FormSection title="Report Details">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormSelect label="Report Type" required searchable creatable options={toOptions(reportTypeOptions)} placeholder="Select or add report type" />
-          <FormSelect label="Location" required searchable creatable options={toOptions(incidentLocationOptions)} placeholder="Select or add location" />
-          <FormDateTimeInput label="Date/Time Observed" required />
-          <FormSelect label="Related Work Authorization" searchable options={toOptions(relatedWorkAuthorizationOptions)} placeholder="Select related work authorization" />
-          <FormSelect label="Priority/Urgency" required options={toOptions(incidentPriorityOptions)} placeholder="Select priority" />
+          <FormInput label="Report Title" required placeholder="Enter a short report title" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <FormSelect label="Report Type" required searchable creatable options={toOptions(reportTypeOptions)} placeholder="Select or add report type" value={reportType} onValueChange={setReportType} />
+          <FormSelect label="Location" required searchable creatable options={toOptions(incidentLocationOptions)} placeholder="Select or add location" value={location} onValueChange={setLocation} />
+          <FormDateTimeInput label="Date/Time Observed" required value={observedAt} onValueChange={setObservedAt} />
+          <FormSelect label="Related Work Authorization" searchable options={toOptions(relatedAuthorizationOptions)} placeholder="Select related work authorization" value={relatedAuthorization} onValueChange={setRelatedAuthorization} />
+          <FormSelect label="Priority/Urgency" required options={toOptions(incidentPriorityOptions)} placeholder="Select priority" value={priority} onValueChange={setPriority} />
         </div>
       </FormSection>
 
       <FormSection title="Incident / Hazard Details">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" />
-          <FormSelect label="Severity Estimate" required options={toOptions(incidentPriorityOptions)} placeholder="Select severity" />
-          <FormToggleGroup label="Was anyone injured?" required options={yesNoOptions} />
-          <FormToggleGroup label="Was equipment/property damaged?" required options={yesNoOptions} />
-          <FormToggleGroup label="Is there gas/fire/environmental concern?" required options={yesNoOptions} />
-          <FormTextarea label="Immediate Action Taken" required placeholder="Describe immediate action taken" className="md:col-span-2" />
-          <FormTextarea label="People Involved / Witnesses" placeholder="Optional" />
-          <FormTextarea label="Additional Notes" placeholder="Optional" />
+          <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" value={description} onChange={(event) => setDescription(event.target.value)} />
+          <FormSelect label="Severity Estimate" required options={toOptions(incidentPriorityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} />
+          <div className="md:col-span-2">
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={[
+                { label: "Was anyone injured?", required: true, value: anyoneInjured, onValueChange: setAnyoneInjured },
+                { label: "Was equipment/property damaged?", required: true, value: propertyDamaged, onValueChange: setPropertyDamaged },
+                { label: "Is there gas/fire/environmental concern?", required: true, value: gasConcern, onValueChange: setGasConcern },
+              ]}
+            />
+          </div>
+          <FormTextarea label="Immediate Action Taken" required placeholder="Describe immediate action taken" className="md:col-span-2" value={immediateAction} onChange={(event) => setImmediateAction(event.target.value)} />
+          <FormTextarea label="People Involved / Witnesses" placeholder="Optional" value={peopleInvolved} onChange={(event) => setPeopleInvolved(event.target.value)} />
+          <FormTextarea label="Additional Notes" placeholder="Optional" value={additionalNotes} onChange={(event) => setAdditionalNotes(event.target.value)} />
         </div>
       </FormSection>
 

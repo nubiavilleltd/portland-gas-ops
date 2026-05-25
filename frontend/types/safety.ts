@@ -20,22 +20,21 @@ export type IncidentStatus = "open" | "under_investigation" | "closed";
 export type WorkAuthorizationStatus =
   | "draft"
   | "submitted"
-  | "pending_approval"
   | "approved"
   | "returned"
   | "denied"
   | "unauthorized";
 
 export type WorkAuthorizationRole = "requester" | "supervisor" | "hse";
-export type WorkInitiationRole = "requester" | "operations_reviewer" | "supervisor";
+export type WorkInitiationRole = "requester" | "supervisor" | "operations_hod";
 
 export type WorkInitiationStatus =
   | "draft"
   | "submitted"
+  | "pending_approval"
   | "returned"
   | "approved"
-  | "denied"
-  | "assigned";
+  | "denied";
 
 export type WorkAuthorizationDecision = "Approve" | "Return" | "Deny";
 export type WorkAuthorizationInspectionCheck = "Pass" | "Fail" | "N/A";
@@ -61,7 +60,8 @@ export interface WorkInitiationAssignment {
   assignedSupervisor: string;
   assignedWorkers: string[];
   contractorsNeeded: boolean;
-  selectedContractors: string[];
+  selectedContractor: string;
+  contractorContactEmail: string;
   plannedStartDateTime: string;
   plannedEndDateTime: string;
   materialsRequired: string;
@@ -70,8 +70,10 @@ export interface WorkInitiationAssignment {
 export interface AssignedWorkInitiationSummary {
   id: string;
   title: string;
-  status: "assigned";
-  workType: string;
+  status: "approved";
+  workCategory: string;
+  relatedIncidentHazardId: string;
+  workType: string[];
   priority: "Low" | "Medium" | "High" | "Critical";
   location: string;
   exactWorkArea: string;
@@ -79,7 +81,8 @@ export interface AssignedWorkInitiationSummary {
   assignedSupervisor: string;
   assignedWorkers: string[];
   contractorsNeeded: boolean;
-  selectedContractors: string[];
+  selectedContractor: string;
+  contractorContactEmail: string;
   plannedStartDateTime: string;
   plannedEndDateTime: string;
 }
@@ -98,13 +101,16 @@ export interface WorkInitiationRequest {
   title: string;
   workDescription: string;
   reasonForWork: string;
-  workType: string;
+  workCategory: string;
+  relatedIncidentHazardId: string;
+  workType: string[];
   priority: "Low" | "Medium" | "High" | "Critical";
   location: string;
   exactWorkArea: string;
   attachments: WorkAuthorizationAttachment[];
   assetDetails: WorkInitiationAssetDetails;
   assignment: WorkInitiationAssignment;
+  supervisorApproval?: WorkAuthorizationApprovalResult | null;
   operationalReview: WorkInitiationReview | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
 }
@@ -261,16 +267,19 @@ export interface WorkCloseOutRequest {
   monitoring: WorkCloseOutMonitoring;
   areaCondition: WorkCloseOutAreaCondition;
   supervisorApproval: WorkAuthorizationApprovalResult | null;
+  operationsHeadApproval: WorkAuthorizationApprovalResult | null;
   hseApproval: WorkCloseOutHseApproval | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
 }
 
+export type WorkCloseOutRole = "requester" | "supervisor" | "operations_head" | "hse";
+
 export type IncidentHazardStatus =
   | "draft"
   | "submitted"
-  | "recommended_to_action_owner"
-  | "action_owner_completed"
-  | "approved"
+  | "recommended"
+  | "resolved"
+  | "closed"
   | "not_resolved";
 export type IncidentHazardRole = "reporter" | "hse" | "action_owner";
 export type IncidentHazardPriority = "Low" | "Medium" | "High" | "Critical";
@@ -297,22 +306,18 @@ export interface IncidentHazardHseReview {
   correctiveActionRequired: boolean;
   correctiveActionDetails: string;
   actionOwner: string;
+  assignedDepartment: string;
   targetCompletionDate: string;
-  decision: IncidentHazardDecision | "";
+  decision: IncidentHazardDecision | "Recommended" | "";
   comment: string;
   reviewDateTime: string;
-}
-
-export interface IncidentHazardActionOwnerCompletion {
-  owner: string;
-  completedDateTime: string;
-  comment: string;
 }
 
 export interface IncidentHazardReport {
   id: string;
   status: IncidentHazardStatus;
   reporter: IncidentHazardReporter;
+  title: string;
   reportType: string;
   location: string;
   dateTimeObserved: string;
@@ -328,7 +333,7 @@ export interface IncidentHazardReport {
   additionalNotes: string;
   attachments: IncidentHazardAttachment[];
   hseReview: IncidentHazardHseReview | null;
-  actionOwnerCompletion: IncidentHazardActionOwnerCompletion | null;
+  resolutionWorkCompletionId?: string;
   auditTrail: WorkAuthorizationAuditTrailItem[];
 }
 

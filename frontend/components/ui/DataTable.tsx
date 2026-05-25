@@ -303,7 +303,7 @@ export default function DataTable<T extends { id: string }>({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 flex-col gap-3 sm:flex-row">
             {searchable ? (
-              <div className="relative min-w-0 flex-1">
+              <div className="relative w-full min-w-0 sm:w-1/2 lg:w-1/4">
                 <Search
                   size={15}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary"
