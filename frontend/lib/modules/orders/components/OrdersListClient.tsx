@@ -358,7 +358,7 @@ import { Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import DataTable, { Column } from "@/components/ui/table/DataTable";
+// import DataTable, { Column } from "@/components/ui/table/DataTable";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -370,6 +370,7 @@ import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentS
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
 import { Order } from "../types/orders.types";
+import DataTable, { Column } from "@/components/ui/DataTable";
 
 interface KpiCardProps {
   label: string;
@@ -538,33 +539,33 @@ export default function OrdersListClient({
       ),
     },
 
-    {
-      key: "actions",
-      label: "Actions",
-      render: (_, order) => {
-        const actions =
-          getOrderActions(order);
+    // {
+    //   key: "actions",
+    //   label: "Actions",
+    //   render: (_, order) => {
+    //     const actions =
+    //       getOrderActions(order);
 
-        return (
-          <div className="flex gap-2">
-            {actions.map((action, idx) => (
-              <Button
-                key={idx}
-                size="sm"
-                variant={
-                  action.variant === "outline"
-                    ? "outline"
-                    : "primary"
-                }
-                href={action.href}
-              >
-                {action.label}
-              </Button>
-            ))}
-          </div>
-        );
-      },
-    },
+    //     return (
+    //       <div className="flex gap-2">
+    //         {actions.map((action, idx) => (
+    //           <Button
+    //             key={idx}
+    //             size="sm"
+    //             variant={
+    //               action.variant === "outline"
+    //                 ? "outline"
+    //                 : "primary"
+    //             }
+    //             href={action.href}
+    //           >
+    //             {action.label}
+    //           </Button>
+    //         ))}
+    //       </div>
+    //     );
+    //   },
+    // },
   ];
 
   return (

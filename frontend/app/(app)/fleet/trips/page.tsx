@@ -578,7 +578,7 @@
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import DataTable, { Column } from "@/components/ui/table/DataTable";
+// import DataTable, { Column } from "@/components/ui/table/DataTable";
 
 import { formatDate } from "@/lib/utils";
 
@@ -588,6 +588,7 @@ import { getTrips } from "@/lib/modules/fleet/selectors/trips.selectors";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
+import DataTable, { Column } from "@/components/ui/DataTable";
 
 export default function TripsPage() {
   const trips = getTrips();
