@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Link from "next/link";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -157,12 +156,6 @@ export default function LeaveRequestsPage() {
       {/* ── LIST ── */}
       {view === "list" && (
         <>
-          <Link
-            href="/hr-management"
-            className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
-          >
-            <ArrowLeft size={16} /> Back to HR Management
-          </Link>
           <PageHeader
             title="Leave Requests"
             description="Manage leave requests and approvals"

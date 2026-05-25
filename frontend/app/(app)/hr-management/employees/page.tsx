@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -58,10 +56,6 @@ export default function EmployeesPage() {
 
   return (
     <AppLayout pageTitle="Employee Profile">
-      <Link href="/hr-management" className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5">
-        <ArrowLeft size={16} /> Back to HR Management
-      </Link>
-
       <PageHeader
         title="Employee Profile"
         description="Manage employee profiles and records"

@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowLeft, Paperclip, CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
@@ -36,7 +36,6 @@ export default function LeaveRequestDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
 
   const [record, setRecord] = useState<LeaveRequest | undefined>(
     () => LEAVE_STORE.find((r) => r.id === id)
@@ -60,14 +59,13 @@ export default function LeaveRequestDetailPage({
 
   return (
     <AppLayout pageTitle="Leave Request">
-      <button
-        type="button"
-        onClick={() => router.back()}
+      <Link
+        href="/hr-management/leave-requests"
         className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
       >
         <ArrowLeft size={16} />
         Back to Leave Requests
-      </button>
+      </Link>
 
       {!record ? (
         <div className="bg-brand-card border border-brand-border rounded-2xl p-8 text-center max-w-lg">
