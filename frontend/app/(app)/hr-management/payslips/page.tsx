@@ -457,7 +457,6 @@ export default function PaySlipsPage() {
         </button>
 
         <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden max-w-3xl">
-          <div className="h-1.5 w-full bg-linear-to-r from-brand-purple to-brand-purple-light" />
           <div className="p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
               <div>
@@ -468,10 +467,11 @@ export default function PaySlipsPage() {
               </div>
               <Button
                 variant="outline"
-                className="flex items-center gap-1.5 text-xs shrink-0"
+                leftIcon={<Download size={13} />}
+                className="text-xs shrink-0"
                 onClick={() => downloadSinglePdf(s)}
               >
-                <Download size={13} /> Download PDF
+                Download PDF
               </Button>
             </div>
 
@@ -551,13 +551,6 @@ export default function PaySlipsPage() {
         />
       )}
 
-      <Link
-        href="/hr-management"
-        className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
-      >
-        <ArrowLeft size={16} /> Back to HR Management
-      </Link>
-
       {/* ── Header ── */}
       <div className="mb-6">
         <PageHeader title="Pay Slips" description="View and download monthly pay slips" />
@@ -579,15 +572,16 @@ export default function PaySlipsPage() {
               <Button
                 onClick={confirmGenerate}
                 disabled={checkedIds.size === 0}
-                className="flex items-center gap-2"
+                rightIcon={
+                  <span className="bg-white/20 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {checkedIds.size}
+                  </span>
+                }
               >
                 Confirm &amp; Generate
-                <span className="ml-1 bg-white/20 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {checkedIds.size}
-                </span>
               </Button>
-              <Button variant="outline" onClick={cancelGenerate} className="flex items-center gap-1.5">
-                <X size={14} /> Cancel
+              <Button variant="outline" onClick={cancelGenerate} leftIcon={<X size={14} />}>
+                Cancel
               </Button>
             </div>
           </div>
@@ -695,9 +689,9 @@ export default function PaySlipsPage() {
                   variant="outline"
                   onClick={handleDownloadZip}
                   disabled={zipping}
-                  className="flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                  leftIcon={<FileDown size={15} />}
+                  className="shrink-0 whitespace-nowrap"
                 >
-                  <FileDown size={15} />
                   {zipping ? "Zipping…" : "Download ZIP"}
                 </Button>
               )}
