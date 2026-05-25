@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Search, AlertTriangle, Package, LayoutGrid, Table2 } from "lucide-react";
+import { Plus, Search, Package, LayoutGrid, Table2, MapPin, User } from "lucide-react";
+import SelectInput from "@/components/forms/SelectInput";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -16,18 +17,18 @@ import { formatCurrency, capitalize } from "@/lib/utils";
 import type { Asset, AssetStatus } from "@/types";
 
 const STATUS_TABS: { label: string; value: AssetStatus | undefined }[] = [
-  { label: "All", value: undefined },
-  { label: "Available", value: "available" },
-  { label: "In Use", value: "in_use" },
-  { label: "Maintenance", value: "under_maintenance" },
-  { label: "Decommissioned", value: "decommissioned" },
+  { label: "All",          value: undefined },
+  { label: "Available",    value: "available" },
+  { label: "Assigned",     value: "assigned" },
+  { label: "Under Repair", value: "under_repair" },
+  { label: "Retired",      value: "retired" },
 ];
 
 const STATUS_STYLES: Record<AssetStatus, string> = {
-  available:         "bg-green-100 text-green-700",
-  in_use:            "bg-blue-100 text-blue-700",
-  under_maintenance: "bg-amber-100 text-amber-700",
-  decommissioned:    "bg-gray-100 text-gray-500",
+  available:    "bg-green-100 text-green-700",
+  assigned:     "bg-blue-100 text-blue-700",
+  under_repair: "bg-amber-100 text-amber-700",
+  retired:      "bg-gray-100 text-gray-500",
 };
 
 const CONDITION_STYLES: Record<string, string> = {
@@ -59,11 +60,6 @@ function AssetCard({ asset }: { asset: Asset }) {
         ) : (
           <Package size={36} className="text-gray-300" />
         )}
-        {asset.is_low_stock && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-amber-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-            <AlertTriangle size={10} /> Low Stock
-          </div>
-        )}
       </div>
 
       <div className="p-4 flex flex-col gap-2 flex-1">
@@ -80,20 +76,25 @@ function AssetCard({ asset }: { asset: Asset }) {
         {asset.asset_tag && (
           <span className="self-start text-[10px] font-mono text-brand-text-secondary bg-gray-100 px-1.5 py-0.5 rounded">{asset.asset_tag}</span>
         )}
-        {asset.asset_type && (
-          <p className="text-xs text-brand-text-secondary">{asset.asset_type.name}</p>
-        )}
 
-        <div className="flex items-center justify-between mt-auto pt-2 border-t border-brand-border">
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${conditionStyle}`}>
-            {capitalize(asset.condition)}
-          </span>
-          <div className="text-right">
-            <p className="text-xs text-brand-text-secondary">Available</p>
-            <p className={`text-sm font-semibold ${asset.available_quantity === 0 ? "text-red-500" : "text-brand-text-primary"}`}>
-              {asset.available_quantity} / {asset.total_quantity}
-            </p>
-          </div>
+        <div className="mt-auto pt-2 border-t border-brand-border space-y-1">
+          {asset.assigned_to_name && (
+            <div className="flex items-center gap-1 text-xs text-brand-text-secondary">
+              <User size={10} className="shrink-0" />
+              <span className="truncate">{asset.assigned_to_name}</span>
+            </div>
+          )}
+          {asset.location && (
+            <div className="flex items-center gap-1 text-xs text-brand-text-secondary">
+              <MapPin size={10} className="shrink-0" />
+              <span className="truncate">{asset.location}</span>
+            </div>
+          )}
+          {!asset.assigned_to_name && !asset.location && (
+            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${conditionStyle}`}>
+              {capitalize(asset.condition)}
+            </span>
+          )}
         </div>
 
         {asset.purchase_cost && (
@@ -153,23 +154,29 @@ const TABLE_COLUMNS: Column<Asset>[] = [
     ),
   },
   {
+    key: "assigned_to_name",
+    label: "Assigned To",
+    render: (v) => v ? (
+      <span className="text-sm text-brand-text-primary">{String(v)}</span>
+    ) : (
+      <span className="text-brand-text-secondary">—</span>
+    ),
+  },
+  {
+    key: "location",
+    label: "Location",
+    render: (v) => v ? (
+      <span className="text-sm text-brand-text-primary">{String(v)}</span>
+    ) : (
+      <span className="text-brand-text-secondary">—</span>
+    ),
+  },
+  {
     key: "condition",
     label: "Condition",
     render: (_, asset) => (
       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}>
         {capitalize(asset.condition)}
-      </span>
-    ),
-  },
-  {
-    key: "available_quantity",
-    label: "Available / Total",
-    render: (_, asset) => (
-      <span className={`text-sm font-semibold ${asset.available_quantity === 0 ? "text-red-500" : "text-brand-text-primary"}`}>
-        {asset.available_quantity} / {asset.total_quantity}
-        {asset.is_low_stock && (
-          <span className="ml-2 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Low</span>
-        )}
       </span>
     ),
   },
@@ -213,6 +220,9 @@ export default function AssetsPage() {
         action={
           isAdmin ? (
             <div className="flex items-center gap-2">
+              <Button href="/assets/history" variant="outline" size="sm">
+                Asset History
+              </Button>
               <Button href="/assets/categories" variant="outline" size="sm">
                 Categories
               </Button>
@@ -229,27 +239,25 @@ export default function AssetsPage() {
       />
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search assets…"
+            placeholder="Search by name, tag, assignee…"
             className="w-full pl-9 pr-4 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
           />
         </div>
         {categories.length > 0 && (
-          <select
-            value={activeCategoryId ?? ""}
-            onChange={(e) => setActiveCategoryId(e.target.value || undefined)}
-            className="px-3 py-2 border border-brand-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-          >
-            <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <div className="w-44 shrink-0">
+            <SelectInput
+              placeholder="All Categories"
+              value={activeCategoryId ?? ""}
+              onValueChange={(v) => setActiveCategoryId(v || undefined)}
+              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            />
+          </div>
         )}
       </div>
 
@@ -306,7 +314,7 @@ export default function AssetsPage() {
           </div>
 
           <Link href="/assets/requests" className="text-xs text-brand-purple hover:underline font-medium">
-            View my requests →
+            My Requests →
           </Link>
         </div>
       </div>

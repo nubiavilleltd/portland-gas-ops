@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Paperclip, X, ChevronDown } from "lucide-react";
+import { Plus, Trash2, X, ChevronDown } from "lucide-react";
+import FileDropzone from "@/components/ui/FileDropzone";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormSelect from "@/components/forms/FormSelect";
@@ -31,16 +32,6 @@ const itemSchema = z.object({
   total_cost: z.string(),
 });
 
-const MAX_FILE_MB = 10;
-const ALLOWED_FILE_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "image/png",
-  "image/jpeg",
-];
 
 const schema = z.object({
   category: z.string().min(1, "Select a category"),
@@ -87,8 +78,7 @@ export default function NewProcurementPage() {
   const createMutation = useCreateProcurement();
   const { data: vendors = [] } = useVendors();
 
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [selectedVendorName, setSelectedVendorName] = useState<string>("");
@@ -159,7 +149,7 @@ export default function NewProcurementPage() {
             total_cost: parseFloat(item.total_cost) || 0,
           })),
         },
-        file: attachedFile,
+        file: attachedFiles[0] ?? null,
       });
       toast.success("Purchase request submitted successfully");
       router.push("/procurement");
@@ -448,57 +438,14 @@ export default function NewProcurementPage() {
             <p className="text-xs text-brand-text-secondary mt-0.5">Optional — attach a quote, spec sheet, or any supporting file</p>
           </div>
           <div className="p-6">
-            {attachedFile ? (
-              <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl">
-                <Paperclip size={14} className="text-brand-purple shrink-0" />
-                <span className="text-sm text-brand-text-primary flex-1 truncate">{attachedFile.name}</span>
-                <span className="text-xs text-brand-text-secondary">
-                  {(attachedFile.size / 1024).toFixed(0)} KB
-                </span>
-                <button
-                  type="button"
-                  onClick={() => { setAttachedFile(null); setFileError(null); }}
-                  className="text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-brand-border rounded-xl py-8 cursor-pointer hover:border-brand-purple hover:bg-purple-50/30 transition-colors">
-                <Paperclip size={20} className="text-gray-400" />
-                <p className="text-sm text-brand-text-secondary">
-                  <span className="text-brand-purple font-medium">Click to attach</span> or drag and drop
-                </p>
-                <p className="text-xs text-gray-400">PDF, Word, Excel, images — max 10 MB</p>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    if (file) {
-                      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-                        setFileError("File type not allowed. Use PDF, Word, Excel, PNG or JPG.");
-                        e.target.value = "";
-                        return;
-                      }
-                      if (file.size > MAX_FILE_MB * 1024 * 1024) {
-                        setFileError(`File too large. Maximum size is ${MAX_FILE_MB} MB.`);
-                        e.target.value = "";
-                        return;
-                      }
-                    }
-                    setFileError(null);
-                    setAttachedFile(file);
-                  }}
-                />
-              </label>
-            )}
-            {fileError && (
-              <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                <span>⚠</span> {fileError}
-              </p>
-            )}
+            <FileDropzone
+              value={attachedFiles}
+              onChange={setAttachedFiles}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+              maxFiles={1}
+              maxSizeMB={10}
+              hint="PDF, Word, Excel, or images — max 10 MB"
+            />
           </div>
         </div>
 
@@ -513,7 +460,7 @@ export default function NewProcurementPage() {
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || createMutation.isPending || !!fileError}
+            disabled={isSubmitting || createMutation.isPending}
             className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
           >
             {createMutation.isPending ? (

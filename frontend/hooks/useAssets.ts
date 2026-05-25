@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { categoryStore, assetStore, assetTypeStore, assetRequestStore, maintenanceLogStore } from "@/lib/mockStore";
-// import { get, post, patch, del, postForm } from "@/lib/api";
-import type { Asset, AssetCategory, AssetType, AssetRequest, AssetRequestListItem, AssetRequestStatus, AssetMaintenanceLog } from "@/types";
+import { categoryStore, assetTypeStore, assetStore, assetRequestStore, maintenanceLogStore, assignmentLogStore } from "@/lib/mockStore";
+import type { Asset, AssetCategory, AssetType, AssetAssignmentLog, AssetRequest, AssetRequestListItem, AssetRequestStatus, AssetMaintenanceLog, AssetTransferInput } from "@/types";
 
 // ── Categories ─────────────────────────────────────────────────────────────────
 
@@ -97,7 +96,9 @@ export function useAssets(params?: { category_id?: string; status?: string; sear
           (a) =>
             a.name.toLowerCase().includes(q) ||
             (a.category?.name ?? "").toLowerCase().includes(q) ||
-            (a.serial_number ?? "").toLowerCase().includes(q)
+            (a.serial_number ?? "").toLowerCase().includes(q) ||
+            (a.asset_tag ?? "").toLowerCase().includes(q) ||
+            (a.assigned_to_name ?? "").toLowerCase().includes(q)
         );
       }
       return Promise.resolve(list);
@@ -121,9 +122,12 @@ export function useAsset(id: string) {
 export function useCreateAsset() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ data }: { data: Partial<Asset> & { name: string; condition: Asset["condition"]; status: Asset["status"]; total_quantity: number; low_stock_threshold: number }; image?: File | null }) =>
+    mutationFn: ({ data }: { data: Partial<Asset> & { name: string; condition: Asset["condition"]; status: Asset["status"] }; image?: File | null }) =>
       Promise.resolve(assetStore.add(data)),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assets"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["assignment-logs"] });
+    },
   });
 }
 
@@ -139,6 +143,19 @@ export function useUpdateAsset(id: string) {
   });
 }
 
+export function useTransferAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: AssetTransferInput }) =>
+      Promise.resolve(assetStore.transfer(id, data)),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["assets", id] });
+      queryClient.invalidateQueries({ queryKey: ["assignment-logs", id] });
+    },
+  });
+}
+
 export function useDeleteAsset() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -147,6 +164,25 @@ export function useDeleteAsset() {
       return Promise.resolve();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assets"] }),
+  });
+}
+
+// ── Assignment Logs ────────────────────────────────────────────────────────────
+
+export function useAssignmentLogs(assetId: string) {
+  return useQuery<AssetAssignmentLog[]>({
+    queryKey: ["assignment-logs", assetId],
+    queryFn: () => Promise.resolve(assignmentLogStore.getByAsset(assetId)),
+    enabled: !!assetId,
+    staleTime: Infinity,
+  });
+}
+
+export function useAllAssignmentLogs() {
+  return useQuery<AssetAssignmentLog[]>({
+    queryKey: ["assignment-logs-all"],
+    queryFn: () => Promise.resolve(assignmentLogStore.getAll()),
+    staleTime: Infinity,
   });
 }
 
@@ -179,12 +215,8 @@ export function useAssetRequest(id: string) {
 export function useCreateAssetRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: object) =>
-      Promise.resolve(
-        assetRequestStore.add(
-          data as { request_type: string; purpose: string; return_date?: string; items: { asset_id: string; quantity: number; notes?: string }[] }
-        )
-      ),
+    mutationFn: (data: { request_type: string; purpose: string; return_date?: string; items: { asset_type_id: string; quantity: number }[] }) =>
+      Promise.resolve(assetRequestStore.add(data)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-requests"] }),
   });
 }
@@ -217,13 +249,8 @@ export function useMaintenanceLogs(assetId: string) {
 export function useCreateMaintenanceLog(assetId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: object) =>
-      Promise.resolve(
-        maintenanceLogStore.add(
-          assetId,
-          data as { performed_date: string; maintenance_type: AssetMaintenanceLog["maintenance_type"]; technician?: string; cost?: number; notes?: string }
-        )
-      ),
+    mutationFn: (data: { performed_date: string; maintenance_type: AssetMaintenanceLog["maintenance_type"]; technician?: string; cost?: number; notes?: string }) =>
+      Promise.resolve(maintenanceLogStore.add(assetId, data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["maintenance-logs", assetId] });
       queryClient.invalidateQueries({ queryKey: ["assets", assetId] });
@@ -231,135 +258,3 @@ export function useCreateMaintenanceLog(assetId: string) {
     },
   });
 }
-
-// ── ORIGINAL (uncomment to re-enable backend) ──────────────────────────────────
-// export function useAssetCategories() {
-//   return useQuery<AssetCategory[]>({
-//     queryKey: ["asset-categories"],
-//     queryFn: () => get<AssetCategory[]>("/api/assets/categories/"),
-//     staleTime: 10 * 60 * 1000,
-//   });
-// }
-// export function useCreateAssetCategory() {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: (data: { name: string; colour: string }) =>
-//       post<AssetCategory>("/api/assets/categories/", data),
-//     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-categories"] }),
-//   });
-// }
-// export function useUpdateAssetCategory(id: string) {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: (data: { name?: string; colour?: string }) =>
-//       patch<AssetCategory>(`/api/assets/categories/${id}`, data),
-//     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-categories"] }),
-//   });
-// }
-// export function useDeleteAssetCategory() {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: (id: string) => del<void>(`/api/assets/categories/${id}`),
-//     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-categories"] }),
-//   });
-// }
-// export function useAssets(params?: { category_id?: string; status?: string; search?: string }) {
-//   return useQuery<Asset[]>({
-//     queryKey: ["assets", params ?? {}],
-//     queryFn: () => get<Asset[]>("/api/assets/", params),
-//     staleTime: 2 * 60 * 1000,
-//   });
-// }
-// export function useAsset(id: string) {
-//   return useQuery<Asset>({
-//     queryKey: ["assets", id],
-//     queryFn: () => get<Asset>(`/api/assets/${id}`),
-//     enabled: !!id,
-//   });
-// }
-// export function useCreateAsset() {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: ({ data, image }: { data: object; image?: File | null }) => {
-//       const form = new FormData();
-//       form.append("data", JSON.stringify(data));
-//       if (image) form.append("image", image);
-//       return postForm<Asset>("/api/assets/", form);
-//     },
-//     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assets"] }),
-//   });
-// }
-// export function useUpdateAsset(id: string) {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: ({ data, image }: { data: object; image?: File | null }) => {
-//       const form = new FormData();
-//       form.append("data", JSON.stringify(data));
-//       if (image) form.append("image", image);
-//       return postForm<Asset>(`/api/assets/${id}`, form);
-//     },
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["assets"] });
-//       queryClient.invalidateQueries({ queryKey: ["assets", id] });
-//     },
-//   });
-// }
-// export function useDeleteAsset() {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: (id: string) => del<void>(`/api/assets/${id}`),
-//     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assets"] }),
-//   });
-// }
-// export function useAssetRequests(statusFilter?: AssetRequestStatus) {
-//   return useQuery<AssetRequestListItem[]>({
-//     queryKey: ["asset-requests", statusFilter ?? "all"],
-//     queryFn: () => get<AssetRequestListItem[]>("/api/assets/requests/", statusFilter ? { status: statusFilter } : undefined),
-//     staleTime: 2 * 60 * 1000,
-//   });
-// }
-// export function useAssetRequest(id: string) {
-//   return useQuery<AssetRequest>({
-//     queryKey: ["asset-requests", id],
-//     queryFn: () => get<AssetRequest>(`/api/assets/requests/${id}`),
-//     enabled: !!id,
-//   });
-// }
-// export function useCreateAssetRequest() {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: (data: object) => post<AssetRequest>("/api/assets/requests/", data),
-//     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["asset-requests"] }),
-//   });
-// }
-// export function useUpdateAssetRequestStatus(id: string) {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: (data: { status: AssetRequestStatus; rejection_reason?: string }) =>
-//       patch<AssetRequest>(`/api/assets/requests/${id}/status`, data),
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["asset-requests"] });
-//       queryClient.invalidateQueries({ queryKey: ["assets"] });
-//     },
-//   });
-// }
-// export function useMaintenanceLogs(assetId: string) {
-//   return useQuery<AssetMaintenanceLog[]>({
-//     queryKey: ["maintenance-logs", assetId],
-//     queryFn: () => get<AssetMaintenanceLog[]>(`/api/assets/${assetId}/maintenance-logs/`),
-//     enabled: !!assetId,
-//     staleTime: 2 * 60 * 1000,
-//   });
-// }
-// export function useCreateMaintenanceLog(assetId: string) {
-//   const queryClient = useQueryClient();
-//   return useMutation({
-//     mutationFn: (data: object) =>
-//       post<AssetMaintenanceLog>(`/api/assets/${assetId}/maintenance-logs/`, data),
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({ queryKey: ["maintenance-logs", assetId] });
-//       queryClient.invalidateQueries({ queryKey: ["assets", assetId] });
-//       queryClient.invalidateQueries({ queryKey: ["assets"] });
-//     },
-//   });
-// }

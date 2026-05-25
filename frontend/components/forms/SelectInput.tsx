@@ -189,10 +189,12 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
 
     return (
       <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
-        <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+        )}
 
         <input
           {...props}
