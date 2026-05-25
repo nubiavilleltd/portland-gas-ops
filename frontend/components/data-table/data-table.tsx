@@ -24,6 +24,7 @@ interface DataTableProps<T extends { id: string; status?: string }> {
   emptyMessage?: string;
   emptyDescription?: string;
   hideStatusFilter?: boolean;
+  toolbarExtra?: React.ReactNode;
 }
 
 type SortDir = "asc" | "desc";
@@ -46,6 +47,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
   emptyMessage = "No records found",
   emptyDescription = "Try adjusting your search or filters",
   hideStatusFilter = false,
+  toolbarExtra,
 }: DataTableProps<T>) {
   const router = useRouter();
 
@@ -151,6 +153,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
         onNewRequest={onNewRequest ?? (() => {})}
         newRequestLabel={onNewRequest ? newRequestLabel : undefined}
         hideStatusFilter={hideStatusFilter}
+        toolbarExtra={toolbarExtra}
       />
 
       <div className="bg-brand-card border border-brand-border rounded-xl md:rounded-2xl overflow-hidden shadow-sm">
