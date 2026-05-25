@@ -133,7 +133,7 @@ export default function WorkAuthorizationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      <FormSection title="Requester Details">
+      <FormSection title="Requester Details" description="Your employee information for this work authorization request.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={requester.name} disabled />
           <FormInput label="Department" value={requester.department} disabled />
@@ -142,7 +142,7 @@ export default function WorkAuthorizationForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Work Initiation Lookup">
+      <FormSection title="Work Initiation Lookup" description="Select the approved work initiation that requires safety authorization.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect
             label="Work Initiation Reference"
@@ -159,7 +159,7 @@ export default function WorkAuthorizationForm() {
 
       <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
 
-      <FormSection title="Safety / Risk Indicators">
+      <FormSection title="Safety / Risk Indicators" description="Identify safety considerations that apply before the work begins.">
         <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
           <FormMultiSelect
             label="Risk Indicators"
@@ -179,7 +179,7 @@ export default function WorkAuthorizationForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Attachments / Safety Evidence">
+      <FormSection title="Attachments / Safety Evidence" description="Attach supporting safety documents or work area evidence.">
         <div className="space-y-3">
           <FileDropzone
             label="Safety-related Images/Documents"
@@ -211,7 +211,7 @@ function AssignedWorkSummary({
   workInitiation: AssignedWorkInitiationSummary | undefined;
 }) {
   return (
-    <FormSection title="Assigned Work Summary">
+    <FormSection title="Assigned Work Summary" description="Approved work scope and assignments from the selected initiation request.">
       {!workInitiation ? (
         <p className="text-sm text-brand-text-secondary">
           Select an approved Work Initiation to load work details.
@@ -247,15 +247,18 @@ function AssignedWorkSummary({
 
 function FormSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
       <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

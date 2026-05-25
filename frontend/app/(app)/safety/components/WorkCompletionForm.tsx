@@ -138,7 +138,7 @@ export default function WorkCompletionForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      <FormSection title="Requester Details">
+      <FormSection title="Requester Details" description="Your employee information for this work completion request.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={closeOutRequester.name} disabled />
           <FormInput label="Department" value={closeOutRequester.department} disabled />
@@ -147,7 +147,7 @@ export default function WorkCompletionForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Work Authorization Lookup">
+      <FormSection title="Work Authorization Lookup" description="Select the approved work authorization being completed.">
         <FormSelect
           label="Work Authorization Reference"
           required
@@ -162,7 +162,7 @@ export default function WorkCompletionForm() {
 
       <ApprovedWorkSummary workAuthorization={selectedWorkAuthorization} />
 
-      <FormSection title="Completion Details">
+      <FormSection title="Completion Details" description="Record when the work occurred and what was completed.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormDateTimeInput label="Actual Start Date/Time" required value={actualStartDateTime} onValueChange={setActualStartDateTime} />
           <FormDateTimeInput label="Actual Completion Date/Time" required value={actualCompletionDateTime} onValueChange={setActualCompletionDateTime} />
@@ -238,7 +238,7 @@ export default function WorkCompletionForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Monitoring Attestation">
+      <FormSection title="Monitoring Attestation" description="Confirm the work was monitored and remained within its approved scope.">
         <SafetyChoiceTable
           options={yesNoNaOptions}
           rows={[
@@ -250,7 +250,7 @@ export default function WorkCompletionForm() {
         />
       </FormSection>
 
-      <FormSection title="Area / Equipment Condition">
+      <FormSection title="Area / Equipment Condition" description="Confirm the work area and equipment were left in a safe condition.">
         <div className="space-y-4">
           <SafetyChoiceTable
             options={yesNoOptions}
@@ -292,7 +292,7 @@ function ApprovedWorkSummary({
   workAuthorization: ApprovedWorkAuthorizationOption | null;
 }) {
   return (
-    <FormSection title="Approved Work Summary">
+    <FormSection title="Approved Work Summary" description="Approved work authorization details for this close-out.">
       {!workAuthorization ? (
         <p className="rounded-xl border border-dashed border-brand-border bg-gray-50 p-4 text-sm text-brand-text-secondary">
           Select an approved Work Authorization to load the work details.
@@ -317,15 +317,18 @@ function ApprovedWorkSummary({
 
 function FormSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
       <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

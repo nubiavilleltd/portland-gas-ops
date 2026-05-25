@@ -163,7 +163,7 @@ export default function WorkInitiationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      <FormSection title="Requester Details">
+      <FormSection title="Requester Details" description="Your employee information for this work initiation request.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={mockWorkInitiationRequester.name} disabled />
           <FormInput label="Department" value={mockWorkInitiationRequester.department} disabled />
@@ -172,7 +172,7 @@ export default function WorkInitiationForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Work Details">
+      <FormSection title="Work Details" description="Define the work needed, its purpose, and where it will happen.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Work Title" required placeholder="Enter work title" value={title} onChange={(event) => setTitle(event.target.value)} />
           <FormSelect
@@ -236,7 +236,7 @@ export default function WorkInitiationForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Assignment & Planning">
+      <FormSection title="Assignment & Planning" description="Identify the team, workers, contractor, and planned schedule.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect label="Assigned Department / Team" required options={departmentTeamOptions} placeholder="Select department or team" value={assignedDepartment} onValueChange={setAssignedDepartment} />
           <FormSelect label="Assigned Supervisor" required searchable options={employeeOptions} placeholder="Select supervisor" value={assignedSupervisor} onValueChange={setAssignedSupervisor} />
@@ -275,11 +275,12 @@ export default function WorkInitiationForm() {
   );
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
       <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

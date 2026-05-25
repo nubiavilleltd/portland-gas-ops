@@ -286,7 +286,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
       ) : null}
 
       {permissions.canSupervisorApprove ? (
-        <FormSection title="Supervisor Close-Out Approval">
+        <FormSection title="Supervisor Close-Out Approval" description="Review the reported completion and record your supervisor decision.">
           <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <div className="space-y-4">
               <FormInput label="Supervisor" value={request.workAuthorization.supervisor} disabled />
@@ -309,7 +309,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
       ) : null}
 
       {permissions.canOperationsHeadApprove ? (
-        <FormSection title="Operations Head Close-Out Approval">
+        <FormSection title="Operations Head Close-Out Approval" description="Confirm the completed work is acceptable for final HSE review.">
           <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <div className="space-y-4">
               <FormInput label="Operations Head" value="Grace Bello" disabled />
@@ -332,7 +332,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
       ) : null}
 
       {permissions.canHseApprove ? (
-        <FormSection title="HSE Final Close-Out Approval">
+        <FormSection title="HSE Final Close-Out Approval" description="Verify site safety and complete the final close-out decision.">
           <div className="grid gap-4">
             <FormInput label="HSE Inspector" value={request.workAuthorization.hseApprover} disabled />
             <SafetyChoiceTable
@@ -385,7 +385,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
 
 function RequesterDetails({ request }: { request: WorkCloseOutRequest }) {
   return (
-    <FormSection title="Requester Details">
+    <FormSection title="Requester Details" description="Employee information for the person who raised this close-out.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Requester Name" value={request.requester.name} disabled />
         <FormInput label="Department" value={request.requester.department} disabled />
@@ -399,7 +399,7 @@ function RequesterDetails({ request }: { request: WorkCloseOutRequest }) {
 function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
   const work = request.workAuthorization;
   return (
-    <FormSection title="Approved Work Summary">
+    <FormSection title="Approved Work Summary" description="Approved work authorization details linked to this completion request.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Work Authorization Reference" value={work.id} disabled />
         <FormInput label="Work Authorization Title" value={work.title} disabled />
@@ -428,7 +428,7 @@ function CompletionDetails({
   const [completionEvidence, setCompletionEvidence] = useState<File[]>([]);
 
   return (
-    <FormSection title="Completion Details">
+    <FormSection title="Completion Details" description="Recorded completion information and submitted evidence.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Actual Start Date/Time" value={details.actualStartDateTime} disabled={!editable} />
         <FormInput label="Actual Completion Date/Time" value={details.actualCompletionDateTime} disabled={!editable} />
@@ -479,7 +479,7 @@ function MonitoringSection({
 }) {
   const monitoring = request.monitoring;
   return (
-    <FormSection title="Monitoring Attestation">
+    <FormSection title="Monitoring Attestation" description="Confirmation of monitoring and safety-control compliance during work.">
       <SafetyChoiceTable
         options={yesNoNaOptions}
         disabled={!editable}
@@ -503,7 +503,7 @@ function AreaConditionSection({
 }) {
   const area = request.areaCondition;
   return (
-    <FormSection title="Area / Equipment Condition">
+    <FormSection title="Area / Equipment Condition" description="Condition of the site and equipment after work completion.">
       <div className="space-y-4">
         <SafetyChoiceTable
           options={yesNoOptions}
@@ -535,7 +535,7 @@ function ApprovalResult({
   title: string;
 }) {
   return (
-    <FormSection title={title}>
+    <FormSection title={title} description="Recorded review decision and comments for this close-out.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Approver" value={result.approver} disabled />
         <FormInput label="Decision" value={result.decision} disabled />
@@ -548,7 +548,7 @@ function ApprovalResult({
 
 function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
   return (
-    <FormSection title="HSE Final Close-Out Approval Result">
+    <FormSection title="HSE Final Close-Out Approval Result" description="Final HSE verification and close-out decision.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value={result.inspector} disabled />
         <div className="md:col-span-2">
@@ -647,7 +647,7 @@ function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachm
 
 function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
   return (
-    <FormSection title="Audit Trail">
+    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this close-out.">
       {items.length === 0 ? (
         <p className="text-sm text-brand-text-secondary">No audit actions yet.</p>
       ) : (
@@ -715,11 +715,12 @@ function StatusNote({
   );
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
       <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

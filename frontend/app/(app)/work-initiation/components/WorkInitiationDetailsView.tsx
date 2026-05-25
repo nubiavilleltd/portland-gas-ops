@@ -220,7 +220,7 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
       ) : null}
 
       {canSupervisorReview ? (
-        <FormSection title="Supervisor Review">
+        <FormSection title="Supervisor Review" description="Review the requested work before it proceeds to Operations HOD.">
           <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <DecisionSubmitControl
               onDecision={supervisorReview}
@@ -246,7 +246,7 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
       ) : null}
 
       {canOperationsHodReview ? (
-        <FormSection title="Operations HOD Review">
+        <FormSection title="Operations HOD Review" description="Record the operational approval decision for this work.">
           <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <DecisionSubmitControl
               onDecision={operationsHodReview}
@@ -272,7 +272,7 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
 
 function RequesterDetails({ request }: { request: WorkInitiationRequest }) {
   return (
-    <FormSection title="Requester Details">
+    <FormSection title="Requester Details" description="Employee information for the person who initiated this work.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Requester Name" value={request.requester.name} disabled />
         <FormInput label="Department" value={request.requester.department} disabled />
@@ -304,7 +304,7 @@ function WorkDetails({
   }
 
   return (
-    <FormSection title="Work Details">
+    <FormSection title="Work Details" description="Requested work scope, purpose, location, and supporting evidence.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Work Title" defaultValue={request.title} disabled={!editable} />
         {editable ? (
@@ -408,7 +408,7 @@ function AssignmentPlanning({
 }) {
   const assignment = request.assignment;
   return (
-    <FormSection title="Assignment & Planning">
+    <FormSection title="Assignment & Planning" description="Assigned team, workers, contractor, and planned schedule.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Assigned Department / Team" defaultValue={assignment.assignedDepartment} disabled={!editable} />
         <FormInput label="Assigned Supervisor" defaultValue={assignment.assignedSupervisor} disabled={!editable} />
@@ -469,7 +469,7 @@ function ReviewResult({ request }: { request: WorkInitiationRequest }) {
   const review = request.operationalReview;
   if (!review) return null;
   return (
-    <FormSection title="Operations HOD Review Result">
+    <FormSection title="Operations HOD Review Result" description="Recorded Operations HOD decision and comments.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Reviewer" value={review.reviewer} disabled />
         <FormInput label="Review Decision" value={review.decision} disabled />
@@ -494,7 +494,7 @@ function ApprovalResult({
   comment: string;
 }) {
   return (
-    <FormSection title={title}>
+    <FormSection title={title} description="Recorded supervisor decision and comments for this work request.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Approver" value={approver} disabled />
         <FormInput label="Decision" value={decision} disabled />
@@ -526,7 +526,7 @@ function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachm
 
 function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
   return (
-    <FormSection title="Audit Trail">
+    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this request.">
       <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
         {items.map((item, index) => (
           <div key={`${item.action}-${index}`} className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]">
@@ -553,11 +553,12 @@ function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; 
   return <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{note}</div>;
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
       <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

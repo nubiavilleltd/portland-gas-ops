@@ -95,7 +95,7 @@ export default function IncidentHazardForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      <FormSection title="Reporter Details">
+      <FormSection title="Reporter Details" description="Your employee information for this incident or hazard report.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Reporter Name" value={mockReporter.name} disabled />
           <FormInput label="Department" value={mockReporter.department} disabled />
@@ -104,7 +104,7 @@ export default function IncidentHazardForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Report Details">
+      <FormSection title="Report Details" description="Basic information about the incident or hazard being reported.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Report Title" required placeholder="Enter a short report title" value={title} onChange={(event) => setTitle(event.target.value)} />
           <FormSelect label="Report Type" required searchable creatable options={toOptions(reportTypeOptions)} placeholder="Select or add report type" value={reportType} onValueChange={setReportType} />
@@ -115,7 +115,7 @@ export default function IncidentHazardForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Incident / Hazard Details">
+      <FormSection title="Incident / Hazard Details" description="Describe what happened, its impact, and immediate actions taken.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" value={description} onChange={(event) => setDescription(event.target.value)} />
           <FormSelect label="Severity Estimate" required options={toOptions(incidentPriorityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} />
@@ -135,7 +135,7 @@ export default function IncidentHazardForm() {
         </div>
       </FormSection>
 
-      <FormSection title="Evidence / Attachments">
+      <FormSection title="Evidence / Attachments" description="Add supporting photos, videos, or documents for HSE review.">
         <div className="space-y-3">
           <FileDropzone
             label="Photos / Videos / Documents"
@@ -156,11 +156,12 @@ export default function IncidentHazardForm() {
   );
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
       <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

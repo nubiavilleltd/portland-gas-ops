@@ -384,7 +384,7 @@ function RequesterDetailsSection({
   request: WorkAuthorizationRequest;
 }) {
   return (
-    <FormSection title="Requester Details">
+    <FormSection title="Requester Details" description="Employee information for the requester who raised this authorization.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput
           label="Requester Name"
@@ -418,7 +418,7 @@ function AssignedWorkSummarySection({
 }) {
   const work = request.workInitiation;
   return (
-    <FormSection title="Assigned Work Summary">
+    <FormSection title="Assigned Work Summary" description="Approved scope and assignments carried from Work Initiation.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Work Initiation Reference" value={work.id} disabled />
         <FormInput
@@ -476,7 +476,7 @@ function RiskIndicatorsSection({
   ].filter(Boolean);
 
   return (
-    <FormSection title="Risk & Safety Indicators">
+    <FormSection title="Risk & Safety Indicators" description="Safety considerations identified for this work activity.">
       <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
         <FormMultiSelect
           label="Risk Indicators"
@@ -506,7 +506,7 @@ function AttachmentsSection({
   const [newAttachments, setNewAttachments] = useState<File[]>([]);
 
   return (
-    <FormSection title="Attachments">
+    <FormSection title="Attachments" description="Supporting safety documents and evidence attached to this request.">
       <AttachmentList attachments={request.attachments} />
       {editable ? (
         <div className="mt-4">
@@ -584,7 +584,7 @@ function HseInspectionActionSection({
   onEvidenceChange: (files: File[]) => void;
 }) {
   return (
-    <FormSection title="HSE Inspection Acknowledgement">
+    <FormSection title="HSE Inspection Acknowledgement" description="Complete the safety checks required before making an HSE decision.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormSelect
           label="Work area is safe, clean, and accessible"
@@ -683,7 +683,7 @@ function HseFinalActionSection({
   returnReasonMissing: boolean;
 }) {
   return (
-    <FormSection title="HSE Final Approval">
+    <FormSection title="HSE Final Approval" description="Record the final safety decision for this work authorization.">
       {disableApprove ? (
         <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Approval is disabled because one or more inspection checks failed.
@@ -751,7 +751,7 @@ function ApprovalResultSection({
   result: WorkAuthorizationApprovalResult;
 }) {
   return (
-    <FormSection title={title}>
+    <FormSection title={title} description="Recorded HSE decision and review notes for this request.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Decision" value={result.decision} disabled />
         <FormInput label="Approver" value={result.approver} disabled />
@@ -768,7 +768,7 @@ function HseInspectionResultSection({
   inspection: WorkAuthorizationHseInspection;
 }) {
   return (
-    <FormSection title="HSE Inspection Result">
+    <FormSection title="HSE Inspection Result" description="Completed inspection evidence supporting the final HSE decision.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput
           label="Work area is safe, clean, and accessible"
@@ -824,7 +824,7 @@ function AuditTrailSection({
   items: WorkAuthorizationAuditTrailItem[];
 }) {
   return (
-    <FormSection title="Audit Trail">
+    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this request.">
       {items.length === 0 ? (
         <p className="text-sm text-brand-text-secondary">
           No audit actions yet.
@@ -887,9 +887,11 @@ function StatusNote({
 
 function FormSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -898,6 +900,7 @@ function FormSection({
         <h3 className="text-base font-semibold text-brand-text-primary">
           {title}
         </h3>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

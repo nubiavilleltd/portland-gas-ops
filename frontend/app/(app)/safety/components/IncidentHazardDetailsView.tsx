@@ -268,7 +268,7 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
 
 function ReporterDetails({ report }: { report: IncidentHazardReport }) {
   return (
-    <FormSection title="Reporter Details">
+    <FormSection title="Reporter Details" description="Employee information for the person who raised this report.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Reporter Name" value={report.reporter.name} disabled />
         <FormInput label="Department" value={report.reporter.department} disabled />
@@ -281,7 +281,7 @@ function ReporterDetails({ report }: { report: IncidentHazardReport }) {
 
 function ReportDetails({ report, editable }: { report: IncidentHazardReport; editable: boolean }) {
   return (
-    <FormSection title="Report Details">
+    <FormSection title="Report Details" description="Basic information about the reported incident or hazard.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Report Reference" value={report.id} disabled />
         <FormInput label="Report Title" defaultValue={report.title} disabled={!editable} />
@@ -297,7 +297,7 @@ function ReportDetails({ report, editable }: { report: IncidentHazardReport; edi
 
 function IncidentDetails({ report, editable }: { report: IncidentHazardReport; editable: boolean }) {
   return (
-    <FormSection title="Incident / Hazard Details">
+    <FormSection title="Incident / Hazard Details" description="Observed impact, risk level, and immediate actions recorded.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormTextarea label="Description" defaultValue={report.description} disabled={!editable} className="md:col-span-2" />
         <FormInput label="Severity Estimate" defaultValue={report.severityEstimate} disabled={!editable} />
@@ -322,7 +322,7 @@ function IncidentDetails({ report, editable }: { report: IncidentHazardReport; e
 
 function EvidenceSection({ report }: { report: IncidentHazardReport }) {
   return (
-    <FormSection title="Evidence / Attachments">
+    <FormSection title="Evidence / Attachments" description="Supporting photos, videos, or documents for this report.">
       <AttachmentList attachments={report.attachments} />
     </FormSection>
   );
@@ -356,7 +356,7 @@ function HseReviewAction({
   const canSubmit = requiresCorrectiveWork ? Boolean(assignedDepartment && actionOwner) : Boolean(resolution);
 
   return (
-    <FormSection title="HSE Review & Corrective Action">
+    <FormSection title="HSE Review & Corrective Action" description="Assess the report and determine whether corrective work is required.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
         <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
@@ -439,7 +439,7 @@ function HseReviewAction({
 
 function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
   return (
-    <FormSection title="HSE Review & Corrective Action">
+    <FormSection title="HSE Review & Corrective Action" description="Recorded HSE findings and corrective action outcome.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value={review.inspector} disabled />
         <FormInput label="Confirmed Report Type" value={review.confirmedReportType} disabled />
@@ -490,7 +490,7 @@ function CorrectiveWorkResolution({
   onResolve: () => void;
 }) {
   return (
-    <FormSection title="Corrective Work Resolution">
+    <FormSection title="Corrective Work Resolution" description="Track linked corrective work through completion before closure.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Assigned Department" value={report.hseReview?.assignedDepartment || ""} disabled />
         <FormInput label="Action Owner" value={report.hseReview?.actionOwner || ""} disabled />
@@ -525,7 +525,7 @@ function HseClosureAction({
   onClose: () => void;
 }) {
   return (
-    <FormSection title="HSE Final Closure">
+    <FormSection title="HSE Final Closure" description="Verify the completed corrective work and close this report.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Samuel Bassey"} disabled />
         <FormInput
@@ -573,7 +573,7 @@ function AttachmentList({ attachments }: { attachments: IncidentHazardAttachment
 
 function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
   return (
-    <FormSection title="Audit Trail">
+    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this report.">
       {items.length === 0 ? (
         <p className="text-sm text-brand-text-secondary">No audit actions yet.</p>
       ) : (
@@ -661,11 +661,12 @@ function getIncidentHazardRoleLabel(role: IncidentHazardRole) {
   return labelByRole[role];
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
       <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
