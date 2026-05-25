@@ -307,13 +307,17 @@ export default function EditOrderPage() {
           <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
           <div className="space-y-5">
             <FormInput label="Delivery Address" required error={errors.delivery_address?.message} {...register("delivery_address")} />
-            <Controller
+            {/* <Controller
               control={control}
               name="delivery_date"
               render={({ field }) => (
                 <FormDatePicker label="Delivery Date" value={field.value} onChange={field.onChange} />
               )}
-            />
+            /> */}
+
+            {/* <FormDatePicker label="Delivery Date" value={field.value} onChange={field.onChange} /> */}
+             
+            <FormDatePicker label="Delivery Date" {...register("delivery_date")} />
             <FormTextarea label="Notes" {...register("notes")} />
           </div>
         </div>
