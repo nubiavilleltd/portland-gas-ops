@@ -233,6 +233,7 @@ import { getInvoiceById } from "@/lib/modules/invoices/selectors/invoices.select
 import { payments } from "@/lib/mock/payments";
 import { PaymentStatus } from "@/lib/modules/orders/types/orders.types";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -268,13 +269,13 @@ export default function InvoiceDetailPage() {
   return (
     <AppLayout pageTitle="Invoice Details">
 
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back
-      </button>
+      </button> */}
 
       <PageHeader
         title={invoice.invoice_number}
@@ -297,134 +298,166 @@ export default function InvoiceDetailPage() {
 
       <div className="space-y-6">
 
-        {/* INVOICE SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-base font-semibold">Invoice Summary</h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Billing details and payment status
-              </p>
-            </div>
+       <FormSection
+  title="Invoice Summary"
+  description="Billing details and payment status"
+>
+  <div className="flex items-start justify-between mb-6">
+    <div />
 
-            {/* ── FIXED: PaymentStatusBadge instead of ApprovalBadge ── */}
-            <PaymentStatusBadge status={badgeStatus} />
-          </div>
+    <PaymentStatusBadge status={badgeStatus} />
+  </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-sm">
-            <InfoRow label="Invoice Number" value={invoice.invoice_number} />
-            <InfoRow label="Invoice Date" value={formatDate(invoice.issued_date)} />
-            <InfoRow label="Due Date" value={formatDate(invoice.due_date)} />
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-sm">
+    <InfoRow
+      label="Invoice Number"
+      value={invoice.invoice_number}
+    />
 
-            <InfoRow
-              label="Total Amount"
-              value={formatCurrency(invoice.total_amount)}
-            />
+    <InfoRow
+      label="Invoice Date"
+      value={formatDate(invoice.issued_date)}
+    />
 
-            <div>
-              <p className="text-xs text-brand-text-secondary">Amount Paid</p>
-              <p className="font-medium mt-1 text-green-600">
-                {formatCurrency(paymentSummary.amountPaid)}
-              </p>
-            </div>
+    <InfoRow
+      label="Due Date"
+      value={formatDate(invoice.due_date)}
+    />
 
-            <div>
-              <p className="text-xs text-brand-text-secondary">Balance</p>
-              <p
-                className={`font-medium mt-1 ${
-                  balance > 0 ? "text-red-600" : "text-green-600"
-                }`}
-              >
-                {formatCurrency(balance)}
-              </p>
-            </div>
-          </div>
-        </div>
+    <InfoRow
+      label="Total Amount"
+      value={formatCurrency(invoice.total_amount)}
+    />
 
-        {/* RELATED ORDER */}
-        {order && (
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <h3 className="text-base font-semibold mb-3">Related Order</h3>
+    <div>
+      <p className="text-xs text-brand-text-secondary">
+        Amount Paid
+      </p>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm mb-4">
-              <InfoRow label="Order Number" value={order.order_number} />
-              <InfoRow label="Customer" value={order.customer_name} />
-              <InfoRow label="Order Type" value={order.order_type} />
-            </div>
+      <p className="font-medium mt-1 text-green-600">
+        {formatCurrency(paymentSummary.amountPaid)}
+      </p>
+    </div>
 
-            <Button variant="outline" href={`/orders/${order.id}`}>
-              View Order →
-            </Button>
-          </div>
-        )}
+    <div>
+      <p className="text-xs text-brand-text-secondary">
+        Balance
+      </p>
+
+      <p
+        className={`font-medium mt-1 ${
+          balance > 0
+            ? "text-red-600"
+            : "text-green-600"
+        }`}
+      >
+        {formatCurrency(balance)}
+      </p>
+    </div>
+  </div>
+</FormSection>
+
+       {/* RELATED ORDER */}
+{order && (
+  <FormSection
+    title="Related Order"
+    description="Linked order information for this invoice"
+  >
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm mb-4">
+      <InfoRow
+        label="Order Number"
+        value={order.order_number}
+      />
+
+      <InfoRow
+        label="Customer"
+        value={order.customer_name}
+      />
+
+      <InfoRow
+        label="Order Type"
+        value={order.order_type}
+      />
+    </div>
+
+    <Button
+      variant="outline"
+      href={`/orders/${order.id}`}
+    >
+      View Order →
+    </Button>
+  </FormSection>
+)}
 
         {/* PAYMENT HISTORY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Payments</h3>
-            {!isPaid && (
-              <Button size="sm" href={`/payments/new?invoiceId=${invoice.id}`}>
-                + Record Payment
-              </Button>
-            )}
-          </div>
+<FormSection title="Payments">
+  <div className="bg-white border border-brand-border rounded-2xl p-6">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-base font-semibold">Payments</h3>
+      {!isPaid && (
+        <Button size="sm" href={`/payments/new?invoiceId=${invoice.id}`}>
+          + Record Payment
+        </Button>
+      )}
+    </div>
 
-          {invoicePayments.length === 0 ? (
-            <p className="text-sm text-brand-text-secondary">
-              No payments recorded for this invoice yet.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-brand-border text-left">
-                    <th className="pb-3">Reference</th>
-                    <th className="pb-3">Date</th>
-                    <th className="pb-3">Method</th>
-                    <th className="pb-3 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoicePayments.map((payment) => (
-                    <tr
-                      key={payment.id}
-                      className="border-b border-brand-border last:border-0"
-                    >
-                      <td className="py-3 font-mono text-xs">
-                        {payment.payment_reference}
-                      </td>
-                      <td className="py-3">{formatDate(payment.payment_date)}</td>
-                      <td className="py-3 capitalize">
-                        {payment.payment_method.replace("_", " ")}
-                      </td>
-                      <td className="py-3 text-right font-medium">
-                        {formatCurrency(payment.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-brand-border">
-                    <td colSpan={3} className="pt-3 font-semibold">
-                      Total Paid
-                    </td>
-                    <td className="pt-3 text-right font-semibold text-green-600">
-                      {formatCurrency(paymentSummary.amountPaid)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
+    {invoicePayments.length === 0 ? (
+      <p className="text-sm text-brand-text-secondary">
+        No payments recorded for this invoice yet.
+      </p>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-brand-border text-left">
+              <th className="pb-3">Reference</th>
+              <th className="pb-3">Date</th>
+              <th className="pb-3">Method</th>
+              <th className="pb-3 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoicePayments.map((payment) => (
+              <tr
+                key={payment.id}
+                className="border-b border-brand-border last:border-0"
+              >
+                <td className="py-3 font-mono text-xs">
+                  {payment.payment_reference}
+                </td>
+                <td className="py-3">{formatDate(payment.payment_date)}</td>
+                <td className="py-3 capitalize">
+                  {payment.payment_method.replace("_", " ")}
+                </td>
+                <td className="py-3 text-right font-medium">
+                  {formatCurrency(payment.amount)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-brand-border">
+              <td colSpan={3} className="pt-3 font-semibold">
+                Total Paid
+              </td>
+              <td className="pt-3 text-right font-semibold text-green-600">
+                {formatCurrency(paymentSummary.amountPaid)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    )}
 
-          {isPaid && (
-            <div className="mt-4 flex gap-2">
-              <Button href={`/payments/${invoice.id}/receipt`} variant="outline">
-                View Receipt
-              </Button>
-            </div>
-          )}
-        </div>
+    {isPaid && (
+      <div className="mt-4 flex gap-2">
+        <Button href={`/payments/${invoice.id}/receipt`} variant="outline">
+          View Receipt
+        </Button>
+      </div>
+    )}
+  </div>
+</FormSection>
 
       </div>
     </AppLayout>

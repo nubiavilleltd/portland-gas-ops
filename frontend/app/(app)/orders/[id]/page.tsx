@@ -176,7 +176,7 @@ export default function OrderDetailPage() {
             {/* CONFIRM DELIVERY */}
             {(order.fulfillment_status === "dispatched" ||
               order.fulfillment_status === "in_transit") && (
-              <Button href={`/orders/${id}/delivery`}>
+              <Button href={`/orders/${id}/delivery/confirm`}>
                 Confirm Delivery
               </Button>
             )}
@@ -190,7 +190,7 @@ export default function OrderDetailPage() {
 
             {/* CLOSE ORDER */}
             {canClose && (
-              <Button href={`/orders/${id}/close`} variant="secondary">
+              <Button href={`/orders/${id}/close`} variant="primary">
                 Close Order
               </Button>
             )}

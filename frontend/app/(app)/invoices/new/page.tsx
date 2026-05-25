@@ -22,6 +22,7 @@ import {
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 import { OrdersService } from "@/lib/services/api/orders.service";
+import FormSection from "@/components/ui/FormSection";
 
 function generateInvoiceNumber(sequence: number) {
   return `INV-2026-${String(sequence).padStart(4, "0")}`;
@@ -147,13 +148,13 @@ function CreateInvoicePageContent() {
   return (
     <AppLayout pageTitle="Generate Invoice">
 
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Order
-      </button>
+      </button> */}
 
       <PageHeader
         title="Generate Invoice"
@@ -164,101 +165,104 @@ function CreateInvoicePageContent() {
       <div className="space-y-6">
 
         {/* ORDER SUMMARY — real data, not hardcoded */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-base font-semibold">Order Summary</h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Invoice will be generated from this order
-              </p>
-            </div>
-            <FulfillmentStatusBadge status={order.fulfillment_status} />
-          </div>
+<FormSection title="Order Summary">
+  <div className="bg-white border border-brand-border rounded-2xl p-6">
+    <div className="flex items-start justify-between mb-4">
+      <div>
+        <h2 className="text-base font-semibold">Order Summary</h2>
+        <p className="text-sm text-brand-text-secondary mt-1">
+          Invoice will be generated from this order
+        </p>
+      </div>
+      <FulfillmentStatusBadge status={order.fulfillment_status} />
+    </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-            <div>
-              <p className="text-xs text-brand-text-secondary">Order Number</p>
-              <p className="font-medium mt-1">{order.order_number}</p>
-            </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+      <div>
+        <p className="text-xs text-brand-text-secondary">Order Number</p>
+        <p className="font-medium mt-1">{order.order_number}</p>
+      </div>
 
-            <div>
-              <p className="text-xs text-brand-text-secondary">Customer</p>
-              <p className="font-medium mt-1">{order.customer_name}</p>
-            </div>
+      <div>
+        <p className="text-xs text-brand-text-secondary">Customer</p>
+        <p className="font-medium mt-1">{order.customer_name}</p>
+      </div>
 
-            <div>
-              <p className="text-xs text-brand-text-secondary">Total Amount</p>
-              <p className="font-medium mt-1">
-                {formatCurrency(order.total_amount)}
-              </p>
-            </div>
+      <div>
+        <p className="text-xs text-brand-text-secondary">Total Amount</p>
+        <p className="font-medium mt-1">
+          {formatCurrency(order.total_amount)}
+        </p>
+      </div>
 
-            <div>
-              <p className="text-xs text-brand-text-secondary">Delivered On</p>
-              <p className="font-medium mt-1">
-                {order.delivered_at ? formatDate(order.delivered_at) : "—"}
-              </p>
-            </div>
-          </div>
+      <div>
+        <p className="text-xs text-brand-text-secondary">Delivered On</p>
+        <p className="font-medium mt-1">
+          {order.delivered_at ? formatDate(order.delivered_at) : "—"}
+        </p>
+      </div>
+    </div>
+  </div>
+</FormSection>
+
+       {/* INVOICE FORM */}
+<FormSection title="Invoice Details">
+  <div className="bg-white border border-brand-border rounded-2xl p-6">
+    <h2 className="text-base font-semibold mb-5">Invoice Details</h2>
+
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="grid grid-cols-1 md:grid-cols-2 gap-5"
+    >
+      <FormDatePicker
+        label="Invoice Date"
+        value={invoiceDate}
+        onValueChange={(value) => setValue("invoice_date", value)}
+      />
+
+      <FormDatePicker
+        label="Due Date"
+        value={dueDate}
+        onValueChange={(value) => setValue("due_date", value)}
+      />
+
+      <div className="md:col-span-2">
+        <FormTextarea
+          label="Notes (Optional)"
+          placeholder="Payment terms, bank account details, remarks..."
+          {...register("notes")}
+        />
+      </div>
+
+      {/* ERROR */}
+      {submitError && (
+        <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <AlertCircle size={16} className="shrink-0" />
+          {submitError}
         </div>
+      )}
 
-        {/* INVOICE FORM */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-5">Invoice Details</h2>
+      {/* ACTIONS */}
+      <div className="md:col-span-2 flex justify-end gap-3">
+        {/* <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.back()}
+        >
+          Cancel
+        </Button> */}
 
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="grid grid-cols-1 md:grid-cols-2 gap-5"
-          >
-            <FormDatePicker
-              label="Invoice Date"
-              value={invoiceDate}
-              onValueChange={(value) => setValue("invoice_date", value)}
-            />
-
-            <FormDatePicker
-              label="Due Date"
-              value={dueDate}
-              onValueChange={(value) => setValue("due_date", value)}
-            />
-
-            <div className="md:col-span-2">
-              <FormTextarea
-                label="Notes (Optional)"
-                placeholder="Payment terms, bank account details, remarks..."
-                {...register("notes")}
-              />
-            </div>
-
-            {/* ERROR */}
-            {submitError && (
-              <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                <AlertCircle size={16} className="shrink-0" />
-                {submitError}
-              </div>
-            )}
-
-            {/* ACTIONS */}
-            <div className="md:col-span-2 flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-              >
-                Cancel
-              </Button>
-
-              <Button
-                type="submit"
-                loading={isSubmitting}
-                loadingText="Generating..."
-              >
-                Generate Invoice
-              </Button>
-            </div>
-          </form>
-        </div>
-
+        <Button
+          type="submit"
+          loading={isSubmitting}
+          loadingText="Generating..."
+        >
+          Generate Invoice
+        </Button>
+      </div>
+    </form>
+  </div>
+</FormSection>
       </div>
     </AppLayout>
   );

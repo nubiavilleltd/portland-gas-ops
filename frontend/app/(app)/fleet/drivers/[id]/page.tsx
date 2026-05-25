@@ -12,6 +12,7 @@ import Avatar from "@/components/ui/Avatar";
 import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
 import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
 import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
 export default function DriverDetailPage() {
   const params = useParams();
@@ -57,19 +58,18 @@ export default function DriverDetailPage() {
 
       <div className="space-y-6">
 
-        {/* PROFILE SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-
+        <FormSection
+          title="Driver Profile"
+          description="Personal and license information"
+        >
           <div className="flex items-start justify-between mb-6">
-
             <div className="flex items-center gap-4">
-
               {/* AVATAR (NEW) */}
               <Avatar
                 src={
                   (driver as any).profile_image ||
                   "https://ui-avatars.com/api/?name=" +
-                    encodeURIComponent(driver.full_name)
+                  encodeURIComponent(driver.full_name)
                 }
                 name={driver.full_name}
                 size={64}
@@ -100,19 +100,12 @@ export default function DriverDetailPage() {
             />
             <Info label="Status" value={driver.status} />
           </div>
-        </div>
+        </FormSection>
 
-        {/* CURRENT ASSIGNMENT */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold">
-              Current Assignment
-            </h2>
-            <p className="text-sm text-brand-text-secondary mt-1">
-              Active trip allocation (driven by Trips system)
-            </p>
-          </div>
-
+        <FormSection
+          title="Current Assignment"
+          description="Active trip allocation (driven by Trips system)"
+        >
           {activeTrip ? (
             <div className="text-sm">
               <p className="font-medium text-blue-600">
@@ -152,20 +145,13 @@ export default function DriverDetailPage() {
               </p>
             </div>
           )}
-        </div>
+        </FormSection>
 
-        {/* TRIP HISTORY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
+        <FormSection
+          title="Trip History"
+          description="Past deliveries and assignments"
+        >
           <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-base font-semibold">
-                Trip History
-              </h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Past deliveries and assignments
-              </p>
-            </div>
-
             <Button
               size="sm"
               variant="outline"
@@ -178,7 +164,7 @@ export default function DriverDetailPage() {
           <p className="text-sm text-brand-text-secondary">
             No trip history available yet.
           </p>
-        </div>
+        </FormSection>
       </div>
     </AppLayout>
   );

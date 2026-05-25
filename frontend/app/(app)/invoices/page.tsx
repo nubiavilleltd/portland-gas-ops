@@ -10,6 +10,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 
 
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
 const columns: Column<Invoice>[] = [
   {
@@ -41,15 +42,17 @@ const columns: Column<Invoice>[] = [
     label: "Status",
     render: (value) => {
       const s = value as Invoice["status"];
-      const styles =
-        s === "paid"
-          ? "bg-green-100 text-green-700"
-          : s === "partially_paid"
-          ? "bg-yellow-100 text-yellow-700"
-          : "bg-red-100 text-red-700";
-      return (
-        <span className={`text-xs px-2 py-1 rounded-full ${styles}`}>{s}</span>
-      );
+
+      return <PaymentStatusBadge status={s} />
+      // const styles =
+      //   s === "paid"
+      //     ? "bg-green-100 text-green-700"
+      //     : s === "partially_paid"
+      //     ? "bg-yellow-100 text-yellow-700"
+      //     : "bg-red-100 text-red-700";
+      // return (
+      //   <span className={`text-xs px-2 py-1 rounded-full ${styles}`}>{s}</span>
+      // );
     },
   },
   // {
