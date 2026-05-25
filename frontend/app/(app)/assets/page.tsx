@@ -341,6 +341,7 @@ export default function AssetsPage() {
           data={assets}
           rowHref={(asset) => `/assets/${asset.id}`}
           emptyMessage="No assets found."
+          searchable={false}
         />
       )}
     </AppLayout>
