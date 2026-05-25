@@ -127,6 +127,7 @@ import {
 } from "@/lib/modules/orders/schemas/edit-order.schema";
 import { OrdersService } from "@/lib/services/api/orders.service";
 import { customers } from "@/lib/modules/customers/mock/customers.mock";
+import FormSection from "@/components/ui/FormSection";
 
 export default function EditOrderPage() {
   const router = useRouter();
@@ -225,13 +226,13 @@ export default function EditOrderPage() {
 
   return (
     <AppLayout pageTitle="Edit Order">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Order
-      </button>
+      </button> */}
 
       <PageHeader
         title="Edit Order"
@@ -240,87 +241,139 @@ export default function EditOrderPage() {
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-5">Customer Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <Controller
-              control={control}
-              name="customer_id"
-              render={({ field }) => (
-                <FormSelect
-                  label="Customer"
-                  required
-                  options={customers.map((c) => ({
-                    value: c.id,
-                    label: c.name,
-                  }))}
-                  error={errors.customer_id?.message}
-                  value={field.value}
-                  onValueChange={field.onChange}
-                />
-              )}
-            />
-            <FormInput
-              label="Order Type"
-              error={errors.order_type?.message}
-              {...register("order_type")}
-            />
-          </div>
-        </div>
+       <FormSection
+  title="Customer Information"
+  description="Select customer and specify order type"
+>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <Controller
+      control={control}
+      name="customer_id"
+      render={({ field }) => (
+        <FormSelect
+          label="Customer"
+          required
+          options={customers.map((c) => ({
+            value: c.id,
+            label: c.name,
+          }))}
+          error={errors.customer_id?.message}
+          value={field.value}
+          onValueChange={field.onChange}
+        />
+      )}
+    />
 
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-base font-semibold">Order Items</h2>
-              <p className="text-sm text-brand-text-secondary mt-1">Modify products and pricing</p>
-            </div>
+    <FormInput
+      label="Order Type"
+      error={errors.order_type?.message}
+      {...register("order_type")}
+    />
+  </div>
+</FormSection>
+
+       <FormSection
+  title="Order Items"
+  description="Modify products and pricing"
+>
+  <div className="flex items-center justify-end mb-5">
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => append({ product_name: "", quantity: 1, unit_price: 0 })}
+    >
+      + Add Item
+    </Button>
+  </div>
+
+  {fields.map((field, index) => {
+    const item = items?.[index];
+
+    return (
+      <div
+        key={field.id}
+        className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end"
+      >
+        <FormInput
+          label="Product"
+          {...register(`order_items.${index}.product_name`)}
+        />
+
+        <FormInput
+          label="Quantity (kg)"
+          type="number"
+          {...register(`order_items.${index}.quantity`, {
+            valueAsNumber: true,
+          })}
+        />
+
+        <FormInput
+          label="Unit Price (₦)"
+          type="number"
+          {...register(`order_items.${index}.unit_price`, {
+            valueAsNumber: true,
+          })}
+        />
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">
+            {formatCurrency(
+              (item?.quantity || 0) * (item?.unit_price || 0)
+            )}
+          </span>
+
+          {fields.length > 1 && (
             <Button
               type="button"
               variant="outline"
-              onClick={() => append({ product_name: "", quantity: 1, unit_price: 0 })}
+              onClick={() => remove(index)}
             >
-              + Add Item
+              Remove
             </Button>
-          </div>
-
-          {fields.map((field, index) => {
-            const item = items?.[index];
-            return (
-              <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end">
-                <FormInput label="Product" {...register(`order_items.${index}.product_name`)} />
-                <FormInput label="Quantity (kg)" type="number" {...register(`order_items.${index}.quantity`, { valueAsNumber: true })} />
-                <FormInput label="Unit Price (₦)" type="number" {...register(`order_items.${index}.unit_price`, { valueAsNumber: true })} />
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium">
-                    {formatCurrency((item?.quantity || 0) * (item?.unit_price || 0))}
-                  </span>
-                  {fields.length > 1 && (
-                    <Button type="button" variant="outline" onClick={() => remove(index)}>Remove</Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          )}
         </div>
+      </div>
+    );
+  })}
+</FormSection>
 
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
-          <div className="space-y-5">
-            <FormInput label="Delivery Address" required error={errors.delivery_address?.message} {...register("delivery_address")} />
-            {/* <Controller
-              control={control}
-              name="delivery_date"
-              render={({ field }) => (
-                <FormDatePicker label="Delivery Date" value={field.value} onChange={field.onChange} />
-              )}
-            /> */}
+       <FormSection
+  title="Delivery Information"
+  description="Provide delivery details and additional notes"
+>
+  <div className="space-y-5">
+    <FormInput
+      label="Delivery Address"
+      required
+      error={errors.delivery_address?.message}
+      {...register("delivery_address")}
+    />
 
-            {/* <FormDatePicker label="Delivery Date" value={field.value} onChange={field.onChange} /> */}
-             
-            <FormDatePicker label="Delivery Date" {...register("delivery_date")} />
-            <FormTextarea label="Notes" {...register("notes")} />
-          </div>
-        </div>
+    {/* <Controller
+      control={control}
+      name="delivery_date"
+      render={({ field }) => (
+        <FormDatePicker
+          label="Delivery Date"
+          value={field.value}
+          onChange={field.onChange}
+        />
+      )}
+    /> */}
+
+    {/* <FormDatePicker label="Delivery Date" value={field.value} onChange={field.onChange} /> */}
+
+    <FormDatePicker
+      label="Delivery Date"
+      {...register("delivery_date")}
+    />
+
+    <FormTextarea
+      label="Notes"
+      {...register("notes")}
+    />
+  </div>
+</FormSection>
 
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-center justify-between text-sm">
@@ -337,7 +390,7 @@ export default function EditOrderPage() {
         )}
 
         <div className="flex justify-end gap-3 pb-10">
-          <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+          {/* <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button> */}
           <Button type="submit" loading={isSubmitting} loadingText="Saving...">Save Changes</Button>
         </div>
       </form>

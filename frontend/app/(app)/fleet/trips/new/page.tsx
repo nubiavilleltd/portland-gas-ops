@@ -265,6 +265,7 @@ import {
 } from "@/lib/modules/fleet/schemas/trip.schema";
 import { TripsService } from "@/lib/services/api/trips.service";
 import { parseError } from "@/lib/errors";
+import FormSection from "@/components/ui/FormSection";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
@@ -369,13 +370,13 @@ function CreateTripForm() {
 
   return (
     <AppLayout pageTitle="Create Trip">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back
-      </button>
+      </button> */}
 
       <PageHeader
         title="Create Trip"
@@ -422,106 +423,117 @@ function CreateTripForm() {
         )}
 
         {/* TRIP DETAILS */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-5">
-          <h3 className="font-semibold">Trip Details</h3>
+        <FormSection
+  title="Trip Details"
+  description="Configure trip type, destination, and scheduling information"
+>
+  <div className="space-y-5">
+    {/* Trip Type — disabled when coming from an order */}
+    <Controller
+      control={control}
+      name="type"
+      render={({ field }) => (
+        <FormSelect
+          label="Trip Type"
+          required
+          options={TRIP_TYPE_OPTIONS}
+          value={field.value}
+          onValueChange={(v) => field.onChange(v as Trip["type"])}
+          error={errors.type?.message}
+          disabled={isTripTypeLocked}
+          hint={
+            isTripTypeLocked
+              ? "Locked to Order Delivery — you arrived here from an order."
+              : undefined
+          }
+        />
+      )}
+    />
 
-          {/* Trip Type — disabled when coming from an order */}
-          <Controller
-            control={control}
-            name="type"
-            render={({ field }) => (
-              <FormSelect
-                label="Trip Type"
-                required
-                options={TRIP_TYPE_OPTIONS}
-                value={field.value}
-                onValueChange={(v) => field.onChange(v as Trip["type"])}
-                error={errors.type?.message}
-                disabled={isTripTypeLocked}
-                hint={
-                  isTripTypeLocked
-                    ? "Locked to Order Delivery — you arrived here from an order."
-                    : undefined
+    {/*
+     * Show order selector ONLY when:
+     *   - trip type is "order_delivery"
+     *   - AND no orderId in the URL (not coming from order detail page)
+     */}
+    {tripType === "order_delivery" && !orderId && (
+      <Controller
+        control={control}
+        name="linked_order_id"
+        render={({ field }) => (
+          <FormSelect
+            label="Link to Order"
+            placeholder="Select a confirmed order (optional)"
+            options={assignableOrders}
+            value={field.value ?? ""}
+            onValueChange={(v) => {
+              field.onChange(v);
+
+              // Auto-fill destination from the linked order
+              const linked = getOrderById(v);
+
+              if (linked) {
+                setValue(
+                  "end_location",
+                  linked.delivery_address
+                );
+
+                if (linked.delivery_date) {
+                  setValue(
+                    "scheduled_date",
+                    linked.delivery_date
+                  );
                 }
-              />
-            )}
+              }
+            }}
+            hint="Only confirmed, unassigned orders are shown. Leave blank for a standalone trip."
           />
+        )}
+      />
+    )}
 
-          {/*
-           * Show order selector ONLY when:
-           *   - trip type is "order_delivery"
-           *   - AND no orderId in the URL (not coming from order detail page)
-           */}
-          {tripType === "order_delivery" && !orderId && (
-            <Controller
-              control={control}
-              name="linked_order_id"
-              render={({ field }) => (
-                <FormSelect
-                  label="Link to Order"
-                  placeholder="Select a confirmed order (optional)"
-                  options={assignableOrders}
-                  value={field.value ?? ""}
-                  onValueChange={(v) => {
-                    field.onChange(v);
-                    // Auto-fill destination from the linked order
-                    const linked = getOrderById(v);
-                    if (linked) {
-                      setValue("end_location", linked.delivery_address);
-                      if (linked.delivery_date) {
-                        setValue("scheduled_date", linked.delivery_date);
-                      }
-                    }
-                  }}
-                  hint="Only confirmed, unassigned orders are shown. Leave blank for a standalone trip."
-                />
-              )}
-            />
-          )}
+    <FormInput
+      label="Start Location"
+      required
+      placeholder="e.g. Lagos Depot, Apapa"
+      error={errors.start_location?.message}
+      {...register("start_location")}
+    />
 
-          <FormInput
-            label="Start Location"
-            required
-            placeholder="e.g. Lagos Depot, Apapa"
-            error={errors.start_location?.message}
-            {...register("start_location")}
-          />
+    <FormInput
+      label="End Location / Destination"
+      required
+      placeholder="e.g. Customer site, Ikorodu"
+      error={errors.end_location?.message}
+      {...register("end_location")}
+    />
 
-          <FormInput
-            label="End Location / Destination"
-            required
-            placeholder="e.g. Customer site, Ikorodu"
-            error={errors.end_location?.message}
-            {...register("end_location")}
-          />
+    {/* <Controller
+      control={control}
+      name="scheduled_date"
+      render={({ field }) => (
+        <FormDatePicker
+          label="Scheduled Date"
+          required
+          value={field.value}
+          onChange={field.onChange}
+          error={errors.scheduled_date?.message}
+        />
+      )}
+    /> */}
 
-          {/* <Controller
-            control={control}
-            name="scheduled_date"
-            render={({ field }) => (
-              <FormDatePicker
-                label="Scheduled Date"
-                required
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.scheduled_date?.message}
-              />
-            )}
-          /> */}
+    <FormDatePicker
+      label="Scheduled Date"
+      required
+      {...register("scheduled_date")}
+    />
 
-           <FormDatePicker
-                label="Scheduled Date"
-                required
-                {...register("scheduled_date")}
-              />
-
-          <FormTextarea
-            label="Notes"
-            placeholder="Any special instructions for this trip…"
-            {...register("notes")}
-          />
-        </div>
-
+    <FormTextarea
+      label="Notes"
+      placeholder="Any special instructions for this trip…"
+      {...register("notes")}
+    />
+  </div>
+</FormSection>
         {/* NEXT STEPS */}
         <div className="bg-gray-50 border border-brand-border rounded-xl p-4 text-sm text-brand-text-secondary">
           <p className="font-medium text-brand-text-primary mb-1">
@@ -541,9 +553,9 @@ function CreateTripForm() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          {/* <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
           <Button
             type="submit"
             loading={isSubmitting}
