@@ -123,10 +123,11 @@ export default function NewOrderPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* CUSTOMER INFORMATION */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-5">Customer Information</h2>
+        <div className="bg-white border border-brand-border rounded-2xl">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl"><h2 className="text-sm font-semibold text-brand-text-primary">Customer Information</h2></div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 px-6 py-4">
             <Controller
               control={control}
               name="customer_id"
@@ -161,17 +162,12 @@ export default function NewOrderPage() {
         </div>
 
         {/* ORDER ITEMS */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-base font-semibold">Order Items</h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Add products/services included in this order
-              </p>
-            </div>
-          </div>
+        <div className="bg-white border border-brand-border rounded-2xl">
+      
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+            <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl"><h2 className="text-sm font-semibold text-brand-text-primary">Order Items</h2><p className="text-xs text-brand-text-secondary mt-0.5">Add products/services included in this order</p></div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start px-6 py-4">
             <Controller
               control={control}
               name="product_name"
@@ -217,10 +213,11 @@ export default function NewOrderPage() {
         </div>
 
         {/* DELIVERY INFORMATION */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
+        <div className="bg-white border border-brand-border rounded-2xl">
+          {/* <h2 className="text-base font-semibold mb-5">Delivery Information</h2> */}
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl"><h2 className="text-sm font-semibold text-brand-text-primary">Delivery Information</h2></div>
 
-          <div className="space-y-5">
+          <div className="space-y-5 px-6 py-4">
             <FormInput
               label="Delivery Address"
               required
