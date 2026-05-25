@@ -44,11 +44,11 @@ export default function OrdersHomePage() {
       <PageHeader
         title="Order Operations"
         description="Access and manage customer orders and fulfillment workflows"
-        action={
-          <Button href="/orders/new">
-            Create Order
-          </Button>
-        }
+        // action={
+        //   <Button href="/orders/new">
+        //     Create Order
+        //   </Button>
+        // }
       />
 
       {/* KPI SECTION — live data from selector */}
@@ -76,23 +76,23 @@ export default function OrdersHomePage() {
             description="View, filter, and manage all customer orders"
             href="/orders/list"
             icon={ClipboardList}
-            stat={`${kpis.totalOrders} total`}
+            // stat={`${kpis.totalOrders} total`}
           />
 
-          <WorkspaceCard
+          {/* <WorkspaceCard
             title="Pending Dispatch"
             description="Confirmed orders awaiting trip assignment"
             href="/orders/list"
             icon={Truck}
             stat={`${kpis.pendingDispatch} awaiting`}
-          />
+          /> */}
 
           <WorkspaceCard
             title="Invoices"
             description="Manage billing invoices and payment tracking"
             href="/invoices"
             icon={FileText}
-            stat={`${kpis.unpaidOrders} unpaid`}
+            // stat={`${kpis.unpaidOrders} unpaid`}
           />
         </div>
       </div>
