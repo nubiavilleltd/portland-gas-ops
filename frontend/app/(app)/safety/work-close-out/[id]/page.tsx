@@ -9,7 +9,7 @@ export default function WorkCloseOutDetailPage() {
   const params = useParams<{ id: string }>();
 
   return (
-    <AppLayout pageTitle="Work Close-Out Details">
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Work Close-Out Details"
         description="Review completed work and simulate close-out approval roles."

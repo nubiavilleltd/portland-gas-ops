@@ -47,7 +47,7 @@ export const HR_APPROVERS: Record<string, { lineManager: string; hrReview: strin
 export function genHRRef(prefix: string): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
-  const hex = Math.random().toString(16).substring(2, 6).toUpperCase();
+  const hex = Math.random().toString(16).substring(2, 10).toUpperCase();
   return `${prefix}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${hex}`;
 }
 
@@ -69,19 +69,34 @@ export interface Employee {
   category: string;
   grade: string;
   email: string;
+  lineManager?: string;
+  lineManagerEmail?: string;
+  basicSalary?: number;
+  housingAllowance?: number;
+  transportAllowance?: number;
+  mealAllowance?: number;
+  paye?: number;
+  pension?: number;
+  nhf?: number;
+  loanRepayment?: number;
 }
 
 export interface LeaveRequest {
   id: string;
   ref: string;
+  requestType?: "self" | "others";
+  requester?: string;
   employee: string;
+  jobTitle?: string;
   type: string;
   department: string;
   startDate: string;
   endDate: string;
   days: number;
-  reliefOfficer: string;
-  status: "pending" | "approved" | "in_progress" | "rejected";
+  reliever: string;
+  reason?: string;
+  supportingDocuments?: string[];
+  status: "draft" | "pending" | "approved" | "in_progress" | "rejected";
   date: string;
 }
 
@@ -90,6 +105,7 @@ export interface EmployeeRecord {
   employee: string;
   docType: string;
   fileName: string;
+  filePath?: string;
   uploadDate: string;
   uploadedBy: string;
 }
@@ -147,27 +163,31 @@ export interface PayrollRun {
 // ── Seed data ─────────────────────────────────────────────────────────────────
 
 export const SEED_EMPLOYEES: Employee[] = [
-  { id: "1", firstName: "Magdalene",  lastName: "Edozie",   title: "Software Developer",    department: "Legal",      birthday: "2025-12-17", category: "Full Time", grade: "7",  email: "magdalene.edozie@portlandgas.com"   },
-  { id: "2", firstName: "Oluwaseun",  lastName: "Sowemimo", title: "Software Developer",    department: "Commercial", birthday: "",           category: "Full Time", grade: "14", email: "oluwaseun.sowemimo@portlandgas.com" },
-  { id: "3", firstName: "Opeyemi",    lastName: "Busari",   title: "Data Analyst",          department: "Assets",     birthday: "2025-01-26", category: "Full Time", grade: "10", email: "opeyemi.busari@portlandgas.com"     },
-  { id: "4", firstName: "Felix",      lastName: "Ohemu",    title: "Field Supervisor",      department: "Assets",     birthday: "2026-04-15", category: "Full Time", grade: "10", email: "felix.ohemu@portlandgas.com"        },
-  { id: "5", firstName: "Johnson",    lastName: "Ibikunle", title: "Application Developer", department: "Legal",      birthday: "",           category: "Full Time", grade: "7",  email: "johnson.ibikunle@portlandgas.com"   },
-  { id: "6", firstName: "Joseph",     lastName: "Chika",    title: "Operations Manager",    department: "Operations", birthday: "1990-03-12", category: "Full Time", grade: "12", email: "joseph.chika@portlandgas.com"       },
-  { id: "7", firstName: "David",      lastName: "Okeke",    title: "Safety Officer",        department: "Safety",     birthday: "1988-07-22", category: "Full Time", grade: "9",  email: "david.okeke@portlandgas.com"        },
+  { id: "1", firstName: "Magdalene",  lastName: "Edozie",   title: "Software Developer",    department: "Legal",      birthday: "2025-12-17", category: "Full Time", grade: "7",  email: "magdalene.edozie@portlandgas.com",   lineManager: "Oluwaseun Sowemimo", lineManagerEmail: "oluwaseun.sowemimo@portlandgas.com", basicSalary: 650000,  housingAllowance: 150000, transportAllowance: 80000,  mealAllowance: 40000, paye: 85000,  pension: 52000, nhf: 16250, loanRepayment: 30000 },
+  { id: "2", firstName: "Oluwaseun",  lastName: "Sowemimo", title: "Software Developer",    department: "Commercial", birthday: "",           category: "Full Time", grade: "14", email: "oluwaseun.sowemimo@portlandgas.com", lineManager: "Bola Adeyemi",       lineManagerEmail: "bola.adeyemi@portlandgas.com",       basicSalary: 950000,  housingAllowance: 250000, transportAllowance: 120000, mealAllowance: 60000, paye: 165000, pension: 76000, nhf: 23750, loanRepayment: 0     },
+  { id: "3", firstName: "Opeyemi",    lastName: "Busari",   title: "Data Analyst",          department: "Assets",     birthday: "2025-01-26", category: "Full Time", grade: "10", email: "opeyemi.busari@portlandgas.com",     lineManager: "Ifeanyi Chukwu",     lineManagerEmail: "ifeanyi.chukwu@portlandgas.com",     basicSalary: 720000,  housingAllowance: 180000, transportAllowance: 90000,  mealAllowance: 45000, paye: 100000, pension: 57600, nhf: 18000, loanRepayment: 0     },
+  { id: "4", firstName: "Felix",      lastName: "Ohemu",    title: "Field Supervisor",      department: "Assets",     birthday: "2026-04-15", category: "Full Time", grade: "10", email: "felix.ohemu@portlandgas.com",        lineManager: "Ifeanyi Chukwu",     lineManagerEmail: "ifeanyi.chukwu@portlandgas.com",     basicSalary: 700000,  housingAllowance: 175000, transportAllowance: 85000,  mealAllowance: 42000, paye: 95000,  pension: 56000, nhf: 17500, loanRepayment: 0     },
+  { id: "5", firstName: "Johnson",    lastName: "Ibikunle", title: "Application Developer", department: "Legal",      birthday: "",           category: "Full Time", grade: "7",  email: "johnson.ibikunle@portlandgas.com",   lineManager: "Magdalene Edozie",   lineManagerEmail: "magdalene.edozie@portlandgas.com",   basicSalary: 600000,  housingAllowance: 140000, transportAllowance: 75000,  mealAllowance: 38000, paye: 75000,  pension: 48000, nhf: 15000, loanRepayment: 0     },
+  { id: "6", firstName: "Joseph",     lastName: "Chika",    title: "Operations Manager",    department: "Operations", birthday: "1990-03-12", category: "Full Time", grade: "12", email: "joseph.chika@portlandgas.com",       lineManager: "Johnson Ibikunle",   lineManagerEmail: "johnson.ibikunle@portlandgas.com",   basicSalary: 850000,  housingAllowance: 200000, transportAllowance: 100000, mealAllowance: 50000, paye: 125000, pension: 68000, nhf: 21250, loanRepayment: 0     },
+  { id: "7", firstName: "David",      lastName: "Okeke",    title: "Safety Officer",        department: "Safety",     birthday: "1988-07-22", category: "Full Time", grade: "9",  email: "david.okeke@portlandgas.com",        lineManager: "Samuel Eze",         lineManagerEmail: "samuel.eze@portlandgas.com",         basicSalary: 750000,  housingAllowance: 185000, transportAllowance: 92000,  mealAllowance: 46000, paye: 105000, pension: 60000, nhf: 18750, loanRepayment: 0     },
 ];
+
+export const EMPLOYEE_STORE: Employee[] = [...SEED_EMPLOYEES];
 
 export const SEED_LEAVE_REQUESTS: LeaveRequest[] = [
-  { id: "l1", ref: "LRQ-20260515-A1B2", employee: "Joseph Chika",     type: "Annual Leave", department: "Operations", startDate: "2026-06-01", endDate: "2026-06-10", days: 8,  reliefOfficer: "David Okeke",     status: "pending",     date: "15 May 2026" },
-  { id: "l2", ref: "LRQ-20260510-C3D4", employee: "Magdalene Edozie", type: "Sick Leave",   department: "Legal",      startDate: "2026-05-12", endDate: "2026-05-13", days: 2,  reliefOfficer: "Johnson Ibikunle", status: "approved",    date: "10 May 2026" },
-  { id: "l3", ref: "LRQ-20260503-E5F6", employee: "Opeyemi Busari",   type: "Study Leave",  department: "Assets",     startDate: "2026-06-15", endDate: "2026-06-30", days: 12, reliefOfficer: "Felix Ohemu",      status: "in_progress", date: "3 May 2026"  },
+  { id: "l1", ref: "LRQ-20260515-A1B2", requestType: "self",   requester: "Joseph Chika",    employee: "Joseph Chika",     jobTitle: "Operations Manager", type: "Annual Leave", department: "Operations", startDate: "2026-06-01", endDate: "2026-06-10", days: 8,  reliever: "David Okeke",      status: "pending",     date: "15 May 2026", reason: "Annual rest and family time during the Q2 break period." },
+  { id: "l2", ref: "LRQ-20260510-C3D4", requestType: "others", requester: "Joseph Chika",    employee: "Magdalene Edozie", jobTitle: "Software Developer",  type: "Sick Leave",   department: "Legal",      startDate: "2026-05-12", endDate: "2026-05-13", days: 2,  reliever: "Johnson Ibikunle", status: "approved",    date: "10 May 2026", reason: "Employee is unwell and has been advised to rest by her physician." },
+  { id: "l3", ref: "LRQ-20260503-E5F6", requestType: "others", requester: "Joseph Chika",    employee: "Opeyemi Busari",   jobTitle: "Data Analyst",        type: "Study Leave",  department: "Assets",     startDate: "2026-06-15", endDate: "2026-06-30", days: 12, reliever: "Felix Ohemu",      status: "in_progress", date: "3 May 2026",  reason: "Attending a professional data science certification program at the University of Lagos.", supportingDocuments: ["admission-letter-unilag.pdf"] },
 ];
 
+export const LEAVE_STORE: LeaveRequest[] = [...SEED_LEAVE_REQUESTS];
+
 export const SEED_EMPLOYEE_RECORDS: EmployeeRecord[] = [
-  { id: "r1", employee: "Magdalene Edozie",   docType: "Employment Contract", fileName: "Edozie_Contract_2024.pdf",  uploadDate: "10 Jan 2025", uploadedBy: "HR Admin"       },
-  { id: "r2", employee: "Oluwaseun Sowemimo", docType: "ID / Passport Copy",  fileName: "Sowemimo_NIN.pdf",          uploadDate: "15 Feb 2025", uploadedBy: "HR Admin"       },
-  { id: "r3", employee: "Joseph Chika",       docType: "Certificates",        fileName: "Chika_MBA_Cert.pdf",        uploadDate: "3 Mar 2026",  uploadedBy: "Joseph Chika"   },
-  { id: "r4", employee: "Felix Ohemu",        docType: "Employment Contract", fileName: "Ohemu_Contract_2026.pdf",   uploadDate: "15 Apr 2026", uploadedBy: "HR Admin"       },
-  { id: "r5", employee: "David Okeke",        docType: "Safety Certification",fileName: "Okeke_HSE_Cert.pdf",        uploadDate: "20 Apr 2026", uploadedBy: "David Okeke"    },
+  { id: "r1", employee: "Magdalene Edozie",   docType: "Employment Contract", fileName: "Edozie_Contract_2024.pdf",  filePath: "/sample-docs/Edozie_Contract_2024.pdf",  uploadDate: "10 Jan 2025", uploadedBy: "HR Admin"     },
+  { id: "r2", employee: "Oluwaseun Sowemimo", docType: "ID / Passport Copy",  fileName: "Sowemimo_NIN.pdf",          filePath: "/sample-docs/Sowemimo_NIN.pdf",          uploadDate: "15 Feb 2025", uploadedBy: "HR Admin"     },
+  { id: "r3", employee: "Joseph Chika",       docType: "Certificates",        fileName: "Chika_MBA_Cert.pdf",        filePath: "/sample-docs/Chika_MBA_Cert.pdf",        uploadDate: "3 Mar 2026",  uploadedBy: "Joseph Chika" },
+  { id: "r4", employee: "Felix Ohemu",        docType: "Employment Contract", fileName: "Ohemu_Contract_2026.pdf",   filePath: "/sample-docs/Ohemu_Contract_2026.pdf",   uploadDate: "15 Apr 2026", uploadedBy: "HR Admin"     },
+  { id: "r5", employee: "David Okeke",        docType: "Safety Certification",fileName: "Okeke_HSE_Cert.pdf",        filePath: "/sample-docs/Okeke_HSE_Cert.pdf",        uploadDate: "20 Apr 2026", uploadedBy: "David Okeke"  },
 ];
 
 export const SEED_POLICIES: Policy[] = [
@@ -243,3 +263,33 @@ export const SEED_PAYROLL: PayrollRun[] = [
   { id: "pr2", ref: "PAY-202603-C3D4", period: "March 2026", runDate: "28 Mar 2026", totalGross: 3500000, totalDeductions: 662250, totalNet: 2837750, employees: 7, status: "processed", preparedBy: "Adaeze Nwosu" },
   { id: "pr3", ref: "PAY-202605-E5F6", period: "May 2026",   runDate: "—",           totalGross: 0,       totalDeductions: 0,      totalNet: 0,       employees: 7, status: "draft",     preparedBy: "Adaeze Nwosu" },
 ];
+
+// ── Leave Balance ─────────────────────────────────────────────────────────────
+
+export const LEAVE_ENTITLEMENTS: Record<string, number> = {
+  "Annual Leave":        21,
+  "Sick Leave":          10,
+  "Casual Leave":         5,
+  "Maternity Leave":     90,
+  "Paternity Leave":      7,
+  "Compassionate Leave":  5,
+  "Study Leave":         14,
+};
+
+export function calcLeaveBalance(
+  employeeName: string,
+  leaveType: string,
+  year: number = new Date().getFullYear(),
+): { entitlement: number; used: number; remaining: number } {
+  const entitlement = LEAVE_ENTITLEMENTS[leaveType] ?? 0;
+  const used = LEAVE_STORE
+    .filter(
+      (r) =>
+        r.employee === employeeName &&
+        r.type === leaveType &&
+        r.status === "approved" &&
+        new Date(r.startDate).getFullYear() === year,
+    )
+    .reduce((sum, r) => sum + r.days, 0);
+  return { entitlement, used, remaining: Math.max(0, entitlement - used) };
+}

@@ -13,6 +13,7 @@ import { cn, toTitleCase } from "@/lib/utils";
 export interface SelectOption {
   value: string;
   label: string;
+  description?: string;
 }
 
 interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "onChange"> {
@@ -100,7 +101,8 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
 
       const query = searchQuery.trim().toLowerCase();
       return normalizedOptions.filter((option) =>
-        option.displayLabel.toLowerCase().includes(query)
+        option.displayLabel.toLowerCase().includes(query) ||
+        option.description?.toLowerCase().includes(query)
       );
     }, [enableSearch, normalizedOptions, searchQuery]);
 
@@ -189,10 +191,12 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
 
     return (
       <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
-        <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+        )}
 
         <input
           {...props}
@@ -305,13 +309,22 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
                       type="button"
                       onClick={() => handleSelect(option.value)}
                       className={cn(
-                        "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                        "flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors",
                         isSelected
                           ? "bg-brand-purple-faint text-brand-purple"
                           : "text-brand-text-primary hover:bg-gray-50"
                       )}
                     >
-                      <span>{option.displayLabel}</span>
+                      <span className="min-w-0">
+                        <span className={cn("block", option.description && "font-medium")}>
+                          {option.displayLabel}
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-xs text-brand-text-secondary">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </span>
                       {isSelected ? <Check size={15} className="shrink-0" /> : null}
                     </button>
                   );

@@ -40,6 +40,7 @@ export default function OrdersHomePage() {
             icon={ClipboardList}
             // stat={`${kpis.totalOrders} total`}
           />
+
           {/* <WorkspaceCard
             title="Pending Dispatch"
             description="Confirmed orders awaiting trip assignment"
@@ -47,6 +48,7 @@ export default function OrdersHomePage() {
             icon={Truck}
             stat={`${kpis.pendingDispatch} awaiting`}
           /> */}
+
           <WorkspaceCard
             title="Invoices"
             description="Manage billing invoices and payment tracking"

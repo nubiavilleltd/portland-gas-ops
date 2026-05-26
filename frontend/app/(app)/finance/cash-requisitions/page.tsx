@@ -4,15 +4,15 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import FormFileUpload from "@/components/forms/FormFileUpload";
 import DataTable from "@/components/data-table/data-table";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
 import WorkflowPath from "../_components/WorkflowPath";
@@ -21,23 +21,25 @@ import ActivityHistory from "../_components/ActivityHistory";
 import {
   DEPT_OPTIONS,
   CURRENCY_OPTIONS,
-  PRIORITY_OPTIONS,
   genRef,
   SEED_CASH_REQUESTS,
+  CASH_STORE,
   type CashRequest,
 } from "../_components/_data";
 
+const TODAY = new Date().toISOString().split("T")[0];
+
+const CURRENT_USER = {
+  name: "Joseph Chika",
+  department: "Finance",
+  role: "Finance Manager",
+};
+
 const schema = z.object({
-  requester_name:      z.string().min(2, "Name is required"),
-  department:          z.string().min(1, "Select a department"),
-  date:                z.string().min(1, "Date is required"),
-  amount:              z.string().min(1, "Amount is required"),
-  currency:            z.string().min(1, "Select a currency"),
   title:               z.string().min(3, "Title is required"),
+  currency:            z.string().min(1, "Select a currency"),
+  amount:              z.string().min(1, "Amount is required"),
   description:         z.string().min(5, "Description is required"),
-  budget_code:         z.string().min(1, "Budget code is required"),
-  expected_retirement: z.string().min(1, "Date is required"),
-  priority:            z.string().min(1, "Select a priority"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -57,35 +59,44 @@ export default function CashRequisitionsPage() {
   const [view, setView] = useState<View>("list");
   const [items, setItems] = useState<CashRequest[]>(SEED_CASH_REQUESTS);
   const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
+  const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
 
   function onSubmit(data: FormData) {
     const ref = genRef("CRQ");
-    setItems((prev) => [
-      {
-        id: ref,
-        ref,
-        title: data.title,
-        department: data.department,
-        amount: parseFloat(data.amount),
-        requester: data.requester_name,
-        date: data.date,
-        status: "pending",
-        budgetCode: data.budget_code,
-        priority: data.priority,
-        description: data.description,
-      },
-      ...prev,
-    ]);
-    setSubmitted({ ref, requester: data.requester_name, department: data.department, submittedAt: new Date() });
+    const newItem: CashRequest = {
+      id: ref,
+      ref,
+      title: data.title,
+      department: CURRENT_USER.department,
+      amount: parseFloat(data.amount),
+      requester: CURRENT_USER.name,
+      jobTitle: CURRENT_USER.role,
+      date: TODAY,
+      status: "pending",
+      currency: data.currency,
+      description: data.description,
+      supportingDocuments: supportingFiles.length > 0
+        ? supportingFiles.map((f) => f.name)
+        : undefined,
+    };
+    CASH_STORE.unshift(newItem);
+    setItems((prev) => [newItem, ...prev]);
+    setSubmitted({
+      ref,
+      requester: CURRENT_USER.name,
+      department: CURRENT_USER.department,
+      submittedAt: new Date(),
+    });
     setView("submitted");
   }
 
   function goBack() {
     setView("list");
     form.reset();
+    setSupportingFiles([]);
     setSubmitted(null);
   }
 
@@ -98,14 +109,17 @@ export default function CashRequisitionsPage() {
           <PageHeader
             title="Cash Requisitions"
             description="Manage cash requests and approvals"
+            action={
+              <Button leftIcon={<Plus size={16} />} onClick={() => setView("form")}>
+                New Request
+              </Button>
+            }
             className="mb-6"
           />
           <DataTable
             columns={cashRequisitionColumns}
             data={items}
             rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
-            onNewRequest={() => setView("form")}
-            newRequestLabel="New Request"
             emptyMessage="No cash requisitions yet"
             emptyDescription="Submit your first cash request to get started"
           />
@@ -129,153 +143,96 @@ export default function CashRequisitionsPage() {
             className="mb-6"
           />
 
-          <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden max-w-4xl">
-            <div className="h-1.5 w-full bg-linear-to-r from-brand-purple to-brand-purple-light" />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
-            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 lg:p-8 space-y-8">
+            <FormSection title="Requester Details" description="Your employee information for this cash requisition.">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormInput label="Requester Name" value={CURRENT_USER.name} disabled />
+                <FormInput label="Department" value={CURRENT_USER.department} disabled />
+                <FormInput label="Job Title / Role" value={CURRENT_USER.role} disabled />
+                <FormDatePicker label="Request Date" value={TODAY} disabled />
+              </div>
+            </FormSection>
 
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
-                  Requester Details
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <FormInput
-                    label="Requester Name"
+            <FormSection title="Request Details" description="Details about the cash being requested.">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormInput
+                  label="Title / Purpose"
+                  required
+                  placeholder="Brief title for this request"
+                  error={errors.title?.message}
+                  {...form.register("title")}
+                />
+                <FormSelect
+                  label="Currency"
+                  required
+                  options={CURRENCY_OPTIONS}
+                  sortOptions={false}
+                  placeholder="Select currency"
+                  error={errors.currency?.message}
+                  {...form.register("currency")}
+                />
+                <FormInput
+                  label="Amount Requested"
+                  type="number"
+                  required
+                  placeholder="0.00"
+                  error={errors.amount?.message}
+                  {...form.register("amount")}
+                />
+                <div className="md:col-span-2">
+                  <FormTextarea
+                    label="Description / Justification"
                     required
-                    placeholder="Your full name"
-                    error={errors.requester_name?.message}
-                    {...form.register("requester_name")}
+                    placeholder="Describe what is needed and why..."
+                    rows={4}
+                    error={errors.description?.message}
+                    {...form.register("description")}
                   />
-                  <FormSelect
-                    label="Department"
-                    required
-                    options={DEPT_OPTIONS}
-                    placeholder="Select department"
-                    error={errors.department?.message}
-                    {...form.register("department")}
+                </div>
+                <div className="md:col-span-2">
+                  <FileDropzone
+                    label="Supporting Documents"
+                    value={supportingFiles}
+                    onChange={setSupportingFiles}
+                    accept="image/*,.pdf,.doc,.docx"
+                    maxFiles={10}
+                    hint="Attach quotes, receipts, or any relevant documents (optional)"
                   />
                 </div>
               </div>
+            </FormSection>
 
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
-                  Request Details
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <FormInput
-                    label="Title / Purpose"
-                    required
-                    placeholder="Brief title for this request"
-                    error={errors.title?.message}
-                    {...form.register("title")}
-                  />
-                  <FormDatePicker
-                    label="Request Date"
-                    required
-                    error={errors.date?.message}
-                    {...form.register("date")}
-                  />
-                  <FormInput
-                    label="Amount Requested (₦)"
-                    type="number"
-                    required
-                    placeholder="0.00"
-                    error={errors.amount?.message}
-                    {...form.register("amount")}
-                  />
-                  <FormSelect
-                    label="Currency"
-                    required
-                    options={CURRENCY_OPTIONS}
-                    sortOptions={false}
-                    placeholder="Select currency"
-                    error={errors.currency?.message}
-                    {...form.register("currency")}
-                  />
-                  <FormSelect
-                    label="Priority"
-                    required
-                    options={PRIORITY_OPTIONS}
-                    sortOptions={false}
-                    placeholder="Select priority"
-                    error={errors.priority?.message}
-                    {...form.register("priority")}
-                  />
-                  <FormDatePicker
-                    label="Expected Retirement Date"
-                    required
-                    error={errors.expected_retirement?.message}
-                    {...form.register("expected_retirement")}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
-                  Financial & Justification
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <FormInput
-                    label="Budget Code / GL Account"
-                    required
-                    placeholder="e.g. OPEX-2026-OPS"
-                    error={errors.budget_code?.message}
-                    {...form.register("budget_code")}
-                  />
-                  <div className="md:col-span-1" />
-                  <div className="md:col-span-2">
-                    <FormTextarea
-                      label="Description / Justification"
-                      required
-                      placeholder="Describe what is needed and why..."
-                      rows={4}
-                      error={errors.description?.message}
-                      {...form.register("description")}
-                    />
+            <section className="rounded-xl border border-brand-border bg-gray-50 px-5 py-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
+                Approval Route
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {APPROVAL_ROUTE.map((step, i, arr) => (
+                  <div key={step} className="flex items-center gap-2">
+                    <span
+                      className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
+                        i === 0
+                          ? "bg-brand-purple-faint text-brand-purple border-brand-purple-mid"
+                          : "bg-white text-brand-text-secondary border-brand-border"
+                      }`}
+                    >
+                      {step}
+                    </span>
+                    {i < arr.length - 1 && (
+                      <span className="text-brand-text-secondary text-xs">→</span>
+                    )}
                   </div>
-                  <div className="md:col-span-2">
-                    <FormFileUpload label="Supporting Documents" hint="Attach quotes, receipts, or any relevant documents (optional)" />
-                  </div>
-                </div>
+                ))}
               </div>
+            </section>
 
-              <div className="rounded-xl border border-brand-border bg-gray-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
-                  Approval Route
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {APPROVAL_ROUTE.map((step, i, arr) => (
-                    <div key={step} className="flex items-center gap-2">
-                      <span
-                        className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-                          i === 0
-                            ? "bg-brand-purple-faint text-brand-purple border-brand-purple-mid"
-                            : "bg-white text-brand-text-secondary border-brand-border"
-                        }`}
-                      >
-                        {step}
-                      </span>
-                      {i < arr.length - 1 && (
-                        <span className="text-brand-text-secondary text-xs">→</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-brand-border">
-                <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
-                  Submit for Approval
-                </Button>
-                <Button type="button" variant="outline" onClick={() => form.reset()}>
-                  Clear Form
-                </Button>
-                <Button type="button" variant="ghost" className="sm:ml-auto" onClick={goBack}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </div>
+            <div className="flex gap-3 pt-1">
+              <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+                Submit for Approval
+              </Button>
+            </div>
+          </form>
         </>
       )}
 
@@ -319,7 +276,7 @@ export default function CashRequisitionsPage() {
             <Button onClick={goBack}>View All Requests</Button>
             <Button
               variant="outline"
-              onClick={() => { form.reset(); setView("form"); }}
+              onClick={() => { form.reset(); setSupportingFiles([]); setView("form"); }}
             >
               Submit Another
             </Button>
@@ -327,5 +284,21 @@ export default function CashRequisitionsPage() {
         </>
       )}
     </AppLayout>
+  );
+}
+
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-brand-border bg-white shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description && (
+          <p className="text-sm text-brand-text-secondary mt-0.5">{description}</p>
+        )}
+      </div>
+      <div className="px-6 pt-5 pb-6">
+        {children}
+      </div>
+    </section>
   );
 }

@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Paperclip, X, ChevronDown } from "lucide-react";
+import { Plus, Trash2, X, ChevronDown } from "lucide-react";
+import FileDropzone from "@/components/ui/FileDropzone";
+import FormSection from "@/components/ui/FormSection";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormSelect from "@/components/forms/FormSelect";
@@ -31,16 +33,6 @@ const itemSchema = z.object({
   total_cost: z.string(),
 });
 
-const MAX_FILE_MB = 10;
-const ALLOWED_FILE_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "image/png",
-  "image/jpeg",
-];
 
 const schema = z.object({
   category: z.string().min(1, "Select a category"),
@@ -87,8 +79,7 @@ export default function NewProcurementPage() {
   const createMutation = useCreateProcurement();
   const { data: vendors = [] } = useVendors();
 
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [selectedVendorName, setSelectedVendorName] = useState<string>("");
@@ -159,7 +150,7 @@ export default function NewProcurementPage() {
             total_cost: parseFloat(item.total_cost) || 0,
           })),
         },
-        file: attachedFile,
+        file: attachedFiles[0] ?? null,
       });
       toast.success("Purchase request submitted successfully");
       router.push("/procurement");
@@ -176,62 +167,42 @@ export default function NewProcurementPage() {
         className="mb-6"
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* ── Section 1: Request Details ───────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Request Details</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Basic information about this purchase request</p>
-          </div>
-          <div className="p-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <FormSelect
-                label="Category"
-                required
-                options={categoryOptions}
-                placeholder="Select category"
-                error={errors.category?.message}
-                {...register("category")}
-              />
-              <FormSelect
-                label="Priority"
-                required
-                options={priorityOptions}
-                error={errors.priority?.message}
-                {...register("priority")}
-              />
-            </div>
-            {/* {watchedCategory && (
-              <p className="text-xs text-brand-text-secondary -mt-2">
-                Request title will be auto-generated: <span className="font-medium text-brand-text-primary">&ldquo;{capitalize(watchedCategory)} request&rdquo;</span>
-              </p>
-            )*/ }
-            <div className="grid grid-cols-2 gap-4">
-              <FormDatePicker label="Required By" {...register("required_by")} />
-            </div>
-            <FormTextarea
-              label="Justification / Purpose"
-              placeholder="Describe what is needed and why — this appears on the Purchase Order document"
-              rows={3}
-              {...register("justification")}
+        <FormSection title="Request Details" description="Basic information about this purchase request">
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Category"
+              required
+              options={categoryOptions}
+              placeholder="Select category"
+              error={errors.category?.message}
+              {...register("category")}
+            />
+            <FormSelect
+              label="Priority"
+              required
+              options={priorityOptions}
+              error={errors.priority?.message}
+              {...register("priority")}
             />
           </div>
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormDatePicker label="Required By" {...register("required_by")} />
+          </div>
+          <FormTextarea
+            label="Justification / Purpose"
+            placeholder="Describe what is needed and why — this appears on the Purchase Order document"
+            rows={3}
+            {...register("justification")}
+          />
+        </FormSection>
 
         {/* ── Section 2: Vendor ────────────────────────────────────────────── */}
         {/* No overflow-hidden — dropdown needs to escape the card boundary */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <div>
-              <h2 className="text-sm font-semibold text-brand-text-primary">Vendor</h2>
-              <p className="text-xs text-brand-text-secondary mt-0.5">Optional — select an existing vendor</p>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {/* ── Select existing vendor ─────────────────────────────────── */}
-            <div className="relative">
+        <FormSection title="Vendor" description="Optional — select an existing vendor" bodyClassName="p-6 space-y-0">
+          <div className="relative">
               <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor</label>
 
               {selectedVendorName ? (
@@ -293,16 +264,11 @@ export default function NewProcurementPage() {
                 Vendor details will be included on the Purchase Order PDF
               </p>
             </div>
-          </div>
-        </div>
+        </FormSection>
 
         {/* ── Section 3: Line Items ────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Line Items</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Add each item being requested — costs are in Nigerian Naira (₦)</p>
-          </div>
-          <div className="p-6">
+        <FormSection title="Line Items" description="Add each item being requested — costs are in Nigerian Naira (₦)" className="overflow-hidden" bodyClassName="p-6 space-y-0">
+          <div>
             {errors.items?.root && (
               <p className="text-xs text-red-600 mb-3">{errors.items.root.message}</p>
             )}
@@ -439,81 +405,25 @@ export default function NewProcurementPage() {
               <Plus size={15} /> Add Item
             </button>
           </div>
-        </div>
+        </FormSection>
 
         {/* ── Section 4: Attachment ────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Supporting Document</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Optional — attach a quote, spec sheet, or any supporting file</p>
-          </div>
-          <div className="p-6">
-            {attachedFile ? (
-              <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl">
-                <Paperclip size={14} className="text-brand-purple shrink-0" />
-                <span className="text-sm text-brand-text-primary flex-1 truncate">{attachedFile.name}</span>
-                <span className="text-xs text-brand-text-secondary">
-                  {(attachedFile.size / 1024).toFixed(0)} KB
-                </span>
-                <button
-                  type="button"
-                  onClick={() => { setAttachedFile(null); setFileError(null); }}
-                  className="text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-brand-border rounded-xl py-8 cursor-pointer hover:border-brand-purple hover:bg-purple-50/30 transition-colors">
-                <Paperclip size={20} className="text-gray-400" />
-                <p className="text-sm text-brand-text-secondary">
-                  <span className="text-brand-purple font-medium">Click to attach</span> or drag and drop
-                </p>
-                <p className="text-xs text-gray-400">PDF, Word, Excel, images — max 10 MB</p>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    if (file) {
-                      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-                        setFileError("File type not allowed. Use PDF, Word, Excel, PNG or JPG.");
-                        e.target.value = "";
-                        return;
-                      }
-                      if (file.size > MAX_FILE_MB * 1024 * 1024) {
-                        setFileError(`File too large. Maximum size is ${MAX_FILE_MB} MB.`);
-                        e.target.value = "";
-                        return;
-                      }
-                    }
-                    setFileError(null);
-                    setAttachedFile(file);
-                  }}
-                />
-              </label>
-            )}
-            {fileError && (
-              <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                <span>⚠</span> {fileError}
-              </p>
-            )}
-          </div>
-        </div>
+        <FormSection title="Supporting Document" description="Optional — attach a quote, spec sheet, or any supporting file" bodyClassName="p-6 space-y-0">
+          <FileDropzone
+            value={attachedFiles}
+            onChange={setAttachedFiles}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+            maxFiles={1}
+            maxSizeMB={10}
+            hint="PDF, Word, Excel, or images — max 10 MB"
+          />
+        </FormSection>
 
         {/* ── Actions ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between py-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+        <div className="py-2">
           <button
             type="submit"
-            disabled={isSubmitting || createMutation.isPending || !!fileError}
+            disabled={isSubmitting || createMutation.isPending}
             className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
           >
             {createMutation.isPending ? (

@@ -9,102 +9,81 @@ import { getVehicles } from "@/lib/modules/fleet/selectors/vehicles.selectors";
 import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
 
 
+
+
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+
+const columns: Column<Vehicle>[] = [
+  {
+    key: "name",
+    label: "Vehicle",
+    render: (_value, vehicle) => (
+      <div>
+        <p className="font-medium">{vehicle.name}</p>
+        <p className="text-xs text-brand-text-secondary mt-1">{vehicle.fuel_type}</p>
+      </div>
+    ),
+  },
+  {
+    key: "plate_number",
+    label: "Plate Number",
+  },
+  {
+    key: "type",
+    label: "Type",
+    render: (value) => (value as string).replaceAll("_", " ").toUpperCase(),
+  },
+  {
+    key: "mileage",
+    label: "Mileage",
+    render: (value) => `${(value as number)?.toLocaleString()} km`,
+  },
+  {
+    key: "status",
+    label: "Operational State",
+    render: (value) => (
+      <FleetVehicleStatusBadge status={value as Vehicle["status"]} />
+    ),
+  },
+  // {
+  //   key: "id",
+  //   label: "Actions",
+  //   render: (_value, vehicle) => (
+  //     <div className="flex justify-end">
+  //       <Button size="sm" variant="outline" href={`/fleet/vehicles/${vehicle.id}`}>
+  //         View
+  //       </Button>
+  //     </div>
+  //   ),
+  // },
+];
+
+// Replace the entire <div className="bg-white border ..."> block with:
+
+
+
 export default function VehiclesPage() {
   const vehicles = getVehicles();
 
   return (
     <AppLayout pageTitle="Vehicles">
-      {/* <PageHeader
-        title=""
-        description="Manage operational fleet vehicles"
-        action={
-          <Button href="/fleet/vehicles/new">
-            Add Vehicle
-          </Button>
-        }
-      /> */}
+      <PageHeader
+        title="All Vehicles"
+        description="View all operational fleet vehicles"
+        // action={
+        //   <Button href="/fleet/vehicles/new">
+        //     Add Vehicle
+        //   </Button>
+        // }
+      />
 
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-
-        {vehicles.length === 0 ? (
-          <p className="text-sm text-brand-text-secondary">
-            No vehicles found.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-
-            <table className="w-full text-sm">
-
-              <thead>
-                <tr className="border-b border-brand-border text-left">
-
-                  <th className="pb-3">Vehicle</th>
-                  <th className="pb-3">Plate Number</th>
-                  <th className="pb-3">Type</th>
-                  <th className="pb-3">Mileage</th>
-                  <th className="pb-3">Operational State</th>
-                  <th className="pb-3 text-right">Actions</th>
-
-                </tr>
-              </thead>
-
-              <tbody>
-
-                {vehicles.map((vehicle) => (
-                  <tr
-                    key={vehicle.id}
-                    className="border-b border-brand-border"
-                  >
-
-                    {/* VEHICLE INFO */}
-                    <td className="py-4">
-                      <div>
-                        <p className="font-medium">
-                          {vehicle.name}
-                        </p>
-
-                        <p className="text-xs text-brand-text-secondary mt-1">
-                          {vehicle.fuel_type}
-                        </p>
-                      </div>
-                    </td>
-
-                    <td>{vehicle.plate_number}</td>
-
-                    <td className="capitalize">
-                      {vehicle.type.replaceAll("_", " ")}
-                    </td>
-
-                    <td>
-                      {vehicle.mileage?.toLocaleString()} km
-                    </td>
-
-                    {/* FIXED: operational-aware status */}
-                    <td>
-                      <FleetVehicleStatusBadge status={vehicle.status} />
-                    </td>
-
-                    <td className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        href={`/fleet/vehicles/${vehicle.id}`}
-                      >
-                        View
-                      </Button>
-                    </td>
-
-                  </tr>
-                ))}
-
-              </tbody>
-
-            </table>
-
-          </div>
-        )}
-
-      </div>
+      <DataTable<Vehicle>
+  columns={columns}
+  data={vehicles}
+  rowHref={(vehicle) => `/fleet/vehicles/${vehicle.id}`}
+  emptyMessage="No vehicles found."
+/>
     </AppLayout>
   );
 }

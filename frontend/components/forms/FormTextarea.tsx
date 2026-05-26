@@ -43,6 +43,7 @@ const FormTextarea = forwardRef<HTMLTextAreaElement, Props>(
           {props.required && <span className="text-red-500 ml-1">*</span>}
         </label>
         <textarea
+          suppressHydrationWarning
           {...props}
           ref={ref}
           id={textareaId}

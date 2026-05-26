@@ -8,16 +8,21 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import IncidentHazardRoleSwitcher from "./IncidentHazardRoleSwitcher";
+import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
-  cloneIncidentHazardReport,
   getMockIncidentHazardReport,
   incidentPriorityOptions,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
+import {
+  closeResolvedIncident,
+  getApprovedCloseOutForIncident,
+  resolveIncidentWithCompletedWork,
+  updateIncidentHazardReport,
+  useSafetyDemoData,
+} from "@/lib/safety-demo-store";
 import type {
-  IncidentHazardActionOwnerCompletion,
   IncidentHazardAttachment,
   IncidentHazardHseReview,
   IncidentHazardReport,
@@ -29,40 +34,41 @@ import type {
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
 const hseDecisionOptions = toOptions(["Resolved", "Not Resolved"]);
-const employeeOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
+const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
+const departmentOptions = toOptions(["Engineering", "Maintenance", "Operations", "Logistics", "HSE", "Admin"]);
 
 export default function IncidentHazardDetailsView({ reportId }: { reportId: string }) {
   const router = useRouter();
   const initialReport = getMockIncidentHazardReport(reportId);
+  const { incidentHazards } = useSafetyDemoData();
+  const report = incidentHazards.find((item) => item.id === reportId) ?? initialReport;
+  const completedWork = report ? getApprovedCloseOutForIncident(report.id) : null;
   const [currentRole, setCurrentRole] = useState<IncidentHazardRole>("reporter");
-  const [report, setReport] = useState<IncidentHazardReport | null>(
-    initialReport ? cloneIncidentHazardReport(initialReport) : null
-  );
   const [hseComment, setHseComment] = useState("");
   const [correctiveActionRequired, setCorrectiveActionRequired] = useState("");
+  const [assignedDepartment, setAssignedDepartment] = useState("");
   const [actionOwner, setActionOwner] = useState("");
-  const [actionOwnerComment, setActionOwnerComment] = useState("");
 
   const permissions = useMemo(() => {
     const isDraft = report?.status === "draft";
     const isSubmitted = report?.status === "submitted";
-    const isRecommendedToActionOwner = report?.status === "recommended_to_action_owner";
-    const isActionOwnerCompleted = report?.status === "action_owner_completed";
-    const isApproved = report?.status === "approved";
-    const isNotResolved = report?.status === "not_resolved";
+    const isRecommended = report?.status === "recommended";
+    const isResolved = report?.status === "resolved";
+    const isClosed = report?.status === "closed";
     return {
       canReporterEdit: currentRole === "reporter" && isDraft,
       canHseReview: currentRole === "hse" && isSubmitted,
-      canActionOwnerConfirm: currentRole === "action_owner" && isRecommendedToActionOwner,
-      canHseFinalReview: currentRole === "hse" && isActionOwnerCompleted,
-      showActionOwnerSection: Boolean(isRecommendedToActionOwner || isActionOwnerCompleted || isApproved || isNotResolved),
+      canActionOwnerResolve:
+        currentRole === "action_owner" && isRecommended && Boolean(completedWork),
+      canHseClose: currentRole === "hse" && isResolved,
+      showActionOwnerSection: Boolean(isRecommended || isResolved || isClosed),
       showHseReview: Boolean(
         (currentRole === "hse" && isSubmitted) ||
         Boolean(report?.hseReview)
       ),
       showAuditTrail: Boolean(!isDraft),
     };
-  }, [currentRole, report?.hseReview, report?.status]);
+  }, [completedWork, currentRole, report?.hseReview, report?.status]);
 
   if (!report) {
     return (
@@ -71,27 +77,32 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
       </div>
     );
   }
+  const persistedReportId = report.id;
 
-  function addAudit(item: WorkAuthorizationAuditTrailItem) {
-    setReport((current) =>
-      current ? { ...current, auditTrail: [...current.auditTrail, item] } : current
-    );
+  function persistUpdate(
+    update: (current: IncidentHazardReport) => IncidentHazardReport,
+  ) {
+    updateIncidentHazardReport(persistedReportId, update);
   }
 
   function submitReport() {
     if (!report) return;
 
-    setReport((current) => (current ? { ...current, status: "submitted" } : current));
-    addAudit({
+    const audit: WorkAuthorizationAuditTrailItem = {
       action: "Submitted",
       actor: report.reporter.name,
       role: "Reporter",
       dateTime: "2026-05-18 08:30 AM",
-      comment: "Incident/hazard report submitted to HSE.",
-    });
+      comment: "Incident/hazard report submitted for HSE review.",
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status: "submitted",
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
-  function buildHseReview(decision: "Resolved" | "Not Resolved" | ""): IncidentHazardHseReview {
+  function buildHseReview(decision: "Resolved" | "Not Resolved" | "Recommended" | ""): IncidentHazardHseReview {
     return {
       inspector: "Samuel Bassey",
       confirmedReportType: report?.reportType || "Hazard",
@@ -101,9 +112,10 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
       correctiveActionRequired: correctiveActionRequired === "Yes",
       correctiveActionDetails:
         correctiveActionRequired === "Yes"
-          ? "Assign owner to complete corrective action and confirm closure."
+          ? "Corrective action required. Recommended for Work Initiation."
           : "",
       actionOwner: correctiveActionRequired === "Yes" ? actionOwner : "",
+      assignedDepartment: correctiveActionRequired === "Yes" ? assignedDepartment : "",
       targetCompletionDate: correctiveActionRequired === "Yes" ? "2026-05-22" : "",
       decision,
       comment:
@@ -112,58 +124,35 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
           ? "HSE reviewed and resolved the report."
           : decision === "Not Resolved"
             ? "HSE reviewed the report and marked it not resolved."
-            : "HSE recommends corrective action to the action owner."),
+            : "HSE acknowledged the report and recommended corrective work to the assigned department."),
       reviewDateTime: "2026-05-18 10:00 AM",
     };
   }
 
-  function recommendToActionOwner() {
-    if (!actionOwner) return;
-    const review = buildHseReview("");
-    setReport((current) =>
-      current
-        ? {
-            ...current,
-            status: "recommended_to_action_owner",
-            hseReview: review,
-          }
-        : current
-    );
-    addAudit({
-      action: "Recommended to Action Owner",
+  function recommendToDepartment() {
+    if (!assignedDepartment || !actionOwner) return;
+    const review = buildHseReview("Recommended");
+    const audit: WorkAuthorizationAuditTrailItem = {
+      action: `Recommended to ${review.assignedDepartment}`,
       actor: review.inspector,
       role: "HSE Inspector",
       dateTime: review.reviewDateTime,
-      comment: `Corrective action recommended to ${review.actionOwner}.`,
-    });
+      comment: `Corrective action required. Recommended to ${review.assignedDepartment} and assigned to ${review.actionOwner}.`,
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status: "recommended",
+      hseReview: review,
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
-  function confirmActionOwnerCompletion() {
-    const owner = report?.hseReview?.actionOwner || "Workshop Supervisor";
-    const completion = {
-      owner,
-      completedDateTime: "2026-05-18 12:30 PM",
-      comment:
-        actionOwnerComment ||
-        "Corrective action has been completed and is ready for HSE final review.",
-    };
+  function resolveRecommendedIncident() {
+    resolveIncidentWithCompletedWork(persistedReportId);
+  }
 
-    setReport((current) =>
-      current
-        ? {
-            ...current,
-            status: "action_owner_completed",
-            actionOwnerCompletion: completion,
-          }
-        : current
-    );
-    addAudit({
-      action: "Corrective Action Completed",
-      actor: owner,
-      role: "Action Owner",
-      dateTime: completion.completedDateTime,
-      comment: completion.comment,
-    });
+  function closeIncident() {
+    closeResolvedIncident(persistedReportId);
   }
 
   function hseFinalDecision(decision: "Resolved" | "Not Resolved") {
@@ -179,22 +168,19 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
       reviewDateTime: "2026-05-18 01:00 PM",
     };
 
-    setReport((current) =>
-      current
-        ? {
-            ...current,
-            status: decision === "Resolved" ? "approved" : "not_resolved",
-            hseReview: review,
-          }
-        : current
-    );
-    addAudit({
+    const audit: WorkAuthorizationAuditTrailItem = {
       action: decision === "Resolved" ? "Resolved by HSE" : "Marked Not Resolved by HSE",
       actor: review.inspector,
       role: "HSE Inspector",
       dateTime: review.reviewDateTime,
       comment: review.comment,
-    });
+    };
+    persistUpdate((current) => ({
+      ...current,
+      status: decision === "Resolved" ? "resolved" : "not_resolved",
+      hseReview: review,
+      auditTrail: [...current.auditTrail, audit],
+    }));
   }
 
   return (
@@ -244,9 +230,11 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
             onCommentChange={setHseComment}
             correctiveActionRequired={correctiveActionRequired}
             onCorrectiveActionRequiredChange={setCorrectiveActionRequired}
+            assignedDepartment={assignedDepartment}
+            onAssignedDepartmentChange={setAssignedDepartment}
             actionOwner={actionOwner}
             onActionOwnerChange={setActionOwner}
-            onRecommend={recommendToActionOwner}
+            onForward={recommendToDepartment}
             onDecision={hseFinalDecision}
           />
         ) : report.hseReview ? (
@@ -254,27 +242,23 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
         ) : null
       ) : null}
 
-      {permissions.canHseFinalReview ? (
-        <HseFinalResolutionAction
-          comment={hseComment}
-          onCommentChange={setHseComment}
-          onDecision={hseFinalDecision}
-        />
+      {permissions.showActionOwnerSection ? (
+        report.hseReview?.correctiveActionRequired ? (
+          <CorrectiveWorkResolution
+            report={report}
+            completedWorkReference={
+              completedWork
+                ? `${completedWork.id} - ${completedWork.title} | ${completedWork.requester.name} | ${completedWork.requester.requestDate}`
+                : report.resolutionWorkCompletionId || ""
+            }
+            canResolve={permissions.canActionOwnerResolve}
+            onResolve={resolveRecommendedIncident}
+          />
+        ) : null
       ) : null}
 
-      {permissions.showActionOwnerSection ? (
-        permissions.canActionOwnerConfirm ? (
-          <ActionOwnerCompletionAction
-            owner={report.hseReview?.actionOwner || "Workshop Supervisor"}
-            comment={actionOwnerComment}
-            onCommentChange={setActionOwnerComment}
-            onConfirm={confirmActionOwnerCompletion}
-          />
-        ) : report.actionOwnerCompletion ? (
-          <ActionOwnerCompletionResult completion={report.actionOwnerCompletion} />
-        ) : report.hseReview?.actionOwner ? (
-          <ActionOwnerPendingNotice owner={report.hseReview.actionOwner} />
-        ) : null
+      {permissions.canHseClose ? (
+        <HseClosureAction report={report} onClose={closeIncident} />
       ) : null}
 
       {permissions.showAuditTrail ? <AuditTrail items={report.auditTrail} /> : null}
@@ -284,7 +268,7 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
 
 function ReporterDetails({ report }: { report: IncidentHazardReport }) {
   return (
-    <FormSection title="Reporter Details">
+    <FormSection title="Reporter Details" description="Employee information for the person who raised this report.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Reporter Name" value={report.reporter.name} disabled />
         <FormInput label="Department" value={report.reporter.department} disabled />
@@ -297,9 +281,10 @@ function ReporterDetails({ report }: { report: IncidentHazardReport }) {
 
 function ReportDetails({ report, editable }: { report: IncidentHazardReport; editable: boolean }) {
   return (
-    <FormSection title="Report Details">
+    <FormSection title="Report Details" description="Basic information about the reported incident or hazard.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Report Reference" value={report.id} disabled />
+        <FormInput label="Report Title" defaultValue={report.title} disabled={!editable} />
         <FormInput label="Report Type" defaultValue={report.reportType} disabled={!editable} />
         <FormInput label="Location" defaultValue={report.location} disabled={!editable} />
         <FormInput label="Date/Time Observed" defaultValue={report.dateTimeObserved} disabled={!editable} />
@@ -312,13 +297,21 @@ function ReportDetails({ report, editable }: { report: IncidentHazardReport; edi
 
 function IncidentDetails({ report, editable }: { report: IncidentHazardReport; editable: boolean }) {
   return (
-    <FormSection title="Incident / Hazard Details">
+    <FormSection title="Incident / Hazard Details" description="Observed impact, risk level, and immediate actions recorded.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormTextarea label="Description" defaultValue={report.description} disabled={!editable} className="md:col-span-2" />
         <FormInput label="Severity Estimate" defaultValue={report.severityEstimate} disabled={!editable} />
-        <ReadOnlyYesNo label="Was anyone injured?" value={report.anyoneInjured} editable={editable} />
-        <ReadOnlyYesNo label="Was equipment/property damaged?" value={report.propertyDamaged} editable={editable} />
-        <ReadOnlyYesNo label="Is there gas/fire/environmental concern?" value={report.gasFireEnvironmentalConcern} editable={editable} />
+        <div className="md:col-span-2">
+          <SafetyChoiceTable
+            options={yesNoOptions}
+            disabled={!editable}
+            rows={[
+              { label: "Was anyone injured?", value: nullableBooleanToYesNo(report.anyoneInjured) },
+              { label: "Was equipment/property damaged?", value: nullableBooleanToYesNo(report.propertyDamaged) },
+              { label: "Is there gas/fire/environmental concern?", value: nullableBooleanToYesNo(report.gasFireEnvironmentalConcern) },
+            ]}
+          />
+        </div>
         <FormTextarea label="Immediate Action Taken" defaultValue={report.immediateActionTaken} disabled={!editable} className="md:col-span-2" />
         <FormTextarea label="People Involved / Witnesses" defaultValue={report.peopleInvolved} disabled={!editable} />
         <FormTextarea label="Additional Notes" defaultValue={report.additionalNotes} disabled={!editable} />
@@ -329,7 +322,7 @@ function IncidentDetails({ report, editable }: { report: IncidentHazardReport; e
 
 function EvidenceSection({ report }: { report: IncidentHazardReport }) {
   return (
-    <FormSection title="Evidence / Attachments">
+    <FormSection title="Evidence / Attachments" description="Supporting photos, videos, or documents for this report.">
       <AttachmentList attachments={report.attachments} />
     </FormSection>
   );
@@ -340,48 +333,67 @@ function HseReviewAction({
   onCommentChange,
   correctiveActionRequired,
   onCorrectiveActionRequiredChange,
+  assignedDepartment,
+  onAssignedDepartmentChange,
   actionOwner,
   onActionOwnerChange,
-  onRecommend,
+  onForward,
   onDecision,
 }: {
   comment: string;
   onCommentChange: (comment: string) => void;
   correctiveActionRequired: string;
   onCorrectiveActionRequiredChange: (value: string) => void;
+  assignedDepartment: string;
+  onAssignedDepartmentChange: (value: string) => void;
   actionOwner: string;
   onActionOwnerChange: (value: string) => void;
-  onRecommend: () => void;
+  onForward: () => void;
   onDecision: (decision: "Resolved" | "Not Resolved") => void;
 }) {
   const [resolution, setResolution] = useState("");
-  const requiresActionOwner = correctiveActionRequired === "Yes";
-  const canSubmit = requiresActionOwner ? Boolean(actionOwner) : Boolean(resolution);
+  const requiresCorrectiveWork = correctiveActionRequired === "Yes";
+  const canSubmit = requiresCorrectiveWork ? Boolean(assignedDepartment && actionOwner) : Boolean(resolution);
 
   return (
-    <FormSection title="HSE Review & Corrective Action">
+    <FormSection title="HSE Review & Corrective Action" description="Assess the report and determine whether corrective work is required.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
         <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
         <FormSelect label="Confirmed Severity" required options={toOptions(incidentPriorityOptions)} placeholder="Select confirmed severity" />
         <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
         {/* <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" /> */}
-        <FormToggleGroup
-          label="Corrective Action Required?"
-          required
-          options={yesNoOptions}
-          value={correctiveActionRequired}
-          onValueChange={onCorrectiveActionRequiredChange}
-        />
+        <div className="md:col-span-2">
+          <SafetyChoiceTable
+            options={yesNoOptions}
+            rows={[
+              {
+                label: "Corrective Action Required?",
+                required: true,
+                value: correctiveActionRequired,
+                onValueChange: onCorrectiveActionRequiredChange,
+              },
+            ]}
+          />
+        </div>
         {correctiveActionRequired === "Yes" ? (
           <>
             <FormTextarea label="Corrective Action Details" required placeholder="Describe corrective action" />
             <FormSelect
+              label="Assigned Department"
+              required
+              searchable
+              options={departmentOptions}
+              placeholder="Select department"
+              value={assignedDepartment}
+              onValueChange={onAssignedDepartmentChange}
+            />
+            <FormSelect
               label="Action Owner"
               required
               searchable
-              options={employeeOptions}
-              placeholder="Select owner"
+              options={actionOwnerOptions}
+              placeholder="Select action owner"
               value={actionOwner}
               onValueChange={onActionOwnerChange}
             />
@@ -411,59 +423,14 @@ function HseReviewAction({
           type="button"
           disabled={!canSubmit}
           onClick={() => {
-            if (requiresActionOwner) {
-              onRecommend();
+            if (requiresCorrectiveWork) {
+              onForward();
               return;
             }
             onDecision(resolution as "Resolved" | "Not Resolved");
           }}
         >
-          {requiresActionOwner ? "Recommend to Action Owner" : "Submit Review"}
-        </Button>
-      </div>
-    </FormSection>
-  );
-}
-
-function HseFinalResolutionAction({
-  comment,
-  onCommentChange,
-  onDecision,
-}: {
-  comment: string;
-  onCommentChange: (comment: string) => void;
-  onDecision: (decision: "Resolved" | "Not Resolved") => void;
-}) {
-  const [resolution, setResolution] = useState("");
-
-  return (
-    <FormSection title="HSE Final Resolution">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
-        <FormSelect
-          label="HSE Resolution"
-          required
-          options={hseDecisionOptions}
-          placeholder="Select resolution"
-          value={resolution}
-          onValueChange={setResolution}
-        />
-        <FormTextarea
-          label="HSE Comment"
-          value={comment}
-          onChange={(event) => onCommentChange(event.target.value)}
-          placeholder="Add final HSE comment"
-          className="md:col-span-2"
-        />
-        <FormInput label="HSE Review Date/Time" value="2026-05-18 01:00 PM" disabled />
-      </div>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button
-          type="button"
-          disabled={!resolution}
-          onClick={() => onDecision(resolution as "Resolved" | "Not Resolved")}
-        >
-          Submit Review
+          {requiresCorrectiveWork ? "Recommend Corrective Action" : "Submit Review"}
         </Button>
       </div>
     </FormSection>
@@ -472,17 +439,29 @@ function HseFinalResolutionAction({
 
 function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
   return (
-    <FormSection title="HSE Review & Corrective Action">
+    <FormSection title="HSE Review & Corrective Action" description="Recorded HSE findings and corrective action outcome.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value={review.inspector} disabled />
         <FormInput label="Confirmed Report Type" value={review.confirmedReportType} disabled />
         <FormInput label="Confirmed Severity" value={review.confirmedSeverity} disabled />
         <FormTextarea label="HSE Findings" value={review.findings} disabled />
         {/* <FormTextarea label="Root Cause / Likely Cause" value={review.rootCause} disabled /> */}
-        <ReadOnlyYesNo label="Corrective Action Required?" value={review.correctiveActionRequired} editable={false} />
+        <div className="md:col-span-2">
+          <SafetyChoiceTable
+            options={yesNoOptions}
+            disabled
+            rows={[
+              {
+                label: "Corrective Action Required?",
+                value: nullableBooleanToYesNo(review.correctiveActionRequired),
+              },
+            ]}
+          />
+        </div>
         {review.correctiveActionRequired ? (
           <>
             <FormTextarea label="Corrective Action Details" value={review.correctiveActionDetails} disabled />
+            <FormInput label="Assigned Department" value={review.assignedDepartment} disabled />
             <FormInput label="Action Owner" value={review.actionOwner} disabled />
             <FormInput label="Target Completion Date" value={review.targetCompletionDate} disabled />
           </>
@@ -499,74 +478,75 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
   );
 }
 
-function ActionOwnerCompletionAction({
-  owner,
-  comment,
-  onCommentChange,
-  onConfirm,
+function CorrectiveWorkResolution({
+  report,
+  completedWorkReference,
+  canResolve,
+  onResolve,
 }: {
-  owner: string;
-  comment: string;
-  onCommentChange: (comment: string) => void;
-  onConfirm: () => void;
+  report: IncidentHazardReport;
+  completedWorkReference: string;
+  canResolve: boolean;
+  onResolve: () => void;
 }) {
   return (
-    <FormSection title="Action Owner Corrective Action">
+    <FormSection title="Corrective Work Resolution" description="Track linked corrective work through completion before closure.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Action Owner" value={owner} disabled />
-        <FormInput label="Completion Date/Time" value="2026-05-18 12:30 PM" disabled />
-        <FormTextarea
-          label="Completion Comment"
-          value={comment}
-          onChange={(event) => onCommentChange(event.target.value)}
-          placeholder="Confirm what was done to address the corrective action"
+        <FormInput label="Assigned Department" value={report.hseReview?.assignedDepartment || ""} disabled />
+        <FormInput label="Action Owner" value={report.hseReview?.actionOwner || ""} disabled />
+        <FormInput
+          label="Related Completed Work Request"
+          value={completedWorkReference || "No approved linked work completion available yet"}
+          disabled
           className="md:col-span-2"
         />
       </div>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button type="button" onClick={onConfirm}>
-          Confirm Corrective Action Completed
-        </Button>
-      </div>
+      {report.status === "recommended" && !completedWorkReference ? (
+        <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Create and complete linked work using this incident before it can be marked resolved.
+        </p>
+      ) : null}
+      {canResolve ? (
+        <div className="mt-4">
+          <Button type="button" onClick={onResolve}>
+            Mark Incident Resolved
+          </Button>
+        </div>
+      ) : null}
     </FormSection>
   );
 }
 
-function ActionOwnerCompletionResult({
-  completion,
+function HseClosureAction({
+  report,
+  onClose,
 }: {
-  completion: IncidentHazardActionOwnerCompletion;
+  report: IncidentHazardReport;
+  onClose: () => void;
 }) {
   return (
-    <FormSection title="Action Owner Corrective Action">
+    <FormSection title="HSE Final Closure" description="Verify the completed corrective work and close this report.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Action Owner" value={completion.owner} disabled />
-        <FormInput label="Completed Date/Time" value={completion.completedDateTime} disabled />
-        <FormTextarea label="Completion Comment" value={completion.comment} disabled className="md:col-span-2" />
+        <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Samuel Bassey"} disabled />
+        <FormInput
+          label="Verified Work Completion"
+          value={report.resolutionWorkCompletionId || "No linked completion required"}
+          disabled
+        />
+      </div>
+      <p className="mt-4 text-sm text-brand-text-secondary">
+        Confirm the reported issue has been resolved and close this incident record.
+      </p>
+      <div className="mt-4">
+        <Button type="button" onClick={onClose}>Close Incident</Button>
       </div>
     </FormSection>
   );
 }
 
-function ActionOwnerPendingNotice({ owner }: { owner: string }) {
-  return (
-    <FormSection title="Action Owner Corrective Action">
-      <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-        Corrective action has been recommended to {owner}. Waiting for confirmation.
-      </div>
-    </FormSection>
-  );
-}
-
-function ReadOnlyYesNo({ label, value, editable }: { label: string; value: boolean | null; editable: boolean }) {
-  return (
-    <FormToggleGroup
-      label={label}
-      value={value === null ? "" : value ? "Yes" : "No"}
-      options={yesNoOptions}
-      disabled={!editable}
-    />
-  );
+function nullableBooleanToYesNo(value: boolean | null) {
+  if (value === null) return "";
+  return value ? "Yes" : "No";
 }
 
 function AttachmentList({ attachments }: { attachments: IncidentHazardAttachment[] }) {
@@ -593,7 +573,7 @@ function AttachmentList({ attachments }: { attachments: IncidentHazardAttachment
 
 function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
   return (
-    <FormSection title="Audit Trail">
+    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this report.">
       {items.length === 0 ? (
         <p className="text-sm text-brand-text-secondary">No audit actions yet.</p>
       ) : (
@@ -616,21 +596,24 @@ function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
 function StatusNote({ report, currentRole }: { report: IncidentHazardReport; currentRole: IncidentHazardRole }) {
   let note = "";
   if (report.status === "submitted") {
-    note = currentRole === "hse" ? "This report is waiting for HSE review." : "Waiting for HSE review.";
-  } else if (report.status === "draft" && currentRole !== "reporter") {
-    note = "This report is still in draft and has not been submitted.";
-  } else if (report.status === "recommended_to_action_owner") {
-    note =
-      currentRole === "action_owner"
-        ? "Corrective action has been recommended to you. Confirm once it is completed."
-        : "Waiting for the action owner to complete the recommended corrective action.";
-  } else if (report.status === "action_owner_completed") {
     note =
       currentRole === "hse"
-        ? "The action owner has completed the corrective action. Submit the final HSE resolution."
-        : "Corrective action completed. Waiting for HSE final resolution.";
-  } else if (report.status === "approved") {
-    note = "This report has been resolved by HSE.";
+        ? "This report is waiting for your HSE review."
+        : "Submitted. Waiting for HSE review.";
+  } else if (report.status === "draft" && currentRole !== "reporter") {
+    note = "This report is still in draft and has not been submitted.";
+  } else if (report.status === "recommended") {
+    note =
+      currentRole === "action_owner"
+        ? `Corrective work has been recommended to you in ${report.hseReview?.assignedDepartment || "the assigned department"}. Raise linked Work Initiation to continue.`
+        : `Corrective action recommended to ${report.hseReview?.actionOwner || "the action owner"} in ${report.hseReview?.assignedDepartment || "the assigned department"}.`;
+  } else if (report.status === "resolved") {
+    note =
+      currentRole === "hse"
+        ? "The action owner marked this incident resolved. Verify the completed work and close it."
+        : "This incident has been marked resolved and is awaiting HSE closure.";
+  } else if (report.status === "closed") {
+    note = "This report has been verified and closed by HSE.";
   } else if (report.status === "not_resolved") {
     note = "This report has been marked not resolved by HSE.";
   }
@@ -646,18 +629,18 @@ function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus })
   const labelByStatus: Record<IncidentHazardStatus, string> = {
     draft: "Draft",
     submitted: "Submitted",
-    recommended_to_action_owner: "Recommended to Action Owner",
-    action_owner_completed: "Action Owner Completed",
-    approved: "Resolved",
+    recommended: "Recommended",
+    resolved: "Resolved",
+    closed: "Closed",
     not_resolved: "Not Resolved",
   };
 
   const classByStatus: Record<IncidentHazardStatus, string> = {
     draft: "bg-gray-100 text-gray-600",
     submitted: "bg-amber-100 text-amber-700",
-    recommended_to_action_owner: "bg-blue-100 text-blue-700",
-    action_owner_completed: "bg-purple-100 text-purple-700",
-    approved: "bg-green-100 text-green-700",
+    recommended: "bg-blue-100 text-blue-700",
+    resolved: "bg-green-100 text-green-700",
+    closed: "bg-slate-100 text-slate-700",
     not_resolved: "bg-red-100 text-red-700",
   };
 
@@ -678,11 +661,12 @@ function getIncidentHazardRoleLabel(role: IncidentHazardRole) {
   return labelByRole[role];
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-brand-border bg-white">
-      <div className="border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
         <h3 className="text-base font-semibold text-brand-text-primary">{title}</h3>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>

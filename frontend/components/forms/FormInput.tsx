@@ -40,6 +40,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(
         </label>
         <div className="relative">
           <input
+            suppressHydrationWarning
             {...props}
             ref={ref}
             id={inputId}

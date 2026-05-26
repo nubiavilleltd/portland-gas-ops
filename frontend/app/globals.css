@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@source "../../lib/**/*.{ts,tsx}";
+
 @theme {
   /* Brand palette */
   --color-brand-purple: #7c3aed;

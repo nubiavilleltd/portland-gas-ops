@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1580" viewBox="0 0 1600 1580" fill="none">
+  <defs>
+    <style>
+      .title { font: 700 38px Arial, sans-serif; fill: #111827; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #667085; }
+      .section { font: 700 16px Arial, sans-serif; fill: #6941c6; letter-spacing: 1px; }
+      .node-title { font: 700 18px Arial, sans-serif; fill: #101828; }
+      .node-body { font: 400 15px Arial, sans-serif; fill: #667085; }
+      .status { font: 700 15px Arial, sans-serif; fill: #6941c6; }
+      .branch { font: 700 14px Arial, sans-serif; fill: #344054; }
+      .foot { font: 400 15px Arial, sans-serif; fill: #475467; }
+      .arrow { stroke: #98a2b3; stroke-width: 2.5; fill: none; }
+      .purple-arrow { stroke: #7f56d9; stroke-width: 3; fill: none; }
+      .red-arrow { stroke: #f04438; stroke-width: 2.5; fill: none; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#98A2B3" stroke-width="2" fill="none"/>
+    </marker>
+    <marker id="purpleArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#7F56D9" stroke-width="2" fill="none"/>
+    </marker>
+    <marker id="redArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#F04438" stroke-width="2" fill="none"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1580" fill="#F8F8FA"/>
+  <rect x="48" y="40" width="1504" height="1500" rx="28" fill="white" stroke="#EAECF0" stroke-width="2"/>
+
+  <text x="96" y="105" class="title">Work Authorization Process Map</text>
+  <text x="96" y="140" class="subtitle">Safety authorization from an approved Work Initiation through HSE inspection and final decision</text>
+
+  <rect x="96" y="180" width="1408" height="54" rx="14" fill="#F4F3FF"/>
+  <text x="120" y="213" class="section">STATUS PATH</text>
+  <text x="310" y="213" class="status">Draft</text>
+  <path d="M367 207H410" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="440" y="213" class="status">Submitted</text>
+  <path d="M540 207H584" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="616" y="213" class="status">Approved</text>
+  <text x="806" y="213" class="node-body">Alternative decisions: Returned or Denied</text>
+
+  <rect x="500" y="282" width="600" height="106" rx="16" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="800" y="319" class="node-title" text-anchor="middle">Approved Work Initiation Selected</text>
+  <text x="800" y="346" class="node-body" text-anchor="middle">Requester selects a work initiation already approved for execution</text>
+  <text x="800" y="369" class="node-body" text-anchor="middle">Assigned work scope is loaded as read-only context</text>
+
+  <path d="M800 388V436" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="500" y="447" width="600" height="112" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="800" y="484" class="node-title" text-anchor="middle">Requester Completes Safety Information</text>
+  <text x="800" y="511" class="node-body" text-anchor="middle">Select risk indicators and provide safety-related evidence</text>
+  <text x="800" y="535" class="status" text-anchor="middle">Status: Draft</text>
+
+  <path d="M800 559V608" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="555" y="619" width="490" height="86" rx="16" fill="#FFFAEB" stroke="#FEDF89" stroke-width="2"/>
+  <text x="800" y="654" class="node-title" text-anchor="middle">Submitted to HSE Inspector</text>
+  <text x="800" y="681" class="status" text-anchor="middle">Status: Submitted</text>
+
+  <path d="M800 705V754" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="490" y="765" width="620" height="114" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="800" y="801" class="node-title" text-anchor="middle">HSE Inspection Acknowledgement</text>
+  <text x="800" y="828" class="node-body" text-anchor="middle">Five safety checks completed with Pass / Fail / N/A results</text>
+  <text x="800" y="852" class="node-body" text-anchor="middle">Inspection comment and optional evidence recorded</text>
+
+  <path d="M800 879V922" class="arrow" marker-end="url(#arrow)"/>
+  <path d="M800 932L1020 1024L800 1116L580 1024Z" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="800" y="1014" class="node-title" text-anchor="middle">HSE Decision</text>
+  <text x="800" y="1042" class="node-body" text-anchor="middle">Approve, Return, or Deny</text>
+  <text x="800" y="1067" class="node-body" text-anchor="middle">Approval blocked when any check fails</text>
+
+  <text x="1070" y="998" class="branch">APPROVE</text>
+  <path d="M1020 1024H1190V1080" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="1065" y="1091" width="375" height="104" rx="16" fill="#ECFDF3" stroke="#ABEFC6" stroke-width="2"/>
+  <text x="1252" y="1129" class="node-title" text-anchor="middle">Work Authorization Approved</text>
+  <text x="1252" y="1156" class="status" text-anchor="middle">Status: Approved</text>
+  <text x="1252" y="1180" class="node-body" text-anchor="middle">Work can begin safely</text>
+
+  <text x="456" y="998" class="branch">RETURN</text>
+  <path d="M580 1024H390V1080" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="160" y="1091" width="415" height="112" rx="16" fill="#FFFAEB" stroke="#FEDF89" stroke-width="2"/>
+  <text x="367" y="1128" class="node-title" text-anchor="middle">Returned to Requester</text>
+  <text x="367" y="1155" class="node-body" text-anchor="middle">HSE reason is required; requester corrects</text>
+  <text x="367" y="1179" class="status" text-anchor="middle">Status: Returned</text>
+  <path d="M367 1203V1242H680V559" class="arrow" marker-end="url(#arrow)"/>
+
+  <text x="704" y="1156" class="branch">DENY</text>
+  <path d="M800 1116V1236" class="red-arrow" marker-end="url(#redArrow)"/>
+  <rect x="600" y="1247" width="400" height="104" rx="16" fill="#FEF3F2" stroke="#FECDCA" stroke-width="2"/>
+  <text x="800" y="1284" class="node-title" text-anchor="middle">Request Denied / Closed</text>
+  <text x="800" y="1311" class="node-body" text-anchor="middle">HSE reason is required; work cannot begin</text>
+  <text x="800" y="1335" class="status" text-anchor="middle">Status: Denied</text>
+
+  <path d="M1252 1195V1372" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="1042" y="1383" width="420" height="78" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="1252" y="1416" class="node-title" text-anchor="middle">Work Completion &amp; Close-Out Eligible</text>
+  <text x="1252" y="1443" class="node-body" text-anchor="middle">Only approved authorization records may be closed out</text>
+
+  <rect x="96" y="1484" width="1408" height="42" rx="12" fill="#F9FAFB"/>
+  <text x="120" y="1511" class="foot">Safety rule: HSE cannot approve the authorization when any inspection acknowledgement check is recorded as Fail.</text>
+</svg>

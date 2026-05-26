@@ -114,11 +114,13 @@ function isApprovalStatus(value: unknown): value is ApprovalStatus {
       "pending",
       "pending_approval",
       "submitted",
+      "assigned",
       "in_progress",
       "approved",
       "rejected",
       "returned",
       "denied",
+      "unauthorized",
     ].includes(value)
   );
 }
@@ -301,7 +303,7 @@ export default function DataTable<T extends { id: string }>({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 flex-col gap-3 sm:flex-row">
             {searchable ? (
-              <div className="relative min-w-0 flex-1">
+              <div className="relative w-full min-w-0 sm:w-48 lg:w-[7.5%] lg:min-w-48">
                 <Search
                   size={15}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary"
@@ -354,11 +356,11 @@ export default function DataTable<T extends { id: string }>({
                           onClick={() => handleSort(column)}
                           className="group flex items-center gap-1 transition-colors hover:text-brand-text-primary"
                         >
-                          {column.label}
+                          {column.label.toUpperCase()}
                           <SortIcon active={active} dir={active ? sortDir : null} />
                         </button>
                       ) : (
-                        column.label
+                        column.label.toUpperCase()
                       )}
                     </th>
                   );

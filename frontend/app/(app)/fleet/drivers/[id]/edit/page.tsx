@@ -12,6 +12,7 @@ import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 
 import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
 import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
+import FormSection from "@/components/ui/FormSection";
 
 export default function EditDriverPage() {
   const params = useParams();
@@ -114,71 +115,77 @@ export default function EditDriverPage() {
 
       <div className="bg-white border border-brand-border rounded-2xl p-6">
 
-        {/* 👇 NEW PROFILE PIC FIELD */}
-        <div className="mb-6">
-          <ProfilePicUpload
-            value={profilePic}
-            onChange={setProfilePic}
-          />
-        </div>
+      
 
         <form
           onSubmit={handleSubmit}
           className="grid grid-cols-1 md:grid-cols-2 gap-5"
         >
+       <FormSection
+  title="Driver Profile"
+  description="Personal and professional information of the driver"
+>
+  {/* 👇 NEW PROFILE PIC FIELD */}
+  <div className="md:col-span-2">
+    <ProfilePicUpload
+      value={profilePic}
+      onChange={setProfilePic}
+    />
+  </div>
 
-          <FormInput
-            label="Full Name"
-            name="full_name"
-            value={form.full_name}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Full Name"
+    name="full_name"
+    value={form.full_name}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="Email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Email"
+    name="email"
+    value={form.email}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="Phone Number"
-            name="phone_number"
-            value={form.phone_number}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Phone Number"
+    name="phone_number"
+    value={form.phone_number}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="License Number"
-            name="license_number"
-            value={form.license_number}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="License Number"
+    name="license_number"
+    value={form.license_number}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="Experience (Years)"
-            name="experience_years"
-            type="number"
-            value={form.experience_years}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Experience (Years)"
+    name="experience_years"
+    type="number"
+    value={form.experience_years}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="Status (available | assigned | maintenance | inactive)"
-            name="status"
-            value={form.status}
-            onChange={handleChange}
-          />
+  {/* <FormInput
+    label="Status"
+    name="status"
+    value={form.status}
+    onChange={handleChange}
+  /> */}
+</FormSection>
 
           <div className="md:col-span-2 flex justify-end gap-3 mt-4">
 
-            <Button
+            {/* <Button
               type="button"
               variant="outline"
               onClick={() => router.back()}
             >
               Cancel
-            </Button>
+            </Button> */}
 
             <Button type="submit" disabled={loading}>
               {loading ? "Updating..." : "Update Driver"}

@@ -9,7 +9,7 @@ export default function IncidentHazardDetailPage() {
   const params = useParams<{ id: string }>();
 
   return (
-    <AppLayout pageTitle="Incident/Hazard Details">
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Incident/Hazard Details"
         description="Review report details and simulate HSE closure."

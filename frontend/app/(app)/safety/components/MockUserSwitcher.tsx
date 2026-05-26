@@ -12,10 +12,16 @@ const roleOptions: { value: WorkAuthorizationRole; label: string }[] = [
 export default function MockUserSwitcher({
   value,
   onChange,
+  showSupervisor = true,
 }: {
   value: WorkAuthorizationRole;
   onChange: (role: WorkAuthorizationRole) => void;
+  showSupervisor?: boolean;
 }) {
+  const visibleRoles = showSupervisor
+    ? roleOptions
+    : roleOptions.filter((option) => option.value !== "supervisor");
+
   return (
     <div className="rounded-2xl border border-brand-border bg-white p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -26,7 +32,7 @@ export default function MockUserSwitcher({
           </p>
         </div>
         <div className="flex w-full rounded-xl border border-brand-border bg-gray-50 p-1 md:w-auto">
-          {roleOptions.map((option) => (
+          {visibleRoles.map((option) => (
             <button
               key={option.value}
               type="button"

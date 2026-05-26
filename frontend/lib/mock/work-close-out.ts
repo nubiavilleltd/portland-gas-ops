@@ -18,6 +18,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     title: "Hot work on cylinder mounting bracket",
     status: "approved",
     requester: "Daniel Okoro",
+    requestDate: "2026-05-18",
     department: "Engineering",
     location: "Maintenance Workshop",
     exactWorkArea: "Workshop welding zone",
@@ -32,6 +33,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     title: "Gas system leak check",
     status: "approved",
     requester: "Ibrahim Musa",
+    requestDate: "2026-05-18",
     department: "Engineering",
     location: "Inspection Bay",
     exactWorkArea: "Line pressure area",
@@ -46,6 +48,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     title: "CNG cylinder installation",
     status: "approved",
     requester: "Daniel Okoro",
+    requestDate: "2026-05-18",
     department: "Engineering",
     location: "Conversion Bay 2",
     exactWorkArea: "Left-side inspection pit",
@@ -60,6 +63,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     title: "Vehicle inspection",
     status: "approved",
     requester: "Ibrahim Musa",
+    requestDate: "2026-05-18",
     department: "Engineering",
     location: "Inspection Bay",
     exactWorkArea: "Final inspection lane",
@@ -76,6 +80,13 @@ const supervisorApproval: WorkAuthorizationApprovalResult = {
   approver: "Mary James",
   dateTime: "2026-05-18 03:00 PM",
   comment: "Completion reviewed and accepted.",
+};
+
+const operationsHeadApproval: WorkAuthorizationApprovalResult = {
+  decision: "Approve",
+  approver: "Grace Bello",
+  dateTime: "2026-05-18 03:20 PM",
+  comment: "Completion reviewed and recommended for HSE verification.",
 };
 
 const hseApproval: WorkCloseOutHseApproval = {
@@ -128,6 +139,7 @@ function baseCloseOut(
       remainingHazardDetails: "",
     },
     supervisorApproval: null,
+    operationsHeadApproval: null,
     hseApproval: null,
     auditTrail: [],
     ...overrides,
@@ -177,10 +189,41 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     ],
   }),
   baseCloseOut(3, {
+    id: "WC-PEND-002",
+    status: "pending_approval",
+    title: "Close-out awaiting HSE verification",
+    supervisorApproval,
+    operationsHeadApproval,
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Daniel Okoro",
+        role: "Requester",
+        dateTime: "2026-05-18 02:30 PM",
+        comment: "Work completion submitted for close-out.",
+      },
+      {
+        action: "Supervisor Approved",
+        actor: "Mary James",
+        role: "Supervisor",
+        dateTime: "2026-05-18 03:00 PM",
+        comment: "Completion reviewed and accepted.",
+      },
+      {
+        action: "Operations Head Approved",
+        actor: "Grace Bello",
+        role: "Operations Head",
+        dateTime: "2026-05-18 03:20 PM",
+        comment: "Completion reviewed and recommended for HSE verification.",
+      },
+    ],
+  }),
+  baseCloseOut(3, {
     id: "WC-APP-001",
     status: "approved",
     title: "Close-out for vehicle inspection",
     supervisorApproval,
+    operationsHeadApproval,
     hseApproval,
     auditTrail: [
       {
@@ -198,11 +241,56 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
         comment: "Completion reviewed and accepted.",
       },
       {
+        action: "Operations Head Approved",
+        actor: "Grace Bello",
+        role: "Operations Head",
+        dateTime: "2026-05-18 03:20 PM",
+        comment: "Completion reviewed and recommended for HSE verification.",
+      },
+      {
         action: "HSE Approved",
         actor: "Samuel Bassey",
         role: "HSE Inspector",
         dateTime: "2026-05-18 03:40 PM",
         comment: "Area verified safe. Close-out approved.",
+      },
+    ],
+  }),
+  baseCloseOut(1, {
+    id: "WC-APP-INC-001",
+    status: "approved",
+    title: "Close-out for gas pipe leak corrective repair",
+    supervisorApproval,
+    operationsHeadApproval,
+    hseApproval,
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Daniel Okoro",
+        role: "Requester",
+        dateTime: "2026-05-24 03:00 PM",
+        comment: "Corrective repair completion submitted for close-out.",
+      },
+      {
+        action: "Supervisor Approved",
+        actor: "Mary James",
+        role: "Supervisor",
+        dateTime: "2026-05-24 03:15 PM",
+        comment: "Corrective repair completion accepted.",
+      },
+      {
+        action: "Operations Head Approved",
+        actor: "Grace Bello",
+        role: "Operations Head",
+        dateTime: "2026-05-24 03:30 PM",
+        comment: "Corrective repair close-out reviewed.",
+      },
+      {
+        action: "HSE Approved",
+        actor: "Samuel Bassey",
+        role: "HSE Inspector",
+        dateTime: "2026-05-24 03:45 PM",
+        comment: "Area verified safe after corrective repair.",
       },
     ],
   }),

@@ -254,6 +254,7 @@ import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
 const STATUS_ORDER: string[] = [
   "pending",
@@ -289,13 +290,13 @@ export default function TripDetailPage() {
   return (
     <AppLayout pageTitle={trip.trip_number}>
 
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Trips
-      </button>
+      </button> */}
 
       <PageHeader
         title={trip.trip_number}
@@ -336,74 +337,99 @@ export default function TripDetailPage() {
       <div className="space-y-6">
 
         {/* TRIP SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
+        <FormSection
+          title="Trip Summary"
+          description={trip.type.replace(/_/g, " ")}
+        >
           <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-base font-semibold">Trip Summary</h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                {trip.type.replace(/_/g, " ")}
-              </p>
-            </div>
             <TripStatusBadge status={trip.status} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
             <InfoRow label="Start Location" value={trip.start_location} />
             <InfoRow label="End Location" value={trip.end_location} />
-            <InfoRow label="Scheduled Date" value={formatDate(trip.scheduled_date)} />
+            <InfoRow
+              label="Scheduled Date"
+              value={formatDate(trip.scheduled_date)}
+            />
+
             {trip.dispatch_date && (
-              <InfoRow label="Dispatch Time" value={formatDate(trip.dispatch_date.slice(0, 10))} />
+              <InfoRow
+                label="Dispatch Time"
+                value={formatDate(trip.dispatch_date.slice(0, 10))}
+              />
             )}
+
             {trip.started_at && (
-              <InfoRow label="Transit Started" value={formatDate(trip.started_at.slice(0, 10))} />
+              <InfoRow
+                label="Transit Started"
+                value={formatDate(trip.started_at.slice(0, 10))}
+              />
             )}
+
             {trip.completed_at && (
-              <InfoRow label="Completed" value={formatDate(trip.completed_at.slice(0, 10))} />
+              <InfoRow
+                label="Completed"
+                value={formatDate(trip.completed_at.slice(0, 10))}
+              />
             )}
           </div>
-        </div>
+        </FormSection>
 
         {/* STATUS TIMELINE */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-4">Status Flow</h2>
+        <FormSection
+          title="Status Flow"
+          description="Track the current stage of the trip lifecycle"
+        >
           <div className="flex items-center gap-2 flex-wrap">
             {STATUS_ORDER.map((step, idx) => {
-              const isActive = idx <= currentStepIndex && trip.status !== "cancelled";
+              const isActive =
+                idx <= currentStepIndex &&
+                trip.status !== "cancelled";
+
               const isCurrent = idx === currentStepIndex;
+
               return (
                 <div key={step} className="flex items-center gap-2">
                   <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-                      isCurrent
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${isCurrent
                         ? "bg-brand-purple text-white"
                         : isActive
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-400"
-                    }`}
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-400"
+                      }`}
                   >
                     {isActive && !isCurrent && <span>✓</span>}
-                    <span className="capitalize">{step.replace("_", " ")}</span>
+                    <span className="capitalize">
+                      {step.replace("_", " ")}
+                    </span>
                   </div>
+
                   {idx < STATUS_ORDER.length - 1 && (
-                    <span className={`text-xs ${isActive ? "text-green-400" : "text-gray-300"}`}>
+                    <span
+                      className={`text-xs ${isActive ? "text-green-400" : "text-gray-300"
+                        }`}
+                    >
                       →
                     </span>
                   )}
                 </div>
               );
             })}
+
             {trip.status === "cancelled" && (
               <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-600">
                 Cancelled
               </span>
             )}
           </div>
-        </div>
+        </FormSection>
 
-        {/* ASSIGNMENT */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
+        <FormSection
+          title="Assignment"
+          description="Assign and manage driver and vehicle allocation"
+        >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold">Assignment</h2>
             {trip.status === "pending" && (
               <Button size="sm" href={`/fleet/trips/${tripId}/assign`}>
                 {driver || vehicle ? "Reassign" : "Assign"}
@@ -413,12 +439,19 @@ export default function TripDetailPage() {
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="border border-brand-border rounded-xl p-4">
-              <p className="text-xs text-brand-text-secondary mb-1">Driver</p>
+              <p className="text-xs text-brand-text-secondary mb-1">
+                Driver
+              </p>
               <p className="font-medium">
-                {driver ? driver.full_name : (
-                  <span className="text-brand-text-secondary italic">Not assigned</span>
+                {driver ? (
+                  driver.full_name
+                ) : (
+                  <span className="text-brand-text-secondary italic">
+                    Not assigned
+                  </span>
                 )}
               </p>
+
               {driver && (
                 <p className="text-xs text-brand-text-secondary mt-1">
                   {driver.license_number} · {driver.experience_years} yrs exp
@@ -427,27 +460,33 @@ export default function TripDetailPage() {
             </div>
 
             <div className="border border-brand-border rounded-xl p-4">
-              <p className="text-xs text-brand-text-secondary mb-1">Vehicle</p>
+              <p className="text-xs text-brand-text-secondary mb-1">
+                Vehicle
+              </p>
               <p className="font-medium">
-                {vehicle ? vehicle.name : (
-                  <span className="text-brand-text-secondary italic">Not assigned</span>
+                {vehicle ? (
+                  vehicle.name
+                ) : (
+                  <span className="text-brand-text-secondary italic">
+                    Not assigned
+                  </span>
                 )}
               </p>
+
               {vehicle && (
                 <p className="text-xs text-brand-text-secondary mt-1">
-                  {vehicle.plate_number} · {vehicle.capacity?.toLocaleString()} kg
+                  {vehicle.plate_number} ·{" "}
+                  {vehicle.capacity?.toLocaleString()} kg
                 </p>
               )}
             </div>
           </div>
-        </div>
+        </FormSection>
 
-        {/* ORDERS IN TRIP */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h2 className="text-base font-semibold mb-4">
-            Orders in Trip ({linkedOrders.length})
-          </h2>
-
+        <FormSection
+          title={`Orders in Trip (${linkedOrders.length})`}
+          description="All orders currently attached to this trip"
+        >
           {linkedOrders.length === 0 ? (
             <p className="text-sm text-brand-text-secondary">
               No orders attached to this trip.
@@ -464,20 +503,36 @@ export default function TripDetailPage() {
                     <th className="pb-3"></th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {linkedOrders.map((order) =>
                     order ? (
-                      <tr key={order.id} className="border-b border-brand-border last:border-0">
+                      <tr
+                        key={order.id}
+                        className="border-b border-brand-border last:border-0"
+                      >
                         <td className="py-3 font-mono text-xs font-medium">
                           {order.order_number}
                         </td>
+
                         <td className="py-3">{order.customer_name}</td>
-                        <td className="py-3">{formatCurrency(order.total_amount)}</td>
+
                         <td className="py-3">
-                          <FulfillmentStatusBadge status={order.fulfillment_status} />
+                          {formatCurrency(order.total_amount)}
                         </td>
+
+                        <td className="py-3">
+                          <FulfillmentStatusBadge
+                            status={order.fulfillment_status}
+                          />
+                        </td>
+
                         <td className="py-3 text-right">
-                          <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            href={`/orders/${order.id}`}
+                          >
                             View
                           </Button>
                         </td>
@@ -488,16 +543,17 @@ export default function TripDetailPage() {
               </table>
             </div>
           )}
-        </div>
+        </FormSection>
 
-        {/* NOTES */}
         {trip.notes && (
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <h2 className="text-base font-semibold mb-2">Notes</h2>
+          <FormSection
+            title="Notes"
+            description="Additional trip information"
+          >
             <p className="text-sm text-brand-text-secondary whitespace-pre-line">
               {trip.notes}
             </p>
-          </div>
+          </FormSection>
         )}
 
       </div>

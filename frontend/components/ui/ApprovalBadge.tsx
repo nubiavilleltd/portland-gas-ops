@@ -9,6 +9,7 @@ const variants: Record<string, string> = {
   in_progress: "bg-blue-50 text-blue-700 border border-blue-200",
   approved: "bg-green-50 text-green-700 border border-green-200",
   denied: "bg-red-50 text-red-700 border border-red-200",
+  unauthorized: "bg-red-50 text-red-700 border border-red-200",
   rejected: "bg-red-50 text-red-700 border border-red-200",
   returned: "bg-orange-50 text-orange-700 border border-orange-200",
   // Order statuses
@@ -38,6 +39,8 @@ interface Props {
 
 const labels: Record<string, string> = {
   rejected: "Denied",
+  approved: "Approved",
+  unauthorized: "Unauthorized",
 };
 
 export default function ApprovalBadge({ status, className }: Props) {

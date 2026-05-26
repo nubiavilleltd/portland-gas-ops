@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Paperclip, Building2, AlertCircle, CheckCircle, XCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Download, Paperclip, Building2, AlertCircle, CheckCircle, XCircle, RotateCcw, Clock, Circle } from "lucide-react";
+import ToggleGroup from "@/components/ui/ToggleGroup";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
@@ -24,10 +25,7 @@ function DownloadPOButton({ requestId, reference }: { requestId: string; referen
     try {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_URL}/api/procurement/${requestId}/download-po`, {
-        headers,
-        credentials: "include",
-      });
+      const res = await fetch(`${API_URL}/api/procurement/${requestId}/download-po`, { headers, credentials: "include" });
       if (!res.ok) throw new Error("Download failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -46,11 +44,7 @@ function DownloadPOButton({ requestId, reference }: { requestId: string; referen
   }
 
   return (
-    <button
-      onClick={handleDownload}
-      disabled={loading}
-      className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary disabled:opacity-50"
-    >
+    <button onClick={handleDownload} disabled={loading} className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary disabled:opacity-50">
       <Download size={14} />
       {loading ? "Downloading…" : "Download PO"}
     </button>
@@ -58,13 +52,28 @@ function DownloadPOButton({ requestId, reference }: { requestId: string; referen
 }
 
 const STATUS_ACTIONS: Record<ProcurementStatus, { label: string; next: ProcurementStatus } | null> = {
-  draft:      { label: "Submit Request", next: "submitted" },
-  submitted:  { label: "Mark as Ordered", next: "ordered" },
-  ordered:    { label: "Mark as Delivered", next: "delivered" },
-  delivered:  null,
-  cancelled:  null,
+  draft:     { label: "Submit Request",    next: "submitted" },
+  submitted: { label: "Mark as Ordered",   next: "ordered"   },
+  ordered:   { label: "Mark as Delivered", next: "delivered" },
+  delivered: null,
+  cancelled: null,
 };
 
+// Mock approval audit trail — replace with real data when approval engine is wired
+const MOCK_TRAIL = [
+  { role: "Line Manager",        name: "Chinyere Okafor", status: "approved",    date: "11 May 2024",  comment: "Budgeted and necessary." },
+  { role: "Procurement Officer", name: "Emeka Nwosu",     status: "in_progress", date: null,           comment: null },
+];
+
+type DemoView = "requester" | "line_manager" | "procurement_officer";
+
+const DEMO_VIEWS: { value: DemoView; label: string }[] = [
+  { value: "requester",           label: "Requester"           },
+  { value: "line_manager",        label: "Line Manager"        },
+  { value: "procurement_officer", label: "Procurement Officer" },
+];
+
+type ApprovalAction = "approve" | "reject" | "return" | null;
 
 export default function ProcurementDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,17 +84,18 @@ export default function ProcurementDetailPage() {
   const { data: req, isLoading, isError } = useProcurement(id);
   const updateStatus = useUpdateProcurementStatus(id);
   const cancelRequest = useCancelProcurement(id);
-
   const isManager = user?.role === "admin" || user?.role === "super_admin";
 
-  type ApprovalAction = "approve" | "reject" | "return" | null;
+  // DEMO toggle — remove when real auth is wired
+  const [demoView, setDemoView] = useState<DemoView>("requester");
+
   const [approvalAction, setApprovalAction] = useState<ApprovalAction>(null);
   const [approvalComment, setApprovalComment] = useState("");
 
   const approvalDialogConfig: Record<NonNullable<ApprovalAction>, { title: string; message: string; confirmLabel: string; destructive: boolean }> = {
-    approve: { title: "Approve Request",       message: "Confirm that you are approving this procurement request.",                              confirmLabel: "Approve",      destructive: false },
-    reject:  { title: "Deny Request",          message: "This will deny the request. The requester will be notified and must resubmit.",        confirmLabel: "Deny Request", destructive: true  },
-    return:  { title: "Return to Submitter",   message: "The request will be sent back to the requester for revision.",                         confirmLabel: "Return",       destructive: false },
+    approve: { title: "Approve Request",     message: "Confirm that you are approving this procurement request.",                       confirmLabel: "Approve",      destructive: false },
+    reject:  { title: "Deny Request",        message: "This will deny the request. The requester will be notified and must resubmit.", confirmLabel: "Deny Request", destructive: true  },
+    return:  { title: "Return to Submitter", message: "The request will be sent back to the requester for revision.",                  confirmLabel: "Return",       destructive: false },
   };
 
   async function handleStatusUpdate(next: ProcurementStatus) {
@@ -108,13 +118,7 @@ export default function ProcurementDetailPage() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Procurement">
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
-      </AppLayout>
-    );
-  }
+  if (isLoading) return <AppLayout pageTitle="Procurement"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
 
   if (isError || !req) {
     return (
@@ -131,35 +135,26 @@ export default function ProcurementDetailPage() {
   const grandTotal = req.items.reduce((sum, item) => sum + Number(item.total_cost), 0);
   const statusAction = STATUS_ACTIONS[req.status];
   const canCancel = req.status !== "cancelled" && req.status !== "delivered";
+  const isApproverView = demoView === "line_manager" || demoView === "procurement_officer";
+  const approverLabel = demoView === "line_manager" ? "Line Manager" : "Procurement Officer";
 
   return (
     <AppLayout pageTitle="Procurement">
 
-      {/* ── Top bar: back + actions ──────────────────────────────────────── */}
+      {/* ── Top bar ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-        >
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors">
           <ArrowLeft size={14} /> Back to Procurement
         </button>
         <div className="flex items-center gap-2">
           {req.po_url && <DownloadPOButton requestId={req.id} reference={req.reference} />}
           {isManager && statusAction && req.status !== "submitted" && (
-            <button
-              onClick={() => handleStatusUpdate(statusAction.next)}
-              disabled={updateStatus.isPending}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
-            >
+            <button onClick={() => handleStatusUpdate(statusAction.next)} disabled={updateStatus.isPending} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60">
               {updateStatus.isPending ? "Updating…" : statusAction.label}
             </button>
           )}
           {isManager && canCancel && req.status !== "submitted" && (
-            <button
-              onClick={handleCancel}
-              disabled={cancelRequest.isPending}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60"
-            >
+            <button onClick={handleCancel} disabled={cancelRequest.isPending} className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60">
               {cancelRequest.isPending ? "Cancelling…" : "Cancel Request"}
             </button>
           )}
@@ -168,16 +163,21 @@ export default function ProcurementDetailPage() {
 
       <div className="max-w-3xl space-y-5">
 
+        {/* ── DEMO view toggle ─────────────────────────────────────────────── */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-brand-text-secondary shrink-0">Viewing as</span>
+          <ToggleGroup options={DEMO_VIEWS} value={demoView} onChange={setDemoView} />
+        </div>
+
         {/* ── Section 1: Request Details ───────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
               <p className="text-xs font-mono text-brand-text-secondary mb-1">{req.reference}</p>
-              <h1 className="text-xl font-semibold text-brand-text-primary">{req.title}</h1>
+              <h1 className="text-xl font-semibold text-brand-text-primary capitalize">{req.category} Request</h1>
             </div>
             <ApprovalBadge status={req.status} />
           </div>
-
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 border-t border-brand-border pt-5 text-sm">
             {[
               ["Category",    capitalize(req.category)],
@@ -191,7 +191,6 @@ export default function ProcurementDetailPage() {
               </div>
             ))}
           </div>
-
           {req.justification && (
             <div className="mt-5 pt-5 border-t border-brand-border text-sm">
               <p className="text-xs text-brand-text-secondary mb-1">Justification</p>
@@ -229,12 +228,8 @@ export default function ProcurementDetailPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-brand-border bg-gray-50/60">
-                  <td colSpan={4} className="px-5 py-3.5 text-sm font-semibold text-brand-text-secondary text-right">
-                    Estimated Total
-                  </td>
-                  <td className="px-5 py-3.5 text-right font-bold text-brand-purple text-base">
-                    {formatCurrency(grandTotal)}
-                  </td>
+                  <td colSpan={4} className="px-5 py-3.5 text-sm font-semibold text-brand-text-secondary text-right">Estimated Total</td>
+                  <td className="px-5 py-3.5 text-right font-bold text-brand-purple text-base">{formatCurrency(grandTotal)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -242,46 +237,22 @@ export default function ProcurementDetailPage() {
         </div>
 
         {/* ── Section 3: Vendor Information ───────────────────────────────── */}
-        {req.vendor ? (
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Building2 size={14} className="text-brand-purple" />
-              <h2 className="text-sm font-semibold text-brand-text-primary">Vendor Information</h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 text-sm">
-              <div>
-                <p className="text-xs text-brand-text-secondary mb-0.5">Vendor Name</p>
-                <p className="font-medium text-brand-text-primary">{req.vendor.name}</p>
-              </div>
-              {req.vendor.address && (
-                <div>
-                  <p className="text-xs text-brand-text-secondary mb-0.5">Address</p>
-                  <p className="font-medium text-brand-text-primary">{req.vendor.address}</p>
-                </div>
-              )}
-              {req.vendor.phone && (
-                <div>
-                  <p className="text-xs text-brand-text-secondary mb-0.5">Phone</p>
-                  <p className="font-medium text-brand-text-primary">{req.vendor.phone}</p>
-                </div>
-              )}
-              {req.vendor.email && (
-                <div>
-                  <p className="text-xs text-brand-text-secondary mb-0.5">Email</p>
-                  <p className="font-medium text-brand-text-primary">{req.vendor.email}</p>
-                </div>
-              )}
-            </div>
+        <div className="bg-white border border-brand-border rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Building2 size={14} className="text-brand-purple" />
+            <h2 className="text-sm font-semibold text-brand-text-primary">Vendor Information</h2>
           </div>
-        ) : (
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Building2 size={14} className="text-gray-400" />
-              <h2 className="text-sm font-semibold text-brand-text-primary">Vendor Information</h2>
+          {req.vendor ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 text-sm">
+              <div><p className="text-xs text-brand-text-secondary mb-0.5">Vendor Name</p><p className="font-medium text-brand-text-primary">{req.vendor.name}</p></div>
+              {req.vendor.address && <div><p className="text-xs text-brand-text-secondary mb-0.5">Address</p><p className="font-medium text-brand-text-primary">{req.vendor.address}</p></div>}
+              {req.vendor.phone  && <div><p className="text-xs text-brand-text-secondary mb-0.5">Phone</p><p className="font-medium text-brand-text-primary">{req.vendor.phone}</p></div>}
+              {req.vendor.email  && <div><p className="text-xs text-brand-text-secondary mb-0.5">Email</p><p className="font-medium text-brand-text-primary">{req.vendor.email}</p></div>}
             </div>
+          ) : (
             <p className="text-sm text-brand-text-secondary">No vendor assigned to this request.</p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* ── Supporting Document ──────────────────────────────────────────── */}
         {req.attachment_url && (
@@ -290,26 +261,57 @@ export default function ProcurementDetailPage() {
               <Paperclip size={16} className="text-brand-purple" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-brand-text-primary truncate">
-                {req.attachment_name ?? "Supporting document"}
-              </p>
+              <p className="text-sm font-medium text-brand-text-primary truncate">{req.attachment_name ?? "Supporting document"}</p>
               <p className="text-xs text-brand-text-secondary">Attached file</p>
             </div>
-            <a
-              href={req.attachment_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm font-medium text-brand-purple hover:underline shrink-0"
-            >
+            <a href={req.attachment_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm font-medium text-brand-purple hover:underline shrink-0">
               <Download size={13} /> View
             </a>
           </div>
         )}
 
-        {/* ── Section 5: Approver Action ──────────────────────────────────── */}
-        {(
+        {/* ── Section 4: Approval Progress (requester view) ───────────────── */}
+        {demoView === "requester" && (
           <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-brand-text-primary mb-4">Approval Decision</h2>
+            <h2 className="text-sm font-semibold text-brand-text-primary mb-5">Approval Progress</h2>
+            <div className="space-y-3">
+              {MOCK_TRAIL.map((step) => (
+                <div key={step.role} className="flex items-start gap-4 p-4 rounded-xl border border-brand-border">
+                  <div className={`mt-0.5 flex items-center justify-center h-7 w-7 rounded-full border-2 shrink-0 ${
+                    step.status === "approved"    ? "bg-green-50 border-green-500" :
+                    step.status === "in_progress" ? "bg-brand-purple/10 border-brand-purple" :
+                    "bg-gray-50 border-gray-300"
+                  }`}>
+                    {step.status === "approved"    && <CheckCircle size={13} className="text-green-600" />}
+                    {step.status === "in_progress" && <Clock size={13} className="text-brand-purple" />}
+                    {step.status === "pending"     && <Circle size={13} className="text-gray-300" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-brand-text-primary">{step.role}</p>
+                      {step.date
+                        ? <span className="text-xs text-green-600">{step.date}</span>
+                        : step.status === "in_progress"
+                          ? <span className="text-xs text-brand-purple">In review</span>
+                          : <span className="text-xs text-gray-400">Pending</span>
+                      }
+                    </div>
+                    <p className="text-xs text-brand-text-secondary mt-0.5">{step.name}</p>
+                    {step.comment && <p className="text-xs text-brand-text-secondary italic mt-1">&ldquo;{step.comment}&rdquo;</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Section 4: Approval Decision (approver views) ───────────────── */}
+        {isApproverView && (
+          <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-text-primary mb-1">Approval Decision</h2>
+            <p className="text-xs text-brand-text-secondary mb-5">
+              Reviewing as <span className="font-medium text-brand-text-primary">{approverLabel}</span>
+            </p>
             <FormTextarea
               label="Comment (optional)"
               placeholder="Add a comment before submitting your decision…"
@@ -318,22 +320,13 @@ export default function ProcurementDetailPage() {
               onChange={(e) => setApprovalComment(e.target.value)}
             />
             <div className="flex items-center gap-2 justify-end mt-4">
-              <button
-                onClick={() => setApprovalAction("return")}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
-              >
+              <button onClick={() => setApprovalAction("return")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
                 <RotateCcw size={14} /> Return
               </button>
-              <button
-                onClick={() => setApprovalAction("reject")}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-              >
+              <button onClick={() => setApprovalAction("reject")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
                 <XCircle size={14} /> Deny
               </button>
-              <button
-                onClick={() => setApprovalAction("approve")}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors"
-              >
+              <button onClick={() => setApprovalAction("approve")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors">
                 <CheckCircle size={14} /> Approve
               </button>
             </div>
@@ -356,18 +349,14 @@ export default function ProcurementDetailPage() {
               </div>
             )}
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setApprovalAction(null)}
-                className="px-4 py-2 text-sm font-medium text-brand-text-secondary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={() => setApprovalAction(null)} className="px-4 py-2 text-sm font-medium text-brand-text-secondary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
               <button
                 onClick={() => { toast.success("Decision submitted"); setApprovalAction(null); setApprovalComment(""); }}
-                className={
-                  approvalDialogConfig[approvalAction].destructive
-                    ? "px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                    : "px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-lg hover:bg-brand-purple-dark transition-colors"
+                className={approvalDialogConfig[approvalAction].destructive
+                  ? "px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                  : "px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-lg hover:bg-brand-purple-dark transition-colors"
                 }
               >
                 {approvalDialogConfig[approvalAction].confirmLabel}

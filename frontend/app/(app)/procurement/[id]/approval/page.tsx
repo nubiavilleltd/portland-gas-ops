@@ -88,7 +88,7 @@ export default function ProcurementApprovalPage() {
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
               <p className="text-xs font-mono text-brand-text-secondary mb-1">{MOCK_REQUEST.reference}</p>
-              <h1 className="text-xl font-semibold text-brand-text-primary">{MOCK_REQUEST.title}</h1>
+              <h1 className="text-xl font-semibold text-brand-text-primary capitalize">{MOCK_REQUEST.category} Request</h1>
               {currentStepTitle && (
                 <p className="text-sm text-brand-text-secondary mt-1">
                   Awaiting <span className="font-medium text-brand-text-primary">{currentStepTitle}</span> review

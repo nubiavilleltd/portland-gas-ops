@@ -1,10 +1,12 @@
+import Link from "next/link";
 import { Eye, Download, Pencil, Trash2 } from "lucide-react";
 import type { Column } from "@/components/data-table/data-table";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { formatDate } from "@/lib/utils";
 import type { Employee, EmployeeRecord, LeaveRequest, PaySlip, PayrollRun } from "./_data";
 
-const fmt = (n: number) => (n === 0 ? "—" : `₦${n.toLocaleString("en-NG")}`);
+const fmt  = (n: number) => (n === 0 ? "—" : `₦${n.toLocaleString("en-NG")}`);
+const fmtN = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : fmt(Number(v)));
 
 export function createEmployeeColumns(
   onEdit: (emp: Employee) => void,
@@ -38,10 +40,77 @@ export function createEmployeeColumns(
     { key: "category", label: "Category", sortable: true },
     { key: "grade", label: "Grade", sortable: true },
     {
+      key: "lineManager",
+      label: "Line Manager",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-primary">{v ? String(v) : "—"}</span>,
+    },
+    {
+      key: "lineManagerEmail",
+      label: "Line Manager Email",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary text-xs">{v ? String(v) : "—"}</span>,
+    },
+    {
+      key: "basicSalary",
+      label: "Basic Salary",
+      sortable: true,
+      render: (v) => <span className="font-medium text-brand-text-primary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
+      key: "housingAllowance",
+      label: "Housing Allowance",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
+      key: "transportAllowance",
+      label: "Transport Allowance",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
+      key: "mealAllowance",
+      label: "Meal Allowance",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
+      key: "paye",
+      label: "PAYE Tax",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
+      key: "pension",
+      label: "Pension",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
+      key: "nhf",
+      label: "NHF",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
+      key: "loanRepayment",
+      label: "Loan Repayment",
+      sortable: true,
+      render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
+    },
+    {
       key: "id",
       label: "",
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <Link
+            href={`/hr-management/employees/${row.id}`}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition"
+            title="View Profile"
+          >
+            <Eye size={14} />
+          </Link>
           <button
             onClick={() => onEdit(row)}
             className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition"
@@ -96,12 +165,23 @@ export function createEmployeeRecordColumns(
       label: "",
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition" title="View">
+          <button
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition"
+            title="View"
+            onClick={() => row.filePath && window.open(row.filePath, "_blank")}
+            disabled={!row.filePath}
+          >
             <Eye size={14} />
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition" title="Download">
+          <a
+            href={row.filePath ?? "#"}
+            download={row.fileName}
+            className={`p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition ${!row.filePath ? "pointer-events-none opacity-40" : ""}`}
+            title="Download"
+            onClick={(e) => !row.filePath && e.preventDefault()}
+          >
             <Download size={14} />
-          </button>
+          </a>
           <button onClick={() => onDelete(row.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition" title="Delete">
             <Trash2 size={14} />
           </button>
@@ -171,8 +251,32 @@ export const leaveRequestColumns: Column<LeaveRequest>[] = [
     sortable: true,
     render: (v) => <span className="font-medium text-brand-text-primary">{String(v)}</span>,
   },
-  { key: "type",       label: "Leave Type",  sortable: true },
-  { key: "department", label: "Department",  sortable: true },
+  {
+    key: "requester",
+    label: "Requester",
+    sortable: true,
+    render: (v, row) => (
+      <span className="text-brand-text-secondary">{v ? String(v) : row.employee}</span>
+    ),
+  },
+  { key: "type", label: "Leave Type", sortable: true },
+  {
+    key: "requestType",
+    label: "Request Type",
+    sortable: true,
+    render: (v) => (
+      <span className="capitalize text-brand-text-secondary">{v ? String(v) : "—"}</span>
+    ),
+  },
+  { key: "department", label: "Department", sortable: true },
+  {
+    key: "date",
+    label: "Request Date",
+    sortable: true,
+    render: (v) => (
+      <span className="text-brand-text-secondary whitespace-nowrap">{String(v)}</span>
+    ),
+  },
   {
     key: "days",
     label: "Days",
@@ -182,6 +286,14 @@ export const leaveRequestColumns: Column<LeaveRequest>[] = [
   {
     key: "startDate",
     label: "Start Date",
+    sortable: true,
+    render: (v) => (
+      <span className="text-brand-text-secondary whitespace-nowrap">{formatDate(String(v))}</span>
+    ),
+  },
+  {
+    key: "endDate",
+    label: "End Date",
     sortable: true,
     render: (v) => (
       <span className="text-brand-text-secondary whitespace-nowrap">{formatDate(String(v))}</span>

@@ -17,6 +17,7 @@ import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { TripsService } from "@/lib/services/api/trips.service";
+import FormSection from "@/components/ui/FormSection";
 
 export default function CompleteTripPage() {
   const params = useParams();
@@ -95,13 +96,13 @@ export default function CompleteTripPage() {
 
   return (
     <AppLayout pageTitle="Complete Trip">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Trip
-      </button>
+      </button> */}
 
       <PageHeader
         title={`Complete Trip — ${trip.trip_number}`}
@@ -111,69 +112,102 @@ export default function CompleteTripPage() {
 
       <div className="space-y-6 max-w-2xl">
 
-        {/* TRIP OVERVIEW */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex justify-between items-start mb-4">
+      <FormSection
+  title="Trip Overview"
+  description="Summary of trip, assignment, and route details"
+>
+  <div className="flex justify-between items-start mb-4">
+    <div>
+      <h3 className="font-semibold">{trip.trip_number}</h3>
+      <p className="text-sm text-brand-text-secondary">
+        {driver?.full_name ?? "No driver"} ·{" "}
+        {vehicle?.name ?? "No vehicle"}
+      </p>
+    </div>
+
+    <TripStatusBadge status={trip.status} />
+  </div>
+
+  <div className="grid grid-cols-2 gap-4 text-sm">
+    <InfoRow label="From" value={trip.start_location} />
+    <InfoRow label="To" value={trip.end_location} />
+
+    <InfoRow
+      label="Dispatch Date"
+      value={
+        trip.dispatch_date
+          ? formatDate(trip.dispatch_date.slice(0, 10))
+          : "—"
+      }
+    />
+  </div>
+</FormSection>
+
+<FormSection
+  title={`Orders to Mark as Delivered (${linkedOrders.length})`}
+  description="List of orders pending delivery confirmation"
+>
+  {/* <div className="flex items-center gap-2 mb-4">
+    <PackageCheck size={18} className="text-brand-purple" />
+  </div> */}
+
+  {linkedOrders.length === 0 ? (
+    <p className="text-sm text-brand-text-secondary">
+      No orders linked to this trip.
+    </p>
+  ) : (
+    <div className="divide-y divide-brand-border">
+      {linkedOrders.map((order) =>
+        order ? (
+          <div
+            key={order.id}
+            className="py-3 grid grid-cols-3 gap-4 text-sm"
+          >
             <div>
-              <h3 className="font-semibold">{trip.trip_number}</h3>
-              <p className="text-sm text-brand-text-secondary">
-                {driver?.full_name ?? "No driver"} · {vehicle?.name ?? "No vehicle"}
+              <p className="text-xs text-brand-text-secondary">
+                Order
+              </p>
+              <p className="font-medium">
+                {order.order_number}
               </p>
             </div>
-            <TripStatusBadge status={trip.status} />
-          </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="From" value={trip.start_location} />
-            <InfoRow label="To" value={trip.end_location} />
-            <InfoRow label="Dispatch Date" value={trip.dispatch_date ? formatDate(trip.dispatch_date.slice(0, 10)) : "—"} />
-          </div>
-        </div>
-
-        {/* ORDERS BEING COMPLETED */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <PackageCheck size={18} className="text-brand-purple" />
-            <h3 className="font-semibold">Orders to Mark as Delivered ({linkedOrders.length})</h3>
-          </div>
-
-          {linkedOrders.length === 0 ? (
-            <p className="text-sm text-brand-text-secondary">No orders linked to this trip.</p>
-          ) : (
-            <div className="divide-y divide-brand-border">
-              {linkedOrders.map((order) =>
-                order ? (
-                  <div key={order.id} className="py-3 grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-xs text-brand-text-secondary">Order</p>
-                      <p className="font-medium">{order.order_number}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-brand-text-secondary">Customer</p>
-                      <p className="font-medium">{order.customer_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-brand-text-secondary">Amount</p>
-                      <p className="font-medium">{formatCurrency(order.total_amount)}</p>
-                    </div>
-                  </div>
-                ) : null
-              )}
+            <div>
+              <p className="text-xs text-brand-text-secondary">
+                Customer
+              </p>
+              <p className="font-medium">
+                {order.customer_name}
+              </p>
             </div>
-          )}
-        </div>
 
-        {/* COMPLETION NOTES */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h3 className="font-semibold mb-3">Completion Notes</h3>
-          <textarea
-            placeholder="E.g. All deliveries completed without issues. Customer acknowledged receipt."
-            value={proofNotes}
-            onChange={(e) => setProofNotes(e.target.value)}
-            rows={3}
-            className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
-          />
-        </div>
+            <div>
+              <p className="text-xs text-brand-text-secondary">
+                Amount
+              </p>
+              <p className="font-medium">
+                {formatCurrency(order.total_amount)}
+              </p>
+            </div>
+          </div>
+        ) : null
+      )}
+    </div>
+  )}
+</FormSection>
+
+<FormSection
+  title="Completion Notes"
+  description="Add notes after completing all deliveries"
+>
+  <textarea
+    placeholder="E.g. All deliveries completed without issues. Customer acknowledged receipt."
+    value={proofNotes}
+    onChange={(e) => setProofNotes(e.target.value)}
+    rows={3}
+    className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
+  />
+</FormSection>
 
         {/* WHAT HAPPENS NOTICE */}
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700">
@@ -196,9 +230,9 @@ export default function CompleteTripPage() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
           <Button onClick={handleComplete} disabled={isSubmitting}>
             {/* <CheckCircle size={14} className="mr-1.5" /> */}
             {isSubmitting ? "Completing..." : "Complete Trip"}

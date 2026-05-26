@@ -16,6 +16,7 @@ import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors
 import { formatDate } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { TripsService } from "@/lib/services/api/trips.service";
+import FormSection from "@/components/ui/FormSection";
 
 export default function DispatchTripPage() {
   const params = useParams();
@@ -77,13 +78,13 @@ export default function DispatchTripPage() {
 
   return (
     <AppLayout pageTitle="Dispatch Trip">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Trip
-      </button>
+      </button> */}
 
       <PageHeader
         title={`Dispatch — ${trip.trip_number}`}
@@ -93,62 +94,86 @@ export default function DispatchTripPage() {
 
       <div className="space-y-6 max-w-2xl">
 
-        {/* TRIP SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="font-semibold">{trip.trip_number}</h3>
-              <p className="text-sm text-brand-text-secondary capitalize">
-                {trip.type.replace("_", " ")}
-              </p>
-            </div>
-            <TripStatusBadge status={trip.status} />
+     <FormSection
+  title="Trip Summary"
+  description="Overview of trip details and scheduling information"
+>
+  <div className="flex justify-between items-start mb-4">
+    <div>
+      <h3 className="font-semibold">{trip.trip_number}</h3>
+      <p className="text-sm text-brand-text-secondary capitalize">
+        {trip.type.replace("_", " ")}
+      </p>
+    </div>
+    <TripStatusBadge status={trip.status} />
+  </div>
+
+  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+    <InfoRow label="From" value={trip.start_location} />
+    <InfoRow label="To" value={trip.end_location} />
+    <InfoRow
+      label="Scheduled Date"
+      value={formatDate(trip.scheduled_date)}
+    />
+    <InfoRow
+      label="Orders"
+      value={`${trip.order_ids.length} order(s)`}
+    />
+  </div>
+</FormSection>
+
+<FormSection
+  title="Assignment Confirmation"
+  description="Verify driver and vehicle assignment before dispatch"
+>
+  <div className="grid grid-cols-2 gap-4">
+    <div className="border rounded-xl p-4">
+      <p className="text-xs text-brand-text-secondary mb-1">
+        Driver
+      </p>
+
+      {driver ? (
+        <>
+          <p className="font-medium">{driver.full_name}</p>
+          <p className="text-xs text-brand-text-secondary">
+            {driver.license_number}
+          </p>
+
+          <div className="mt-2">
+            <CheckReadyItem ok label="Driver available" />
           </div>
+        </>
+      ) : (
+        <p className="text-sm text-red-500">
+          No driver assigned
+        </p>
+      )}
+    </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-            <InfoRow label="From" value={trip.start_location} />
-            <InfoRow label="To" value={trip.end_location} />
-            <InfoRow label="Scheduled Date" value={formatDate(trip.scheduled_date)} />
-            <InfoRow label="Orders" value={`${trip.order_ids.length} order(s)`} />
+    <div className="border rounded-xl p-4">
+      <p className="text-xs text-brand-text-secondary mb-1">
+        Vehicle
+      </p>
+
+      {vehicle ? (
+        <>
+          <p className="font-medium">{vehicle.name}</p>
+          <p className="text-xs text-brand-text-secondary">
+            {vehicle.plate_number}
+          </p>
+
+          <div className="mt-2">
+            <CheckReadyItem ok label="Vehicle available" />
           </div>
-        </div>
-
-        {/* ASSIGNMENT CONFIRMATION */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h3 className="font-semibold mb-4">Assignment Confirmation</h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border rounded-xl p-4">
-              <p className="text-xs text-brand-text-secondary mb-1">Driver</p>
-              {driver ? (
-                <>
-                  <p className="font-medium">{driver.full_name}</p>
-                  <p className="text-xs text-brand-text-secondary">{driver.license_number}</p>
-                  <div className="mt-2">
-                    <CheckReadyItem ok label="Driver available" />
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-red-500">No driver assigned</p>
-              )}
-            </div>
-
-            <div className="border rounded-xl p-4">
-              <p className="text-xs text-brand-text-secondary mb-1">Vehicle</p>
-              {vehicle ? (
-                <>
-                  <p className="font-medium">{vehicle.name}</p>
-                  <p className="text-xs text-brand-text-secondary">{vehicle.plate_number}</p>
-                  <div className="mt-2">
-                    <CheckReadyItem ok label="Vehicle available" />
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-red-500">No vehicle assigned</p>
-              )}
-            </div>
-          </div>
-        </div>
+        </>
+      ) : (
+        <p className="text-sm text-red-500">
+          No vehicle assigned
+        </p>
+      )}
+    </div>
+  </div>
+</FormSection>
 
         {/* DISPATCH NOTICE */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
@@ -171,9 +196,9 @@ export default function DispatchTripPage() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
           <Button
             onClick={handleDispatch}
             disabled={isSubmitting || !driver || !vehicle}

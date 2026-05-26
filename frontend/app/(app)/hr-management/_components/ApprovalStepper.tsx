@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_STEPS = ["Submitted", "Line Manager", "HR Review", "Processed"];
+const DEFAULT_STEPS = ["Submitted", "Reliever", "Line Manager", "HR Review", "Processed"];
 
 interface Props {
   currentStep: number;

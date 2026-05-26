@@ -16,6 +16,7 @@ import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors
 import { formatDate } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { TripsService } from "@/lib/services/api/trips.service";
+import FormSection from "@/components/ui/FormSection";
 
 export default function StartTripPage() {
   const params = useParams();
@@ -71,13 +72,13 @@ export default function StartTripPage() {
 
   return (
     <AppLayout pageTitle="Start Trip">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back
-      </button>
+      </button> */}
 
       <PageHeader
         title={`Start Trip — ${trip.trip_number}`}
@@ -88,25 +89,21 @@ export default function StartTripPage() {
       <div className="space-y-6 max-w-2xl">
 
         {/* TRIP DETAILS */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="font-semibold">{trip.trip_number}</h3>
-              <p className="text-sm text-brand-text-secondary">
-                {trip.order_ids.length} order(s)
-              </p>
-            </div>
-            <TripStatusBadge status={trip.status} />
-          </div>
+        <FormSection
+  title="Trip Details"
+  description="Overview of trip and linked orders"
+>
+  <div className="flex justify-between items-start mb-4">
+    <div>
+      <h3 className="font-semibold">{trip.trip_number}</h3>
+      <p className="text-sm text-brand-text-secondary">
+        {trip.order_ids.length} order(s)
+      </p>
+    </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="Driver" value={driver?.full_name ?? "Unknown"} />
-            <InfoRow label="Vehicle" value={vehicle?.name ?? "Unknown"} />
-            <InfoRow label="From" value={trip.start_location} />
-            <InfoRow label="To" value={trip.end_location} />
-            <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
-          </div>
-        </div>
+    <TripStatusBadge status={trip.status} />
+  </div>
+</FormSection>
 
         {/* NOTICE */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
@@ -128,9 +125,9 @@ export default function StartTripPage() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
           <Button onClick={handleStart} disabled={isSubmitting}>
             {/* <Play size={14} className="mr-1.5" /> */}
             {isSubmitting ? "Starting..." : "Start Trip"}

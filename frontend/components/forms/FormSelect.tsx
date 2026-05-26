@@ -15,6 +15,8 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   creatable?: boolean;
   titleCaseOptions?: boolean;
   onValueChange?: (value: string) => void;
+  triggerClassName?: string;
+  dropdownClassName?: string;
 }
 
 const FormSelect = forwardRef<HTMLInputElement, Props>((props, ref) => {
