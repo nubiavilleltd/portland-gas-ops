@@ -1,10 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-<<<<<<< HEAD
-=======
 import { Plus } from "lucide-react";
->>>>>>> dev
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";

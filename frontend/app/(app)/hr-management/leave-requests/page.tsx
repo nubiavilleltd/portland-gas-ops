@@ -4,11 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-<<<<<<< HEAD
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
-=======
 import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
->>>>>>> dev
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
