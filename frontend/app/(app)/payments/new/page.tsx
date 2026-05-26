@@ -1218,6 +1218,7 @@ import { PaymentStatus } from "@/lib/modules/orders/types/orders.types";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 import { OrdersService } from "@/lib/services/api/orders.service";
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+import FormSection from "@/components/ui/FormSection";
 
 
 /* ── INVOICE SELECTOR ─────────────────────────────────────── */
@@ -1230,55 +1231,75 @@ function InvoiceSelector({ onSelect }: { onSelect: (invoice: Invoice) => void })
 
   return (
     <div className="bg-white border border-brand-border rounded-2xl p-6">
-      <h3 className="text-base font-semibold mb-3">Select Invoice</h3>
+   <FormSection
+  title="Select Invoice"
+  description="Search and select an invoice to record payment against"
+>
+  <input
+    value={query}
+    onChange={(e) => setQuery(e.target.value)}
+    placeholder="Search invoice number..."
+    className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+  />
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search invoice number..."
-        className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-brand-purple"
-      />
+  <div className="space-y-2 max-h-64 overflow-auto">
+    {filtered.length === 0 ? (
+      <p className="text-sm text-brand-text-secondary">
+        No invoices found.
+      </p>
+    ) : (
+      filtered.map((inv) => {
+        const summary = getPaymentSummary(inv.id);
+        const balance =
+          inv.total_amount - summary.amountPaid;
 
-      <div className="space-y-2 max-h-64 overflow-auto">
-        {filtered.length === 0 ? (
-          <p className="text-sm text-brand-text-secondary">No invoices found.</p>
-        ) : (
-          filtered.map((inv) => {
-            const summary = getPaymentSummary(inv.id);
-            const balance = inv.total_amount - summary.amountPaid;
-            const isPaid = balance <= 0;
-            const statusBadge: PaymentStatus = isPaid
-              ? "paid"
-              : summary.amountPaid > 0
-              ? "partially_paid"
-              : "unpaid";
+        const isPaid = balance <= 0;
 
-            return (
-              <button
-                key={inv.id}
-                onClick={() => onSelect(inv)}
-                disabled={isPaid}
-                className="w-full text-left p-3 border border-brand-border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <div className="flex justify-between items-start">
-                  <p className="font-medium text-sm">{inv.invoice_number}</p>
-                  {/* ── FIXED: PaymentStatusBadge not ApprovalBadge ── */}
-                  <PaymentStatusBadge status={statusBadge} />
-                </div>
+        const statusBadge: PaymentStatus = isPaid
+          ? "paid"
+          : summary.amountPaid > 0
+          ? "partially_paid"
+          : "unpaid";
 
-                <div className="flex gap-4 mt-1 text-xs text-brand-text-secondary">
-                  <span>Total: {formatCurrency(inv.total_amount)}</span>
-                  <span>Balance: {formatCurrency(balance)}</span>
-                </div>
+        return (
+          <button
+            key={inv.id}
+            onClick={() => onSelect(inv)}
+            disabled={isPaid}
+            className="w-full text-left p-3 border border-brand-border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <div className="flex justify-between items-start">
+              <p className="font-medium text-sm">
+                {inv.invoice_number}
+              </p>
 
-                {isPaid && (
-                  <p className="text-xs text-green-600 mt-1">Fully paid</p>
-                )}
-              </button>
-            );
-          })
-        )}
-      </div>
+              <PaymentStatusBadge
+                status={statusBadge}
+              />
+            </div>
+
+            <div className="flex gap-4 mt-1 text-xs text-brand-text-secondary">
+              <span>
+                Total:{" "}
+                {formatCurrency(inv.total_amount)}
+              </span>
+
+              <span>
+                Balance: {formatCurrency(balance)}
+              </span>
+            </div>
+
+            {isPaid && (
+              <p className="text-xs text-green-600 mt-1">
+                Fully paid
+              </p>
+            )}
+          </button>
+        );
+      })
+    )}
+  </div>
+</FormSection>
     </div>
   );
 }
@@ -1423,113 +1444,115 @@ function CreatePaymentPageContent() {
           <InvoiceSelector onSelect={(inv) => selectInvoice(inv, true)} />
         ) : (
           <>
-            {/* SELECTED INVOICE SUMMARY */}
-            <div className="bg-white border border-brand-border rounded-2xl p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-base font-semibold">
-                    {selectedInvoice.invoice_number}
-                  </h2>
-                  <p className="text-sm text-brand-text-secondary">
-                    Selected Invoice
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedInvoice(null);
-                    router.replace("/payments/new");
-                  }}
-                >
-                  Change Invoice
-                </Button>
-              </div>
+           {/* SELECTED INVOICE SUMMARY */}
+<FormSection
+  title={selectedInvoice.invoice_number}
+  description="Selected Invoice"
+>
+  <div className="flex justify-between items-start mb-4">
+    <div />
 
-              <div className="grid grid-cols-3 gap-5 text-sm">
-                <InfoRow label="Total" value={formatCurrency(selectedInvoice.total_amount)} />
-                <InfoRow
-                  label="Already Paid"
-                  value={formatCurrency(paymentSummary.amountPaid)}
-                  className="text-green-600"
-                />
-                <InfoRow
-                  label="Outstanding Balance"
-                  value={formatCurrency(balance)}
-                  className="text-red-600"
-                />
-              </div>
-            </div>
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => {
+        setSelectedInvoice(null);
+        router.replace("/payments/new");
+      }}
+    >
+      Change Invoice
+    </Button>
+  </div>
 
+  <div className="grid grid-cols-3 gap-5 text-sm">
+    <InfoRow
+      label="Total"
+      value={formatCurrency(selectedInvoice.total_amount)}
+    />
+
+    <InfoRow
+      label="Already Paid"
+      value={formatCurrency(paymentSummary.amountPaid)}
+      className="text-green-600"
+    />
+
+    <InfoRow
+      label="Outstanding Balance"
+      value={formatCurrency(balance)}
+      className="text-red-600"
+    />
+  </div>
+</FormSection>
             {/* STEP 2: PAYMENT FORM */}
-            <div className="bg-white border border-brand-border rounded-2xl p-6">
-              <h3 className="text-base font-semibold mb-5">Payment Details</h3>
+<FormSection
+  title="Payment Details"
+  description="Capture and record customer payment information"
+>
+  <form
+    onSubmit={handleSubmit(onSubmit)}
+    className="grid grid-cols-1 md:grid-cols-2 gap-5"
+  >
+    <FormDatePicker
+      label="Payment Date"
+      value={paymentDate}
+      onValueChange={(value) => setValue("payment_date", value)}
+    />
 
-              <form
-                onSubmit={handleSubmit(onSubmit)}
-                className="grid grid-cols-1 md:grid-cols-2 gap-5"
-              >
-                <FormDatePicker
-                  label="Payment Date"
-                  value={paymentDate}
-                  onValueChange={(value) => setValue("payment_date", value)}
-                />
+    <FormInput
+      label="Amount (₦)"
+      type="number"
+      error={errors.amount?.message}
+      {...register("amount", { valueAsNumber: true })}
+    />
 
-                <FormInput
-                  label="Amount (₦)"
-                  type="number"
-                  error={errors.amount?.message}
-                  {...register("amount", { valueAsNumber: true })}
-                />
+    <FormInput
+      label="Reference (Optional)"
+      placeholder="Auto-generated if left empty"
+      {...register("reference")}
+    />
 
-                <FormInput
-                  label="Reference (Optional)"
-                  placeholder="Auto-generated if left empty"
-                  {...register("reference")}
-                />
+    <div>
+      <label className="block text-sm font-medium text-brand-text-primary mb-1">
+        Payment Method
+      </label>
+      <select
+        className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+        {...register("payment_method")}
+      >
+        <option value="bank_transfer">Bank Transfer</option>
+        <option value="cash">Cash</option>
+        <option value="card">Card</option>
+      </select>
+    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-brand-text-primary mb-1">
-                    Payment Method
-                  </label>
-                  <select
-                    className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    {...register("payment_method")}
-                  >
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="cash">Cash</option>
-                    <option value="card">Card</option>
-                  </select>
-                </div>
+    {/* ERROR */}
+    {submitError && (
+      <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <AlertCircle size={16} className="shrink-0" />
+        {submitError}
+      </div>
+    )}
 
-                {/* ERROR */}
-                {submitError && (
-                  <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                    <AlertCircle size={16} className="shrink-0" />
-                    {submitError}
-                  </div>
-                )}
+    {/* ACTIONS */}
+    <div className="md:col-span-2 flex justify-end gap-3">
+      {/* <Button
+        type="button"
+        variant="outline"
+        onClick={() => router.back()}
+      >
+        Cancel
+      </Button> */}
 
-                {/* ACTIONS */}
-                <div className="md:col-span-2 flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.back()}
-                  >
-                    Cancel
-                  </Button>
-
-                  <Button
-                    type="submit"
-                    loading={isSubmitting}
-                    loadingText="Recording..."
-                  >
-                    Record Payment
-                  </Button>
-                </div>
-              </form>
-            </div>
+      <Button
+        type="submit"
+        loading={isSubmitting}
+        loadingText="Recording..."
+      >
+        Record Payment
+      </Button>
+    </div>
+  </form>
+</FormSection>
           </>
         )}
 

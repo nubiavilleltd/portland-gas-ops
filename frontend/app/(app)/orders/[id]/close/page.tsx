@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/utils";
 import { OrdersService } from "@/lib/services/api/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
 export default function CloseOrderPage() {
   const params = useParams();
@@ -90,52 +91,51 @@ export default function CloseOrderPage() {
 
       <div className="space-y-6 max-w-2xl">
 
-        {/* ORDER SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h3 className="text-base font-semibold mb-4">Order Summary</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="Order Number" value={order.order_number} />
-            <InfoRow label="Customer" value={order.customer_name} />
-            <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
-            <InfoRow label="Order Type" value={order.order_type} />
-          </div>
-        </div>
+       {/* ORDER SUMMARY */}
+<FormSection title="Order Summary">
+  <div className="bg-white border border-brand-border rounded-2xl p-6">
+    <div className="grid grid-cols-2 gap-4 text-sm">
+      <InfoRow label="Order Number" value={order.order_number} />
+      <InfoRow label="Customer" value={order.customer_name} />
+      <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
+      <InfoRow label="Order Type" value={order.order_type} />
+    </div>
+  </div>
+</FormSection>
 
-        {/* CHECKLIST */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h3 className="text-base font-semibold mb-4">Closure Checklist</h3>
+       {/* CHECKLIST */}
+<FormSection title="Closure Checklist">
+   <div className="space-y-3">
+      <ChecklistItem
+        label="Delivery Confirmed"
+        ok={deliveryOk}
+        badge={<FulfillmentStatusBadge status={order.fulfillment_status} />}
+        hint={
+          !deliveryOk
+            ? "Go to the Delivery page to confirm delivery first."
+            : undefined
+        }
+      />
 
-          <div className="space-y-3">
-            <ChecklistItem
-              label="Delivery Confirmed"
-              ok={deliveryOk}
-              badge={<FulfillmentStatusBadge status={order.fulfillment_status} />}
-              hint={
-                !deliveryOk
-                  ? "Go to the Delivery page to confirm delivery first."
-                  : undefined
-              }
-            />
+      <ChecklistItem
+        label="Payment Fully Received"
+        ok={paymentOk}
+        badge={<PaymentStatusBadge status={order.payment_status} />}
+        hint={
+          !paymentOk
+            ? "Record the remaining payment via the Invoice before closing."
+            : undefined
+        }
+      />
+    </div>
 
-            <ChecklistItem
-              label="Payment Fully Received"
-              ok={paymentOk}
-              badge={<PaymentStatusBadge status={order.payment_status} />}
-              hint={
-                !paymentOk
-                  ? "Record the remaining payment via the Invoice before closing."
-                  : undefined
-              }
-            />
-          </div>
-
-          {canClose && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
-              <CheckCircle size={16} />
-              All conditions met. This order is ready to be closed.
-            </div>
-          )}
-        </div>
+    {canClose && (
+      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
+        <CheckCircle size={16} />
+        All conditions met. This order is ready to be closed.
+      </div>
+    )}
+</FormSection>
 
         {/* ERROR */}
         {error && (
@@ -147,18 +147,18 @@ export default function CloseOrderPage() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
 
           {!deliveryOk && (
-            <Button href={`/orders/${id}/delivery`} variant="secondary">
+            <Button href={`/orders/${id}/delivery/confirm`} variant="primary">
               Confirm Delivery First
             </Button>
           )}
 
           {deliveryOk && !paymentOk && order.invoice_id && (
-            <Button href={`/invoices/${order.invoice_id}`} variant="secondary">
+            <Button href={`/invoices/${order.invoice_id}`} variant="primary">
               Record Payment
             </Button>
           )}

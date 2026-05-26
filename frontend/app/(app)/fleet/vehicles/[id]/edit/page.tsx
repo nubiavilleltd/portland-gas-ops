@@ -102,9 +102,9 @@ export default function EditVehiclePage() {
         />
 
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
 
           <Button onClick={handleSave}>
             Save Changes

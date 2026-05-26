@@ -15,6 +15,7 @@ import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { OrdersService } from "@/lib/services/api/orders.service";
+import FormSection from "@/components/ui/FormSection";
 
 export default function ConfirmOrderPage() {
   const params = useParams();
@@ -70,13 +71,13 @@ export default function ConfirmOrderPage() {
 
   return (
     <AppLayout pageTitle="Confirm Order">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Order
-      </button>
+      </button> */}
 
       <PageHeader
         title="Confirm Order"
@@ -87,45 +88,72 @@ export default function ConfirmOrderPage() {
       <div className="space-y-6 max-w-2xl">
 
         {/* ORDER SUMMARY REVIEW */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h3 className="text-base font-semibold mb-4">Order Review</h3>
+        <FormSection
+  title="Order Review"
+  description="Review all order details before confirmation"
+>
+  <div className="grid grid-cols-2 gap-4 text-sm">
+    <InfoRow label="Order Number" value={order.order_number} />
+    <InfoRow label="Customer" value={order.customer_name} />
+    <InfoRow label="Order Type" value={order.order_type} />
+    <InfoRow label="Product" value={order.product_name ?? "—"} />
+    <InfoRow
+      label="Quantity"
+      value={`${order.quantity.toLocaleString()} kg`}
+    />
+    <InfoRow
+      label="Unit Price"
+      value={formatCurrency(order.unit_price)}
+    />
+    <InfoRow
+      label="Total Amount"
+      value={formatCurrency(order.total_amount)}
+    />
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="Order Number" value={order.order_number} />
-            <InfoRow label="Customer" value={order.customer_name} />
-            <InfoRow label="Order Type" value={order.order_type} />
-            <InfoRow label="Product" value={order.product_name ?? "—"} />
-            <InfoRow label="Quantity" value={`${order.quantity.toLocaleString()} kg`} />
-            <InfoRow label="Unit Price" value={formatCurrency(order.unit_price)} />
-            <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
-            <InfoRow
-              label="Delivery Date"
-              value={order.delivery_date ? formatDate(order.delivery_date) : "Not set"}
-            />
-            <div className="col-span-2">
-              <InfoRow label="Delivery Address" value={order.delivery_address} />
-            </div>
-          </div>
-        </div>
+    <InfoRow
+      label="Delivery Date"
+      value={
+        order.delivery_date
+          ? formatDate(order.delivery_date)
+          : "Not set"
+      }
+    />
+
+    <div className="col-span-2">
+      <InfoRow
+        label="Delivery Address"
+        value={order.delivery_address}
+      />
+    </div>
+  </div>
+</FormSection>
 
         {/* STATUS PREVIEW */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h3 className="text-base font-semibold mb-4">Status Change</h3>
-          <div className="flex items-center gap-4 text-sm">
-            <div>
-              <p className="text-xs text-brand-text-secondary mb-1">Current</p>
-              <OrderStatusBadge status="draft" />
-            </div>
-            <span className="text-brand-text-secondary">→</span>
-            <div>
-              <p className="text-xs text-brand-text-secondary mb-1">After Confirmation</p>
-              <OrderStatusBadge status="confirmed" />
-            </div>
-          </div>
-          <p className="text-xs text-brand-text-secondary mt-4">
-            After confirmation, this order will appear in the dispatch queue and can be assigned to a trip.
-          </p>
-        </div>
+        <FormSection
+  title="Status Change"
+  description="Preview how the order status will change after confirmation"
+>
+  <div className="flex items-center gap-4 text-sm">
+    <div>
+      <p className="text-xs text-brand-text-secondary mb-1">Current</p>
+      <OrderStatusBadge status="draft" />
+    </div>
+
+    <span className="text-brand-text-secondary">→</span>
+
+    <div>
+      <p className="text-xs text-brand-text-secondary mb-1">
+        After Confirmation
+      </p>
+      <OrderStatusBadge status="confirmed" />
+    </div>
+  </div>
+
+  <p className="text-xs text-brand-text-secondary mt-4">
+    After confirmation, this order will appear in the dispatch queue and can
+    be assigned to a trip.
+  </p>
+</FormSection>
 
         {/* ERROR */}
         {error && (
@@ -137,9 +165,9 @@ export default function ConfirmOrderPage() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
           <Button onClick={handleConfirm} disabled={isSubmitting}>
             {isSubmitting ? "Confirming..." : "Confirm Order"}
           </Button>

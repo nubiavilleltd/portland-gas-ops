@@ -17,6 +17,7 @@ import { getAvailableVehicles } from "@/lib/modules/fleet/selectors/vehicles.sel
 import { formatDate } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { TripsService } from "@/lib/services/api/trips.service";
+import FormSection from "@/components/ui/FormSection";
 
 export default function AssignTripPage() {
   const params = useParams();
@@ -89,13 +90,13 @@ export default function AssignTripPage() {
 
   return (
     <AppLayout pageTitle="Assign Trip">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Trip
-      </button>
+      </button> */}
 
       <PageHeader
         title={`Assign Trip — ${trip.trip_number}`}
@@ -104,70 +105,78 @@ export default function AssignTripPage() {
       />
 
       <div className="space-y-6 max-w-2xl">
+<FormSection
+  title="Trip Summary"
+  description="Overview of trip details and assignment status"
+>
+  <div className="flex justify-between items-start mb-4">
+    <div>
+      <h3 className="font-semibold">{trip.trip_number}</h3>
+      <p className="text-sm text-brand-text-secondary">
+        {trip.type.replace("_", " ")}
+      </p>
+    </div>
+    <TripStatusBadge status={trip.status} />
+  </div>
 
-        {/* TRIP SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="font-semibold">{trip.trip_number}</h3>
-              <p className="text-sm text-brand-text-secondary">{trip.type.replace("_", " ")}</p>
-            </div>
-            <TripStatusBadge status={trip.status} />
-          </div>
+  <div className="grid grid-cols-3 gap-4 text-sm">
+    <InfoRow label="From" value={trip.start_location} />
+    <InfoRow label="To" value={trip.end_location} />
+    <InfoRow label="Date" value={formatDate(trip.scheduled_date)} />
+    <InfoRow
+      label="Orders"
+      value={`${trip.order_ids.length} order(s)`}
+    />
+  </div>
+</FormSection>
 
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <InfoRow label="From" value={trip.start_location} />
-            <InfoRow label="To" value={trip.end_location} />
-            <InfoRow label="Date" value={formatDate(trip.scheduled_date)} />
-            <InfoRow label="Orders" value={`${trip.order_ids.length} order(s)`} />
-          </div>
-        </div>
+<FormSection
+  title="Select Driver"
+  description="Assign an available driver to this trip"
+>
+  {/* <div className="flex items-center gap-2 mb-4">
+    <User size={18} className="text-brand-purple" />
+  </div> */}
 
-        {/* DRIVER SELECTION (NOW DROPDOWN) */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <User size={18} className="text-brand-purple" />
-            <h3 className="font-semibold">Select Driver</h3>
-          </div>
+  {availableDrivers.length === 0 ? (
+    <div className="text-sm text-brand-text-secondary p-4 bg-gray-50 rounded-lg">
+      No available drivers. All drivers are currently assigned or off duty.
+    </div>
+  ) : (
+    <SelectInput
+      label="Driver"
+      placeholder="Select a driver"
+      options={driverOptions}
+      value={selectedDriverId}
+      onValueChange={setSelectedDriverId}
+      searchable
+    />
+  )}
+</FormSection>
 
-          {availableDrivers.length === 0 ? (
-            <div className="text-sm text-brand-text-secondary p-4 bg-gray-50 rounded-lg">
-              No available drivers. All drivers are currently assigned or off duty.
-            </div>
-          ) : (
-            <SelectInput
-              label="Driver"
-              placeholder="Select a driver"
-              options={driverOptions}
-              value={selectedDriverId}
-              onValueChange={setSelectedDriverId}
-              searchable
-            />
-          )}
-        </div>
+<FormSection
+  title="Select Vehicle"
+  description="Assign an available vehicle to this trip"
+>
+  {/* <div className="flex items-center gap-2 mb-4">
+    <Truck size={18} className="text-brand-purple" />
+  </div> */}
 
-        {/* VEHICLE SELECTION (NOW DROPDOWN) */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Truck size={18} className="text-brand-purple" />
-            <h3 className="font-semibold">Select Vehicle</h3>
-          </div>
-
-          {availableVehicles.length === 0 ? (
-            <div className="text-sm text-brand-text-secondary p-4 bg-gray-50 rounded-lg">
-              No available vehicles. All vehicles are in use or under maintenance.
-            </div>
-          ) : (
-            <SelectInput
-              label="Vehicle"
-              placeholder="Select a vehicle"
-              options={vehicleOptions}
-              value={selectedVehicleId}
-              onValueChange={setSelectedVehicleId}
-              searchable
-            />
-          )}
-        </div>
+  {availableVehicles.length === 0 ? (
+    <div className="text-sm text-brand-text-secondary p-4 bg-gray-50 rounded-lg">
+      No available vehicles. All vehicles are in use or under maintenance.
+    </div>
+  ) : (
+    <SelectInput
+      label="Vehicle"
+      placeholder="Select a vehicle"
+      options={vehicleOptions}
+      value={selectedVehicleId}
+      onValueChange={setSelectedVehicleId}
+      searchable
+    />
+  )}
+</FormSection>
 
         {/* ERROR */}
         {error && (
@@ -179,9 +188,9 @@ export default function AssignTripPage() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
-          </Button>
+          </Button> */}
           <Button onClick={handleAssign} disabled={!canSubmit || isSubmitting}>
             {isSubmitting ? "Assigning..." : "Confirm Assignment"}
           </Button>

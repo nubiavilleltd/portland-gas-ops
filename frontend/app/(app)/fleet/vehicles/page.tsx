@@ -32,7 +32,7 @@ const columns: Column<Vehicle>[] = [
   {
     key: "type",
     label: "Type",
-    render: (value) => (value as string).replaceAll("_", " "),
+    render: (value) => (value as string).replaceAll("_", " ").toUpperCase(),
   },
   {
     key: "mileage",

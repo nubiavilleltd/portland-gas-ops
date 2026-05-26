@@ -14,6 +14,7 @@ import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrdersService } from "@/lib/services/api/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
 export default function OrderDeliveryPage() {
   const params = useParams();
@@ -60,13 +61,13 @@ export default function OrderDeliveryPage() {
 
   return (
     <AppLayout pageTitle="Confirm Delivery">
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Order
-      </button>
+      </button> */}
 
       <PageHeader
         title="Confirm Delivery"
@@ -101,77 +102,85 @@ export default function OrderDeliveryPage() {
 
       <div className="space-y-6 max-w-2xl">
 
-        {/* DELIVERY DETAILS */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="p-2 rounded-lg bg-brand-purple-faint text-brand-purple">
-              <Truck size={18} />
-            </div>
-            <div>
-              <h3 className="font-semibold">{order.order_number}</h3>
-              <p className="text-sm text-brand-text-secondary">{order.customer_name}</p>
-            </div>
-            <div className="ml-auto">
-              <FulfillmentStatusBadge status={order.fulfillment_status} />
-            </div>
-          </div>
+       {/* DELIVERY DETAILS */}
+<FormSection
+  title="Delivery Details"
+  description=""
+>
+  <div className="bg-white border border-brand-border rounded-2xl p-6">
+    <div className="flex items-center gap-3 mb-5">
+      <div className="p-2 rounded-lg bg-brand-purple-faint text-brand-purple">
+        <Truck size={18} />
+      </div>
+      <div>
+        <h3 className="font-semibold">{order.order_number}</h3>
+        <p className="text-sm text-brand-text-secondary">{order.customer_name}</p>
+      </div>
+      <div className="ml-auto">
+        <FulfillmentStatusBadge status={order.fulfillment_status} />
+      </div>
+    </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="Order Type" value={order.order_type} />
-            <InfoRow label="Quantity" value={`${order.quantity.toLocaleString()} kg`} />
-            <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
-            {order.delivery_date && (
-              <InfoRow label="Expected Delivery" value={formatDate(order.delivery_date)} />
-            )}
-          </div>
+    <div className="grid grid-cols-2 gap-4 text-sm">
+      <InfoRow label="Order Type" value={order.order_type} />
+      <InfoRow label="Quantity" value={`${order.quantity.toLocaleString()} kg`} />
+      <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
+      {order.delivery_date && (
+        <InfoRow label="Expected Delivery" value={formatDate(order.delivery_date)} />
+      )}
+    </div>
 
-          <div className="flex items-start gap-3 mt-4 p-3 bg-brand-purple-faint rounded-lg">
-            <MapPin size={16} className="text-brand-purple mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-brand-text-secondary">Delivery Address</p>
-              <p className="text-sm font-medium">{order.delivery_address}</p>
-            </div>
-          </div>
+    <div className="flex items-start gap-3 mt-4 p-3 bg-brand-purple-faint rounded-lg">
+      <MapPin size={16} className="text-brand-purple mt-0.5 shrink-0" />
+      <div>
+        <p className="text-xs text-brand-text-secondary">Delivery Address</p>
+        <p className="text-sm font-medium">{order.delivery_address}</p>
+      </div>
+    </div>
+  </div>
+</FormSection>
+
+       {/* PROOF OF DELIVERY FORM */}
+{!alreadyDelivered && !cannotConfirm && (
+  <FormSection
+    title="Proof of Delivery"
+    description=""
+  >
+    <div className="bg-white border border-brand-border rounded-2xl p-6">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-brand-text-primary mb-1">
+            Received By <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            placeholder="Full name of person who received delivery"
+            value={receivedBy}
+            onChange={(e) => setReceivedBy(e.target.value)}
+            className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+          />
         </div>
 
-        {/* PROOF OF DELIVERY FORM */}
-        {!alreadyDelivered && !cannotConfirm && (
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <h3 className="text-base font-semibold mb-5">Proof of Delivery</h3>
+        <div>
+          <label className="block text-sm font-medium text-brand-text-primary mb-1">
+            Delivery Notes
+          </label>
+          <textarea
+            placeholder="Any observations, partial delivery details, customer feedback..."
+            value={proofNotes}
+            onChange={(e) => setProofNotes(e.target.value)}
+            rows={3}
+            className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
+          />
+        </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">
-                  Received By <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Full name of person who received delivery"
-                  value={receivedBy}
-                  onChange={(e) => setReceivedBy(e.target.value)}
-                  className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">
-                  Delivery Notes
-                </label>
-                <textarea
-                  placeholder="Any observations, partial delivery details, customer feedback..."
-                  value={proofNotes}
-                  onChange={(e) => setProofNotes(e.target.value)}
-                  rows={3}
-                  className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
-                />
-              </div>
-
-              <p className="text-xs text-brand-text-secondary">
-                Note: After confirming delivery, you will be able to generate an invoice for this order.
-              </p>
-            </div>
-          </div>
-        )}
+        <p className="text-xs text-brand-text-secondary">
+          Note: After confirming delivery, you will be able to generate an invoice for this order.
+        </p>
+      </div>
+    </div>
+  </FormSection>
+)}
 
         {/* ERROR */}
         {error && (
@@ -183,9 +192,9 @@ export default function OrderDeliveryPage() {
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          {/* <Button variant="outline" onClick={() => router.back()}>
             {alreadyDelivered ? "Back" : "Cancel"}
-          </Button>
+          </Button> */}
 
           {!alreadyDelivered && !cannotConfirm && (
             <Button onClick={handleConfirmDelivery} disabled={isSubmitting}>

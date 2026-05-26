@@ -102,6 +102,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -175,7 +176,7 @@ export default function OrderDetailPage() {
             {/* CONFIRM DELIVERY */}
             {(order.fulfillment_status === "dispatched" ||
               order.fulfillment_status === "in_transit") && (
-              <Button href={`/orders/${id}/delivery`}>
+              <Button href={`/orders/${id}/delivery/confirm`}>
                 Confirm Delivery
               </Button>
             )}
@@ -189,7 +190,7 @@ export default function OrderDetailPage() {
 
             {/* CLOSE ORDER */}
             {canClose && (
-              <Button href={`/orders/${id}/close`} variant="secondary">
+              <Button href={`/orders/${id}/close`} variant="primary">
                 Close Order
               </Button>
             )}
@@ -201,144 +202,239 @@ export default function OrderDetailPage() {
       <div className="space-y-6">
 
         {/* ORDER SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <p className="text-xs font-mono text-brand-text-secondary">
-                {order.order_number}
-              </p>
-              <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-                {order.customer_name}
-              </h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                {order.order_type}
-              </p>
-            </div>
+        <FormSection
+  title="Order Summary"
+  description="Overview of customer, order, delivery, and payment details"
+>
+  <div className="flex items-start justify-between mb-6">
+    <div>
+      <p className="text-xs font-mono text-brand-text-secondary">
+        {order.order_number}
+      </p>
 
-            {/* Three status badges side by side */}
-            <div className="flex flex-col gap-1.5 items-end">
-              <OrderStatusBadge status={order.order_status} />
-              <FulfillmentStatusBadge status={order.fulfillment_status} />
-              <PaymentStatusBadge status={order.payment_status} />
-            </div>
-          </div>
+      <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
+        {order.customer_name}
+      </h2>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-            <InfoRow label="Gas Type" value={order.product_name ?? order.order_type} />
-            <InfoRow label="Quantity" value={`${order.quantity.toLocaleString()} kg`} />
-            <InfoRow label="Unit Price" value={formatCurrency(order.unit_price)} />
-            <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
-            <InfoRow
-              label="Delivery Date"
-              value={order.delivery_date ? formatDate(order.delivery_date) : "Not set"}
-            />
-            <InfoRow label="Delivery Address" value={order.delivery_address} />
-            {order.confirmed_at && (
-              <InfoRow label="Confirmed On" value={formatDate(order.confirmed_at)} />
-            )}
-            {order.delivered_at && (
-              <InfoRow label="Delivered On" value={formatDate(order.delivered_at)} />
-            )}
-          </div>
+      <p className="text-sm text-brand-text-secondary mt-1">
+        {order.order_type}
+      </p>
+    </div>
 
-          {order.notes && (
-            <div className="mt-4 pt-4 border-t border-brand-border text-sm">
-              <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
-              <p>{order.notes}</p>
-            </div>
-          )}
-        </div>
+    {/* Three status badges side by side */}
+    <div className="flex flex-col gap-1.5 items-end">
+      <OrderStatusBadge status={order.order_status} />
+      <FulfillmentStatusBadge status={order.fulfillment_status} />
+      <PaymentStatusBadge status={order.payment_status} />
+    </div>
+  </div>
+
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+    <InfoRow
+      label="Gas Type"
+      value={order.product_name ?? order.order_type}
+    />
+
+    <InfoRow
+      label="Quantity"
+      value={`${order.quantity.toLocaleString()} kg`}
+    />
+
+    <InfoRow
+      label="Unit Price"
+      value={formatCurrency(order.unit_price)}
+    />
+
+    <InfoRow
+      label="Total Amount"
+      value={formatCurrency(order.total_amount)}
+    />
+
+    <InfoRow
+      label="Delivery Date"
+      value={
+        order.delivery_date
+          ? formatDate(order.delivery_date)
+          : "Not set"
+      }
+    />
+
+    <InfoRow
+      label="Delivery Address"
+      value={order.delivery_address}
+    />
+
+    {order.confirmed_at && (
+      <InfoRow
+        label="Confirmed On"
+        value={formatDate(order.confirmed_at)}
+      />
+    )}
+
+    {order.delivered_at && (
+      <InfoRow
+        label="Delivered On"
+        value={formatDate(order.delivered_at)}
+      />
+    )}
+  </div>
+
+  {order.notes && (
+    <div className="mt-4 pt-4 border-t border-brand-border text-sm">
+      <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
+      <p>{order.notes}</p>
+    </div>
+  )}
+</FormSection>
 
         {/* TRIP / DISPATCH INFORMATION */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Dispatch / Trip</h3>
-            {!order.trip_id && isConfirmed && order.fulfillment_status === "pending" && (
-              <Button size="sm" href={`/fleet/trips/new?orderId=${id}`}>
-                Assign to Trip
-              </Button>
-            )}
-            {order.trip_id && (
-              <Button size="sm" variant="outline" href={`/fleet/trips/${order.trip_id}`}>
-                View Trip →
-              </Button>
-            )}
-          </div>
+        <FormSection
+  title="Dispatch / Trip"
+  description="Track trip assignment and delivery scheduling information"
+>
+  <div className="flex items-center justify-between mb-4">
+    {!order.trip_id &&
+      isConfirmed &&
+      order.fulfillment_status === "pending" && (
+        <Button
+          size="sm"
+          href={`/fleet/trips/new?orderId=${id}`}
+        >
+          Assign to Trip
+        </Button>
+      )}
 
-          {trip ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
-              <InfoRow label="Trip Number" value={trip.trip_number} />
-              <InfoRow label="From" value={trip.start_location} />
-              <InfoRow label="To" value={trip.end_location} />
-              <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
-            </div>
-          ) : (
-            <p className="text-sm text-brand-text-secondary italic">
-              {order.fulfillment_status === "pending"
-                ? "This order has not been assigned to a trip yet."
-                : "Trip information not available."}
-            </p>
-          )}
-        </div>
+    {order.trip_id && (
+      <Button
+        size="sm"
+        variant="outline"
+        href={`/fleet/trips/${order.trip_id}`}
+      >
+        View Trip →
+      </Button>
+    )}
+  </div>
+
+  {trip ? (
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
+      <InfoRow label="Trip Number" value={trip.trip_number} />
+
+      <InfoRow label="From" value={trip.start_location} />
+
+      <InfoRow label="To" value={trip.end_location} />
+
+      <InfoRow
+        label="Scheduled"
+        value={formatDate(trip.scheduled_date)}
+      />
+    </div>
+  ) : (
+    <p className="text-sm text-brand-text-secondary italic">
+      {order.fulfillment_status === "pending"
+        ? "This order has not been assigned to a trip yet."
+        : "Trip information not available."}
+    </p>
+  )}
+</FormSection>
 
         {/* INVOICE */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Invoice</h3>
-            {canGenerateInvoice && (
-              <Button size="sm" href={`/invoices/new?orderId=${id}`}>
-                Generate Invoice
-              </Button>
-            )}
-            {invoice && (
-              <Button size="sm" variant="outline" href={`/invoices/${invoice.id}`}>
-                View Invoice →
-              </Button>
-            )}
-          </div>
+        <FormSection
+  title="Invoice"
+  description="Manage invoice generation and payment details"
+>
+  <div className="flex items-center justify-between mb-4">
+    {canGenerateInvoice && (
+      <Button
+        size="sm"
+        href={`/invoices/new?orderId=${id}`}
+      >
+        Generate Invoice
+      </Button>
+    )}
 
-          {invoice ? (
-            <div className="grid grid-cols-2 gap-5 text-sm">
-              <InfoRow label="Invoice No" value={invoice.invoice_number} />
-              <InfoRow label="Status">
-                <PaymentStatusBadge status={invoice.status} />
-              </InfoRow>
-              <InfoRow label="Issued" value={formatDate(invoice.issued_date)} />
-              <InfoRow label="Due" value={formatDate(invoice.due_date)} />
-            </div>
-          ) : (
-            <p className="text-sm text-brand-text-secondary italic">
-              {order.fulfillment_status !== "delivered"
-                ? "Invoice will be available after delivery is confirmed."
-                : "No invoice generated yet."}
-            </p>
-          )}
-        </div>
+    {invoice && (
+      <Button
+        size="sm"
+        variant="outline"
+        href={`/invoices/${invoice.id}`}
+      >
+        View Invoice →
+      </Button>
+    )}
+  </div>
+
+  {invoice ? (
+    <div className="grid grid-cols-2 gap-5 text-sm">
+      <InfoRow
+        label="Invoice No"
+        value={invoice.invoice_number}
+      />
+
+      <InfoRow label="Status">
+        <PaymentStatusBadge status={invoice.status} />
+      </InfoRow>
+
+      <InfoRow
+        label="Issued"
+        value={formatDate(invoice.issued_date)}
+      />
+
+      <InfoRow
+        label="Due"
+        value={formatDate(invoice.due_date)}
+      />
+    </div>
+  ) : (
+    <p className="text-sm text-brand-text-secondary italic">
+      {order.fulfillment_status !== "delivered"
+        ? "Invoice will be available after delivery is confirmed."
+        : "No invoice generated yet."}
+    </p>
+  )}
+</FormSection>
 
         {/* PAYMENTS */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Payments</h3>
-            {invoice && order.payment_status !== "paid" && (
-              <Button size="sm" href={`/payments/new?invoiceId=${invoice.id}`}>
-                Record Payment
-              </Button>
-            )}
-          </div>
+        <FormSection
+  title="Payments"
+  description="Track invoice payments and outstanding balance"
+>
+  <div className="flex items-center justify-between mb-4">
+    {invoice && order.payment_status !== "paid" && (
+      <Button
+        size="sm"
+        href={`/payments/new?invoiceId=${invoice.id}`}
+      >
+        Record Payment
+      </Button>
+    )}
+  </div>
 
-          <div className="grid grid-cols-3 gap-5 text-sm">
-            <InfoRow
-              label="Invoice Amount"
-              value={invoice ? formatCurrency(invoice.total_amount) : "—"}
-            />
-            <InfoRow label="Amount Paid" value={formatCurrency(paymentSummary.amountPaid)} />
-            <InfoRow
-              label="Balance"
-              value={invoice ? formatCurrency(balance) : "—"}
-              valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
-            />
-          </div>
-        </div>
+  <div className="grid grid-cols-3 gap-5 text-sm">
+    <InfoRow
+      label="Invoice Amount"
+      value={
+        invoice
+          ? formatCurrency(invoice.total_amount)
+          : "—"
+      }
+    />
+
+    <InfoRow
+      label="Amount Paid"
+      value={formatCurrency(paymentSummary.amountPaid)}
+    />
+
+    <InfoRow
+      label="Balance"
+      value={invoice ? formatCurrency(balance) : "—"}
+      valueClassName={
+        balance > 0
+          ? "text-red-600"
+          : "text-green-600"
+      }
+    />
+  </div>
+</FormSection>
 
       </div>
     </AppLayout>

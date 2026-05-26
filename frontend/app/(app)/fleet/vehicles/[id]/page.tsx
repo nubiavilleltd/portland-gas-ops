@@ -18,6 +18,7 @@ import {
   getTripsByVehicle,
 } from "@/lib/modules/fleet/selectors/trips.selectors";
 import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
 
 export default function VehicleDetailPage() {
@@ -76,146 +77,126 @@ export default function VehicleDetailPage() {
 
       <div className="space-y-6">
 
-        {/* VEHICLE SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
+      <FormSection
+  title="Vehicle Summary"
+  description="Operational vehicle information"
+>
+  <div className="flex items-start justify-between mb-6">
+    <div>
+      <h2 className="text-base font-semibold">
+        Vehicle Summary
+      </h2>
 
-          <div className="flex items-start justify-between mb-6">
+      <p className="text-sm text-brand-text-secondary mt-1">
+        Operational vehicle information
+      </p>
+    </div>
 
-            <div>
-              <h2 className="text-base font-semibold">
-                Vehicle Summary
-              </h2>
+    {/* FIXED BADGE */}
+    <FleetVehicleStatusBadge status={vehicle.status} />
+  </div>
 
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Operational vehicle information
-              </p>
-            </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 text-sm">
+    <Info label="Vehicle Name" value={vehicle.name} />
+    <Info label="Plate Number" value={vehicle.plate_number} />
+    <Info
+      label="Vehicle Type"
+      value={vehicle.type.replaceAll("_", " ")}
+    />
+    <Info label="Fuel Type" value={vehicle.fuel_type} />
 
-            {/* FIXED BADGE */}
-            <FleetVehicleStatusBadge status={vehicle.status} />
+    <Info
+      label="Mileage"
+      value={`${vehicle.mileage?.toLocaleString()} km`}
+    />
 
-          </div>
+    <Info
+      label="Last Service Date"
+      value={formatDate(vehicle.last_service_date)}
+    />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 text-sm">
+    <Info
+      label="Next Service Due"
+      value={formatDate(vehicle.next_service_date)}
+    />
 
-            <Info label="Vehicle Name" value={vehicle.name} />
-            <Info label="Plate Number" value={vehicle.plate_number} />
-            <Info label="Vehicle Type" value={vehicle.type.replaceAll("_", " ")} />
-            <Info label="Fuel Type" value={vehicle.fuel_type} />
+    <Info
+      label="Operational Status"
+      value={vehicle.status.replaceAll("_", " ")}
+    />
+  </div>
+</FormSection>
 
-            <Info label="Mileage" value={`${vehicle.mileage?.toLocaleString()} km`} />
+<FormSection
+  title="Current Operation"
+  description="Live assignment and active trip status"
+>
+  {activeTrip ? (
+    <div className="text-sm space-y-1">
+      <p className="font-medium">
+        Active Trip: {activeTrip.trip_number}
+      </p>
 
-            <Info
-              label="Last Service Date"
-              value={formatDate(vehicle.last_service_date)}
-            />
+      <p className="text-brand-text-secondary">
+        Status: {activeTrip.status}
+      </p>
 
-            <Info
-              label="Next Service Due"
-              value={formatDate(vehicle.next_service_date)}
-            />
+      <Button
+        size="sm"
+        variant="outline"
+        href={`/fleet/trips/${activeTrip.id}`}
+        className="mt-3"
+      >
+        View Trip
+      </Button>
+    </div>
+  ) : (
+    <div className="text-sm">
+      <p className="font-medium text-green-600">
+        No active trip
+      </p>
 
-            <Info
-              label="Operational Status"
-              value={vehicle.status.replaceAll("_", " ")}
-            />
+      <p className="text-brand-text-secondary mt-1">
+        Vehicle is available for assignment
+      </p>
+    </div>
+  )}
+</FormSection>
 
-          </div>
+<FormSection
+  title="Trip History"
+  description="All trips completed by this vehicle"
+>
+  <div className="flex items-start justify-between mb-4">
+    <Button
+      size="sm"
+      variant="outline"
+      href={`/fleet/trips?vehicleId=${vehicle.id}`}
+    >
+      View All
+    </Button>
+  </div>
 
+  {trips.length === 0 ? (
+    <p className="text-sm text-brand-text-secondary">
+      No trips recorded yet.
+    </p>
+  ) : (
+    <div className="space-y-2 text-sm">
+      {trips.slice(0, 5).map((trip) => (
+        <div
+          key={trip.id}
+          className="flex justify-between border-b py-2"
+        >
+          <span>{trip.trip_number}</span>
+          <span className="text-brand-text-secondary">
+            {trip.status}
+          </span>
         </div>
-
-        {/* CURRENT OPERATION */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-
-          <h2 className="text-base font-semibold mb-4">
-            Current Operation
-          </h2>
-
-          {activeTrip ? (
-            <div className="text-sm space-y-1">
-
-              <p className="font-medium">
-                Active Trip: {activeTrip.trip_number}
-              </p>
-
-              <p className="text-brand-text-secondary">
-                Status: {activeTrip.status}
-              </p>
-
-              <Button
-                size="sm"
-                variant="outline"
-                href={`/fleet/trips/${activeTrip.id}`}
-                className="mt-3"
-              >
-                View Trip
-              </Button>
-
-            </div>
-          ) : (
-            <div className="text-sm">
-
-              <p className="font-medium text-green-600">
-                No active trip
-              </p>
-
-              <p className="text-brand-text-secondary mt-1">
-                Vehicle is available for assignment
-              </p>
-
-            </div>
-          )}
-
-        </div>
-
-        {/* TRIP HISTORY (NOW REAL DATA) */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-
-          <div className="flex items-start justify-between mb-4">
-
-            <div>
-              <h2 className="text-base font-semibold">
-                Trip History
-              </h2>
-
-              <p className="text-sm text-brand-text-secondary mt-1">
-                All trips completed by this vehicle
-              </p>
-            </div>
-
-            <Button
-              size="sm"
-              variant="outline"
-              href={`/fleet/trips?vehicleId=${vehicle.id}`}
-            >
-              View All
-            </Button>
-
-          </div>
-
-          {trips.length === 0 ? (
-            <p className="text-sm text-brand-text-secondary">
-              No trips recorded yet.
-            </p>
-          ) : (
-            <div className="space-y-2 text-sm">
-
-              {trips.slice(0, 5).map((trip) => (
-                <div
-                  key={trip.id}
-                  className="flex justify-between border-b py-2"
-                >
-                  <span>{trip.trip_number}</span>
-                  <span className="text-brand-text-secondary">
-                    {trip.status}
-                  </span>
-                </div>
-              ))}
-
-            </div>
-          )}
-
-        </div>
+      ))}
+    </div>
+  )}
+</FormSection>
 
       </div>
 

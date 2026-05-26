@@ -18,6 +18,7 @@ export type FulfillmentStatus =
   | "assigned"     // Assigned to a trip (driver + vehicle selected)
   | "dispatched"   // Trip has physically left the depot
   | "in_transit"   // On the road
+  | "in_progress"   // On the road
   | "delivered"    // Successfully delivered to customer
   | "failed";      // Delivery attempt failed
 

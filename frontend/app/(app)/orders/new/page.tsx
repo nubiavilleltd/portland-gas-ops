@@ -258,13 +258,13 @@ export default function NewOrderPage() {
 
         {/* ACTIONS */}
         <div className="flex items-center justify-end gap-3 pb-10">
-          <Button
+          {/* <Button
             type="button"
             variant="outline"
             onClick={() => router.back()}
           >
             Cancel
-          </Button>
+          </Button> */}
 
           <Button
             type="button"

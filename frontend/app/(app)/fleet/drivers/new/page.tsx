@@ -12,6 +12,7 @@ import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 
 import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
 import type { Driver } from "@/lib/modules/fleet/types/driver.types";
+import FormSection from "@/components/ui/FormSection";
 
 export default function AddDriverPage() {
   const router = useRouter();
@@ -83,70 +84,75 @@ export default function AddDriverPage() {
           onSubmit={handleSubmit}
           className="grid grid-cols-1 md:grid-cols-2 gap-5"
         >
-          {/* PROFILE PIC */}
-          <div className="md:col-span-2">
-            <ProfilePicUpload
-              value={profilePic}
-              onChange={setProfilePic}
-              shape="circle"
-              size={110}
-              fallback={form.full_name?.[0] ?? "D"}
-              label="Driver Profile Picture"
-            />
-          </div>
+      <FormSection
+  title="Driver Profile"
+  description="Personal and professional information of the driver"
+>
+  {/* PROFILE PIC */}
+  <div className="md:col-span-2">
+    <ProfilePicUpload
+      value={profilePic}
+      onChange={setProfilePic}
+      shape="circle"
+      size={110}
+      fallback={form.full_name?.[0] ?? "D"}
+      label="Driver Profile Picture"
+    />
+  </div>
 
-          <FormInput
-            label="Full Name"
-            name="full_name"
-            value={form.full_name}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Full Name"
+    name="full_name"
+    value={form.full_name}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="Email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Email"
+    name="email"
+    value={form.email}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="Phone Number"
-            name="phone_number"
-            value={form.phone_number}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Phone Number"
+    name="phone_number"
+    value={form.phone_number}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="License Number"
-            name="license_number"
-            value={form.license_number}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="License Number"
+    name="license_number"
+    value={form.license_number}
+    onChange={handleChange}
+  />
 
-          <FormInput
-            label="Experience (Years)"
-            name="experience_years"
-            type="number"
-            value={form.experience_years}
-            onChange={handleChange}
-          />
+  <FormInput
+    label="Experience (Years)"
+    name="experience_years"
+    type="number"
+    value={form.experience_years}
+    onChange={handleChange}
+  />
 
-          {/* NEW FIELD */}
-          <FormInput
-            label="Home Address"
-            name="address"
-            value={form.address}
-            onChange={handleChange}
-          />
+  {/* NEW FIELD */}
+  <FormInput
+    label="Home Address"
+    name="address"
+    value={form.address}
+    onChange={handleChange}
+  />
+</FormSection>
 
           <div className="md:col-span-2 flex justify-end gap-3 mt-4">
-            <Button
+            {/* <Button
               type="button"
               variant="outline"
               onClick={() => router.back()}
             >
               Cancel
-            </Button>
+            </Button> */}
 
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Create Driver"}
