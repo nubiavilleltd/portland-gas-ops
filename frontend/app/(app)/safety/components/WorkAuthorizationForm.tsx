@@ -255,12 +255,12 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
-      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
         <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
+        {description ? <p className="mt-0.5 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
-      <div className="p-5 md:p-6">{children}</div>
+      <div className="px-6 pt-5 pb-6">{children}</div>
     </section>
   );
 }

@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+<<<<<<< HEAD
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
+=======
+import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
+>>>>>>> dev
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -21,10 +25,14 @@ import { leaveRequestColumns } from "../_components/columns";
 import {
   LEAVE_STORE,
   LEAVE_TYPE_OPTIONS,
+  LEAVE_TYPES,
   genHRRef,
   SEED_EMPLOYEES,
+  calcLeaveBalance,
   type LeaveRequest,
 } from "../_components/_data";
+
+const YEAR = new Date().getFullYear();
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -60,10 +68,11 @@ interface SubmittedInfo {
   ref: string;
   employee: string;
   department: string;
+  reliever: string;
   submittedAt: Date;
 }
 
-const APPROVAL_ROUTE = ["Initiator (You)", "Line Manager", "HR Review", "Processed"];
+const APPROVAL_ROUTE = ["Initiator (You)", "Reliever", "Line Manager", "HR Review", "Processed"];
 
 function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
@@ -86,14 +95,21 @@ export default function LeaveRequestsPage() {
   const watchEmployee    = form.watch("employee_name");
   const watchStart       = form.watch("start_date");
   const watchEnd         = form.watch("end_date");
+  const watchLeaveType   = form.watch("leave_type");
 
   const isOthers = watchRequestType === "others";
+
+  const balanceName = isOthers ? (watchEmployee ?? "") : CURRENT_USER.name;
+  const activeBal = watchLeaveType && balanceName
+    ? calcLeaveBalance(balanceName, watchLeaveType, YEAR)
+    : null;
 
   const selectedEmployee = isOthers
     ? SEED_EMPLOYEES.find((e) => `${e.firstName} ${e.lastName}` === watchEmployee)
     : undefined;
 
   const days = calcDays(watchStart, watchEnd);
+  const exceedsBalance = days > 0 && activeBal !== null && days > activeBal.remaining;
 
   const employeeOptions = SEED_EMPLOYEES.map((e) => ({
     value: `${e.firstName} ${e.lastName}`,
@@ -139,7 +155,7 @@ export default function LeaveRequestsPage() {
     };
     LEAVE_STORE.unshift(newItem);
     setItems([...LEAVE_STORE]);
-    setSubmitted({ ref, employee: employeeName, department, submittedAt: now });
+    setSubmitted({ ref, employee: employeeName, department, reliever: data.reliever, submittedAt: now });
     setView("submitted");
   }
 
@@ -159,14 +175,48 @@ export default function LeaveRequestsPage() {
           <PageHeader
             title="Leave Requests"
             description="Manage leave requests and approvals"
+            action={
+              <Button leftIcon={<Plus size={16} />} onClick={() => setView("form")}>
+                New Request
+              </Button>
+            }
             className="mb-6"
           />
+
+          {/* My Leave Balance strip */}
+          <div className="mb-5 bg-brand-card border border-brand-border rounded-2xl p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
+              My Leave Balance — {YEAR}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {LEAVE_TYPES.map((type) => {
+                const bal = calcLeaveBalance(CURRENT_USER.name, type, YEAR);
+                const pct = bal.entitlement > 0 ? (bal.remaining / bal.entitlement) * 100 : 100;
+                const color =
+                  pct <= 20
+                    ? "bg-red-50 border-red-200 text-red-700"
+                    : pct <= 50
+                    ? "bg-amber-50 border-amber-200 text-amber-700"
+                    : "bg-green-50 border-green-200 text-green-700";
+                return (
+                  <div
+                    key={type}
+                    className={`flex flex-col px-3 py-2 rounded-xl border text-xs font-medium ${color}`}
+                  >
+                    <span className="font-semibold">{type}</span>
+                    <span className="mt-0.5 text-[11px] opacity-80">
+                      {bal.remaining}/{bal.entitlement} days left
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <DataTable
             columns={leaveRequestColumns}
             data={items}
             rowHref={(row) => `/hr-management/leave-requests/${row.id}`}
-            onNewRequest={() => setView("form")}
-            newRequestLabel="New Request"
             emptyMessage="No leave requests yet"
             emptyDescription="Submit your first leave request to get started"
           />
@@ -191,7 +241,7 @@ export default function LeaveRequestsPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
             {/* ── Requester Details (fixed, like invoice) ── */}
-            <FormSection title="Requester Details">
+            <FormSection title="Requester Details" description="Your employee information for this leave request.">
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInput label="Requester Name"  value={CURRENT_USER.name}       disabled />
                 <FormInput label="Department"       value={CURRENT_USER.department} disabled />
@@ -201,7 +251,7 @@ export default function LeaveRequestsPage() {
             </FormSection>
 
             {/* ── Leave Details ── */}
-            <FormSection title="Leave Details">
+            <FormSection title="Leave Details" description="Details about the leave being requested.">
               <div className="grid gap-4 md:grid-cols-2">
 
                 {/* Leave Type | Request Type — side by side */}
@@ -223,6 +273,54 @@ export default function LeaveRequestsPage() {
                   error={errors.request_type?.message}
                   {...form.register("request_type")}
                 />
+
+                {/* Balance banner — updates when leave type (and employee for others) is selected */}
+                {activeBal && (
+                  <div className={`md:col-span-2 rounded-xl border px-4 py-3 flex items-center justify-between gap-4 ${
+                    (() => {
+                      const pct = activeBal.entitlement > 0 ? (activeBal.remaining / activeBal.entitlement) * 100 : 100;
+                      return pct <= 20
+                        ? "bg-red-50 border-red-200"
+                        : pct <= 50
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-green-50 border-green-200";
+                    })()
+                  }`}>
+                    <div>
+                      <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
+                        {isOthers && watchEmployee ? `${watchEmployee}'s` : "Your"} {watchLeaveType} Balance
+                      </p>
+                      <div className="flex items-baseline gap-1.5 mt-1">
+                        <span className={`text-2xl font-bold ${
+                          (() => {
+                            const pct = activeBal.entitlement > 0 ? (activeBal.remaining / activeBal.entitlement) * 100 : 100;
+                            return pct <= 20 ? "text-red-700" : pct <= 50 ? "text-amber-700" : "text-green-700";
+                          })()
+                        }`}>
+                          {activeBal.remaining}
+                        </span>
+                        <span className="text-sm text-brand-text-secondary">
+                          of {activeBal.entitlement} days remaining · {activeBal.used} used
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-28 shrink-0">
+                      <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white">
+                        <div
+                          className={`h-full rounded-full ${
+                            (() => {
+                              const pct = activeBal.entitlement > 0 ? (activeBal.remaining / activeBal.entitlement) * 100 : 100;
+                              return pct <= 20 ? "bg-red-500" : pct <= 50 ? "bg-amber-500" : "bg-green-500";
+                            })()
+                          }`}
+                          style={{
+                            width: `${activeBal.entitlement > 0 ? Math.min(100, (activeBal.remaining / activeBal.entitlement) * 100) : 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Employee fields — only when Others */}
                 {isOthers && (
@@ -268,12 +366,19 @@ export default function LeaveRequestsPage() {
                 />
 
                 {/* Number of Days — after End Date */}
-                <FormInput
-                  label="Number of Days"
-                  value={days > 0 ? String(days) : ""}
-                  disabled
-                  placeholder="Auto-calculated"
-                />
+                <div className="flex flex-col gap-1.5">
+                  <FormInput
+                    label="Number of Days"
+                    value={days > 0 ? String(days) : ""}
+                    disabled
+                    placeholder="Auto-calculated"
+                  />
+                  {exceedsBalance && activeBal && (
+                    <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      Requested {days} day{days !== 1 ? "s" : ""} exceeds your available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {watchLeaveType}.
+                    </p>
+                  )}
+                </div>
 
                 <FormSelect
                   label="Reliever"
@@ -328,11 +433,8 @@ export default function LeaveRequestsPage() {
             </section>
 
             <div className="flex gap-3 pt-1">
-              <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+              <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance}>
                 Submit for Approval
-              </Button>
-              <Button type="button" variant="ghost" className="ml-auto" onClick={goBack}>
-                Cancel
               </Button>
             </div>
           </form>
@@ -355,7 +457,7 @@ export default function LeaveRequestsPage() {
               <h2 className="font-semibold text-green-800">Request Submitted Successfully</h2>
               <p className="text-sm text-green-700 mt-0.5">
                 Reference:{" "}
-                <span className="font-mono font-bold">{submitted.ref}</span> — Routed to Line Manager for review.
+                <span className="font-mono font-bold">{submitted.ref}</span> — Routed to Reliever for review.
               </p>
             </div>
           </div>
@@ -365,14 +467,14 @@ export default function LeaveRequestsPage() {
             <WorkflowPath
               initiator={submitted.employee}
               department={submitted.department}
+              reliever={submitted.reliever}
               currentStep={1}
-              approver2Label="HR Review"
             />
             <ActivityHistory
               initiator={submitted.employee}
               department={submitted.department}
+              reliever={submitted.reliever}
               submittedAt={submitted.submittedAt}
-              approver2Label="HR Review"
             />
           </div>
 
@@ -391,11 +493,18 @@ export default function LeaveRequestsPage() {
   );
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h2 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h2>
-      {children}
+    <section className="rounded-2xl border border-brand-border bg-white shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description && (
+          <p className="text-sm text-brand-text-secondary mt-0.5">{description}</p>
+        )}
+      </div>
+      <div className="px-6 pt-5 pb-6">
+        {children}
+      </div>
     </section>
   );
 }

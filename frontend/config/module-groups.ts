@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   Banknote,
+  BarChart2,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -93,6 +94,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Leave applications and approvals",
         icon: CalendarDays,
         href: "/hr-management/leave-requests",
+      },
+      {
+        name: "Leave Balances",
+        description: "Entitlement and usage by employee",
+        icon: BarChart2,
+        href: "/hr-management/leave-balances",
       },
       {
         name: "Pay Slips",

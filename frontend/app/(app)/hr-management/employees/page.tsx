@@ -1,6 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+<<<<<<< HEAD
+=======
+import { Plus } from "lucide-react";
+>>>>>>> dev
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -19,6 +23,35 @@ import {
 } from "../_components/_data";
 
 type EmployeeFormState = Partial<Employee>;
+
+function calcDeductions(basic = 0, housing = 0, transport = 0, meal = 0) {
+  const pension = Math.round(0.08 * (basic + housing + transport));
+  const nhf     = Math.round(0.025 * basic);
+
+  const annualGross   = (basic + housing + transport + meal) * 12;
+  const annualPension = pension * 12;
+  const annualNhf     = nhf * 12;
+  const cra = Math.max(200_000, 0.01 * annualGross) + 0.2 * annualGross;
+  const taxable = Math.max(0, annualGross - annualPension - annualNhf - cra);
+
+  const bands: [number, number][] = [
+    [300_000,   0.07],
+    [300_000,   0.11],
+    [500_000,   0.15],
+    [500_000,   0.19],
+    [1_600_000, 0.21],
+    [Infinity,  0.24],
+  ];
+  let rem = taxable, annualTax = 0;
+  for (const [cap, rate] of bands) {
+    const slice = Math.min(rem, cap);
+    annualTax += slice * rate;
+    rem -= slice;
+    if (rem <= 0) break;
+  }
+
+  return { pension, nhf, paye: Math.round(annualTax / 12) };
+}
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>(EMPLOYEE_STORE);
@@ -39,16 +72,28 @@ export default function EmployeesPage() {
 
   const empColumns = useMemo(() => createEmployeeColumns(openEdit, removeEmp), [employees]);
 
+  const computed = calcDeductions(
+    empForm.basicSalary,
+    empForm.housingAllowance,
+    empForm.transportAllowance,
+    empForm.mealAllowance,
+  );
+
   const managerOptions = employees.map((e) => ({
     value: e.email,
     label: `${e.firstName} ${e.lastName}`,
   }));
 
   const saveEmployee = () => {
+    const withComputed = { ...empForm, paye: computed.paye, pension: computed.pension, nhf: computed.nhf };
     if (editId) {
-      setEmployees((p) => p.map((e) => (e.id === editId ? { ...e, ...empForm } as Employee : e)));
+      const idx = EMPLOYEE_STORE.findIndex((e) => e.id === editId);
+      if (idx !== -1) Object.assign(EMPLOYEE_STORE[idx], withComputed);
+      setEmployees((p) => p.map((e) => (e.id === editId ? { ...e, ...withComputed } as Employee : e)));
     } else {
-      setEmployees((p) => [...p, { ...empForm, id: String(Date.now()) } as Employee]);
+      const newEmp = { ...withComputed, id: String(Date.now()) } as Employee;
+      EMPLOYEE_STORE.push(newEmp);
+      setEmployees((p) => [...p, newEmp]);
     }
     setEmpModal(false);
     setEmpForm({});
@@ -59,14 +104,17 @@ export default function EmployeesPage() {
       <PageHeader
         title="Employee Profile"
         description="Manage employee profiles and records"
+        action={
+          <Button leftIcon={<Plus size={16} />} onClick={openAdd}>
+            Add Employee
+          </Button>
+        }
         className="mb-6"
       />
 
       <DataTable
         columns={empColumns}
         data={employees}
-        onNewRequest={openAdd}
-        newRequestLabel="Add Employee"
         hideStatusFilter
         emptyMessage="No employees yet"
         emptyDescription="Add your first employee to get started"
@@ -199,27 +247,21 @@ export default function EmployeesPage() {
           </p>
           <FormInput
             label="PAYE Tax"
-            type="number"
-            min={0}
-            placeholder="0"
-            value={empForm.paye !== undefined ? String(empForm.paye) : ""}
-            onChange={(e) => un("paye", e.target.value)}
+            value={computed.paye > 0 ? computed.paye.toLocaleString("en-NG") : "0"}
+            disabled
+            hint="[Annual gross − Pension − NHF − CRA] × 7/11/15/19/21/24% bands ÷ 12 · CRA = max(₦200k, 1% gross) + 20% gross"
           />
           <FormInput
             label="Pension"
-            type="number"
-            min={0}
-            placeholder="0"
-            value={empForm.pension !== undefined ? String(empForm.pension) : ""}
-            onChange={(e) => un("pension", e.target.value)}
+            value={computed.pension > 0 ? computed.pension.toLocaleString("en-NG") : "0"}
+            disabled
+            hint="8% × (Basic + Housing + Transport)"
           />
           <FormInput
             label="NHF"
-            type="number"
-            min={0}
-            placeholder="0"
-            value={empForm.nhf !== undefined ? String(empForm.nhf) : ""}
-            onChange={(e) => un("nhf", e.target.value)}
+            value={computed.nhf > 0 ? computed.nhf.toLocaleString("en-NG") : "0"}
+            disabled
+            hint="2.5% × Basic Salary"
           />
           <FormInput
             label="Loan Repayment"
