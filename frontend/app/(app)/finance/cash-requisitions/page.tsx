@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -109,14 +109,17 @@ export default function CashRequisitionsPage() {
           <PageHeader
             title="Cash Requisitions"
             description="Manage cash requests and approvals"
+            action={
+              <Button leftIcon={<Plus size={16} />} onClick={() => setView("form")}>
+                New Request
+              </Button>
+            }
             className="mb-6"
           />
           <DataTable
             columns={cashRequisitionColumns}
             data={items}
             rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
-            onNewRequest={() => setView("form")}
-            newRequestLabel="New Request"
             emptyMessage="No cash requisitions yet"
             emptyDescription="Submit your first cash request to get started"
           />
@@ -142,7 +145,7 @@ export default function CashRequisitionsPage() {
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
-            <FormSection title="Requester Details">
+            <FormSection title="Requester Details" description="Your employee information for this cash requisition.">
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInput label="Requester Name" value={CURRENT_USER.name} disabled />
                 <FormInput label="Department" value={CURRENT_USER.department} disabled />
@@ -151,7 +154,7 @@ export default function CashRequisitionsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Request Details">
+            <FormSection title="Request Details" description="Details about the cash being requested.">
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInput
                   label="Title / Purpose"
@@ -228,9 +231,6 @@ export default function CashRequisitionsPage() {
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
                 Submit for Approval
               </Button>
-              <Button type="button" variant="ghost" className="ml-auto" onClick={goBack}>
-                Cancel
-              </Button>
             </div>
           </form>
         </>
@@ -287,11 +287,18 @@ export default function CashRequisitionsPage() {
   );
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h2 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h2>
-      {children}
+    <section className="rounded-2xl border border-brand-border bg-white shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description && (
+          <p className="text-sm text-brand-text-secondary mt-0.5">{description}</p>
+        )}
+      </div>
+      <div className="px-6 pt-5 pb-6">
+        {children}
+      </div>
     </section>
   );
 }

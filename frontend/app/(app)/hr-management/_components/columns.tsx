@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Eye, Download, Pencil, Trash2 } from "lucide-react";
 import type { Column } from "@/components/data-table/data-table";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
@@ -103,6 +104,13 @@ export function createEmployeeColumns(
       label: "",
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <Link
+            href={`/hr-management/employees/${row.id}`}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition"
+            title="View Profile"
+          >
+            <Eye size={14} />
+          </Link>
           <button
             onClick={() => onEdit(row)}
             className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition"
@@ -157,12 +165,23 @@ export function createEmployeeRecordColumns(
       label: "",
       render: (_, row) => (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <button className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition" title="View">
+          <button
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition"
+            title="View"
+            onClick={() => row.filePath && window.open(row.filePath, "_blank")}
+            disabled={!row.filePath}
+          >
             <Eye size={14} />
           </button>
-          <button className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition" title="Download">
+          <a
+            href={row.filePath ?? "#"}
+            download={row.fileName}
+            className={`p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition ${!row.filePath ? "pointer-events-none opacity-40" : ""}`}
+            title="Download"
+            onClick={(e) => !row.filePath && e.preventDefault()}
+          >
             <Download size={14} />
-          </button>
+          </a>
           <button onClick={() => onDelete(row.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition" title="Delete">
             <Trash2 size={14} />
           </button>

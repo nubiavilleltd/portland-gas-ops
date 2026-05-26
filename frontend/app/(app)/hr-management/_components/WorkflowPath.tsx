@@ -4,22 +4,25 @@ import { HR_APPROVERS } from "./_data";
 interface Props {
   initiator: string;
   department: string;
+  reliever: string;
   currentStep: number;
-  approver2Label?: string;
+  approver3Label?: string;
 }
 
 export default function WorkflowPath({
   initiator,
   department,
+  reliever,
   currentStep,
-  approver2Label = "HR Review",
+  approver3Label = "HR Review",
 }: Props) {
   const ap = HR_APPROVERS[department] ?? HR_APPROVERS.Legal;
 
   const steps = [
     { role: "Initiator",  name: initiator || "—", title: "Requester"    },
-    { role: "Approver 1", name: ap.lineManager,   title: "Line Manager" },
-    { role: "Approver 2", name: ap.hrReview,      title: approver2Label },
+    { role: "Approver 1", name: reliever  || "—", title: "Reliever"     },
+    { role: "Approver 2", name: ap.lineManager,   title: "Line Manager" },
+    { role: "Approver 3", name: ap.hrReview,      title: approver3Label },
   ];
 
   return (

@@ -105,6 +105,7 @@ export interface EmployeeRecord {
   employee: string;
   docType: string;
   fileName: string;
+  filePath?: string;
   uploadDate: string;
   uploadedBy: string;
 }
@@ -182,11 +183,11 @@ export const SEED_LEAVE_REQUESTS: LeaveRequest[] = [
 export const LEAVE_STORE: LeaveRequest[] = [...SEED_LEAVE_REQUESTS];
 
 export const SEED_EMPLOYEE_RECORDS: EmployeeRecord[] = [
-  { id: "r1", employee: "Magdalene Edozie",   docType: "Employment Contract", fileName: "Edozie_Contract_2024.pdf",  uploadDate: "10 Jan 2025", uploadedBy: "HR Admin"       },
-  { id: "r2", employee: "Oluwaseun Sowemimo", docType: "ID / Passport Copy",  fileName: "Sowemimo_NIN.pdf",          uploadDate: "15 Feb 2025", uploadedBy: "HR Admin"       },
-  { id: "r3", employee: "Joseph Chika",       docType: "Certificates",        fileName: "Chika_MBA_Cert.pdf",        uploadDate: "3 Mar 2026",  uploadedBy: "Joseph Chika"   },
-  { id: "r4", employee: "Felix Ohemu",        docType: "Employment Contract", fileName: "Ohemu_Contract_2026.pdf",   uploadDate: "15 Apr 2026", uploadedBy: "HR Admin"       },
-  { id: "r5", employee: "David Okeke",        docType: "Safety Certification",fileName: "Okeke_HSE_Cert.pdf",        uploadDate: "20 Apr 2026", uploadedBy: "David Okeke"    },
+  { id: "r1", employee: "Magdalene Edozie",   docType: "Employment Contract", fileName: "Edozie_Contract_2024.pdf",  filePath: "/sample-docs/Edozie_Contract_2024.pdf",  uploadDate: "10 Jan 2025", uploadedBy: "HR Admin"     },
+  { id: "r2", employee: "Oluwaseun Sowemimo", docType: "ID / Passport Copy",  fileName: "Sowemimo_NIN.pdf",          filePath: "/sample-docs/Sowemimo_NIN.pdf",          uploadDate: "15 Feb 2025", uploadedBy: "HR Admin"     },
+  { id: "r3", employee: "Joseph Chika",       docType: "Certificates",        fileName: "Chika_MBA_Cert.pdf",        filePath: "/sample-docs/Chika_MBA_Cert.pdf",        uploadDate: "3 Mar 2026",  uploadedBy: "Joseph Chika" },
+  { id: "r4", employee: "Felix Ohemu",        docType: "Employment Contract", fileName: "Ohemu_Contract_2026.pdf",   filePath: "/sample-docs/Ohemu_Contract_2026.pdf",   uploadDate: "15 Apr 2026", uploadedBy: "HR Admin"     },
+  { id: "r5", employee: "David Okeke",        docType: "Safety Certification",fileName: "Okeke_HSE_Cert.pdf",        filePath: "/sample-docs/Okeke_HSE_Cert.pdf",        uploadDate: "20 Apr 2026", uploadedBy: "David Okeke"  },
 ];
 
 export const SEED_POLICIES: Policy[] = [
@@ -262,3 +263,33 @@ export const SEED_PAYROLL: PayrollRun[] = [
   { id: "pr2", ref: "PAY-202603-C3D4", period: "March 2026", runDate: "28 Mar 2026", totalGross: 3500000, totalDeductions: 662250, totalNet: 2837750, employees: 7, status: "processed", preparedBy: "Adaeze Nwosu" },
   { id: "pr3", ref: "PAY-202605-E5F6", period: "May 2026",   runDate: "—",           totalGross: 0,       totalDeductions: 0,      totalNet: 0,       employees: 7, status: "draft",     preparedBy: "Adaeze Nwosu" },
 ];
+
+// ── Leave Balance ─────────────────────────────────────────────────────────────
+
+export const LEAVE_ENTITLEMENTS: Record<string, number> = {
+  "Annual Leave":        21,
+  "Sick Leave":          10,
+  "Casual Leave":         5,
+  "Maternity Leave":     90,
+  "Paternity Leave":      7,
+  "Compassionate Leave":  5,
+  "Study Leave":         14,
+};
+
+export function calcLeaveBalance(
+  employeeName: string,
+  leaveType: string,
+  year: number = new Date().getFullYear(),
+): { entitlement: number; used: number; remaining: number } {
+  const entitlement = LEAVE_ENTITLEMENTS[leaveType] ?? 0;
+  const used = LEAVE_STORE
+    .filter(
+      (r) =>
+        r.employee === employeeName &&
+        r.type === leaveType &&
+        r.status === "approved" &&
+        new Date(r.startDate).getFullYear() === year,
+    )
+    .reduce((sum, r) => sum + r.days, 0);
+  return { entitlement, used, remaining: Math.max(0, entitlement - used) };
+}
