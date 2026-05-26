@@ -78,3 +78,9 @@ export function useInvoiceByOrderId(orderId: string): UseInvoiceByIdResult {
   const invoice = getInvoiceByOrderId(invoices, orderId);   // selector
   return { invoice, isLoading, error, refetch };
 }
+// ── Derived: invoice linked to an order ──────────────────
+export function useInvoiceByPaymentId(paymentId: string): UseInvoiceByIdResult {
+  const { invoices, isLoading, error, refetch } = useInvoices();
+  const invoice = getInvoiceByOrderId(invoices, paymentId);   // selector
+  return { invoice, isLoading, error, refetch };
+}

@@ -6,7 +6,8 @@
 //  FUTURE:  called via select: in useQuery — nothing changes here
 // ============================================================
 
-import type { Payment } from "@/lib/mock/payments";
+import { Payment } from "../types/payments.types";
+
 
 export function getPaymentById(
   payments: Payment[],
@@ -20,6 +21,19 @@ export function getPaymentsByInvoice(
   invoiceId: string
 ): Payment[] {
   return payments.filter((p) => p.invoice_id === invoiceId);
+}
+
+ 
+export function getPaymentSummary(
+  payments: Payment[],
+  invoiceId: string | undefined
+): { amountPaid: number; count: number } {
+  if (!invoiceId) return { amountPaid: 0, count: 0 };
+  const related = getPaymentsByInvoice(payments, invoiceId);
+  return {
+    amountPaid: related.reduce((sum, p) => sum + p.amount, 0),
+    count:      related.length,
+  };
 }
 
 export function getTotalPaidForInvoice(

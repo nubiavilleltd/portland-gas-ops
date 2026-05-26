@@ -18,13 +18,14 @@ import { OrdersService } from "@/lib/services/api/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 import FormSection from "@/components/ui/FormSection";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function CloseOrderPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const order = getOrderById(id);
+  const {order} = useOrderById(id);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

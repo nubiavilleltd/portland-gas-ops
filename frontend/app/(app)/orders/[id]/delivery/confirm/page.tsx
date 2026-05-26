@@ -15,13 +15,14 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrdersService } from "@/lib/services/api/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import FormSection from "@/components/ui/FormSection";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function OrderDeliveryPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const order = getOrderById(id);
+  const {order} = useOrderById(id);
 
   const [proofNotes, setProofNotes] = useState("");
   const [receivedBy, setReceivedBy] = useState("");

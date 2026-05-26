@@ -18,19 +18,36 @@
 //    });
 // ============================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { PaymentsService } from "@/lib/services/api/payments.service";
-import type { Payment } from "@/lib/mock/payments";
 import {
     getPaymentById,
     getPaymentsByInvoice,
+    getPaymentSummary,
     getTotalPaidForInvoice,
 } from "@/lib/modules/payments/selectors/payments.selectors";
 import { parseError } from "@/lib/errors";
+import { Payment } from "../types/payments.types";
 
 // ── Shared result shape ────────────────────────────────────
 interface UsePaymentsResult {
     payments: Payment[];
+    isLoading: boolean;
+    error: string | null;
+    refetch: () => void;
+}
+
+// ── Derived: total amount paid for one invoice ────────────
+interface UseTotalPaidResult {
+    totalPaid: number;
+    isLoading: boolean;
+    error: string | null;
+    refetch: () => void;
+}
+
+// ── Derived: single payment ───────────────────────────────
+interface UsePaymentByIdResult {
+    payment: Payment | undefined;
     isLoading: boolean;
     error: string | null;
     refetch: () => void;
@@ -60,13 +77,6 @@ export function usePayments(): UsePaymentsResult {
     return { payments, isLoading, error, refetch: fetch };
 }
 
-// ── Derived: single payment ───────────────────────────────
-interface UsePaymentByIdResult {
-    payment: Payment | undefined;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-}
 
 export function usePaymentById(id: string): UsePaymentByIdResult {
     const { payments, isLoading, error, refetch } = usePayments();
@@ -81,13 +91,18 @@ export function usePaymentsByInvoice(invoiceId: string): UsePaymentsResult {
     return { payments: invoicePayments, isLoading, error, refetch };
 }
 
-// ── Derived: total amount paid for one invoice ────────────
-interface UseTotalPaidResult {
-    totalPaid: number;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
+export function usePaymentSummary(invoiceId: string | undefined) {
+  const { payments, isLoading, error, refetch } = usePayments();
+
+  const summary = useMemo(
+    () => getPaymentSummary(payments, invoiceId),
+    [payments, invoiceId]
+  );
+
+  return { summary, isLoading, error, refetch };
 }
+
+
 
 export function useTotalPaidForInvoice(invoiceId: string): UseTotalPaidResult {
     const { payments, isLoading, error, refetch } = usePayments();

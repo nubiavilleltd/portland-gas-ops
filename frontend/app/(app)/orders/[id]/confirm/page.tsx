@@ -16,13 +16,14 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { OrdersService } from "@/lib/services/api/orders.service";
 import FormSection from "@/components/ui/FormSection";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function ConfirmOrderPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const order = getOrderById(id);
+  const {order} = useOrderById(id);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

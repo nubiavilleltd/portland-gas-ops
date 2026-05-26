@@ -25,7 +25,6 @@ import {
   canAssignToTrip,
   isOrderReadyForInvoice,
   isOrderComplete,
-  getPaymentSummary,
 } from "@/lib/modules/orders/selectors/orders.selectors";
 import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
 
@@ -36,6 +35,7 @@ import { INVOICE_ROUTES } from "@/lib/routes";
 import { PAYMENT_ROUTES } from "@/lib/routes";
 import { parseError } from "@/lib/errors";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPaymentSummary } from "@/lib/modules/payments/selectors/payments.selectors";
 
 
  

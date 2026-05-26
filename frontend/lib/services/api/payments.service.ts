@@ -4,19 +4,13 @@
 //  Handles cascade: Payment → Invoice status → Order payment_status
 // ============================================================
 
-import { payments, type Payment } from "@/lib/mock/payments";
 import { OrdersService } from "./orders.service";
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 import { PaymentStatus } from "@/lib/modules/orders/types/orders.types";
+import { payments } from "@/lib/modules/payments/mocks/payments.mock";
+import { CreatePaymentInput, Payment } from "@/lib/modules/payments/types/payments.types";
 
-export interface CreatePaymentInput {
-  invoice_id: string;
-  amount: number;
-  payment_method: "bank_transfer" | "cash" | "card";
-  payment_date: string;
-  reference?: string;
-  recorded_by?: string;
-}
+
 
 export class PaymentsService {
   // ── READ ────────────────────────────────────────────────

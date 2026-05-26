@@ -17,7 +17,7 @@
 //    });
 // ============================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { OrdersService } from "@/lib/services/api/orders.service";
 import type { Order, OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
@@ -116,6 +116,5 @@ export function useOrderDefaultValues(id: string): UseOrderDefaultValuesResult {
     order && !isLoading
       ? getOrderDefaultValues(order, products)
       : undefined;
-
   return { defaultValues, isLoading, error };
 }

@@ -7,29 +7,83 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { INVOICE_ROUTES, PAYMENT_ROUTES } from "@/lib/routes";
+import { usePayments } from "@/lib/modules/payments/hooks/usePayments";
+import DataTable, { Column } from "@/components/ui/DataTable";
+import { Payment, PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/modules/payments/types/payments.types";
+import { useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
+import ErrorBanner from "@/components/ui/ErrorBanner";
+import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 
-// MOCK DATA (later replace with API)
-const payments = [
-  {
-    id: "pay-001",
-    reference: "PAY-20260501-001",
-    invoice_number: "INV-2026-001",
-    amount: 5000000,
-    payment_date: "2026-05-10",
-    payment_method: "bank_transfer",
-  },
-  {
-    id: "pay-002",
-    reference: "PAY-20260503-002",
-    invoice_number: "INV-2026-002",
-    amount: 2500000,
-    payment_date: "2026-05-12",
-    payment_method: "cash",
-  },
-];
 
 export default function PaymentsPage() {
   const router = useRouter();
+
+  const { payments } = usePayments()
+  const { invoices } = useInvoices()
+
+  const invoiceMap = Object.fromEntries(
+  invoices.map((invoice) => [
+    invoice.id,
+    invoice,
+  ])
+);
+
+
+const columns: Column<Payment>[] = [
+  {
+    key: "payment_reference",
+    label: "REFERENCE",
+  },
+
+  {
+    key: "invoice_id",
+    label: "INVOICE",
+    render: (value) =>
+  invoiceMap[value as string]
+    ?.invoice_number ?? "—"
+  },
+
+  {
+    key: "payment_date",
+    label: "DATE",
+    render: (value) =>
+      formatDate(value as string),
+  },
+
+  {
+    key: "payment_method",
+    label: "METHOD",
+    render: (value) => (
+      <span className="capitalize">
+        {formatPaymentMethodLabel(value as PaymentMethod)}
+      </span>
+    ),
+  },
+
+  {
+    key: "amount",
+    label: "AMOUNT",
+    render: (value) =>
+      formatCurrency(Number(value)),
+  },
+
+  // {
+  //   key: "actions",
+  //   label: "ACTIONS",
+  //   render: (_, payment) => (
+  //     <div className="flex justify-end">
+  //       <Button
+  //         size="sm"
+  //         variant="outline"
+  //         href={`/payments/${payment.id}`}
+  //       >
+  //         View
+  //       </Button>
+  //     </div>
+  //   ),
+  // },
+];
 
   return (
     <AppLayout pageTitle="Payments">
@@ -42,72 +96,19 @@ export default function PaymentsPage() {
         //   </Button>
         // }
         action={
-          <Button href="/invoices">
+          <Button href={INVOICE_ROUTES.list()}>
             Go to Invoices
           </Button>
         }
       />
 
       <div className="bg-white border border-brand-border rounded-2xl p-6">
-        {payments.length === 0 ? (
-          <p className="text-sm text-brand-text-secondary">
-            No payments recorded yet.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-brand-border text-left">
-                  <th className="pb-3">Reference</th>
-                  <th className="pb-3">Invoice</th>
-                  <th className="pb-3">Date</th>
-                  <th className="pb-3">Method</th>
-                  <th className="pb-3">Amount</th>
-                  <th className="pb-3 text-right">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {payments.map((payment) => (
-                  <tr
-                    key={payment.id}
-                    className="border-b border-brand-border"
-                  >
-                    <td className="py-4 font-medium">
-                      {payment.reference}
-                    </td>
-
-                    <td>{payment.invoice_number}</td>
-
-                    <td>
-                      {formatDate(payment.payment_date)}
-                    </td>
-
-                    <td className="capitalize">
-                      {payment.payment_method}
-                    </td>
-
-                    <td className="font-medium">
-                      {formatCurrency(payment.amount)}
-                    </td>
-
-                    <td className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        href={`/payments/${payment.id}`}
-                      >
-                        View
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable<Payment>
+          columns={columns}
+          data={payments}
+          rowHref={(payment) => PAYMENT_ROUTES.detail(payment.id)}
+          emptyMessage="No payments recorded yet."
+        />
       </div>
     </AppLayout>
   );

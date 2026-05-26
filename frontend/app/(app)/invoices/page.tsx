@@ -73,7 +73,6 @@ const columns: Column<Invoice>[] = [
   // },
 ];
 
-// Replace the entire <div className="bg-white border ..."> block with:
 
 
 
