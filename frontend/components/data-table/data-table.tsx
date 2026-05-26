@@ -2,10 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronsUpDown, Eye, FileX } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronsUpDown, FileX } from "lucide-react";
 import Toolbar from "./toolbar";
 import Pagination from "./pagination";
-import Button from "@/components/ui/Button";
 
 export interface Column<T> {
   key: keyof T | string;
@@ -31,8 +30,6 @@ type SortDir = "asc" | "desc";
 
 const PAGE_SIZE_DEFAULT = 10;
 
-const ACTIONS_KEY = "_actions_";
-
 function getValue<T>(row: T, key: string): unknown {
   return (row as Record<string, unknown>)[key];
 }
@@ -43,7 +40,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
   isLoading = false,
   rowHref,
   onNewRequest,
-  newRequestLabel = "New Request",
+  newRequestLabel,
   emptyMessage = "No records found",
   emptyDescription = "Try adjusting your search or filters",
   hideStatusFilter = false,
@@ -126,21 +123,6 @@ export default function DataTable<T extends { id: string; status?: string }>({
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
   const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
 
-  const allColumns = useMemo(
-    () =>
-      rowHref
-        ? [
-            ...columns,
-            {
-              key: ACTIONS_KEY as keyof T,
-              label: "Actions",
-              sortable: false,
-            } as Column<T>,
-          ]
-        : columns,
-    [columns, rowHref]
-  );
-
   const skeletonRows = Array.from({ length: 6 });
 
   return (
@@ -151,7 +133,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
         statusFilter={statusFilter}
         onStatusFilterChange={handleStatusChange}
         onNewRequest={onNewRequest ?? (() => {})}
-        newRequestLabel={onNewRequest ? newRequestLabel : undefined}
+        newRequestLabel={newRequestLabel}
         hideStatusFilter={hideStatusFilter}
         toolbarExtra={toolbarExtra}
       />
@@ -161,7 +143,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
           <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr className="border-b border-brand-border bg-gray-50">
-                {allColumns.map((col) => (
+                {columns.map((col) => (
                   <th
                     key={String(col.key)}
                     className="text-left px-4 py-3 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide whitespace-nowrap"
@@ -190,7 +172,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
               {isLoading ? (
                 skeletonRows.map((_, i) => (
                   <tr key={i} className="border-b border-brand-border last:border-0">
-                    {allColumns.map((col) => (
+                    {columns.map((col) => (
                       <td key={String(col.key)} className="px-4 py-3.5">
                         <div className="h-3.5 bg-gray-100 rounded-full animate-pulse w-3/4" />
                       </td>
@@ -199,7 +181,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
                 ))
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={allColumns.length} className="py-16 text-center">
+                  <td colSpan={columns.length} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-2 text-brand-text-secondary">
                       <FileX size={36} className="opacity-30" />
                       <p className="font-medium text-brand-text-primary text-sm">{emptyMessage}</p>
@@ -214,27 +196,7 @@ export default function DataTable<T extends { id: string; status?: string }>({
                     onClick={() => rowHref && router.push(rowHref(row))}
                     className={`border-b border-brand-border last:border-0 hover:bg-brand-purple-faint transition-colors group ${rowHref ? "cursor-pointer" : ""}`}
                   >
-                    {allColumns.map((col) => {
-                      if (String(col.key) === ACTIONS_KEY) {
-                        return (
-                          <td
-                            key={ACTIONS_KEY}
-                            className="px-4 py-2.5"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              leftIcon={<Eye size={14} />}
-                              onClick={() => rowHref && router.push(rowHref(row))}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <span className="hidden sm:inline">View</span>
-                            </Button>
-                          </td>
-                        );
-                      }
-
+                    {columns.map((col) => {
                       const raw = getValue(row, String(col.key));
                       return (
                         <td key={String(col.key)} className="px-4 py-3 text-brand-text-primary">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, CalendarDays, CreditCard } from "lucide-react";
+import { Users, CalendarDays, CreditCard, BarChart2 } from "lucide-react";
 // import { FolderOpen, BookOpen, DollarSign } from "lucide-react"; // restore when modules are re-enabled
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -18,6 +18,12 @@ const MODULES = [
     description: "Leave applications & approvals",
     icon: CalendarDays,
     href: "/hr-management/leave-requests",
+  },
+  {
+    name: "Leave Balances",
+    description: "Entitlement & usage by employee",
+    icon: BarChart2,
+    href: "/hr-management/leave-balances",
   },
   // { name: "Employee Records", description: "Document vault", icon: FolderOpen, href: "/hr-management/employee-records" },
   // { name: "HR Policies", description: "Policy library & acknowledgements", icon: BookOpen, href: "/hr-management/policies" },

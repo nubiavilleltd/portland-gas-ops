@@ -23,7 +23,7 @@ const STATUS_STEP: Record<string, number> = {
   draft:       0,
   pending:     1,
   in_progress: 2,
-  approved:    3,
+  approved:    4,
   rejected:    1,
 };
 
@@ -93,7 +93,7 @@ export default function LeaveRequestDetailPage({
           </div>
 
           {/* Requester Details — mirrors form Requester Details section */}
-          <ViewSection title="Requester Details">
+          <ViewSection title="Requester Details" description="Your employee information for this leave request.">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormInput label="Requester Name"  value={record.requester ?? record.employee} />
               <FormInput label="Department"       value={CURRENT_USER.department} />
@@ -103,7 +103,7 @@ export default function LeaveRequestDetailPage({
           </ViewSection>
 
           {/* Leave Details — mirrors form Leave Details grid exactly */}
-          <ViewSection title="Leave Details">
+          <ViewSection title="Leave Details" description="Details about the leave being requested.">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
               {/* Row 1: Leave Type | Request Type */}
@@ -164,7 +164,7 @@ export default function LeaveRequestDetailPage({
 
           {/* Approval Action */}
           {ACTIONABLE.has(record.status) && !actionDone && (
-            <ViewSection title="Approval Action">
+            <ViewSection title="Approval Action" description="Review and take action on this leave request.">
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-brand-text-primary block mb-1">
@@ -254,14 +254,14 @@ export default function LeaveRequestDetailPage({
           <WorkflowPath
             initiator={record.requester ?? record.employee}
             department={record.department}
+            reliever={record.reliever}
             currentStep={currentStep}
-            approver2Label="HR Review"
           />
           <ActivityHistory
             initiator={record.requester ?? record.employee}
             department={record.department}
+            reliever={record.reliever}
             submittedAt={new Date(record.date)}
-            approver2Label="HR Review"
           />
         </div>
       )}
@@ -269,13 +269,18 @@ export default function LeaveRequestDetailPage({
   );
 }
 
-function ViewSection({ title, children }: { title: string; children: React.ReactNode }) {
+function ViewSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-brand-card border border-brand-border rounded-2xl p-6 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-5">
-        {title}
-      </p>
-      {children}
+    <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description && (
+          <p className="text-sm text-brand-text-secondary mt-0.5">{description}</p>
+        )}
+      </div>
+      <div className="px-6 pt-5 pb-6">
+        {children}
+      </div>
     </div>
   );
 }

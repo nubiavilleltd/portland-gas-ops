@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, X, FileDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Download, X, FileDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -553,7 +553,15 @@ export default function PaySlipsPage() {
 
       {/* ── Header ── */}
       <div className="mb-6">
-        <PageHeader title="Pay Slips" description="View and download monthly pay slips" />
+        <PageHeader
+          title="Pay Slips"
+          description="View and download monthly pay slips"
+          action={
+            <Button leftIcon={<Plus size={16} />} onClick={openMonthPicker}>
+              Generate Payslip
+            </Button>
+          }
+        />
       </div>
 
       {/* ── Generate preview ── */}
@@ -697,8 +705,6 @@ export default function PaySlipsPage() {
               )}
             </div>
           }
-          onNewRequest={openMonthPicker}
-          newRequestLabel="Generate Payslip"
         />
       )}
     </AppLayout>

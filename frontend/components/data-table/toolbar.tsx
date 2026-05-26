@@ -30,13 +30,13 @@ export default function Toolbar({
   statusFilter,
   onStatusFilterChange,
   onNewRequest,
-  newRequestLabel = "New Request",
+  newRequestLabel,
   hideStatusFilter = false,
   toolbarExtra,
 }: ToolbarProps) {
   return (
-    <div className="flex flex-col sm:flex-row gap-3 mb-4">
-      <div className="relative flex-1 min-w-0">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+      <div className="relative w-full sm:w-48 min-w-0">
         <Search
           size={15}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary pointer-events-none"
