@@ -396,19 +396,19 @@ export default function OrderDetailPage() {
     order.fulfillment_status === "in_transit";
 
   // ── Confirm inline action ────────────────────────────
-  async function handleConfirm() {
-    setIsConfirming(true);
-    setActionError(null);
-    try {
-      await OrdersService.confirmOrder(id);
-      toast.success("Order confirmed successfully");
-      router.refresh();
-    } catch (err) {
-      setActionError(parseError(err));
-    } finally {
-      setIsConfirming(false);
-    }
-  }
+  // async function handleConfirm() {
+  //   setIsConfirming(true);
+  //   setActionError(null);
+  //   try {
+  //     await OrdersService.confirmOrder(id);
+  //     toast.success("Order confirmed successfully");
+  //     router.refresh();
+  //   } catch (err) {
+  //     setActionError(parseError(err));
+  //   } finally {
+  //     setIsConfirming(false);
+  //   }
+  // }
 
   // ── Render ───────────────────────────────────────────
   return (
@@ -432,12 +432,18 @@ export default function OrderDetailPage() {
                 Edit
               </Button>
             )}
-            {canConfirm && (
+            {/* {canConfirm && (
               <Button
                 loading={isConfirming}
                 loadingText="Confirming…"
                 onClick={handleConfirm}
               >
+                Confirm Order
+              </Button>
+            )} */}
+
+                {canConfirm && (
+              <Button href={`/orders/${id}/confirm`}>
                 Confirm Order
               </Button>
             )}

@@ -604,6 +604,7 @@ import { parseError } from "@/lib/errors";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import FormDatePicker from "@/components/forms/FormDatePicker";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
@@ -824,11 +825,11 @@ function CreateTripForm() {
               error={errors.end_location?.message}
             />
 
-            <FormInput
-              label="Scheduled Date"
-              type="date"
-              {...register("scheduled_date")}
-            />
+              <FormDatePicker
+      label="Scheduled Date"
+      required
+      {...register("scheduled_date")}
+    />
 
             <FormTextarea
               label="Notes"

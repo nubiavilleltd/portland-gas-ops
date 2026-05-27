@@ -62,6 +62,7 @@ export default function ConfirmOrderPage() {
     setError(null);
     try {
       await OrdersService.confirmOrder(id);
+      // router.refresh()
       router.push(`/orders/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to confirm order");
