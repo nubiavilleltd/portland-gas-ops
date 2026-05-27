@@ -237,13 +237,352 @@
 
 
 
+// "use client";
+
+// import { Suspense } from "react";
+// import { useRouter, useSearchParams } from "next/navigation";
+// import { useForm, Controller } from "react-hook-form";
+// import { zodResolver } from "@hookform/resolvers/zod";
+// import { ArrowLeft, Package, User, Truck } from "lucide-react";
+
+// import AppLayout from "@/components/layout/AppLayout";
+// import PageHeader from "@/components/ui/PageHeader";
+// import Button from "@/components/ui/Button";
+// import FormInput from "@/components/forms/FormInput";
+// import FormSelect from "@/components/forms/FormSelect";
+// import FormTextarea from "@/components/forms/FormTextarea";
+// import FormDatePicker from "@/components/forms/FormDatePicker";
+// import ErrorBanner from "@/components/ui/ErrorBanner";
+
+// import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
+// import { orders } from "@/lib/modules/orders/mock/orders.mock";
+// import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors";
+// import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
+// import type { Trip } from "@/lib/modules/fleet/types/trip.types";
+// import {
+//   createTripSchema,
+//   type CreateTripFormData,
+// } from "@/lib/modules/fleet/schemas/trip.schema";
+// import { TripsService } from "@/lib/modules/fleet/services/trips.service";
+// import { parseError } from "@/lib/errors";
+// import FormSection from "@/components/ui/FormSection";
+
+// // ── Constants ─────────────────────────────────────────────
+// const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
+//   { value: "order_delivery",   label: "Order Delivery" },
+//   { value: "maintenance",      label: "Vehicle Maintenance" },
+//   { value: "station_transfer", label: "Station Transfer" },
+//   { value: "inspection",       label: "Safety Inspection" },
+//   { value: "emergency",        label: "Emergency Response" },
+// ];
+
+// /** Confirmed orders that haven't been assigned to a trip yet */
+// function getAssignableOrders() {
+//   return orders
+//     .filter(
+//       (o) =>
+//         o.order_status === "confirmed" && o.fulfillment_status === "pending"
+//     )
+//     .map((o) => ({
+//       value: o.id,
+//       label: `${o.order_number} — ${o.customer_name}`,
+//     }));
+// }
+
+// // ── Page wrapper — needed for useSearchParams ──────────────
+// export default function CreateTripPage() {
+//   return (
+//     <Suspense fallback={null}>
+//       <CreateTripForm />
+//     </Suspense>
+//   );
+// }
+
+// // ── Form ──────────────────────────────────────────────────
+// function CreateTripForm() {
+//   const router       = useRouter();
+//   const searchParams = useSearchParams();
+
+//   const vehicleId = searchParams.get("vehicleId");
+//   const driverId  = searchParams.get("driverId");
+//   const orderId   = searchParams.get("orderId");  // comes from order detail page
+
+//   const vehicle        = vehicleId ? getVehicleById(vehicleId) : null;
+//   const driver         = driverId  ? getDriverById(driverId)   : null;
+//   const preloadedOrder = orderId   ? getOrderById(orderId)     : null;
+
+//   /**
+//    * When arriving from the order detail page the Trip Type is locked to
+//    * "order_delivery" and the order dropdown is hidden (orderId is already
+//    * known from the URL).
+//    */
+//   const isTripTypeLocked = !!orderId;
+
+//   const assignableOrders = getAssignableOrders();
+
+//   const {
+//     register,
+//     control,
+//     handleSubmit,
+//     watch,
+//     setValue,
+//     formState: { errors, isSubmitting },
+//     setError,
+//   } = useForm<CreateTripFormData>({
+//     resolver: zodResolver(createTripSchema),
+//     defaultValues: {
+//       type:            "order_delivery",
+//       linked_order_id: orderId ?? "",
+//       start_location:  "",
+//       end_location:    preloadedOrder?.delivery_address ?? "",
+//       scheduled_date:  preloadedOrder?.delivery_date    ?? "",
+//       notes:           "",
+//     },
+//   });
+
+//   const tripType = watch("type");
+
+//   async function onSubmit(data: CreateTripFormData) {
+//     const effectiveOrderId =
+//       orderId ??
+//       (data.type === "order_delivery" ? (data.linked_order_id || undefined) : undefined);
+
+//     try {
+//       const newTrip = await TripsService.createTrip({
+//         type:           data.type,
+//         order_ids:      effectiveOrderId ? [effectiveOrderId] : [],
+//         start_location: data.start_location,
+//         end_location:   data.end_location,
+//         scheduled_date: data.scheduled_date,
+//         notes:          data.notes,
+//       });
+
+//       // Auto-assign if context carried a driver and vehicle
+//       if (vehicleId && driverId) {
+//         await TripsService.assignDriverAndVehicle(newTrip.id, driverId, vehicleId);
+//       }
+
+//       router.push(`/fleet/trips/${newTrip.id}`);
+//     } catch (err) {
+//       setError("root", { message: parseError(err) });
+//     }
+//   }
+
+//   return (
+//     <AppLayout pageTitle="Create Trip">
+//       {/* <button
+//         onClick={() => router.back()}
+//         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
+//       >
+//         <ArrowLeft size={14} />
+//         Back
+//       </button> */}
+
+//       <PageHeader
+//         title="Create Trip"
+//         description="Schedule a new logistics trip for order delivery or fleet operations"
+//         className="mb-6"
+//       />
+
+//       <form
+//         onSubmit={handleSubmit(onSubmit)}
+//         className="space-y-6 max-w-2xl"
+//       >
+//         {/* PRE-FILLED CONTEXT BANNER */}
+//         {(vehicle || driver || preloadedOrder) && (
+//           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2 text-sm">
+//             <p className="font-medium text-blue-800">Pre-filled context:</p>
+//             {preloadedOrder && (
+//               <div className="flex items-center gap-2 text-blue-700">
+//                 <Package size={14} />
+//                 <span>
+//                   Order <strong>{preloadedOrder.order_number}</strong> —{" "}
+//                   {preloadedOrder.customer_name} will be attached to this trip
+//                 </span>
+//               </div>
+//             )}
+//             {driver && (
+//               <div className="flex items-center gap-2 text-blue-700">
+//                 <User size={14} />
+//                 <span>
+//                   Driver: <strong>{driver.full_name}</strong> — will be
+//                   auto-assigned
+//                 </span>
+//               </div>
+//             )}
+//             {vehicle && (
+//               <div className="flex items-center gap-2 text-blue-700">
+//                 <Truck size={14} />
+//                 <span>
+//                   Vehicle: <strong>{vehicle.name}</strong> (
+//                   {vehicle.plate_number}) — will be auto-assigned
+//                 </span>
+//               </div>
+//             )}
+//           </div>
+//         )}
+
+//         {/* TRIP DETAILS */}
+//         <FormSection
+//   title="Trip Details"
+//   description="Configure trip type, destination, and scheduling information"
+// >
+//   <div className="space-y-5">
+//     {/* Trip Type — disabled when coming from an order */}
+//     <Controller
+//       control={control}
+//       name="type"
+//       render={({ field }) => (
+//         <FormSelect
+//           label="Trip Type"
+//           required
+//           options={TRIP_TYPE_OPTIONS}
+//           value={field.value}
+//           onValueChange={(v) => field.onChange(v as Trip["type"])}
+//           error={errors.type?.message}
+//           disabled={isTripTypeLocked}
+//           hint={
+//             isTripTypeLocked
+//               ? "Locked to Order Delivery — you arrived here from an order."
+//               : undefined
+//           }
+//         />
+//       )}
+//     />
+
+//     {/*
+//      * Show order selector ONLY when:
+//      *   - trip type is "order_delivery"
+//      *   - AND no orderId in the URL (not coming from order detail page)
+//      */}
+//     {tripType === "order_delivery" && !orderId && (
+//       <Controller
+//         control={control}
+//         name="linked_order_id"
+//         render={({ field }) => (
+//           <FormSelect
+//             label="Link to Order"
+//             placeholder="Select a confirmed order (optional)"
+//             options={assignableOrders}
+//             value={field.value ?? ""}
+//             onValueChange={(v) => {
+//               field.onChange(v);
+
+//               // Auto-fill destination from the linked order
+//               const linked = getOrderById(v);
+
+//               if (linked) {
+//                 setValue(
+//                   "end_location",
+//                   linked.delivery_address
+//                 );
+
+//                 if (linked.delivery_date) {
+//                   setValue(
+//                     "scheduled_date",
+//                     linked.delivery_date
+//                   );
+//                 }
+//               }
+//             }}
+//             hint="Only confirmed, unassigned orders are shown. Leave blank for a standalone trip."
+//           />
+//         )}
+//       />
+//     )}
+
+//     <FormInput
+//       label="Start Location"
+//       required
+//       placeholder="e.g. Lagos Depot, Apapa"
+//       error={errors.start_location?.message}
+//       {...register("start_location")}
+//     />
+
+//     <FormInput
+//       label="End Location / Destination"
+//       required
+//       placeholder="e.g. Customer site, Ikorodu"
+//       error={errors.end_location?.message}
+//       {...register("end_location")}
+//     />
+
+//     {/* <Controller
+//       control={control}
+//       name="scheduled_date"
+//       render={({ field }) => (
+//         <FormDatePicker
+//           label="Scheduled Date"
+//           required
+//           value={field.value}
+//           onChange={field.onChange}
+//           error={errors.scheduled_date?.message}
+//         />
+//       )}
+//     /> */}
+
+//     <FormDatePicker
+//       label="Scheduled Date"
+//       required
+//       {...register("scheduled_date")}
+//     />
+
+//     <FormTextarea
+//       label="Notes"
+//       placeholder="Any special instructions for this trip…"
+//       {...register("notes")}
+//     />
+//   </div>
+// </FormSection>
+//         {/* NEXT STEPS */}
+//         <div className="bg-gray-50 border border-brand-border rounded-xl p-4 text-sm text-brand-text-secondary">
+//           <p className="font-medium text-brand-text-primary mb-1">
+//             After creating this trip:
+//           </p>
+//           <ol className="list-decimal ml-4 space-y-1">
+//             {!driverId && !vehicleId && (
+//               <li>Assign a driver and vehicle on the trip detail page</li>
+//             )}
+//             <li>Dispatch the trip when ready to leave the depot</li>
+//             <li>Mark in transit when the driver departs</li>
+//             <li>Complete the trip once all deliveries are confirmed</li>
+//           </ol>
+//         </div>
+
+//         <ErrorBanner message={errors.root?.message} />
+
+//         {/* ACTIONS */}
+//         <div className="flex justify-end gap-3 pb-10">
+//           {/* <Button type="button" variant="outline" onClick={() => router.back()}>
+//             Cancel
+//           </Button> */}
+//           <Button
+//             type="submit"
+//             loading={isSubmitting}
+//             loadingText="Creating…"
+//           >
+//             Create Trip
+//           </Button>
+//         </div>
+//       </form>
+//     </AppLayout>
+//   );
+// }
+
+
+
+
+
+
+
+
 "use client";
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Package, User, Truck } from "lucide-react";
+import { Package, User, Truck } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -251,45 +590,31 @@ import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import ErrorBanner from "@/components/ui/ErrorBanner";
+import FormSection from "@/components/ui/FormSection";
 
-import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
-import { orders } from "@/lib/modules/orders/mock/orders.mock";
-import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors";
-import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import {
   createTripSchema,
   type CreateTripFormData,
 } from "@/lib/modules/fleet/schemas/trip.schema";
-import { TripsService } from "@/lib/services/api/trips.service";
+import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 import { parseError } from "@/lib/errors";
-import FormSection from "@/components/ui/FormSection";
+
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
+import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
-  { value: "order_delivery",   label: "Order Delivery" },
-  { value: "maintenance",      label: "Vehicle Maintenance" },
+  { value: "order_delivery", label: "Order Delivery" },
+  { value: "maintenance", label: "Vehicle Maintenance" },
   { value: "station_transfer", label: "Station Transfer" },
-  { value: "inspection",       label: "Safety Inspection" },
-  { value: "emergency",        label: "Emergency Response" },
+  { value: "inspection", label: "Safety Inspection" },
+  { value: "emergency", label: "Emergency Response" },
 ];
 
-/** Confirmed orders that haven't been assigned to a trip yet */
-function getAssignableOrders() {
-  return orders
-    .filter(
-      (o) =>
-        o.order_status === "confirmed" && o.fulfillment_status === "pending"
-    )
-    .map((o) => ({
-      value: o.id,
-      label: `${o.order_number} — ${o.customer_name}`,
-    }));
-}
-
-// ── Page wrapper — needed for useSearchParams ──────────────
+// ── Page wrapper ──────────────────────────────────────────
 export default function CreateTripPage() {
   return (
     <Suspense fallback={null}>
@@ -300,25 +625,39 @@ export default function CreateTripPage() {
 
 // ── Form ──────────────────────────────────────────────────
 function CreateTripForm() {
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const vehicleId = searchParams.get("vehicleId");
-  const driverId  = searchParams.get("driverId");
-  const orderId   = searchParams.get("orderId");  // comes from order detail page
+  const driverId = searchParams.get("driverId");
+  const orderId = searchParams.get("orderId");
 
-  const vehicle        = vehicleId ? getVehicleById(vehicleId) : null;
-  const driver         = driverId  ? getDriverById(driverId)   : null;
-  const preloadedOrder = orderId   ? getOrderById(orderId)     : null;
+  // ── DATA HOOKS ─────────────────────────────────────────
+  const { orders } = useOrders();
+  const { drivers } = useDrivers();
+  const { vehicles } = useVehicles();
 
-  /**
-   * When arriving from the order detail page the Trip Type is locked to
-   * "order_delivery" and the order dropdown is hidden (orderId is already
-   * known from the URL).
-   */
+  // ── LOOKUP MAPS (same pattern we used in Trips page) ───
+  const driverMap = new Map(drivers.map((d) => [d.id, d]));
+  const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
+  const orderMap = new Map(orders.map((o) => [o.id, o]));
+
+  const vehicle = vehicleId ? vehicleMap.get(vehicleId) : null;
+  const driver = driverId ? driverMap.get(driverId) : null;
+  const preloadedOrder = orderId ? orderMap.get(orderId) : null;
+
   const isTripTypeLocked = !!orderId;
 
-  const assignableOrders = getAssignableOrders();
+  const assignableOrders = orders
+    .filter(
+      (o) =>
+        o.order_status === "confirmed" &&
+        o.fulfillment_status === "pending"
+    )
+    .map((o) => ({
+      value: o.id,
+      label: `${o.order_number} — ${o.customer_name}`,
+    }));
 
   const {
     register,
@@ -331,12 +670,12 @@ function CreateTripForm() {
   } = useForm<CreateTripFormData>({
     resolver: zodResolver(createTripSchema),
     defaultValues: {
-      type:            "order_delivery",
+      type: "order_delivery",
       linked_order_id: orderId ?? "",
-      start_location:  "",
-      end_location:    preloadedOrder?.delivery_address ?? "",
-      scheduled_date:  preloadedOrder?.delivery_date    ?? "",
-      notes:           "",
+      start_location: "",
+      end_location: preloadedOrder?.delivery_address ?? "",
+      scheduled_date: preloadedOrder?.delivery_date ?? "",
+      notes: "",
     },
   });
 
@@ -345,21 +684,26 @@ function CreateTripForm() {
   async function onSubmit(data: CreateTripFormData) {
     const effectiveOrderId =
       orderId ??
-      (data.type === "order_delivery" ? (data.linked_order_id || undefined) : undefined);
+      (data.type === "order_delivery"
+        ? data.linked_order_id || undefined
+        : undefined);
 
     try {
       const newTrip = await TripsService.createTrip({
-        type:           data.type,
-        order_ids:      effectiveOrderId ? [effectiveOrderId] : [],
+        type: data.type,
+        order_ids: effectiveOrderId ? [effectiveOrderId] : [],
         start_location: data.start_location,
-        end_location:   data.end_location,
+        end_location: data.end_location,
         scheduled_date: data.scheduled_date,
-        notes:          data.notes,
+        notes: data.notes,
       });
 
-      // Auto-assign if context carried a driver and vehicle
       if (vehicleId && driverId) {
-        await TripsService.assignDriverAndVehicle(newTrip.id, driverId, vehicleId);
+        await TripsService.assignDriverAndVehicle(
+          newTrip.id,
+          driverId,
+          vehicleId
+        );
       }
 
       router.push(`/fleet/trips/${newTrip.id}`);
@@ -370,52 +714,44 @@ function CreateTripForm() {
 
   return (
     <AppLayout pageTitle="Create Trip">
-      {/* <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </button> */}
-
       <PageHeader
         title="Create Trip"
         description="Schedule a new logistics trip for order delivery or fleet operations"
         className="mb-6"
       />
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="space-y-6 max-w-2xl"
-      >
-        {/* PRE-FILLED CONTEXT BANNER */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+
+        {/* PRE-FILLED CONTEXT */}
         {(vehicle || driver || preloadedOrder) && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2 text-sm">
             <p className="font-medium text-blue-800">Pre-filled context:</p>
+
             {preloadedOrder && (
               <div className="flex items-center gap-2 text-blue-700">
                 <Package size={14} />
                 <span>
                   Order <strong>{preloadedOrder.order_number}</strong> —{" "}
-                  {preloadedOrder.customer_name} will be attached to this trip
+                  {preloadedOrder.customer_name}
                 </span>
               </div>
             )}
+
             {driver && (
               <div className="flex items-center gap-2 text-blue-700">
                 <User size={14} />
                 <span>
-                  Driver: <strong>{driver.full_name}</strong> — will be
-                  auto-assigned
+                  Driver: <strong>{driver.full_name}</strong>
                 </span>
               </div>
             )}
+
             {vehicle && (
               <div className="flex items-center gap-2 text-blue-700">
                 <Truck size={14} />
                 <span>
                   Vehicle: <strong>{vehicle.name}</strong> (
-                  {vehicle.plate_number}) — will be auto-assigned
+                  {vehicle.plate_number})
                 </span>
               </div>
             )}
@@ -424,143 +760,87 @@ function CreateTripForm() {
 
         {/* TRIP DETAILS */}
         <FormSection
-  title="Trip Details"
-  description="Configure trip type, destination, and scheduling information"
->
-  <div className="space-y-5">
-    {/* Trip Type — disabled when coming from an order */}
-    <Controller
-      control={control}
-      name="type"
-      render={({ field }) => (
-        <FormSelect
-          label="Trip Type"
-          required
-          options={TRIP_TYPE_OPTIONS}
-          value={field.value}
-          onValueChange={(v) => field.onChange(v as Trip["type"])}
-          error={errors.type?.message}
-          disabled={isTripTypeLocked}
-          hint={
-            isTripTypeLocked
-              ? "Locked to Order Delivery — you arrived here from an order."
-              : undefined
-          }
-        />
-      )}
-    />
+          title="Trip Details"
+          description="Configure trip type, destination, and scheduling information"
+        >
+          <div className="space-y-5">
 
-    {/*
-     * Show order selector ONLY when:
-     *   - trip type is "order_delivery"
-     *   - AND no orderId in the URL (not coming from order detail page)
-     */}
-    {tripType === "order_delivery" && !orderId && (
-      <Controller
-        control={control}
-        name="linked_order_id"
-        render={({ field }) => (
-          <FormSelect
-            label="Link to Order"
-            placeholder="Select a confirmed order (optional)"
-            options={assignableOrders}
-            value={field.value ?? ""}
-            onValueChange={(v) => {
-              field.onChange(v);
+            <Controller
+              control={control}
+              name="type"
+              render={({ field }) => (
+                <FormSelect
+                  label="Trip Type"
+                  options={TRIP_TYPE_OPTIONS}
+                  value={field.value}
+                  onValueChange={(v) => field.onChange(v as Trip["type"])}
+                  error={errors.type?.message}
+                  disabled={isTripTypeLocked}
+                />
+              )}
+            />
 
-              // Auto-fill destination from the linked order
-              const linked = getOrderById(v);
+            {tripType === "order_delivery" && !orderId && (
+              <Controller
+                control={control}
+                name="linked_order_id"
+                render={({ field }) => (
+                  <FormSelect
+                    label="Link to Order"
+                    options={assignableOrders}
+                    value={field.value ?? ""}
+                    onValueChange={(v) => {
+                      field.onChange(v);
 
-              if (linked) {
-                setValue(
-                  "end_location",
-                  linked.delivery_address
-                );
+                      const linked = orderMap.get(v);
+                      if (linked) {
+                        setValue(
+                          "end_location",
+                          linked.delivery_address
+                        );
 
-                if (linked.delivery_date) {
-                  setValue(
-                    "scheduled_date",
-                    linked.delivery_date
-                  );
-                }
-              }
-            }}
-            hint="Only confirmed, unassigned orders are shown. Leave blank for a standalone trip."
-          />
-        )}
-      />
-    )}
-
-    <FormInput
-      label="Start Location"
-      required
-      placeholder="e.g. Lagos Depot, Apapa"
-      error={errors.start_location?.message}
-      {...register("start_location")}
-    />
-
-    <FormInput
-      label="End Location / Destination"
-      required
-      placeholder="e.g. Customer site, Ikorodu"
-      error={errors.end_location?.message}
-      {...register("end_location")}
-    />
-
-    {/* <Controller
-      control={control}
-      name="scheduled_date"
-      render={({ field }) => (
-        <FormDatePicker
-          label="Scheduled Date"
-          required
-          value={field.value}
-          onChange={field.onChange}
-          error={errors.scheduled_date?.message}
-        />
-      )}
-    /> */}
-
-    <FormDatePicker
-      label="Scheduled Date"
-      required
-      {...register("scheduled_date")}
-    />
-
-    <FormTextarea
-      label="Notes"
-      placeholder="Any special instructions for this trip…"
-      {...register("notes")}
-    />
-  </div>
-</FormSection>
-        {/* NEXT STEPS */}
-        <div className="bg-gray-50 border border-brand-border rounded-xl p-4 text-sm text-brand-text-secondary">
-          <p className="font-medium text-brand-text-primary mb-1">
-            After creating this trip:
-          </p>
-          <ol className="list-decimal ml-4 space-y-1">
-            {!driverId && !vehicleId && (
-              <li>Assign a driver and vehicle on the trip detail page</li>
+                        if (linked.delivery_date) {
+                          setValue(
+                            "scheduled_date",
+                            linked.delivery_date
+                          );
+                        }
+                      }
+                    }}
+                  />
+                )}
+              />
             )}
-            <li>Dispatch the trip when ready to leave the depot</li>
-            <li>Mark in transit when the driver departs</li>
-            <li>Complete the trip once all deliveries are confirmed</li>
-          </ol>
-        </div>
+
+            <FormInput
+              label="Start Location"
+              {...register("start_location")}
+              error={errors.start_location?.message}
+            />
+
+            <FormInput
+              label="End Location"
+              {...register("end_location")}
+              error={errors.end_location?.message}
+            />
+
+            <FormInput
+              label="Scheduled Date"
+              type="date"
+              {...register("scheduled_date")}
+            />
+
+            <FormTextarea
+              label="Notes"
+              {...register("notes")}
+            />
+          </div>
+        </FormSection>
 
         <ErrorBanner message={errors.root?.message} />
 
-        {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          {/* <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button> */}
-          <Button
-            type="submit"
-            loading={isSubmitting}
-            loadingText="Creating…"
-          >
+          <Button type="submit" loading={isSubmitting}>
             Create Trip
           </Button>
         </div>

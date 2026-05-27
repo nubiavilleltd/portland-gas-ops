@@ -1,46 +1,42 @@
-// import { drivers } from "../mock/drivers.mock";
-
-// export function getDrivers() {
-//   return drivers;
-// }
-
-// export function getDriverById(id: string) {
-//   return drivers.find(
-//     (driver) => driver.id === id
-//   );
-// }
-
-// export function getAvailableDrivers() {
-//   return drivers.filter(
-//     (driver) => driver.status === "available"
-//   );
-// }
-
-
-
-
-
-import { drivers } from "../mock/drivers.mock";
 import type { Driver, DriverStatus } from "../types/driver.types";
 
-export function getDrivers(): Driver[] {
-  return drivers;
+
+// ── Single lookup ────────────────────────────────────────
+
+export function getDriverById(
+  drivers: Driver[],
+  id: string
+): Driver | undefined {
+  return drivers.find(
+    (driver) => driver.id === id
+  );
 }
 
-export function getDriverById(id: string): Driver | undefined {
-  return drivers.find((driver) => driver.id === id);
-}
+// ── Filters ──────────────────────────────────────────────
 
-export function getAvailableDrivers(): Driver[] {
-  return drivers.filter((driver) => driver.status === "available");
-}
-
-export function getDriversByStatus(status: DriverStatus): Driver[] {
-  return drivers.filter((driver) => driver.status === status);
-}
-
-export function getDriversOnActiveTrip(): Driver[] {
+export function getAvailableDrivers(
+  drivers: Driver[]
+): Driver[] {
   return drivers.filter(
-    (d) => d.status === "assigned" || d.status === "in_transit"
+    (driver) => driver.status === "available"
+  );
+}
+
+export function getDriversByStatus(
+  drivers: Driver[],
+  status: DriverStatus
+): Driver[] {
+  return drivers.filter(
+    (driver) => driver.status === status
+  );
+}
+
+export function getDriversOnActiveTrip(
+  drivers: Driver[]
+): Driver[] {
+  return drivers.filter(
+    (d) =>
+      d.status === "assigned" ||
+      d.status === "in_transit"
   );
 }

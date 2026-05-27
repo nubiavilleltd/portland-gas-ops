@@ -31,6 +31,21 @@ export class DriversService {
     );
   }
 
+
+    static async createDriver(
+    input: Omit<Driver, "id" | "created_at">
+  ): Promise<Driver> {
+    const newDriver: Driver = {
+      id: `drv-${Date.now()}`,
+      created_at: new Date().toISOString().split("T")[0],
+      ...input,
+    };
+
+    drivers.push(newDriver);
+
+    return Promise.resolve(newDriver);
+  }
+
   // ── UPDATE ──────────────────────────────────────────────
 
   static async updateDriver(id: string, input: Partial<Driver>): Promise<Driver> {

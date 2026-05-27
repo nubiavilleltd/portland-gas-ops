@@ -5,7 +5,6 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 
-import { getVehicles } from "@/lib/modules/fleet/selectors/vehicles.selectors";
 import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
 
 
@@ -13,6 +12,7 @@ import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicle
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 
 const columns: Column<Vehicle>[] = [
   {
@@ -64,7 +64,7 @@ const columns: Column<Vehicle>[] = [
 
 
 export default function VehiclesPage() {
-  const vehicles = getVehicles();
+  const {vehicles} = useVehicles();
 
   return (
     <AppLayout pageTitle="Vehicles">

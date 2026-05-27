@@ -584,14 +584,23 @@ import { formatDate } from "@/lib/utils";
 
 import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
 import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors";
-import { getTrips } from "@/lib/modules/fleet/selectors/trips.selectors";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import DataTable, { Column } from "@/components/ui/DataTable";
+import { useTrips } from "@/lib/modules/fleet/hooks/useTrips";
+import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+
 
 export default function TripsPage() {
-  const trips = getTrips();
+  const { trips } = useTrips();
+  const { drivers } = useDrivers();
+  const { vehicles } = useVehicles();
+
+  // ── IMPORTANT: build lookup maps (fast + clean) ────────
+  const driverMap = new Map(drivers.map((d) => [d.id, d]));
+  const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
 
   const columns: Column<Trip>[] = [
     {
@@ -607,16 +616,15 @@ export default function TripsPage() {
     {
       key: "status",
       label: "Status",
-      render: (_, row) => (
-        <TripStatusBadge status={row.status} />
-      ),
+      render: (_, row) => <TripStatusBadge status={row.status} />,
     },
 
     {
       key: "driver_id",
       label: "Driver",
       render: (value) => {
-        const driver = value ? getDriverById(String(value)) : null;
+        const driver = value ? driverMap.get(String(value)) : undefined;
+
         return driver ? (
           driver.full_name
         ) : (
@@ -631,7 +639,8 @@ export default function TripsPage() {
       key: "vehicle_id",
       label: "Vehicle",
       render: (value) => {
-        const vehicle = value ? getVehicleById(String(value)) : null;
+        const vehicle = value ? vehicleMap.get(String(value)) : undefined;
+
         return vehicle ? (
           vehicle.name
         ) : (
@@ -660,15 +669,10 @@ export default function TripsPage() {
 
   return (
     <AppLayout pageTitle="Trips">
-
       <PageHeader
         title="Trips"
         description="Fleet operations and delivery execution tracking"
-        action={
-          <Button href="/fleet/trips/new">
-            Create Trip
-          </Button>
-        }
+        action={<Button href="/fleet/trips/new">Create Trip</Button>}
       />
 
       <DataTable<Trip>
@@ -677,7 +681,6 @@ export default function TripsPage() {
         rowHref={(trip) => `/fleet/trips/${trip.id}`}
         emptyMessage="No trips available."
       />
-
     </AppLayout>
   );
 }

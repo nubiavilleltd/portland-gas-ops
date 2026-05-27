@@ -8,11 +8,13 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
 
-import { vehicles } from "@/lib/modules/fleet/mock/vehicles.mock";
 import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 
 export default function AddVehiclePage() {
   const router = useRouter();
+
+  const {vehicles} = useVehicles()
 
   const [form, setForm] = useState({
     name: "",

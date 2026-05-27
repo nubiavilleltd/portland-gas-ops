@@ -1,111 +1,117 @@
 "use client";
 
-// ============================================================
-//  PAYMENTS HOOKS
-//
-//  usePayments()                    — fetches all payments via service
-//  usePaymentById(id)               — finds one payment by id
-//  usePaymentsByInvoice(invoiceId)  — all payments for an invoice
-//  useTotalPaidForInvoice(id)       — sum paid for an invoice
-//
-//  TODAY:   useEffect + service call (mock data)
-//  FUTURE:  swap useEffect body for useQuery — components unchanged
-//
-//  FUTURE SWAP (usePayments):
-//    return useQuery({
-//      queryKey: PAYMENT_KEYS.payments,
-//      queryFn:  () => PaymentsService.getPayments(),
-//    });
-// ============================================================
+import { useQuery } from "@tanstack/react-query";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { PaymentsService } from "@/lib/services/api/payments.service";
+import { PaymentsService } from "@/lib/modules/payments/services/payments.service";
+
 import {
-    getPaymentById,
-    getPaymentsByInvoice,
-    getPaymentSummary,
-    getTotalPaidForInvoice,
+  getPaymentById,
+  getPaymentsByInvoice,
+  getPaymentSummary,
+  getTotalPaidForInvoice,
 } from "@/lib/modules/payments/selectors/payments.selectors";
+
 import { parseError } from "@/lib/errors";
-import { Payment } from "../types/payments.types";
 
-// ── Shared result shape ────────────────────────────────────
-interface UsePaymentsResult {
-    payments: Payment[];
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
+import type { Payment } from "../types/payments.types";
+
+import { PAYMENT_KEYS } from "@/lib/query-keys";
+
+// ─────────────────────────────────────────────
+// BASE HOOK
+// ─────────────────────────────────────────────
+
+export function usePayments() {
+  const query = useQuery({
+    queryKey: PAYMENT_KEYS.payments,
+    queryFn: PaymentsService.getPayments,
+  });
+
+  return {
+    payments: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
 }
 
-// ── Derived: total amount paid for one invoice ────────────
-interface UseTotalPaidResult {
-    totalPaid: number;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-}
+// ─────────────────────────────────────────────
+// SINGLE PAYMENT
+// ─────────────────────────────────────────────
 
-// ── Derived: single payment ───────────────────────────────
-interface UsePaymentByIdResult {
-    payment: Payment | undefined;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-}
-
-// ── Base hook ─────────────────────────────────────────────
-export function usePayments(): UsePaymentsResult {
-    const [payments, setPayments] = useState<Payment[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    const fetch = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const data = await PaymentsService.getPayments();
-            setPayments(data);
-        } catch (err) {
-            setError(parseError(err));
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => { fetch(); }, [fetch]);
-
-    return { payments, isLoading, error, refetch: fetch };
-}
-
-
-export function usePaymentById(id: string): UsePaymentByIdResult {
-    const { payments, isLoading, error, refetch } = usePayments();
-    const payment = getPaymentById(payments, id);   // selector
-    return { payment, isLoading, error, refetch };
-}
-
-// ── Derived: all payments for one invoice ─────────────────
-export function usePaymentsByInvoice(invoiceId: string): UsePaymentsResult {
-    const { payments, isLoading, error, refetch } = usePayments();
-    const invoicePayments = getPaymentsByInvoice(payments, invoiceId);   // selector
-    return { payments: invoicePayments, isLoading, error, refetch };
-}
-
-export function usePaymentSummary(invoiceId: string | undefined) {
+export function usePaymentById(id: string) {
   const { payments, isLoading, error, refetch } = usePayments();
 
-  const summary = useMemo(
-    () => getPaymentSummary(payments, invoiceId),
-    [payments, invoiceId]
-  );
+  const payment = getPaymentById(payments, id);
 
-  return { summary, isLoading, error, refetch };
+  return {
+    payment,
+    isLoading,
+    error,
+    refetch,
+  };
 }
 
+// ─────────────────────────────────────────────
+// PAYMENTS BY INVOICE
+// ─────────────────────────────────────────────
 
+export function usePaymentsByInvoice(invoiceId: string) {
+  const { payments, isLoading, error, refetch } = usePayments();
 
-export function useTotalPaidForInvoice(invoiceId: string): UseTotalPaidResult {
-    const { payments, isLoading, error, refetch } = usePayments();
-    const totalPaid = getTotalPaidForInvoice(payments, invoiceId);   // selector
-    return { totalPaid, isLoading, error, refetch };
+  const invoicePayments = getPaymentsByInvoice(
+    payments,
+    invoiceId
+  );
+
+  return {
+    payments: invoicePayments,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+// ─────────────────────────────────────────────
+// PAYMENT SUMMARY
+// ─────────────────────────────────────────────
+
+export function usePaymentSummary(
+  invoiceId: string | undefined
+) {
+  const { payments, isLoading, error, refetch } = usePayments();
+
+  const summary = getPaymentSummary(
+    payments,
+    invoiceId
+  );
+
+  return {
+    summary,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+// ─────────────────────────────────────────────
+// TOTAL PAID
+// ─────────────────────────────────────────────
+
+export function useTotalPaidForInvoice(
+  invoiceId: string
+) {
+  const { payments, isLoading, error, refetch } = usePayments();
+
+  const totalPaid = getTotalPaidForInvoice(
+    payments,
+    invoiceId
+  );
+
+  return {
+    totalPaid,
+    isLoading,
+    error,
+    refetch,
+  };
 }

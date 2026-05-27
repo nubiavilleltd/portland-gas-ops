@@ -9,7 +9,7 @@ import { trips } from "@/lib/modules/fleet/mock/trips.mock";
 import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
 import { vehicles } from "@/lib/modules/fleet/mock/vehicles.mock";
 import type { Trip, TripStatus } from "@/lib/modules/fleet/types/trip.types";
-import { OrdersService } from "./orders.service";
+import { OrdersService } from "../../../services/api/orders.service";
 
 export class TripsService {
   // ── READ ────────────────────────────────────────────────

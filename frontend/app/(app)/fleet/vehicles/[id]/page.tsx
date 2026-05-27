@@ -10,22 +10,18 @@ import {
   formatDate,
 } from "@/lib/utils";
 
-import {
-  getVehicleById,
-} from "@/lib/modules/fleet/selectors/vehicles.selectors";
 
-import {
-  getTripsByVehicle,
-} from "@/lib/modules/fleet/selectors/trips.selectors";
 import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
 import FormSection from "@/components/ui/FormSection";
+import { useTripsByVehicle } from "@/lib/modules/fleet/hooks/useTrips";
+import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 
 
 export default function VehicleDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const vehicle = getVehicleById(id);
+  const {vehicle} = useVehicleById(id);
 
   if (!vehicle) {
     return (
@@ -35,7 +31,7 @@ export default function VehicleDetailPage() {
     );
   }
 
-  const trips = getTripsByVehicle(vehicle.id);
+  const {trips} = useTripsByVehicle(vehicle.id);
 
   const activeTrip = trips.find(
     (t) => t.status === "in_transit" || t.status === "assigned"

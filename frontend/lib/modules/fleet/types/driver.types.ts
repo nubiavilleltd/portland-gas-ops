@@ -13,6 +13,8 @@ export interface Driver {
   phone_number: string;
   license_number: string;
   experience_years: number;
+  address?: string;
+  profile_image:string 
   status: DriverStatus;
   current_trip_id?: string;  // Back-reference to active trip
   created_at: string;

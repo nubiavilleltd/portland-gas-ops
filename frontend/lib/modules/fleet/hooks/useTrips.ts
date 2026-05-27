@@ -21,7 +21,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from "react";
-import { TripsService } from "@/lib/services/api/trips.service";
+import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import {
   getTripById,

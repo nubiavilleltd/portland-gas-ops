@@ -11,13 +11,14 @@ import FormInput from "@/components/forms/FormInput";
 import {
   getVehicleById,
 } from "@/lib/modules/fleet/selectors/vehicles.selectors";
+import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 
 export default function EditVehiclePage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const vehicle = getVehicleById(id);
+  const {vehicle} = useVehicleById(id);
 
   const [form, setForm] = useState({
     name: "",

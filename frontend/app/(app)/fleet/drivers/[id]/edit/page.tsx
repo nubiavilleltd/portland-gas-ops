@@ -13,6 +13,7 @@ import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
 import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
 import FormSection from "@/components/ui/FormSection";
+import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 
 export default function EditDriverPage() {
   const params = useParams();
@@ -20,7 +21,7 @@ export default function EditDriverPage() {
 
   const id = params.id as string;
 
-  const existingDriver = getDriverById(id);
+  const {driver:existingDriver} = useDriverById(id);
 
   const [form, setForm] = useState({
     full_name: "",
