@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ORDER_KEYS } from "../constants/query-keys";
 import type { Order } from "../types/orders.types";
 import { confirmOrderWorkflow } from "../workflows/confirmOrder.workflow";
+import { ORDER_ROUTES } from "../constants/routes";
 
 export function useConfirmOrderWorkflow(order?: Order) {
   const queryClient = useQueryClient();
@@ -36,7 +37,8 @@ export function useConfirmOrderWorkflow(order?: Order) {
 
       toast.success("Order confirmed successfully");
 
-      router.push(`/orders/${updatedOrder.id}`);
+    //   router.push(`/orders/${updatedOrder.id}`);
+      router.push(ORDER_ROUTES.detail(updatedOrder.id));
     },
 
     onError: (err: any) => {

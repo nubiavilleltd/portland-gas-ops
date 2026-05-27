@@ -24,7 +24,7 @@ import { FLEET_KEYS } from "../constants/query-keys";
 
 export function useDrivers() {
   const query = useQuery({
-    queryKey: FLEET_KEYS.drivers,
+    queryKey: FLEET_KEYS.drivers(),
     queryFn: DriversService.getDrivers,
     staleTime: 60 * 1000,
   });
