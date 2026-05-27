@@ -12,7 +12,7 @@ import Button from "@/components/ui/Button";
 import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 // import { OrdersService } from "@/lib/services/orders.service";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import FormSection from "@/components/ui/FormSection";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";

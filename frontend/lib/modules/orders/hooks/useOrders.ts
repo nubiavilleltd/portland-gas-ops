@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import type { Order, OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
   getOrderById,
@@ -15,7 +15,7 @@ import { ORDER_KEYS } from "@/lib/query-keys";
 // ── Base hook ─────────────────────────────────────────────
 export function useOrders() {
   const query = useQuery({
-    queryKey: ORDER_KEYS.orders,
+    queryKey: ORDER_KEYS.lists(),
     queryFn: OrdersService.getOrders,
     staleTime: 60 * 1000,
   });

@@ -6,7 +6,7 @@
 
 import { CreateInvoiceInput, Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 
 
 

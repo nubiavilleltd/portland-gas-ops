@@ -18,13 +18,13 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from "react";
-import { InvoicesService } from "@/lib/services/api/invoices.service";
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import {
   getInvoiceById,
   getInvoiceByOrderId,
 } from "@/lib/modules/invoices/selectors/invoices.selectors";
 import { parseError } from "@/lib/errors";
+import { InvoicesService } from "../services/invoice.services";
 
 // ── Shared result shape ────────────────────────────────────
 interface UseInvoicesResult {

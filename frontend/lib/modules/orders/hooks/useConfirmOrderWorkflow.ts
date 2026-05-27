@@ -1,0 +1,46 @@
+// hooks/useConfirmOrderWorkflow.ts
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+
+import { ORDER_KEYS } from "../constants/query-keys";
+import type { Order } from "../types/orders.types";
+import { confirmOrderWorkflow } from "../workflows/confirmOrder.workflow";
+
+export function useConfirmOrderWorkflow(order?: Order) {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!order) throw new Error("Order not loaded");
+      return confirmOrderWorkflow(order);
+    },
+
+    onSuccess: (updatedOrder) => {
+      // ✅ SINGLE ORDER CACHE (NO FLICKER)
+      queryClient.setQueryData(
+        ORDER_KEYS.detail(updatedOrder.id),
+        updatedOrder
+      );
+
+      // ✅ LIST CACHE SYNC
+      queryClient.setQueryData(
+        ORDER_KEYS.lists(),
+        (old?: Order[]) =>
+          old?.map((o) =>
+            o.id === updatedOrder.id ? updatedOrder : o
+          )
+      );
+
+      toast.success("Order confirmed successfully");
+
+      router.push(`/orders/${updatedOrder.id}`);
+    },
+
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to confirm order");
+    },
+  });
+}

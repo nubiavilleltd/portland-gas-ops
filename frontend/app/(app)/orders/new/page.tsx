@@ -8,7 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 
 import type { CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { ORDER_ROUTES } from "@/lib/modules/orders/constants/routes";
 import { parseError } from "@/lib/errors";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";

@@ -12,7 +12,7 @@ import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import type { CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { ORDER_ROUTES } from "@/lib/routes";
 import { parseError } from "@/lib/errors";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";

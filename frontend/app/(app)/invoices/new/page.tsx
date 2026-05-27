@@ -21,7 +21,7 @@ import {
 } from "@/lib/modules/invoices/schemas/invoice.schema";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import FormSection from "@/components/ui/FormSection";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { generateInvoiceNumber } from "@/lib/modules/invoices/utils";

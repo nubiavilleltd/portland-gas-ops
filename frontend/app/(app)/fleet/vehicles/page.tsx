@@ -71,11 +71,11 @@ export default function VehiclesPage() {
       <PageHeader
         title="All Vehicles"
         description="View all operational fleet vehicles"
-        // action={
-        //   <Button href="/fleet/vehicles/new">
-        //     Add Vehicle
-        //   </Button>
-        // }
+        action={
+          <Button href="/fleet/vehicles/new">
+            Add Vehicle
+          </Button>
+        }
       />
 
       <DataTable<Vehicle>

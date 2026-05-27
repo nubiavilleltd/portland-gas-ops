@@ -3,13 +3,24 @@
 //  All order-related types live here. Import from here, not from mock files.
 // ============================================================
 
+
+
+
 // ── 1. ORDER LIFECYCLE STATUS ─────────────────────────────
 // Tracks the administrative state of the order itself.
 export type OrderStatus =
-  | "draft"       // Being created, not yet submitted
-  | "confirmed"   // Approved / ready for fulfillment
-  | "completed"   // Delivered + fully paid — terminal state
-  | "cancelled";  // Cancelled — terminal state
+| "draft"       // Being created, not yet submitted
+| "confirmed"   // Approved / ready for fulfillment
+| "completed"   // Delivered + fully paid — terminal state
+| "cancelled"  // Cancelled — terminal state
+| "assigned"
+| "dispatched"
+| "in_transit"
+| "delivered"
+| "completed"
+
+export type OrderStatusTransition = Record<OrderStatus, readonly OrderStatus[]>;
+
 
 // ── 2. FULFILLMENT STATUS ─────────────────────────────────
 // Tracks where the physical delivery is in its journey.
