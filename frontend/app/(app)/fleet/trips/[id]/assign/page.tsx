@@ -237,10 +237,13 @@ import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { useAvailableDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useAvailableVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useAssignResourcesWorkflow } from "@/lib/modules/fleet/hooks/useAssignResourcesWorkflow";
 
 export default function AssignTripPage() {
   const params = useParams();
   const router = useRouter();
+
+  const assignResources = useAssignResourcesWorkflow();
 
   const tripId = params.id as string;
 
@@ -297,13 +300,15 @@ export default function AssignTripPage() {
     setError(null);
 
     try {
-      await TripsService.assignDriverAndVehicle(
-        tripId,
-        selectedDriverId,
-        selectedVehicleId
-      );
+      // await TripsService.assignDriverAndVehicle(
+      //   tripId,
+      //   selectedDriverId,
+      //   selectedVehicleId
+      // );
 
-      router.push(`/fleet/trips/${tripId}`);
+      // router.push(`/fleet/trips/${tripId}`);
+
+      await assignResources.mutateAsync({tripId, driverId:selectedDriverId, vehicleId:selectedVehicleId})
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to assign trip");
     } finally {
