@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { Trip } from "../types/trip.types";
 import { FLEET_KEYS } from "../constants/query-keys";
 import { ORDER_KEYS } from "@/lib/query-keys";
+import { FLEET_ROUTES } from "../constants/routes";
 
 export function useAssignResourcesWorkflow() {
     const queryClient = useQueryClient();
@@ -46,7 +47,7 @@ export function useAssignResourcesWorkflow() {
                 queryKey: ORDER_KEYS.list(),
             });
             toast.success("Driver and vehicle assigned successfully");
-            router.push(`/fleet/trips/${trip.id}`);
+            router.push(FLEET_ROUTES.tripDetail(trip.id));
         },
 
         onError: (err: any) => {

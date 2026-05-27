@@ -256,10 +256,12 @@ import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useDispatchTripWorkflow } from "@/lib/modules/fleet/hooks/useDispatchTripWorkflow";
 
 export default function DispatchTripPage() {
   const params = useParams();
   const router = useRouter();
+  const dispatchTrip = useDispatchTripWorkflow();
 
   const tripId = params.id as string;
 
@@ -322,8 +324,7 @@ export default function DispatchTripPage() {
     setError(null);
 
     try {
-      await TripsService.dispatchTrip(tripId);
-      router.push(`/fleet/trips/${tripId}`);
+      await dispatchTrip.mutateAsync(trip)
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to dispatch trip"

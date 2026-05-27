@@ -48,6 +48,7 @@ import { FLEET_KEYS } from "../constants/query-keys";
 import { ORDER_KEYS } from "@/lib/modules/orders/constants/query-keys";
 
 import type { Trip } from "../types/trip.types";
+import { FLEET_ROUTES } from "../constants/routes";
 
 export function useCreateTripWorkflow() {
   const queryClient = useQueryClient();
@@ -79,7 +80,7 @@ export function useCreateTripWorkflow() {
 
       toast.success("Trip created successfully");
 
-      router.push(`/fleet/trips/${trip.id}`);
+      router.push(FLEET_ROUTES.tripDetail(trip.id));
     },
 
     onError: (err: any) => {

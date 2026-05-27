@@ -82,3 +82,13 @@ export function canAssignResources(params: {
     canAssignVehicle(vehicle)
   );
 }
+
+
+
+export function canDispatchTrip(trip: Trip) {
+  return trip.status === "assigned";
+}
+
+export function canStartTrip(trip: Trip) {
+  return trip.status === "dispatched" || trip.status === "assigned";
+}
