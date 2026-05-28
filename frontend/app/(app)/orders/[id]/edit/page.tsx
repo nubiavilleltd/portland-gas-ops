@@ -18,6 +18,10 @@ import { parseError } from "@/lib/errors";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 
+import { buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
+import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
+import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
+
 export default function EditOrderPage() {
   const params = useParams();
   const router = useRouter();
@@ -28,6 +32,8 @@ export default function EditOrderPage() {
 
   console.log("order id", {order})
   const { products } = useProducts();
+  const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
+const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 
   // ── Loading skeleton ──────────────────────────────────
   if (isLoading) {
@@ -104,24 +110,31 @@ export default function EditOrderPage() {
   };
 
   // ── Submit ────────────────────────────────────────────
+  // async function handleSubmit(data: CreateOrderFormValues) {
+  //   const primaryItem = data.order_items[0];
+  //   const product = getProductById(products, primaryItem.product_id);
+
+  //   await OrdersService.updateOrder(id, {
+  //     customer_id: data.customer_id,
+  //     order_type: data.order_type,
+  //     product_name: product?.name ?? primaryItem.product_id,
+  //     quantity: String(primaryItem.quantity),
+  //     unit_price: String(primaryItem.unit_price),
+  //     delivery_address: data.delivery_address,
+  //     delivery_date: data.delivery_date,
+  //     notes: data.notes,
+  //   });
+
+  //   toast.success("Order updated successfully");
+  //   router.push(ORDER_ROUTES.detail(id));
+  // }
+
   async function handleSubmit(data: CreateOrderFormValues) {
-    const primaryItem = data.order_items[0];
-    const product = getProductById(products, primaryItem.product_id);
-
-    await OrdersService.updateOrder(id, {
-      customer_id: data.customer_id,
-      order_type: data.order_type,
-      product_name: product?.name ?? primaryItem.product_id,
-      quantity: String(primaryItem.quantity),
-      unit_price: String(primaryItem.unit_price),
-      delivery_address: data.delivery_address,
-      delivery_date: data.delivery_date,
-      notes: data.notes,
-    });
-
-    toast.success("Order updated successfully");
-    router.push(ORDER_ROUTES.detail(id));
-  }
+  await submitOrder({ input: buildOrderPayload(data, products), existingDraftId: id });
+}
+async function handleSaveDraft(data: CreateOrderFormValues) {
+  await saveDraft({ input: buildOrderPayload(data, products), existingDraftId: id });
+}
 
   return (
     <AppLayout pageTitle="Edit Order">
@@ -139,14 +152,22 @@ export default function EditOrderPage() {
         className="mb-6"
       />
 
-      <OrderForm
+      {/* <OrderForm
         defaultValues={defaultValues}
         onSubmit={handleSubmit}
         onCancel={() => router.push(ORDER_ROUTES.detail(id))}
-        submitLabel="Save Changes"
-        submitLoadingLabel="Saving…"
-        showDraft={false}
-      />
+        submitLabel="Submit Order"
+        submitLoadingLabel="Submitting..."
+      /> */}
+      <OrderForm
+  defaultValues={defaultValues}
+  onSubmit={handleSubmit}
+  // onCancel={() => router.push(ORDER_ROUTES.detail(id))}
+  onSaveDraft={handleSaveDraft}
+  submitLabel="Submit Order"
+  submitLoadingLabel="Submitting..."
+  showDraft
+/>
     </AppLayout>
   );
 }

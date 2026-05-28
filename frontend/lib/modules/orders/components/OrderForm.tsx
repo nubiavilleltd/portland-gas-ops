@@ -30,11 +30,12 @@ import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 interface OrderFormProps {
   defaultValues?: Partial<CreateOrderFormValues>;
   onSubmit: (data: CreateOrderFormValues) => Promise<void>;
-  onCancel: () => void;
-  onSaveDraft?: () => void;
+  onCancel?: () => void;
+  // onSaveDraft?: () => void;
   submitLabel?: string;
   submitLoadingLabel?: string;
   showDraft?: boolean;
+  onSaveDraft?: (data: CreateOrderFormValues) => void;
 }
 
 // ── Summary row ───────────────────────────────────────────
@@ -309,11 +310,11 @@ export default function OrderForm({
 
       {/* ACTIONS */}
       <div className="flex items-center justify-end gap-3 pb-10">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+        {/* <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
-        </Button>
+        </Button> */}
         {showDraft && onSaveDraft && (
-          <Button type="button" variant="secondary" disabled={isSubmitting} onClick={onSaveDraft}>
+          <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onSaveDraft?.(form.getValues())}>
             Save Draft
           </Button>
         )}

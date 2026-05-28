@@ -28,6 +28,7 @@ import { canAssignToTrip, canCloseOrder, canConfirmOrder, canEditOrder, canGener
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 
 
@@ -35,11 +36,20 @@ export default function OrderDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
+  const {customers} = useCustomers()
+
   const { order, isLoading, error } = useOrderById(id);
   const { invoice } = useInvoiceByOrderId(id);
   const {summary:paymentSummary} = usePaymentSummary(invoice?.id);
 
   const { trip } = useTripById(order?.trip_id as string);
+
+    const customerMap = Object.fromEntries(
+    customers.map((customer) => [
+      customer.id,
+      customer,
+    ])
+  );
 
 
 
@@ -148,7 +158,8 @@ export default function OrderDetailPage() {
       </p>
 
       <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-        {order.customer_name}
+        {customerMap[order.customer_id]
+          ?.name ?? "—"}
       </h2>
 
       <p className="text-sm text-brand-text-secondary mt-1">

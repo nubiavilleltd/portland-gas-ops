@@ -1,17 +1,38 @@
 import type { Order } from "../types/orders.types";
 
+
+export function isDraft(order: Order) {
+  return order.order_status === "draft";
+}
+
+export function canUpdateDraft(order: Order) {
+  return isDraft(order);
+}
+
+export function canSubmitDraft(order: Order) {
+  return isDraft(order);
+}
+
+export function canSubmitOrder(order: Order) {
+  return isDraft(order);
+}
+
 /**
  * Can the order be edited?
  */
 export function canEditOrder(order: Order): boolean {
-  return order.order_status === "draft";
+  return isDraft(order)
 }
 
 /**
  * Can the order be confirmed?
  */
+// export function canConfirmOrder(order: Order): boolean {
+//   return order.order_status === "draft";
+// }
+
 export function canConfirmOrder(order: Order): boolean {
-  return order.order_status === "draft";
+  return order.order_status === "submitted";   // only submitted orders get confirmed
 }
 
 /**
@@ -20,7 +41,7 @@ export function canConfirmOrder(order: Order): boolean {
 export function canAssignToTrip(order: Order): boolean {
   return (
     order.order_status === "confirmed" &&
-    order.fulfillment_status === "pending"
+    order.fulfillment_status === "pending" && order.payment_status === "paid"
   );
 }
 
