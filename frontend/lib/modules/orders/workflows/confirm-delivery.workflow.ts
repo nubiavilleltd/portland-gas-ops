@@ -1,6 +1,5 @@
 import type { Order } from "../types/orders.types";
 import { OrdersService } from "../services/orders.service";
-import { canTransition } from "../guards/orders.guards";
 
 export async function confirmDeliveryWorkflow(order: Order) {
   if (!order) {

@@ -1,4 +1,3 @@
-import { ORDER_TRANSITIONS } from "../constants/order-transitions.constants";
 import type { Order } from "../types/orders.types";
 
 /**
@@ -65,10 +64,3 @@ export function canCloseOrder(order: Order): boolean {
 }
 
 
-
-export function canTransition(
-  order: Order,
-  next: keyof typeof ORDER_TRANSITIONS
-) {
-  return ORDER_TRANSITIONS[order.order_status].includes(next as never);
-}

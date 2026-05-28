@@ -80,16 +80,16 @@
 
 import type { Order } from "../types/orders.types";
 import { OrdersService } from "../services/orders.service";
-import { canConfirmOrder, canTransition } from "../guards/orders.guards";
+import { canConfirmOrder } from "../guards/orders.guards";
 
 export async function confirmOrderWorkflow(order: Order) {
   if (!canConfirmOrder(order)) {
     throw new Error("Order cannot be confirmed");
   }
 
-  if (!canTransition(order, "confirmed")) {
-    throw new Error("Invalid transition: draft → confirmed");
-  }
+//   if (!canTransition(order, "confirmed")) {
+//     throw new Error("Invalid transition: draft → confirmed");
+//   }
 
   return OrdersService.confirmOrder(order.id);
 }

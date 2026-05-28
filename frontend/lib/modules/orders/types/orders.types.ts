@@ -8,30 +8,45 @@
 
 // ── 1. ORDER LIFECYCLE STATUS ─────────────────────────────
 // Tracks the administrative state of the order itself.
+// export type OrderStatus =
+// | "draft"       // Being created, not yet submitted
+// | "confirmed"   // Approved / ready for fulfillment
+// | "completed"   // Delivered + fully paid — terminal state
+// | "cancelled"  // Cancelled — terminal state
+// | "assigned"
+// | "dispatched"
+// | "in_transit"
+// | "delivered"
+// | "completed"
+
 export type OrderStatus =
-| "draft"       // Being created, not yet submitted
-| "confirmed"   // Approved / ready for fulfillment
-| "completed"   // Delivered + fully paid — terminal state
-| "cancelled"  // Cancelled — terminal state
-| "assigned"
-| "dispatched"
-| "in_transit"
-| "delivered"
-| "completed"
+  | "draft"
+  | "submitted"
+  | "confirmed"
+  | "completed"
+  | "cancelled";
 
 export type OrderStatusTransition = Record<OrderStatus, readonly OrderStatus[]>;
 
 
 // ── 2. FULFILLMENT STATUS ─────────────────────────────────
 // Tracks where the physical delivery is in its journey.
+// export type FulfillmentStatus =
+//   | "pending"      // Confirmed but no trip assigned yet
+//   | "assigned"     // Assigned to a trip (driver + vehicle selected)
+//   | "dispatched"   // Trip has physically left the depot
+//   | "in_transit"   // On the road
+//   | "in_progress"   // On the road
+//   | "delivered"    // Successfully delivered to customer
+//   | "failed";      // Delivery attempt failed
+
 export type FulfillmentStatus =
-  | "pending"      // Confirmed but no trip assigned yet
-  | "assigned"     // Assigned to a trip (driver + vehicle selected)
-  | "dispatched"   // Trip has physically left the depot
-  | "in_transit"   // On the road
-  | "in_progress"   // On the road
-  | "delivered"    // Successfully delivered to customer
-  | "failed";      // Delivery attempt failed
+  | "pending"
+  | "assigned"
+  | "dispatched"
+  | "in_transit"
+  | "delivered"
+  | "failed";
 
 // ── 3. PAYMENT STATUS ─────────────────────────────────────
 // Tracks the billing / cash-collection state.

@@ -6,7 +6,6 @@ const CONFIG: Record<FulfillmentStatus, { label: string; variant: BadgeVariant }
   pending:    { label: "Pending",    variant: "neutral" },
   assigned:   { label: "Assigned",   variant: "purple"  },
   dispatched: { label: "Dispatched", variant: "info"    },
-  in_progress: { label: "In Progress", variant: "info"    },
   in_transit: { label: "In Transit", variant: "cyan"    },
   delivered:  { label: "Delivered",  variant: "success" },
   failed:     { label: "Failed",     variant: "danger"  },
