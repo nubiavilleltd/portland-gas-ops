@@ -173,6 +173,7 @@ import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers"
 import { useVehicleById, useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useStartTripWorkflow } from "@/lib/modules/fleet/hooks/useStartTripWorkflow";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
+import { canStartTrip } from "@/lib/modules/fleet/guards/trip.guards";
 
 export default function StartTripPage() {
   const params = useParams();
@@ -183,9 +184,7 @@ export default function StartTripPage() {
   const tripId = params.id as string;
 
   // ── DATA HOOKS ─────────────────────────────────────────
-  const { trips } = useTrips();
-  const { drivers } = useDrivers();
-  const { vehicles } = useVehicles();
+
 
   const {trip} = useTripById(tripId)
   const {driver} = useDriverById(trip?.driver_id as string)
@@ -193,8 +192,6 @@ export default function StartTripPage() {
 
   
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (!trip) {
     return (
@@ -204,9 +201,7 @@ export default function StartTripPage() {
     );
   }
 
-  const canStart =
-    trip.status === "assigned" || trip.status === "dispatched";
-
+  const canStart = canStartTrip(trip)
   if (!canStart) {
     return (
       <AppLayout pageTitle="Cannot Start Trip">
@@ -227,22 +222,9 @@ export default function StartTripPage() {
     );
   }
 
-  async function handleStart() {
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      await startTrip.mutateAsync(trip as Trip)
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to start trip"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+async function handleStart() {
+  await startTrip.mutateAsync(trip as Trip)
+}
 
   return (
     <AppLayout pageTitle="Start Trip">
@@ -311,17 +293,21 @@ export default function StartTripPage() {
         </div>
 
         {/* ERROR */}
-        {error && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <AlertCircle size={16} />
-            {error}
-          </div>
-        )}
+   {startTrip.error && (
+  <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+    <AlertCircle size={16} />
+    {startTrip.error instanceof Error
+      ? startTrip.error.message
+      : "Failed to start trip"}
+  </div>
+)}
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button onClick={handleStart} disabled={isSubmitting}>
-            {isSubmitting ? "Starting..." : "Start Trip"}
+          <Button   onClick={handleStart}
+  disabled={startTrip.isPending}
+  loading={startTrip.isPending}>
+            Start Trip
           </Button>
         </div>
       </div>

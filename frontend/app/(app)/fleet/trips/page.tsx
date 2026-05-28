@@ -591,16 +591,19 @@ import DataTable, { Column } from "@/components/ui/DataTable";
 import { useTrips } from "@/lib/modules/fleet/hooks/useTrips";
 import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 
 
 export default function TripsPage() {
   const { trips } = useTrips();
   const { drivers } = useDrivers();
   const { vehicles } = useVehicles();
+  // const { orders } = useOrders();
 
   // ── IMPORTANT: build lookup maps (fast + clean) ────────
   const driverMap = new Map(drivers.map((d) => [d.id, d]));
   const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
+  // const orderMap = new Map(orders.map((o) => [o.id, o]));
 
   const columns: Column<Trip>[] = [
     {

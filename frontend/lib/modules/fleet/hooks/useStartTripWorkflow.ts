@@ -48,7 +48,19 @@ export function useStartTripWorkflow() {
       router.push(
         FLEET_ROUTES.tripDetail(updatedTrip.id)
       );
+
+      // ✅ Driver status changed to in_transit
+queryClient.invalidateQueries({
+  queryKey: FLEET_KEYS.drivers(),
+});
+
+// ✅ Vehicle status changed to in_transit
+queryClient.invalidateQueries({
+  queryKey: FLEET_KEYS.vehicles(),
+});
     },
+
+    
 
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to start trip");
