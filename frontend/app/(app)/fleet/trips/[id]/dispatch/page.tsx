@@ -254,9 +254,10 @@ import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
-import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
-import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useVehicleById, useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useDispatchTripWorkflow } from "@/lib/modules/fleet/hooks/useDispatchTripWorkflow";
+import { Trip } from "@/lib/modules/fleet/types/trip.types";
 
 export default function DispatchTripPage() {
   const params = useParams();
@@ -267,11 +268,10 @@ export default function DispatchTripPage() {
 
   // ── React Query sources ───────────────────────────────
   const { trip } = useTripById(tripId);
-  const { drivers } = useDrivers();
-  const { vehicles } = useVehicles();
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { driver } = useDriverById(trip?.driver_id ?? "");
+const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
+
 
   if (!trip) {
     return (
@@ -313,26 +313,30 @@ export default function DispatchTripPage() {
   }
 
   // ── Normalize (safe + fast lookup)
-  const driversMap = new Map(drivers.map((d) => [d.id, d]));
-  const vehiclesMap = new Map(vehicles.map((v) => [v.id, v]));
+  // const driversMap = new Map(drivers.map((d) => [d.id, d]));
+  // const vehiclesMap = new Map(vehicles.map((v) => [v.id, v]));
 
-  const driver = trip.driver_id ? driversMap.get(trip.driver_id) : null;
-  const vehicle = trip.vehicle_id ? vehiclesMap.get(trip.vehicle_id) : null;
+  // const driver = trip.driver_id ? driversMap.get(trip.driver_id) : null;
+  // const vehicle = trip.vehicle_id ? vehiclesMap.get(trip.vehicle_id) : null;
+
+  // async function handleDispatch() {
+  //   setIsSubmitting(true);
+  //   setError(null);
+
+  //   try {
+  //     await dispatchTrip.mutateAsync(trip)
+  //   } catch (err) {
+  //     setError(
+  //       err instanceof Error ? err.message : "Failed to dispatch trip"
+  //     );
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // }
 
   async function handleDispatch() {
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      await dispatchTrip.mutateAsync(trip)
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to dispatch trip"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+  await dispatchTrip.mutateAsync(trip as Trip);
+}
 
   return (
     <AppLayout pageTitle="Dispatch Trip">
@@ -398,7 +402,8 @@ export default function DispatchTripPage() {
                   </p>
 
                   <div className="mt-2">
-                    <CheckReadyItem ok label="Driver available" />
+                    {/* <CheckReadyItem ok label="Driver available" /> */}
+                    <CheckReadyItem ok label="Driver assigned" />
                   </div>
                 </>
               ) : (
@@ -423,7 +428,8 @@ export default function DispatchTripPage() {
                   </p>
 
                   <div className="mt-2">
-                    <CheckReadyItem ok label="Vehicle available" />
+                    {/* <CheckReadyItem ok label="Vehicle available" /> */}
+                    <CheckReadyItem ok label="Vehicle assigned" />
                   </div>
                 </>
               ) : (
@@ -459,20 +465,24 @@ export default function DispatchTripPage() {
         </div>
 
         {/* ERROR */}
-        {error && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <AlertCircle size={16} />
-            {error}
-          </div>
-        )}
+      {dispatchTrip.error && (
+  <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+    <AlertCircle size={16} />
+    {dispatchTrip.error instanceof Error
+      ? dispatchTrip.error.message
+      : "Failed to dispatch trip"}
+  </div>
+)}
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
           <Button
             onClick={handleDispatch}
-            disabled={isSubmitting || !driver || !vehicle}
+            disabled={dispatchTrip.isPending || !driver || !vehicle}
+            loading={dispatchTrip.isPending}
           >
-            {isSubmitting ? "Dispatching..." : "Dispatch Trip"}
+            {/* {isSubmitting ? "Dispatching..." : "Dispatch Trip"} */}
+            Dispatch Trip
           </Button>
         </div>
 

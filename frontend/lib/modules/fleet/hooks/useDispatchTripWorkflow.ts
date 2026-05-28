@@ -66,7 +66,7 @@ export function useDispatchTripWorkflow() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: async (trip?: Trip) => {
+    mutationFn: async (trip: Trip) => {
       if (!trip) {
         throw new Error("Trip not loaded");
       }
