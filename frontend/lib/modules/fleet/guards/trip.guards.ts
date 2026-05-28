@@ -48,16 +48,22 @@ export function canAssignVehicle(
 // TRIP
 // ─────────────────────────────────────────────
 
-export function canAssignResourcesToTrip(
-  trip: Trip | undefined
-) {
-  if (!trip) return false;
+// export function canAssignResourcesToTrip(
+//   trip: Trip | undefined
+// ) {
+//   if (!trip) return false;
 
-  return (
-    trip.status === "pending" &&
-    !trip.driver_id &&
-    !trip.vehicle_id
-  );
+//   return (
+//     trip.status === "pending" &&
+//     !trip.driver_id &&
+//     !trip.vehicle_id
+//   );
+// }
+
+
+export function canAssignResourcesToTrip(trip: Trip | undefined) {
+  if (!trip) return false;
+  return trip.status === "pending" || trip.status === "assigned";
 }
 
 

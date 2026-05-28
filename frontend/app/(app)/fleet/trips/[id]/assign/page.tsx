@@ -239,7 +239,7 @@ import { useAvailableDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useAvailableVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useAssignResourcesWorkflow } from "@/lib/modules/fleet/hooks/useAssignResourcesWorkflow";
 
-export default function AssignTripPage() {
+export default function AssignResourcesPage() {
   const params = useParams();
   const router = useRouter();
 
@@ -275,51 +275,78 @@ export default function AssignTripPage() {
     );
   }
 
-  if (trip.status !== "pending") {
-    return (
-      <AppLayout pageTitle="Already Assigned">
-        <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
-          <h2 className="font-semibold mb-2">Trip cannot be re-assigned</h2>
-          <p className="text-sm text-brand-text-secondary mb-4">
-            This trip is already <TripStatusBadge status={trip.status} /> and cannot be reassigned.
-          </p>
-          <Button href={`/fleet/trips/${tripId}`} variant="outline">
-            Back to Trip
-          </Button>
-        </div>
-      </AppLayout>
-    );
-  }
+  // if (trip.status !== "pending") {
+  //   return (
+  //     <AppLayout pageTitle="Already Assigned">
+  //       <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
+  //         <h2 className="font-semibold mb-2">Trip cannot be re-assigned</h2>
+  //         <p className="text-sm text-brand-text-secondary mb-4">
+  //           This trip is already <TripStatusBadge status={trip.status} /> and cannot be reassigned.
+  //         </p>
+  //         <Button href={`/fleet/trips/${tripId}`} variant="outline">
+  //           Back to Trip
+  //         </Button>
+  //       </div>
+  //     </AppLayout>
+  //   );
+  // }
+
+  if (trip.status !== "pending" && trip.status !== "assigned") {
+  return (
+    <AppLayout pageTitle="Cannot Assign">
+      <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
+        <h2 className="font-semibold mb-2">Trip cannot be assigned</h2>
+        <p className="text-sm text-brand-text-secondary mb-4">
+          Resources can only be assigned to pending or assigned trips. This trip
+          is currently <TripStatusBadge status={trip.status} />.
+        </p>
+        <Button href={`/fleet/trips/${tripId}`} variant="outline">
+          Back to Trip
+        </Button>
+      </div>
+    </AppLayout>
+  );
+}
 
   const canSubmit = selectedDriverId && selectedVehicleId;
 
+  // async function handleAssign() {
+  //   if (!canSubmit) return;
+
+  //   setIsSubmitting(true);
+  //   setError(null);
+
+  //   try {
+  //     // await TripsService.assignDriverAndVehicle(
+  //     //   tripId,
+  //     //   selectedDriverId,
+  //     //   selectedVehicleId
+  //     // );
+
+  //     // router.push(`/fleet/trips/${tripId}`);
+
+  //     await assignResources.mutateAsync({tripId, driverId:selectedDriverId, vehicleId:selectedVehicleId})
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : "Failed to assign trip");
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // }
+
+
   async function handleAssign() {
-    if (!canSubmit) return;
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      // await TripsService.assignDriverAndVehicle(
-      //   tripId,
-      //   selectedDriverId,
-      //   selectedVehicleId
-      // );
-
-      // router.push(`/fleet/trips/${tripId}`);
-
-      await assignResources.mutateAsync({tripId, driverId:selectedDriverId, vehicleId:selectedVehicleId})
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to assign trip");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+  if (!canSubmit) return;
+  await assignResources.mutateAsync({
+    tripId,
+    driverId: selectedDriverId,
+    vehicleId: selectedVehicleId,
+  });
+}
 
   return (
-    <AppLayout pageTitle="Assign Trip">
+    <AppLayout pageTitle="Assign Driver & Vehicle">
       <PageHeader
-        title={`Assign Trip — ${trip.trip_number}`}
+        title={`Assign Driver & Vehicle — ${trip.trip_number}`}
         description="Select a driver and vehicle to assign to this trip."
         className="mb-6"
       />
@@ -391,17 +418,24 @@ export default function AssignTripPage() {
           )}
         </FormSection>
 
-        {error && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <AlertCircle size={16} />
-            {error}
-          </div>
-        )}
+
+        {assignResources.error && (
+  <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+    <AlertCircle size={16} />
+    {assignResources.error instanceof Error
+      ? assignResources.error.message
+      : "Failed to assign resources"}
+  </div>
+)}
 
         <div className="flex justify-end gap-3 pb-10">
-          <Button onClick={handleAssign} disabled={!canSubmit || isSubmitting}>
-            {isSubmitting ? "Assigning..." : "Confirm Assignment"}
-          </Button>
+          <Button
+  onClick={handleAssign}
+  disabled={!canSubmit || assignResources.isPending}
+  loading={assignResources.isPending}
+>
+  Confirm Assignment
+</Button>
         </div>
 
       </div>

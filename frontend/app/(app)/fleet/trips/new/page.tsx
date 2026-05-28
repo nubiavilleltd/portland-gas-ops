@@ -110,28 +110,43 @@ function CreateTripForm() {
 
   const tripType = watch("type");
 
-  async function onSubmit(data: CreateTripFormData) {
-    const effectiveOrderId =
-      orderId ??
-      (data.type === "order_delivery"
-        ? data.linked_order_id || undefined
-        : undefined);
+  // async function onSubmit(data: CreateTripFormData) {
+  //   const effectiveOrderId =
+  //     orderId ??
+  //     (data.type === "order_delivery"
+  //       ? data.linked_order_id || undefined
+  //       : undefined);
 
-    try {
-      await createTrip.mutateAsync({
-        type: data.type,
-        order_ids: effectiveOrderId ? [effectiveOrderId] : [],
-        start_location: data.start_location,
-        end_location: data.end_location,
-        scheduled_date: data.scheduled_date,
-        notes: data.notes,
-      });
-    } catch (err) {
-      setError("root", {
-        message: parseError(err),
-      });
-    }
+  //   try {
+  //     await createTrip.mutateAsync({
+  //       type: data.type,
+  //       order_ids: effectiveOrderId ? [effectiveOrderId] : [],
+  //       start_location: data.start_location,
+  //       end_location: data.end_location,
+  //       scheduled_date: data.scheduled_date,
+  //       notes: data.notes,
+  //     });
+  //   } catch (err) {
+  //     setError("root", {
+  //       message: parseError(err),
+  //     });
+  //   }
+  // }
+
+  async function onSubmit(data: CreateTripFormData) {
+  try {
+    await createTrip.mutateAsync({
+      type: data.type,
+      order_ids: data.linked_order_id ? [data.linked_order_id] : [],
+      start_location: data.start_location,
+      end_location: data.end_location,
+      scheduled_date: data.scheduled_date,
+      notes: data.notes,
+    });
+  } catch (err) {
+    setError("root", { message: parseError(err) });
   }
+}
 
   return (
     <AppLayout pageTitle="Create Trip">

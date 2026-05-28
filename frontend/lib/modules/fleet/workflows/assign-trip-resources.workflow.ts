@@ -12,12 +12,9 @@ export type AssignResourcesInput = {
 export async function assignResourcesWorkflow(input: AssignResourcesInput): Promise<Trip> {
 
   // 1. ASSIGN
-  const updatedTrip =
-    await TripsService.assignDriverAndVehicle(
-      input.tripId,
-      input.driverId,
-      input.vehicleId
-    );
-
-  return updatedTrip;
+ return TripsService.assignDriverAndVehicle(
+    input.tripId,
+    input.driverId,
+    input.vehicleId
+  );
 }

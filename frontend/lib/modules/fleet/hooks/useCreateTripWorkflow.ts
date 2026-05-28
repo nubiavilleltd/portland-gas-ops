@@ -77,32 +77,41 @@ export function useCreateTripWorkflow() {
     // },
 
 
-    onSuccess: (trip: Trip) => {
-  // ✅ SINGLE TRIP CACHE
-  queryClient.setQueryData(
-    FLEET_KEYS.trip(trip.id),
-    trip
-  );
+//     onSuccess: (trip: Trip) => {
+//   // ✅ SINGLE TRIP CACHE
+//   queryClient.setQueryData(
+//     FLEET_KEYS.trip(trip.id),
+//     trip
+//   );
 
-  // ✅ TRIPS LIST CACHE
-  queryClient.setQueryData(
-    FLEET_KEYS.trips(),
-    (old?: Trip[]) =>
-      old?.some((t) => t.id === trip.id)
-        ? old
-        : [trip, ...(old ?? [])]
-  );
+//   // ✅ TRIPS LIST CACHE
+//   queryClient.setQueryData(
+//     FLEET_KEYS.trips(),
+//     (old?: Trip[]) =>
+//       old?.some((t) => t.id === trip.id)
+//         ? old
+//         : [trip, ...(old ?? [])]
+//   );
 
-  // ✅ REFRESH ALL ORDER LISTS
-  queryClient.invalidateQueries({
-    queryKey: ORDER_KEYS.lists(),
-  });
+//   // ✅ REFRESH ALL ORDER LISTS
+//   queryClient.invalidateQueries({
+//     queryKey: ORDER_KEYS.lists(),
+//   });
+
+//   toast.success("Trip created successfully");
+
+//   router.push(
+//     FLEET_ROUTES.tripDetail(trip.id)
+//   );
+// },
+
+onSuccess: (trip: Trip) => {
+  queryClient.setQueryData(FLEET_KEYS.trip(trip.id), trip);
+  queryClient.invalidateQueries({ queryKey: FLEET_KEYS.trips() });
+  queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
 
   toast.success("Trip created successfully");
-
-  router.push(
-    FLEET_ROUTES.tripDetail(trip.id)
-  );
+  router.push(FLEET_ROUTES.tripDetail(trip.id));
 },
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to create trip");

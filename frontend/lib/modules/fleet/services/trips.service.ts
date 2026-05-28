@@ -6,10 +6,12 @@
 // ============================================================
 
 import { trips } from "@/lib/modules/fleet/mock/trips.mock";
-import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
-import { vehicles } from "@/lib/modules/fleet/mock/vehicles.mock";
+// import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
+// import { vehicles } from "@/lib/modules/fleet/mock/vehicles.mock";
 import type { Trip, TripStatus } from "@/lib/modules/fleet/types/trip.types";
 import { OrdersService } from "../../orders/services/orders.service";
+import { DriversService } from "./drivers.service";
+import { VehiclesService } from "./vehicles.service";
 
 export class TripsService {
   // ── READ ────────────────────────────────────────────────
@@ -58,52 +60,96 @@ export class TripsService {
     return Promise.resolve(newTrip);
   }
 
-  // ── ASSIGN DRIVER + VEHICLE ──────────────────────────────
-  // Validates availability before committing.
+  // // ── ASSIGN DRIVER + VEHICLE ──────────────────────────────
+  // // Validates availability before committing.
+
+  // static async assignDriverAndVehicle(
+  //   tripId: string,
+  //   driverId: string,
+  //   vehicleId: string
+  // ): Promise<Trip> {
+  //   const trip = trips.find((t) => t.id === tripId);
+  //   if (!trip) throw new Error("Trip not found");
+  //   if (trip.status !== "pending") {
+  //     throw new Error("Only pending trips can be assigned");
+  //   }
+
+  //   // Validate driver availability
+  //   const driver = drivers.find((d) => d.id === driverId);
+  //   if (!driver) throw new Error("Driver not found");
+  //   if (driver.status !== "available") {
+  //     throw new Error(`Driver "${driver.full_name}" is not available (status: ${driver.status})`);
+  //   }
+
+  //   // Validate vehicle availability
+  //   const vehicle = vehicles.find((v) => v.id === vehicleId);
+  //   if (!vehicle) throw new Error("Vehicle not found");
+  //   if (vehicle.status !== "available") {
+  //     throw new Error(`Vehicle "${vehicle.name}" is not available (status: ${vehicle.status})`);
+  //   }
+
+  //   // ✅ Commit
+  //   // trip.driver_id = driverId;
+  //   // trip.vehicle_id = vehicleId;
+  //   // trip.status = "assigned";
+
+  //   // driver.status = "assigned";
+  //   // driver.current_trip_id = tripId;
+
+  //   // vehicle.status = "in_use";
+  //   // vehicle.current_trip_id = tripId;
+
+  //   await DriversService.assignDriverToTrip(driverId, tripId);
+  //   await VehiclesService.assignVehicleToTrip(vehicleId, tripId);
+
+  //   // Cascade to orders
+  //   for (const orderId of trip.order_ids) {
+  //     await OrdersService.updateFulfillmentStatus(orderId, "assigned");
+  //   }
+
+  //   return Promise.resolve(trip);
+  // }
 
   static async assignDriverAndVehicle(
-    tripId: string,
-    driverId: string,
-    vehicleId: string
-  ): Promise<Trip> {
-    const trip = trips.find((t) => t.id === tripId);
-    if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "pending") {
-      throw new Error("Only pending trips can be assigned");
-    }
-
-    // Validate driver availability
-    const driver = drivers.find((d) => d.id === driverId);
-    if (!driver) throw new Error("Driver not found");
-    if (driver.status !== "available") {
-      throw new Error(`Driver "${driver.full_name}" is not available (status: ${driver.status})`);
-    }
-
-    // Validate vehicle availability
-    const vehicle = vehicles.find((v) => v.id === vehicleId);
-    if (!vehicle) throw new Error("Vehicle not found");
-    if (vehicle.status !== "available") {
-      throw new Error(`Vehicle "${vehicle.name}" is not available (status: ${vehicle.status})`);
-    }
-
-    // ✅ Commit
-    trip.driver_id = driverId;
-    trip.vehicle_id = vehicleId;
-    trip.status = "assigned";
-
-    driver.status = "assigned";
-    driver.current_trip_id = tripId;
-
-    vehicle.status = "in_use";
-    vehicle.current_trip_id = tripId;
-
-    // Cascade to orders
-    for (const orderId of trip.order_ids) {
-      await OrdersService.updateFulfillmentStatus(orderId, "assigned");
-    }
-
-    return Promise.resolve(trip);
+  tripId: string,
+  driverId: string,
+  vehicleId: string
+): Promise<Trip> {
+  const trip = trips.find((t) => t.id === tripId);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.status !== "pending" && trip.status !== "assigned") {
+    throw new Error("Only pending or assigned trips can have resources assigned");
   }
+
+  // Validate driver availability
+  const driver = await DriversService.getDriverById(driverId);
+  if (!driver) throw new Error("Driver not found");
+  if (driver.status !== "available") {
+    throw new Error(`Driver "${driver.full_name}" is not available (status: ${driver.status})`);
+  }
+
+  // Validate vehicle availability
+  const vehicle = await VehiclesService.getVehicleById(vehicleId);
+  if (!vehicle) throw new Error("Vehicle not found");
+  if (vehicle.status !== "available") {
+    throw new Error(`Vehicle "${vehicle.name}" is not available (status: ${vehicle.status})`);
+  }
+
+  // Commit
+  trip.driver_id = driverId;
+  trip.vehicle_id = vehicleId;
+  trip.status = "assigned";
+
+  await DriversService.assignDriverToTrip(driverId, tripId);
+  await VehiclesService.assignVehicleToTrip(vehicleId, tripId);
+
+  // Cascade to orders
+  for (const orderId of trip.order_ids) {
+    await OrdersService.updateFulfillmentStatus(orderId, "assigned");
+  }
+
+  return Promise.resolve(trip);
+}
 
   // ── DISPATCH ─────────────────────────────────────────────
   // Formally records the departure from depot.
@@ -121,11 +167,18 @@ export class TripsService {
     trip.status = "dispatched";
     trip.dispatch_date = new Date().toISOString();
 
-    const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
-    if (vehicle) vehicle.status = "in_transit";
+    // const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
+    // if (vehicle) vehicle.status = "in_transit";
 
-    const driver = drivers.find((d) => d.id === trip.driver_id);
-    if (driver) driver.status = "in_transit";
+    // const driver = drivers.find((d) => d.id === trip.driver_id);
+    // if (driver) driver.status = "in_transit";
+
+    if (trip.driver_id) {
+  await DriversService.updateDriver(trip.driver_id, { status: "in_transit" });
+}
+if (trip.vehicle_id) {
+  await VehiclesService.updateVehicle(trip.vehicle_id, { status: "in_transit" });
+}
 
     for (const orderId of trip.order_ids) {
       await OrdersService.updateFulfillmentStatus(orderId, "dispatched");
@@ -170,19 +223,26 @@ export class TripsService {
     trip.completed_at = new Date().toISOString();
     if (proofNotes) trip.notes = (trip.notes || "") + `\nDelivery confirmed: ${proofNotes}`;
 
-    // Free up driver
-    const driver = drivers.find((d) => d.id === trip.driver_id);
-    if (driver) {
-      driver.status = "available";
-      driver.current_trip_id = undefined;
-    }
+    // // Free up driver
+    // const driver = drivers.find((d) => d.id === trip.driver_id);
+    // if (driver) {
+    //   driver.status = "available";
+    //   driver.current_trip_id = undefined;
+    // }
 
-    // Free up vehicle
-    const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
-    if (vehicle) {
-      vehicle.status = "available";
-      vehicle.current_trip_id = undefined;
-    }
+    // // Free up vehicle
+    // const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
+    // if (vehicle) {
+    //   vehicle.status = "available";
+    //   vehicle.current_trip_id = undefined;
+    // }
+
+    if (trip.driver_id) {
+  await DriversService.releaseDriver(trip.driver_id);
+}
+if (trip.vehicle_id) {
+  await VehiclesService.releaseVehicle(trip.vehicle_id);
+}
 
     // Mark all orders delivered
     for (const orderId of trip.order_ids) {
@@ -203,15 +263,22 @@ export class TripsService {
 
     trip.status = "cancelled";
 
-    // Free resources
+    // // Free resources
+    // if (trip.driver_id) {
+    //   const driver = drivers.find((d) => d.id === trip.driver_id);
+    //   if (driver) { driver.status = "available"; driver.current_trip_id = undefined; }
+    // }
+    // if (trip.vehicle_id) {
+    //   const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
+    //   if (vehicle) { vehicle.status = "available"; vehicle.current_trip_id = undefined; }
+    // }
+
     if (trip.driver_id) {
-      const driver = drivers.find((d) => d.id === trip.driver_id);
-      if (driver) { driver.status = "available"; driver.current_trip_id = undefined; }
-    }
-    if (trip.vehicle_id) {
-      const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
-      if (vehicle) { vehicle.status = "available"; vehicle.current_trip_id = undefined; }
-    }
+  await DriversService.releaseDriver(trip.driver_id);
+}
+if (trip.vehicle_id) {
+  await VehiclesService.releaseVehicle(trip.vehicle_id);
+}
 
     // Revert orders back to pending
     for (const orderId of trip.order_ids) {
