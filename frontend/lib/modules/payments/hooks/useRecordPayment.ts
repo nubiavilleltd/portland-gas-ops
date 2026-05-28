@@ -56,12 +56,12 @@ export function useRecordPayment() {
     onSuccess: async () => {
       // invalidate payment list
       await queryClient.invalidateQueries({
-        queryKey: PAYMENT_KEYS.payments,
+        queryKey: PAYMENT_KEYS.lists(),
       });
 
       // payments affect invoices too
       await queryClient.invalidateQueries({
-        queryKey: INVOICE_KEYS.invoices,
+        queryKey: INVOICE_KEYS.lists(),
       });
     },
   });

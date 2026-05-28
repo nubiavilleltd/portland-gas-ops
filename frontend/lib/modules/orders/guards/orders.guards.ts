@@ -62,8 +62,12 @@ export function canDispatchOrder(order: Order): boolean {
 /**
  * Can invoice be generated?
  */
+// export function canGenerateInvoice(order: Order): boolean {
+//   return order.fulfillment_status === "delivered" && !order.invoice_id;
+// }
+
 export function canGenerateInvoice(order: Order): boolean {
-  return order.fulfillment_status === "delivered" && !order.invoice_id;
+  return order.order_status === "submitted" && !order.invoice_id;
 }
 
 export function canConfirmDelivery(order: Order): boolean {

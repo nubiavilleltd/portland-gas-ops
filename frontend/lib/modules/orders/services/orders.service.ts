@@ -549,9 +549,18 @@ async submitOrder(id: string): Promise<Order> {
     return OrdersService.updateOrder(id, extra as UpdateOrderInput);
   },
 
+  // async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Order> {
+  //   return OrdersService.updateOrder(id, { payment_status: status });
+  // },
   async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Order> {
-    return OrdersService.updateOrder(id, { payment_status: status });
-  },
+  const extra: UpdateOrderInput = { payment_status: status };
+
+  if (status === "paid") {
+    extra.order_status = "confirmed";
+  }
+
+  return OrdersService.updateOrder(id, extra);
+},
 
   async assignToTrip(orderId: string, tripId: string): Promise<Order> {
     return OrdersService.updateOrder(orderId, {

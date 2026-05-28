@@ -75,7 +75,7 @@ export default function OrderDetailPage() {
 
   // ── guards (pure UI decisions)
   const canEdit = canEditOrder(order);
-  const canConfirm = canConfirmOrder(order);
+  // const canConfirm = canConfirmOrder(order);
   const canAssign = canAssignToTrip(order);
   const canInvoice = canGenerateInvoice(order);
   const canClose = canCloseOrder(order);
@@ -102,11 +102,11 @@ export default function OrderDetailPage() {
               </Button>
             )}
 
-            {canConfirm && (
+            {/* {canConfirm && (
               <Button href={ORDER_ROUTES.confirm(id)}>
                 Confirm Order
               </Button>
-            )}
+            )} */}
 
             {canAssign && (
               <Button href={FLEET_ROUTES.tripNew({ orderId: id })}>

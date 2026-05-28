@@ -1615,7 +1615,8 @@ import { PaymentForm, PaymentFormInput, paymentSchema } from "@/lib/modules/paym
 import { useInvoiceById, useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
 import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
-import { useRecordPayment } from "@/lib/modules/payments/hooks/useRecordPayment";
+// import { useRecordPayment } from "@/lib/modules/payments/hooks/useRecordPayment";
+import { useRecordPaymentWorkflow } from "@/lib/modules/payments/hooks/useRecordPaymentWorkflow";
 
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { PAYMENT_METHOD_OPTIONS, PaymentMethod } from "@/lib/modules/payments/types/payments.types";
@@ -1693,11 +1694,15 @@ function CreatePaymentPageContent() {
   const initialInvoiceId = searchParams.get("invoiceId");
 
   const { invoice } = useInvoiceById(initialInvoiceId ?? "");
-  const { recordPayment, isLoading: isRecording, error: recordError } =
-    useRecordPayment();
+  // const { recordPayment, isLoading: isRecording, error: recordError } =
+  //   useRecordPayment();
 
   const [selectedInvoice, setSelectedInvoice] =
     useState<Invoice | null>(invoice ?? null);
+
+      const { mutate: recordPayment, isPending } = useRecordPaymentWorkflow(
+  selectedInvoice ?? ({ id: "" } as Invoice)
+);
 
   useEffect(() => {
     if (invoice) {
@@ -1756,26 +1761,31 @@ function CreatePaymentPageContent() {
     [reset, router, summary.amountPaid]
   );
 
+  // async function onSubmit(data: PaymentForm) {
+  //   if (!selectedInvoice) return;
+
+  //   try {
+  //     await recordPayment({
+  //       invoice_id: selectedInvoice.id,
+  //       amount: Number(data.amount),
+  //       payment_method: data.payment_method as PaymentMethod,
+  //       payment_date: data.payment_date,
+  //       reference: data.reference,
+  //       recorded_by: "Admin User",
+  //     });
+
+  //     router.push(
+  //       `/invoices/${selectedInvoice.id}`
+  //     );
+  //   } catch {
+  //     // error handled in hook
+  //   }
+  // }
+
   async function onSubmit(data: PaymentForm) {
-    if (!selectedInvoice) return;
-
-    try {
-      await recordPayment({
-        invoice_id: selectedInvoice.id,
-        amount: Number(data.amount),
-        payment_method: data.payment_method as PaymentMethod,
-        payment_date: data.payment_date,
-        reference: data.reference,
-        recorded_by: "Admin User",
-      });
-
-      router.push(
-        `/invoices/${selectedInvoice.id}`
-      );
-    } catch {
-      // error handled in hook
-    }
-  }
+  if (!selectedInvoice) return;
+  recordPayment(data);
+}
 
   return (
     <AppLayout pageTitle="Record Payment">
@@ -1886,20 +1896,18 @@ function CreatePaymentPageContent() {
                   {...register("payment_method")}
                 />
 
-                {(recordError || errors.amount) && (
+                {/* {(recordError || errors.amount) && (
                   <div className="md:col-span-2 flex items-center gap-2 text-red-600 text-sm">
                     <AlertCircle size={16} />
                     {recordError ||
                       errors.amount?.message}
                   </div>
-                )}
+                )} */}
 
                 <div className="md:col-span-2 flex justify-end">
                   <Button
                     type="submit"
-                    loading={
-                      isSubmitting || isRecording
-                    }
+                   loading={isSubmitting || isPending}
                   >
                     Record Payment
                   </Button>

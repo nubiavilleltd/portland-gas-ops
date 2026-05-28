@@ -23,7 +23,7 @@ import { PAYMENT_KEYS } from "@/lib/query-keys";
 
 export function usePayments() {
   const query = useQuery({
-    queryKey: PAYMENT_KEYS.payments,
+    queryKey: PAYMENT_KEYS.lists(),
     queryFn: PaymentsService.getPayments,
   });
 

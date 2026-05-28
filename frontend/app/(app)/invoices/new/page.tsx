@@ -20,11 +20,15 @@ import {
   invoiceSchema,
 } from "@/lib/modules/invoices/schemas/invoice.schema";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
-import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
-import { OrdersService } from "@/lib/modules/orders/services/orders.service";
+// import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
+// import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import FormSection from "@/components/ui/FormSection";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
-import { generateInvoiceNumber } from "@/lib/modules/invoices/utils";
+// import { generateInvoiceNumber } from "@/lib/modules/invoices/utils";
+import { canGenerateInvoice } from "@/lib/modules/orders/guards/orders.guards";
+import { Order } from "@/lib/modules/orders/types/orders.types";
+import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreateInvoiceWorkflow";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 
 
@@ -41,10 +45,21 @@ function CreateInvoicePageContent() {
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const { customers } = useCustomers()
+
   const orderId = searchParams.get("orderId") as string;
 
   // ── REAL order lookup (was hardcoded before) ───────────────────
   const { order } = useOrderById(orderId);
+  const { mutate: generateInvoice, isPending } = useCreateInvoiceWorkflow(order as Order);
+  const canInvoice = canGenerateInvoice(order as Order);
+
+  const customerMap = Object.fromEntries(
+    customers.map((customer) => [
+      customer.id,
+      customer,
+    ])
+  );
 
   const {
     register,
@@ -81,13 +96,13 @@ function CreateInvoicePageContent() {
     );
   }
 
-  if (order.fulfillment_status !== "delivered") {
+  if (!canInvoice) {
     return (
       <AppLayout pageTitle="Invoice Not Ready">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
-          <h2 className="font-semibold mb-2">Order Not Yet Delivered</h2>
+          <h2 className="font-semibold mb-2">Invoice Not Available</h2>
           <p className="text-sm text-brand-text-secondary mb-3">
-            Invoices can only be generated after delivery is confirmed.
+            This order cannot be invoiced in its current state.
           </p>
           <p className="text-sm mb-4">
             Current status:{" "}
@@ -117,32 +132,36 @@ function CreateInvoicePageContent() {
     );
   }
 
+  // async function onSubmit(data: InvoiceForm) {
+  //   setSubmitError(null);
+  //   try {
+  //     const nextInvoiceSequence = invoices.length + 1;
+  //     const invoiceNumber = generateInvoiceNumber(nextInvoiceSequence);
+  //     const newInvoice = {
+  //       id: `inv-${nextInvoiceSequence}`,
+  //       order_id: orderId,
+  //       invoice_number: invoiceNumber,
+  //       total_amount: order!.total_amount,
+  //       status: "unpaid" as const,
+  //       issued_date: data.invoice_date,
+  //       due_date: data.due_date,
+  //     };
+
+  //     // Persist to mock array and link back to order
+  //     invoices.push(newInvoice);
+  //     await OrdersService.setInvoice(orderId, newInvoice.id);
+  //     await OrdersService.updatePaymentStatus(orderId, "unpaid");
+
+  //     router.push(`/invoices/${newInvoice.id}`);
+  //   } catch (err) {
+  //     setSubmitError(
+  //       err instanceof Error ? err.message : "Failed to generate invoice."
+  //     );
+  //   }
+  // }
+
   async function onSubmit(data: InvoiceForm) {
-    setSubmitError(null);
-    try {
-      const nextInvoiceSequence = invoices.length + 1;
-      const invoiceNumber = generateInvoiceNumber(nextInvoiceSequence);
-      const newInvoice = {
-        id: `inv-${nextInvoiceSequence}`,
-        order_id: orderId,
-        invoice_number: invoiceNumber,
-        total_amount: order!.total_amount,
-        status: "unpaid" as const,
-        issued_date: data.invoice_date,
-        due_date: data.due_date,
-      };
-
-      // Persist to mock array and link back to order
-      invoices.push(newInvoice);
-      await OrdersService.setInvoice(orderId, newInvoice.id);
-      await OrdersService.updatePaymentStatus(orderId, "unpaid");
-
-      router.push(`/invoices/${newInvoice.id}`);
-    } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to generate invoice."
-      );
-    }
+    generateInvoice(data);
   }
 
   return (
@@ -185,7 +204,7 @@ function CreateInvoicePageContent() {
 
               <div>
                 <p className="text-xs text-brand-text-secondary">Customer</p>
-                <p className="font-medium mt-1">{order.customer_name}</p>
+                <p className="font-medium mt-1">{customerMap[order.customer_id]?.name}</p>
               </div>
 
               <div>
@@ -252,13 +271,17 @@ function CreateInvoicePageContent() {
           Cancel
         </Button> */}
 
-                <Button
+                {/* <Button
                   type="submit"
                   loading={isSubmitting}
                   loadingText="Generating..."
                 >
                   Generate Invoice
-                </Button>
+                </Button> */}
+
+                {canInvoice && <Button type="submit" loading={isPending} loadingText="Generating...">
+                  Generate Invoice
+                </Button>}
               </div>
             </form>
           </div>

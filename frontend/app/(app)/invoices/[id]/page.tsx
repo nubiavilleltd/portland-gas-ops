@@ -25,10 +25,19 @@ import {
   usePaymentsByInvoice,
   usePaymentSummary,
 } from "@/lib/modules/payments/hooks/usePayments";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const {customers} = useCustomers()
+
+      const customerMap = Object.fromEntries(
+    customers.map((cutomer) => [
+      cutomer.id,
+      cutomer,
+    ])
+  );
 
   const id = params.id as string;
 
@@ -173,7 +182,7 @@ export default function InvoiceDetailPage() {
 
               <InfoRow
                 label="Customer"
-                value={order.customer_name}
+                value={customerMap[order.customer_id].name}
               />
 
               <InfoRow

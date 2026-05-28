@@ -9,8 +9,35 @@ import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 
 
-import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+// import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import { useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
+import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+
+
+
+
+
+
+
+
+
+export default function InvoicesPage() {
+
+  const {invoices} = useInvoices()
+  const {orders} = useOrders()
+
+    const orderMap = Object.fromEntries(
+    orders.map((order) => [
+      order.id,
+      order,
+    ])
+  );
+
+
+
 
 const columns: Column<Invoice>[] = [
   {
@@ -21,6 +48,7 @@ const columns: Column<Invoice>[] = [
   {
     key: "order_id",
     label: "Order",
+    render: (value) => <span className="font-medium">{orderMap[value as string].order_number}</span>,
   },
   {
     key: "issued_date",
@@ -74,10 +102,6 @@ const columns: Column<Invoice>[] = [
 ];
 
 
-
-
-
-export default function InvoicesPage() {
   return (
     <AppLayout pageTitle="Invoices">
       <PageHeader
