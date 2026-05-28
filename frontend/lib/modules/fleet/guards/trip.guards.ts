@@ -92,3 +92,5 @@ export function canDispatchTrip(trip: Trip) {
 export function canStartTrip(trip: Trip) {
   return trip.status === "dispatched" || trip.status === "assigned";
 }
+
+

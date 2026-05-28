@@ -33,13 +33,6 @@
 import { CreateTripInput } from "../types/trip.types";
 import { createTripWorkflow } from "../workflows/create-trip.workflow";
 
-
-
-
-
-
-
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -57,32 +50,60 @@ export function useCreateTripWorkflow() {
   return useMutation({
     mutationFn: (input: CreateTripInput) => createTripWorkflow(input),
 
+    // onSuccess: (trip: Trip) => {
+    //   // ✅ SINGLE TRIP CACHE (NO FLICKER)
+    //   queryClient.setQueryData(
+    //     FLEET_KEYS.trip(trip.id),
+    //     trip
+    //   );
+
+    //   // ✅ LIST SYNC
+    //   queryClient.setQueryData(
+    //     FLEET_KEYS.trips(),
+    //     (old?: Trip[]) =>
+    //       old?.some((t) => t.id === trip.id)
+    //         ? old
+    //         : [trip, ...(old ?? [])]
+    //   );
+
+    //   // ✅ ORDERS UPDATED VIA SERVICE → REFRESH UI
+    //   queryClient.invalidateQueries({
+    //     queryKey: ORDER_KEYS.list(),
+    //   });
+
+    //   toast.success("Trip created successfully");
+
+    //   router.push(FLEET_ROUTES.tripDetail(trip.id));
+    // },
+
+
     onSuccess: (trip: Trip) => {
-      // ✅ SINGLE TRIP CACHE (NO FLICKER)
-      queryClient.setQueryData(
-        FLEET_KEYS.trip(trip.id),
-        trip
-      );
+  // ✅ SINGLE TRIP CACHE
+  queryClient.setQueryData(
+    FLEET_KEYS.trip(trip.id),
+    trip
+  );
 
-      // ✅ LIST SYNC
-      queryClient.setQueryData(
-        FLEET_KEYS.trips(),
-        (old?: Trip[]) =>
-          old?.some((t) => t.id === trip.id)
-            ? old
-            : [trip, ...(old ?? [])]
-      );
+  // ✅ TRIPS LIST CACHE
+  queryClient.setQueryData(
+    FLEET_KEYS.trips(),
+    (old?: Trip[]) =>
+      old?.some((t) => t.id === trip.id)
+        ? old
+        : [trip, ...(old ?? [])]
+  );
 
-      // ✅ ORDERS UPDATED VIA SERVICE → REFRESH UI
-      queryClient.invalidateQueries({
-        queryKey: ORDER_KEYS.list(),
-      });
+  // ✅ REFRESH ALL ORDER LISTS
+  queryClient.invalidateQueries({
+    queryKey: ORDER_KEYS.lists(),
+  });
 
-      toast.success("Trip created successfully");
+  toast.success("Trip created successfully");
 
-      router.push(FLEET_ROUTES.tripDetail(trip.id));
-    },
-
+  router.push(
+    FLEET_ROUTES.tripDetail(trip.id)
+  );
+},
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to create trip");
     },

@@ -1,60 +1,154 @@
+// "use client";
+
+// import { useMutation, useQueryClient } from "@tanstack/react-query";
+// import { toast } from "sonner";
+
+// import {
+//     assignResourcesWorkflow,
+//     type AssignResourcesInput,
+// } from "../workflows/assign-trip-resources.workflow";
+// import { useRouter } from "next/navigation";
+// import { Trip } from "../types/trip.types";
+// import { FLEET_KEYS } from "../constants/query-keys";
+// import { ORDER_KEYS } from "@/lib/query-keys";
+// import { FLEET_ROUTES } from "../constants/routes";
+
+// export function useAssignResourcesWorkflow() {
+//     const queryClient = useQueryClient();
+//     const router = useRouter();
+
+//     return useMutation({
+//         mutationFn: (input: AssignResourcesInput) =>
+//             assignResourcesWorkflow(input),
+
+//         onSuccess: (trip: Trip) => {
+//             // 2. WRITE THROUGH CACHE
+//             queryClient.setQueryData(
+//                 FLEET_KEYS.trip(trip.id),
+//                 trip
+//             );
+
+//             // 3. INVALIDATE TRIPS
+//             queryClient.invalidateQueries({
+//                 queryKey: FLEET_KEYS.trips(),
+//             });
+
+//             // 4. DRIVER + VEHICLE STATUS CHANGED
+//             queryClient.invalidateQueries({
+//                 queryKey: FLEET_KEYS.drivers(),
+//             });
+
+//             queryClient.invalidateQueries({
+//                 queryKey: FLEET_KEYS.vehicles(),
+//             });
+
+//             // 5. ORDERS ALSO CHANGED TO ASSIGNED
+//             queryClient.invalidateQueries({
+//                 queryKey: ORDER_KEYS.list(),
+//             });
+//             toast.success("Driver and vehicle assigned successfully");
+//             router.push(FLEET_ROUTES.tripDetail(trip.id));
+//         },
+
+//         onError: (err: any) => {
+//             toast.error(
+//                 err?.message ??
+//                 "Failed to assign driver and vehicle"
+//             );
+//         },
+//     });
+// }
+
+
+
+
+
+
+
+
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
-    assignResourcesWorkflow,
-    type AssignResourcesInput,
+  assignResourcesWorkflow,
+  type AssignResourcesInput,
 } from "../workflows/assign-trip-resources.workflow";
-import { useRouter } from "next/navigation";
-import { Trip } from "../types/trip.types";
+
+import type { Trip } from "../types/trip.types";
+
 import { FLEET_KEYS } from "../constants/query-keys";
-import { ORDER_KEYS } from "@/lib/query-keys";
+import { ORDER_KEYS } from "@/lib/modules/orders/constants/query-keys";
+
 import { FLEET_ROUTES } from "../constants/routes";
 
 export function useAssignResourcesWorkflow() {
-    const queryClient = useQueryClient();
-    const router = useRouter();
+  const queryClient = useQueryClient();
+  const router = useRouter();
 
-    return useMutation({
-        mutationFn: (input: AssignResourcesInput) =>
-            assignResourcesWorkflow(input),
+  return useMutation({
+    mutationFn: (input: AssignResourcesInput) =>
+      assignResourcesWorkflow(input),
 
-        onSuccess: (trip: Trip) => {
-            // 2. WRITE THROUGH CACHE
-            queryClient.setQueryData(
-                FLEET_KEYS.trip(trip.id),
-                trip
-            );
+    onSuccess: (updatedTrip: Trip) => {
+      // ✅ SINGLE TRIP CACHE
+      queryClient.setQueryData(
+        FLEET_KEYS.trip(updatedTrip.id),
+        updatedTrip
+      );
 
-            // 3. INVALIDATE TRIPS
-            queryClient.invalidateQueries({
-                queryKey: FLEET_KEYS.trips(),
-            });
+      // ✅ UPDATE TRIPS LIST CACHE
+    //   queryClient.setQueriesData(
+    //     { queryKey: FLEET_KEYS.trips() },
+    //     (old?: Trip[]) =>
+    //       old?.map((trip) =>
+    //         trip.id === updatedTrip.id
+    //           ? updatedTrip
+    //           : trip
+    //       )
+    //   );
 
-            // 4. DRIVER + VEHICLE STATUS CHANGED
-            queryClient.invalidateQueries({
-                queryKey: FLEET_KEYS.drivers(),
-            });
+    queryClient.setQueriesData(
+  { queryKey: FLEET_KEYS.trips() },
+  (old: Trip[] | undefined) => {
+    if (!Array.isArray(old)) return old;
 
-            queryClient.invalidateQueries({
-                queryKey: FLEET_KEYS.vehicles(),
-            });
+    return old.map((trip) =>
+      trip.id === updatedTrip.id ? updatedTrip : trip
+    );
+  }
+);
 
-            // 5. ORDERS ALSO CHANGED TO ASSIGNED
-            queryClient.invalidateQueries({
-                queryKey: ORDER_KEYS.list(),
-            });
-            toast.success("Driver and vehicle assigned successfully");
-            router.push(FLEET_ROUTES.tripDetail(trip.id));
-        },
+      // ✅ DRIVER + VEHICLE STATUS CHANGED
+      queryClient.invalidateQueries({
+        queryKey: FLEET_KEYS.drivers(),
+      });
 
-        onError: (err: any) => {
-            toast.error(
-                err?.message ??
-                "Failed to assign driver and vehicle"
-            );
-        },
-    });
+      queryClient.invalidateQueries({
+        queryKey: FLEET_KEYS.vehicles(),
+      });
+
+      // ✅ ORDERS UPDATED TO ASSIGNED
+      queryClient.invalidateQueries({
+        queryKey: ORDER_KEYS.lists(),
+      });
+
+      toast.success(
+        "Driver and vehicle assigned successfully"
+      );
+
+      router.push(
+        FLEET_ROUTES.tripDetail(updatedTrip.id)
+      );
+    },
+
+    onError: (err: any) => {
+      toast.error(
+        err?.message ??
+          "Failed to assign driver and vehicle"
+      );
+    },
+  });
 }

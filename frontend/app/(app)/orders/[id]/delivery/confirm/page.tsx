@@ -16,10 +16,13 @@ import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import FormSection from "@/components/ui/FormSection";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { useConfirmDeliveryWorkflow } from "@/lib/modules/orders/hooks/useConfirmDeliveryWorkflow";
+import { Order } from "@/lib/modules/orders/types/orders.types";
 
 export default function OrderDeliveryPage() {
   const params = useParams();
   const router = useRouter();
+  const confirmDelivery = useConfirmDeliveryWorkflow()
 
   const id = params.id as string;
   const {order} = useOrderById(id);
@@ -51,8 +54,7 @@ export default function OrderDeliveryPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await OrdersService.updateFulfillmentStatus(id, "delivered");
-      router.push(`/orders/${id}`);
+      await confirmDelivery.mutateAsync(order as Order)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to confirm delivery");
     } finally {

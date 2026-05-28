@@ -171,10 +171,14 @@ import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 import { useTripById, useTrips } from "@/lib/modules/fleet/hooks/useTrips";
 import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById, useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useStartTripWorkflow } from "@/lib/modules/fleet/hooks/useStartTripWorkflow";
+import { Trip } from "@/lib/modules/fleet/types/trip.types";
 
 export default function StartTripPage() {
   const params = useParams();
   const router = useRouter();
+
+  const startTrip = useStartTripWorkflow()
 
   const tripId = params.id as string;
 
@@ -228,8 +232,7 @@ export default function StartTripPage() {
     setError(null);
 
     try {
-      await TripsService.startTrip(tripId);
-      router.push(`/fleet/trips/${tripId}`);
+      await startTrip.mutateAsync(trip as Trip)
     } catch (err) {
       setError(
         err instanceof Error
