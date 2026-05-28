@@ -23,13 +23,16 @@ export function useCloseOrderWorkflow() {
       );
 
       // ✅ sync order list
-      queryClient.setQueryData(
-        ORDER_KEYS.lists(),
-        (old?: Order[]) =>
-          old?.map((o) =>
-            o.id === updatedOrder.id ? updatedOrder : o
-          )
-      );
+       queryClient.setQueriesData(
+  { queryKey: ORDER_KEYS.lists() },
+  (old: Order[] | undefined) => {
+    if (!Array.isArray(old)) return old;
+
+    return old.map((o) =>
+      o.id === updatedOrder.id ? updatedOrder : o
+    );
+  }
+);
 
       toast.success("Order closed successfully");
     },

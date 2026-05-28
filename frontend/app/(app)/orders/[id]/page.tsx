@@ -126,7 +126,7 @@ export default function OrderDetailPage() {
             )}
 
             {canClose && (
-              <Button href={ORDER_ROUTES.close(id)} variant="secondary">
+              <Button href={ORDER_ROUTES.close(id)} variant="primary">
                 Close Order
               </Button>
             )}

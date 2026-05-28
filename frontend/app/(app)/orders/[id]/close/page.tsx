@@ -19,10 +19,13 @@ import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBad
 import FormSection from "@/components/ui/FormSection";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { canCloseOrder } from "@/lib/modules/orders/guards/orders.guards";
+import { useCloseOrderWorkflow } from "@/lib/modules/orders/hooks/useCloseOrderWorkflow";
+import { Order } from "@/lib/modules/orders/types/orders.types";
 
 export default function CloseOrderPage() {
   const params = useParams();
   const router = useRouter();
+  const closeOrder = useCloseOrderWorkflow()
 
   const id = params.id as string;
   const {order} = useOrderById(id);
@@ -65,8 +68,7 @@ export default function CloseOrderPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await OrdersService.closeOrder(id);
-      router.push(`/orders/${id}`);
+      await closeOrder.mutateAsync(order as Order)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to close order");
     } finally {
