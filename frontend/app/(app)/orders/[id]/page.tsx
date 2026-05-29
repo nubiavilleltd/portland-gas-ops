@@ -81,7 +81,6 @@ export default function OrderDetailPage() {
   // const canClose = canCloseOrder(order);
   const canDeliver = canConfirmDelivery(order);
 
-  console.log("canEdit", {canEdit})
 
 
   const balance = invoice
