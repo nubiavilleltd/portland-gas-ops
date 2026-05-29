@@ -36,11 +36,6 @@ const columns: Column<IncidentHazardReport>[] = [
     render: (_, row) => row.reporter.name,
   },
   {
-    key: "priority",
-    label: "Priority",
-    render: (value) => String(value || "-"),
-  },
-  {
     key: "severityEstimate",
     label: "Severity",
     render: (value) => String(value || "-"),

@@ -227,7 +227,6 @@ This section captures the basic information about where and when the work will h
 | Expected start date/time | Date/time picker | Yes | Planned start time |
 | Expected end date/time | Date/time picker | Yes | Planned end time |
 | Supervisor | Person lookup | Yes | Selected supervisor who will approve first |
-| Priority | Dropdown | Yes | Low, Medium, High, Critical |
 
 ## Work location options
 
@@ -245,19 +244,6 @@ const workLocationOptions = [
   "Inspection Bay"
 ];
 ```
-
-## Priority options
-
-```js
-const priorityOptions = [
-  "Low",
-  "Medium",
-  "High",
-  "Critical"
-];
-```
-
----
 
 # 10. Section Three: Work Details
 
@@ -589,8 +575,7 @@ const mockWorkAuthorization = {
     exactWorkArea: "Left-side inspection pit",
     expectedStartDateTime: "2026-05-18 10:00 AM",
     expectedEndDateTime: "2026-05-18 01:00 PM",
-    supervisor: "Mary James",
-    priority: "High"
+    supervisor: "Mary James"
   },
   workDetails: {
     typeOfWork: ["CNG Conversion", "CNG Cylinder Work"],

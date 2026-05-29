@@ -36,7 +36,6 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       expectedStartDateTime: "2026-05-20 09:00 AM",
       expectedEndDateTime: "2026-05-20 12:00 PM",
       supervisor: "Mary James",
-      priority: "Medium",
     },
     workDetails: {
       typeOfWork: ["Vehicle Inspection", "CNG Conversion"],
@@ -76,7 +75,6 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       expectedStartDateTime: "2026-05-21 10:00 AM",
       expectedEndDateTime: "2026-05-21 01:00 PM",
       supervisor: "Mary James",
-      priority: "High",
     },
     workDetails: {
       typeOfWork: ["CNG Cylinder Work", "Lifting Work"],
@@ -127,7 +125,6 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       expectedStartDateTime: "2026-05-22 11:00 AM",
       expectedEndDateTime: "2026-05-22 02:00 PM",
       supervisor: "Mary James",
-      priority: "High",
     },
     workDetails: {
       typeOfWork: ["Gas System Work", "Vehicle Inspection"],
@@ -175,7 +172,6 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       expectedStartDateTime: "2026-05-23 09:00 AM",
       expectedEndDateTime: "2026-05-23 12:00 PM",
       supervisor: "Mary James",
-      priority: "Critical",
     },
     workDetails: {
       typeOfWork: ["Hot Work", "CNG Cylinder Work"],
@@ -245,7 +241,6 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       expectedStartDateTime: "2026-05-24 10:00 AM",
       expectedEndDateTime: "2026-05-24 02:00 PM",
       supervisor: "Mary James",
-      priority: "Critical",
     },
     workDetails: {
       typeOfWork: ["Gas System Repair", "Urgent Gas System Response"],

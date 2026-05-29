@@ -30,7 +30,7 @@ export const incidentLocationOptions = [
   "Inspection Bay",
 ];
 
-export const incidentPriorityOptions = ["Low", "Medium", "High", "Critical"];
+export const incidentSeverityOptions = ["Low", "Medium", "High", "Critical"];
 
 export const relatedWorkAuthorizationOptions = [
   "WA-APP-001",
@@ -49,7 +49,6 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     location: "",
     dateTimeObserved: "",
     relatedWorkAuthorization: "",
-    priority: "",
     description: "",
     severityEstimate: "",
     anyoneInjured: null,
@@ -71,7 +70,6 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     location: "Gas Storage Area",
     dateTimeObserved: "2026-05-18 08:20 AM",
     relatedWorkAuthorization: "WA-APP-001",
-    priority: "High",
     description:
       "Gas detector was unavailable at the designated point before planned work started.",
     severityEstimate: "High",
@@ -102,7 +100,6 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     location: "Gas Storage Area",
     dateTimeObserved: "2026-05-18 10:40 AM",
     relatedWorkAuthorization: "",
-    priority: "Critical",
     description: "Gas odor reported near storage valve B.",
     severityEstimate: "Critical",
     anyoneInjured: false,
@@ -153,7 +150,6 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     location: "Conversion Bay 2",
     dateTimeObserved: "2026-05-17 03:45 PM",
     relatedWorkAuthorization: "WA-APP-002",
-    priority: "Medium",
     description:
       "A tool was left near the vehicle work path and nearly caused a trip hazard.",
     severityEstimate: "Medium",

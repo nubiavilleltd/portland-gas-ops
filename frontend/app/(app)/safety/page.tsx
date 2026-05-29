@@ -9,6 +9,12 @@ import {
 
 const safetyProcesses = [
   {
+    title: "Work Initiation",
+    description: "Define, review, and assign operational work",
+    href: "/safety/work-initiation",
+    icon: <ClipboardCheck className="h-5 w-5 md:h-6 md:w-6" />,
+  },
+  {
     title: "Work Authorization",
     description: "Request and approve work before it starts",
     href: "/safety/work-authorization",
@@ -39,7 +45,7 @@ export default function SafetyPage() {
     <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Safety & Compliance"
-        description="Work authorizations, compliance processes, and close-outs"
+        description="Work initiation, authorization, compliance processes, and close-outs"
       />
 
       <div className="mt-8 rounded-xl border border-brand-border bg-white p-4 md:p-6">

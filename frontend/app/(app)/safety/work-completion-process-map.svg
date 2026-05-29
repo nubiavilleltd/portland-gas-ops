@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1810" viewBox="0 0 1600 1810" fill="none">
+  <defs>
+    <style>
+      .title { font: 700 38px Arial, sans-serif; fill: #111827; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #667085; }
+      .section { font: 700 16px Arial, sans-serif; fill: #6941c6; letter-spacing: 1px; }
+      .node-title { font: 700 18px Arial, sans-serif; fill: #101828; }
+      .node-body { font: 400 15px Arial, sans-serif; fill: #667085; }
+      .status { font: 700 15px Arial, sans-serif; fill: #6941c6; }
+      .branch { font: 700 14px Arial, sans-serif; fill: #344054; }
+      .foot-title { font: 700 14px Arial, sans-serif; fill: #344054; }
+      .foot { font: 400 15px Arial, sans-serif; fill: #475467; }
+      .arrow { stroke: #98a2b3; stroke-width: 2.5; fill: none; }
+      .purple-arrow { stroke: #7f56d9; stroke-width: 3; fill: none; }
+      .red-arrow { stroke: #f04438; stroke-width: 2.5; fill: none; }
+      .return-arrow { stroke: #f79009; stroke-width: 2.5; fill: none; stroke-dasharray: 8 6; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#98A2B3" stroke-width="2" fill="none"/>
+    </marker>
+    <marker id="purpleArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#7F56D9" stroke-width="2" fill="none"/>
+    </marker>
+    <marker id="redArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#F04438" stroke-width="2" fill="none"/>
+    </marker>
+    <marker id="returnArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M1 1L11 6L1 11" stroke="#F79009" stroke-width="2" fill="none"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1810" fill="#F8F8FA"/>
+  <rect x="48" y="40" width="1504" height="1728" rx="28" fill="white" stroke="#EAECF0" stroke-width="2"/>
+
+  <text x="96" y="105" class="title">Work Completion &amp; Close-Out Process Map</text>
+  <text x="96" y="140" class="subtitle">Completion confirmation from an approved Work Authorization through final HSE close-out</text>
+
+  <rect x="96" y="180" width="1408" height="54" rx="14" fill="#F4F3FF"/>
+  <text x="120" y="213" class="section">STATUS PATH</text>
+  <text x="310" y="213" class="status">Draft</text>
+  <path d="M367 207H410" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="440" y="213" class="status">Submitted</text>
+  <path d="M540 207H584" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="616" y="213" class="status">Pending Approval</text>
+  <path d="M770 207H814" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <text x="846" y="213" class="status">Approved</text>
+  <text x="1042" y="213" class="node-body">Alternative decisions: Returned or Denied</text>
+
+  <rect x="470" y="278" width="660" height="96" rx="16" fill="#ECFDF3" stroke="#ABEFC6" stroke-width="2"/>
+  <text x="800" y="312" class="node-title" text-anchor="middle">Approved Work Authorization Selected</text>
+  <text x="800" y="338" class="node-body" text-anchor="middle">Requester selects work already authorized for safe execution</text>
+  <text x="800" y="360" class="node-body" text-anchor="middle">Only approved authorization records are eligible</text>
+
+  <path d="M800 374V412" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="470" y="424" width="660" height="110" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="800" y="458" class="node-title" text-anchor="middle">Requester Records Work Completion</text>
+  <text x="800" y="485" class="node-body" text-anchor="middle">Actual times, completion evidence, execution monitoring</text>
+  <text x="800" y="508" class="node-body" text-anchor="middle">and post-work area condition are captured</text>
+
+  <path d="M800 534V570" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="555" y="582" width="490" height="82" rx="16" fill="#FFFAEB" stroke="#FEDF89" stroke-width="2"/>
+  <text x="800" y="615" class="node-title" text-anchor="middle">Submit Close-Out Request</text>
+  <text x="800" y="641" class="status" text-anchor="middle">Status: Submitted</text>
+
+  <path d="M800 664V698" class="arrow" marker-end="url(#arrow)"/>
+  <rect x="490" y="710" width="620" height="92" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="800" y="744" class="node-title" text-anchor="middle">Supervisor Close-Out Review</text>
+  <text x="800" y="771" class="node-body" text-anchor="middle">Review reported completion and execution record</text>
+
+  <path d="M800 802V834" class="arrow" marker-end="url(#arrow)"/>
+  <path d="M800 846L984 922L800 998L616 922Z" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="800" y="914" class="node-title" text-anchor="middle">Supervisor Decision</text>
+  <text x="800" y="941" class="node-body" text-anchor="middle">Approve, Return, or Deny</text>
+
+  <text x="840" y="1018" class="branch">APPROVE</text>
+  <path d="M800 998V1028" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="490" y="1040" width="620" height="92" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="800" y="1074" class="node-title" text-anchor="middle">Operations Head Close-Out Review</text>
+  <text x="800" y="1101" class="node-body" text-anchor="middle">Confirm completion is acceptable for final HSE review</text>
+
+  <path d="M800 1132V1164" class="arrow" marker-end="url(#arrow)"/>
+  <path d="M800 1176L984 1248L800 1320L616 1248Z" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="800" y="1240" class="node-title" text-anchor="middle">Operations Head Decision</text>
+  <text x="800" y="1267" class="node-body" text-anchor="middle">Approve, Return, or Deny</text>
+
+  <text x="840" y="1346" class="branch">APPROVE</text>
+  <path d="M800 1320V1412" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="475" y="1424" width="650" height="108" rx="16" fill="white" stroke="#D0D5DD" stroke-width="2"/>
+  <text x="800" y="1458" class="node-title" text-anchor="middle">HSE Final Close-Out Verification</text>
+  <text x="800" y="1484" class="node-body" text-anchor="middle">Verify close-out completion and safety for normal operations</text>
+  <text x="800" y="1508" class="node-body" text-anchor="middle">Record corrective action need and final decision</text>
+
+  <path d="M800 1532V1560" class="arrow" marker-end="url(#arrow)"/>
+  <path d="M800 1570L948 1626L800 1682L652 1626Z" fill="#F4F3FF" stroke="#B692F6" stroke-width="2"/>
+  <text x="800" y="1619" class="node-title" text-anchor="middle">HSE Decision</text>
+  <text x="800" y="1645" class="node-body" text-anchor="middle">Approve, Return, or Deny</text>
+
+  <text x="972" y="1610" class="branch">APPROVE</text>
+  <path d="M948 1626H1038V1674" class="purple-arrow" marker-end="url(#purpleArrow)"/>
+  <rect x="1004" y="1686" width="422" height="62" rx="16" fill="#ECFDF3" stroke="#ABEFC6" stroke-width="2"/>
+  <text x="1215" y="1711" class="node-title" text-anchor="middle">Close-Out Approved</text>
+  <text x="1215" y="1734" class="node-body" text-anchor="middle">Area safe for normal operations</text>
+
+  <!-- Returned and denied decisions -->
+  <text x="512" y="900" class="branch">RETURN</text>
+  <path d="M616 922H354V1054" class="return-arrow" marker-end="url(#returnArrow)"/>
+  <path d="M616 1248H354V1054" class="return-arrow" marker-end="url(#returnArrow)"/>
+  <path d="M652 1626H354V1166" class="return-arrow" marker-end="url(#returnArrow)"/>
+  <rect x="112" y="1066" width="414" height="104" rx="16" fill="#FFFAEB" stroke="#FEDF89" stroke-width="2"/>
+  <text x="319" y="1100" class="node-title" text-anchor="middle">Returned to Requester</text>
+  <text x="319" y="1126" class="node-body" text-anchor="middle">Review comments, correct details and resubmit</text>
+  <text x="319" y="1150" class="status" text-anchor="middle">Status: Returned</text>
+  <path d="M319 1170V1222H86V480H470" class="return-arrow" marker-end="url(#returnArrow)"/>
+
+  <text x="1014" y="900" class="branch">DENY</text>
+  <path d="M984 922H1382V1062" class="red-arrow" marker-end="url(#redArrow)"/>
+  <path d="M984 1248H1382V1178" class="red-arrow" marker-end="url(#redArrow)"/>
+  <path d="M948 1626H1462V1178" class="red-arrow" marker-end="url(#redArrow)"/>
+  <rect x="1258" y="1074" width="248" height="104" rx="16" fill="#FEF3F2" stroke="#FECDCA" stroke-width="2"/>
+  <text x="1382" y="1108" class="node-title" text-anchor="middle">Close-Out Denied</text>
+  <text x="1382" y="1134" class="node-body" text-anchor="middle">Reason recorded</text>
+  <text x="1382" y="1158" class="status" text-anchor="middle">Status: Denied</text>
+
+  <rect x="96" y="1686" width="760" height="62" rx="12" fill="#F9FAFB" stroke="#EAECF0"/>
+  <text x="120" y="1712" class="foot-title">CONTROL RULE</text>
+  <text x="120" y="1737" class="foot">Only an approved Work Authorization can be selected for close-out.</text>
+</svg>

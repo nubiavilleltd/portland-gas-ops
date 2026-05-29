@@ -146,12 +146,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/orders",
       },
       {
-        name: "Work Initiation",
-        description: "Define, review, and assign operational work",
-        icon: ClipboardCheck,
-        href: "/work-initiation",
-      },
-      {
         name: "Customers",
         description: "Customer accounts and records",
         icon: Users,
@@ -169,6 +163,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Report incidents, hazards, near misses, and HSE corrective actions",
         icon: AlertTriangle,
         href: "/safety/incidents",
+      },
+      {
+        name: "Work Initiation",
+        description: "Define, review, and assign operational work",
+        icon: ClipboardCheck,
+        href: "/safety/work-initiation",
       },
       {
         name: "Work Authorization",
