@@ -209,48 +209,84 @@ if (trip.vehicle_id) {
   // ── COMPLETE ─────────────────────────────────────────────
   // Marks all deliveries done. Frees driver + vehicle.
 
-  static async completeTrip(
-    tripId: string,
-    proofNotes?: string
-  ): Promise<Trip> {
-    const trip = trips.find((t) => t.id === tripId);
-    if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "in_transit" && trip.status !== "dispatched") {
-      throw new Error("Trip must be in transit before completing");
-    }
+//   static async completeTrip(
+//     tripId: string,
+//     proofNotes?: string
+//   ): Promise<Trip> {
+//     const trip = trips.find((t) => t.id === tripId);
+//     if (!trip) throw new Error("Trip not found");
+//     if (trip.status !== "in_transit" && trip.status !== "dispatched") {
+//       throw new Error("Trip must be in transit before completing");
+//     }
 
-    trip.status = "completed";
-    trip.completed_at = new Date().toISOString();
-    if (proofNotes) trip.notes = (trip.notes || "") + `\nDelivery confirmed: ${proofNotes}`;
+//     trip.status = "completed";
+//     trip.completed_at = new Date().toISOString();
+//     if (proofNotes) trip.notes = (trip.notes || "") + `\nDelivery confirmed: ${proofNotes}`;
 
-    // // Free up driver
-    // const driver = drivers.find((d) => d.id === trip.driver_id);
-    // if (driver) {
-    //   driver.status = "available";
-    //   driver.current_trip_id = undefined;
-    // }
+//     // // Free up driver
+//     // const driver = drivers.find((d) => d.id === trip.driver_id);
+//     // if (driver) {
+//     //   driver.status = "available";
+//     //   driver.current_trip_id = undefined;
+//     // }
 
-    // // Free up vehicle
-    // const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
-    // if (vehicle) {
-    //   vehicle.status = "available";
-    //   vehicle.current_trip_id = undefined;
-    // }
+//     // // Free up vehicle
+//     // const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
+//     // if (vehicle) {
+//     //   vehicle.status = "available";
+//     //   vehicle.current_trip_id = undefined;
+//     // }
 
-    if (trip.driver_id) {
-  await DriversService.releaseDriver(trip.driver_id);
-}
-if (trip.vehicle_id) {
-  await VehiclesService.releaseVehicle(trip.vehicle_id);
-}
+//     if (trip.driver_id) {
+//   await DriversService.releaseDriver(trip.driver_id);
+// }
+// if (trip.vehicle_id) {
+//   await VehiclesService.releaseVehicle(trip.vehicle_id);
+// }
 
-    // Mark all orders delivered
-    for (const orderId of trip.order_ids) {
-      await OrdersService.updateFulfillmentStatus(orderId, "delivered");
-    }
+//     // Mark all orders delivered
+//     // for (const orderId of trip.order_ids) {
+//     //   await OrdersService.updateFulfillmentStatus(orderId, "delivered");
+//     // }
 
-    return Promise.resolve(trip);
+//     return Promise.resolve(trip);
+//   }
+
+static async completeTrip(
+  tripId: string,
+  proofNotes?: string
+): Promise<Trip> {
+  const trip = trips.find((t) => t.id === tripId);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.status !== "in_transit" && trip.status !== "dispatched") {
+    throw new Error("Trip must be in transit before completing");
   }
+
+  // Guard: all orders must be delivered before completing
+  if (trip.order_ids.length > 0) {
+    for (const orderId of trip.order_ids) {
+      const order = await OrdersService.getOrderById(orderId);
+      if (!order || order.fulfillment_status !== "delivered") {
+        throw new Error(
+          "All orders must be delivered before completing the trip"
+        );
+      }
+    }
+  }
+
+  trip.status = "completed";
+  trip.completed_at = new Date().toISOString();
+  if (proofNotes) trip.notes = (trip.notes || "") + `\nDelivery confirmed: ${proofNotes}`;
+
+  if (trip.driver_id) {
+    await DriversService.releaseDriver(trip.driver_id);
+  }
+  if (trip.vehicle_id) {
+    await VehiclesService.releaseVehicle(trip.vehicle_id);
+  }
+
+  return Promise.resolve(trip);
+}
 
   // ── CANCEL ──────────────────────────────────────────────
 

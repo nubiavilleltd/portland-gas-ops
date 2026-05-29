@@ -78,7 +78,7 @@ export default function OrderDetailPage() {
   // const canConfirm = canConfirmOrder(order);
   const canAssign = canAssignToTrip(order);
   const canInvoice = canGenerateInvoice(order);
-  const canClose = canCloseOrder(order);
+  // const canClose = canCloseOrder(order);
   const canDeliver = canConfirmDelivery(order);
 
   console.log("canEdit", {canEdit})
@@ -136,12 +136,12 @@ export default function OrderDetailPage() {
                 Generate Invoice
               </Button>
             )}
-
+{/* 
             {canClose && (
               <Button href={ORDER_ROUTES.close(id)} variant="primary">
                 Close Order
               </Button>
-            )}
+            )} */}
           </div>
         }
       />
