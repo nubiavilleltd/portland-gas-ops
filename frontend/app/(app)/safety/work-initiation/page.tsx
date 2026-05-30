@@ -6,12 +6,12 @@ import WorkInitiationRequestsTable from "./components/WorkInitiationRequestsTabl
 
 export default function WorkInitiationPage() {
   return (
-    <AppLayout pageTitle="Operations">
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Work Initiation"
         description="Define, review, approve, and assign operational work before safety authorization."
         action={
-          <Button href="/work-initiation/new" leftIcon={<Plus size={16} />}>
+          <Button href="/safety/work-initiation/new" leftIcon={<Plus size={16} />}>
             Create Work Initiation
           </Button>
         }

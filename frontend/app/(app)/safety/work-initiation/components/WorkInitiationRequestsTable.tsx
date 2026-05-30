@@ -15,7 +15,6 @@ const columns: Column<WorkInitiationRequest>[] = [
     label: "Work Type",
     render: (value) => (Array.isArray(value) ? value.join(", ") : String(value || "-")),
   },
-  { key: "priority", label: "Priority" },
   { key: "location", label: "Location" },
   {
     key: "status",
@@ -31,7 +30,7 @@ export default function WorkInitiationRequestsTable() {
     <DataTable
       columns={columns}
       data={requests}
-      rowHref={(request) => `/work-initiation/${request.id}`}
+      rowHref={(request) => `/safety/work-initiation/${request.id}`}
       emptyMessage="No work initiation requests found."
     />
   );

@@ -11,7 +11,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import {
   incidentLocationOptions,
-  incidentPriorityOptions,
+  incidentSeverityOptions,
   mockReporter,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
@@ -19,6 +19,7 @@ import {
   createIncidentHazardReport,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 
@@ -35,12 +36,15 @@ export default function IncidentHazardForm() {
   const [observedAt, setObservedAt] = useState("");
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
   const { workAuthorizations } = useSafetyDemoData();
+  const reporter = {
+    ...mockReporter,
+    reportDate: formatLocalDate(),
+  };
   const relatedAuthorizationOptions = workAuthorizations.map((request) => ({
     value: request.id,
     label: `${request.id} - ${request.workInitiation.title}`,
     description: `${request.requester.name} | ${request.requester.requestDate}`,
   }));
-  const [priority, setPriority] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("");
   const [anyoneInjured, setAnyoneInjured] = useState("");
@@ -52,16 +56,17 @@ export default function IncidentHazardForm() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submittedAt = formatLocalDateTime();
+
     createIncidentHazardReport((id) => ({
       id,
       status: "submitted",
-      reporter: mockReporter,
+      reporter,
       title,
       reportType,
       location,
       dateTimeObserved: observedAt,
       relatedWorkAuthorization: relatedAuthorization,
-      priority: priority as "Low" | "Medium" | "High" | "Critical",
       description,
       severityEstimate: severity as "Low" | "Medium" | "High" | "Critical",
       anyoneInjured: anyoneInjured === "Yes",
@@ -81,9 +86,9 @@ export default function IncidentHazardForm() {
       hseReview: null,
       auditTrail: [{
         action: "Submitted",
-        actor: mockReporter.name,
+        actor: reporter.name,
         role: "Reporter",
-        dateTime: "2026-05-25 08:30 AM",
+        dateTime: submittedAt,
         comment: "Incident/hazard report submitted for HSE review.",
       }],
     }));
@@ -97,10 +102,10 @@ export default function IncidentHazardForm() {
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
       <FormSection title="Reporter Details" description="Your employee information for this incident or hazard report.">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Reporter Name" value={mockReporter.name} disabled />
-          <FormInput label="Department" value={mockReporter.department} disabled />
-          <FormInput label="Job Title / Role" value={mockReporter.role} disabled />
-          <FormDatePicker label="Report Date" value={mockReporter.reportDate} disabled />
+          <FormInput label="Reporter Name" value={reporter.name} disabled />
+          <FormInput label="Department" value={reporter.department} disabled />
+          <FormInput label="Job Title / Role" value={reporter.role} disabled />
+          <FormDatePicker label="Report Date" value={reporter.reportDate} disabled />
         </div>
       </FormSection>
 
@@ -111,14 +116,13 @@ export default function IncidentHazardForm() {
           <FormSelect label="Location" required searchable creatable options={toOptions(incidentLocationOptions)} placeholder="Select or add location" value={location} onValueChange={setLocation} />
           <FormDateTimeInput label="Date/Time Observed" required value={observedAt} onValueChange={setObservedAt} />
           <FormSelect label="Related Work Authorization" searchable options={relatedAuthorizationOptions} placeholder="Select related work authorization" dropdownClassName="md:min-w-[34rem]" value={relatedAuthorization} onValueChange={setRelatedAuthorization} />
-          <FormSelect label="Priority/Urgency" required options={toOptions(incidentPriorityOptions)} placeholder="Select priority" value={priority} onValueChange={setPriority} />
         </div>
       </FormSection>
 
       <FormSection title="Incident / Hazard Details" description="Describe what happened, its impact, and immediate actions taken.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" value={description} onChange={(event) => setDescription(event.target.value)} />
-          <FormSelect label="Severity Estimate" required options={toOptions(incidentPriorityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} />
+          <FormSelect label="Severity Estimate" required options={toOptions(incidentSeverityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} />
           <div className="md:col-span-2">
             <SafetyChoiceTable
               options={yesNoOptions}

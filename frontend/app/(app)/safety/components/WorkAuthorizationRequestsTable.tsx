@@ -36,12 +36,6 @@ const columns: Column<WorkAuthorizationRequest>[] = [
     render: (_, row) => row.workInitiation.assignedSupervisor,
   },
   {
-    key: "priority",
-    label: "Priority",
-    getSearchValue: (row) => row.requestDetails.priority,
-    render: (_, row) => <PriorityPill priority={row.requestDetails.priority} />,
-  },
-  {
     key: "plannedStartDateTime",
     label: "Planned Start",
     render: (_, row) => row.workInitiation.plannedStartDateTime,
@@ -119,25 +113,6 @@ function WorkAuthorizationStatusBadge({ status }: { status: string }) {
   return (
     <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
       {labelByStatus[status] ?? status}
-    </span>
-  );
-}
-
-function PriorityPill({ priority }: { priority: string }) {
-  const styles: Record<string, string> = {
-    Low: "bg-gray-100 text-gray-600",
-    Medium: "bg-blue-50 text-blue-700 border border-blue-200",
-    High: "bg-amber-50 text-amber-700 border border-amber-200",
-    Critical: "bg-red-50 text-red-700 border border-red-200",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        styles[priority] ?? "bg-gray-100 text-gray-600"
-      }`}
-    >
-      {priority}
     </span>
   );
 }

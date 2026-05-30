@@ -10,7 +10,6 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import {
   contractorContactEmailByName,
   getMockWorkInitiationRequest,
@@ -28,7 +27,6 @@ import type {
 import WorkInitiationRoleSwitcher from "./WorkInitiationRoleSwitcher";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
-const decisionOptions = toOptions(["Approve", "Return", "Deny"]);
 const categoryOptions = toOptions(workCategoryOptions);
 const employeeOptions = toOptions(["Mary James", "Daniel Okoro", "Ibrahim Musa", "Grace Bello"]);
 const locationOptions = toOptions([
@@ -174,7 +172,7 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
     <div className="space-y-5">
       <button
         type="button"
-        onClick={() => router.push("/work-initiation")}
+        onClick={() => router.push("/safety/work-initiation")}
         className="flex items-center gap-2 text-sm text-brand-text-secondary transition-colors hover:text-brand-text-primary"
       >
         <ArrowLeft size={14} />
@@ -350,7 +348,6 @@ function WorkDetails({
         ) : (
           <FormInput label="Work Type" value={request.workType.join(", ")} disabled />
         )}
-        <FormInput label="Priority" defaultValue={request.priority} disabled={!editable} />
         <FormMultiSelect
           label="Location"
           defaultValue={request.location ? [request.location] : []}
@@ -360,7 +357,7 @@ function WorkDetails({
           options={locationOptions}
           placeholder="Select or add location"
         />
-        <FormInput label="Exact Work Area" defaultValue={request.exactWorkArea} disabled={!editable} />
+        <FormTextarea label="Exact Work Area" defaultValue={request.exactWorkArea} disabled={!editable} />
         <FormTextarea label="Work Description" defaultValue={request.workDescription} disabled={!editable} />
         <FormTextarea label="Reason for Work" defaultValue={request.reasonForWork} disabled={!editable} />
       </div>
@@ -413,7 +410,7 @@ function AssignmentPlanning({
         <FormInput label="Assigned Department / Team" defaultValue={assignment.assignedDepartment} disabled={!editable} />
         <FormInput label="Assigned Supervisor" defaultValue={assignment.assignedSupervisor} disabled={!editable} />
         <FormMultiSelect label="Assigned Workers" options={employeeOptions} value={assignedWorkers} onValueChange={onAssignedWorkersChange} disabled={!editable} />
-        <FormToggleGroup label="Contractors Needed?" options={yesNoOptions} value={assignment.contractorsNeeded ? "Yes" : "No"} disabled={!editable} />
+        <FormSelect label="Contractors Needed?" options={yesNoOptions} value={assignment.contractorsNeeded ? "Yes" : "No"} onValueChange={() => undefined} disabled={!editable} />
         {assignment.contractorsNeeded ? (
           <>
             <FormSelect
@@ -451,16 +448,21 @@ function DecisionSubmitControl({
   reasonMissing: boolean;
   reasonMessage: string;
 }) {
-  const [decision, setDecision] = useState("");
-  const selectedDecision = decision as WorkAuthorizationDecision;
-  const needsReason = (selectedDecision === "Return" || selectedDecision === "Deny") && reasonMissing;
+  const reasonRequired = reasonMissing;
   return (
     <div className="space-y-3">
-      <FormSelect label="Review Decision" options={decisionOptions} placeholder="Select decision" value={decision} onValueChange={setDecision} />
-      {needsReason ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{reasonMessage}</p> : null}
-      <Button type="button" disabled={!decision || needsReason} variant={selectedDecision === "Deny" ? "danger" : "primary"} onClick={() => onDecision(selectedDecision)}>
-        Submit
-      </Button>
+      {reasonRequired ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{reasonMessage}</p> : null}
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" onClick={() => onDecision("Approve")}>
+          Approve
+        </Button>
+        <Button type="button" variant="secondary" disabled={reasonRequired} onClick={() => onDecision("Return")}>
+          Return
+        </Button>
+        <Button type="button" variant="danger" disabled={reasonRequired} onClick={() => onDecision("Deny")}>
+          Deny
+        </Button>
+      </div>
     </div>
   );
 }

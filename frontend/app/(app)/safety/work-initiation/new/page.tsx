@@ -6,9 +6,9 @@ import WorkInitiationForm from "../components/WorkInitiationForm";
 
 export default function NewWorkInitiationPage() {
   return (
-    <AppLayout pageTitle="Operations">
+    <AppLayout pageTitle="Safety & Compliance">
       <Link
-        href="/work-initiation"
+        href="/safety/work-initiation"
         className="mb-5 flex items-center gap-2 text-sm text-brand-text-secondary transition-colors hover:text-brand-text-primary"
       >
         <ArrowLeft size={14} />
