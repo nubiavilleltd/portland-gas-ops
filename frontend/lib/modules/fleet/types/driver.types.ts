@@ -1,7 +1,7 @@
 
 export type DriverStatus =
   | "available"
-  | "assigned"    // Has an active trip
+  | "assigned"    // Reserved for a trip, not yet departed
   | "in_transit"  // Trip is underway
   | "off_duty"
   | "suspended";

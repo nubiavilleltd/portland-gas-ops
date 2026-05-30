@@ -96,11 +96,11 @@ export function canDispatchTrip(trip: Trip) {
 }
 
 export function canStartTrip(trip: Trip) {
-  return trip.status === "dispatched" || trip.status === "assigned";
+  return trip.status === "dispatched"
 }
 
 export function canCompleteTrip(trip: Trip): boolean {
-  return trip.status === "in_transit" || trip.status === "dispatched";
+  return trip.status === "in_transit" 
 }
 
 

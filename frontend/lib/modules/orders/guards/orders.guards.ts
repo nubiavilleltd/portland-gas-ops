@@ -77,13 +77,21 @@ export function canGenerateInvoice(order: Order): boolean {
 // }
 
 
+
+
+
+
 export function canConfirmDelivery(order: Order): boolean {
   return (
-    order.order_status === "confirmed" &&
-    (order.fulfillment_status === "dispatched" ||
-      order.fulfillment_status === "in_transit")
-  );
+    order.order_status === "confirmed" && order.fulfillment_status === "in_transit")
 }
+// export function canConfirmDelivery(order: Order): boolean {
+//   return (
+//     order.order_status === "confirmed" &&
+//     (order.fulfillment_status === "dispatched" ||
+//       order.fulfillment_status === "in_transit")
+//   );
+// }
 
 
 /**

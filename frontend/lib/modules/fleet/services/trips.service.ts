@@ -154,46 +154,70 @@ export class TripsService {
   // ── DISPATCH ─────────────────────────────────────────────
   // Formally records the departure from depot.
 
-  static async dispatchTrip(tripId: string): Promise<Trip> {
-    const trip = trips.find((t) => t.id === tripId);
-    if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "assigned") {
-      throw new Error("Trip must be assigned before dispatch");
-    }
-    if (!trip.driver_id || !trip.vehicle_id) {
-      throw new Error("Trip must have a driver and vehicle before dispatch");
-    }
+//   static async dispatchTrip(tripId: string): Promise<Trip> {
+//     const trip = trips.find((t) => t.id === tripId);
+//     if (!trip) throw new Error("Trip not found");
+//     if (trip.status !== "assigned") {
+//       throw new Error("Trip must be assigned before dispatch");
+//     }
+//     if (!trip.driver_id || !trip.vehicle_id) {
+//       throw new Error("Trip must have a driver and vehicle before dispatch");
+//     }
 
-    trip.status = "dispatched";
-    trip.dispatch_date = new Date().toISOString();
+//     trip.status = "dispatched";
+//     trip.dispatch_date = new Date().toISOString();
 
-    // const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
-    // if (vehicle) vehicle.status = "in_transit";
 
-    // const driver = drivers.find((d) => d.id === trip.driver_id);
-    // if (driver) driver.status = "in_transit";
 
-    if (trip.driver_id) {
-  await DriversService.updateDriver(trip.driver_id, { status: "in_transit" });
-}
-if (trip.vehicle_id) {
-  await VehiclesService.updateVehicle(trip.vehicle_id, { status: "in_transit" });
-}
+//     if (trip.driver_id) {
+//   await DriversService.updateDriver(trip.driver_id, { status: "in_transit" });
+// }
+// if (trip.vehicle_id) {
+//   await VehiclesService.updateVehicle(trip.vehicle_id, { status: "in_transit" });
+// }
 
-    for (const orderId of trip.order_ids) {
+//     for (const orderId of trip.order_ids) {
+//       await OrdersService.updateFulfillmentStatus(orderId, "dispatched");
+//     }
+
+//     return Promise.resolve(trip);
+//   }
+
+static async dispatchTrip(tripId: string): Promise<Trip> {
+  const trip = trips.find((t) => t.id === tripId);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.status !== "assigned") {
+    throw new Error("Trip must be assigned before dispatch");
+  }
+  if (!trip.driver_id || !trip.vehicle_id) {
+    throw new Error("Trip must have a driver and vehicle before dispatch");
+  }
+
+  trip.status = "dispatched";
+  trip.dispatch_date = new Date().toISOString();
+
+//   if (trip.vehicle_id) {
+//   await VehiclesService.updateVehicle(trip.vehicle_id, { status: "in_use" });
+// }
+
+  for (const orderId of trip.order_ids) {
+    const order = await OrdersService.getOrderById(orderId);
+    if (order && order.fulfillment_status !== "delivered") {
       await OrdersService.updateFulfillmentStatus(orderId, "dispatched");
     }
-
-    return Promise.resolve(trip);
   }
+
+  return Promise.resolve(trip);
+}
 
   // ── START TRANSIT ────────────────────────────────────────
 
   static async startTrip(tripId: string): Promise<Trip> {
     const trip = trips.find((t) => t.id === tripId);
     if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "dispatched" && trip.status !== "assigned") {
-      throw new Error("Trip must be dispatched or assigned before starting transit");
+    // if (trip.status !== "dispatched" && trip.status !== "assigned") {
+    if (trip.status !== "dispatched") {
+      throw new Error("Trip must be dispatched before starting transit");
     }
 
     trip.status = "in_transit";
@@ -258,7 +282,8 @@ static async completeTrip(
 ): Promise<Trip> {
   const trip = trips.find((t) => t.id === tripId);
   if (!trip) throw new Error("Trip not found");
-  if (trip.status !== "in_transit" && trip.status !== "dispatched") {
+  // if (trip.status !== "in_transit" && trip.status !== "dispatched") {
+  if (trip.status !== "in_transit") {
     throw new Error("Trip must be in transit before completing");
   }
 

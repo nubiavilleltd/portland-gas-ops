@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { CheckCircle, AlertCircle } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -11,7 +11,6 @@ import FormSection from "@/components/ui/FormSection";
 
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
-import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
@@ -20,10 +19,10 @@ import { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { canCompleteTrip } from "@/lib/modules/fleet/guards/trip.guards";
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 export default function CompleteTripPage() {
   const params = useParams();
-  const router = useRouter();
 
   const tripId = params.id as string;
   const { trip } = useTripById(tripId);
@@ -35,10 +34,10 @@ export default function CompleteTripPage() {
   
   // ✅ React Query (orders)
   const { orders } = useOrders();
+  const {customers} = useCustomers()
   
   const [proofNotes, setProofNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
   
   if (!trip) {
     return (
@@ -102,6 +101,7 @@ export default function CompleteTripPage() {
 
   // ✅ REPLACED getOrderById with Map lookup
   const ordersMap = new Map(orders.map((o) => [o.id, o]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   const linkedOrders = trip.order_ids
     .map((id) => ordersMap.get(id))
@@ -184,7 +184,7 @@ export default function CompleteTripPage() {
                       <p className="text-xs text-brand-text-secondary">
                         Customer
                       </p>
-                      <p className="font-medium">{order.customer_name}</p>
+                      <p className="font-medium">{customerMap.get(order.customer_id)?.name || "Unknown customer"}</p>
                     </div>
 
                     <div>

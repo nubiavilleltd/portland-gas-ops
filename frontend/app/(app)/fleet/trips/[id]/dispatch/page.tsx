@@ -1,246 +1,6 @@
-// "use client";
-
-// import { useState } from "react";
-// import { useParams, useRouter } from "next/navigation";
-// import { ArrowLeft, Send, AlertCircle, CheckCircle } from "lucide-react";
-
-// import AppLayout from "@/components/layout/AppLayout";
-// import PageHeader from "@/components/ui/PageHeader";
-// import Button from "@/components/ui/Button";
-// // import { TripStatusBadge } from "@/components/ui/TripStatusBadge";
-
-// import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
-// import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
-// import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors";
-// // import { TripsService } from "@/lib/services/trips.service";
-// import { formatDate } from "@/lib/utils";
-// import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
-// import { TripsService } from "@/lib/modules/fleet/services/trips.service";
-// import FormSection from "@/components/ui/FormSection";
-
-// export default function DispatchTripPage() {
-//   const params = useParams();
-//   const router = useRouter();
-
-//   const tripId = params.id as string;
-//   const trip = getTripById(tripId);
-
-//   const [isSubmitting, setIsSubmitting] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-
-//   if (!trip) {
-//     return (
-//       <AppLayout pageTitle="Trip Not Found">
-//         <p className="text-brand-text-secondary">Trip not found.</p>
-//       </AppLayout>
-//     );
-//   }
-
-//   if (trip.status !== "assigned") {
-//     return (
-//       <AppLayout pageTitle="Cannot Dispatch">
-//         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
-//           <h2 className="font-semibold mb-2">Cannot dispatch this trip</h2>
-//           <p className="text-sm text-brand-text-secondary mb-1">
-//             Trip must be in <strong>Assigned</strong> status to dispatch.
-//           </p>
-//           <p className="text-sm text-brand-text-secondary mb-4">
-//             Current status: <TripStatusBadge status={trip.status} />
-//           </p>
-//           {trip.status === "pending" && (
-//             <Button href={`/fleet/trips/${tripId}/assign`} className="mr-2">
-//               Assign Driver & Vehicle First
-//             </Button>
-//           )}
-//           <Button href={`/fleet/trips/${tripId}`} variant="outline">
-//             Back to Trip
-//           </Button>
-//         </div>
-//       </AppLayout>
-//     );
-//   }
-
-//   const driver = trip.driver_id ? getDriverById(trip.driver_id) : null;
-//   const vehicle = trip.vehicle_id ? getVehicleById(trip.vehicle_id) : null;
-
-//   async function handleDispatch() {
-//     setIsSubmitting(true);
-//     setError(null);
-//     try {
-//       await TripsService.dispatchTrip(tripId);
-//       router.push(`/fleet/trips/${tripId}`);
-//     } catch (err) {
-//       setError(err instanceof Error ? err.message : "Failed to dispatch trip");
-//     } finally {
-//       setIsSubmitting(false);
-//     }
-//   }
-
-//   return (
-//     <AppLayout pageTitle="Dispatch Trip">
-//       {/* <button
-//         onClick={() => router.back()}
-//         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-//       >
-//         <ArrowLeft size={14} />
-//         Back to Trip
-//       </button> */}
-
-//       <PageHeader
-//         title={`Dispatch — ${trip.trip_number}`}
-//         description="Formally dispatch this trip from the depot. This will update all linked orders to 'Dispatched' status."
-//         className="mb-6"
-//       />
-
-//       <div className="space-y-6 max-w-2xl">
-
-//      <FormSection
-//   title="Trip Summary"
-//   description="Overview of trip details and scheduling information"
-// >
-//   <div className="flex justify-between items-start mb-4">
-//     <div>
-//       <h3 className="font-semibold">{trip.trip_number}</h3>
-//       <p className="text-sm text-brand-text-secondary capitalize">
-//         {trip.type.replace("_", " ")}
-//       </p>
-//     </div>
-//     <TripStatusBadge status={trip.status} />
-//   </div>
-
-//   <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-//     <InfoRow label="From" value={trip.start_location} />
-//     <InfoRow label="To" value={trip.end_location} />
-//     <InfoRow
-//       label="Scheduled Date"
-//       value={formatDate(trip.scheduled_date)}
-//     />
-//     <InfoRow
-//       label="Orders"
-//       value={`${trip.order_ids.length} order(s)`}
-//     />
-//   </div>
-// </FormSection>
-
-// <FormSection
-//   title="Assignment Confirmation"
-//   description="Verify driver and vehicle assignment before dispatch"
-// >
-//   <div className="grid grid-cols-2 gap-4">
-//     <div className="border rounded-xl p-4">
-//       <p className="text-xs text-brand-text-secondary mb-1">
-//         Driver
-//       </p>
-
-//       {driver ? (
-//         <>
-//           <p className="font-medium">{driver.full_name}</p>
-//           <p className="text-xs text-brand-text-secondary">
-//             {driver.license_number}
-//           </p>
-
-//           <div className="mt-2">
-//             <CheckReadyItem ok label="Driver available" />
-//           </div>
-//         </>
-//       ) : (
-//         <p className="text-sm text-red-500">
-//           No driver assigned
-//         </p>
-//       )}
-//     </div>
-
-//     <div className="border rounded-xl p-4">
-//       <p className="text-xs text-brand-text-secondary mb-1">
-//         Vehicle
-//       </p>
-
-//       {vehicle ? (
-//         <>
-//           <p className="font-medium">{vehicle.name}</p>
-//           <p className="text-xs text-brand-text-secondary">
-//             {vehicle.plate_number}
-//           </p>
-
-//           <div className="mt-2">
-//             <CheckReadyItem ok label="Vehicle available" />
-//           </div>
-//         </>
-//       ) : (
-//         <p className="text-sm text-red-500">
-//           No vehicle assigned
-//         </p>
-//       )}
-//     </div>
-//   </div>
-// </FormSection>
-
-//         {/* DISPATCH NOTICE */}
-//         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-//           <p className="font-medium mb-1">What happens when you dispatch:</p>
-//           <ul className="list-disc ml-4 space-y-1 text-blue-600">
-//             <li>Trip status changes from <strong>Assigned → Dispatched</strong></li>
-//             <li>All {trip.order_ids.length} linked order(s) become <strong>Dispatched</strong></li>
-//             <li>Vehicle status changes to <strong>In Transit</strong></li>
-//             <li>Departure time is recorded as <strong>now</strong></li>
-//           </ul>
-//         </div>
-
-//         {/* ERROR */}
-//         {error && (
-//           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-//             <AlertCircle size={16} />
-//             {error}
-//           </div>
-//         )}
-
-//         {/* ACTIONS */}
-//         <div className="flex justify-end gap-3 pb-10">
-//           {/* <Button variant="outline" onClick={() => router.back()}>
-//             Cancel
-//           </Button> */}
-//           <Button
-//             onClick={handleDispatch}
-//             disabled={isSubmitting || !driver || !vehicle}
-//           >
-//             {/* <Send size={14} className="mr-1.5" /> */}
-//             {isSubmitting ? "Dispatching..." : "Dispatch Trip"}
-//           </Button>
-//         </div>
-
-//       </div>
-//     </AppLayout>
-//   );
-// }
-
-// function InfoRow({ label, value }: { label: string; value: string }) {
-//   return (
-//     <div>
-//       <p className="text-xs text-brand-text-secondary">{label}</p>
-//       <p className="font-medium mt-0.5">{value}</p>
-//     </div>
-//   );
-// }
-
-// function CheckReadyItem({ ok, label }: { ok: boolean; label: string }) {
-//   return (
-//     <div className="flex items-center gap-1.5 text-xs">
-//       <CheckCircle size={12} className={ok ? "text-green-500" : "text-gray-300"} />
-//       <span className={ok ? "text-green-700" : "text-gray-400"}>{label}</span>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { AlertCircle, CheckCircle } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -251,17 +11,15 @@ import FormSection from "@/components/ui/FormSection";
 import { formatDate } from "@/lib/utils";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
-import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
-import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
-import { useVehicleById, useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useDispatchTripWorkflow } from "@/lib/modules/fleet/hooks/useDispatchTripWorkflow";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
 
 export default function DispatchTripPage() {
   const params = useParams();
-  const router = useRouter();
   const dispatchTrip = useDispatchTripWorkflow();
 
   const tripId = params.id as string;
@@ -270,8 +28,7 @@ export default function DispatchTripPage() {
   const { trip } = useTripById(tripId);
 
   const { driver } = useDriverById(trip?.driver_id ?? "");
-const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
-
+  const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
   if (!trip) {
     return (
@@ -286,9 +43,7 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
     return (
       <AppLayout pageTitle="Cannot Dispatch">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
-          <h2 className="font-semibold mb-2">
-            Cannot dispatch this trip
-          </h2>
+          <h2 className="font-semibold mb-2">Cannot dispatch this trip</h2>
 
           <p className="text-sm text-brand-text-secondary mb-1">
             Trip must be in <strong>Assigned</strong> status.
@@ -299,12 +54,18 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
           </p>
 
           {trip.status === "pending" && (
-            <Button href={`/fleet/trips/${tripId}/assign`} className="mr-2">
+            <Button
+              href={`/fleet/trips/${tripId}/assign`}
+              className="mr-2"
+            >
               Assign Driver & Vehicle First
             </Button>
           )}
 
-          <Button href={`/fleet/trips/${tripId}`} variant="outline">
+          <Button
+            href={`/fleet/trips/${tripId}`}
+            variant="outline"
+          >
             Back to Trip
           </Button>
         </div>
@@ -312,31 +73,9 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
     );
   }
 
-  // ── Normalize (safe + fast lookup)
-  // const driversMap = new Map(drivers.map((d) => [d.id, d]));
-  // const vehiclesMap = new Map(vehicles.map((v) => [v.id, v]));
-
-  // const driver = trip.driver_id ? driversMap.get(trip.driver_id) : null;
-  // const vehicle = trip.vehicle_id ? vehiclesMap.get(trip.vehicle_id) : null;
-
-  // async function handleDispatch() {
-  //   setIsSubmitting(true);
-  //   setError(null);
-
-  //   try {
-  //     await dispatchTrip.mutateAsync(trip)
-  //   } catch (err) {
-  //     setError(
-  //       err instanceof Error ? err.message : "Failed to dispatch trip"
-  //     );
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // }
-
   async function handleDispatch() {
-  await dispatchTrip.mutateAsync(trip as Trip);
-}
+    await dispatchTrip.mutateAsync(trip as Trip);
+  }
 
   return (
     <AppLayout pageTitle="Dispatch Trip">
@@ -347,7 +86,6 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
       />
 
       <div className="space-y-6 max-w-2xl">
-
         {/* TRIP SUMMARY */}
         <FormSection
           title="Trip Summary"
@@ -365,16 +103,24 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="From" value={trip.start_location} />
-            <InfoRow label="To" value={trip.end_location} />
+            <InfoRow
+              label="From"
+              value={trip.start_location}
+            />
+            <InfoRow
+              label="To"
+              value={trip.end_location}
+            />
             <InfoRow
               label="Scheduled Date"
               value={formatDate(trip.scheduled_date)}
             />
-            <InfoRow
-              label="Orders"
-              value={`${trip.order_ids.length} order(s)`}
-            />
+            {trip.order_ids.length > 0 && (
+              <InfoRow
+                label="Orders"
+                value={`${trip.order_ids.length} order(s)`}
+              />
+            )}
           </div>
         </FormSection>
 
@@ -384,18 +130,13 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
           description="Verify driver and vehicle before dispatch"
         >
           <div className="grid grid-cols-2 gap-4">
-
             {/* DRIVER */}
             <div className="border rounded-xl p-4">
-              <p className="text-xs text-brand-text-secondary mb-1">
-                Driver
-              </p>
+              <p className="text-xs text-brand-text-secondary mb-1">Driver</p>
 
               {driver ? (
                 <>
-                  <p className="font-medium">
-                    {driver.full_name}
-                  </p>
+                  <p className="font-medium">{driver.full_name}</p>
 
                   <p className="text-xs text-brand-text-secondary">
                     {driver.license_number}
@@ -403,21 +144,20 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
                   <div className="mt-2">
                     {/* <CheckReadyItem ok label="Driver available" /> */}
-                    <CheckReadyItem ok label="Driver assigned" />
+                    <CheckReadyItem
+                      ok
+                      label="Driver assigned"
+                    />
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-red-500">
-                  No driver assigned
-                </p>
+                <p className="text-sm text-red-500">No driver assigned</p>
               )}
             </div>
 
             {/* VEHICLE */}
             <div className="border rounded-xl p-4">
-              <p className="text-xs text-brand-text-secondary mb-1">
-                Vehicle
-              </p>
+              <p className="text-xs text-brand-text-secondary mb-1">Vehicle</p>
 
               {vehicle ? (
                 <>
@@ -429,21 +169,21 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
                   <div className="mt-2">
                     {/* <CheckReadyItem ok label="Vehicle available" /> */}
-                    <CheckReadyItem ok label="Vehicle assigned" />
+                    <CheckReadyItem
+                      ok
+                      label="Vehicle assigned"
+                    />
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-red-500">
-                  No vehicle assigned
-                </p>
+                <p className="text-sm text-red-500">No vehicle assigned</p>
               )}
             </div>
-
           </div>
         </FormSection>
 
         {/* NOTICE */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+        {/* <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
           <p className="font-medium mb-1">
             What happens when you dispatch:
           </p>
@@ -462,17 +202,34 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
               Departure time is recorded
             </li>
           </ul>
+        </div> */}
+
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+          <p className="font-medium mb-1">What happens when you dispatch:</p>
+
+          <ul className="list-disc ml-4 space-y-1 text-blue-600">
+            <li>
+              Trip changes from <strong>Assigned → Dispatched</strong>
+            </li>
+            {trip.order_ids.length > 0 && (
+              <li>
+                {trip.order_ids.length} order(s) marked as{" "}
+                <strong>Dispatched</strong>
+              </li>
+            )}
+            <li>Departure time is recorded</li>
+          </ul>
         </div>
 
         {/* ERROR */}
-      {dispatchTrip.error && (
-  <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-    <AlertCircle size={16} />
-    {dispatchTrip.error instanceof Error
-      ? dispatchTrip.error.message
-      : "Failed to dispatch trip"}
-  </div>
-)}
+        {dispatchTrip.error && (
+          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <AlertCircle size={16} />
+            {dispatchTrip.error instanceof Error
+              ? dispatchTrip.error.message
+              : "Failed to dispatch trip"}
+          </div>
+        )}
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
@@ -485,19 +242,12 @@ const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
             Dispatch Trip
           </Button>
         </div>
-
       </div>
     </AppLayout>
   );
 }
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-brand-text-secondary">{label}</p>
@@ -506,22 +256,14 @@ function InfoRow({
   );
 }
 
-function CheckReadyItem({
-  ok,
-  label,
-}: {
-  ok: boolean;
-  label: string;
-}) {
+function CheckReadyItem({ ok, label }: { ok: boolean; label: string }) {
   return (
     <div className="flex items-center gap-1.5 text-xs">
       <CheckCircle
         size={12}
         className={ok ? "text-green-500" : "text-gray-300"}
       />
-      <span className={ok ? "text-green-700" : "text-gray-400"}>
-        {label}
-      </span>
+      <span className={ok ? "text-green-700" : "text-gray-400"}>{label}</span>
     </div>
   );
 }

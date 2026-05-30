@@ -6,11 +6,11 @@ export type VehicleType =
 
 export type VehicleStatus =
   | "available"
-  | "in_use"       // Assigned to an active trip
-  | "in_transit"   // Trip underway
+  | "assigned"     // Reserved for a trip, not yet departed
+  | "in_transit"   // Trip underway, vehicle on the road
   | "maintenance"
   | "inactive";
-
+  
 export interface Vehicle {
   id: string;
   plate_number: string;

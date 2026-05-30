@@ -45,12 +45,19 @@ export class VehiclesService {
 
   // ── ASSIGN / RELEASE ────────────────────────────────────
 
+  // static async assignVehicleToTrip(vehicleId: string, tripId: string): Promise<Vehicle> {
+  //   return this.updateVehicle(vehicleId, {
+  //     status: "in_use",
+  //     current_trip_id: tripId,
+  //   });
+  // }
+
   static async assignVehicleToTrip(vehicleId: string, tripId: string): Promise<Vehicle> {
-    return this.updateVehicle(vehicleId, {
-      status: "in_use",
-      current_trip_id: tripId,
-    });
-  }
+  return this.updateVehicle(vehicleId, {
+    status: "assigned",
+    current_trip_id: tripId,
+  });
+}
 
   static async releaseVehicle(vehicleId: string): Promise<Vehicle> {
     return this.updateVehicle(vehicleId, {

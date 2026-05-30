@@ -619,7 +619,7 @@ async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Or
         (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
       ).length,
       inTransit: all.filter(
-        (o) => o.fulfillment_status === "dispatched" || o.fulfillment_status === "in_transit"
+        (o) => o.fulfillment_status === "in_transit"
       ).length,
       delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
       unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
@@ -627,3 +627,19 @@ async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Or
     };
   },
 };
+//   async getKPIs(): Promise<OrderKPIs> {
+//     const all = await OrdersService.getOrders();
+//     return {
+//       totalOrders: all.length,
+//       pendingDispatch: all.filter(
+//         (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
+//       ).length,
+//       inTransit: all.filter(
+//         (o) => o.fulfillment_status === "dispatched" || o.fulfillment_status === "in_transit"
+//       ).length,
+//       delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
+//       unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
+//       totalRevenue: all.reduce((sum, o) => sum + o.total_amount, 0),
+//     };
+//   },
+// };
