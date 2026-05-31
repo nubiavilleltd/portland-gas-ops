@@ -31,6 +31,19 @@ export class VehiclesService {
     );
   }
 
+  static async createVehicle(
+  input: Omit<Vehicle, "id" | "created_at" | "current_trip_id">
+): Promise<Vehicle> {
+  const newVehicle: Vehicle = {
+    id: `veh-${Date.now()}`,
+    created_at: new Date().toISOString(),
+    ...input,
+  };
+
+  vehicles.push(newVehicle);
+  return Promise.resolve(newVehicle);
+}
+
   // ── UPDATE ──────────────────────────────────────────────
 
   static async updateVehicle(id: string, input: Partial<Vehicle>): Promise<Vehicle> {

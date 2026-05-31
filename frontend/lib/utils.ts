@@ -53,3 +53,14 @@ export function toTitleCase(str: string): string {
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
+
+// function capolizeFirstLetter(str: string): string {
+//   if (!str) return "";
+//   return str[0].toUpperCase() + str.slice(1).toLowerCase();
+
+
+//   render: (value) =>
+//   (value as string)
+//     .replaceAll("_", " ")
+//     .replace(/\b\w/g, (c) => c.toUpperCase()),
+// }
