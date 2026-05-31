@@ -11,20 +11,24 @@ import Button from "@/components/ui/Button";
 // import { FulfillmentStatusBadge } from "@/components/ui/FulfillmentStatusBadge";
 // import { PaymentStatusBadge } from "@/components/ui/PaymentStatusBadge";
 
-import { getOrderById, isOrderComplete } from "@/lib/modules/orders/selectors/orders.selectors";
 // import { OrdersService } from "@/lib/services/orders.service";
 import { formatCurrency } from "@/lib/utils";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 import FormSection from "@/components/ui/FormSection";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { canCloseOrder } from "@/lib/modules/orders/guards/orders.guards";
+import { useCloseOrderWorkflow } from "@/lib/modules/orders/hooks/useCloseOrderWorkflow";
+import { Order } from "@/lib/modules/orders/types/orders.types";
 
 export default function CloseOrderPage() {
   const params = useParams();
   const router = useRouter();
+  const closeOrder = useCloseOrderWorkflow()
 
   const id = params.id as string;
-  const order = getOrderById(id);
+  const {order} = useOrderById(id);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +60,7 @@ export default function CloseOrderPage() {
     );
   }
 
-  const canClose = isOrderComplete(order);
+  const canClose = canCloseOrder(order);
   const deliveryOk = order.fulfillment_status === "delivered";
   const paymentOk = order.payment_status === "paid";
 
@@ -64,8 +68,7 @@ export default function CloseOrderPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await OrdersService.closeOrder(id);
-      router.push(`/orders/${id}`);
+      await closeOrder.mutateAsync(order as Order)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to close order");
     } finally {

@@ -14,18 +14,52 @@ import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 // import { OrdersService } from "@/lib/services/orders.service";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import FormSection from "@/components/ui/FormSection";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { toast } from "sonner";
+import { useConfirmOrder } from "@/lib/modules/orders/hooks/useOrderMutations";
+import { useConfirmOrderWorkflow } from "@/lib/modules/orders/hooks/useConfirmOrderWorkflow";
 
 export default function ConfirmOrderPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const order = getOrderById(id);
+  const {order} = useOrderById(id);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [error, setError] = useState<string | null>(null);
+  // const confirmMutation = useConfirmOrder();
+
+  const { mutate: confirmOrder, isPending } =
+  useConfirmOrderWorkflow(order);
+
+
+    // // ── ACTION: confirm order (workflow layer)
+    // async function handleConfirm() {
+    //   await confirmOrder.mutate();
+  
+    //   // optional UX navigation (workflow already updated cache)
+    //   router.push(ORDER_ROUTES.detail(order.id));
+    // }
+  
+
+
+  // async function handleConfirm() {
+  //   setIsSubmitting(true);
+  //   setError(null);
+  //   try {
+  //     await confirmMutation.mutateAsync(id);
+
+  //   toast.success("Order confirmed");
+  //     router.push(`/orders/${id}`);
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : "Failed to confirm order");
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // }
 
   if (!order) {
     return (
@@ -56,18 +90,7 @@ export default function ConfirmOrderPage() {
     );
   }
 
-  async function handleConfirm() {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await OrdersService.confirmOrder(id);
-      router.push(`/orders/${id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to confirm order");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+
 
   return (
     <AppLayout pageTitle="Confirm Order">
@@ -156,20 +179,20 @@ export default function ConfirmOrderPage() {
 </FormSection>
 
         {/* ERROR */}
-        {error && (
+        {/* {error && (
           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
             <AlertCircle size={16} />
             {error}
           </div>
-        )}
+        )} */}
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
           {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
           </Button> */}
-          <Button onClick={handleConfirm} disabled={isSubmitting}>
-            {isSubmitting ? "Confirming..." : "Confirm Order"}
+          <Button onClick={() => confirmOrder()} disabled={isPending}>
+            {isPending ? "Confirming..." : "Confirm Order"}
           </Button>
         </div>
 

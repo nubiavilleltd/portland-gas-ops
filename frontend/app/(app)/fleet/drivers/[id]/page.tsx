@@ -1,3 +1,206 @@
+// "use client";
+
+// import { useParams } from "next/navigation";
+
+// import AppLayout from "@/components/layout/AppLayout";
+// import PageHeader from "@/components/ui/PageHeader";
+// import Button from "@/components/ui/Button";
+// import ApprovalBadge from "@/components/ui/ApprovalBadge";
+
+// import Avatar from "@/components/ui/Avatar";
+
+// import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
+// import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
+// import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
+// import FormSection from "@/components/ui/FormSection";
+
+// export default function DriverDetailPage() {
+//   const params = useParams();
+//   const id = params.id as string;
+
+//   const driver = getDriverById(id);
+
+//   if (!driver) {
+//     return (
+//       <AppLayout pageTitle="Driver Not Found">
+//         Driver not found.
+//       </AppLayout>
+//     );
+//   }
+
+//   const activeTrip = driver.current_trip_id
+//     ? getTripById(driver.current_trip_id)
+//     : null;
+
+//   return (
+//     <AppLayout pageTitle={driver.full_name}>
+//       {/* HEADER */}
+//       <PageHeader
+//         title={driver.full_name}
+//         description={`${driver.phone_number} • ${driver.license_number}`}
+//         action={
+//           <div className="flex gap-2">
+//             <Button
+//               variant="outline"
+//               href={`/fleet/drivers/${driver.id}/edit`}
+//             >
+//               Edit Driver
+//             </Button>
+
+//             <Button
+//               href={`/fleet/trips/new?driverId=${driver.id}`}
+//             >
+//               Assign Trip
+//             </Button>
+//           </div>
+//         }
+//       />
+
+//       <div className="space-y-6">
+
+//         <FormSection
+//           title="Driver Profile"
+//           description="Personal and license information"
+//         >
+//           <div className="flex items-start justify-between mb-6">
+//             <div className="flex items-center gap-4">
+//               {/* AVATAR (NEW) */}
+//               <Avatar
+//                 src={
+//                   (driver as any).profile_image ||
+//                   "https://ui-avatars.com/api/?name=" +
+//                   encodeURIComponent(driver.full_name)
+//                 }
+//                 name={driver.full_name}
+//                 size={64}
+//               />
+
+//               <div>
+//                 <h2 className="text-base font-semibold">
+//                   Driver Profile
+//                 </h2>
+
+//                 <p className="text-sm text-brand-text-secondary mt-1">
+//                   Personal and license information
+//                 </p>
+//               </div>
+//             </div>
+
+//             <FleetStatusBadge status={driver.status} />
+//           </div>
+
+//           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 text-sm">
+//             <Info label="Full Name" value={driver.full_name} />
+//             <Info label="Phone" value={driver.phone_number} />
+//             <Info label="Email" value={driver.email} />
+//             <Info label="License Number" value={driver.license_number} />
+//             <Info
+//               label="Experience"
+//               value={`${driver.experience_years || 0} years`}
+//             />
+//             <Info label="Status" value={driver.status} />
+//           </div>
+//         </FormSection>
+
+//         <FormSection
+//           title="Current Assignment"
+//           description="Active trip allocation (driven by Trips system)"
+//         >
+//           {activeTrip ? (
+//             <div className="text-sm">
+//               <p className="font-medium text-blue-600">
+//                 Assigned to Trip {activeTrip.trip_number}
+//               </p>
+
+//               <p className="text-brand-text-secondary mt-1">
+//                 {activeTrip.start_location} → {activeTrip.end_location}
+//               </p>
+
+//               <div className="mt-4">
+//                 <Button
+//                   size="sm"
+//                   variant="outline"
+//                   href={`/fleet/trips/${activeTrip.id}`}
+//                 >
+//                   View Trip
+//                 </Button>
+//               </div>
+//             </div>
+//           ) : driver.status === "suspended" ? (
+//             <div className="text-sm">
+//               <p className="font-medium text-red-600">
+//                 Driver is inactive
+//               </p>
+//               <p className="text-brand-text-secondary mt-1">
+//                 Not available for assignments.
+//               </p>
+//             </div>
+//           ) : (
+//             <div className="text-sm">
+//               <p className="font-medium text-green-600">
+//                 Available for assignment
+//               </p>
+//               <p className="text-brand-text-secondary mt-1">
+//                 Ready to be assigned to a trip.
+//               </p>
+//             </div>
+//           )}
+//         </FormSection>
+
+//         <FormSection
+//           title="Trip History"
+//           description="Past deliveries and assignments"
+//         >
+//           <div className="flex items-start justify-between mb-4">
+//             <Button
+//               size="sm"
+//               variant="outline"
+//               href={`/fleet/trips?driverId=${driver.id}`}
+//             >
+//               View All
+//             </Button>
+//           </div>
+
+//           <p className="text-sm text-brand-text-secondary">
+//             No trip history available yet.
+//           </p>
+//         </FormSection>
+//       </div>
+//     </AppLayout>
+//   );
+// }
+
+// /* --------------------------------------------
+//    INFO COMPONENT
+// ---------------------------------------------*/
+// function Info({
+//   label,
+//   value,
+// }: {
+//   label: string;
+//   value: string;
+// }) {
+//   return (
+//     <div>
+//       <p className="text-xs text-brand-text-secondary">
+//         {label}
+//       </p>
+//       <p className="font-medium mt-1">
+//         {value}
+//       </p>
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+
+
+
+
 "use client";
 
 import { useParams } from "next/navigation";
@@ -5,36 +208,58 @@ import { useParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
-
 import Avatar from "@/components/ui/Avatar";
-
-import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
-import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
-import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
 import FormSection from "@/components/ui/FormSection";
+
+import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useTrips } from "@/lib/modules/fleet/hooks/useTrips";
+import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
 
 export default function DriverDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const driver = getDriverById(id);
+  // ✅ ALL DRIVERS (React Query source of truth)
+  const {
+    driver,
+    isLoading: driversLoading,
+  } = useDriverById(id);
 
-  if (!driver) {
+  // ✅ DERIVE DRIVER (no selector, no hook, no extra abstraction)
+  // const driver = drivers.find((d) => d.id === id);
+
+  // loading state
+  if (driversLoading) {
     return (
-      <AppLayout pageTitle="Driver Not Found">
-        Driver not found.
+      <AppLayout pageTitle="Loading...">
+        <p className="text-brand-text-secondary">Loading driver...</p>
       </AppLayout>
     );
   }
 
+  if (!driver) {
+    return (
+      <AppLayout pageTitle="Driver Not Found">
+        <p className="text-brand-text-secondary">Driver not found.</p>
+      </AppLayout>
+    );
+  }
+
+  // ✅ TRIPS (single source of truth)
+  const { trips } = useTrips();
+
   const activeTrip = driver.current_trip_id
-    ? getTripById(driver.current_trip_id)
-    : null;
+    ? trips.find((t) => t.id === driver.current_trip_id)
+    : undefined;
+
+  const profileImage =
+    driver.profile_image ??
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      driver.full_name
+    )}`;
 
   return (
     <AppLayout pageTitle={driver.full_name}>
-      {/* HEADER */}
       <PageHeader
         title={driver.full_name}
         description={`${driver.phone_number} • ${driver.license_number}`}
@@ -47,9 +272,7 @@ export default function DriverDetailPage() {
               Edit Driver
             </Button>
 
-            <Button
-              href={`/fleet/trips/new?driverId=${driver.id}`}
-            >
+            <Button href={`/fleet/trips/new?driverId=${driver.id}`}>
               Assign Trip
             </Button>
           </div>
@@ -58,19 +281,15 @@ export default function DriverDetailPage() {
 
       <div className="space-y-6">
 
+        {/* DRIVER PROFILE */}
         <FormSection
           title="Driver Profile"
           description="Personal and license information"
         >
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
-              {/* AVATAR (NEW) */}
               <Avatar
-                src={
-                  (driver as any).profile_image ||
-                  "https://ui-avatars.com/api/?name=" +
-                  encodeURIComponent(driver.full_name)
-                }
+                src={profileImage}
                 name={driver.full_name}
                 size={64}
               />
@@ -96,12 +315,13 @@ export default function DriverDetailPage() {
             <Info label="License Number" value={driver.license_number} />
             <Info
               label="Experience"
-              value={`${driver.experience_years || 0} years`}
+              value={`${driver.experience_years ?? 0} years`}
             />
             <Info label="Status" value={driver.status} />
           </div>
         </FormSection>
 
+        {/* CURRENT ASSIGNMENT */}
         <FormSection
           title="Current Assignment"
           description="Active trip allocation (driven by Trips system)"
@@ -147,6 +367,7 @@ export default function DriverDetailPage() {
           )}
         </FormSection>
 
+        {/* TRIP HISTORY */}
         <FormSection
           title="Trip History"
           description="Past deliveries and assignments"
@@ -165,6 +386,7 @@ export default function DriverDetailPage() {
             No trip history available yet.
           </p>
         </FormSection>
+
       </div>
     </AppLayout>
   );
@@ -182,12 +404,20 @@ function Info({
 }) {
   return (
     <div>
-      <p className="text-xs text-brand-text-secondary">
-        {label}
-      </p>
-      <p className="font-medium mt-1">
-        {value}
-      </p>
+      <p className="text-xs text-brand-text-secondary">{label}</p>
+      <p className="font-medium mt-1">{value}</p>
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

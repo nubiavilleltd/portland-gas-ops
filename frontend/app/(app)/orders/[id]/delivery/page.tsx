@@ -33,7 +33,7 @@ export default function OrderDeliveryPage() {
     </div>
 
     <div className="ml-auto">
-      <FulfillmentStatusBadge status="in_progress" />
+      <FulfillmentStatusBadge status="in_transit" />
     </div>
   </div>
 

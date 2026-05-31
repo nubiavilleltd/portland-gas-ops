@@ -3,16 +3,17 @@
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 
-import { getVehicles } from "@/lib/modules/fleet/selectors/vehicles.selectors";
-import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
+// import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
 
 
 
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
+import { formatDate, toTitleCase } from "@/lib/utils";
 
 const columns: Column<Vehicle>[] = [
   {
@@ -21,42 +22,39 @@ const columns: Column<Vehicle>[] = [
     render: (_value, vehicle) => (
       <div>
         <p className="font-medium">{vehicle.name}</p>
-        <p className="text-xs text-brand-text-secondary mt-1">{vehicle.fuel_type}</p>
+        <p className="text-xs text-brand-text-secondary mt-1">
+          {vehicle.make} {vehicle.model} · {vehicle.year}
+        </p>
       </div>
     ),
   },
   {
     key: "plate_number",
-    label: "Plate Number",
+    label: "Plate No.",
   },
   {
     key: "type",
     label: "Type",
-    render: (value) => (value as string).replaceAll("_", " ").toUpperCase(),
+    render: (value) => toTitleCase(value as string),
   },
   {
-    key: "mileage",
-    label: "Mileage",
-    render: (value) => `${(value as number)?.toLocaleString()} km`,
+    key: "capacity",
+    label: "Capacity",
+    render: (value) =>
+      value ? `${(value as number).toLocaleString()} kg` : "—",
+  },
+  {
+    key: "next_service_date",
+    label: "Next Service",
+    render: (value) => formatDate(value as string),
   },
   {
     key: "status",
-    label: "Operational State",
+    label: "Status",
     render: (value) => (
-      <FleetVehicleStatusBadge status={value as Vehicle["status"]} />
+      <FleetStatusBadge status={value as Vehicle["status"]} />
     ),
   },
-  // {
-  //   key: "id",
-  //   label: "Actions",
-  //   render: (_value, vehicle) => (
-  //     <div className="flex justify-end">
-  //       <Button size="sm" variant="outline" href={`/fleet/vehicles/${vehicle.id}`}>
-  //         View
-  //       </Button>
-  //     </div>
-  //   ),
-  // },
 ];
 
 // Replace the entire <div className="bg-white border ..."> block with:
@@ -64,18 +62,18 @@ const columns: Column<Vehicle>[] = [
 
 
 export default function VehiclesPage() {
-  const vehicles = getVehicles();
+  const {vehicles} = useVehicles();
 
   return (
     <AppLayout pageTitle="Vehicles">
       <PageHeader
         title="All Vehicles"
         description="View all operational fleet vehicles"
-        // action={
-        //   <Button href="/fleet/vehicles/new">
-        //     Add Vehicle
-        //   </Button>
-        // }
+        action={
+          <Button href="/fleet/vehicles/new">
+            Add Vehicle
+          </Button>
+        }
       />
 
       <DataTable<Vehicle>

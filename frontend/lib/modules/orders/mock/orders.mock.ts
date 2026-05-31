@@ -83,7 +83,7 @@ export const orders: Order[] = [
     id: "4",
     order_number: "ORD-20260512-D412",
     customer_id: "c4",
-    customer_name: "Flour Mills of Nigeria",
+    customer_name: "Emeka Okafor",
     order_type: "Bulk CNG Supply",
     product_name: "CNG",
     quantity: 9000,

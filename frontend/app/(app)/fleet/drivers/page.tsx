@@ -244,9 +244,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
-import {
-  getDrivers,
-} from "@/lib/modules/fleet/selectors/drivers.selectors";
+
 import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
 
 
@@ -257,6 +255,7 @@ import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import type { Driver } from "@/lib/modules/fleet/types/driver.types";
+import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 
 const columns: Column<Driver>[] = [
   {
@@ -301,7 +300,7 @@ const columns: Column<Driver>[] = [
 
 
 export default function DriversPage() {
-  const drivers = getDrivers();
+  const {drivers} = useDrivers();
 
   return (
     <AppLayout pageTitle="Drivers">
