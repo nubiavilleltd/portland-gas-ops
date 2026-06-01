@@ -243,7 +243,7 @@ export const moduleGroups: readonly ModuleGroup[] = [
 export const homeModuleGroups = moduleGroups
   .map((group) => ({
     ...group,
-    processes: group.processes.filter((process) => process.showOnHome !== false),
+    processes: group.processes.filter((process) => process.showOnHome !== false).sort((a, b) => a.name.localeCompare(b.name)),
   }))
   .filter((group) => group.processes.length > 0);
 
