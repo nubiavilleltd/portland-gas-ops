@@ -9,13 +9,15 @@ import Avatar from "@/components/ui/Avatar";
 import FormSection from "@/components/ui/FormSection";
 
 import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
-import { useTrips, useTripsByDriver } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripsByDriver } from "@/lib/modules/fleet/hooks/useTrips";
 import { DriverStatusBadge } from "@/lib/modules/fleet/badges/DriverStatusBadge";
 import { formatDate } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { canReinstateDriver, canSetAvailable, canSetOffDuty, canSuspendDriver } from "@/lib/modules/fleet/guards/driver.guards";
 import { canAssignDriver } from "@/lib/modules/fleet/guards/trip.guards";
 import { toast } from "sonner";
+import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
+import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 
 export default function DriverDetailPage() {
   const params = useParams();
@@ -26,7 +28,7 @@ export default function DriverDetailPage() {
     driver,
     isLoading: driversLoading,
   } = useDriverById(id);
-    const { trips } = useTrips();
+    // const { trips } = useTrips();
 
 
     const { trips: driverTrips } = useTripsByDriver(driver?.id as string);
@@ -62,15 +64,49 @@ const canGoAvailable = canSetAvailable(driver);
 const canAssign = canAssignDriver(driver);
 
 
+  // const activeTrip = driver.current_trip_id
+  //   ? trips.find((t) => t.id === driver.current_trip_id)
+  //   : undefined;
   const activeTrip = driver.current_trip_id
-    ? trips.find((t) => t.id === driver.current_trip_id)
-    : undefined;
+  ? driverTrips.find((t) => t.id === driver.current_trip_id)
+  : undefined;
 
   const profileImage =
     driver.profile_image ??
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
       driver.full_name
     )}`;
+
+
+    const tripColumns: SimpleTableColumn<Trip>[] = [
+  {
+    label: "Trip",
+    render: (trip) => (
+      <span className="font-mono text-xs">{trip.trip_number}</span>
+    ),
+  },
+  {
+    label: "Type",
+    render: (trip) => trip.type.replaceAll("_", " "),
+  },
+  {
+    label: "Date",
+    render: (trip) => formatDate(trip.scheduled_date),
+  },
+  {
+    label: "Status",
+    render: (trip) => <TripStatusBadge status={trip.status} />,
+  },
+  {
+    label: "",
+    align: "right",
+    render: (trip) => (
+      <Button size="sm" variant="outline" href={`/fleet/trips/${trip.id}`}>
+        View
+      </Button>
+    ),
+  },
+];
 
   return (
     <AppLayout pageTitle={driver.full_name}>
@@ -213,7 +249,7 @@ const canAssign = canAssignDriver(driver);
   title="Trip History"
   description="All trips associated with this driver"
 >
-  {sortedTrips.length === 0 ? (
+  {/* {sortedTrips.length === 0 ? (
     <p className="text-sm text-brand-text-secondary">
       No trips recorded yet.
     </p>
@@ -246,7 +282,14 @@ const canAssign = canAssignDriver(driver);
         </tbody>
       </table>
     </div>
-  )}
+  )} */}
+
+    <SimpleTable
+    columns={tripColumns}
+    rows={sortedTrips.slice(0, 5)}
+    keyExtractor={(trip) => trip.id}
+    emptyMessage="No trips recorded yet."
+  />
 </FormSection>
 
       </div>

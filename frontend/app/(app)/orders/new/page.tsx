@@ -8,16 +8,12 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 
 import type { CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
-import { OrdersService } from "@/lib/modules/orders/services/orders.service";
-import { ORDER_ROUTES } from "@/lib/modules/orders/constants/routes";
-import { parseError } from "@/lib/errors";
+
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 import { useState } from "react";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
 import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
-import { CreateOrderInput } from "@/lib/modules/orders/types/orders.types";
 import { buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
 
 
@@ -30,50 +26,10 @@ export default function NewOrderPage() {
 const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
 
-
-// function buildPayload(data: CreateOrderFormValues): CreateOrderInput {
-//   const primaryItem = data.order_items[0];
-//   const product = getProductById(products, primaryItem.product_id);
-//   return {
-//     customer_id: data.customer_id,
-//     order_type: data.order_type,
-//     product_name: product?.name ?? primaryItem.product_id,
-//     quantity: String(primaryItem.quantity),
-//     unit_price: String(primaryItem.unit_price),
-//     delivery_address: data.delivery_address,
-//     delivery_date: data.delivery_date,
-//     notes: data.notes,
-//   };
-// }
-
-  // async function handleSubmit(data: CreateOrderFormValues) {
-  //   const primaryItem = data.order_items[0];
-  //   const product = getProductById(products, primaryItem.product_id);
-
-  //   const order = await OrdersService.createOrder({
-  //     customer_id: data.customer_id,
-  //     order_type: data.order_type,
-  //     product_name: product?.name ?? primaryItem.product_id,
-  //     quantity: String(primaryItem.quantity),
-  //     unit_price: String(primaryItem.unit_price),
-  //     delivery_address: data.delivery_address,
-  //     delivery_date: data.delivery_date,
-  //     notes: data.notes,
-  //   });
-
-  //   toast.success("Order created successfully");
-  //   router.push(ORDER_ROUTES.detail(order.id));
-  // }
-
   async function handleSubmit(data: CreateOrderFormValues) {
   await submitOrder({ input: buildOrderPayload(data, products), existingDraftId: draftId ?? undefined });
 }
 
-  // async function handleSaveDraft() {
-  //   // getValues without triggering validation — intentional for drafts
-  //   toast.success("Draft saved");
-  //   router.push(ORDER_ROUTES.list());
-  // }
 
   async function handleSaveDraft(data: CreateOrderFormValues) {
   const saved = await saveDraft({ input: buildOrderPayload(data, products), existingDraftId: draftId ?? undefined });

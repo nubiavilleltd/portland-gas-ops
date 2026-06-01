@@ -146,14 +146,14 @@ export default function ProductForm({
 
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-2">
-                <Button
+                {/* <Button
                     type="button"
                     variant="outline"
                     onClick={onCancel}
                     disabled={isSubmitting}
                 >
                     Cancel
-                </Button>
+                </Button> */}
                 <Button
                     type="submit"
                     loading={isSubmitting}
