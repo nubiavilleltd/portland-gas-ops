@@ -128,7 +128,7 @@ export default function VehicleForm({
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
 
       {/* IDENTITY */}
       <FormSection

@@ -22,6 +22,8 @@ import {
   canReturnFromMaintenance,
   canSendForMaintenance,
 } from "@/lib/modules/fleet/guards/vehicle.guards";
+import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
+import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 
 export default function VehicleDetailPage() {
   const params = useParams();
@@ -30,7 +32,6 @@ export default function VehicleDetailPage() {
   const { vehicle } = useVehicleById(id);
   const canAssign = canAssignVehicle(vehicle);
 
-  console.log("VEHICLE DETAIL - VEHICLE:", { vehicle });
 
   // const canAssign = canAssignTrip(vehicle?.status || "retired");
 
@@ -57,6 +58,38 @@ export default function VehicleDetailPage() {
   const canReturnMaintenance = canReturnFromMaintenance(vehicle);
   const canDeactivate = canDeactivateVehicle(vehicle);
   const canActivate = canActivateVehicle(vehicle);
+
+
+
+  const tripColumns: SimpleTableColumn<Trip>[] = [
+  {
+    label: "Trip",
+    render: (trip) => (
+      <span className="font-mono text-xs">{trip.trip_number}</span>
+    ),
+  },
+  {
+    label: "Type",
+    render: (trip) => toTitleCase(trip.type.replaceAll("_", " ")),
+  },
+  {
+    label: "Date",
+    render: (trip) => formatDate(trip.scheduled_date),
+  },
+  {
+    label: "Status",
+    render: (trip) => <TripStatusBadge status={trip.status} />,
+  },
+  {
+    label: "",
+    align: "right",
+    render: (trip) => (
+      <Button size="sm" variant="outline" href={`/fleet/trips/${trip.id}`}>
+        View
+      </Button>
+    ),
+  },
+];
 
   return (
     <AppLayout pageTitle={vehicle.name}>
@@ -256,7 +289,7 @@ export default function VehicleDetailPage() {
             </div>
           )}
 
-          {trips.length === 0 ? (
+          {/* {trips.length === 0 ? (
             <p className="text-sm text-brand-text-secondary">
               No trips recorded yet.
             </p>
@@ -309,7 +342,14 @@ export default function VehicleDetailPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          )} */}
+
+          <SimpleTable
+  columns={tripColumns}
+  rows={sortedTrips.slice(0, 5)}
+  keyExtractor={(trip) => trip.id}
+  emptyMessage="No trips recorded yet."
+/>
         </FormSection>
       </div>
     </AppLayout>

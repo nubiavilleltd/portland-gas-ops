@@ -56,6 +56,15 @@ export type PaymentStatus =
   | "paid"
   | "overdue";
 
+
+export interface OrderLineItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+}
+
 // ── 4. ORDER ENTITY ───────────────────────────────────────
 export interface Order {
   id: string;
@@ -65,12 +74,9 @@ export interface Order {
   customer_id: string;
   customer_name: string;
 
-  // Product
-  order_type: string;
-  product_name?: string;
-  quantity: number;
-  unit_price: number;
-  total_amount: number;
+  // Products
+order_items: OrderLineItem[];
+total_amount: number; // derived — sum of all line item totals
 
   // Delivery
   delivery_address: string;
@@ -102,10 +108,13 @@ export interface Order {
 // ── 5. INPUT / FORM TYPES ─────────────────────────────────
 export interface CreateOrderInput {
   customer_id: string;
-  order_type: string;
+order_items: {
+  product_id: string;
   product_name: string;
-  quantity: string;       // String because HTML inputs are strings; service converts
-  unit_price: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+}[];
   delivery_address: string;
   delivery_date?: string;
   notes?: string;

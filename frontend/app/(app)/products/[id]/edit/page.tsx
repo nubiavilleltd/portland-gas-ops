@@ -70,7 +70,7 @@ export default function EditProductPage() {
         className="mb-6"
       />
 
-      <div className="bg-white border border-brand-border rounded-2xl p-6 max-w-2xl">
+      <div className="bg-white border border-brand-border rounded-2xl p-6">
         <h2 className="text-base font-semibold mb-5">Product Details</h2>
 
         {/*

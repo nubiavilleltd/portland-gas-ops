@@ -17,12 +17,6 @@ export type OrderLineItem = z.infer<typeof orderLineItemSchema>;
 // ── Full create-order schema ───────────────────────────────
 export const createOrderSchema = z.object({
   customer_id: z.string().min(1, "Select a customer"),
-
-  order_type: z.enum(
-    ["Bulk CNG Supply", "LNG Delivery", "Retail Gas Refill"],
-    { message: "Select an order type" }
-  ),
-
   order_items: z
     .array(orderLineItemSchema)
     .min(1, "Add at least one product to the order"),
