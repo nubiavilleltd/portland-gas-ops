@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -135,6 +135,11 @@ export default function MyPaySlipsPage() {
   const [slips] = useState<PaySlip[]>(SEED_PAYSLIPS);
   const [filterPeriod, setFilterPeriod] = useState("April 2026");
   const [selected, setSelected] = useState<PaySlip | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Use the current user's name if available, otherwise default to Joseph Chika for demo
   const currentUserName = user?.name || "Joseph Chika";
@@ -148,6 +153,21 @@ export default function MyPaySlipsPage() {
     const all = [...PAYROLL_PERIODS, ...extra];
     return all.map((p) => ({ value: p, label: p }));
   }, [userSlips]);
+
+  if (!mounted) {
+    return (
+      <AppLayout pageTitle="My Pay Slips">
+        <PageHeader
+          title="My Pay Slips"
+          description="View and download your monthly pay slips"
+          className="mb-6"
+        />
+        <div className="bg-white border border-brand-border rounded-2xl p-6 animate-pulse">
+          <div className="h-10 bg-gray-200 rounded mb-4" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (selected) {
     const s = selected;
