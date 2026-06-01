@@ -14,6 +14,7 @@ import {
   FolderOpen,
   Package,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Store,
   Truck,
@@ -189,6 +190,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
     title: "Safety & Compliance",
     routePrefixes: ["/safety"],
     processes: [
+      {
+        name: "Safety Dashboard",
+        description: "Track HSE queue, close-outs, compliance, and hazard trends",
+        icon: ShieldCheck,
+        href: "/safety",
+      },
       {
         name: "Incident & Hazard Report",
         description: "Report incidents, hazards, near misses, and HSE corrective actions",

@@ -7,11 +7,11 @@ import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
+import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import {
   incidentLocationOptions,
-  incidentSeverityOptions,
   mockReporter,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
@@ -32,7 +32,7 @@ export default function IncidentHazardForm() {
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState("");
   const [reportType, setReportType] = useState("");
-  const [location, setLocation] = useState("");
+  const [locations, setLocations] = useState<string[]>([]);
   const [observedAt, setObservedAt] = useState("");
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
   const { workAuthorizations } = useSafetyDemoData();
@@ -46,7 +46,7 @@ export default function IncidentHazardForm() {
     description: `${request.requester.name} | ${request.requester.requestDate}`,
   }));
   const [description, setDescription] = useState("");
-  const [severity, setSeverity] = useState("");
+  // const [severity, setSeverity] = useState("");
   const [anyoneInjured, setAnyoneInjured] = useState("");
   const [propertyDamaged, setPropertyDamaged] = useState("");
   const [gasConcern, setGasConcern] = useState("");
@@ -64,11 +64,11 @@ export default function IncidentHazardForm() {
       reporter,
       title,
       reportType,
-      location,
+      location: locations.join(", "),
       dateTimeObserved: observedAt,
       relatedWorkAuthorization: relatedAuthorization,
       description,
-      severityEstimate: severity as "Low" | "Medium" | "High" | "Critical",
+      severityEstimate: "",
       anyoneInjured: anyoneInjured === "Yes",
       propertyDamaged: propertyDamaged === "Yes",
       gasFireEnvironmentalConcern: gasConcern === "Yes",
@@ -113,7 +113,7 @@ export default function IncidentHazardForm() {
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Report Title" required placeholder="Enter a short report title" value={title} onChange={(event) => setTitle(event.target.value)} />
           <FormSelect label="Report Type" required searchable creatable options={toOptions(reportTypeOptions)} placeholder="Select or add report type" value={reportType} onValueChange={setReportType} />
-          <FormSelect label="Location" required searchable creatable options={toOptions(incidentLocationOptions)} placeholder="Select or add location" value={location} onValueChange={setLocation} />
+          <FormMultiSelect label="Location" required searchable creatable options={toOptions(incidentLocationOptions)} placeholder="Select or add location" value={locations} onValueChange={setLocations} />
           <FormDateTimeInput label="Date/Time Observed" required value={observedAt} onValueChange={setObservedAt} />
           <FormSelect label="Related Work Authorization" searchable options={relatedAuthorizationOptions} placeholder="Select related work authorization" dropdownClassName="md:min-w-[34rem]" value={relatedAuthorization} onValueChange={setRelatedAuthorization} />
         </div>
@@ -122,7 +122,7 @@ export default function IncidentHazardForm() {
       <FormSection title="Incident / Hazard Details" description="Describe what happened, its impact, and immediate actions taken.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" value={description} onChange={(event) => setDescription(event.target.value)} />
-          <FormSelect label="Severity Estimate" required options={toOptions(incidentSeverityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} />
+          {/* <FormSelect label="Severity Estimate" required options={toOptions(incidentSeverityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} /> */}
           <div className="md:col-span-2">
             <SafetyChoiceTable
               options={yesNoOptions}
