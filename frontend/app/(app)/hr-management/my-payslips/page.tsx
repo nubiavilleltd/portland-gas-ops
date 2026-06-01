@@ -133,7 +133,7 @@ async function downloadSinglePdf(slip: PaySlip) {
 export default function MyPaySlipsPage() {
   const { user } = useCurrentUser();
   const [slips] = useState<PaySlip[]>(SEED_PAYSLIPS);
-  const [filterPeriod, setFilterPeriod] = useState("April 2026");
+  const [filterPeriod, setFilterPeriod] = useState<string | null>(null);
   const [selected, setSelected] = useState<PaySlip | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -144,7 +144,7 @@ export default function MyPaySlipsPage() {
   // Use the current user's name if available, otherwise default to Joseph Chika for demo
   const currentUserName = user?.name || "Joseph Chika";
   const userSlips = slips.filter((s) => s.employee === currentUserName);
-  const filtered = userSlips.filter((s) => s.period === filterPeriod);
+  const filtered = filterPeriod ? userSlips.filter((s) => s.period === filterPeriod) : userSlips;
   const columns = useMemo(() => createPaySlipColumns(setSelected), []);
 
   const filterOptions = useMemo(() => {
@@ -263,16 +263,26 @@ export default function MyPaySlipsPage() {
         columns={columns}
         data={filtered}
         hideStatusFilter
-        emptyMessage={`No pay slips for ${filterPeriod}`}
-        emptyDescription="Check back later for your pay slip"
+        emptyMessage={filterPeriod ? `No pay slips for ${filterPeriod}` : "No pay slips available"}
+        emptyDescription={filterPeriod ? "Try selecting a different period" : "Check back later for your pay slip"}
         toolbarExtra={
-          <div className="w-44">
-            <FormSelect
-              id="period-filter"
-              options={filterOptions}
-              value={filterPeriod}
-              onValueChange={setFilterPeriod}
-            />
+          <div className="flex items-center gap-2">
+            <div className="w-44">
+              <FormSelect
+                id="period-filter"
+                options={[{ value: "", label: "All Months" }, ...filterOptions]}
+                value={filterPeriod || ""}
+                onValueChange={(val) => setFilterPeriod(val || null)}
+              />
+            </div>
+            {filterPeriod && (
+              <button
+                onClick={() => setFilterPeriod(null)}
+                className="text-xs px-2 py-1 text-brand-text-secondary hover:text-brand-purple transition-colors"
+              >
+                Clear filter
+              </button>
+            )}
           </div>
         }
       />
