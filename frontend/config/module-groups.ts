@@ -37,6 +37,7 @@ export type ModuleGroup = {
 export const moduleGroups: readonly ModuleGroup[] = [
   {
     title: "Administration",
+    routePrefixes: ["/hr-management", "/hr"],
     processes: [
       {
         name: "Admin",
@@ -44,56 +45,11 @@ export const moduleGroups: readonly ModuleGroup[] = [
         icon: Settings,
         href: "/admin",
       },
-    ],
-  },
-  {
-    title: "Finance",
-    routePrefixes: ["/finance"],
-    processes: [
-      {
-        name: "Cash Requisition",
-        description: "Petty cash and operational funds",
-        icon: Banknote,
-        href: "/finance/cash-requisitions",
-      },
-      {
-        name: "Invoice Processing",
-        description: "Supplier invoices and approvals",
-        icon: FileText,
-        href: "/finance/invoices",
-        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
-      },
-      {
-        name: "Payments",
-        description: "Record and review payments",
-        icon: DollarSign,
-        href: "/payments",
-        showOnHome: false,
-      },
-      {
-        name: "Billing",
-        description: "Billing operations",
-        icon: DollarSign,
-        href: "/billing",
-        showOnHome: false,
-      },
-    ],
-  },
-  {
-    title: "HR Management",
-    routePrefixes: ["/hr-management", "/hr"],
-    processes: [
       {
         name: "Employee Profile",
         description: "Staff profiles and records",
         icon: Users,
         href: "/hr-management/employees",
-      },
-      {
-        name: "Leave Requests",
-        description: "Leave applications and approvals",
-        icon: CalendarDays,
-        href: "/hr-management/leave-requests",
       },
       {
         name: "Leave Balances",
@@ -102,8 +58,8 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/hr-management/leave-balances",
       },
       {
-        name: "Pay Slips",
-        description: "Monthly pay slip viewer",
+        name: "Pay Slip Management",
+        description: "Generate and manage employee pay slips",
         icon: CreditCard,
         href: "/hr-management/payslips",
       },
@@ -126,6 +82,51 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Payroll runs and disbursements",
         icon: DollarSign,
         href: "/hr-management/payroll",
+        showOnHome: false,
+      },
+    ],
+  },
+  {
+    title: "Finance & HR Management",
+    routePrefixes: ["/finance", "/hr-management/leave-requests", "/hr-management/my-payslips"],
+    processes: [
+      {
+        name: "Cash Requisition",
+        description: "Petty cash and operational funds",
+        icon: Banknote,
+        href: "/finance/cash-requisitions",
+      },
+      {
+        name: "Invoice Processing",
+        description: "Supplier invoices and approvals",
+        icon: FileText,
+        href: "/finance/invoices",
+        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
+      },
+      {
+        name: "Leave Requests",
+        description: "Leave applications and approvals",
+        icon: CalendarDays,
+        href: "/hr-management/leave-requests",
+      },
+      {
+        name: "My Pay Slips",
+        description: "View and download your monthly pay slips",
+        icon: CreditCard,
+        href: "/hr-management/my-payslips",
+      },
+      {
+        name: "Payments",
+        description: "Record and review payments",
+        icon: DollarSign,
+        href: "/payments",
+        showOnHome: false,
+      },
+      {
+        name: "Billing",
+        description: "Billing operations",
+        icon: DollarSign,
+        href: "/billing",
         showOnHome: false,
       },
     ],
