@@ -29,6 +29,8 @@ import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
+import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 
 
 
@@ -86,6 +88,27 @@ export default function OrderDetailPage() {
   const balance = invoice
     ? invoice.total_amount - paymentSummary.amountPaid
     : 0;
+
+
+    const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+  {
+    label: "Product",
+    render: (item) => <span className="font-medium">{item.product_name}</span>,
+  },
+  {
+    label: "Quantity",
+    render: (item) => `${item.quantity.toLocaleString()} kg`,
+  },
+  {
+    label: "Unit Price",
+    render: (item) => formatCurrency(item.unit_price),
+  },
+  {
+    label: "Total",
+    align: "right",
+    render: (item) => formatCurrency(item.total),
+  },
+];
 
 
 
@@ -162,10 +185,10 @@ export default function OrderDetailPage() {
         {customerMap[order.customer_id]
           ?.name ?? "—"}
       </h2>
-
+{/* 
       <p className="text-sm text-brand-text-secondary mt-1">
         {order.order_type}
-      </p>
+      </p> */}
     </div>
 
     {/* Three status badges side by side */}
@@ -176,7 +199,7 @@ export default function OrderDetailPage() {
     </div>
   </div>
 
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+  {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
     <InfoRow
       label="Gas Type"
       value={order.product_name ?? order.order_type}
@@ -224,7 +247,54 @@ export default function OrderDetailPage() {
         value={formatDate(order.delivered_at)}
       />
     )}
-  </div>
+  </div> */}
+
+  {/* ORDER ITEMS */}
+{/* <div className="mt-4 pt-4 border-t border-brand-border">
+  <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
+  <table className="w-full text-sm">
+    <thead>
+      <tr className="border-b text-left">
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Product</th>
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Quantity</th>
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Unit Price</th>
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs text-right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {order.order_items.map((item, index) => (
+        <tr key={index} className="border-b last:border-0">
+          <td className="py-2 font-medium">{item.product_name}</td>
+          <td className="py-2">{item.quantity.toLocaleString()} kg</td>
+          <td className="py-2">{formatCurrency(item.unit_price)}</td>
+          <td className="py-2 text-right">{formatCurrency(item.total)}</td>
+        </tr>
+      ))}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colSpan={3} className="pt-3 text-right font-semibold text-xs text-brand-text-secondary">Grand Total</td>
+        <td className="pt-3 text-right font-semibold">{formatCurrency(order.total_amount)}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div> */}
+
+<SimpleTable
+  columns={itemColumns}
+  rows={order.order_items}
+  keyExtractor={(_, index) => String(index)}
+  footer={
+    <tr>
+      <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+        Grand Total
+      </td>
+      <td className="pt-3 text-right font-semibold">
+        {formatCurrency(order.total_amount)}
+      </td>
+    </tr>
+  }
+/>
 
   {order.notes && (
     <div className="mt-4 pt-4 border-t border-brand-border text-sm">

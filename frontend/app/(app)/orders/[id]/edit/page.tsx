@@ -90,24 +90,37 @@ const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
   // We map it back to the order_items array the form expects.
   // When the backend supports order_items natively, replace this
   // mapping with the real array from the API response.
-  const matchedProduct = products.find(
-    (p) => p.name === order.product_name
-  );
+  // const matchedProduct = products.find(
+  //   (p) => p.name === order.product_name
+  // );
+
+  // const defaultValues: Partial<CreateOrderFormValues> = {
+  //   customer_id: order.customer_id,
+  //   order_type: order.order_type as CreateOrderFormValues["order_type"],
+  //   order_items: [
+  //     {
+  //       product_id: matchedProduct?.id ?? "",
+  //       quantity: order.quantity,
+  //       unit_price: order.unit_price,
+  //     },
+  //   ],
+  //   delivery_address: order.delivery_address,
+  //   delivery_date: order.delivery_date ?? "",
+  //   notes: order.notes ?? "",
+  // };
+
 
   const defaultValues: Partial<CreateOrderFormValues> = {
-    customer_id: order.customer_id,
-    order_type: order.order_type as CreateOrderFormValues["order_type"],
-    order_items: [
-      {
-        product_id: matchedProduct?.id ?? "",
-        quantity: order.quantity,
-        unit_price: order.unit_price,
-      },
-    ],
-    delivery_address: order.delivery_address,
-    delivery_date: order.delivery_date ?? "",
-    notes: order.notes ?? "",
-  };
+  customer_id: order.customer_id,
+  order_items: order.order_items.map((item) => ({
+    product_id: item.product_id,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+  })),
+  delivery_address: order.delivery_address,
+  delivery_date: order.delivery_date ?? "",
+  notes: order.notes ?? "",
+};
 
   // ── Submit ────────────────────────────────────────────
   // async function handleSubmit(data: CreateOrderFormValues) {
