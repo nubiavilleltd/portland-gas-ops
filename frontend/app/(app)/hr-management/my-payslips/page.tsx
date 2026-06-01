@@ -136,7 +136,9 @@ export default function MyPaySlipsPage() {
   const [filterPeriod, setFilterPeriod] = useState("April 2026");
   const [selected, setSelected] = useState<PaySlip | null>(null);
 
-  const userSlips = slips.filter((s) => s.employee === user?.name);
+  // Use the current user's name if available, otherwise default to Joseph Chika for demo
+  const currentUserName = user?.name || "Joseph Chika";
+  const userSlips = slips.filter((s) => s.employee === currentUserName);
   const filtered = userSlips.filter((s) => s.period === filterPeriod);
   const columns = useMemo(() => createPaySlipColumns(setSelected), []);
 
