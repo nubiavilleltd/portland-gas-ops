@@ -10,7 +10,6 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
 import {
   contractorContactEmailByName,
   mockWorkInitiationRequester,
@@ -21,12 +20,12 @@ import {
   createWorkInitiation,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { WorkAuthorizationAttachment } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
-const priorityOptions = toOptions(["Low", "Medium", "High", "Critical"]);
 const categoryOptions = toOptions(workCategoryOptions);
 const locationOptions = toOptions([
   "Conversion Bay 1",
@@ -62,7 +61,6 @@ export default function WorkInitiationForm() {
   const [workTypes, setWorkTypes] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [relatedIncidentId, setRelatedIncidentId] = useState("");
-  const [priority, setPriority] = useState("");
   const [locations, setLocations] = useState<string[]>([]);
   const [exactWorkArea, setExactWorkArea] = useState("");
   const [workDescription, setWorkDescription] = useState("");
@@ -75,6 +73,10 @@ export default function WorkInitiationForm() {
   const [plannedStartDateTime, setPlannedStartDateTime] = useState("");
   const [plannedEndDateTime, setPlannedEndDateTime] = useState("");
   const [materialsRequired, setMaterialsRequired] = useState("");
+  const requester = {
+    ...mockWorkInitiationRequester,
+    requestDate: formatLocalDate(),
+  };
   const { incidentHazards } = useSafetyDemoData();
   const incidentHazardRequestOptions = incidentHazards
     .filter((report) => report.status === "recommended")
@@ -111,17 +113,18 @@ export default function WorkInitiationForm() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submittedAt = formatLocalDateTime();
+
     createWorkInitiation((id) => ({
       id,
       status: "submitted",
-      requester: mockWorkInitiationRequester,
+      requester,
       title,
       workDescription,
       reasonForWork,
       workCategory,
       relatedIncidentHazardId: relatedIncidentId,
       workType: workTypes,
-      priority: priority as "Low" | "Medium" | "High" | "Critical",
       location: locations.join(", "),
       exactWorkArea,
       attachments: files.map((file) => ({
@@ -151,24 +154,24 @@ export default function WorkInitiationForm() {
       operationalReview: null,
       auditTrail: [{
         action: "Submitted",
-        actor: mockWorkInitiationRequester.name,
+        actor: requester.name,
         role: "Requester",
-        dateTime: "2026-05-25 09:30 AM",
+        dateTime: submittedAt,
         comment: "Work initiation request submitted.",
       }],
     }));
     toast.success("Work initiation request submitted successfully.");
-    window.setTimeout(() => router.push("/work-initiation"), 700);
+    window.setTimeout(() => router.push("/safety/work-initiation"), 700);
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
       <FormSection title="Requester Details" description="Your employee information for this work initiation request.">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={mockWorkInitiationRequester.name} disabled />
-          <FormInput label="Department" value={mockWorkInitiationRequester.department} disabled />
-          <FormInput label="Job Title / Role" value={mockWorkInitiationRequester.role} disabled />
-          <FormDatePicker label="Request Date" value={mockWorkInitiationRequester.requestDate} disabled />
+          <FormInput label="Requester Name" value={requester.name} disabled />
+          <FormInput label="Department" value={requester.department} disabled />
+          <FormInput label="Job Title / Role" value={requester.role} disabled />
+          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
         </div>
       </FormSection>
 
@@ -219,9 +222,8 @@ export default function WorkInitiationForm() {
             placeholder={workCategory ? "Select or add work type" : "Select work category first"}
             disabled={!workCategory}
           />
-          <FormSelect label="Priority" required options={priorityOptions} placeholder="Select priority" value={priority} onValueChange={setPriority} />
           <FormMultiSelect label="Location" required searchable creatable options={locationOptions} placeholder="Select or add location" value={locations} onValueChange={setLocations} />
-          <FormInput label="Exact Work Area" placeholder="Enter exact work area" value={exactWorkArea} onChange={(event) => setExactWorkArea(event.target.value)} />
+          <FormTextarea label="Exact Work Area" placeholder="Enter exact work area" value={exactWorkArea} onChange={(event) => setExactWorkArea(event.target.value)} />
           <FormTextarea label="Work Description" required placeholder="Describe what needs to be done" className="md:col-span-2" value={workDescription} onChange={(event) => setWorkDescription(event.target.value)} />
           <FormTextarea label="Reason for Work" required placeholder="Explain why the work is needed" className="md:col-span-2" value={reasonForWork} onChange={(event) => setReasonForWork(event.target.value)} />
           <div className="md:col-span-2">
@@ -241,7 +243,7 @@ export default function WorkInitiationForm() {
           <FormSelect label="Assigned Department / Team" required options={departmentTeamOptions} placeholder="Select department or team" value={assignedDepartment} onValueChange={setAssignedDepartment} />
           <FormSelect label="Assigned Supervisor" required searchable options={employeeOptions} placeholder="Select supervisor" value={assignedSupervisor} onValueChange={setAssignedSupervisor} />
           <FormMultiSelect label="Assigned Workers" required searchable options={employeeOptions} placeholder="Select workers" value={assignedWorkers} onValueChange={setAssignedWorkers} />
-          <FormToggleGroup label="Contractors Needed?" required options={yesNoOptions} value={contractorsNeeded} onValueChange={handleContractorsNeededChange} />
+          <FormSelect label="Contractors Needed?" required options={yesNoOptions} placeholder="Select an option" value={contractorsNeeded} onValueChange={handleContractorsNeededChange} />
           {contractorsNeeded === "Yes" ? (
             <>
               <FormSelect

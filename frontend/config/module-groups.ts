@@ -7,15 +7,18 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  ClipboardList,
   CreditCard,
   DollarSign,
   FileText,
   FolderOpen,
   Package,
   Settings,
+  ShieldCheck,
   ShoppingCart,
   Store,
   Truck,
+  User,
   Users,
 } from "lucide-react";
 
@@ -133,30 +136,53 @@ export const moduleGroups: readonly ModuleGroup[] = [
   {
     title: "Operations",
     processes: [
+      // {
+      //   name: "Fleet Management",
+      //   description: "Vehicles, drivers & maintenance",
+      //   icon: Truck,
+      //   href: "/fleet",
+      // },
       {
-        name: "Fleet Management",
-        description: "Vehicles, drivers & maintenance",
+        name: "Trips & Dispatch",
+        description: "Trip planning, dispatch, and delivery tracking",
         icon: Truck,
-        href: "/fleet",
+        href: "/fleet/trips",
       },
       {
-        name: "Orders & Dispatch",
-        description: "Gas orders, dispatch & delivery",
-        icon: Package,
+        name: "Vehicles",
+        description: "Vehicle records, maintenance, and inspections",
+        icon: Truck,
+        href: "/fleet/vehicles",
+      },
+      {
+        name: "Drivers",
+        description: "Driver records, licenses, and training",
+        icon: User,
+        href: "/fleet/drivers",
+      },
+      {
+        name: "Orders",
+        description: "Gas orders and delivery",
+        icon: ClipboardList,
         href: "/orders",
-      },
-      {
-        name: "Work Initiation",
-        description: "Define, review, and assign operational work",
-        icon: ClipboardCheck,
-        href: "/work-initiation",
       },
       {
         name: "Customers",
         description: "Customer accounts and records",
         icon: Users,
         href: "/customers",
-        showOnHome: false,
+      },
+      {
+        name: "Products",
+        description: "Gas products and pricing",
+        icon: Package,
+        href: "/products",
+      },
+      {
+        name: "Invoices",
+        description: "Customer billing and invoice tracking",
+        icon: FileText,
+        href: "/invoices",
       },
     ],
   },
@@ -165,10 +191,22 @@ export const moduleGroups: readonly ModuleGroup[] = [
     routePrefixes: ["/safety"],
     processes: [
       {
+        name: "Safety Dashboard",
+        description: "Track HSE queue, close-outs, compliance, and hazard trends",
+        icon: ShieldCheck,
+        href: "/safety",
+      },
+      {
         name: "Incident & Hazard Report",
         description: "Report incidents, hazards, near misses, and HSE corrective actions",
         icon: AlertTriangle,
         href: "/safety/incidents",
+      },
+      {
+        name: "Work Initiation",
+        description: "Define, review, and assign operational work",
+        icon: ClipboardCheck,
+        href: "/safety/work-initiation",
       },
       {
         name: "Work Authorization",
@@ -212,7 +250,7 @@ export const moduleGroups: readonly ModuleGroup[] = [
 export const homeModuleGroups = moduleGroups
   .map((group) => ({
     ...group,
-    processes: group.processes.filter((process) => process.showOnHome !== false),
+    processes: group.processes.filter((process) => process.showOnHome !== false).sort((a, b) => a.name.localeCompare(b.name)),
   }))
   .filter((group) => group.processes.length > 0);
 

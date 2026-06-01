@@ -22,12 +22,6 @@ import type {
   WorkAuthorizationRole,
 } from "@/types/safety";
 
-const decisionOptions = [
-  { value: "Approve", label: "Approve" },
-  { value: "Return", label: "Return" },
-  { value: "Deny", label: "Deny" },
-];
-
 const riskIndicatorOptions = [
   { value: "Gas/CNG/LNG involved", label: "Gas/CNG/LNG involved" },
   { value: "Pressurized system involved", label: "Pressurized system involved" },
@@ -202,7 +196,7 @@ export default function WorkAuthorizationDetailsView({
     if (decision === "Approve" && shouldDisableHseApproval) {
       return;
     }
-    if (decision === "Return" && !hseComment.trim()) {
+    if ((decision === "Return" || decision === "Deny") && !hseComment.trim()) {
       return;
     }
 
@@ -353,7 +347,7 @@ export default function WorkAuthorizationDetailsView({
             <HseFinalActionSection
               onDecision={handleHseDecision}
               disableApprove={shouldDisableHseApproval}
-              returnReasonMissing={!hseComment.trim()}
+              reasonMissing={!hseComment.trim()}
             />
           </>
         ) : (
@@ -435,9 +429,8 @@ function AssignedWorkSummarySection({
           value={work.workType.join(", ")}
           disabled
         />
-        <FormInput label="Priority" value={work.priority} disabled />
         <FormInput label="Location" value={work.location} disabled />
-        <FormInput label="Exact Work Area" value={work.exactWorkArea} disabled />
+        <FormTextarea label="Exact Work Area" value={work.exactWorkArea} disabled />
         <FormInput label="Assigned Supervisor" value={work.assignedSupervisor} disabled />
         <FormInput
           label="Assigned Workers"
@@ -676,11 +669,11 @@ function HseInspectionActionSection({
 function HseFinalActionSection({
   onDecision,
   disableApprove,
-  returnReasonMissing,
+  reasonMissing,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
   disableApprove: boolean;
-  returnReasonMissing: boolean;
+  reasonMissing: boolean;
 }) {
   return (
     <FormSection title="HSE Final Approval" description="Record the final safety decision for this work authorization.">
@@ -692,8 +685,8 @@ function HseFinalActionSection({
       <DecisionSubmitControl
         onDecision={onDecision}
         disableApprove={disableApprove}
-        returnReasonMissing={returnReasonMissing}
-        returnReasonMessage="Add an HSE inspection comment before returning this request."
+        reasonMissing={reasonMissing}
+        reasonMessage="Add an HSE inspection comment before returning or denying this request."
       />
     </FormSection>
   );
@@ -702,43 +695,32 @@ function HseFinalActionSection({
 function DecisionSubmitControl({
   onDecision,
   disableApprove = false,
-  returnReasonMissing = false,
-  returnReasonMessage,
+  reasonMissing = false,
+  reasonMessage,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
   disableApprove?: boolean;
-  returnReasonMissing?: boolean;
-  returnReasonMessage: string;
+  reasonMissing?: boolean;
+  reasonMessage: string;
 }) {
-  const [decision, setDecision] = useState("");
-  const selectedDecision = decision as "Approve" | "Return" | "Deny";
-  const shouldRequireReturnReason =
-    selectedDecision === "Return" && returnReasonMissing;
-  const shouldDisableSubmit =
-    !decision || (selectedDecision === "Approve" && disableApprove) || shouldRequireReturnReason;
-
   return (
     <div className="space-y-3">
-      <FormSelect
-        label="Decision"
-        options={decisionOptions}
-        placeholder="Select decision"
-        value={decision}
-        onValueChange={setDecision}
-      />
-      {shouldRequireReturnReason ? (
+      {reasonMissing ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {returnReasonMessage}
+          {reasonMessage}
         </p>
       ) : null}
-      <Button
-        type="button"
-        disabled={shouldDisableSubmit}
-        variant={selectedDecision === "Deny" ? "danger" : "primary"}
-        onClick={() => onDecision(selectedDecision)}
-      >
-        Submit
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" disabled={disableApprove} onClick={() => onDecision("Approve")}>
+          Approve
+        </Button>
+        <Button type="button" variant="secondary" disabled={reasonMissing} onClick={() => onDecision("Return")}>
+          Return
+        </Button>
+        <Button type="button" variant="danger" disabled={reasonMissing} onClick={() => onDecision("Deny")}>
+          Deny
+        </Button>
+      </div>
     </div>
   );
 }

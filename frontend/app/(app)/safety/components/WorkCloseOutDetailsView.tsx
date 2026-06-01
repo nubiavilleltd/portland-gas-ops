@@ -34,12 +34,6 @@ const yesNoOptions = [
 
 const yesNoNaOptions = [...yesNoOptions, { value: "N/A", label: "N/A" }];
 
-const decisionOptions = [
-  { value: "Approve", label: "Approve" },
-  { value: "Return", label: "Return" },
-  { value: "Deny", label: "Deny" },
-];
-
 function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
   if (decision === "Deny") return "denied";
   return `${decision.toLowerCase()}ed`;
@@ -59,6 +53,11 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
   const [hseCorrectiveActionRequired, setHseCorrectiveActionRequired] = useState("");
   const hseChecksIncomplete =
     !hseVerifiedCloseOut || !hseAreaSafe || !hseCorrectiveActionRequired;
+  const hseApprovalBlocked =
+    !hseChecksIncomplete &&
+    (hseVerifiedCloseOut !== "Yes" ||
+      hseAreaSafe !== "Yes" ||
+      hseCorrectiveActionRequired === "Yes");
 
   const permissions = useMemo(() => {
     const isDraft = request?.status === "draft";
@@ -134,7 +133,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
 
   function supervisorDecision(decision: "Approve" | "Return" | "Deny") {
     if (!request) return;
-    if (decision === "Return" && !supervisorComment.trim()) return;
+    if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) return;
 
     const approval: WorkAuthorizationApprovalResult = {
       decision,
@@ -170,7 +169,8 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
   function hseDecision(decision: "Approve" | "Return" | "Deny") {
     if (!request) return;
     if (hseChecksIncomplete) return;
-    if (decision === "Return" && !hseComment.trim()) return;
+    if (decision === "Approve" && hseApprovalBlocked) return;
+    if ((decision === "Return" || decision === "Deny") && !hseComment.trim()) return;
 
     const approval: WorkCloseOutHseApproval = {
       inspector: request.workAuthorization.hseApprover,
@@ -292,8 +292,8 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
               <FormInput label="Supervisor" value={request.workAuthorization.supervisor} disabled />
               <DecisionSubmitControl
                 onDecision={supervisorDecision}
-                returnReasonMissing={!supervisorComment.trim()}
-                returnReasonMessage="Add a supervisor comment before returning this close-out."
+                reasonMissing={!supervisorComment.trim()}
+                reasonMessage="Add a supervisor comment before returning or denying this close-out."
               />
             </div>
             <FormTextarea
@@ -315,8 +315,8 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
               <FormInput label="Operations Head" value="Grace Bello" disabled />
               <DecisionSubmitControl
                 onDecision={operationsHeadDecision}
-                returnReasonMissing={!operationsHeadComment.trim()}
-                returnReasonMessage="Add an Operations Head comment before returning this close-out."
+                reasonMissing={!operationsHeadComment.trim()}
+                reasonMessage="Add an Operations Head comment before returning or denying this close-out."
               />
             </div>
             <FormTextarea
@@ -362,9 +362,12 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
           <div className="mt-4 grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <DecisionSubmitControl
               onDecision={hseDecision}
-              returnReasonMissing={!hseComment.trim()}
-              returnReasonMessage="Add an HSE comment before returning this close-out."
+              reasonMissing={!hseComment.trim()}
+              reasonMessage="Add an HSE comment before returning or denying this close-out."
               submissionDisabled={hseChecksIncomplete}
+              submissionDisabledMessage="Complete all HSE close-out checks before submitting a decision."
+              disableApprove={hseApprovalBlocked}
+              disableApproveMessage="Approval is disabled unless close-out is verified, the area is safe, and no corrective action is required."
             />
             <FormTextarea
               label="HSE Comment"
@@ -406,7 +409,7 @@ function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
         <FormInput label="Original Requester" value={work.requester} disabled />
         <FormInput label="Department" value={work.department} disabled />
         <FormInput label="Work Location" value={work.location} disabled />
-        <FormInput label="Exact Work Area" value={work.exactWorkArea} disabled />
+        <FormTextarea label="Exact Work Area" value={work.exactWorkArea} disabled />
         <FormInput label="Approved Start Date/Time" value={work.approvedStartDateTime} disabled />
         <FormInput label="Approved End Date/Time" value={work.approvedEndDateTime} disabled />
         <FormInput label="Approved Work Type" value={work.workTypes.join(", ")} disabled />
@@ -575,35 +578,26 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
 
 function DecisionSubmitControl({
   onDecision,
-  returnReasonMissing = false,
-  returnReasonMessage,
+  reasonMissing = false,
+  reasonMessage,
   submissionDisabled = false,
   submissionDisabledMessage,
+  disableApprove = false,
+  disableApproveMessage,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
-  returnReasonMissing?: boolean;
-  returnReasonMessage: string;
+  reasonMissing?: boolean;
+  reasonMessage: string;
   submissionDisabled?: boolean;
   submissionDisabledMessage?: string;
+  disableApprove?: boolean;
+  disableApproveMessage?: string;
 }) {
-  const [decision, setDecision] = useState("");
-  const selectedDecision = decision as "Approve" | "Return" | "Deny";
-  const shouldRequireReturnReason =
-    selectedDecision === "Return" && returnReasonMissing;
-  const shouldDisableSubmit = !decision || shouldRequireReturnReason || submissionDisabled;
-
   return (
     <div className="space-y-3">
-      <FormSelect
-        label="Decision"
-        options={decisionOptions}
-        placeholder="Select decision"
-        value={decision}
-        onValueChange={setDecision}
-      />
-      {shouldRequireReturnReason ? (
+      {reasonMissing ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {returnReasonMessage}
+          {reasonMessage}
         </p>
       ) : null}
       {submissionDisabled && submissionDisabledMessage ? (
@@ -611,14 +605,22 @@ function DecisionSubmitControl({
           {submissionDisabledMessage}
         </p>
       ) : null}
-      <Button
-        type="button"
-        disabled={shouldDisableSubmit}
-        variant={selectedDecision === "Deny" ? "danger" : "primary"}
-        onClick={() => onDecision(selectedDecision)}
-      >
-        Submit
-      </Button>
+      {!submissionDisabled && disableApprove && disableApproveMessage ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {disableApproveMessage}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" disabled={submissionDisabled || disableApprove} onClick={() => onDecision("Approve")}>
+          Approve
+        </Button>
+        <Button type="button" variant="secondary" disabled={reasonMissing || submissionDisabled} onClick={() => onDecision("Return")}>
+          Return
+        </Button>
+        <Button type="button" variant="danger" disabled={reasonMissing || submissionDisabled} onClick={() => onDecision("Deny")}>
+          Deny
+        </Button>
+      </div>
     </div>
   );
 }

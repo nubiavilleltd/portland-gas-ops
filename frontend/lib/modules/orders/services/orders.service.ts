@@ -541,13 +541,49 @@ async submitOrder(id: string): Promise<Order> {
     return OrdersService.updateOrder(id, { order_status: "completed" });
   },
 
-  async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
-    const extra: Partial<Order> = { fulfillment_status: status };
-    if (status === "delivered") {
-      extra.delivered_at = new Date().toISOString().slice(0, 10);
-    }
-    return OrdersService.updateOrder(id, extra as UpdateOrderInput);
-  },
+  // async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
+  //   const extra: Partial<Order> = { fulfillment_status: status };
+  //   if (status === "delivered") {
+  //     extra.delivered_at = new Date().toISOString().slice(0, 10);
+  //   }
+  //   return OrdersService.updateOrder(id, extra as UpdateOrderInput);
+  // },
+
+//   async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
+//   const extra: Partial<Order> = { fulfillment_status: status };
+//   if (status === "delivered") {
+//     extra.delivered_at = new Date().toISOString().slice(0, 10);
+//   }
+
+//   const updated = await OrdersService.updateOrder(id, extra as UpdateOrderInput);
+
+//   // Auto-close when delivered — payment is guaranteed at this point
+//   if (status === "delivered") {
+//     try {
+//       await OrdersService.closeOrder(id);
+//     } catch {
+//       // best-effort
+//     }
+//   }
+
+//   return updated;
+// },
+
+async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
+  const extra: Partial<Order> = { fulfillment_status: status };
+  if (status === "delivered") {
+    extra.delivered_at = new Date().toISOString().slice(0, 10);
+  }
+
+  const updated = await OrdersService.updateOrder(id, extra as UpdateOrderInput);
+
+  // Auto-close when delivered — payment is guaranteed before delivery in this model
+  if (status === "delivered" && updated.payment_status === "paid") {
+    return OrdersService.updateOrder(id, { order_status: "completed" });
+  }
+
+  return updated;
+},
 
   // async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Order> {
   //   return OrdersService.updateOrder(id, { payment_status: status });
@@ -583,7 +619,7 @@ async submitOrder(id: string): Promise<Order> {
         (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
       ).length,
       inTransit: all.filter(
-        (o) => o.fulfillment_status === "dispatched" || o.fulfillment_status === "in_transit"
+        (o) => o.fulfillment_status === "in_transit"
       ).length,
       delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
       unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
@@ -591,3 +627,19 @@ async submitOrder(id: string): Promise<Order> {
     };
   },
 };
+//   async getKPIs(): Promise<OrderKPIs> {
+//     const all = await OrdersService.getOrders();
+//     return {
+//       totalOrders: all.length,
+//       pendingDispatch: all.filter(
+//         (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
+//       ).length,
+//       inTransit: all.filter(
+//         (o) => o.fulfillment_status === "dispatched" || o.fulfillment_status === "in_transit"
+//       ).length,
+//       delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
+//       unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
+//       totalRevenue: all.reduce((sum, o) => sum + o.total_amount, 0),
+//     };
+//   },
+// };

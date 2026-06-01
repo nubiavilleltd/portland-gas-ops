@@ -71,17 +71,17 @@ export class PaymentsService {
         newInvoiceStatus === "paid" ? "paid" : "partially_paid";
       await OrdersService.updatePaymentStatus(linkedOrder.id, orderPaymentStatus);
 
-      // ── CASCADE 3: Auto-close order if delivered + paid ──
-      if (
-        orderPaymentStatus === "paid" &&
-        linkedOrder.fulfillment_status === "delivered"
-      ) {
-        try {
-          await OrdersService.closeOrder(linkedOrder.id);
-        } catch {
-          // Auto-close is best-effort; do not throw
-        }
-      }
+      // // ── CASCADE 3: Auto-close order if delivered + paid ──
+      // if (
+      //   orderPaymentStatus === "paid" &&
+      //   linkedOrder.fulfillment_status === "delivered"
+      // ) {
+      //   try {
+      //     await OrdersService.closeOrder(linkedOrder.id);
+      //   } catch {
+      //     // Auto-close is best-effort; do not throw
+      //   }
+      // }
     }
 
     return Promise.resolve(newPayment);

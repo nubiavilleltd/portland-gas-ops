@@ -70,12 +70,28 @@ export function canGenerateInvoice(order: Order): boolean {
   return order.order_status === "submitted" && !order.invoice_id;
 }
 
+// export function canConfirmDelivery(order: Order): boolean {
+//   return order.fulfillment_status === "dispatched" ||
+//     order.fulfillment_status === "in_transit";
+
+// }
+
+
+
+
+
+
 export function canConfirmDelivery(order: Order): boolean {
-  return order.fulfillment_status === "dispatched" ||
-    order.fulfillment_status === "in_transit";
-
+  return (
+    order.order_status === "confirmed" && order.fulfillment_status === "in_transit")
 }
-
+// export function canConfirmDelivery(order: Order): boolean {
+//   return (
+//     order.order_status === "confirmed" &&
+//     (order.fulfillment_status === "dispatched" ||
+//       order.fulfillment_status === "in_transit")
+//   );
+// }
 
 
 /**

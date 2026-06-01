@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { Suspense } from "react";
@@ -28,8 +26,10 @@ import {
 import { parseError } from "@/lib/errors";
 
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
-import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
-import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+
+import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 
 import { useCreateTripWorkflow } from "@/lib/modules/fleet/hooks/useCreateTripWorkflow";
 
@@ -63,16 +63,16 @@ function CreateTripForm() {
 
   // ── DATA HOOKS ─────────────────────────────────────────
   const { orders } = useOrders();
-  const { drivers } = useDrivers();
-  const { vehicles } = useVehicles();
+  const { customers } = useCustomers();
+
+  const { driver } = useDriverById(driverId ?? "");
+  const { vehicle } = useVehicleById(vehicleId ?? "");
 
   // ── LOOKUP MAPS ────────────────────────────────────────
-  const driverMap = new Map(drivers.map((d) => [d.id, d]));
-  const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
-  const orderMap = new Map(orders.map((o) => [o.id, o]));
 
-  const vehicle = vehicleId ? vehicleMap.get(vehicleId) : null;
-  const driver = driverId ? driverMap.get(driverId) : null;
+  const orderMap = new Map(orders.map((o) => [o.id, o]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
+
   const preloadedOrder = orderId ? orderMap.get(orderId) : null;
 
   const isTripTypeLocked = !!orderId;
@@ -80,12 +80,11 @@ function CreateTripForm() {
   const assignableOrders = orders
     .filter(
       (o) =>
-        o.order_status === "confirmed" &&
-        o.fulfillment_status === "pending"
+        o.order_status === "confirmed" && o.fulfillment_status === "pending",
     )
     .map((o) => ({
       value: o.id,
-      label: `${o.order_number} — ${o.customer_name}`,
+      label: `${o.order_number} — ${customerMap.get(o.customer_id)?.name ?? o.customer_name}`,
     }));
 
   const {
@@ -110,43 +109,20 @@ function CreateTripForm() {
 
   const tripType = watch("type");
 
-  // async function onSubmit(data: CreateTripFormData) {
-  //   const effectiveOrderId =
-  //     orderId ??
-  //     (data.type === "order_delivery"
-  //       ? data.linked_order_id || undefined
-  //       : undefined);
-
-  //   try {
-  //     await createTrip.mutateAsync({
-  //       type: data.type,
-  //       order_ids: effectiveOrderId ? [effectiveOrderId] : [],
-  //       start_location: data.start_location,
-  //       end_location: data.end_location,
-  //       scheduled_date: data.scheduled_date,
-  //       notes: data.notes,
-  //     });
-  //   } catch (err) {
-  //     setError("root", {
-  //       message: parseError(err),
-  //     });
-  //   }
-  // }
-
   async function onSubmit(data: CreateTripFormData) {
-  try {
-    await createTrip.mutateAsync({
-      type: data.type,
-      order_ids: data.linked_order_id ? [data.linked_order_id] : [],
-      start_location: data.start_location,
-      end_location: data.end_location,
-      scheduled_date: data.scheduled_date,
-      notes: data.notes,
-    });
-  } catch (err) {
-    setError("root", { message: parseError(err) });
+    try {
+      await createTrip.mutateAsync({
+        type: data.type,
+        order_ids: data.linked_order_id ? [data.linked_order_id] : [],
+        start_location: data.start_location,
+        end_location: data.end_location,
+        scheduled_date: data.scheduled_date,
+        notes: data.notes,
+      });
+    } catch (err) {
+      setError("root", { message: parseError(err) });
+    }
   }
-}
 
   return (
     <AppLayout pageTitle="Create Trip">
@@ -163,9 +139,7 @@ function CreateTripForm() {
         {/* PRE-FILLED CONTEXT */}
         {(vehicle || driver || preloadedOrder) && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2 text-sm">
-            <p className="font-medium text-blue-800">
-              Pre-filled context:
-            </p>
+            <p className="font-medium text-blue-800">Pre-filled context:</p>
 
             {preloadedOrder && (
               <div className="flex items-center gap-2 text-blue-700">
@@ -215,9 +189,7 @@ function CreateTripForm() {
                   label="Trip Type"
                   options={TRIP_TYPE_OPTIONS}
                   value={field.value}
-                  onValueChange={(v) =>
-                    field.onChange(v as Trip["type"])
-                  }
+                  onValueChange={(v) => field.onChange(v as Trip["type"])}
                   error={errors.type?.message}
                   disabled={isTripTypeLocked}
                 />
@@ -239,16 +211,10 @@ function CreateTripForm() {
                       const linked = orderMap.get(v);
 
                       if (linked) {
-                        setValue(
-                          "end_location",
-                          linked.delivery_address
-                        );
+                        setValue("end_location", linked.delivery_address);
 
                         if (linked.delivery_date) {
-                          setValue(
-                            "scheduled_date",
-                            linked.delivery_date
-                          );
+                          setValue("scheduled_date", linked.delivery_date);
                         }
                       }
                     }}
@@ -296,4 +262,3 @@ function CreateTripForm() {
     </AppLayout>
   );
 }
-

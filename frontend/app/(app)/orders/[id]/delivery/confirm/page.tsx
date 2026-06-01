@@ -18,14 +18,19 @@ import FormSection from "@/components/ui/FormSection";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { useConfirmDeliveryWorkflow } from "@/lib/modules/orders/hooks/useConfirmDeliveryWorkflow";
 import { Order } from "@/lib/modules/orders/types/orders.types";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { canConfirmDelivery } from "@/lib/modules/orders/guards/orders.guards";
 
 export default function OrderDeliveryPage() {
   const params = useParams();
   const router = useRouter();
-  const confirmDelivery = useConfirmDeliveryWorkflow()
-
   const id = params.id as string;
   const {order} = useOrderById(id);
+
+  const { customers } = useCustomers();
+  const confirmDelivery = useConfirmDeliveryWorkflow()
+   const customerMap = new Map(customers.map((c) => [c.id, c]));
+
 
   const [proofNotes, setProofNotes] = useState("");
   const [receivedBy, setReceivedBy] = useState("");
@@ -41,10 +46,12 @@ export default function OrderDeliveryPage() {
   }
 
   const alreadyDelivered = order.fulfillment_status === "delivered";
-  const cannotConfirm =
-    order.fulfillment_status !== "in_transit" &&
-    order.fulfillment_status !== "dispatched" &&
-    !alreadyDelivered;
+  // const cannotConfirm =
+  //   order.fulfillment_status !== "in_transit" &&
+  //   order.fulfillment_status !== "dispatched" &&
+  //   !alreadyDelivered;
+
+  const canConfirm = canConfirmDelivery(order)
 
   async function handleConfirmDelivery() {
     if (!receivedBy.trim()) {
@@ -90,13 +97,13 @@ export default function OrderDeliveryPage() {
         </div>
       )}
 
-      {cannotConfirm && !alreadyDelivered && (
+      {!canConfirm && !alreadyDelivered && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6 flex items-center gap-3">
           <AlertCircle className="text-yellow-600" size={20} />
           <div>
             <p className="font-medium text-yellow-800">Delivery Cannot Be Confirmed Yet</p>
             <p className="text-sm text-yellow-600">
-              Order must be dispatched or in transit before confirming delivery.
+              Order must in transit before confirming delivery.
               Current status: <FulfillmentStatusBadge status={order.fulfillment_status} />
             </p>
           </div>
@@ -117,7 +124,7 @@ export default function OrderDeliveryPage() {
       </div>
       <div>
         <h3 className="font-semibold">{order.order_number}</h3>
-        <p className="text-sm text-brand-text-secondary">{order.customer_name}</p>
+        <p className="text-sm text-brand-text-secondary">{customerMap.get(order.customer_id)?.name || "Unknown customer"}</p>
       </div>
       <div className="ml-auto">
         <FulfillmentStatusBadge status={order.fulfillment_status} />
@@ -144,7 +151,7 @@ export default function OrderDeliveryPage() {
 </FormSection>
 
        {/* PROOF OF DELIVERY FORM */}
-{!alreadyDelivered && !cannotConfirm && (
+{!alreadyDelivered && canConfirm && (
   <FormSection
     title="Proof of Delivery"
     description=""
@@ -177,9 +184,9 @@ export default function OrderDeliveryPage() {
           />
         </div>
 
-        <p className="text-xs text-brand-text-secondary">
+        {/* <p className="text-xs text-brand-text-secondary">
           Note: After confirming delivery, you will be able to generate an invoice for this order.
-        </p>
+        </p> */}
       </div>
     </div>
   </FormSection>
@@ -199,7 +206,7 @@ export default function OrderDeliveryPage() {
             {alreadyDelivered ? "Back" : "Cancel"}
           </Button> */}
 
-          {!alreadyDelivered && !cannotConfirm && (
+          {!alreadyDelivered && canConfirm && (
             <Button onClick={handleConfirmDelivery} disabled={isSubmitting}>
               {isSubmitting ? "Confirming..." : "Confirm Delivery"}
             </Button>
