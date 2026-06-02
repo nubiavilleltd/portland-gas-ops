@@ -95,7 +95,7 @@ export default function AssignResourcesPage() {
         className="mb-6"
       />
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6">
         <FormSection
           title="Trip Summary"
           description="Overview of trip details and assignment status"
