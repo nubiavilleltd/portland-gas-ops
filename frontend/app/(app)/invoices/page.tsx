@@ -9,7 +9,35 @@ import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 
 
-import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+// import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import { useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
+import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+
+
+
+
+
+
+
+
+
+export default function InvoicesPage() {
+
+  const {invoices} = useInvoices()
+  const {orders} = useOrders()
+
+    const orderMap = Object.fromEntries(
+    orders.map((order) => [
+      order.id,
+      order,
+    ])
+  );
+
+
+
 
 const columns: Column<Invoice>[] = [
   {
@@ -20,6 +48,7 @@ const columns: Column<Invoice>[] = [
   {
     key: "order_id",
     label: "Order",
+    render: (value) => <span className="font-medium">{orderMap[value as string].order_number}</span>,
   },
   {
     key: "issued_date",
@@ -41,15 +70,17 @@ const columns: Column<Invoice>[] = [
     label: "Status",
     render: (value) => {
       const s = value as Invoice["status"];
-      const styles =
-        s === "paid"
-          ? "bg-green-100 text-green-700"
-          : s === "partially_paid"
-          ? "bg-yellow-100 text-yellow-700"
-          : "bg-red-100 text-red-700";
-      return (
-        <span className={`text-xs px-2 py-1 rounded-full ${styles}`}>{s}</span>
-      );
+
+      return <PaymentStatusBadge status={s} />
+      // const styles =
+      //   s === "paid"
+      //     ? "bg-green-100 text-green-700"
+      //     : s === "partially_paid"
+      //     ? "bg-yellow-100 text-yellow-700"
+      //     : "bg-red-100 text-red-700";
+      // return (
+      //   <span className={`text-xs px-2 py-1 rounded-full ${styles}`}>{s}</span>
+      // );
     },
   },
   // {
@@ -70,22 +101,17 @@ const columns: Column<Invoice>[] = [
   // },
 ];
 
-// Replace the entire <div className="bg-white border ..."> block with:
 
-
-
-
-export default function InvoicesPage() {
   return (
     <AppLayout pageTitle="Invoices">
       <PageHeader
         title="Invoices"
         description="Manage all invoices and track payments"
-        action={
-          <Button href="/orders/list">
-            Create From Order
-          </Button>
-        }
+        // action={
+        //   <Button href="/orders/list">
+        //     Create From Order
+        //   </Button>
+        // }
       />
 
       {/* TABLE WRAPPER */}

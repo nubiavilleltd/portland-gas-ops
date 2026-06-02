@@ -93,8 +93,8 @@ export default function PayrollPage() {
         </div>
         <div className="space-y-4">
           <ApprovalStepper currentStep={1} steps={PAYROLL_STEPS} />
-          <WorkflowPath initiator={submitted.preparedBy} department="Finance" currentStep={1} approver2Label="Finance Review" />
-          <ActivityHistory initiator={submitted.preparedBy} department="Finance" submittedAt={submitted.submittedAt} approver2Label="Finance Review" />
+          <WorkflowPath initiator={submitted.preparedBy} department="Finance" reliever="" currentStep={1} approver3Label="Finance Review" />
+          <ActivityHistory initiator={submitted.preparedBy} department="Finance" reliever="" submittedAt={submitted.submittedAt} approver3Label="Finance Review" />
         </div>
         <div className="flex flex-wrap gap-3 mt-6">
           <Button onClick={goBack}>View All Payroll Runs</Button>

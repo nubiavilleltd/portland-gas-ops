@@ -1,34 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, AlertCircle, PackageCheck } from "lucide-react";
+import { useParams } from "next/navigation";
+import { CheckCircle, AlertCircle } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-// import { TripStatusBadge } from "@/components/ui/TripStatusBadge";
+import FormSection from "@/components/ui/FormSection";
 
-import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
-import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
-import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors";
-import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
-// import { TripsService } from "@/lib/services/trips.service";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
-import { TripsService } from "@/lib/services/api/trips.service";
+
+import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
+import { useCompleteTripWorkflow } from "@/lib/modules/fleet/hooks/useCompleteTripWorkflow";
+import { Trip } from "@/lib/modules/fleet/types/trip.types";
+import { canCompleteTrip } from "@/lib/modules/fleet/guards/trip.guards";
+import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 export default function CompleteTripPage() {
   const params = useParams();
-  const router = useRouter();
 
   const tripId = params.id as string;
-  const trip = getTripById(tripId);
+  const { trip } = useTripById(tripId);
+  const { driver } = useDriverById(trip?.driver_id ?? "");
+  const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
+  // ✅ React Query (trip)
+  const completeTrip = useCompleteTripWorkflow();
+  
+  // ✅ React Query (orders)
+  const { orders } = useOrders();
+  const {customers} = useCustomers()
+  
   const [proofNotes, setProofNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
+  
   if (!trip) {
     return (
       <AppLayout pageTitle="Trip Not Found">
@@ -36,37 +46,52 @@ export default function CompleteTripPage() {
       </AppLayout>
     );
   }
+  const canComplete = canCompleteTrip(trip as Trip);
 
   if (trip.status === "completed") {
     return (
       <AppLayout pageTitle="Trip Completed">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
           <div className="flex items-center gap-3 mb-4">
-            <CheckCircle className="text-green-500" size={24} />
+            <CheckCircle
+              className="text-green-500"
+              size={24}
+            />
             <h2 className="font-semibold">Trip Already Completed</h2>
           </div>
+
           <p className="text-sm text-brand-text-secondary mb-4">
-            Completed on {trip.completed_at ? formatDate(trip.completed_at.slice(0, 10)) : "—"}
+            Completed on{" "}
+            {trip.completed_at
+              ? formatDate(trip.completed_at.slice(0, 10))
+              : "—"}
           </p>
-          <Button href={`/fleet/trips/${tripId}`} variant="outline">
+
+          <Button
+            href={`/fleet/trips/${tripId}`}
+            variant="outline"
+          >
             Back to Trip
           </Button>
         </div>
       </AppLayout>
     );
   }
-
-  const canComplete = trip.status === "in_transit" || trip.status === "dispatched";
 
   if (!canComplete) {
     return (
       <AppLayout pageTitle="Cannot Complete Trip">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
           <h2 className="font-semibold mb-2">Cannot complete this trip</h2>
+
           <p className="text-sm text-brand-text-secondary mb-4">
             Current status: <TripStatusBadge status={trip.status} />
           </p>
-          <Button href={`/fleet/trips/${tripId}`} variant="outline">
+
+          <Button
+            href={`/fleet/trips/${tripId}`}
+            variant="outline"
+          >
             Back to Trip
           </Button>
         </div>
@@ -74,137 +99,159 @@ export default function CompleteTripPage() {
     );
   }
 
-  const driver = trip.driver_id ? getDriverById(trip.driver_id) : null;
-  const vehicle = trip.vehicle_id ? getVehicleById(trip.vehicle_id) : null;
+  // ✅ REPLACED getOrderById with Map lookup
+  const ordersMap = new Map(orders.map((o) => [o.id, o]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
+
   const linkedOrders = trip.order_ids
-    .map((id) => getOrderById(id))
+    .map((id) => ordersMap.get(id))
     .filter(Boolean);
 
   async function handleComplete() {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await TripsService.completeTrip(tripId, proofNotes);
-      router.push(`/fleet/trips/${tripId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to complete trip");
-    } finally {
-      setIsSubmitting(false);
-    }
+    await completeTrip.mutateAsync({ trip: trip as Trip, proofNotes });
   }
 
   return (
     <AppLayout pageTitle="Complete Trip">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back to Trip
-      </button>
-
       <PageHeader
         title={`Complete Trip — ${trip.trip_number}`}
-        description="Confirm all deliveries are done. This will mark all linked orders as Delivered."
+        description="Confirm the trip is done. Driver and vehicle will be released."
         className="mb-6"
       />
 
-      <div className="space-y-6 max-w-2xl">
-
+      <div className="space-y-6">
         {/* TRIP OVERVIEW */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
+        <FormSection
+          title="Trip Overview"
+          description="Summary of trip, assignment, and route details"
+        >
           <div className="flex justify-between items-start mb-4">
             <div>
               <h3 className="font-semibold">{trip.trip_number}</h3>
               <p className="text-sm text-brand-text-secondary">
-                {driver?.full_name ?? "No driver"} · {vehicle?.name ?? "No vehicle"}
+                {driver?.full_name ?? "No driver"} ·
+                {vehicle?.name ?? "No vehicle"}
               </p>
             </div>
+
             <TripStatusBadge status={trip.status} />
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <InfoRow label="From" value={trip.start_location} />
-            <InfoRow label="To" value={trip.end_location} />
-            <InfoRow label="Dispatch Date" value={trip.dispatch_date ? formatDate(trip.dispatch_date.slice(0, 10)) : "—"} />
-          </div>
-        </div>
+            <InfoRow
+              label="From"
+              value={trip.start_location}
+            />
+            <InfoRow
+              label="To"
+              value={trip.end_location}
+            />
 
-        {/* ORDERS BEING COMPLETED */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <PackageCheck size={18} className="text-brand-purple" />
-            <h3 className="font-semibold">Orders to Mark as Delivered ({linkedOrders.length})</h3>
+            <InfoRow
+              label="Dispatch Date"
+              value={
+                trip.dispatch_date
+                  ? formatDate(trip.dispatch_date.slice(0, 10))
+                  : "—"
+              }
+            />
           </div>
+        </FormSection>
 
+        {/* ORDERS */}
+        <FormSection
+          title={`Linked Orders (${linkedOrders.length})`}
+          description="Orders carried on this trip. Delivery must be confirmed per order."
+        >
           {linkedOrders.length === 0 ? (
-            <p className="text-sm text-brand-text-secondary">No orders linked to this trip.</p>
+            <p className="text-sm text-brand-text-secondary">
+              No orders linked to this trip.
+            </p>
           ) : (
             <div className="divide-y divide-brand-border">
               {linkedOrders.map((order) =>
                 order ? (
-                  <div key={order.id} className="py-3 grid grid-cols-3 gap-4 text-sm">
+                  <div
+                    key={order.id}
+                    className="py-3 grid grid-cols-3 gap-4 text-sm"
+                  >
                     <div>
                       <p className="text-xs text-brand-text-secondary">Order</p>
                       <p className="font-medium">{order.order_number}</p>
                     </div>
+
                     <div>
-                      <p className="text-xs text-brand-text-secondary">Customer</p>
-                      <p className="font-medium">{order.customer_name}</p>
+                      <p className="text-xs text-brand-text-secondary">
+                        Customer
+                      </p>
+                      <p className="font-medium">{customerMap.get(order.customer_id)?.name || "Unknown customer"}</p>
                     </div>
+
                     <div>
-                      <p className="text-xs text-brand-text-secondary">Amount</p>
-                      <p className="font-medium">{formatCurrency(order.total_amount)}</p>
+                      <p className="text-xs text-brand-text-secondary">
+                        Amount
+                      </p>
+                      <p className="font-medium">
+                        {formatCurrency(order.total_amount)}
+                      </p>
                     </div>
                   </div>
-                ) : null
+                ) : null,
               )}
             </div>
           )}
-        </div>
+        </FormSection>
 
-        {/* COMPLETION NOTES */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <h3 className="font-semibold mb-3">Completion Notes</h3>
+        {/* NOTES */}
+        <FormSection
+          title="Completion Notes"
+          description="Add notes after completing all deliveries"
+        >
           <textarea
-            placeholder="E.g. All deliveries completed without issues. Customer acknowledged receipt."
+            placeholder="E.g. All deliveries completed without issues..."
             value={proofNotes}
             onChange={(e) => setProofNotes(e.target.value)}
             rows={3}
-            className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
+            className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm"
           />
-        </div>
+        </FormSection>
 
-        {/* WHAT HAPPENS NOTICE */}
+        {/* NOTICE */}
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700">
           <p className="font-medium mb-1">Completing this trip will:</p>
-          <ul className="list-disc ml-4 space-y-1 text-green-600">
+          {/* <ul className="list-disc ml-4 space-y-1 text-green-600">
             <li>Mark trip as <strong>Completed</strong></li>
-            <li>Mark all {trip.order_ids.length} linked order(s) as <strong>Delivered</strong></li>
-            <li>Release <strong>{driver?.full_name ?? "the driver"}</strong> back to Available</li>
-            <li>Release <strong>{vehicle?.name ?? "the vehicle"}</strong> back to Available</li>
+            <li>Mark all linked orders as <strong>Delivered</strong></li>
+            <li>Release driver and vehicle</li>
+          </ul> */}
+          <ul className="list-disc ml-4 space-y-1 text-green-600">
+            <li>
+              Mark trip as <strong>Completed</strong>
+            </li>
+            <li>Release driver and vehicle back to available</li>
           </ul>
         </div>
 
         {/* ERROR */}
-        {error && (
+        {completeTrip.error && (
           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
             <AlertCircle size={16} />
-            {error}
+            {completeTrip.error instanceof Error
+              ? completeTrip.error.message
+              : "Failed to complete trip"}
           </div>
         )}
 
-        {/* ACTIONS */}
+        {/* ACTION */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button onClick={handleComplete} disabled={isSubmitting}>
-            {/* <CheckCircle size={14} className="mr-1.5" /> */}
-            {isSubmitting ? "Completing..." : "Complete Trip"}
+          <Button
+            onClick={handleComplete}
+            disabled={completeTrip.isPending}
+            loading={completeTrip.isPending}
+          >
+            Complete Trip
           </Button>
         </div>
-
       </div>
     </AppLayout>
   );

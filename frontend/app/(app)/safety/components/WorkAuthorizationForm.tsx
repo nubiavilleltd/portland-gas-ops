@@ -12,13 +12,13 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
 import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { AssignedWorkInitiationSummary } from "@/types/safety";
 
-const requester = {
+const requesterDetails = {
   name: "Daniel Okoro",
   department: "Engineering",
   role: "CNG Conversion Technician",
-  requestDate: "2026-05-18",
 };
 
 const optionFromStrings = (items: string[]): SelectOption[] =>
@@ -37,6 +37,10 @@ export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
   const { workInitiations: storedWorkInitiations } = useSafetyDemoData();
+  const requester = {
+    ...requesterDetails,
+    requestDate: formatLocalDate(),
+  };
   const approvedWorkInitiations = storedWorkInitiations
     .filter((request) => request.status === "approved" && request.operationalReview?.decision === "Approve");
   const workInitiations: AssignedWorkInitiationSummary[] = approvedWorkInitiations
@@ -47,7 +51,6 @@ export default function WorkAuthorizationForm() {
       workCategory: request.workCategory,
       relatedIncidentHazardId: request.relatedIncidentHazardId,
       workType: request.workType,
-      priority: request.priority,
       location: request.location,
       exactWorkArea: request.exactWorkArea,
       workDescription: request.workDescription,
@@ -76,6 +79,8 @@ export default function WorkAuthorizationForm() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedWorkInitiation) return;
+    const submittedAt = formatLocalDateTime();
+
     createWorkAuthorization((id) => ({
       id,
       status: "submitted",
@@ -88,7 +93,6 @@ export default function WorkAuthorizationForm() {
         expectedStartDateTime: selectedWorkInitiation.plannedStartDateTime,
         expectedEndDateTime: selectedWorkInitiation.plannedEndDateTime,
         supervisor: selectedWorkInitiation.assignedSupervisor,
-        priority: selectedWorkInitiation.priority,
       },
       workDetails: {
         typeOfWork: selectedWorkInitiation.workType,
@@ -121,7 +125,7 @@ export default function WorkAuthorizationForm() {
         action: "Submitted",
         actor: requester.name,
         role: "Requester",
-        dateTime: "2026-05-25 10:00 AM",
+        dateTime: submittedAt,
         comment: attachmentNotes || "Work authorization request submitted for HSE review.",
       }],
     }));
@@ -224,9 +228,8 @@ function AssignedWorkSummary({
             <FormInput label="Related Incident/Hazard Request" value={workInitiation.relatedIncidentHazardId} disabled />
           ) : null}
           <FormInput label="Work Type" value={workInitiation.workType.join(", ")} disabled />
-          <FormInput label="Priority" value={workInitiation.priority} disabled />
           <FormInput label="Location" value={workInitiation.location} disabled />
-          <FormInput label="Exact Work Area" value={workInitiation.exactWorkArea} disabled />
+          <FormTextarea label="Exact Work Area" value={workInitiation.exactWorkArea} disabled />
           <FormInput label="Assigned Supervisor" value={workInitiation.assignedSupervisor} disabled />
           <FormInput label="Assigned Workers" value={workInitiation.assignedWorkers.join(", ")} disabled />
           <FormInput label="Contractors Needed" value={workInitiation.contractorsNeeded ? "Yes" : "No"} disabled />
@@ -255,12 +258,12 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
-      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
         <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
+        {description ? <p className="mt-0.5 text-sm text-brand-text-secondary">{description}</p> : null}
       </div>
-      <div className="p-5 md:p-6">{children}</div>
+      <div className="px-6 pt-5 pb-6">{children}</div>
     </section>
   );
 }

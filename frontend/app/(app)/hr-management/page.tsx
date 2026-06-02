@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, CalendarDays, CreditCard } from "lucide-react";
+import { Users, CalendarDays, CreditCard, BarChart2 } from "lucide-react";
 // import { FolderOpen, BookOpen, DollarSign } from "lucide-react"; // restore when modules are re-enabled
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -8,26 +8,17 @@ import ModuleCard from "@/components/ui/ModuleCard";
 
 const MODULES = [
   {
-    name: "Employee Profile",
-    description: "Staff profiles & records",
-    icon: Users,
-    href: "/hr-management/employees",
-  },
-  {
     name: "Leave Requests",
     description: "Leave applications & approvals",
     icon: CalendarDays,
     href: "/hr-management/leave-requests",
   },
-  // { name: "Employee Records", description: "Document vault", icon: FolderOpen, href: "/hr-management/employee-records" },
-  // { name: "HR Policies", description: "Policy library & acknowledgements", icon: BookOpen, href: "/hr-management/policies" },
   {
-    name: "Pay Slips",
-    description: "Monthly pay slip viewer",
+    name: "My Pay Slips",
+    description: "View and download your monthly pay slips",
     icon: CreditCard,
-    href: "/hr-management/payslips",
+    href: "/hr-management/my-payslips",
   },
-  // { name: "Payroll", description: "Payroll runs & disbursements", icon: DollarSign, href: "/hr-management/payroll" },
 ];
 
 export default function HRManagementPage() {
@@ -35,7 +26,7 @@ export default function HRManagementPage() {
     <AppLayout pageTitle="HR Management">
       <PageHeader
         title="HR Management"
-        description="Manage employees, leave, records, policies, pay slips, and payroll"
+        description="View your leave requests and pay slips"
         className="mb-6"
       />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-4xl">

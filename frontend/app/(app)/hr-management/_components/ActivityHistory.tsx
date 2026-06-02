@@ -3,15 +3,17 @@ import { HR_APPROVERS } from "./_data";
 interface Props {
   initiator: string;
   department: string;
+  reliever: string;
   submittedAt: Date;
-  approver2Label?: string;
+  approver3Label?: string;
 }
 
 export default function ActivityHistory({
   initiator,
   department,
+  reliever,
   submittedAt,
-  approver2Label = "HR Review",
+  approver3Label = "HR Review",
 }: Props) {
   const ap = HR_APPROVERS[department] ?? HR_APPROVERS.Legal;
 
@@ -55,14 +57,31 @@ export default function ActivityHistory({
               <td className="px-5 py-4 text-brand-text-secondary whitespace-nowrap">{fmt(submittedAt)}</td>
               <td className="px-5 py-4 text-brand-text-primary">Request submitted — Awaiting Approval</td>
               <td className="px-5 py-4 font-medium text-brand-purple">
+                {reliever || "—"}
+                <span className="block text-xs text-brand-text-secondary font-normal">(Reliever)</span>
+              </td>
+            </tr>
+            <tr className="border-t border-brand-border hover:bg-gray-50/50">
+              <td className="px-5 py-4 font-medium text-brand-purple">
+                {reliever || "—"}
+                <span className="block text-xs text-brand-text-secondary font-normal">(Reliever)</span>
+              </td>
+              <td className="px-5 py-4">
+                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                  Pending
+                </span>
+              </td>
+              <td className="px-5 py-4 text-brand-text-secondary">—</td>
+              <td className="px-5 py-4 text-brand-text-secondary">Awaiting review</td>
+              <td className="px-5 py-4 font-medium text-brand-purple">
                 {ap.lineManager}
-                <span className="block text-xs text-brand-text-secondary font-normal">(Line Manager)</span>
+                <span className="block text-xs text-brand-text-secondary font-normal">(Operations Manager)</span>
               </td>
             </tr>
             <tr className="border-t border-brand-border hover:bg-gray-50/50">
               <td className="px-5 py-4 font-medium text-brand-purple">
                 {ap.lineManager}
-                <span className="block text-xs text-brand-text-secondary font-normal">(Line Manager)</span>
+                <span className="block text-xs text-brand-text-secondary font-normal">(Operations Manager)</span>
               </td>
               <td className="px-5 py-4">
                 <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
@@ -73,7 +92,7 @@ export default function ActivityHistory({
               <td className="px-5 py-4 text-brand-text-secondary">Awaiting review</td>
               <td className="px-5 py-4 font-medium text-brand-purple">
                 {ap.hrReview}
-                <span className="block text-xs text-brand-text-secondary font-normal">({approver2Label})</span>
+                <span className="block text-xs text-brand-text-secondary font-normal">({approver3Label})</span>
               </td>
             </tr>
           </tbody>

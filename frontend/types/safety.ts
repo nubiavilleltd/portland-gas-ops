@@ -73,7 +73,6 @@ export interface AssignedWorkInitiationSummary {
   workCategory: string;
   relatedIncidentHazardId: string;
   workType: string[];
-  priority: "Low" | "Medium" | "High" | "Critical";
   location: string;
   exactWorkArea: string;
   workDescription: string;
@@ -103,7 +102,6 @@ export interface WorkInitiationRequest {
   workCategory: string;
   relatedIncidentHazardId: string;
   workType: string[];
-  priority: "Low" | "Medium" | "High" | "Critical";
   location: string;
   exactWorkArea: string;
   attachments: WorkAuthorizationAttachment[];
@@ -121,7 +119,6 @@ export interface WorkAuthorizationRequestDetails {
   expectedStartDateTime: string;
   expectedEndDateTime: string;
   supervisor: string;
-  priority: "Low" | "Medium" | "High" | "Critical";
 }
 
 export interface WorkAuthorizationWorkDetails {
@@ -282,7 +279,7 @@ export type IncidentHazardStatus =
   | "closed"
   | "not_resolved";
 export type IncidentHazardRole = "reporter" | "hse" | "action_owner";
-export type IncidentHazardPriority = "Low" | "Medium" | "High" | "Critical";
+export type IncidentHazardSeverity = "Low" | "Medium" | "High" | "Critical";
 export type IncidentHazardDecision = "Resolved" | "Not Resolved";
 
 export interface IncidentHazardReporter {
@@ -300,7 +297,7 @@ export interface IncidentHazardAttachment {
 export interface IncidentHazardHseReview {
   inspector: string;
   confirmedReportType: string;
-  confirmedSeverity: IncidentHazardPriority;
+  confirmedSeverity: IncidentHazardSeverity;
   findings: string;
   rootCause: string;
   correctiveActionRequired: boolean;
@@ -322,9 +319,8 @@ export interface IncidentHazardReport {
   location: string;
   dateTimeObserved: string;
   relatedWorkAuthorization: string;
-  priority: IncidentHazardPriority | "";
   description: string;
-  severityEstimate: IncidentHazardPriority | "";
+  severityEstimate: IncidentHazardSeverity | "";
   anyoneInjured: boolean | null;
   propertyDamaged: boolean | null;
   gasFireEnvironmentalConcern: boolean | null;

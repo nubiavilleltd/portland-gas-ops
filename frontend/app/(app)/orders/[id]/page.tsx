@@ -1,304 +1,369 @@
-// "use client";
-
-// import { useParams } from "next/navigation";
-
-// import AppLayout from "@/components/layout/AppLayout";
-
-// import OrderDetailsHeader from "@/components/orders/OrderDetailsHeader";
-// import OrderSummaryCard from "@/components/orders/OrderSummaryCard";
-// import OrderItemsTable from "@/components/orders/OrderItemsTable";
-// import OrderDispatchCard from "@/components/orders/OrderDispatchCard";
-// import OrderInvoiceCard from "@/components/orders/OrderInvoiceCard";
-// import OrderPaymentCard from "@/components/orders/OrderPaymentCard";
-
-// // import {
-// //   getOrderById,
-// //   getOrderDispatch,
-// //   getOrderInvoice,
-// //   getPaymentSummary,
-// // } from "@/lib/modules/orders/selectors/orders.selectors";
-
-// export default function OrderDetailPage() {
-//   const params = useParams();
-
-//   const id = params.id as string;
-
-//   const order = getOrderById(id);
-
-//   if (!order) {
-//     return <AppLayout pageTitle="Order Not Found">Order not found.</AppLayout>;
-//   }
-
-//   const dispatch = getOrderDispatch(order.id);
-
-//   const invoice = getOrderInvoice(order.id);
-
-//   const paymentSummary = getPaymentSummary(invoice?.id);
-
-//   return (
-//     <AppLayout pageTitle="Order Details">
-//       <OrderDetailsHeader
-//         orderId={order.id}
-//         orderNumber={order.order_number}
-//       />
-
-//       <div className="space-y-6">
-//         <OrderSummaryCard order={order} />
-
-//         <OrderItemsTable order={order} />
-
-//         <OrderDispatchCard
-//           orderId={order.id}
-//           dispatch={dispatch}
-//         />
-
-//         <OrderInvoiceCard
-//           orderId={order.id}
-//           invoice={invoice}
-//         />
-
-//         <OrderPaymentCard
-//           invoice={invoice}
-//           amountPaid={paymentSummary.amountPaid}
-//         />
-//       </div>
-//     </AppLayout>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useParams } from "next/navigation";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-// import { OrderStatusBadge } from "@/components/ui/OrderStatusBadge";
-// import { FulfillmentStatusBadge } from "@/components/ui/FulfillmentStatusBadge";
-// import { PaymentStatusBadge } from "@/components/ui/PaymentStatusBadge";
+import ErrorBanner from "@/components/ui/ErrorBanner";
+import FormSection from "@/components/ui/FormSection";
+
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { useInvoiceByOrderId } from "@/lib/modules/invoices/hooks/useInvoices";
+import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
+
+
+
 
 import {
-  getOrderById,
-  getOrderDispatch,
-  getOrderInvoice,
-  getPaymentSummary,
-  canConfirmOrder,
-  isOrderReadyForInvoice,
-  isOrderComplete,
-} from "@/lib/modules/orders/selectors/orders.selectors";
-import { getTripById } from "@/lib/modules/fleet/selectors/trips.selectors";
+  ORDER_ROUTES,
+  FLEET_ROUTES,
+  INVOICE_ROUTES,
+  PAYMENT_ROUTES,
+} from "@/lib/routes";
+
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { canAssignToTrip, canCloseOrder, canConfirmOrder, canEditOrder, canGenerateInvoice, canConfirmDelivery } from "@/lib/modules/orders/guards/orders.guards";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
+import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
+
+
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
-
   const id = params.id as string;
-  const order = getOrderById(id);
 
-  if (!order) {
+  const {customers} = useCustomers()
+
+  const { order, isLoading, error } = useOrderById(id);
+  const { invoice } = useInvoiceByOrderId(id);
+  const {summary:paymentSummary} = usePaymentSummary(invoice?.id);
+
+  const { trip } = useTripById(order?.trip_id as string);
+
+    const customerMap = Object.fromEntries(
+    customers.map((customer) => [
+      customer.id,
+      customer,
+    ])
+  );
+
+
+
+  // ── loading / error
+  if (isLoading) {
     return (
-      <AppLayout pageTitle="Order Not Found">
-        <p className="text-brand-text-secondary">Order not found.</p>
+      <AppLayout pageTitle="Order Details">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-100 rounded-lg w-1/4" />
+          <div className="h-48 bg-gray-100 rounded-2xl" />
+        </div>
       </AppLayout>
     );
   }
 
-  const invoice = getOrderInvoice(order.id);
-  const paymentSummary = getPaymentSummary(invoice?.id);
-  const trip = order.trip_id ? getTripById(order.trip_id) : null;
-  const balance = invoice ? invoice.total_amount - paymentSummary.amountPaid : 0;
+  if (error || !order) {
+    return (
+      <AppLayout pageTitle="Order Not Found">
+        <ErrorBanner message={error ?? "Order not found"} />
+      </AppLayout>
+    );
+  }
 
-  const isDraft = order.order_status === "draft";
-  const isConfirmed = order.order_status === "confirmed";
-  const isCompleted = order.order_status === "completed";
-  const canGenerateInvoice = isOrderReadyForInvoice(order);
-  const canClose = isOrderComplete(order) && !isCompleted;
+  // ── guards (pure UI decisions)
+  const canEdit = canEditOrder(order);
+  // const canConfirm = canConfirmOrder(order);
+  const canAssign = canAssignToTrip(order);
+  const canInvoice = canGenerateInvoice(order);
+  // const canClose = canCloseOrder(order);
+  const canDeliver = canConfirmDelivery(order);
+
+
+
+  const balance = invoice
+    ? invoice.total_amount - paymentSummary.amountPaid
+    : 0;
+
+
+    const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+  {
+    label: "Product",
+    render: (item) => <span className="font-medium">{item.product_name}</span>,
+  },
+  {
+    label: "Quantity",
+    render: (item) => `${item.quantity.toLocaleString()} kg`,
+  },
+  {
+    label: "Unit Price",
+    render: (item) => formatCurrency(item.unit_price),
+  },
+  {
+    label: "Total",
+    align: "right",
+    render: (item) => formatCurrency(item.total),
+  },
+];
+
+
 
   return (
     <AppLayout pageTitle="Order Details">
-
-      {/* Back button */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back to Orders
-      </button>
-
-      {/* Header with context-aware action buttons */}
       <PageHeader
         title={order.order_number}
         description="Customer gas order workflow and transaction details"
         action={
-          <div className="flex gap-2 flex-wrap">
-            <Button href={`/orders/${id}/edit`} variant="outline">
-              Edit
-            </Button>
+          <div className="flex gap-2 flex-wrap justify-end">
 
-            {/* DRAFT → CONFIRM */}
-            {isDraft && (
-              <Button href={`/orders/${id}/confirm`}>
-                Confirm Order
+            {canEdit && (
+              <Button href={ORDER_ROUTES.edit(id)} variant="outline">
+                Edit
               </Button>
             )}
 
-            {/* CONFIRMED + PENDING → dispatch through fleet */}
-            {isConfirmed && order.fulfillment_status === "pending" && (
-              <Button href={`/fleet/trips/new?orderId=${id}`}>
+            {/* {canConfirm && (
+              <Button href={ORDER_ROUTES.confirm(id)}>
+                Confirm Order
+              </Button>
+            )} */}
+
+            {canAssign && (
+              <Button href={FLEET_ROUTES.tripNew({ orderId: id })}>
                 Assign to Trip
               </Button>
             )}
 
-            {/* VIEW TRIP if assigned */}
             {order.trip_id && (
-              <Button href={`/fleet/trips/${order.trip_id}`} variant="outline">
+              <Button
+                href={FLEET_ROUTES.tripDetail(order.trip_id)}
+                variant="outline"
+              >
                 View Trip
               </Button>
             )}
 
-            {/* CONFIRM DELIVERY */}
-            {(order.fulfillment_status === "dispatched" ||
-              order.fulfillment_status === "in_transit") && (
-              <Button href={`/orders/${id}/delivery`}>
+            {canDeliver && (
+              <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
                 Confirm Delivery
               </Button>
             )}
 
-            {/* GENERATE INVOICE */}
-            {canGenerateInvoice && (
-              <Button href={`/invoices/new?orderId=${id}`}>
+            {canInvoice && (
+              <Button href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
                 Generate Invoice
               </Button>
             )}
-
-            {/* CLOSE ORDER */}
+{/* 
             {canClose && (
-              <Button href={`/orders/${id}/close`} variant="secondary">
+              <Button href={ORDER_ROUTES.close(id)} variant="primary">
                 Close Order
               </Button>
-            )}
+            )} */}
           </div>
         }
-        className="mb-6"
       />
 
-      <div className="space-y-6">
+            <div className="space-y-6">
 
         {/* ORDER SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <p className="text-xs font-mono text-brand-text-secondary">
-                {order.order_number}
-              </p>
-              <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-                {order.customer_name}
-              </h2>
-              <p className="text-sm text-brand-text-secondary mt-1">
-                {order.order_type}
-              </p>
-            </div>
+                <FormSection
+  title="Order Summary"
+  description="Overview of customer, order, delivery, and payment details"
+>
+  <div className="flex items-start justify-between mb-6">
+    <div>
+      <p className="text-xs font-mono text-brand-text-secondary">
+        {order.order_number}
+      </p>
 
-            {/* Three status badges side by side */}
-            <div className="flex flex-col gap-1.5 items-end">
-              <OrderStatusBadge status={order.order_status} />
-              <FulfillmentStatusBadge status={order.fulfillment_status} />
-              <PaymentStatusBadge status={order.payment_status} />
-            </div>
-          </div>
+      <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
+        {customerMap[order.customer_id]
+          ?.name ?? "—"}
+      </h2>
+{/* 
+      <p className="text-sm text-brand-text-secondary mt-1">
+        {order.order_type}
+      </p> */}
+    </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-            <InfoRow label="Gas Type" value={order.product_name ?? order.order_type} />
-            <InfoRow label="Quantity" value={`${order.quantity.toLocaleString()} kg`} />
-            <InfoRow label="Unit Price" value={formatCurrency(order.unit_price)} />
-            <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
-            <InfoRow
-              label="Delivery Date"
-              value={order.delivery_date ? formatDate(order.delivery_date) : "Not set"}
-            />
-            <InfoRow label="Delivery Address" value={order.delivery_address} />
-            {order.confirmed_at && (
-              <InfoRow label="Confirmed On" value={formatDate(order.confirmed_at)} />
-            )}
-            {order.delivered_at && (
-              <InfoRow label="Delivered On" value={formatDate(order.delivered_at)} />
-            )}
-          </div>
+    {/* Three status badges side by side */}
+    <div className="flex flex-col gap-1.5 items-end">
+      <OrderStatusBadge status={order.order_status} />
+      <FulfillmentStatusBadge status={order.fulfillment_status} />
+      <PaymentStatusBadge status={order.payment_status} />
+    </div>
+  </div>
 
-          {order.notes && (
-            <div className="mt-4 pt-4 border-t border-brand-border text-sm">
-              <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
-              <p>{order.notes}</p>
-            </div>
-          )}
-        </div>
+  {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+    <InfoRow
+      label="Gas Type"
+      value={order.product_name ?? order.order_type}
+    />
 
-        {/* TRIP / DISPATCH INFORMATION */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Dispatch / Trip</h3>
-            {!order.trip_id && isConfirmed && order.fulfillment_status === "pending" && (
-              <Button size="sm" href={`/fleet/trips/new?orderId=${id}`}>
+    <InfoRow
+      label="Quantity"
+      value={`${order.quantity.toLocaleString()} kg`}
+    />
+
+    <InfoRow
+      label="Unit Price"
+      value={formatCurrency(order.unit_price)}
+    />
+
+    <InfoRow
+      label="Total Amount"
+      value={formatCurrency(order.total_amount)}
+    />
+
+    <InfoRow
+      label="Delivery Date"
+      value={
+        order.delivery_date
+          ? formatDate(order.delivery_date)
+          : "Not set"
+      }
+    />
+
+    <InfoRow
+      label="Delivery Address"
+      value={order.delivery_address}
+    />
+
+    {order.confirmed_at && (
+      <InfoRow
+        label="Confirmed On"
+        value={formatDate(order.confirmed_at)}
+      />
+    )}
+
+    {order.delivered_at && (
+      <InfoRow
+        label="Delivered On"
+        value={formatDate(order.delivered_at)}
+      />
+    )}
+  </div> */}
+
+  {/* ORDER ITEMS */}
+{/* <div className="mt-4 pt-4 border-t border-brand-border">
+  <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
+  <table className="w-full text-sm">
+    <thead>
+      <tr className="border-b text-left">
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Product</th>
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Quantity</th>
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Unit Price</th>
+        <th className="pb-2 font-medium text-brand-text-secondary text-xs text-right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {order.order_items.map((item, index) => (
+        <tr key={index} className="border-b last:border-0">
+          <td className="py-2 font-medium">{item.product_name}</td>
+          <td className="py-2">{item.quantity.toLocaleString()} kg</td>
+          <td className="py-2">{formatCurrency(item.unit_price)}</td>
+          <td className="py-2 text-right">{formatCurrency(item.total)}</td>
+        </tr>
+      ))}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colSpan={3} className="pt-3 text-right font-semibold text-xs text-brand-text-secondary">Grand Total</td>
+        <td className="pt-3 text-right font-semibold">{formatCurrency(order.total_amount)}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div> */}
+
+<SimpleTable
+  columns={itemColumns}
+  rows={order.order_items}
+  keyExtractor={(_, index) => String(index)}
+  footer={
+    <tr>
+      <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+        Grand Total
+      </td>
+      <td className="pt-3 text-right font-semibold">
+        {formatCurrency(order.total_amount)}
+      </td>
+    </tr>
+  }
+/>
+
+  {order.notes && (
+    <div className="mt-4 pt-4 border-t border-brand-border text-sm">
+      <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
+      <p>{order.notes}</p>
+    </div>
+  )}
+</FormSection>
+
+        {/* TRIP / DISPATCH */}
+        <SectionCard
+          title="Dispatch / Trip"
+          action={
+            canAssign ? (
+              <Button size="sm" href={FLEET_ROUTES.tripNew({ orderId: id })}>
                 Assign to Trip
               </Button>
-            )}
-            {order.trip_id && (
-              <Button size="sm" variant="outline" href={`/fleet/trips/${order.trip_id}`}>
+            ) : order.trip_id ? (
+              <Button
+                size="sm"
+                variant="outline"
+                href={FLEET_ROUTES.tripDetail(order.trip_id)}
+              >
                 View Trip →
               </Button>
-            )}
-          </div>
-
+            ) : undefined
+          }
+          empty={
+            order.fulfillment_status === "pending"
+              ? "This order has not been assigned to a trip yet."
+              : "Trip information not available."
+          }
+        >
           {trip ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               <InfoRow label="Trip Number" value={trip.trip_number} />
               <InfoRow label="From" value={trip.start_location} />
               <InfoRow label="To" value={trip.end_location} />
               <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
             </div>
-          ) : (
-            <p className="text-sm text-brand-text-secondary italic">
-              {order.fulfillment_status === "pending"
-                ? "This order has not been assigned to a trip yet."
-                : "Trip information not available."}
-            </p>
-          )}
-        </div>
+          ) : null}
+        </SectionCard>
 
         {/* INVOICE */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Invoice</h3>
-            {canGenerateInvoice && (
-              <Button size="sm" href={`/invoices/new?orderId=${id}`}>
+        <SectionCard
+          title="Invoice"
+          action={
+            canInvoice ? (
+              <Button size="sm" href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
                 Generate Invoice
               </Button>
-            )}
-            {invoice && (
-              <Button size="sm" variant="outline" href={`/invoices/${invoice.id}`}>
+            ) : invoice ? (
+              <Button
+                size="sm"
+                variant="outline"
+                href={INVOICE_ROUTES.detail(invoice.id)}
+              >
                 View Invoice →
               </Button>
-            )}
-          </div>
-
+            ) : undefined
+          }
+          empty={
+            order.fulfillment_status !== "delivered"
+              ? "Invoice will be available after delivery is confirmed."
+              : "No invoice generated yet."
+          }
+        >
           {invoice ? (
-            <div className="grid grid-cols-2 gap-5 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               <InfoRow label="Invoice No" value={invoice.invoice_number} />
               <InfoRow label="Status">
                 <PaymentStatusBadge status={invoice.status} />
@@ -306,45 +371,56 @@ export default function OrderDetailPage() {
               <InfoRow label="Issued" value={formatDate(invoice.issued_date)} />
               <InfoRow label="Due" value={formatDate(invoice.due_date)} />
             </div>
-          ) : (
-            <p className="text-sm text-brand-text-secondary italic">
-              {order.fulfillment_status !== "delivered"
-                ? "Invoice will be available after delivery is confirmed."
-                : "No invoice generated yet."}
-            </p>
-          )}
-        </div>
+          ) : null}
+        </SectionCard>
 
         {/* PAYMENTS */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold">Payments</h3>
-            {invoice && order.payment_status !== "paid" && (
-              <Button size="sm" href={`/payments/new?invoiceId=${invoice.id}`}>
+        <SectionCard
+          title="Payments"
+          action={
+            invoice && order.payment_status !== "paid" ? (
+              <Button
+                size="sm"
+                href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice.id}`}
+              >
                 Record Payment
               </Button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-3 gap-5 text-sm">
+            ) : undefined
+          }
+        >
+          <div className="grid grid-cols-3 gap-5">
             <InfoRow
               label="Invoice Amount"
               value={invoice ? formatCurrency(invoice.total_amount) : "—"}
             />
-            <InfoRow label="Amount Paid" value={formatCurrency(paymentSummary.amountPaid)} />
+            <InfoRow
+              label="Amount Paid"
+              value={formatCurrency(paymentSummary.amountPaid)}
+            />
             <InfoRow
               label="Balance"
               value={invoice ? formatCurrency(balance) : "—"}
               valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
             />
           </div>
-        </div>
+        </SectionCard>
 
       </div>
     </AppLayout>
   );
 }
 
+
+
+
+
+
+
+
+
+
+
+// ── InfoRow ───────────────────────────────────────────────
 function InfoRow({
   label,
   value,
@@ -362,7 +438,34 @@ function InfoRow({
       {children ? (
         <div className="mt-0.5">{children}</div>
       ) : (
-        <p className={`font-medium mt-0.5 ${valueClassName ?? ""}`}>{value}</p>
+        <p className={`font-medium mt-0.5 text-sm ${valueClassName ?? ""}`}>
+          {value}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── SectionCard ───────────────────────────────────────────
+function SectionCard({
+  title,
+  action,
+  children,
+  empty,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children?: React.ReactNode;
+  empty?: string;
+}) {
+  return (
+    <div className="bg-white border border-brand-border rounded-2xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold">{title}</h3>
+        {action}
+      </div>
+      {children ?? (
+        <p className="text-sm text-brand-text-secondary italic">{empty}</p>
       )}
     </div>
   );
