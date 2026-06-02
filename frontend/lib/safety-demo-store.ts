@@ -14,7 +14,7 @@ import type {
   WorkInitiationRequest,
 } from "@/types/safety";
 
-const STORAGE_KEY = "portland-gas-ops.safety-demo.v5";
+const STORAGE_KEY = "portland-gas-ops.safety-demo.v6";
 const CHANGE_EVENT = "safety-demo-data-changed";
 
 export interface SafetyDemoData {
@@ -35,6 +35,39 @@ function seedData(): SafetyDemoData {
 
 const SEED_SNAPSHOT = JSON.stringify(seedData());
 
+function mergeMissingById<T extends { id: string }>(current: T[], seed: T[]) {
+  const existingIds = new Set(current.map((item) => item.id));
+  const missingSeedItems = seed.filter((item) => !existingIds.has(item.id));
+  return missingSeedItems.length > 0
+    ? { items: [...current, ...structuredClone(missingSeedItems)], changed: true }
+    : { items: current, changed: false };
+}
+
+function mergeSeedRecords(data: SafetyDemoData) {
+  const seed = seedData();
+  const incidentHazards = mergeMissingById(data.incidentHazards ?? [], seed.incidentHazards);
+  const workInitiations = mergeMissingById(data.workInitiations ?? [], seed.workInitiations);
+  const workAuthorizations = mergeMissingById(
+    data.workAuthorizations ?? [],
+    seed.workAuthorizations,
+  );
+  const workCloseOuts = mergeMissingById(data.workCloseOuts ?? [], seed.workCloseOuts);
+
+  return {
+    data: {
+      incidentHazards: incidentHazards.items,
+      workInitiations: workInitiations.items,
+      workAuthorizations: workAuthorizations.items,
+      workCloseOuts: workCloseOuts.items,
+    },
+    changed:
+      incidentHazards.changed ||
+      workInitiations.changed ||
+      workAuthorizations.changed ||
+      workCloseOuts.changed,
+  };
+}
+
 export function readSafetyDemoData(): SafetyDemoData {
   if (typeof window === "undefined") return seedData();
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -45,7 +78,9 @@ export function readSafetyDemoData(): SafetyDemoData {
   }
 
   try {
-    return JSON.parse(stored) as SafetyDemoData;
+    const migrated = mergeSeedRecords(JSON.parse(stored) as SafetyDemoData);
+    if (migrated.changed) writeSafetyDemoData(migrated.data);
+    return migrated.data;
   } catch {
     const seeded = seedData();
     writeSafetyDemoData(seeded);
@@ -62,7 +97,20 @@ function writeSafetyDemoData(data: SafetyDemoData) {
 function getSafetyDemoSnapshot() {
   if (typeof window === "undefined") return SEED_SNAPSHOT;
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored) return stored;
+  if (stored) {
+    try {
+      const migrated = mergeSeedRecords(JSON.parse(stored) as SafetyDemoData);
+      if (migrated.changed) {
+        const snapshot = JSON.stringify(migrated.data);
+        window.localStorage.setItem(STORAGE_KEY, snapshot);
+        return snapshot;
+      }
+    } catch {
+      window.localStorage.setItem(STORAGE_KEY, SEED_SNAPSHOT);
+      return SEED_SNAPSHOT;
+    }
+    return stored;
+  }
   window.localStorage.setItem(STORAGE_KEY, SEED_SNAPSHOT);
   return SEED_SNAPSHOT;
 }
@@ -237,7 +285,7 @@ function toApprovedAuthorizationOption(
     approvedEndDateTime: request.workInitiation.plannedEndDateTime,
     workTypes: request.workInitiation.workType,
     supervisor: request.workInitiation.assignedSupervisor,
-    hseApprover: request.hseApproval?.approver ?? "Samuel Bassey",
+    hseApprover: request.hseApproval?.approver ?? "Daniel Okoro",
   };
 }
 
@@ -329,7 +377,7 @@ export function closeResolvedIncident(incidentId: string) {
     ...report.auditTrail,
     {
       action: "Closed by HSE",
-      actor: report.hseReview?.inspector || "Samuel Bassey",
+      actor: report.hseReview?.inspector || "Daniel Okoro",
       role: "HSE Inspector",
       dateTime: "2026-05-25 04:00 PM",
       comment: report.resolutionWorkCompletionId

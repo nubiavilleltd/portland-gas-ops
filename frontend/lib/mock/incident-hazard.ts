@@ -1,9 +1,9 @@
 import type { IncidentHazardReport } from "@/types/safety";
 
 export const mockReporter = {
-  name: "Daniel Okoro",
+  name: "Ibrahim Musa",
   department: "Engineering",
-  role: "CNG Conversion Technician",
+  role: "Maintenance Technician",
   reportDate: "2026-05-18",
 };
 
@@ -77,14 +77,14 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     propertyDamaged: false,
     gasFireEnvironmentalConcern: true,
     immediateActionTaken: "Work was delayed and HSE was notified.",
-    peopleInvolved: "Daniel Okoro, Ibrahim Musa",
+    peopleInvolved: "Ibrahim Musa, Mary James",
     additionalNotes: "",
     attachments: [{ name: "gas-storage-area-photo.png", type: "image" }],
     hseReview: null,
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Reporter",
         dateTime: "2026-05-18 08:30 AM",
         comment: "Incident/hazard report submitted to HSE.",
@@ -110,14 +110,14 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     additionalNotes: "",
     attachments: [{ name: "storage-valve-b.jpg", type: "image" }],
     hseReview: {
-      inspector: "Samuel Bassey",
+      inspector: "Daniel Okoro",
       confirmedReportType: "Gas Leak Concern",
       confirmedSeverity: "Critical",
       findings: "Potential leak concern requires corrective work initiation.",
       rootCause: "Pending operational investigation.",
       correctiveActionRequired: true,
       correctiveActionDetails: "Initiate gas system inspection and corrective repair work.",
-      actionOwner: "Daniel Okoro",
+      actionOwner: "Ibrahim Musa",
       assignedDepartment: "Engineering",
       targetCompletionDate: "2026-05-22",
       decision: "Recommended",
@@ -127,14 +127,14 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Reporter",
         dateTime: "2026-05-18 10:45 AM",
         comment: "Gas leak concern submitted.",
       },
       {
         action: "Recommended to Engineering",
-        actor: "Samuel Bassey",
+        actor: "Daniel Okoro",
         role: "HSE Inspector",
         dateTime: "2026-05-18 11:10 AM",
         comment: "Corrective action required. Recommended to Engineering.",
@@ -161,7 +161,7 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     additionalNotes: "",
     attachments: [{ name: "cleared-work-area.jpg", type: "image" }],
     hseReview: {
-      inspector: "Samuel Bassey",
+      inspector: "Daniel Okoro",
       confirmedReportType: "Near Miss",
       confirmedSeverity: "Medium",
       findings: "Housekeeping control was not followed after tool use.",
@@ -178,14 +178,14 @@ export const mockIncidentHazardReports: IncidentHazardReport[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Reporter",
         dateTime: "2026-05-17 04:00 PM",
         comment: "Near miss report submitted.",
       },
       {
         action: "Resolved by HSE",
-        actor: "Samuel Bassey",
+        actor: "Daniel Okoro",
         role: "HSE Inspector",
         dateTime: "2026-05-18 10:00 AM",
         comment: "HSE reviewed and resolved the report.",

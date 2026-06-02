@@ -1,17 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  AlertTriangle,
   BarChart2,
   BookOpen,
-  CheckCircle2,
-  ClipboardCheck,
   ClipboardList,
   CreditCard,
   DollarSign,
   FileText,
   FolderOpen,
   Package,
-  Settings,
   ShieldCheck,
   ShoppingCart,
   Store,
@@ -142,37 +138,13 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Safety & Compliance",
-    routePrefixes: ["/safety"],
+    routePrefixes: ["/admin/safety"],
     processes: [
       {
         name: "Safety Dashboard",
         description: "Track HSE queue, close-outs, compliance, and hazard trends",
         icon: ShieldCheck,
-        href: "/safety",
-      },
-      {
-        name: "Incident & Hazard Report",
-        description: "Report incidents, hazards, near misses, and HSE corrective actions",
-        icon: AlertTriangle,
-        href: "/safety/incidents",
-      },
-      {
-        name: "Work Initiation",
-        description: "Define, review, and assign operational work",
-        icon: ClipboardCheck,
-        href: "/safety/work-initiation",
-      },
-      {
-        name: "Work Authorization",
-        description: "Request and approve work before it starts",
-        icon: ClipboardCheck,
-        href: "/safety/work-authorization",
-      },
-      {
-        name: "Work Completion & Close-Out",
-        description: "Confirm completed work and final close-out approval",
-        icon: CheckCircle2,
-        href: "/safety/work-close-out",
+        href: "/admin/safety",
       },
     ],
   },

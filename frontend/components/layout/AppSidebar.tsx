@@ -9,6 +9,7 @@ import {
   CheckCircle,
   // FileText,
   ClipboardList,
+  ShieldCheck,
   Settings,
   LogOut,
   X,
@@ -30,6 +31,10 @@ const navItems: NavItem[] = [
   // Drafts are hidden for now, but kept here so the nav item can return later.
   // { label: "Drafts", href: "/drafts", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },
+];
+
+const roleNavItems: NavItem[] = [
+  { label: "Admin", href: "/admin", icon: ShieldCheck },
 ];
 
 interface Props {
@@ -99,6 +104,33 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
               </Link>
             );
           })}
+        </div>
+
+        <div className="mt-5 border-t border-white/10 pt-4">
+          <p className="px-3 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+            Role access
+          </p>
+          <div className="mt-2 space-y-1">
+            {roleNavItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                    active
+                      ? "bg-brand-purple/15 text-brand-purple border-l-2 border-brand-purple"
+                      : "text-gray-400 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  <item.icon size={16} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </nav>
 

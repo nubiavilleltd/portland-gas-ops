@@ -7,21 +7,22 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
-import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import WorkCloseOutRoleSwitcher from "./WorkCloseOutRoleSwitcher";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockWorkCloseOutRequest,
 } from "@/lib/mock/work-close-out";
+import { isExceptionWorkCloseOut } from "@/lib/safety-demo-routing";
 import {
   updateWorkCloseOut,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
 import type {
-  WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
   WorkAuthorizationAuditTrailItem,
+  WorkCloseOutApprovalResult,
+  WorkCloseOutDecision,
   WorkCloseOutHseApproval,
   WorkCloseOutRole,
   WorkCloseOutRequest,
@@ -34,17 +35,31 @@ const yesNoOptions = [
 
 const yesNoNaOptions = [...yesNoOptions, { value: "N/A", label: "N/A" }];
 
-function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
+function decisionPastTense(decision: WorkCloseOutDecision) {
+  if (decision === "Acknowledge") return "acknowledged";
   if (decision === "Deny") return "denied";
   return `${decision.toLowerCase()}ed`;
 }
 
-export default function WorkCloseOutDetailsView({ requestId }: { requestId: string }) {
+function isReturnOrDeny(decision: WorkCloseOutDecision) {
+  return decision === "Return" || decision === "Deny";
+}
+
+export default function WorkCloseOutDetailsView({
+  requestId,
+  initialRole,
+}: {
+  requestId: string;
+  initialRole?: WorkCloseOutRole;
+}) {
   const router = useRouter();
   const initialRequest = getMockWorkCloseOutRequest(requestId);
   const { workCloseOuts } = useSafetyDemoData();
   const request = workCloseOuts.find((item) => item.id === requestId) ?? initialRequest;
-  const [currentRole, setCurrentRole] = useState<WorkCloseOutRole>("requester");
+  const isExceptionCloseOut = request ? isExceptionWorkCloseOut(request) : false;
+  const [currentRole, setCurrentRole] = useState<WorkCloseOutRole>(
+    initialRole ?? "requester",
+  );
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHeadComment, setOperationsHeadComment] = useState("");
   const [hseComment, setHseComment] = useState("");
@@ -64,6 +79,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     const isSubmitted = request?.status === "submitted";
     const isPendingApproval = request?.status === "pending_approval";
     const isApproved = request?.status === "approved";
+    const isAcknowledged = request?.status === "acknowledged";
     const isReturned = request?.status === "returned";
     const isDenied = request?.status === "denied";
 
@@ -80,15 +96,15 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         isPendingApproval &&
         Boolean(request?.operationsHeadApproval),
       showSupervisorApproval: Boolean(
-        isPendingApproval || isApproved || isReturned || isDenied,
+        isPendingApproval || isApproved || isAcknowledged || isReturned || isDenied,
       ),
       showOperationsHeadApproval: Boolean(
-        request?.operationsHeadApproval || isApproved || isReturned || isDenied,
+        request?.operationsHeadApproval || isApproved || isAcknowledged || isReturned || isDenied,
       ),
       showHseApproval: Boolean(
-        request?.hseApproval || isApproved || isReturned || isDenied,
+        request?.hseApproval || isApproved || isAcknowledged || isReturned || isDenied,
       ),
-      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
+      showAuditTrail: Boolean(!isDraft || isApproved || isAcknowledged || isReturned || isDenied),
     };
   }, [
     currentRole,
@@ -131,11 +147,13 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     }));
   }
 
-  function supervisorDecision(decision: "Approve" | "Return" | "Deny") {
+  function supervisorDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
-    if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) return;
+    if (isExceptionCloseOut && decision === "Approve") return;
+    if (!isExceptionCloseOut && decision === "Acknowledge") return;
+    if (isReturnOrDeny(decision) && !supervisorComment.trim()) return;
 
-    const approval: WorkAuthorizationApprovalResult = {
+    const approval: WorkCloseOutApprovalResult = {
       decision,
       approver: request.workAuthorization.supervisor,
       dateTime: "2026-05-18 03:00 PM",
@@ -143,11 +161,18 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         supervisorComment ||
         (decision === "Approve"
           ? "Completion reviewed and accepted."
+          : decision === "Acknowledge"
+            ? "Exception close-out reviewed and acknowledged for audit."
           : `Close-out ${decisionPastTense(decision)} by supervisor.`),
     };
 
     const audit: WorkAuthorizationAuditTrailItem = {
-      action: decision === "Approve" ? "Supervisor Approved" : `Supervisor ${decision}ed`,
+      action:
+        decision === "Approve"
+          ? "Supervisor Approved"
+          : decision === "Acknowledge"
+            ? "Supervisor Acknowledged"
+            : `Supervisor ${decision}ed`,
       actor: approval.approver,
       role: "Supervisor",
       dateTime: approval.dateTime,
@@ -156,7 +181,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     persistUpdate((current) => ({
       ...current,
       status:
-        decision === "Approve"
+        decision === "Approve" || decision === "Acknowledge"
           ? "pending_approval"
           : decision === "Return"
             ? "returned"
@@ -166,11 +191,13 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     }));
   }
 
-  function hseDecision(decision: "Approve" | "Return" | "Deny") {
+  function hseDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
     if (hseChecksIncomplete) return;
+    if (isExceptionCloseOut && decision === "Approve") return;
+    if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (decision === "Approve" && hseApprovalBlocked) return;
-    if ((decision === "Return" || decision === "Deny") && !hseComment.trim()) return;
+    if (isReturnOrDeny(decision) && !hseComment.trim()) return;
 
     const approval: WorkCloseOutHseApproval = {
       inspector: request.workAuthorization.hseApprover,
@@ -183,12 +210,19 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         hseComment ||
         (decision === "Approve"
           ? "Area verified safe. Close-out approved."
+          : decision === "Acknowledge"
+            ? "Exception close-out verified and acknowledged for audit."
           : `Close-out ${decisionPastTense(decision)} by HSE.`),
       dateTime: "2026-05-18 03:40 PM",
     };
 
     const audit: WorkAuthorizationAuditTrailItem = {
-      action: decision === "Approve" ? "HSE Approved" : `HSE ${decision}ed`,
+      action:
+        decision === "Approve"
+          ? "HSE Approved"
+          : decision === "Acknowledge"
+            ? "HSE Acknowledged"
+            : `HSE ${decision}ed`,
       actor: approval.inspector,
       role: "HSE Inspector",
       dateTime: approval.dateTime,
@@ -199,6 +233,8 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
       status:
         decision === "Approve"
           ? "approved"
+          : decision === "Acknowledge"
+            ? "acknowledged"
           : decision === "Return"
             ? "returned"
             : "denied",
@@ -207,11 +243,13 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     }));
   }
 
-  function operationsHeadDecision(decision: "Approve" | "Return" | "Deny") {
+  function operationsHeadDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
-    if ((decision === "Return" || decision === "Deny") && !operationsHeadComment.trim()) return;
+    if (isExceptionCloseOut && decision === "Approve") return;
+    if (!isExceptionCloseOut && decision === "Acknowledge") return;
+    if (isReturnOrDeny(decision) && !operationsHeadComment.trim()) return;
 
-    const approval: WorkAuthorizationApprovalResult = {
+    const approval: WorkCloseOutApprovalResult = {
       decision,
       approver: "Grace Bello",
       dateTime: "2026-05-18 03:20 PM",
@@ -219,11 +257,18 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
         operationsHeadComment ||
         (decision === "Approve"
           ? "Completion reviewed and recommended for HSE verification."
+          : decision === "Acknowledge"
+            ? "Exception close-out acknowledged and sent for HSE verification."
           : `Close-out ${decisionPastTense(decision)} by Operations Head.`),
     };
 
     const audit: WorkAuthorizationAuditTrailItem = {
-      action: decision === "Approve" ? "Operations Head Approved" : `Operations Head ${decision}ed`,
+      action:
+        decision === "Approve"
+          ? "Operations Head Approved"
+          : decision === "Acknowledge"
+            ? "Operations Head Acknowledged"
+            : `Operations Head ${decision}ed`,
       actor: approval.approver,
       role: "Operations Head",
       dateTime: approval.dateTime,
@@ -232,7 +277,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
     persistUpdate((current) => ({
       ...current,
       status:
-        decision === "Approve"
+        decision === "Approve" || decision === "Acknowledge"
           ? "pending_approval"
           : decision === "Return"
             ? "returned"
@@ -286,7 +331,14 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
       ) : null}
 
       {permissions.canSupervisorApprove ? (
-        <FormSection title="Supervisor Close-Out Approval" description="Review the reported completion and record your supervisor decision.">
+        <FormSection
+          title={`Supervisor Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
+          description={
+            isExceptionCloseOut
+              ? "This close-out reports incomplete, deviated, or unsafe work. Acknowledge it for audit, return it for correction, or deny it."
+              : "Review the reported completion and record your supervisor decision."
+          }
+        >
           <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <div className="space-y-4">
               <FormInput label="Supervisor" value={request.workAuthorization.supervisor} disabled />
@@ -294,6 +346,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
                 onDecision={supervisorDecision}
                 reasonMissing={!supervisorComment.trim()}
                 reasonMessage="Add a supervisor comment before returning or denying this close-out."
+                isExceptionCloseOut={isExceptionCloseOut}
               />
             </div>
             <FormTextarea
@@ -305,11 +358,18 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
           </div>
         </FormSection>
       ) : permissions.showSupervisorApproval && request.supervisorApproval ? (
-        <ApprovalResult title="Supervisor Close-Out Approval Result" result={request.supervisorApproval} />
+        <ApprovalResult title="Supervisor Close-Out Review Result" result={request.supervisorApproval} />
       ) : null}
 
       {permissions.canOperationsHeadApprove ? (
-        <FormSection title="Operations Head Close-Out Approval" description="Confirm the completed work is acceptable for final HSE review.">
+        <FormSection
+          title={`Operations Head Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
+          description={
+            isExceptionCloseOut
+              ? "Acknowledge the exception close-out for audit and route it to HSE, or return/deny it with comments."
+              : "Confirm the completed work is acceptable for final HSE review."
+          }
+        >
           <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
             <div className="space-y-4">
               <FormInput label="Operations Head" value="Grace Bello" disabled />
@@ -317,6 +377,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
                 onDecision={operationsHeadDecision}
                 reasonMissing={!operationsHeadComment.trim()}
                 reasonMessage="Add an Operations Head comment before returning or denying this close-out."
+                isExceptionCloseOut={isExceptionCloseOut}
               />
             </div>
             <FormTextarea
@@ -328,11 +389,18 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
           </div>
         </FormSection>
       ) : permissions.showOperationsHeadApproval && request.operationsHeadApproval ? (
-        <ApprovalResult title="Operations Head Close-Out Approval Result" result={request.operationsHeadApproval} />
+        <ApprovalResult title="Operations Head Close-Out Review Result" result={request.operationsHeadApproval} />
       ) : null}
 
       {permissions.canHseApprove ? (
-        <FormSection title="HSE Final Close-Out Approval" description="Verify site safety and complete the final close-out decision.">
+        <FormSection
+          title={`HSE Final Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
+          description={
+            isExceptionCloseOut
+              ? "Verify the exception close-out, preserve the audit record, and decide whether to acknowledge, return, or deny it."
+              : "Verify site safety and complete the final close-out decision."
+          }
+        >
           <div className="grid gap-4">
             <FormInput label="HSE Inspector" value={request.workAuthorization.hseApprover} disabled />
             <SafetyChoiceTable
@@ -368,6 +436,7 @@ export default function WorkCloseOutDetailsView({ requestId }: { requestId: stri
               submissionDisabledMessage="Complete all HSE close-out checks before submitting a decision."
               disableApprove={hseApprovalBlocked}
               disableApproveMessage="Approval is disabled unless close-out is verified, the area is safe, and no corrective action is required."
+              isExceptionCloseOut={isExceptionCloseOut}
             />
             <FormTextarea
               label="HSE Comment"
@@ -534,15 +603,15 @@ function ApprovalResult({
   result,
   title,
 }: {
-  result: WorkAuthorizationApprovalResult;
+  result: WorkCloseOutApprovalResult;
   title: string;
 }) {
   return (
     <FormSection title={title} description="Recorded review decision and comments for this close-out.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Approver" value={result.approver} disabled />
+        <FormInput label="Reviewer" value={result.approver} disabled />
         <FormInput label="Decision" value={result.decision} disabled />
-        <FormInput label="Approval Date/Time" value={result.dateTime} disabled />
+        <FormInput label="Review Date/Time" value={result.dateTime} disabled />
         <FormTextarea label="Comment" value={result.comment} disabled />
       </div>
     </FormSection>
@@ -551,7 +620,7 @@ function ApprovalResult({
 
 function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
   return (
-    <FormSection title="HSE Final Close-Out Approval Result" description="Final HSE verification and close-out decision.">
+    <FormSection title="HSE Final Close-Out Review Result" description="Final HSE verification and close-out decision.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value={result.inspector} disabled />
         <div className="md:col-span-2">
@@ -569,7 +638,7 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
           <FormTextarea label="Corrective Action Details" value={result.correctiveActionDetails} disabled />
         ) : null}
         <FormInput label="HSE Decision" value={result.decision} disabled />
-        <FormInput label="HSE Approval Date/Time" value={result.dateTime} disabled />
+        <FormInput label="HSE Review Date/Time" value={result.dateTime} disabled />
         <FormTextarea label="HSE Comment" value={result.comment} disabled />
       </div>
     </FormSection>
@@ -584,15 +653,21 @@ function DecisionSubmitControl({
   submissionDisabledMessage,
   disableApprove = false,
   disableApproveMessage,
+  isExceptionCloseOut = false,
 }: {
-  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
+  onDecision: (decision: WorkCloseOutDecision) => void;
   reasonMissing?: boolean;
   reasonMessage: string;
   submissionDisabled?: boolean;
   submissionDisabledMessage?: string;
   disableApprove?: boolean;
   disableApproveMessage?: string;
+  isExceptionCloseOut?: boolean;
 }) {
+  const primaryDecision: WorkCloseOutDecision = isExceptionCloseOut
+    ? "Acknowledge"
+    : "Approve";
+
   return (
     <div className="space-y-3">
       {reasonMissing ? (
@@ -605,14 +680,23 @@ function DecisionSubmitControl({
           {submissionDisabledMessage}
         </p>
       ) : null}
-      {!submissionDisabled && disableApprove && disableApproveMessage ? (
+      {!isExceptionCloseOut && !submissionDisabled && disableApprove && disableApproveMessage ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           {disableApproveMessage}
         </p>
       ) : null}
+      {isExceptionCloseOut ? (
+        <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          This is an exception close-out. It can be acknowledged for audit, returned, or denied, but it cannot be approved as successful.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-3">
-        <Button type="button" disabled={submissionDisabled || disableApprove} onClick={() => onDecision("Approve")}>
-          Approve
+        <Button
+          type="button"
+          disabled={submissionDisabled || (!isExceptionCloseOut && disableApprove)}
+          onClick={() => onDecision(primaryDecision)}
+        >
+          {isExceptionCloseOut ? "Acknowledge" : "Approve"}
         </Button>
         <Button type="button" variant="secondary" disabled={reasonMissing || submissionDisabled} onClick={() => onDecision("Return")}>
           Return
@@ -692,17 +776,19 @@ function StatusNote({
         : "This close-out has been returned to the requester.";
   } else if (request.status === "denied") {
     note = "This close-out has been denied and is closed.";
+  } else if (request.status === "acknowledged") {
+    note = "This exception close-out has been acknowledged for audit. It is not counted as a successful close-out.";
   } else if (request.status === "pending_approval") {
     if (!request.operationsHeadApproval) {
       note =
         currentRole === "operations_head"
-          ? "Supervisor approved. Operations Head close-out review is available."
-          : "Supervisor approved. Waiting for Operations Head approval.";
+          ? `Supervisor ${request.supervisorApproval?.decision === "Acknowledge" ? "acknowledged" : "approved"}. Operations Head close-out review is available.`
+          : `Supervisor ${request.supervisorApproval?.decision === "Acknowledge" ? "acknowledged" : "approved"}. Waiting for Operations Head review.`;
     } else {
       note =
         currentRole === "hse"
-          ? "Operations Head approved. HSE final close-out approval is available."
-          : "Operations Head approved. Waiting for HSE final close-out approval.";
+          ? `Operations Head ${request.operationsHeadApproval.decision === "Acknowledge" ? "acknowledged" : "approved"}. HSE final close-out review is available.`
+          : `Operations Head ${request.operationsHeadApproval.decision === "Acknowledge" ? "acknowledged" : "approved"}. Waiting for HSE final close-out review.`;
     }
   } else if (request.status === "draft" && currentRole !== "requester") {
     note = "This close-out is still in draft and has not been submitted.";
