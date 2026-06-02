@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -43,6 +45,9 @@ export default function AdminAssetRequestsPage() {
 
   return (
     <AppLayout pageTitle="Admin — Asset Requests">
+      <Link href="/admin/assets" className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5">
+        <ArrowLeft size={14} /> Back to Assets
+      </Link>
       <PageHeader
         title="Asset Requests"
         description="Review and action all loan and requisition requests"
