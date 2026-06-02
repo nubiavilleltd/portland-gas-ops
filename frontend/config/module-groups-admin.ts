@@ -224,24 +224,21 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Supply Chain",
+    routePrefixes: ["/admin/assets", "/admin/vendors"],
     processes: [
       {
         name: "Assets",
-        description: "Register, track & request company assets",
+        description: "Register, track & manage all company assets",
         icon: Package,
-        href: "/assets",
-      },
-      {
-        name: "Purchase Requests",
-        description: "Raise & manage purchase requisitions",
-        icon: ShoppingCart,
-        href: "/procurement",
+        href: "/admin/assets",
+        routePrefixes: ["/admin/assets"],
       },
       {
         name: "Vendors",
         description: "Suppliers & service providers",
         icon: Store,
-        href: "/vendors",
+        href: "/admin/vendors",
+        routePrefixes: ["/admin/vendors"],
       },
     ],
   },

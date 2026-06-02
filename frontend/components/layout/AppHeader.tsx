@@ -4,6 +4,7 @@ import { Bell, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getModuleGroupForPathname } from "@/config/module-groups";
+import { getModuleGroupForPathname as getAdminModuleGroupForPathname } from "@/config/module-groups-admin";
 import { initials } from "@/lib/utils";
 
 interface Props {
@@ -14,7 +15,9 @@ interface Props {
 export default function AppHeader({ pageTitle, onMenuClick }: Props) {
   const { user } = useCurrentUser();
   const pathname = usePathname();
-  const groupTitle = getModuleGroupForPathname(pathname)?.title;
+  const groupTitle = pathname.startsWith("/admin")
+    ? getAdminModuleGroupForPathname(pathname)?.title
+    : getModuleGroupForPathname(pathname)?.title;
   const headerTitle = groupTitle ?? pageTitle;
 
   return (

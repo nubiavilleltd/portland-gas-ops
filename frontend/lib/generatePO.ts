@@ -14,17 +14,24 @@ function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-async function loadImageAsBase64(url: string): Promise<string | null> {
+async function loadImageAsBase64(url: string): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
     const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+    const dims = await new Promise<{ width: number; height: number }>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: 1, height: 1 });
+      img.src = dataUrl;
+    });
+    return { dataUrl, ...dims };
   } catch {
     return null;
   }
@@ -46,7 +53,9 @@ export async function generatePO(req: ProcurementRequest): Promise<void> {
 
   // ── Header ──────────────────────────────────────────────────────────────────
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", ml, 10, 38, 15);
+    const logoH = 15;
+    const logoW = (logoDataUrl.width / logoDataUrl.height) * logoH;
+    doc.addImage(logoDataUrl.dataUrl, "PNG", ml, 10, logoW, logoH);
   } else {
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
@@ -279,9 +288,9 @@ export async function generatePO(req: ProcurementRequest): Promise<void> {
   doc.text("Authorised By", s2x, y);
 
   doc.setFontSize(9.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 100, 100);
-  doc.text("Name:", s2x, y + 6);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...darkText);
+  doc.text(req.po_issued_by ?? "—", s2x, y + 6);
 
   doc.setDrawColor(...lightBorder);
   doc.line(s2x, y + 22, s2x + sigLineW, y + 22);

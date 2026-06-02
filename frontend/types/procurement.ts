@@ -59,6 +59,7 @@ export interface ProcurementRequest {
   attachment_name: string | null;
   po_url: string | null;
   po_issued_at: string | null;
+  po_issued_by: string | null;
   payment_terms: string | null;
   payment_status: PaymentStatus;
   created_by: string;
