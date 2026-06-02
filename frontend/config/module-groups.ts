@@ -59,7 +59,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Supplier invoices and approvals",
         icon: FileText,
         href: "/finance/invoices",
-        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
       },
       {
         name: "Leave Requests",
