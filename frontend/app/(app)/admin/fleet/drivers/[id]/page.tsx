@@ -18,6 +18,7 @@ import { canAssignDriver } from "@/lib/modules/fleet/guards/trip.guards";
 import { toast } from "sonner";
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function DriverDetailPage() {
   const params = useParams();
@@ -101,7 +102,7 @@ const canAssign = canAssignDriver(driver);
     label: "",
     align: "right",
     render: (trip) => (
-      <Button size="sm" variant="outline" href={`/fleet/trips/${trip.id}`}>
+      <Button size="sm" variant="outline" href={`/admin${FLEET_ROUTES.tripDetail(trip.id)}`}>
         View
       </Button>
     ),
@@ -113,11 +114,11 @@ const canAssign = canAssignDriver(driver);
       <PageHeader
         title={driver.full_name}
         description={`${driver.phone_number} • ${driver.license_number}`}
-    
+
 
         action={
   <div className="flex gap-2">
-    {/* <Button variant="outline" href={`/fleet/drivers/${driver.id}/edit`}>
+    <Button variant="outline" href={`/admin${FLEET_ROUTES.driverEdit(driver.id)}`}>
       Edit Driver
     </Button>
 
@@ -143,7 +144,7 @@ const canAssign = canAssignDriver(driver);
       <Button variant="outline" onClick={() => toast.info("Coming soon")}>
         Reinstate Driver
       </Button>
-    )} */}
+    )}
 
       {canAssign && (
         <Button href={`/fleet/trips/new?driverId=${driver.id}`}>
@@ -236,7 +237,7 @@ const canAssign = canAssignDriver(driver);
   title="Trip History"
   description="All trips associated with this driver"
 >
-  
+
 
     <SimpleTable
     columns={tripColumns}
