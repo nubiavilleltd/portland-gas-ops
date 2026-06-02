@@ -17,7 +17,8 @@ export default function AdminPage() {
   const { user, isLoading } = useCurrentUser();
 
   return (
-    <AppLayout pageTitle="Admin Dashboard">
+    <AppLayout pageTitle="Admin">
+      {/* Welcome row */}
       <div className="mb-2">
         <h2 className="text-2xl font-semibold text-brand-text-primary">
           Admin Dashboard
@@ -57,7 +58,19 @@ export default function AdminPage() {
             ))}
           </div>
         </div>
+      )} */}
+
+      {isLoading && (
+        <div className="mt-10">
+          <div className="h-4 w-40 bg-gray-100 rounded animate-pulse mb-3" />
+          <div className="flex gap-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="shrink-0 w-60 h-24 bg-white border border-brand-border rounded-xl animate-pulse" />
+            ))}
+          </div>
+        </div>
       )}
+
     </AppLayout>
   );
 }

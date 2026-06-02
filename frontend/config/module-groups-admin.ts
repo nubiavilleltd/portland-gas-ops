@@ -1,7 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Banknote,
   BarChart2,
   BookOpen,
+  CalendarDays,
   ClipboardList,
   CreditCard,
   DollarSign,

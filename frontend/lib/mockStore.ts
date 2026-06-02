@@ -795,16 +795,17 @@ function migrateProcurementStatus(status: string): ProcurementRequest["status"] 
 export const procurementStore = {
   getList: (): ProcurementListItem[] =>
     read("mock_procurement_list", SEED_PROCUREMENT_LIST).map((p) => ({
-      payment_status: "unpaid" as PaymentStatus,
       ...p,
+      payment_status: p.payment_status ?? ("unpaid" as PaymentStatus),
       status: migrateProcurementStatus(p.status),
     })),
   getFull: (): ProcurementRequest[] =>
     read("mock_procurement_full", SEED_PROCUREMENT_FULL).map((p) => ({
-      payment_status: "unpaid" as PaymentStatus,
-      payment_terms: null,
-      po_issued_by: null,
       ...p,
+      payment_status: p.payment_status ?? ("unpaid" as PaymentStatus),
+      payment_terms: p.payment_terms ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      po_issued_by: (p as any).po_issued_by ?? null,
       status: migrateProcurementStatus(p.status),
     })),
   getById: (id: string): ProcurementRequest | null =>
