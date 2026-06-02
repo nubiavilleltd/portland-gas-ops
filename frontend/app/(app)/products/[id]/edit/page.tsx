@@ -9,16 +9,17 @@ import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
 import { useProductById } from "@/lib/modules/products/hooks/useProducts";
-import type { CreateProductFormOutput, UpdateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
+import type { UpdateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import ProductForm from "@/lib/modules/products/components/ProductForm";
 import { toast } from "sonner";
+import FormSection from "@/components/ui/FormSection";
 
 export default function EditProductPage() {
-  const params  = useParams();
-  const router  = useRouter();
-  const id      = params.id as string;
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id as string;
 
   const { product, isLoading, error } = useProductById(id);
 
@@ -70,14 +71,13 @@ export default function EditProductPage() {
         className="mb-6"
       />
 
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-        <h2 className="text-base font-semibold mb-5">Product Details</h2>
 
-        {/*
-          Pass initial={product} — ProductForm uses it to pre-fill
-          defaultValues. The form is identical to the create form,
-          the only difference is the pre-filled values and submit labels.
-        */}
+
+
+      <FormSection
+        title="Product Information"
+        description="Enter product details and pricing information"
+      >
         <ProductForm
           initial={product}
           onSubmit={handleSubmit}
@@ -85,7 +85,10 @@ export default function EditProductPage() {
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />
-      </div>
+      </FormSection>
+
+
+
     </AppLayout>
   );
 }

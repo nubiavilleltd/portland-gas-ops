@@ -62,14 +62,14 @@ export default function ProductsPage() {
       <PageHeader
         title="Products"
         description="Manage the product catalogue available for order creation"
-        action={
-          <Button
-            href={PRODUCT_ROUTES.new()}
-            leftIcon={<Plus size={16} />}
-          >
-            New Product
-          </Button>
-        }
+        // action={
+        //   <Button
+        //     href={PRODUCT_ROUTES.new()}
+        //     leftIcon={<Plus size={16} />}
+        //   >
+        //     New Product
+        //   </Button>
+        // }
         className="mb-6"
       />
 

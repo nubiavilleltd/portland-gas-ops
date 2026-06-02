@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -6,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import DriverForm, { type DriverFormValues } from "@/lib/modules/fleet/components/DriverForm";
 import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
 import { UploadService } from "@/lib/services/upload.service";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function AddDriverPage() {
   const router = useRouter();
@@ -29,7 +31,8 @@ export default function AddDriverPage() {
       status: "available",
     });
 
-    router.push("/fleet/drivers");
+
+    router.push(`/admin/${FLEET_ROUTES.driverList()}`);
   }
 
   return (

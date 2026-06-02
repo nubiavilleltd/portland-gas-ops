@@ -16,7 +16,7 @@ export default function NewCustomerPage() {
 
   async function handleSubmit(data: CreateCustomerFormData) {
     await CustomersService.createCustomer(data);
-    router.push(CUSTOMER_ROUTES.list());
+    router.push(`/admin${CUSTOMER_ROUTES.list()}`);
   }
 
   return (
@@ -27,17 +27,28 @@ export default function NewCustomerPage() {
         className="mb-6"
       />
 
-      <FormSection
-        title="Customer Information"
-        description="Edit customer details and contact information"
-      >
-         <CustomerForm
+      {/* <div className="bg-white border border-brand-border rounded-2xl p-6">
+        <h2 className="text-base font-semibold mb-5">Customer Details</h2>
+
+        <CustomerForm
           onSubmit={handleSubmit}
           onCancel={() => router.back()}
           submitLabel="Create Customer"
           submitLoadingLabel="Creating…"
         />
-      </FormSection>
+      </div> */}
+
+      <FormSection
+  title="Customer Information"
+  description="Enter customer details and contact information"
+>
+  <CustomerForm
+    onSubmit={handleSubmit}
+    onCancel={() => router.back()}
+    submitLabel="Create Customer"
+    submitLoadingLabel="Creating…"
+  />
+</FormSection>
     </AppLayout>
   );
 }

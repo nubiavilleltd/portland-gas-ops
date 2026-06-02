@@ -7,6 +7,7 @@ import DriverForm, { type DriverFormValues } from "@/lib/modules/fleet/component
 import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
 import { UploadService } from "@/lib/services/upload.service";
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function EditDriverPage() {
   const params = useParams();
@@ -40,7 +41,7 @@ export default function EditDriverPage() {
       profile_image: profileImageUrl,
     });
 
-    router.push(`/fleet/drivers/${id}`);
+    router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`);
   }
 
   return (
@@ -61,7 +62,7 @@ export default function EditDriverPage() {
           address: driver.address ?? "",
         }}
         onSubmit={handleSubmit}
-        onCancel={() => router.push(`/fleet/drivers/${id}`)}
+        onCancel={() => router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`)}
         submitLabel="Save Changes"
         submitLoadingLabel="Saving..."
       />
