@@ -13,7 +13,7 @@ export default function AppLayout({ children, pageTitle }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-brand-bg">
+    <div className="flex min-h-screen bg-brand-bg">
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Mobile backdrop */}
@@ -25,12 +25,12 @@ export default function AppLayout({ children, pageTitle }: Props) {
       )}
 
       {/* Main content — offset by sidebar width on desktop only */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:ml-64">
+      <div className="flex min-h-screen flex-1 flex-col lg:ml-64">
         <AppHeader
           pageTitle={pageTitle}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-none p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6">
           {children}
         </main>
       </div>

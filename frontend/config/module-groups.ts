@@ -36,17 +36,17 @@ export type ModuleGroup = {
 };
 
 export const moduleGroups: readonly ModuleGroup[] = [
-  {
-    title: "Administration",
-    processes: [
-      {
-        name: "Admin",
-        description: "Users, roles & system configuration",
-        icon: Settings,
-        href: "/admin",
-      },
-    ],
-  },
+  // {
+  //   title: "Administration",
+  //   processes: [
+  //     {
+  //       name: "Admin",
+  //       description: "Users, roles & system configuration",
+  //       icon: Settings,
+  //       href: "/admin",
+  //     },
+  //   ],
+  // },
   {
     title: "Finance",
     routePrefixes: ["/finance"],
