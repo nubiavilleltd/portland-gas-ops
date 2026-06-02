@@ -19,6 +19,14 @@ export default function ActivityHistory({
 }: Props) {
   const ap = HR_APPROVERS[department] ?? HR_APPROVERS.Legal;
 
+  const STATUS_CONFIG: Record<string, { bgColor: string; textColor: string; borderColor: string; badge: string }> = {
+    pending:  { bgColor: "bg-amber-50",  textColor: "text-amber-700",  borderColor: "border-amber-200",  badge: "Submitted" },
+    approved: { bgColor: "bg-green-50",  textColor: "text-green-700",  borderColor: "border-green-200",  badge: "Approved" },
+    rejected: { bgColor: "bg-red-50",    textColor: "text-red-700",    borderColor: "border-red-200",    badge: "Rejected" },
+    denied:   { bgColor: "bg-red-50",    textColor: "text-red-700",    borderColor: "border-red-200",    badge: "Denied" },
+  };
+  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+
   const fmt = (d: Date) =>
     d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
     " · " +
