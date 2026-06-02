@@ -92,12 +92,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
   {
     title: "Operations",
     processes: [
-      // {
-      //   name: "Fleet Management",
-      //   description: "Vehicles, drivers & maintenance",
-      //   icon: Truck,
-      //   href: "/fleet",
-      // },
       {
         name: "Trips & Dispatch",
         description: "Trip planning, dispatch, and delivery tracking",
@@ -105,34 +99,10 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/fleet/trips",
       },
       {
-        name: "Vehicles",
-        description: "Vehicle records, maintenance, and inspections",
-        icon: Truck,
-        href: "/fleet/vehicles",
-      },
-      {
-        name: "Drivers",
-        description: "Driver records, licenses, and training",
-        icon: User,
-        href: "/fleet/drivers",
-      },
-      {
         name: "Orders",
         description: "Gas orders and delivery",
         icon: ClipboardList,
         href: "/orders",
-      },
-      {
-        name: "Customers",
-        description: "Customer accounts and records",
-        icon: Users,
-        href: "/customers",
-      },
-      {
-        name: "Products",
-        description: "Gas products and pricing",
-        icon: Package,
-        href: "/products",
       },
       {
         name: "Invoices",
