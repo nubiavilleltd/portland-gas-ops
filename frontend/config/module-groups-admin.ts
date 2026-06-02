@@ -36,7 +36,6 @@ export type ModuleGroup = {
 export const moduleGroups: readonly ModuleGroup[] = [
   {
     title: "HR Management",
-    routePrefixes: ["/admin"],
     processes: [
       {
         name: "Employee Profile",
