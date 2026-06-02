@@ -11,7 +11,7 @@ import FormSection from "@/components/ui/FormSection";
 import DynamicLineItems, { type LineItemColumn } from "@/components/ui/DynamicLineItems";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import { useCreateAssetRequest, useAssetTypes } from "@/hooks/useAssets";
+import { useCreateAssetRequest, useAssetTypes, useAssetAvailability } from "@/hooks/useAssets";
 import { useToast } from "@/hooks/useToast";
 import { capitalize } from "@/lib/utils";
 
@@ -47,9 +47,19 @@ function NewAssetRequestForm() {
   const toast = useToast();
   const createRequest = useCreateAssetRequest();
   const { data: assetTypes = [] } = useAssetTypes();
+  const availability = useAssetAvailability();
 
   const [items, setItems] = useState<LineItem[]>([{ ...DEFAULT_LINE_ITEM }]);
   const [itemsError, setItemsError] = useState<string | null>(null);
+
+  // Only show asset types that have at least 1 unit available
+  const availableAssetTypes = assetTypes.filter((t) => (availability[t.id] ?? 0) > 0);
+
+  // Items where requested qty exceeds available stock
+  const stockErrors = items.filter(
+    (item) => item.asset_type_id && item.quantity > (availability[item.asset_type_id] ?? 0)
+  );
+  const hasStockErrors = stockErrors.length > 0;
 
   const {
     register,
@@ -150,9 +160,14 @@ function NewAssetRequestForm() {
                     className="w-full text-sm bg-transparent outline-none"
                   >
                     <option value="">Select asset type…</option>
-                    {assetTypes.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
+                    {availableAssetTypes.map((t) => {
+                      const avail = availability[t.id] ?? 0;
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {t.name} — {avail} available
+                        </option>
+                      );
+                    })}
                   </select>
                 ),
               },
@@ -177,6 +192,22 @@ function NewAssetRequestForm() {
             addLabel="Add Another Item"
             error={itemsError ?? undefined}
           />
+          {/* Stock error — blocks submission */}
+          {hasStockErrors && (
+            <div className="mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+              <p className="text-xs font-semibold text-red-700 mb-1">Insufficient stock</p>
+              {stockErrors.map((item) => {
+                const type = assetTypes.find((t) => t.id === item.asset_type_id);
+                const avail = availability[item.asset_type_id] ?? 0;
+                return (
+                  <p key={item.asset_type_id} className="text-xs text-red-600">
+                    {type?.name ?? "Unknown"}: only {avail} {avail === 1 ? "unit" : "units"} available, but you requested {item.quantity}.
+                  </p>
+                );
+              })}
+              <p className="text-xs text-red-500 mt-1">Reduce the quantity to what is currently in stock to proceed.</p>
+            </div>
+          )}
         </FormSection>
 
         {/* ── Section 3: Purpose & Return Date ────────────────────────────── */}
@@ -203,8 +234,8 @@ function NewAssetRequestForm() {
         <div className="py-2">
           <button
             type="submit"
-            disabled={isSubmitting || createRequest.isPending}
-            className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
+            disabled={isSubmitting || createRequest.isPending || hasStockErrors}
+            className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {createRequest.isPending ? (
               <>

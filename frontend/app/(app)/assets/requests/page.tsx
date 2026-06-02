@@ -2,25 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import EmptyState from "@/components/ui/EmptyState";
+import SelectInput from "@/components/forms/SelectInput";
 import { useAssetRequests } from "@/hooks/useAssets";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestListItem, AssetRequestStatus } from "@/types";
 
-// ── Status tabs ────────────────────────────────────────────────────────────────
-
-const STATUS_TABS: { label: string; value: AssetRequestStatus | undefined }[] = [
-  { label: "All", value: undefined },
-  { label: "Pending", value: "pending" },
-  { label: "Approved", value: "approved" },
-  { label: "Rejected", value: "rejected" },
-  { label: "Returned", value: "returned" },
+const STATUS_OPTIONS = [
+  { value: "pending",   label: "Pending" },
+  { value: "approved",  label: "Approved" },
+  { value: "allocated", label: "Allocated" },
+  { value: "rejected",  label: "Rejected" },
+  { value: "returned",  label: "Returned" },
 ];
 
 // ── Type badge ─────────────────────────────────────────────────────────────────
@@ -96,9 +93,15 @@ export default function AssetRequestsPage() {
 
   return (
     <AppLayout pageTitle="Assets">
+      <Link
+        href="/assets"
+        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5"
+      >
+        <ArrowLeft size={14} /> Back to Assets
+      </Link>
       <PageHeader
-        title="Asset Requests"
-        description="Loan and requisition requests for company assets"
+        title="My Requests"
+        description="Your loan and requisition requests for company assets"
         action={
           <Link
             href="/assets/requests/new"
@@ -110,46 +113,31 @@ export default function AssetRequestsPage() {
         className="mb-6"
       />
 
-      {/* Status filter tabs */}
-      <div className="flex gap-1 mb-4 bg-white border border-brand-border rounded-xl p-1 w-fit overflow-x-auto">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.label}
-            onClick={() => setActiveStatus(tab.value)}
-            className={[
-              "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap",
-              activeStatus === tab.value
-                ? "bg-brand-purple text-white font-medium"
-                : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
-            ].join(" ")}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <LoadingSpinner />
-        </div>
-      ) : isError ? (
-        <EmptyState title="Could not load requests" description="Check your connection and try again." />
-      ) : !data?.length ? (
-        <EmptyState
-          title="No asset requests"
-          description={
-            activeStatus
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        rowHref={(row) => `/assets/requests/${row.id}`}
+        emptyMessage={isError ? "Could not load requests" : "No asset requests"}
+        emptyDescription={
+          isError
+            ? "Check your connection and try again."
+            : activeStatus
               ? `No requests with status "${activeStatus}".`
               : "Submit your first asset request to get started."
-          }
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={data}
-          rowHref={(row) => `/assets/requests/${row.id}`}
-        />
-      )}
+        }
+        toolbarActions={
+          <div className="w-44 shrink-0">
+            <SelectInput
+              placeholder="All Statuses"
+              sortOptions={false}
+              value={activeStatus ?? ""}
+              onValueChange={(v) => setActiveStatus((v || undefined) as AssetRequestStatus | undefined)}
+              options={STATUS_OPTIONS}
+            />
+          </div>
+        }
+      />
     </AppLayout>
   );
 }
