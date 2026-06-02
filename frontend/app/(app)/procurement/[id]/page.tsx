@@ -34,7 +34,7 @@ function useRole() {
 // ── Status trail config ────────────────────────────────────────────────────────
 
 const STATUS_STEPS: { status: ProcurementStatus; label: string; role: string }[] = [
-  { status: "pending_line_manager", label: "Awaiting Line Manager",        role: "Line Manager" },
+  { status: "pending_line_manager", label: "Awaiting Operations Manager",   role: "Operations Manager" },
   { status: "pending_procurement",  label: "Awaiting Procurement Officer", role: "Procurement Officer" },
   { status: "awaiting_payment",     label: "Awaiting Payment",             role: "Finance" },
 ];
@@ -80,6 +80,8 @@ export default function ProcurementDetailPage() {
   const cancelRequest = useCancelProcurement(id);
 
   const { isLineManager, isProcurementOfficer, isAdmin } = useRole();
+  const { user } = useCurrentUser();
+  const userName = user?.name;
 
   const [approvalAction, setApprovalAction] = useState<ApprovalAction>(null);
   const [approvalComment, setApprovalComment] = useState("");
@@ -98,11 +100,12 @@ export default function ProcurementDetailPage() {
         const next: ProcurementStatus =
           req.status === "pending_line_manager" ? "pending_procurement" : "awaiting_payment";
         const terms = req.status === "pending_procurement" ? (paymentTerms || null) : undefined;
-        await updateStatus.mutateAsync({ status: next, paymentTerms: terms });
+        const issuingPO = req.status === "pending_procurement";
+        await updateStatus.mutateAsync({ status: next, paymentTerms: terms, poIssuedBy: issuingPO ? userName : undefined });
 
         // Procurement officer issuing PO → generate PDF immediately
-        if (req.status === "pending_procurement") {
-          const updated = { ...req, status: "awaiting_payment" as ProcurementStatus, payment_terms: terms ?? null };
+        if (issuingPO) {
+          const updated = { ...req, status: "awaiting_payment" as ProcurementStatus, payment_terms: terms ?? null, po_issued_by: userName ?? null };
           await generatePO(updated);
           toast.success("PO issued and downloaded — request is now awaiting payment");
         } else {
@@ -186,7 +189,7 @@ export default function ProcurementDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-3xl space-y-5">
+      <div className="space-y-5">
 
         {/* ── Section 1: Request Details ───────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
@@ -368,7 +371,7 @@ export default function ProcurementDetailPage() {
           <div className="bg-white border border-brand-border rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-text-primary mb-1">Approval Decision</h2>
             <p className="text-xs text-brand-text-secondary mb-5">
-              Reviewing as <span className="font-medium text-brand-text-primary">Line Manager</span>
+              Reviewing as <span className="font-medium text-brand-text-primary">Operations Manager</span>
             </p>
             <FormTextarea
               label="Comment (optional)"
@@ -403,7 +406,7 @@ export default function ProcurementDetailPage() {
             </div>
             <div className="mb-4">
               <label className="block text-xs font-medium text-brand-text-secondary mb-1.5">
-                Payment Terms <span className="text-brand-text-secondary font-normal">(optional)</span>
+                Payment Terms <span className="text-red-500">*</span>
               </label>
               <select
                 value={paymentTerms}

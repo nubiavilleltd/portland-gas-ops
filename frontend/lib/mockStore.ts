@@ -415,6 +415,7 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     attachment_name: null,
     po_url: null,
     po_issued_at: null,
+    po_issued_by: null,
     payment_terms: null,
     payment_status: "unpaid" as PaymentStatus,
     created_by: "Portland Gas Admin",
@@ -438,6 +439,7 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     attachment_name: null,
     po_url: "generated",
     po_issued_at: "2025-04-15T10:00:00Z",
+    po_issued_by: "Emeka Nwosu",
     payment_terms: "Net 30",
     payment_status: "unpaid" as PaymentStatus,
     created_by: "Portland Gas Admin",
@@ -462,6 +464,7 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     attachment_name: null,
     po_url: "generated",
     po_issued_at: "2025-03-10T08:00:00Z",
+    po_issued_by: "Emeka Nwosu",
     payment_terms: "Payment on delivery",
     payment_status: "paid" as PaymentStatus,
     created_by: "Portland Gas Admin",
@@ -800,6 +803,7 @@ export const procurementStore = {
     read("mock_procurement_full", SEED_PROCUREMENT_FULL).map((p) => ({
       payment_status: "unpaid" as PaymentStatus,
       payment_terms: null,
+      po_issued_by: null,
       ...p,
       status: migrateProcurementStatus(p.status),
     })),
@@ -834,6 +838,7 @@ export const procurementStore = {
       attachment_name: null,
       po_url: null,
       po_issued_at: null,
+      po_issued_by: null,
       payment_terms: null,
       payment_status: "unpaid" as PaymentStatus,
       created_by: "Portland Gas Admin",
@@ -872,10 +877,10 @@ export const procurementStore = {
     write("mock_procurement_full", [full, ...procurementStore.getFull()]);
     return full;
   },
-  updateStatus: (id: string, status: ProcurementRequest["status"], paymentTerms?: string | null): void => {
+  updateStatus: (id: string, status: ProcurementRequest["status"], paymentTerms?: string | null, poIssuedBy?: string | null): void => {
     const now = new Date().toISOString();
     const poFields = status === "awaiting_payment"
-      ? { po_url: "generated", po_issued_at: now, payment_terms: paymentTerms ?? null }
+      ? { po_url: "generated", po_issued_at: now, po_issued_by: poIssuedBy ?? null, payment_terms: paymentTerms ?? null }
       : {};
     write("mock_procurement_list", procurementStore.getList().map((p) => p.id === id ? { ...p, status, ...poFields } : p));
     write("mock_procurement_full", procurementStore.getFull().map((p) => p.id === id ? { ...p, status, ...poFields, updated_at: now } : p));

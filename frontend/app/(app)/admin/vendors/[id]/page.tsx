@@ -11,8 +11,6 @@ import { useProcurementByVendor } from "@/hooks/useProcurement";
 import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
 import type { VendorCategory, ProcurementRequest, PaymentStatus } from "@/types";
 
-// ── Colours ─────────────────────────────────────────────────────────────────────
-
 const CATEGORY_COLOURS: Record<VendorCategory, string> = {
   equipment:     "bg-blue-100 text-blue-700",
   ppe:           "bg-orange-100 text-orange-700",
@@ -42,12 +40,8 @@ const PAYMENT_BADGE: Record<PaymentStatus, string> = {
 };
 
 const PAYMENT_LABELS: Record<PaymentStatus, string> = {
-  unpaid:    "Unpaid",
-  part_paid: "Part Paid",
-  paid:      "Paid",
+  unpaid: "Unpaid", part_paid: "Part Paid", paid: "Paid",
 };
-
-// ── Helpers ──────────────────────────────────────────────────────────────────────
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -70,82 +64,36 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
   );
 }
 
-// ── Request table columns ────────────────────────────────────────────────────────
-
 const REQUEST_COLUMNS: Column<ProcurementRequest>[] = [
-  {
-    key: "reference",
-    label: "Reference",
-    render: (v) => <span className="font-mono text-xs">{String(v)}</span>,
-  },
-  {
-    key: "category",
-    label: "Category",
-    render: (v) => <span className="capitalize text-sm">{String(v).replace(/_/g, " ")}</span>,
-  },
-  {
-    key: "created_at",
-    label: "Date",
-    render: (v) => <span className="text-brand-text-secondary text-xs">{formatDate(v as string)}</span>,
-  },
-  {
-    key: "items",
-    label: "Total Value",
-    render: (_, row) => {
-      const total = row.items.reduce((sum, item) => sum + item.total_cost, 0);
-      return <span className="text-sm font-medium">{formatCurrency(total)}</span>;
-    },
-  },
-  {
-    key: "payment_status",
-    label: "Payment",
-    render: (v) => {
-      const ps = v as PaymentStatus;
-      return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PAYMENT_BADGE[ps] ?? ""}`}>
-          {PAYMENT_LABELS[ps] ?? String(v)}
-        </span>
-      );
-    },
-  },
+  { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
+  { key: "category", label: "Category", render: (v) => <span className="capitalize text-sm">{String(v).replace(/_/g, " ")}</span> },
+  { key: "created_at", label: "Date", render: (v) => <span className="text-brand-text-secondary text-xs">{formatDate(v as string)}</span> },
+  { key: "items", label: "Total Value", render: (_, row) => { const total = row.items.reduce((sum, item) => sum + item.total_cost, 0); return <span className="text-sm font-medium">{formatCurrency(total)}</span>; } },
+  { key: "payment_status", label: "Payment", render: (v) => { const ps = v as PaymentStatus; return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PAYMENT_BADGE[ps] ?? ""}`}>{PAYMENT_LABELS[ps] ?? String(v)}</span>; } },
 ];
 
-// ── Page ─────────────────────────────────────────────────────────────────────────
-
-export default function VendorDetailPage() {
+export default function AdminVendorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: vendor, isLoading, isError } = useVendor(id);
   const { data: requests = [], isLoading: reqLoading } = useProcurementByVendor(id);
 
   if (isLoading) {
-    return (
-      <AppLayout pageTitle="Vendors">
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
-      </AppLayout>
-    );
+    return <AppLayout pageTitle="Admin — Vendors"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
   }
 
   if (isError || !vendor) {
-    return (
-      <AppLayout pageTitle="Vendors">
-        <div className="text-center py-20 text-brand-text-secondary">Vendor not found.</div>
-      </AppLayout>
-    );
+    return <AppLayout pageTitle="Admin — Vendors"><div className="text-center py-20 text-brand-text-secondary">Vendor not found.</div></AppLayout>;
   }
 
   const catColour = CATEGORY_COLOURS[vendor.category] ?? "bg-gray-100 text-gray-600";
   const avatarColour = AVATAR_COLOURS[vendor.category] ?? "bg-gray-500";
 
   return (
-    <AppLayout pageTitle="Vendors">
-      <Link
-        href="/vendors"
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5"
-      >
+    <AppLayout pageTitle="Admin — Vendors">
+      <Link href="/admin/vendors" className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5">
         <ArrowLeft size={14} /> Back to Vendors
       </Link>
 
-      {/* Header */}
       <div className="flex items-start gap-4 mb-6">
         <div className={`h-14 w-14 rounded-xl shrink-0 flex items-center justify-center text-white font-bold text-xl ${avatarColour}`}>
           {vendor.name.charAt(0).toUpperCase()}
@@ -153,47 +101,23 @@ export default function VendorDetailPage() {
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-semibold text-brand-text-primary">{vendor.name}</h1>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${catColour}`}>
-              {capitalize(vendor.category.replace(/_/g, " "))}
-            </span>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${vendor.status === "active" ? "bg-green-50 text-green-700 border border-green-200" : "bg-gray-100 text-gray-500"}`}>
-              {capitalize(vendor.status)}
-            </span>
+            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${catColour}`}>{capitalize(vendor.category.replace(/_/g, " "))}</span>
+            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${vendor.status === "active" ? "bg-green-50 text-green-700 border border-green-200" : "bg-gray-100 text-gray-500"}`}>{capitalize(vendor.status)}</span>
           </div>
           {vendor.vendor_code && (
-            <span className="inline-block mt-1 text-xs font-mono bg-gray-100 text-brand-text-secondary px-2 py-0.5 rounded">
-              {vendor.vendor_code}
-            </span>
+            <span className="inline-block mt-1 text-xs font-mono bg-gray-100 text-brand-text-secondary px-2 py-0.5 rounded">{vendor.vendor_code}</span>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-        {/* Company Info */}
         <SectionCard title="Company Information" icon={<Building2 size={16} />}>
           <DetailRow label="Contact Person" value={vendor.contact_person} />
-          <DetailRow
-            label="Phone"
-            value={vendor.phone ? (
-              <span className="flex items-center gap-1.5"><Phone size={13} />{vendor.phone}</span>
-            ) : null}
-          />
-          <DetailRow
-            label="Email"
-            value={vendor.email ? (
-              <span className="flex items-center gap-1.5"><Mail size={13} />{vendor.email}</span>
-            ) : null}
-          />
-          <DetailRow
-            label="Address"
-            value={vendor.address ? (
-              <span className="flex items-start gap-1.5"><MapPin size={13} className="mt-0.5 shrink-0" />{vendor.address}</span>
-            ) : null}
-          />
+          <DetailRow label="Phone" value={vendor.phone ? <span className="flex items-center gap-1.5"><Phone size={13} />{vendor.phone}</span> : null} />
+          <DetailRow label="Email" value={vendor.email ? <span className="flex items-center gap-1.5"><Mail size={13} />{vendor.email}</span> : null} />
+          <DetailRow label="Address" value={vendor.address ? <span className="flex items-start gap-1.5"><MapPin size={13} className="mt-0.5 shrink-0" />{vendor.address}</span> : null} />
           <DetailRow label="Added" value={formatDate(vendor.created_at)} />
         </SectionCard>
-
-        {/* Bank Details */}
         <SectionCard title="Bank Details" icon={<CreditCard size={16} />}>
           <DetailRow label="Bank Name" value={vendor.bank_name} />
           <DetailRow label="Account Name" value={vendor.account_name} />
@@ -201,22 +125,13 @@ export default function VendorDetailPage() {
         </SectionCard>
       </div>
 
-      {/* Purchase & Service Requests */}
       <div className="bg-white border border-brand-border rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
           <span className="text-brand-text-secondary"><ShoppingCart size={16} /></span>
           <h2 className="text-sm font-semibold text-brand-text-primary uppercase tracking-wide">Purchase & Service Requests</h2>
           <span className="ml-auto text-xs text-brand-text-secondary">{requests.length} request{requests.length !== 1 ? "s" : ""}</span>
         </div>
-        <DataTable
-          columns={REQUEST_COLUMNS}
-          data={requests}
-          isLoading={reqLoading}
-          rowHref={(row) => `/procurement/${row.id}`}
-          emptyMessage="No requests linked to this vendor"
-          emptyDescription="Purchase and service requests assigned to this vendor will appear here."
-          searchable={false}
-        />
+        <DataTable columns={REQUEST_COLUMNS} data={requests} isLoading={reqLoading} rowHref={(row) => `/procurement/${row.id}`} emptyMessage="No requests linked to this vendor" emptyDescription="Purchase and service requests assigned to this vendor will appear here." searchable={false} />
       </div>
     </AppLayout>
   );

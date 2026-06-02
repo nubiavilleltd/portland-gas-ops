@@ -55,8 +55,8 @@ export function useCreateProcurement() {
 export function useUpdateProcurementStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ status, paymentTerms }: { status: ProcurementStatus; paymentTerms?: string | null }) => {
-      procurementStore.updateStatus(id, status, paymentTerms);
+    mutationFn: ({ status, paymentTerms, poIssuedBy }: { status: ProcurementStatus; paymentTerms?: string | null; poIssuedBy?: string | null }) => {
+      procurementStore.updateStatus(id, status, paymentTerms, poIssuedBy);
       return Promise.resolve(procurementStore.getById(id)!);
     },
     onSuccess: () => {

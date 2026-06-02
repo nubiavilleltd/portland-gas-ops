@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Boxes } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import SelectInput from "@/components/forms/SelectInput";
 import { useAssetRequests } from "@/hooks/useAssets";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestListItem, AssetRequestStatus } from "@/types";
 
@@ -91,34 +90,25 @@ const columns: Column<AssetRequestListItem>[] = [
 export default function AssetRequestsPage() {
   const [activeStatus, setActiveStatus] = useState<AssetRequestStatus | undefined>(undefined);
   const { data, isLoading, isError } = useAssetRequests(activeStatus);
-  const { user } = useCurrentUser();
-  const isAssetAdmin =
-    user?.role === "asset_admin" ||
-    user?.role === "admin" ||
-    user?.role === "super_admin";
 
   return (
     <AppLayout pageTitle="Assets">
+      <Link
+        href="/assets"
+        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5"
+      >
+        <ArrowLeft size={14} /> Back to Assets
+      </Link>
       <PageHeader
-        title="Asset Requests"
-        description="Loan and requisition requests for company assets"
+        title="My Requests"
+        description="Your loan and requisition requests for company assets"
         action={
-          <div className="flex items-center gap-2">
-            {isAssetAdmin && (
-              <Link
-                href="/assets/allocations"
-                className="flex items-center gap-2 px-4 py-2 border border-brand-border text-brand-text-primary text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Boxes size={15} /> Allocations Queue
-              </Link>
-            )}
-            <Link
-              href="/assets/requests/new"
-              className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
-            >
-              <Plus size={16} /> New Request
-            </Link>
-          </div>
+          <Link
+            href="/assets/requests/new"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
+          >
+            <Plus size={16} /> New Request
+          </Link>
         }
         className="mb-6"
       />
