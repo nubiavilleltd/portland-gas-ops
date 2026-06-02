@@ -5,7 +5,6 @@ import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import type { Order, OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
   getOrderById,
-  getOrderDefaultValues,
   getOrderKPIs,
 } from "@/lib/modules/orders/selectors/orders.selectors";
 import { parseError } from "@/lib/errors";
@@ -65,21 +64,3 @@ export function useOrderKPIs() {
   };
 }
 
-// ── Default values ────────────────────────────────────────
-export function useOrderDefaultValues(id: string) {
-  const { order, isLoading: orderLoading, error: orderError } =
-    useOrderById(id);
-
-  const { products, isLoading: productsLoading, error: productsError } =
-    useProducts();
-
-  const isLoading = orderLoading || productsLoading;
-  const error = orderError ?? productsError;
-
-  const defaultValues =
-    order && !isLoading
-      ? getOrderDefaultValues(order, products)
-      : undefined;
-
-  return { defaultValues, isLoading, error };
-}

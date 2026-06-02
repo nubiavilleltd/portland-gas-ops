@@ -31,4 +31,13 @@ export const invoices: Invoice[] = [
     issued_date: "2026-05-13",
     due_date: "2026-05-27",
   },
+  {
+    id: "inv-4",
+    order_id: "ord-4",
+    invoice_number: "INV-20260512-004",
+    total_amount: 9050000,
+    status: "paid",
+    issued_date: "2026-05-12",
+    due_date: "2026-05-26",
+  },
 ];
