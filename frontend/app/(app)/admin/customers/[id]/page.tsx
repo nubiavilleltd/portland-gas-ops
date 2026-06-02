@@ -79,7 +79,7 @@ export default function CustomerDetailPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => router.push(CUSTOMER_ROUTES.list())}
+          onClick={() => router.push(`/admin${CUSTOMER_ROUTES.list()}`)}
         >
           Back to Customers
         </Button>
@@ -99,7 +99,7 @@ export default function CustomerDetailPage() {
           ? "Customer deactivated"
           : "Customer activated"
       );
-      router.push(CUSTOMER_ROUTES.list());
+      router.push(`/admin${CUSTOMER_ROUTES.list()}`);
     } catch (err) {
       toast.error(parseError(err));
     } finally {
@@ -112,7 +112,7 @@ export default function CustomerDetailPage() {
     <AppLayout pageTitle={customer.name}>
       {/* Back */}
       <button
-        onClick={() => router.push(CUSTOMER_ROUTES.list())}
+        onClick={() => router.push(`/admin${CUSTOMER_ROUTES.list()}`)}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
@@ -142,10 +142,10 @@ export default function CustomerDetailPage() {
         </div>
 
         {/* Action buttons — wrapped in a div so they sit side by side */}
-        {/* <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            href={CUSTOMER_ROUTES.edit(customer.id)}
+            href={`/admin${CUSTOMER_ROUTES.edit(customer.id)}`}
             leftIcon={<Pencil size={14} />}
           >
             Edit
@@ -163,7 +163,7 @@ export default function CustomerDetailPage() {
           >
             {isActive ? "Deactivate" : "Activate"}
           </Button>
-        </div> */}
+        </div>
       </div>
 
       {/* Details card */}
