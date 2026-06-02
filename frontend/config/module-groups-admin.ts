@@ -35,7 +35,7 @@ export type ModuleGroup = {
 
 export const moduleGroups: readonly ModuleGroup[] = [
   {
-    title: "HR Management",
+    title: "Finance & HR Management",
     processes: [
       {
         name: "Employee Profile",
