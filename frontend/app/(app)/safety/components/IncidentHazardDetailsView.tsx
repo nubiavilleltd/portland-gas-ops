@@ -12,7 +12,7 @@ import IncidentHazardRoleSwitcher from "./IncidentHazardRoleSwitcher";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockIncidentHazardReport,
-  incidentPriorityOptions,
+  incidentSeverityOptions,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
 import {
@@ -33,7 +33,6 @@ import type {
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
-const hseDecisionOptions = toOptions(["Resolved", "Not Resolved"]);
 const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
 const departmentOptions = toOptions(["Engineering", "Maintenance", "Operations", "Logistics", "HSE", "Admin"]);
 
@@ -289,7 +288,6 @@ function ReportDetails({ report, editable }: { report: IncidentHazardReport; edi
         <FormInput label="Location" defaultValue={report.location} disabled={!editable} />
         <FormInput label="Date/Time Observed" defaultValue={report.dateTimeObserved} disabled={!editable} />
         <FormInput label="Related Work Authorization" defaultValue={report.relatedWorkAuthorization} disabled={!editable} />
-        <FormInput label="Priority/Urgency" defaultValue={report.priority} disabled={!editable} />
       </div>
     </FormSection>
   );
@@ -351,16 +349,17 @@ function HseReviewAction({
   onForward: () => void;
   onDecision: (decision: "Resolved" | "Not Resolved") => void;
 }) {
-  const [resolution, setResolution] = useState("");
   const requiresCorrectiveWork = correctiveActionRequired === "Yes";
-  const canSubmit = requiresCorrectiveWork ? Boolean(assignedDepartment && actionOwner) : Boolean(resolution);
+  const canRecommendCorrectiveWork = requiresCorrectiveWork && Boolean(assignedDepartment && actionOwner);
+  const canResolveWithoutCorrectiveWork = correctiveActionRequired === "No";
+  const canDenyWithoutCorrectiveWork = canResolveWithoutCorrectiveWork && Boolean(comment.trim());
 
   return (
     <FormSection title="HSE Review & Corrective Action" description="Assess the report and determine whether corrective work is required.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
         <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
-        <FormSelect label="Confirmed Severity" required options={toOptions(incidentPriorityOptions)} placeholder="Select confirmed severity" />
+        <FormSelect label="Confirmed Severity" required options={toOptions(incidentSeverityOptions)} placeholder="Select confirmed severity" />
         <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
         {/* <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" /> */}
         <div className="md:col-span-2">
@@ -400,16 +399,6 @@ function HseReviewAction({
             <FormDatePicker label="Target Completion Date" required />
           </>
         ) : null}
-        {correctiveActionRequired === "No" ? (
-          <FormSelect
-            label="HSE Resolution"
-            required
-            options={hseDecisionOptions}
-            placeholder="Select resolution"
-            value={resolution}
-            onValueChange={setResolution}
-          />
-        ) : null}
         <FormTextarea
           label="HSE Comment"
           value={comment}
@@ -419,20 +408,40 @@ function HseReviewAction({
         <FormInput label="HSE Review Date/Time" value="2026-05-18 10:00 AM" disabled />
       </div>
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button
-          type="button"
-          disabled={!canSubmit}
-          onClick={() => {
-            if (requiresCorrectiveWork) {
-              onForward();
-              return;
-            }
-            onDecision(resolution as "Resolved" | "Not Resolved");
-          }}
-        >
-          {requiresCorrectiveWork ? "Recommend Corrective Action" : "Submit Review"}
-        </Button>
+        {requiresCorrectiveWork ? (
+          <Button type="button" disabled={!canRecommendCorrectiveWork} onClick={onForward}>
+            Recommend Corrective Action
+          </Button>
+        ) : (
+          <>
+            <Button
+              type="button"
+              disabled={!canResolveWithoutCorrectiveWork}
+              onClick={() => onDecision("Resolved")}
+            >
+              Approve
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={!canDenyWithoutCorrectiveWork}
+              onClick={() => onDecision("Not Resolved")}
+            >
+              Deny
+            </Button>
+          </>
+        )}
       </div>
+      {correctiveActionRequired === "Yes" ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Approval is disabled because corrective action is required.
+        </p>
+      ) : null}
+      {correctiveActionRequired === "No" && !comment.trim() ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Add an HSE comment before denying this report.
+        </p>
+      ) : null}
     </FormSection>
   );
 }

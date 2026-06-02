@@ -1,0 +1,117 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+
+import { PaymentsService } from "@/lib/modules/payments/services/payments.service";
+
+import {
+  getPaymentById,
+  getPaymentsByInvoice,
+  getPaymentSummary,
+  getTotalPaidForInvoice,
+} from "@/lib/modules/payments/selectors/payments.selectors";
+
+import { parseError } from "@/lib/errors";
+
+import type { Payment } from "../types/payments.types";
+
+import { PAYMENT_KEYS } from "@/lib/query-keys";
+
+// ─────────────────────────────────────────────
+// BASE HOOK
+// ─────────────────────────────────────────────
+
+export function usePayments() {
+  const query = useQuery({
+    queryKey: PAYMENT_KEYS.lists(),
+    queryFn: PaymentsService.getPayments,
+  });
+
+  return {
+    payments: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
+// ─────────────────────────────────────────────
+// SINGLE PAYMENT
+// ─────────────────────────────────────────────
+
+export function usePaymentById(id: string) {
+  const { payments, isLoading, error, refetch } = usePayments();
+
+  const payment = getPaymentById(payments, id);
+
+  return {
+    payment,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+// ─────────────────────────────────────────────
+// PAYMENTS BY INVOICE
+// ─────────────────────────────────────────────
+
+export function usePaymentsByInvoice(invoiceId: string) {
+  const { payments, isLoading, error, refetch } = usePayments();
+
+  const invoicePayments = getPaymentsByInvoice(
+    payments,
+    invoiceId
+  );
+
+  return {
+    payments: invoicePayments,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+// ─────────────────────────────────────────────
+// PAYMENT SUMMARY
+// ─────────────────────────────────────────────
+
+export function usePaymentSummary(
+  invoiceId: string | undefined
+) {
+  const { payments, isLoading, error, refetch } = usePayments();
+
+  const summary = getPaymentSummary(
+    payments,
+    invoiceId
+  );
+
+  return {
+    summary,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+// ─────────────────────────────────────────────
+// TOTAL PAID
+// ─────────────────────────────────────────────
+
+export function useTotalPaidForInvoice(
+  invoiceId: string
+) {
+  const { payments, isLoading, error, refetch } = usePayments();
+
+  const totalPaid = getTotalPaidForInvoice(
+    payments,
+    invoiceId
+  );
+
+  return {
+    totalPaid,
+    isLoading,
+    error,
+    refetch,
+  };
+}

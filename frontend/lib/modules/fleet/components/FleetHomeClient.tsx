@@ -34,6 +34,11 @@ interface MetricCardProps {
   variant?: MetricCardVariant;
 }
 
+
+
+
+
+
 export default function FleetHomeClient({
   vehicles,
   drivers,
@@ -55,28 +60,7 @@ export default function FleetHomeClient({
     <AppLayout pageTitle="Fleet Management">
       <PageHeader
         title=""
-        // description="Manage vehicles, drivers, dispatch operations and maintenance"
-        // action={
-        //   <div className="flex flex-wrap gap-2">
-        //     <Button href="/fleet/trips/new">
-        //       Create Trip
-        //     </Button>
-
-        //     <Button
-        //       variant="outline"
-        //       href="/fleet/vehicles/new"
-        //     >
-        //       Add Vehicle
-        //     </Button>
-
-        //     <Button
-        //       variant="outline"
-        //       href="/fleet/drivers/new"
-        //     >
-        //       Add Driver
-        //     </Button>
-        //   </div>
-        // }
+   
       />
 
       {/* KPI SECTION */}

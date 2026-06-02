@@ -1,102 +1,74 @@
-// "use client";
-
-// import Link from "next/link";
-// import { customers } from "@/lib/mock/customers";
-// import AppLayout from "@/components/layout/AppLayout";
-
-// export default function CustomersPage() {
-//   return (
-
-//     <AppLayout pageTitle="Customers">
-//          <div className="p-6">
-//       <div className="flex justify-between items-center mb-6">
-//         <h1 className="text-xl font-bold">Customers</h1>
-
-//         <Link
-//           href="/customers/new"
-//           className="px-4 py-2 bg-black text-white rounded"
-//         >
-//           + New Customer
-//         </Link>
-//       </div>
-
-//       <div className="grid gap-4">
-//         {customers.map((customer) => (
-//           <div
-//             key={customer.id}
-//             className="border p-4 rounded flex justify-between"
-//           >
-//             <div>
-//               <h2 className="font-semibold">{customer.name}</h2>
-//               <p className="text-sm text-gray-600">{customer.type}</p>
-//               <p className="text-sm">{customer.phone}</p>
-//             </div>
-
-//             <div className="text-sm text-gray-500">
-//               {customer.address}
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//     </AppLayout>
-   
-//   );
-// }
-
-
-
-
-
-
 "use client";
 
-import Link from "next/link";
+import { Plus } from "lucide-react";
+
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { customers } from "@/lib/modules/customers/mock/customers.mock";
-// import { customers } from "@/lib/mock/customers";
 
-type Customer = {
-  id: string;
-  name: string;
-  type: string;
-  phone: string;
-  email: string;
-  address: string;
-  createdAt: string;
-};
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import type { Customer } from "@/lib/modules/customers/types/customer.types";
+import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 
 const columns: Column<Customer>[] = [
   { key: "name", label: "Customer Name" },
-  { key: "type", label: "Type" },
+  {
+    key: "type",
+    label: "Type",
+    render: (value) => (
+      <span
+        className={
+          value === "corporate"
+            ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700"
+            : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+        }
+      >
+        {value === "corporate" ? "Corporate" : "Individual"}
+      </span>
+    ),
+  },
   { key: "phone", label: "Phone" },
   { key: "email", label: "Email" },
   { key: "address", label: "Address" },
+  {
+    key: "status",
+    label: "Status",
+    render: (value) => (
+      <span className={
+        value === "active"
+          ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
+          : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
+      }>
+        {value === "active" ? "Active" : "Inactive"}
+      </span>
+    ),
+  },
 ];
 
 export default function CustomersPage() {
+  const { customers, isLoading, error } = useCustomers();
+
   return (
     <AppLayout pageTitle="Customers">
       <PageHeader
         title="Customers"
         description="Manage customer records and contact details"
         action={
-          <Link
-            href="/customers/new"
-            className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
-          >
-            + New Customer
-          </Link>
+          <Button href={CUSTOMER_ROUTES.new()} leftIcon={<Plus size={16} />}>
+            New Customer
+          </Button>
         }
         className="mb-6"
       />
 
-      <DataTable
+      <DataTable<Customer>
         columns={columns}
         data={customers}
-        rowHref={(r) => `/customers/${r.id}`}
+        isLoading={isLoading}
+        rowHref={(row) => CUSTOMER_ROUTES.detail(row.id)}
+        emptyMessage="No customers found."
+        emptyDescription="Add your first customer to get started."
       />
     </AppLayout>
   );

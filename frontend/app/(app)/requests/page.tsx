@@ -68,9 +68,9 @@ const DEMO_LEAVE: UnifiedRequest[] = [
 ];
 
 const DEMO_WORK_INITIATION: UnifiedRequest[] = [
-  { id: "wi-001", reference: "WI-2025-001", process: "work_initiation", title: "Pipeline Valve Replacement — Lekki Depot",  status: "approved",         submitted_at: "2025-04-15", href: "/work-initiation/wi-001" },
-  { id: "wi-002", reference: "WI-2025-002", process: "work_initiation", title: "Generator Servicing — Head Office",         status: "pending_approval", submitted_at: "2025-05-05", href: "/work-initiation/wi-002" },
-  { id: "wi-003", reference: "WI-2025-003", process: "work_initiation", title: "Compressor Unit Inspection — Apapa Plant",  status: "submitted",        submitted_at: "2025-05-14", href: "/work-initiation/wi-003" },
+  { id: "wi-001", reference: "WI-2025-001", process: "work_initiation", title: "Pipeline Valve Replacement — Lekki Depot",  status: "approved",         submitted_at: "2025-04-15", href: "/safety/work-initiation/wi-001" },
+  { id: "wi-002", reference: "WI-2025-002", process: "work_initiation", title: "Generator Servicing — Head Office",         status: "pending_approval", submitted_at: "2025-05-05", href: "/safety/work-initiation/wi-002" },
+  { id: "wi-003", reference: "WI-2025-003", process: "work_initiation", title: "Compressor Unit Inspection — Apapa Plant",  status: "submitted",        submitted_at: "2025-05-14", href: "/safety/work-initiation/wi-003" },
 ];
 
 const DEMO_WORK_AUTHORIZATION: UnifiedRequest[] = [

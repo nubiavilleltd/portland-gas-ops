@@ -16,6 +16,7 @@ import {
   createWorkCloseOut,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
@@ -32,6 +33,10 @@ export default function WorkCompletionForm() {
   const toast = useToast();
   const [selectedWorkAuthorizationId, setSelectedWorkAuthorizationId] = useState("");
   const { workAuthorizations: storedWorkAuthorizations } = useSafetyDemoData();
+  const requester = {
+    ...closeOutRequester,
+    requestDate: formatLocalDate(),
+  };
   const workAuthorizations: ApprovedWorkAuthorizationOption[] = storedWorkAuthorizations
     .filter((request) => request.status === "approved")
     .map((request) => ({
@@ -84,11 +89,13 @@ export default function WorkCompletionForm() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedWorkAuthorization) return;
+    const submittedAt = formatLocalDateTime();
+
     createWorkCloseOut((id) => ({
       id,
       status: "submitted",
       title: `Close-out for ${selectedWorkAuthorization.title}`,
-      requester: closeOutRequester,
+      requester,
       workAuthorization: selectedWorkAuthorization,
       completionDetails: {
         actualStartDateTime,
@@ -124,9 +131,9 @@ export default function WorkCompletionForm() {
       hseApproval: null,
       auditTrail: [{
         action: "Submitted",
-        actor: closeOutRequester.name,
+        actor: requester.name,
         role: "Requester",
-        dateTime: "2026-05-25 03:00 PM",
+        dateTime: submittedAt,
         comment: "Work completion submitted for close-out.",
       }],
     }));
@@ -140,10 +147,10 @@ export default function WorkCompletionForm() {
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
       <FormSection title="Requester Details" description="Your employee information for this work completion request.">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={closeOutRequester.name} disabled />
-          <FormInput label="Department" value={closeOutRequester.department} disabled />
-          <FormInput label="Job Title / Role" value={closeOutRequester.role} disabled />
-          <FormDatePicker label="Request Date" value={closeOutRequester.requestDate} disabled />
+          <FormInput label="Requester Name" value={requester.name} disabled />
+          <FormInput label="Department" value={requester.department} disabled />
+          <FormInput label="Job Title / Role" value={requester.role} disabled />
+          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
         </div>
       </FormSection>
 
@@ -303,7 +310,7 @@ function ApprovedWorkSummary({
           <FormInput label="Original Requester" value={workAuthorization.requester} disabled />
           <FormInput label="Department" value={workAuthorization.department} disabled />
           <FormInput label="Work Location" value={workAuthorization.location} disabled />
-          <FormInput label="Exact Work Area" value={workAuthorization.exactWorkArea} disabled />
+          <FormTextarea label="Exact Work Area" value={workAuthorization.exactWorkArea} disabled />
           <FormInput label="Approved Start Date/Time" value={workAuthorization.approvedStartDateTime} disabled />
           <FormInput label="Approved End Date/Time" value={workAuthorization.approvedEndDateTime} disabled />
           <FormInput label="Approved Work Type" value={workAuthorization.workTypes.join(", ")} disabled />

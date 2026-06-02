@@ -42,6 +42,7 @@ export const ERROR_MESSAGES = {
 
   // Customers
   CUSTOMER_NOT_FOUND: "This customer could not be found.",
+  CUSTOMER_DUPLICATE: "A customer with this name already exists.",
 
   // Auth
   UNAUTHORIZED:

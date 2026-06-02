@@ -6,140 +6,244 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
-import {
-  formatDate,
-} from "@/lib/utils";
+import { formatDate, toTitleCase } from "@/lib/utils";
 
+// import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
+import FormSection from "@/components/ui/FormSection";
+import { useTripsByVehicle } from "@/lib/modules/fleet/hooks/useTrips";
+import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
+import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
+import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
+import { canAssignVehicle } from "@/lib/modules/fleet/guards/trip.guards";
+import { toast } from "sonner";
 import {
-  getVehicleById,
-} from "@/lib/modules/fleet/selectors/vehicles.selectors";
-
-import {
-  getTripsByVehicle,
-} from "@/lib/modules/fleet/selectors/trips.selectors";
-import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
-
+  canActivateVehicle,
+  canDeactivateVehicle,
+  canReturnFromMaintenance,
+  canSendForMaintenance,
+} from "@/lib/modules/fleet/guards/vehicle.guards";
+import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
+import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 
 export default function VehicleDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const vehicle = getVehicleById(id);
+  const { vehicle } = useVehicleById(id);
+  const canAssign = canAssignVehicle(vehicle);
+
+
+  // const canAssign = canAssignTrip(vehicle?.status || "retired");
+
+  const { trips } = useTripsByVehicle(id);
+  const sortedTrips = [...trips].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
 
   if (!vehicle) {
     return (
-      <AppLayout pageTitle="Vehicle Not Found">
-        Vehicle not found.
-      </AppLayout>
+      <AppLayout pageTitle="Vehicle Not Found">Vehicle not found.</AppLayout>
     );
   }
 
-  const trips = getTripsByVehicle(vehicle.id);
-
   const activeTrip = trips.find(
-    (t) => t.status === "in_transit" || t.status === "assigned"
+    (t) =>
+      t.status === "assigned" ||
+      t.status === "dispatched" ||
+      t.status === "in_transit",
   );
+
+  const canSendMaintenance = canSendForMaintenance(vehicle);
+  const canReturnMaintenance = canReturnFromMaintenance(vehicle);
+  const canDeactivate = canDeactivateVehicle(vehicle);
+  const canActivate = canActivateVehicle(vehicle);
+
+
+
+  const tripColumns: SimpleTableColumn<Trip>[] = [
+  {
+    label: "Trip",
+    render: (trip) => (
+      <span className="font-mono text-xs">{trip.trip_number}</span>
+    ),
+  },
+  {
+    label: "Type",
+    render: (trip) => toTitleCase(trip.type.replaceAll("_", " ")),
+  },
+  {
+    label: "Date",
+    render: (trip) => formatDate(trip.scheduled_date),
+  },
+  {
+    label: "Status",
+    render: (trip) => <TripStatusBadge status={trip.status} />,
+  },
+  {
+    label: "",
+    align: "right",
+    render: (trip) => (
+      <Button size="sm" variant="outline" href={`/fleet/trips/${trip.id}`}>
+        View
+      </Button>
+    ),
+  },
+];
 
   return (
     <AppLayout pageTitle={vehicle.name}>
-
       {/* HEADER */}
       <PageHeader
         title={vehicle.name}
-        description={`${vehicle.plate_number} • ${vehicle.type.replaceAll("_", " ")}`}
+        description={`${vehicle.plate_number} • ${toTitleCase(vehicle.type)}`}
         action={
           <div className="flex gap-2">
-
-            {/* <Button
+            <Button
               variant="outline"
               href={`/fleet/vehicles/${vehicle.id}/edit`}
             >
               Edit Vehicle
-            </Button> */}
-
-            <Button
-              variant="outline"
-              href={`/fleet/trips/new?vehicleId=${vehicle.id}`}
-            >
-              Assign Trip
             </Button>
+            {canSendMaintenance && (
+              <Button
+                variant="outline"
+                onClick={() => toast.info("Coming soon")}
+              >
+                Send for Maintenance
+              </Button>
+            )}
 
-            {/* <Button
-              href={`/fleet/maintenance/new?vehicleId=${vehicle.id}`}
-            >
-              Schedule Maintenance
-            </Button> */}
+            {canReturnMaintenance && (
+              <Button
+                variant="outline"
+                onClick={() => toast.info("Coming soon")}
+              >
+                Return from Maintenance
+              </Button>
+            )}
 
+            {canActivate && (
+              <Button
+                variant="success"
+                onClick={() => toast.info("Coming soon")}
+              >
+                Activate Vehicle
+              </Button>
+            )}
+            {canDeactivate && (
+              <Button
+                variant="danger"
+                onClick={() => toast.info("Coming soon")}
+              >
+                Deactivate Vehicle
+              </Button>
+            )}
+
+            {canAssign && (
+              <Button
+                variant="primary"
+                href={`/fleet/trips/new?vehicleId=${vehicle.id}`}
+              >
+                Assign Trip
+              </Button>
+            )}
           </div>
         }
       />
 
       <div className="space-y-6">
-
-        {/* VEHICLE SUMMARY */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-
-          <div className="flex items-start justify-between mb-6">
-
-            <div>
-              <h2 className="text-base font-semibold">
-                Vehicle Summary
-              </h2>
-
-              <p className="text-sm text-brand-text-secondary mt-1">
-                Operational vehicle information
-              </p>
-            </div>
-
-            {/* FIXED BADGE */}
-            <FleetVehicleStatusBadge status={vehicle.status} />
-
+        <FormSection
+          title="Vehicle Summary"
+          description="Operational vehicle information"
+        >
+          <div className="flex justify-end mb-4">
+            <FleetStatusBadge status={vehicle.status} />
           </div>
 
+          {vehicle.image && (
+            <div className="mb-4">
+              <img
+                src={vehicle.image}
+                alt={vehicle.name}
+                className="w-32 h-32 rounded-xl object-cover border border-brand-border"
+              />
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 text-sm">
-
-            <Info label="Vehicle Name" value={vehicle.name} />
-            <Info label="Plate Number" value={vehicle.plate_number} />
-            <Info label="Vehicle Type" value={vehicle.type.replaceAll("_", " ")} />
-            <Info label="Fuel Type" value={vehicle.fuel_type} />
-
-            <Info label="Mileage" value={`${vehicle.mileage?.toLocaleString()} km`} />
-
             <Info
-              label="Last Service Date"
+              label="Vehicle Name"
+              value={vehicle.name}
+            />
+            <Info
+              label="Plate Number"
+              value={vehicle.plate_number}
+            />
+            <Info
+              label="Type"
+              value={vehicle.type.replaceAll("_", " ")}
+            />
+            <Info
+              label="Make"
+              value={vehicle.make}
+            />
+            <Info
+              label="Model"
+              value={vehicle.model}
+            />
+            <Info
+              label="Year"
+              value={String(vehicle.year)}
+            />
+            <Info
+              label="Fuel Type"
+              value={vehicle.fuel_type}
+            />
+            <Info
+              label="Capacity"
+              value={
+                vehicle.capacity
+                  ? `${vehicle.capacity.toLocaleString()} kg`
+                  : "—"
+              }
+            />
+            <Info
+              label="Mileage"
+              value={
+                vehicle.mileage ? `${vehicle.mileage.toLocaleString()} km` : "—"
+              }
+            />
+            <Info
+              label="Last Service"
               value={formatDate(vehicle.last_service_date)}
             />
-
             <Info
-              label="Next Service Due"
+              label="Next Service"
               value={formatDate(vehicle.next_service_date)}
             />
-
             <Info
-              label="Operational Status"
-              value={vehicle.status.replaceAll("_", " ")}
+              label="Insurance Expiry"
+              value={formatDate(vehicle.insurance_expiry_date)}
             />
-
+            <Info
+              label="Roadworthiness Expiry"
+              value={formatDate(vehicle.roadworthiness_expiry_date)}
+            />
           </div>
+        </FormSection>
 
-        </div>
-
-        {/* CURRENT OPERATION */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-
-          <h2 className="text-base font-semibold mb-4">
-            Current Operation
-          </h2>
-
+        <FormSection
+          title="Current Operation"
+          description="Live assignment and active trip status"
+        >
           {activeTrip ? (
             <div className="text-sm space-y-1">
-
               <p className="font-medium">
                 Active Trip: {activeTrip.trip_number}
               </p>
 
               <p className="text-brand-text-secondary">
-                Status: {activeTrip.status}
+                Status: <TripStatusBadge status={activeTrip.status} />
               </p>
 
               <Button
@@ -150,75 +254,104 @@ export default function VehicleDetailPage() {
               >
                 View Trip
               </Button>
-
             </div>
           ) : (
             <div className="text-sm">
+              {vehicle.status === "available" ? (
+                <>
+                  <p className="font-medium text-green-600">No active trip</p>
+                  <p className="text-brand-text-secondary mt-1">
+                    Vehicle is available for assignment
+                  </p>
+                </>
+              ) : (
+                <p className="font-medium text-brand-text-secondary capitalize">
+                  <FleetStatusBadge status={vehicle.status} />
+                </p>
+              )}
+            </div>
+          )}
+        </FormSection>
 
-              <p className="font-medium text-green-600">
-                No active trip
-              </p>
-
-              <p className="text-brand-text-secondary mt-1">
-                Vehicle is available for assignment
-              </p>
-
+        <FormSection
+          title="Trip History"
+          description="All trips associated with this vehicle"
+        >
+          {trips.length > 0 && (
+            <div className="flex items-start justify-between mb-4">
+              <Button
+                size="sm"
+                variant="outline"
+                href={`/fleet/trips?vehicleId=${vehicle.id}`}
+              >
+                View All
+              </Button>
             </div>
           )}
 
-        </div>
-
-        {/* TRIP HISTORY (NOW REAL DATA) */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-
-          <div className="flex items-start justify-between mb-4">
-
-            <div>
-              <h2 className="text-base font-semibold">
-                Trip History
-              </h2>
-
-              <p className="text-sm text-brand-text-secondary mt-1">
-                All trips completed by this vehicle
-              </p>
-            </div>
-
-            <Button
-              size="sm"
-              variant="outline"
-              href={`/fleet/trips?vehicleId=${vehicle.id}`}
-            >
-              View All
-            </Button>
-
-          </div>
-
-          {trips.length === 0 ? (
+          {/* {trips.length === 0 ? (
             <p className="text-sm text-brand-text-secondary">
               No trips recorded yet.
             </p>
           ) : (
-            <div className="space-y-2 text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="py-2">Trip</th>
+                    <th className="py-2">Type</th>
+                    <th className="py-2">Date</th>
+                    <th className="py-2">Status</th>
+                    <th className="py-2"></th>
+                  </tr>
+                </thead>
 
-              {trips.slice(0, 5).map((trip) => (
-                <div
-                  key={trip.id}
-                  className="flex justify-between border-b py-2"
-                >
-                  <span>{trip.trip_number}</span>
-                  <span className="text-brand-text-secondary">
-                    {trip.status}
-                  </span>
-                </div>
-              ))}
+                <tbody>
+                  {sortedTrips.slice(0, 5).map((trip) => (
+                    <tr
+                      key={trip.id}
+                      className="border-b"
+                    >
+                      <td className="py-2 font-mono text-xs">
+                        {trip.trip_number}
+                      </td>
 
+                      <td className="py-2 capitalize">
+                        {trip.type.replaceAll("_", " ")}
+                      </td>
+
+                      <td className="py-2">
+                        {formatDate(trip.scheduled_date)}
+                      </td>
+
+                      <td className="py-2">
+                        <TripStatusBadge status={trip.status} />
+                      </td>
+
+                      <td className="py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          href={`/fleet/trips/${trip.id}`}
+                        >
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          )} */}
 
-        </div>
-
+          <SimpleTable
+  columns={tripColumns}
+  rows={sortedTrips.slice(0, 5)}
+  keyExtractor={(trip) => trip.id}
+  emptyMessage="No trips recorded yet."
+/>
+        </FormSection>
       </div>
-
     </AppLayout>
   );
 }
@@ -226,21 +359,11 @@ export default function VehicleDetailPage() {
 /* --------------------------------------------
    INFO COMPONENT
 ---------------------------------------------*/
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs text-brand-text-secondary">
-        {label}
-      </p>
-      <p className="font-medium mt-1 capitalize">
-        {value}
-      </p>
+      <p className="text-xs text-brand-text-secondary">{label}</p>
+      <p className="font-medium mt-1 capitalize">{value}</p>
     </div>
   );
 }

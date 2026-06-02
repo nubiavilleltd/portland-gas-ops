@@ -167,7 +167,6 @@ function toAssignedSummary(request: WorkInitiationRequest): AssignedWorkInitiati
     workCategory: request.workCategory,
     relatedIncidentHazardId: request.relatedIncidentHazardId,
     workType: request.workType,
-    priority: request.priority,
     location: request.location,
     exactWorkArea: request.exactWorkArea,
     workDescription: request.workDescription,
