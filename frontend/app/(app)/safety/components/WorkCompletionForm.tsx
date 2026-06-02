@@ -9,9 +9,7 @@ import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import {
-  closeOutRequester,
-} from "@/lib/mock/work-close-out";
+import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import {
   createWorkCloseOut,
   useSafetyDemoData,
@@ -34,11 +32,11 @@ export default function WorkCompletionForm() {
   const [selectedWorkAuthorizationId, setSelectedWorkAuthorizationId] = useState("");
   const { workAuthorizations: storedWorkAuthorizations } = useSafetyDemoData();
   const requester = {
-    ...closeOutRequester,
+    ...getSafetyCurrentUser(),
     requestDate: formatLocalDate(),
   };
   const workAuthorizations: ApprovedWorkAuthorizationOption[] = storedWorkAuthorizations
-    .filter((request) => request.status === "approved")
+    .filter((request) => request.status === "approved" && isSafetyCurrentUser(request.requester.name))
     .map((request) => ({
       id: request.id,
       title: request.workInitiation.title,
@@ -52,7 +50,7 @@ export default function WorkCompletionForm() {
       approvedEndDateTime: request.workInitiation.plannedEndDateTime,
       workTypes: request.workInitiation.workType,
       supervisor: request.workInitiation.assignedSupervisor,
-      hseApprover: request.hseApproval?.approver ?? "Samuel Bassey",
+      hseApprover: request.hseApproval?.approver ?? "Daniel Okoro",
     }));
   const [actualStartDateTime, setActualStartDateTime] = useState("");
   const [actualCompletionDateTime, setActualCompletionDateTime] = useState("");

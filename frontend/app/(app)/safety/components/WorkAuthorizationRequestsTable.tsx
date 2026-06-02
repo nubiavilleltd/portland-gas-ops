@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
+import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import {
+  getAdminWorkAuthorizationHref,
+  sortByLatestSafetyActivity,
+} from "@/lib/safety-demo-routing";
 import { fetchWorkAuthorizationRequests } from "@/lib/mock/work-authorization-api";
 import type { WorkAuthorizationRequest } from "@/types/safety";
 
@@ -47,7 +52,11 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   },
 ];
 
-export default function WorkAuthorizationRequestsTable() {
+export default function WorkAuthorizationRequestsTable({
+  scope = "user",
+}: {
+  scope?: "user" | "admin";
+}) {
   const [requests, setRequests] = useState<WorkAuthorizationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,7 +68,16 @@ export default function WorkAuthorizationRequestsTable() {
         if (mounted) {
           // Draft rows are hidden for now. Keep the mock draft records intact so
           // draft workflows can return later without rebuilding the data.
-          setRequests(items.filter((item) => item.status !== "draft"));
+          setRequests(
+            sortByLatestSafetyActivity(
+              items.filter(
+                (item) =>
+                  item.status !== "draft" &&
+                  (scope === "admin" || isSafetyCurrentUser(item.requester.name)),
+              ),
+              (item) => item.requester.requestDate,
+            ),
+          );
         }
       })
       .finally(() => {
@@ -71,7 +89,7 @@ export default function WorkAuthorizationRequestsTable() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [scope]);
 
   if (isLoading) {
     return (
@@ -90,7 +108,11 @@ export default function WorkAuthorizationRequestsTable() {
     <DataTable
       columns={columns}
       data={requests}
-      rowHref={(request) => `/safety/work-authorization/${request.id}`}
+      rowHref={(request) =>
+        scope === "admin"
+          ? getAdminWorkAuthorizationHref(request)
+          : `/safety/work-authorization/${request.id}`
+      }
       emptyMessage="No work authorization requests found."
       getSearchValues={(request) => [
         request.workInitiation.title,

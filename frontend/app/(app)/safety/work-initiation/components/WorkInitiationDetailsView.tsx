@@ -47,7 +47,13 @@ const contractorOptions = toOptions([
 ]);
 const yesNoOptions = toOptions(["Yes", "No"]);
 
-export default function WorkInitiationDetailsView({ requestId }: { requestId: string }) {
+export default function WorkInitiationDetailsView({
+  requestId,
+  initialRole,
+}: {
+  requestId: string;
+  initialRole?: WorkInitiationRole;
+}) {
   const router = useRouter();
   const initialRequest = getMockWorkInitiationRequest(requestId);
   const { incidentHazards, workInitiations } = useSafetyDemoData();
@@ -59,7 +65,9 @@ export default function WorkInitiationDetailsView({ requestId }: { requestId: st
       label: `${report.id} - ${report.title || report.reportType}`,
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
-  const [currentRole, setCurrentRole] = useState<WorkInitiationRole>("requester");
+  const [currentRole, setCurrentRole] = useState<WorkInitiationRole>(
+    initialRole ?? "requester",
+  );
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHodComment, setOperationsHodComment] = useState("");
   const [assignedWorkers, setAssignedWorkers] = useState<string[]>(
