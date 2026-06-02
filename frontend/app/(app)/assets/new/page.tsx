@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import { ArrowLeft } from "lucide-react";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
@@ -34,18 +35,6 @@ const schema = z.object({
   description: z.string().optional(),
   maintenance_type: z.enum(["routine", "inspection", "calibration", "repair"]).optional(),
   maintenance_frequency_months: z.string().optional(),
-  // Vehicle-specific fields
-  plate_number: z.string().optional(),
-  vehicle_type: z.enum(["sedan", "suv", "pickup_truck", "van", "bus", "motorcycle", "tanker"]).optional(),
-  fuel_type: z.enum(["petrol", "diesel", "electric", "hybrid", "cng"]).optional(),
-  year_of_manufacture: z.string().optional(),
-  color: z.string().optional(),
-  engine_number: z.string().optional(),
-  chassis_number: z.string().optional(),
-  mileage_at_registration: z.string().optional(),
-  seating_capacity: z.string().optional(),
-  insurance_expiry_date: z.string().optional(),
-  road_worthiness_expiry_date: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -79,24 +68,6 @@ const frequencyOptions = [
   { value: "6",  label: "Every 6 months" },
   { value: "12", label: "Every year" },
   { value: "24", label: "Every 2 years" },
-];
-
-const vehicleTypeOptions = [
-  { value: "sedan",        label: "Sedan" },
-  { value: "suv",          label: "SUV" },
-  { value: "pickup_truck", label: "Pickup Truck" },
-  { value: "van",          label: "Van" },
-  { value: "bus",          label: "Bus" },
-  { value: "motorcycle",   label: "Motorcycle" },
-  { value: "tanker",       label: "Tanker" },
-];
-
-const fuelTypeOptions = [
-  { value: "petrol",   label: "Petrol" },
-  { value: "diesel",   label: "Diesel" },
-  { value: "electric", label: "Electric" },
-  { value: "hybrid",   label: "Hybrid" },
-  { value: "cng",      label: "CNG (Compressed Natural Gas)" },
 ];
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -136,9 +107,6 @@ export default function RegisterAssetPage() {
   const { data: assetTypes = [] } = useAssetTypes(watchedCategoryId || undefined);
   const assetTypeOptions = assetTypes.map((t) => ({ value: t.id, label: t.name }));
 
-  const selectedCategory = categories.find((c) => c.id === watchedCategoryId);
-  const isVehicleCategory = selectedCategory?.name.toLowerCase().includes("vehicle") ?? false;
-
   if (user && !isAdmin) {
     router.replace("/assets");
     return null;
@@ -150,6 +118,7 @@ export default function RegisterAssetPage() {
         data: {
           name: formData.name,
           category_id: formData.category_id || undefined,
+          asset_type_id: formData.asset_type_id || undefined,
           serial_number: formData.serial_number || undefined,
           purchase_date: formData.purchase_date || undefined,
           purchase_cost: formData.purchase_cost ? parseFloat(formData.purchase_cost) : undefined,
@@ -162,19 +131,6 @@ export default function RegisterAssetPage() {
           maintenance_frequency_months: formData.maintenance_frequency_months
             ? parseInt(formData.maintenance_frequency_months)
             : undefined,
-          vehicle_details: isVehicleCategory ? {
-            plate_number: formData.plate_number || null,
-            vehicle_type: (formData.vehicle_type as import("@/types").AssetVehicleType) || null,
-            fuel_type: (formData.fuel_type as import("@/types").AssetFuelType) || null,
-            year_of_manufacture: formData.year_of_manufacture ? parseInt(formData.year_of_manufacture) : null,
-            color: formData.color || null,
-            engine_number: formData.engine_number || null,
-            chassis_number: formData.chassis_number || null,
-            mileage_at_registration: formData.mileage_at_registration ? parseFloat(formData.mileage_at_registration) : null,
-            seating_capacity: formData.seating_capacity ? parseInt(formData.seating_capacity) : null,
-            insurance_expiry_date: formData.insurance_expiry_date || null,
-            road_worthiness_expiry_date: formData.road_worthiness_expiry_date || null,
-          } : null,
         },
         image: imageFiles[0] ?? null,
       });
@@ -187,6 +143,13 @@ export default function RegisterAssetPage() {
 
   return (
     <AppLayout pageTitle="Assets">
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
+      >
+        <ArrowLeft size={14} /> Back to Assets
+      </button>
       <PageHeader
         title="Register Asset"
         description="Add a new asset to the company registry"
@@ -259,8 +222,8 @@ export default function RegisterAssetPage() {
           </p>
         </FormSection>
 
-        {/* ── Section 2: Purchase Info + Assignment ───────────────────────── */}
-        <FormSection title="Purchase Info & Assignment" description="Cost, location and optional assignment" bodyClassName="p-6 space-y-0">
+        {/* ── Section 2: Purchase Info ─────────────────────────────────────── */}
+        <FormSection title="Purchase Info" description="Cost and current physical location of this asset" bodyClassName="p-6 space-y-0">
           <div className="grid grid-cols-3 gap-5">
             <FormDatePicker
               label="Purchase Date"
@@ -277,105 +240,33 @@ export default function RegisterAssetPage() {
               {...register("purchase_cost")}
             />
             <FormInput
-              label="Location"
+              label="Current Location"
               required
-              placeholder="e.g. Lekki Office, Floor 2"
-              hint="Physical location where this asset will be kept"
+              placeholder="e.g. Lekki Office, Store Room"
+              hint="Where is this asset physically kept right now?"
               error={errors.location?.message}
               {...register("location")}
             />
+          </div>
+        </FormSection>
+
+        {/* ── Section 3: Assignment (Optional) ────────────────────────────── */}
+        <FormSection
+          title="Assignment"
+          description="Optional — assign this asset to an employee now, or leave blank and do it later"
+          bodyClassName="p-6 space-y-0"
+        >
+          <div className="grid grid-cols-3 gap-5">
             <FormSelect
-              label="Assigned To (Optional)"
+              label="Assign To"
               options={employeeOptions}
-              placeholder="Select employee"
-              hint="Leave blank if not yet assigned"
+              placeholder="Select employee (optional)"
+              hint="The asset can be assigned separately after registration"
               error={errors.assigned_to_name?.message}
               {...register("assigned_to_name")}
             />
           </div>
         </FormSection>
-
-        {/* ── Section 3: Vehicle Details (conditional) ────────────────────── */}
-        {isVehicleCategory && (
-          <FormSection title="Vehicle Details" description="Registration and specification details for this vehicle" bodyClassName="p-6 space-y-0">
-            <div className="grid grid-cols-3 gap-5">
-              <FormInput
-                label="Plate Number"
-                placeholder="e.g. KJA-234-PH"
-                error={errors.plate_number?.message}
-                {...register("plate_number")}
-              />
-              <FormSelect
-                label="Vehicle Type"
-                options={vehicleTypeOptions}
-                placeholder="Select vehicle type"
-                error={errors.vehicle_type?.message}
-                {...register("vehicle_type")}
-              />
-              <FormSelect
-                label="Fuel Type"
-                options={fuelTypeOptions}
-                placeholder="Select fuel type"
-                error={errors.fuel_type?.message}
-                {...register("fuel_type")}
-              />
-              <FormInput
-                label="Year of Manufacture"
-                type="number"
-                min="1900"
-                max={new Date().getFullYear()}
-                placeholder={String(new Date().getFullYear())}
-                error={errors.year_of_manufacture?.message}
-                {...register("year_of_manufacture")}
-              />
-              <FormInput
-                label="Color"
-                placeholder="e.g. White"
-                error={errors.color?.message}
-                {...register("color")}
-              />
-              <FormInput
-                label="Seating Capacity"
-                type="number"
-                min="1"
-                placeholder="e.g. 5"
-                error={errors.seating_capacity?.message}
-                {...register("seating_capacity")}
-              />
-              <FormInput
-                label="Engine Number"
-                placeholder="e.g. 2GD-FTV-PH001"
-                error={errors.engine_number?.message}
-                {...register("engine_number")}
-              />
-              <FormInput
-                label="Chassis Number (VIN)"
-                placeholder="e.g. MROFZ29G100123456"
-                error={errors.chassis_number?.message}
-                {...register("chassis_number")}
-              />
-              <FormInput
-                label="Mileage at Registration (km)"
-                type="number"
-                min="0"
-                placeholder="e.g. 12"
-                hint="Odometer reading at time of registration"
-                error={errors.mileage_at_registration?.message}
-                {...register("mileage_at_registration")}
-              />
-              <FormDatePicker
-                label="Insurance Expiry Date"
-                error={errors.insurance_expiry_date?.message}
-                {...register("insurance_expiry_date")}
-              />
-              <FormDatePicker
-                label="Road Worthiness Expiry Date"
-                error={errors.road_worthiness_expiry_date?.message}
-                {...register("road_worthiness_expiry_date")}
-              />
-            </div>
-          </FormSection>
-        )}
 
         {/* ── Section 4: Description & Image ──────────────────────────────── */}
         <FormSection title="Description & Image" description="Optional details and a photo of the asset">

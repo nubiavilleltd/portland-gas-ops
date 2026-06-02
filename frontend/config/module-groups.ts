@@ -258,21 +258,15 @@ export const moduleGroups: readonly ModuleGroup[] = [
     processes: [
       {
         name: "Assets",
-        description: "Register, track & request company assets",
+        description: "Browse & request available company assets",
         icon: Package,
         href: "/assets",
       },
       {
-        name: "Purchase Requests",
-        description: "Raise & manage purchase requisitions",
+        name: "Purchase & Service Requests",
+        description: "Raise & manage purchase and service requisitions",
         icon: ShoppingCart,
         href: "/procurement",
-      },
-      {
-        name: "Vendors",
-        description: "Suppliers & service providers",
-        icon: Store,
-        href: "/vendors",
       },
     ],
   },

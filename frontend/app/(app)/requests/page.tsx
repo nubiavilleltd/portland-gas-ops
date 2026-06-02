@@ -154,7 +154,7 @@ export default function MyRequestsPage() {
     id:           p.id,
     reference:    p.reference,
     process:      "procurement" as ProcessType,
-    title:        p.title ?? `${p.category} request`,
+    title:        `${p.category.charAt(0).toUpperCase()}${p.category.slice(1).replace(/_/g, " ")} Request`,
     status:       p.status,
     submitted_at: p.created_at,
     href:         `/procurement/${p.id}`,

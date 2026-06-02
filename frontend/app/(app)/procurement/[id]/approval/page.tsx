@@ -14,7 +14,7 @@ const MOCK_STEPS: ApprovalStep[] = [
   {
     id: "s1", request_id: "1", step_number: 1, step_type: "individual", group_rule: null,
     status: "approved", completed_at: "2024-05-11T09:30:00Z",
-    assignees: [{ id: "a1", step_id: "s1", user_id: "u1", user_name: "Chinyere Okafor (Line Manager)", decision: "approved", decided_at: "2024-05-11T09:30:00Z", comment: "Budgeted and necessary." }],
+    assignees: [{ id: "a1", step_id: "s1", user_id: "u1", user_name: "Chinyere Okafor (Operations Manager)", decision: "approved", decided_at: "2024-05-11T09:30:00Z", comment: "Budgeted and necessary." }],
   },
   {
     id: "s2", request_id: "1", step_number: 2, step_type: "individual", group_rule: null,
@@ -24,7 +24,7 @@ const MOCK_STEPS: ApprovalStep[] = [
 ];
 
 const STEP_TITLES: Record<number, string> = {
-  1: "Line Manager",
+  1: "Operations Manager",
   2: "Procurement Officer",
 };
 
