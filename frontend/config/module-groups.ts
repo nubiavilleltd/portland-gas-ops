@@ -50,39 +50,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
   //   ],
   // },
   {
-    title: "Finance",
-    routePrefixes: ["/finance"],
-    processes: [
-      {
-        name: "Cash Requisition",
-        description: "Petty cash and operational funds",
-        icon: Banknote,
-        href: "/finance/cash-requisitions",
-      },
-      {
-        name: "Invoice Processing",
-        description: "Supplier invoices and approvals",
-        icon: FileText,
-        href: "/finance/invoices",
-        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
-      },
-      {
-        name: "Payments",
-        description: "Record and review payments",
-        icon: DollarSign,
-        href: "/payments",
-        showOnHome: false,
-      },
-      {
-        name: "Billing",
-        description: "Billing operations",
-        icon: DollarSign,
-        href: "/billing",
-        showOnHome: false,
-      },
-    ],
-  },
-  {
     title: "HR Management",
     routePrefixes: ["/hr-management", "/hr"],
     processes: [
