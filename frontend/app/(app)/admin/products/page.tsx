@@ -64,7 +64,7 @@ export default function ProductsPage() {
         description="Manage the product catalogue available for order creation"
         action={
           <Button
-            href={PRODUCT_ROUTES.new()}
+            href={`/admin${PRODUCT_ROUTES.new()}`}
             leftIcon={<Plus size={16} />}
           >
             New Product
@@ -78,7 +78,7 @@ export default function ProductsPage() {
         data={products}
         isLoading={isLoading}
         // error={error}
-        rowHref={(product) => PRODUCT_ROUTES.detail(product.id)}
+        rowHref={(product) => `/admin${PRODUCT_ROUTES.detail(product.id)}`}
         emptyMessage="No products found. Add your first product to get started."
       />
     </AppLayout>
