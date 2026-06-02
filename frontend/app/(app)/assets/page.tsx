@@ -16,12 +16,11 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { formatCurrency, capitalize } from "@/lib/utils";
 import type { Asset, AssetStatus } from "@/types";
 
-const STATUS_TABS: { label: string; value: AssetStatus | undefined }[] = [
-  { label: "All",          value: undefined },
-  { label: "Available",    value: "available" },
-  { label: "Assigned",     value: "assigned" },
-  { label: "Under Repair", value: "under_repair" },
-  { label: "Retired",      value: "retired" },
+const STATUS_OPTIONS = [
+  { value: "available",    label: "Available" },
+  { value: "assigned",     label: "Assigned" },
+  { value: "under_repair", label: "Under Repair" },
+  { value: "retired",      label: "Retired" },
 ];
 
 const STATUS_STYLES: Record<AssetStatus, string> = {
@@ -198,7 +197,7 @@ type ViewMode = "card" | "table";
 
 export default function AssetsPage() {
   const { user } = useCurrentUser();
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin" || user?.role === "asset_admin";
 
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState<AssetStatus | undefined>(undefined);
@@ -239,7 +238,7 @@ export default function AssetsPage() {
       />
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-end gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary" />
           <input
@@ -247,6 +246,15 @@ export default function AssetsPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, tag, assignee…"
             className="w-full pl-9 pr-4 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+          />
+        </div>
+        <div className="w-44 shrink-0">
+          <SelectInput
+            placeholder="All Statuses"
+            sortOptions={false}
+            value={activeStatus ?? ""}
+            onValueChange={(v) => setActiveStatus((v || undefined) as AssetStatus | undefined)}
+            options={STATUS_OPTIONS}
           />
         </div>
         {categories.length > 0 && (
@@ -259,24 +267,6 @@ export default function AssetsPage() {
             />
           </div>
         )}
-      </div>
-
-      {/* Status tabs */}
-      <div className="inline-flex gap-1 mb-5 bg-white border border-brand-border rounded-xl p-1 max-w-full overflow-x-auto">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.label}
-            onClick={() => setActiveStatus(tab.value)}
-            className={[
-              "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap",
-              activeStatus === tab.value
-                ? "bg-brand-purple text-white font-medium"
-                : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
-            ].join(" ")}
-          >
-            {tab.label}
-          </button>
-        ))}
       </div>
 
       {/* Count + view toggle + requests link */}

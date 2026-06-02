@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { categoryStore, assetTypeStore, assetStore, assetRequestStore, maintenanceLogStore, assignmentLogStore } from "@/lib/mockStore";
 import type { Asset, AssetCategory, AssetType, AssetAssignmentLog, AssetRequest, AssetRequestListItem, AssetRequestStatus, AssetMaintenanceLog, AssetTransferInput } from "@/types";
@@ -83,12 +84,13 @@ export function useDeleteAssetType() {
 
 // ── Assets ─────────────────────────────────────────────────────────────────────
 
-export function useAssets(params?: { category_id?: string; status?: string; search?: string }) {
+export function useAssets(params?: { category_id?: string; asset_type_id?: string; status?: string; search?: string }) {
   return useQuery<Asset[]>({
     queryKey: ["assets", params ?? {}],
     queryFn: () => {
       let list = assetStore.getAll();
       if (params?.category_id) list = list.filter((a) => a.category_id === params.category_id);
+      if (params?.asset_type_id) list = list.filter((a) => a.asset_type_id === params.asset_type_id);
       if (params?.status) list = list.filter((a) => a.status === params.status);
       if (params?.search) {
         const q = params.search.toLowerCase();
@@ -233,6 +235,31 @@ export function useUpdateAssetRequestStatus(id: string) {
       queryClient.invalidateQueries({ queryKey: ["assets"] });
     },
   });
+}
+
+export function useAllocateAssetRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { requestId: string; allocations: { itemId: string; assetIds: string[] }[]; allocatedByName: string }) =>
+      Promise.resolve(assetRequestStore.allocate(data.requestId, data.allocations, data.allocatedByName)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["asset-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["assignment-logs"] });
+    },
+  });
+}
+
+/** Returns a map of { [assetTypeId]: availableCount } derived from live asset data. */
+export function useAssetAvailability(): Record<string, number> {
+  const { data: assets = [] } = useAssets();
+  return useMemo(() => {
+    const counts: Record<string, number> = {};
+    assets
+      .filter((a) => a.status === "available" && a.asset_type_id)
+      .forEach((a) => { counts[a.asset_type_id!] = (counts[a.asset_type_id!] ?? 0) + 1; });
+    return counts;
+  }, [assets]);
 }
 
 // ── Maintenance Logs ───────────────────────────────────────────────────────────

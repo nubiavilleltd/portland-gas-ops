@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -337,6 +337,12 @@ export default function AssetCategoriesPage() {
 
   return (
     <AppLayout pageTitle="Assets">
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
+      >
+        <ArrowLeft size={14} /> Back to Assets
+      </button>
       <PageHeader
         title="Categories & Asset Types"
         description="Organise assets by category and define the types within each category"
