@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus, Search, Pencil, Trash2, Phone, Mail, MapPin, LayoutGrid, Table2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -53,6 +54,9 @@ const EMPTY_FORM = {
   phone: "",
   email: "",
   address: "",
+  bank_name: "",
+  account_name: "",
+  account_number: "",
 };
 
 type FormData = typeof EMPTY_FORM;
@@ -178,6 +182,38 @@ function VendorFormModal({
             </div>
           </div>
 
+          {/* Bank details */}
+          <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide pt-1">Bank Details</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Bank Name</label>
+              <input
+                value={form.bank_name}
+                onChange={(e) => set("bank_name", e.target.value)}
+                placeholder="e.g. First Bank"
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Account Name</label>
+              <input
+                value={form.account_name}
+                onChange={(e) => set("account_name", e.target.value)}
+                placeholder="e.g. Persianas Furniture Ltd"
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-brand-text-primary mb-1">Account Number</label>
+              <input
+                value={form.account_number}
+                onChange={(e) => set("account_number", e.target.value)}
+                placeholder="10-digit account number"
+                className="w-full px-3 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              />
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors">
               Cancel
@@ -211,7 +247,10 @@ function VendorCard({
   const initials = vendor.name.charAt(0).toUpperCase();
 
   return (
-    <div className="bg-white border border-brand-border rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
+    <Link
+      href={`/vendors/${vendor.id}`}
+      className="bg-white border border-brand-border rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col gap-3 group"
+    >
       {/* Top row */}
       <div className="flex items-start gap-3">
         {/* Avatar */}
@@ -221,7 +260,7 @@ function VendorCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="font-semibold text-brand-text-primary leading-tight truncate">{vendor.name}</p>
+              <p className="font-semibold text-brand-text-primary leading-tight truncate group-hover:text-brand-purple transition-colors">{vendor.name}</p>
               {vendor.vendor_code && (
                 <span className="inline-block mt-0.5 text-[10px] font-mono bg-gray-100 text-brand-text-secondary px-1.5 py-0.5 rounded">
                   {vendor.vendor_code}
@@ -251,22 +290,46 @@ function VendorCard({
         )}
       </div>
 
+      {/* Bank details */}
+      {(vendor.bank_name || vendor.account_name || vendor.account_number) && (
+        <div className="space-y-1 text-xs text-brand-text-secondary border-t border-brand-border pt-2">
+          {vendor.bank_name && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-brand-text-secondary">Bank:</span>
+              <span className="font-medium text-brand-text-primary">{vendor.bank_name}</span>
+            </div>
+          )}
+          {vendor.account_name && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-brand-text-secondary">Name:</span>
+              <span className="font-medium text-brand-text-primary">{vendor.account_name}</span>
+            </div>
+          )}
+          {vendor.account_number && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-brand-text-secondary">Acct:</span>
+              <span className="font-mono font-medium text-brand-text-primary">{vendor.account_number}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 pt-1 border-t border-brand-border">
         <button
-          onClick={() => onEdit(vendor)}
+          onClick={(e) => { e.preventDefault(); onEdit(vendor); }}
           className="flex items-center gap-1 text-xs text-brand-text-secondary hover:text-brand-purple transition-colors px-2 py-1 rounded hover:bg-purple-50"
         >
           <Pencil size={12} /> Edit
         </button>
         <button
-          onClick={() => onDelete(vendor)}
+          onClick={(e) => { e.preventDefault(); onDelete(vendor); }}
           className="flex items-center gap-1 text-xs text-brand-text-secondary hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50"
         >
           <Trash2 size={12} /> Delete
         </button>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -393,6 +456,9 @@ export default function VendorsPage() {
         phone: editTarget.phone ?? "",
         email: editTarget.email ?? "",
         address: editTarget.address ?? "",
+        bank_name: editTarget.bank_name ?? "",
+        account_name: editTarget.account_name ?? "",
+        account_number: editTarget.account_number ?? "",
       }
     : EMPTY_FORM;
 
@@ -491,6 +557,7 @@ export default function VendorsPage() {
               data={vendors}
               emptyMessage="No vendors found."
               searchable={false}
+              rowHref={(v) => `/vendors/${v.id}`}
             />
           )}
         </>

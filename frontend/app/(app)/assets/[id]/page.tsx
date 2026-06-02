@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -16,7 +16,9 @@ import {
   Car,
   ArrowRight,
   History,
+  Download,
 } from "lucide-react";
+import QRCode from "react-qr-code";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -28,6 +30,7 @@ import {
   useMaintenanceLogs,
   useCreateMaintenanceLog,
   useAssetCategories,
+  useAssetTypes,
   useAssignmentLogs,
 } from "@/hooks/useAssets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -87,6 +90,7 @@ interface EditModalProps {
     id: string;
     name: string;
     category_id: string | null;
+    asset_type_id: string | null;
     serial_number: string | null;
     purchase_date: string | null;
     purchase_cost: number | null;
@@ -109,6 +113,7 @@ function EditModal({ asset, categoryOptions, onClose }: EditModalProps) {
   const [form, setForm] = useState({
     name: asset.name,
     category_id: asset.category_id ?? "",
+    asset_type_id: asset.asset_type_id ?? "",
     serial_number: asset.serial_number ?? "",
     purchase_date: asset.purchase_date ?? "",
     purchase_cost: asset.purchase_cost !== null ? String(asset.purchase_cost) : "",
@@ -121,8 +126,14 @@ function EditModal({ asset, categoryOptions, onClose }: EditModalProps) {
     maintenance_frequency_months: asset.maintenance_frequency_months ? String(asset.maintenance_frequency_months) : "",
   });
 
+  const { data: assetTypes = [] } = useAssetTypes(form.category_id || undefined);
+
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function setCategory(value: string) {
+    setForm((prev) => ({ ...prev, category_id: value, asset_type_id: "" }));
   }
 
   async function handleSave() {
@@ -139,6 +150,7 @@ function EditModal({ asset, categoryOptions, onClose }: EditModalProps) {
         data: {
           name: form.name,
           category_id: form.category_id || undefined,
+          asset_type_id: form.asset_type_id || undefined,
           serial_number: form.serial_number || undefined,
           purchase_date: form.purchase_date || undefined,
           purchase_cost: form.purchase_cost ? parseFloat(form.purchase_cost) : undefined,
@@ -187,7 +199,7 @@ function EditModal({ asset, categoryOptions, onClose }: EditModalProps) {
               <label className="text-sm font-medium text-brand-text-primary">Category</label>
               <select
                 value={form.category_id}
-                onChange={(e) => set("category_id", e.target.value)}
+                onChange={(e) => setCategory(e.target.value)}
                 className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
               >
                 <option value="">No category</option>
@@ -197,14 +209,29 @@ function EditModal({ asset, categoryOptions, onClose }: EditModalProps) {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">Serial Number</label>
-              <input
-                value={form.serial_number}
-                onChange={(e) => set("serial_number", e.target.value)}
-                placeholder="Serial number"
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-              />
+              <label className="text-sm font-medium text-brand-text-primary">Asset Type</label>
+              <select
+                value={form.asset_type_id}
+                onChange={(e) => set("asset_type_id", e.target.value)}
+                disabled={!form.category_id || assetTypes.length === 0}
+                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white disabled:opacity-50"
+              >
+                <option value="">{form.category_id ? "No type" : "Select a category first"}</option>
+                {assetTypes.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">Serial Number</label>
+            <input
+              value={form.serial_number}
+              onChange={(e) => set("serial_number", e.target.value)}
+              placeholder="Serial number"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -580,12 +607,33 @@ export default function AssetDetailPage() {
   const { data: assignmentLogs = [] } = useAssignmentLogs(id);
   const { data: categories = [] } = useAssetCategories();
 
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin" || user?.role === "asset_admin";
+  const qrRef = useRef<HTMLDivElement>(null);
+
+  function downloadQR() {
+    const container = qrRef.current;
+    if (!container) return;
+    const svg = container.querySelector("svg");
+    if (!svg) return;
+    const serialized = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([serialized], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${asset?.asset_tag ?? asset?.name ?? "asset"}-qr.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"details" | "log" | "maintenance">("details");
+  const tabs = isAdmin
+    ? (["details", "log", "maintenance"] as const)
+    : (["details", "log"] as const);
+  type ActiveTab = typeof tabs[number];
+  const [activeTab, setActiveTab] = useState<ActiveTab>("details");
 
   async function handleDelete() {
     try {
@@ -626,7 +674,7 @@ export default function AssetDetailPage() {
         <ArrowLeft size={14} /> Back to Assets
       </button>
 
-      <div className="max-w-5xl space-y-5">
+      <div className="space-y-5">
 
         {/* ── Header card ─────────────────────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
@@ -681,7 +729,7 @@ export default function AssetDetailPage() {
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
         <div className="flex gap-1 bg-white border border-brand-border rounded-xl p-1 w-fit">
-          {(["details", "log", "maintenance"] as const).map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -724,6 +772,7 @@ export default function AssetDetailPage() {
                   <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
                     {([
                       ["Category",      asset.category?.name ?? "—"],
+                      ["Asset Type",    asset.asset_type?.name ?? "—"],
                       ["Asset Tag",     asset.asset_tag ?? "—"],
                       ["Serial Number", asset.serial_number ?? "—"],
                       ["Location",      asset.location ?? "—"],
@@ -814,6 +863,36 @@ export default function AssetDetailPage() {
                       <span className="font-medium text-brand-text-primary">{asset.category.name}</span>
                     </div>
                   )}
+                  {asset.asset_type && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-brand-text-secondary">Asset Type</span>
+                      <span className="font-medium text-brand-text-primary">{asset.asset_type.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* QR Code */}
+              <div className="bg-white border border-brand-border rounded-2xl p-5">
+                <h3 className="text-sm font-semibold text-brand-text-primary mb-4">QR Code</h3>
+                <div className="flex flex-col items-center gap-3">
+                  <div ref={qrRef} className="p-3 bg-white border border-brand-border rounded-xl">
+                    <QRCode
+                      value={`${typeof window !== "undefined" ? window.location.origin : ""}/assets/${asset.id}`}
+                      size={140}
+                      fgColor="#1a1a1a"
+                      bgColor="#ffffff"
+                    />
+                  </div>
+                  {asset.asset_tag && (
+                    <p className="text-xs font-mono text-brand-text-secondary">{asset.asset_tag}</p>
+                  )}
+                  <button
+                    onClick={downloadQR}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-brand-border text-brand-text-primary text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={13} /> Download QR
+                  </button>
                 </div>
               </div>
 

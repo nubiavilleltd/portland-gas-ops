@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, AlertCircle, Package, CheckCircle, XCircle, Clock, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowLeft, AlertCircle, Package,
+  CheckCircle, XCircle, Clock, Circle, RotateCcw, Boxes,
+} from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import ToggleGroup from "@/components/ui/ToggleGroup";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { useAssetRequest, useUpdateAssetRequestStatus } from "@/hooks/useAssets";
+import { useAssetRequest, useUpdateAssetRequestStatus, useAssetAvailability } from "@/hooks/useAssets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, capitalize } from "@/lib/utils";
@@ -28,15 +31,6 @@ function TypeBadge({ type }: { type: string }) {
   );
 }
 
-// ── Demo view toggle ───────────────────────────────────────────────────────────
-
-type DemoView = "requester" | "asset_admin";
-
-const DEMO_VIEWS: { value: DemoView; label: string }[] = [
-  { value: "requester",   label: "Requester"   },
-  { value: "asset_admin", label: "Asset Admin" },
-];
-
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function AssetRequestDetailPage() {
@@ -48,18 +42,19 @@ export default function AssetRequestDetailPage() {
   const { data: req, isLoading, isError } = useAssetRequest(id);
   const updateStatus = useUpdateAssetRequestStatus(id);
 
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
-
-  const [demoView, setDemoView] = useState<DemoView>("requester");
   const [approvalComment, setApprovalComment] = useState("");
   const [approvalAction, setApprovalAction] = useState<"approve" | "reject" | "return" | null>(null);
 
+  const isAssetAdmin =
+    user?.role === "asset_admin" ||
+    user?.role === "admin" ||
+    user?.role === "super_admin";
+
+  const availability = useAssetAvailability();
+
   async function handleAction(status: AssetRequestStatus, reason?: string) {
     try {
-      await updateStatus.mutateAsync({
-        status,
-        rejection_reason: reason || undefined,
-      });
+      await updateStatus.mutateAsync({ status, rejection_reason: reason || undefined });
       toast.success(
         status === "approved" ? "Request approved" :
         status === "rejected" ? "Request rejected" :
@@ -77,7 +72,7 @@ export default function AssetRequestDetailPage() {
       await updateStatus.mutateAsync({ status: "returned" });
       toast.success("Marked as returned");
     } catch {
-      toast.error("Failed to update request");
+      toast.error("Failed to update");
     }
   }
 
@@ -101,34 +96,53 @@ export default function AssetRequestDetailPage() {
     );
   }
 
-  const isAdminView  = demoView === "asset_admin";
-  const canApprove   = isAdminView && req.status === "pending";
-  const canReturn    = demoView === "requester" && req.status === "approved" && req.request_type === "loan";
+  const canApprove    = isAssetAdmin && req.status === "pending";
+  const canAllocate   = isAssetAdmin && req.status === "approved";
+  const canMarkReturn = !isAssetAdmin && (req.status === "approved" || req.status === "allocated") && req.request_type === "loan";
+
+  // Check if there is enough stock to approve each requested item
+  const stockIssues = req.items
+    .map((item) => ({
+      typeName: item.asset_type?.name ?? "Unknown type",
+      requested: item.quantity,
+      available: availability[item.asset_type_id] ?? 0,
+    }))
+    .filter((issue) => issue.available < issue.requested);
+  const hasStockIssues = stockIssues.length > 0;
+
+  const approvalDialogConfig = {
+    approve: { title: "Approve Request",     message: "Confirm that you are approving this asset request.",                        confirmLabel: "Approve", destructive: false },
+    reject:  { title: "Reject Request",      message: "This will reject the request. The requester will be notified.",              confirmLabel: "Reject",  destructive: true  },
+    return:  { title: "Return to Requester", message: "The request will be sent back to the requester for modification.",           confirmLabel: "Return",  destructive: false },
+  } as const;
 
   return (
     <AppLayout pageTitle="Assets">
 
-      {/* ── Top bar ──────────────────────────────────────────────────────── */}
+      {/* ── Top bar ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => router.back()}
+        <Link
+          href="/assets/requests"
           className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
         >
           <ArrowLeft size={14} /> Back to Requests
-        </button>
+        </Link>
+        {canMarkReturn && (
+          <button
+            onClick={handleMarkReturned}
+            disabled={updateStatus.isPending}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-primary hover:bg-gray-50 transition-colors disabled:opacity-60"
+          >
+            <RotateCcw size={14} />
+            {updateStatus.isPending ? "Updating…" : "Mark as Returned"}
+          </button>
+        )}
       </div>
 
-      <div className="max-w-3xl space-y-5">
-
-        {/* ── DEMO view toggle ─────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-brand-text-secondary shrink-0">Viewing as</span>
-          <ToggleGroup options={DEMO_VIEWS} value={demoView} onChange={setDemoView} />
-        </div>
+      <div className="space-y-5">
 
         {/* ── Section 1: Request Overview ──────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
-          {/* Reference + badges */}
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
               <p className="text-xs font-mono text-brand-text-secondary mb-2">{req.reference}</p>
@@ -145,7 +159,6 @@ export default function AssetRequestDetailPage() {
             </div>
           </div>
 
-          {/* Meta row — only show what exists */}
           <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-brand-border pt-4 text-sm">
             {req.request_type === "loan" && req.return_date && (
               <div>
@@ -159,13 +172,11 @@ export default function AssetRequestDetailPage() {
             </div>
           </div>
 
-          {/* Purpose */}
           <div className="mt-4 pt-4 border-t border-brand-border text-sm">
             <p className="text-xs text-brand-text-secondary mb-1">Purpose</p>
             <p className="text-brand-text-primary leading-relaxed">{req.purpose}</p>
           </div>
 
-          {/* Rejection reason */}
           {req.rejection_reason && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-xs font-medium text-red-700 mb-1">Rejection Reason</p>
@@ -174,7 +185,7 @@ export default function AssetRequestDetailPage() {
           )}
         </div>
 
-        {/* ── Section 2: Line Items ────────────────────────────────────────── */}
+        {/* ── Section 2: Requested Items ───────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-brand-border">
             <h2 className="text-sm font-semibold text-brand-text-primary">
@@ -213,16 +224,52 @@ export default function AssetRequestDetailPage() {
           </div>
         </div>
 
-        {/* ── Section 3: Approval Section (asset admin view) ──────────────── */}
-        {isAdminView && (
-          <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-              <h2 className="text-sm font-semibold text-brand-text-primary">Approval Section</h2>
-              <p className="text-xs text-brand-text-secondary mt-0.5">
-                Reviewing as <span className="font-medium text-brand-text-primary">Asset Admin</span>
+        {/* ── Allocation banner (asset admin, approved) ────────────────────── */}
+        {canAllocate && (
+          <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex items-center justify-center h-8 w-8 rounded-full bg-teal-100 shrink-0">
+                <Boxes size={15} className="text-teal-700" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-teal-800">Request approved — allocate assets</p>
+                <p className="text-xs text-teal-700 mt-0.5">
+                  The need has been validated. Pick specific assets from the registry to complete this request.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/assets/allocations/new?requestId=${id}`}
+              className="shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-colors"
+            >
+              Allocate Assets
+            </Link>
+          </div>
+        )}
+
+        {/* ── Allocated confirmation banner ─────────────────────────────────── */}
+        {isAssetAdmin && req.status === "allocated" && (
+          <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 flex items-start gap-3">
+            <div className="mt-0.5 flex items-center justify-center h-8 w-8 rounded-full bg-teal-100 shrink-0">
+              <CheckCircle size={15} className="text-teal-700" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-teal-800">Assets allocated</p>
+              <p className="text-xs text-teal-700 mt-0.5">
+                Allocated by {req.allocated_by_name ?? "Asset Admin"}
+                {req.allocated_at ? ` on ${formatDate(req.allocated_at)}` : ""}.
               </p>
             </div>
-            <div className="p-6">
+          </div>
+        )}
+
+        {/* ── Section 3: Asset Admin — Approval Decision ───────────────────── */}
+        {isAssetAdmin && (
+          <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-text-primary mb-1">Approval Decision</h2>
+            <p className="text-xs text-brand-text-secondary mb-5">
+              Reviewing as <span className="font-medium text-brand-text-primary">Asset Admin</span>
+            </p>
             {canApprove ? (
               <>
                 <FormTextarea
@@ -247,98 +294,123 @@ export default function AssetRequestDetailPage() {
                   </button>
                   <button
                     onClick={() => setApprovalAction("approve")}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors"
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                      hasStockIssues
+                        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                        : "bg-brand-purple text-white hover:bg-brand-purple-dark"
+                    }`}
+                    title={hasStockIssues ? "Insufficient stock — cannot approve" : undefined}
                   >
-                    <CheckCircle size={14} /> Approve
+                    <CheckCircle size={14} /> Approve{hasStockIssues ? " (blocked)" : ""}
                   </button>
                 </div>
               </>
             ) : (
-              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-brand-border">
-                {req.status === "approved" && <CheckCircle size={16} className="text-green-500 shrink-0" />}
-                {req.status === "rejected" && <XCircle size={16} className="text-red-500 shrink-0" />}
-                {(req.status === "returned" || req.status === "pending") && <Clock size={16} className="text-brand-text-secondary shrink-0" />}
-                <p className="text-sm text-brand-text-secondary">
-                  {req.status === "approved"  && "This request has already been approved."}
-                  {req.status === "rejected"  && "This request has been rejected."}
-                  {req.status === "returned"  && "This request was returned to the requester."}
-                  {req.status === "pending"   && "Awaiting your review."}
-                </p>
+              <div className="space-y-3">
+                {[
+                  { label: "Pending Review", status: "pending" },
+                  { label: "Approved", status: "approved" },
+                  { label: "Allocated", status: "allocated" },
+                  { label: "Rejected", status: "rejected" },
+                ].map((step, idx) => {
+                  const statusOrder: Record<string, number> = { pending: 0, approved: 1, allocated: 2, returned: 2, rejected: 1 };
+                  const currentIdx = statusOrder[req.status] ?? 0;
+                  const stepIdx = idx < 3 ? idx : 99; // "Rejected" is a side branch
+                  const isRejected = req.status === "rejected" && step.status === "rejected";
+                  const isDone = !isRejected && stepIdx < currentIdx;
+                  const isCurrent = !isRejected && stepIdx === currentIdx;
+                  if (step.status === "rejected" && req.status !== "rejected") return null;
+                  return (
+                    <div key={step.status} className="flex items-start gap-4 p-4 rounded-xl border border-brand-border">
+                      <div className={`mt-0.5 flex items-center justify-center h-7 w-7 rounded-full border-2 shrink-0 ${
+                        isRejected ? "bg-red-50 border-red-400" :
+                        isDone     ? "bg-green-50 border-green-500" :
+                        isCurrent  ? "bg-brand-purple/10 border-brand-purple" :
+                        "bg-gray-50 border-gray-200"
+                      }`}>
+                        {isRejected  && <XCircle size={13} className="text-red-500" />}
+                        {!isRejected && isDone    && <CheckCircle size={13} className="text-green-600" />}
+                        {!isRejected && isCurrent && <Clock size={13} className="text-brand-purple" />}
+                        {!isRejected && !isDone && !isCurrent && <Circle size={13} className="text-gray-200" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-brand-text-primary">{step.label}</p>
+                        <p className="text-xs text-brand-text-secondary mt-0.5">Asset Admin</p>
+                      </div>
+                      <span className="text-xs shrink-0">
+                        {isDone      && <span className="text-green-600">Done</span>}
+                        {isCurrent && !isRejected && <span className="text-brand-purple">Current</span>}
+                        {isRejected  && <span className="text-red-500">Rejected</span>}
+                        {!isDone && !isCurrent && !isRejected && <span className="text-gray-400">Pending</span>}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
-            </div>
           </div>
         )}
 
-        {/* ── Section 3: Approval Status (requester view) ──────────────────── */}
-        {!isAdminView && (
-          <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-              <h2 className="text-sm font-semibold text-brand-text-primary">Approval Status</h2>
-            </div>
-            <div className="p-6">
+        {/* ── Section 3: Approval Progress (requester / non-admin view) ────── */}
+        {!isAssetAdmin && (
+          <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-text-primary mb-5">Approval Progress</h2>
             <div className="flex items-start gap-4 p-4 rounded-xl border border-brand-border">
               <div className={`mt-0.5 flex items-center justify-center h-7 w-7 rounded-full border-2 shrink-0 ${
-                req.status === "approved" || req.status === "returned"
-                  ? "bg-green-50 border-green-500"
-                  : req.status === "rejected"
-                  ? "bg-red-50 border-red-400"
-                  : "bg-brand-purple/10 border-brand-purple"
+                req.status === "approved" || req.status === "allocated" || req.status === "returned" ? "bg-green-50 border-green-500" :
+                req.status === "rejected" ? "bg-red-50 border-red-400" :
+                "bg-brand-purple/10 border-brand-purple"
               }`}>
-                {(req.status === "approved" || req.status === "returned") && <CheckCircle size={13} className="text-green-600" />}
+                {(req.status === "approved" || req.status === "allocated" || req.status === "returned") && <CheckCircle size={13} className="text-green-600" />}
                 {req.status === "rejected" && <XCircle size={13} className="text-red-500" />}
                 {req.status === "pending"  && <Clock size={13} className="text-brand-purple" />}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-brand-text-primary">Asset Admin</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-brand-text-primary">Asset Admin</p>
+                  {req.status === "pending"  && <span className="text-xs text-brand-purple">In review</span>}
+                  {(req.status === "approved" || req.status === "returned") && <span className="text-xs text-green-600">{req.approved_at ? formatDate(req.approved_at) : "Approved"}</span>}
+                  {req.status === "allocated" && <span className="text-xs text-teal-600">{req.allocated_at ? formatDate(req.allocated_at) : "Allocated"}</span>}
+                  {req.status === "rejected" && <span className="text-xs text-red-500">{req.approved_at ? formatDate(req.approved_at) : "Rejected"}</span>}
+                </div>
                 <p className="text-xs text-brand-text-secondary mt-1">
-                  {req.status === "pending"  && "Your request is pending review by the asset admin."}
-                  {req.status === "approved" && "Your request has been approved. Please collect your asset(s)."}
-                  {req.status === "rejected" && "Your request was not approved. See the rejection reason above."}
-                  {req.status === "returned" && "This loan has been marked as returned."}
+                  {req.status === "pending"   && "Your request is pending review by the asset admin."}
+                  {req.status === "approved"  && "Your request has been approved. Assets are being prepared for you."}
+                  {req.status === "allocated" && "Your assets have been allocated. Please collect them from the asset admin."}
+                  {req.status === "rejected"  && "Your request was not approved. See the rejection reason above."}
+                  {req.status === "returned"  && "This loan has been marked as returned."}
                 </p>
               </div>
-              <span className="text-xs shrink-0">
-                {req.status === "pending"  && <span className="text-brand-purple">In review</span>}
-                {req.status === "approved" && <span className="text-green-600">{req.approved_at ? formatDate(req.approved_at) : "Approved"}</span>}
-                {req.status === "rejected" && <span className="text-red-500">{req.approved_at ? formatDate(req.approved_at) : "Rejected"}</span>}
-                {req.status === "returned" && <span className="text-gray-500">Returned</span>}
-              </span>
-            </div>
-
-            {/* Mark as returned — requester action for approved loans */}
-            {canReturn && (
-              <div className="mt-4 pt-4 border-t border-brand-border flex items-center justify-between">
-                <p className="text-xs text-brand-text-secondary">Have you returned the asset(s)?</p>
-                <button
-                  onClick={handleMarkReturned}
-                  disabled={updateStatus.isPending}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-primary hover:bg-gray-50 transition-colors disabled:opacity-60"
-                >
-                  <RotateCcw size={14} />
-                  {updateStatus.isPending ? "Updating…" : "Mark as Returned"}
-                </button>
-              </div>
-            )}
             </div>
           </div>
         )}
 
       </div>
 
-      {/* ── Confirmation modal ───────────────────────────────────────────── */}
+      {/* ── Confirmation modal ───────────────────────────────────────────────── */}
       {approvalAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setApprovalAction(null)} />
           <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-base font-semibold text-brand-text-primary">
-              {approvalAction === "approve" ? "Approve Request" : approvalAction === "reject" ? "Reject Request" : "Return to Requester"}
-            </h3>
-            <p className="text-sm text-brand-text-secondary mt-2 mb-4">
-              {approvalAction === "approve" && "Confirm that you are approving this asset request."}
-              {approvalAction === "reject"  && "This will reject the request. The requester will be notified."}
-              {approvalAction === "return"  && "The request will be sent back to the requester for modification."}
-            </p>
+            <h3 className="text-base font-semibold text-brand-text-primary">{approvalDialogConfig[approvalAction].title}</h3>
+            <p className="text-sm text-brand-text-secondary mt-2 mb-4">{approvalDialogConfig[approvalAction].message}</p>
+
+            {/* Stock check — shown only when trying to approve */}
+            {approvalAction === "approve" && hasStockIssues && (
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 mb-4">
+                <p className="text-sm font-semibold text-red-700 mb-2">Insufficient Stock — Cannot Approve</p>
+                <div className="space-y-1">
+                  {stockIssues.map((issue) => (
+                    <div key={issue.typeName} className="flex items-center justify-between text-xs text-red-600">
+                      <span>{issue.typeName}</span>
+                      <span className="font-mono">{issue.available} available / {issue.requested} requested</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-red-500 mt-2">Procure or receive the missing items before approving this request.</p>
+              </div>
+            )}
+
             {approvalComment && (
               <div className="bg-gray-50 border border-brand-border rounded-lg px-3 py-2 mb-4">
                 <p className="text-xs text-brand-text-secondary">Your comment</p>
@@ -353,21 +425,17 @@ export default function AssetRequestDetailPage() {
                 Cancel
               </button>
               <button
-                disabled={updateStatus.isPending}
+                disabled={updateStatus.isPending || (approvalAction === "approve" && hasStockIssues)}
                 onClick={() => {
                   if (approvalAction === "approve") handleAction("approved", approvalComment || undefined);
                   else if (approvalAction === "reject") handleAction("rejected", approvalComment || undefined);
                   else handleAction("pending", approvalComment || undefined);
                 }}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-60 ${
-                  approvalAction === "reject" ? "bg-red-600 hover:bg-red-700" :
-                  approvalAction === "return" ? "bg-amber-600 hover:bg-amber-700" :
-                  "bg-brand-purple hover:bg-brand-purple-dark"
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                  approvalDialogConfig[approvalAction].destructive ? "bg-red-600 hover:bg-red-700" : "bg-brand-purple hover:bg-brand-purple-dark"
                 }`}
               >
-                {updateStatus.isPending ? "Submitting…" :
-                  approvalAction === "approve" ? "Approve" :
-                  approvalAction === "reject"  ? "Reject"  : "Return"}
+                {updateStatus.isPending ? "Submitting…" : approvalDialogConfig[approvalAction].confirmLabel}
               </button>
             </div>
           </div>

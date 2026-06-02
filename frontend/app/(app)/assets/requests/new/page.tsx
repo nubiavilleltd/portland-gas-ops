@@ -11,7 +11,7 @@ import FormSection from "@/components/ui/FormSection";
 import DynamicLineItems, { type LineItemColumn } from "@/components/ui/DynamicLineItems";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import { useCreateAssetRequest, useAssetTypes } from "@/hooks/useAssets";
+import { useCreateAssetRequest, useAssetTypes, useAssetAvailability } from "@/hooks/useAssets";
 import { useToast } from "@/hooks/useToast";
 import { capitalize } from "@/lib/utils";
 
@@ -47,6 +47,7 @@ function NewAssetRequestForm() {
   const toast = useToast();
   const createRequest = useCreateAssetRequest();
   const { data: assetTypes = [] } = useAssetTypes();
+  const availability = useAssetAvailability();
 
   const [items, setItems] = useState<LineItem[]>([{ ...DEFAULT_LINE_ITEM }]);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -150,9 +151,14 @@ function NewAssetRequestForm() {
                     className="w-full text-sm bg-transparent outline-none"
                   >
                     <option value="">Select asset type…</option>
-                    {assetTypes.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
+                    {assetTypes.map((t) => {
+                      const avail = availability[t.id] ?? 0;
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {t.name} — {avail} available{avail === 0 ? " (out of stock)" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 ),
               },
@@ -177,6 +183,24 @@ function NewAssetRequestForm() {
             addLabel="Add Another Item"
             error={itemsError ?? undefined}
           />
+          {/* Stock warning — informational, user can still submit */}
+          {items.some((item) => item.asset_type_id && item.quantity > (availability[item.asset_type_id] ?? 0)) && (
+            <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+              <p className="text-xs font-medium text-amber-800 mb-1">Stock notice</p>
+              {items
+                .filter((item) => item.asset_type_id && item.quantity > (availability[item.asset_type_id] ?? 0))
+                .map((item) => {
+                  const type = assetTypes.find((t) => t.id === item.asset_type_id);
+                  const avail = availability[item.asset_type_id] ?? 0;
+                  return (
+                    <p key={item.asset_type_id} className="text-xs text-amber-700">
+                      {type?.name ?? "Unknown"}: you requested {item.quantity} but only {avail} {avail === 1 ? "is" : "are"} currently available.
+                    </p>
+                  );
+                })}
+              <p className="text-xs text-amber-600 mt-1">You can still submit — the approving manager will make the final decision.</p>
+            </div>
+          )}
         </FormSection>
 
         {/* ── Section 3: Purpose & Return Date ────────────────────────────── */}

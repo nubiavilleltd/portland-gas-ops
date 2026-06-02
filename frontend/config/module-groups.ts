@@ -182,8 +182,8 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/assets",
       },
       {
-        name: "Purchase Requests",
-        description: "Raise & manage purchase requisitions",
+        name: "Purchase & Service Requests",
+        description: "Raise & manage purchase and service requisitions",
         icon: ShoppingCart,
         href: "/procurement",
       },
