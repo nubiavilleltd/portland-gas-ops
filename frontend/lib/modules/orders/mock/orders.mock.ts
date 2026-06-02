@@ -1,101 +1,138 @@
-// ============================================================
-//  ORDERS MOCK DATA
-//  Types imported from orders.types.ts — NOT defined here.
-// ============================================================
 
 import type { Order } from "@/lib/modules/orders/types/orders.types";
 
 export const orders: Order[] = [
   {
-    id: "1",
+    id: "ord-1",
     order_number: "ORD-20260515-A102",
     customer_id: "c1",
     customer_name: "Dangote Cement Plc",
-    order_type: "Bulk CNG Supply",
-    product_name: "CNG",
-    quantity: 12000,
-    unit_price: 850,
+    order_items: [
+      {
+         product_id: "prod-001",
+        product_name: "CNG",
+        quantity: 12000,
+        unit_price: 850,
+        total: 10200000,
+      },
+    ],
     total_amount: 10200000,
     delivery_address: "Obajana, Kogi State",
     delivery_date: "2026-05-18",
-
     order_status: "confirmed",
     fulfillment_status: "dispatched",
     payment_status: "partially_paid",
-
     trip_id: "trip-1",
     invoice_id: "inv-1",
-
     created_at: "2026-05-15",
     confirmed_at: "2026-05-15",
   },
 
   {
-    id: "2",
+    id: "ord-2",
     order_number: "ORD-20260514-B221",
     customer_id: "c2",
     customer_name: "Julius Berger Nigeria",
-    order_type: "LNG Delivery",
-    product_name: "LNG",
-    quantity: 8500,
-    unit_price: 1200,
+    order_items: [
+      {
+        product_id: "prod-002",
+        product_name: "LNG",
+        quantity: 8500,
+        unit_price: 1200,
+        total: 10200000,
+      },
+    ],
     total_amount: 10200000,
     delivery_address: "Abuja, FCT",
     delivery_date: "2026-05-17",
-
     order_status: "confirmed",
     fulfillment_status: "assigned",
     payment_status: "unpaid",
-
     trip_id: "trip-1",
     invoice_id: "inv-2",
-
     created_at: "2026-05-14",
     confirmed_at: "2026-05-14",
   },
 
   {
-    id: "3",
+    id: "ord-3",
     order_number: "ORD-20260513-C332",
     customer_id: "c3",
     customer_name: "MTN Nigeria HQ",
-    order_type: "Retail Gas Refill",
-    product_name: "CNG",
-    quantity: 5000,
-    unit_price: 850,
+    order_items: [
+      {
+        product_id: "prod-001",
+        product_name: "CNG",
+        quantity: 5000,
+        unit_price: 850,
+        total: 4250000,
+      },
+    ],
     total_amount: 4250000,
     delivery_address: "Falomo, Lagos",
     delivery_date: "2026-05-16",
-
     order_status: "completed",
     fulfillment_status: "delivered",
     payment_status: "paid",
-
     trip_id: "trip-2",
     invoice_id: "inv-3",
-
     created_at: "2026-05-13",
     confirmed_at: "2026-05-13",
     delivered_at: "2026-05-16",
   },
 
   {
-    id: "4",
+    id: "ord-4",
     order_number: "ORD-20260512-D412",
     customer_id: "c4",
     customer_name: "Emeka Okafor",
-    order_type: "Bulk CNG Supply",
-    product_name: "CNG",
-    quantity: 9000,
-    unit_price: 850,
-    total_amount: 7650000,
+    order_items: [
+      {
+        product_id: "prod-001",
+        product_name: "CNG",
+        quantity: 9000,
+        unit_price: 850,
+        total: 7650000,
+      },
+      {
+        product_id: "prod-003",
+        product_name: "LPG",
+        quantity: 2000,
+        unit_price: 700,
+        total: 1400000,
+      },
+    ],
+    total_amount: 9050000,
     delivery_address: "Apapa, Lagos",
-    delivery_date: null,
+    delivery_date: "2026-05-22",
+    order_status: "confirmed",
+    fulfillment_status: "pending",
+    payment_status: "paid",
+    invoice_id: "inv-4",
+    created_at: "2026-05-12",
+    confirmed_at: "2026-05-12",
+  },
 
+  {
+    id: "ord-5",
+    order_number: "ORD-20260511-E501",
+    customer_id: "c1",
+    customer_name: "Dangote Cement Plc",
+    order_items: [
+      {
+        product_id: "prod-002",
+        product_name: "LNG",
+        quantity: 3000,
+        unit_price: 1100,
+        total: 3300000,
+      },
+    ],
+    total_amount: 3300000,
+    delivery_address: "Obajana, Kogi State",
+    delivery_date: null,
     order_status: "draft",
     fulfillment_status: "pending",
     payment_status: "unpaid",
-
-    created_at: "2026-05-12",
+    created_at: "2026-05-11",
   },
 ];

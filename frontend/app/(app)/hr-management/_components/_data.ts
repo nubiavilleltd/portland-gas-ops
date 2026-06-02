@@ -30,16 +30,16 @@ export const LEAVE_TYPE_OPTIONS = LEAVE_TYPES.map((t) => ({ value: t, label: t }
 // ── Approvers ─────────────────────────────────────────────────────────────────
 
 export const HR_APPROVERS: Record<string, { lineManager: string; hrReview: string }> = {
-  Legal:       { lineManager: "Magdalene Edozie",  hrReview: "Oluwaseun Sowemimo" },
-  Commercial:  { lineManager: "Bola Adeyemi",      hrReview: "Oluwaseun Sowemimo" },
-  Assets:      { lineManager: "Opeyemi Busari",    hrReview: "Oluwaseun Sowemimo" },
-  Engineering: { lineManager: "Samuel Eze",        hrReview: "Oluwaseun Sowemimo" },
-  Operations:  { lineManager: "Johnson Ibikunle",  hrReview: "Oluwaseun Sowemimo" },
-  Finance:     { lineManager: "Ifeanyi Chukwu",    hrReview: "Oluwaseun Sowemimo" },
-  HR:          { lineManager: "Adaeze Nwosu",      hrReview: "Oluwaseun Sowemimo" },
-  IT:          { lineManager: "Emeka Udoh",        hrReview: "Oluwaseun Sowemimo" },
-  Safety:      { lineManager: "David Okeke",       hrReview: "Oluwaseun Sowemimo" },
-  Admin:       { lineManager: "Grace Obi",         hrReview: "Oluwaseun Sowemimo" },
+  Legal:       { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Commercial:  { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Assets:      { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Engineering: { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Operations:  { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Finance:     { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  HR:          { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  IT:          { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Safety:      { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Admin:       { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
 };
 
 // ── Reference generator ───────────────────────────────────────────────────────
@@ -253,7 +253,14 @@ export const POLICY_DOCS: Record<number, PolicyDoc> = {
 };
 
 export const SEED_PAYSLIPS: PaySlip[] = [
-  { id: "ps1", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "April 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  // Joseph Chika - Jan to Jun 2026
+  { id: "ps1-jc-jan", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "January 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-feb", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "February 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-mar", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "March 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-apr", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "April 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-may", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "May 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-jun", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "June 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  // Other employees - April 2026 only
   { id: "ps2", employee: "Magdalene Edozie",  empId: "PG-001", department: "Legal",      period: "April 2026", basic: 650000, housing: 150000, transport: 80000,  meal: 40000, paye: 85000,  pension: 52000, nhf: 16250, loan: 30000, net: 736750  },
   { id: "ps3", employee: "Oluwaseun Sowemimo",empId: "PG-002", department: "Commercial", period: "April 2026", basic: 950000, housing: 250000, transport: 120000, meal: 60000, paye: 165000, pension: 76000, nhf: 23750, loan: 0,     net: 1115250 },
 ];

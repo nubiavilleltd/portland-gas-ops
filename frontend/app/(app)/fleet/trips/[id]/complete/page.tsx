@@ -119,7 +119,7 @@ export default function CompleteTripPage() {
         className="mb-6"
       />
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6">
         {/* TRIP OVERVIEW */}
         <FormSection
           title="Trip Overview"

@@ -107,11 +107,11 @@ const columns: Column<Invoice>[] = [
       <PageHeader
         title="Invoices"
         description="Manage all invoices and track payments"
-        action={
-          <Button href="/orders/list">
-            Create From Order
-          </Button>
-        }
+        // action={
+        //   <Button href="/orders/list">
+        //     Create From Order
+        //   </Button>
+        // }
       />
 
       {/* TABLE WRAPPER */}

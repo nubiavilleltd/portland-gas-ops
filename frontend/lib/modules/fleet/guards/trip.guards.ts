@@ -63,7 +63,8 @@ export function canAssignVehicle(
 
 export function canAssignResourcesToTrip(trip: Trip | undefined) {
   if (!trip) return false;
-  return trip.status === "pending" || trip.status === "assigned";
+  // return trip.status === "pending" || trip.status === "assigned";
+  return trip.status === "pending"
 }
 
 

@@ -133,7 +133,7 @@ export default function ProductDetailPage() {
             <ErrorBanner message={actionError} className="mb-4" />
 
             {/* Details card */}
-            <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <div className="bg-white border border-brand-border rounded-2xl p-6 max-w-2xl">
                 <DetailRow
                     label="Status"
                     value={

@@ -50,7 +50,7 @@ export default function ActivityHistory({ initiator, department, submittedAt }: 
               <td className="px-5 py-4 text-brand-text-primary">Request submitted — Awaiting Approval</td>
               <td className="px-5 py-4 font-medium text-brand-purple">
                 {approvers.lineManager}
-                <span className="block text-xs text-brand-text-secondary font-normal">(Line Manager)</span>
+                <span className="block text-xs text-brand-text-secondary font-normal">(Operations Manager)</span>
               </td>
             </tr>
           </tbody>

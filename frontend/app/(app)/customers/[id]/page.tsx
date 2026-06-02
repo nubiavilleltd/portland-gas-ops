@@ -167,7 +167,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* Details card */}
-      <div className="bg-white border border-brand-border rounded-2xl p-6 max-w-2xl">
+      <div className="bg-white border border-brand-border rounded-2xl p-6">
         <DetailRow
           icon={
             customer.type === "corporate"

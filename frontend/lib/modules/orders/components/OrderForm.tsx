@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Controller, useFieldArray } from "react-hook-form";
@@ -15,16 +14,22 @@ import LineItemTable, {
 } from "@/components/ui/LineItemTable";
 
 import { formatCurrency } from "@/lib/utils";
-import { useCreateOrderForm, DEFAULT_LINE_ITEM } from "@/lib/modules/orders/hooks/useCreateOrderForm";
-import { ORDER_TYPE_OPTIONS } from "@/lib/modules/orders/constants/order-form.constants";
+import {
+  useCreateOrderForm,
+  DEFAULT_LINE_ITEM,
+} from "@/lib/modules/orders/hooks/useCreateOrderForm";
 import type {
   OrderLineItem,
   CreateOrderFormValues,
 } from "@/lib/modules/orders/schemas/create-order.schema";
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-import { getProductById, getActiveProducts } from "@/lib/modules/products/selectors/products.selectors";
+import {
+  getProductById,
+  getActiveProducts,
+} from "@/lib/modules/products/selectors/products.selectors";
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
+import { toast } from "sonner";
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -104,19 +109,47 @@ export default function OrderForm({
         <select
           value={row.product_id}
           disabled={productsLoading}
+          // onChange={(e) => {
+          //   const productId = e.target.value;
+          //   onChange({ product_id: productId });
+          //   const product = getProductById(products, productId);
+          //   if (product) {
+          //     setValue(`order_items.${index}.unit_price`, product.default_unit_price);
+          //   }
+          // }}
+
           onChange={(e) => {
             const productId = e.target.value;
+
+            // Check if product is already in another row
+            const isDuplicate = orderItems.some(
+              (item, i) => i !== index && item.product_id === productId,
+            );
+
+            if (isDuplicate) {
+              toast.error(
+                "This product is already in the order. Update the quantity instead.",
+              );
+              return;
+            }
+
             onChange({ product_id: productId });
             const product = getProductById(products, productId);
             if (product) {
-              setValue(`order_items.${index}.unit_price`, product.default_unit_price);
+              setValue(
+                `order_items.${index}.unit_price`,
+                product.default_unit_price,
+              );
             }
           }}
           className="w-full text-sm outline-none bg-transparent"
         >
           <option value="">Select product</option>
           {productOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <option
+              key={opt.value}
+              value={opt.value}
+            >
               {opt.label}
             </option>
           ))}
@@ -138,7 +171,9 @@ export default function OrderForm({
               step="0.01"
               value={row.quantity || ""}
               placeholder="0"
-              onChange={(e) => onChange({ quantity: parseFloat(e.target.value) || 0 })}
+              onChange={(e) =>
+                onChange({ quantity: parseFloat(e.target.value) || 0 })
+              }
               className="w-full text-sm outline-none bg-transparent"
             />
             {unitLabel && (
@@ -202,7 +237,10 @@ export default function OrderForm({
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+    <form
+      onSubmit={handleSubmit(handleFormSubmit)}
+      className="space-y-6"
+    >
       {/* CUSTOMER INFORMATION */}
       <div className="bg-white border border-brand-border rounded-2xl p-6">
         <h2 className="text-base font-semibold mb-5">Customer Information</h2>
@@ -214,23 +252,11 @@ export default function OrderForm({
               <FormSelect
                 label="Customer"
                 required
-                placeholder={customersLoading ? "Loading customers…" : "Select customer"}
+                placeholder={
+                  customersLoading ? "Loading customers…" : "Select customer"
+                }
                 options={customerOptions}
                 error={errors.customer_id?.message}
-                value={field.value}
-                onValueChange={field.onChange}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="order_type"
-            render={({ field }) => (
-              <FormSelect
-                label="Order Type"
-                required
-                options={ORDER_TYPE_OPTIONS}
-                error={errors.order_type?.message}
                 value={field.value}
                 onValueChange={field.onChange}
               />
@@ -257,7 +283,7 @@ export default function OrderForm({
             setValue(
               `order_items.${index}`,
               { ...current, ...patch } as OrderLineItem,
-              { shouldValidate: true }
+              { shouldValidate: true },
             );
           }}
           addLabel="Add Product"
@@ -271,19 +297,20 @@ export default function OrderForm({
       <div className="bg-white border border-brand-border rounded-2xl p-6">
         <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
         <div className="space-y-5">
-          <FormInput
-            label="Delivery Address"
-            required
-            placeholder="Street, City, State"
-            error={errors.delivery_address?.message}
-            {...register("delivery_address")}
-          />
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <FormDatePicker
               label="Scheduled Date"
               required
               {...register("delivery_date")}
             />
+            <FormInput
+            label="Delivery Address"
+            required
+            placeholder="Street, City, State"
+            error={errors.delivery_address?.message}
+            {...register("delivery_address")}
+          />
           </div>
           <FormTextarea
             label="Special Instructions"
@@ -297,11 +324,19 @@ export default function OrderForm({
       <div className="bg-white border border-brand-border rounded-2xl p-6">
         <h2 className="text-base font-semibold mb-5">Order Summary</h2>
         <div className="space-y-4 max-w-sm">
-          <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
-          <SummaryRow label="Tax" value="₦0.00" />
+          <SummaryRow
+            label="Subtotal"
+            value={formatCurrency(subtotal)}
+          />
+          <SummaryRow
+            label="Tax"
+            value="₦0.00"
+          />
           <div className="border-t border-brand-border pt-4 flex items-center justify-between">
             <span className="font-semibold">Grand Total</span>
-            <span className="text-lg font-semibold">{formatCurrency(subtotal)}</span>
+            <span className="text-lg font-semibold">
+              {formatCurrency(subtotal)}
+            </span>
           </div>
         </div>
       </div>
@@ -314,11 +349,20 @@ export default function OrderForm({
           Cancel
         </Button> */}
         {showDraft && onSaveDraft && (
-          <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onSaveDraft?.(form.getValues())}>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={() => onSaveDraft?.(form.getValues())}
+          >
             Save Draft
           </Button>
         )}
-        <Button type="submit" loading={isSubmitting} loadingText={submitLoadingLabel}>
+        <Button
+          type="submit"
+          loading={isSubmitting}
+          loadingText={submitLoadingLabel}
+        >
           {submitLabel}
         </Button>
       </div>

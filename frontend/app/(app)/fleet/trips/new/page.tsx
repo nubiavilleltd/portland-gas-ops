@@ -32,6 +32,7 @@ import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 
 import { useCreateTripWorkflow } from "@/lib/modules/fleet/hooks/useCreateTripWorkflow";
+import { canAssignToTrip } from "@/lib/modules/orders/guards/orders.guards";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
@@ -80,7 +81,7 @@ function CreateTripForm() {
   const assignableOrders = orders
     .filter(
       (o) =>
-        o.order_status === "confirmed" && o.fulfillment_status === "pending",
+        canAssignToTrip(o),
     )
     .map((o) => ({
       value: o.id,
@@ -134,7 +135,7 @@ function CreateTripForm() {
 
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-6 max-w-2xl"
+        className="space-y-6"
       >
         {/* PRE-FILLED CONTEXT */}
         {(vehicle || driver || preloadedOrder) && (
@@ -180,7 +181,7 @@ function CreateTripForm() {
           title="Trip Details"
           description="Configure trip type, destination, and scheduling information"
         >
-          <div className="space-y-5">
+          <div className="space-y-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               control={control}
               name="type"

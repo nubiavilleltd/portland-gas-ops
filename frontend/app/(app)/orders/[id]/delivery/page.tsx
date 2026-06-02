@@ -15,7 +15,7 @@ export default function OrderDeliveryPage() {
       {/* <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors">
         <ArrowLeft size={14} /> Back
       </button> */}
-      <div className="bg-white border border-brand-border rounded-2xl p-6 max-w-lg">
+      <div className="bg-white border border-brand-border rounded-2xl p-6">
        <FormSection
   title="Delivery Tracking"
   description="Track vehicle and delivery destination details"
