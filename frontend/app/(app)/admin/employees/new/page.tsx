@@ -152,7 +152,7 @@ export default function NewEmployeePage() {
               onValueChange={(v) => ue("grade", v)}
             />
             <FormSelect
-              label="Line Manager" options={managerOptions} placeholder="Select line manager"
+              label="Operations Manager" options={managerOptions} placeholder="Select operations manager"
               value={empForm.lineManagerEmail ?? ""}
               onValueChange={(email) => {
                 const mgr = EMPLOYEE_STORE.find((e) => e.email === email);
@@ -164,7 +164,7 @@ export default function NewEmployeePage() {
               }}
             />
             <FormInput
-              label="Line Manager Email" type="email"
+              label="Operations Manager Email" type="email"
               value={empForm.lineManagerEmail ?? ""}
               disabled
             />

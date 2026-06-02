@@ -17,10 +17,10 @@ export default function AdminPage() {
   const { user, isLoading } = useCurrentUser();
 
   return (
-    <AppLayout pageTitle="Administration">
+    <AppLayout pageTitle="Admin Dashboard">
       <div className="mb-2">
         <h2 className="text-2xl font-semibold text-brand-text-primary">
-          Administration
+          Admin Dashboard
         </h2>
       </div>
 

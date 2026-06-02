@@ -192,12 +192,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                     {isEditing ? (empForm.category || emp.category) : emp.category}
                   </span>
-                  {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <Button onClick={saveEmployee}>Save Changes</Button>
-                      <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
-                    </div>
-                  ) : (
+                  {!isEditing && (
                     <button
                       type="button"
                       onClick={openEdit}
@@ -250,7 +245,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                     value={empForm.category ?? ""} onValueChange={(v) => ue("category", v)} />
                   <FormSelect label="Grade Level" required options={GRADE_OPTIONS} placeholder="Select grade level"
                     value={empForm.grade ?? ""} onValueChange={(v) => ue("grade", v)} />
-                  <FormSelect label="Line Manager" options={managerOptions} placeholder="Select line manager"
+                  <FormSelect label="Operations Manager" options={managerOptions} placeholder="Select operations manager"
                     value={empForm.lineManagerEmail ?? ""}
                     onValueChange={(email) => {
                       const mgr = EMPLOYEE_STORE.find((e) => e.email === email);
@@ -261,7 +256,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                       }));
                     }}
                   />
-                  <FormInput label="Line Manager Email" type="email"
+                  <FormInput label="Operations Manager Email" type="email"
                     value={empForm.lineManagerEmail ?? ""} disabled />
                 </>
               ) : (
@@ -270,8 +265,8 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <FormInput label="Department"         value={emp.department} />
                   <FormInput label="Category"           value={emp.category}  />
                   <FormInput label="Grade Level"        value={`Grade ${emp.grade}`} />
-                  <FormInput label="Line Manager"       value={emp.lineManager ?? "—"}      />
-                  <FormInput label="Line Manager Email" value={emp.lineManagerEmail ?? "—"} />
+                  <FormInput label="Operations Manager"       value={emp.lineManager ?? "—"}      />
+                  <FormInput label="Operations Manager Email" value={emp.lineManagerEmail ?? "—"} />
                 </>
               )}
             </div>
@@ -394,6 +389,14 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               })}
             </div>
           </Section>
+
+          {/* Save/Cancel Buttons */}
+          {isEditing && (
+            <div className="flex gap-3">
+              <Button onClick={saveEmployee}>Save Changes</Button>
+              <Button variant="outline" onClick={cancelEdit}>Cancel</Button>
+            </div>
+          )}
         </div>
       )}
 

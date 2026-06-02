@@ -80,7 +80,9 @@ function calcDays(start: string, end: string): number {
 
 export default function LeaveRequestsPage() {
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<LeaveRequest[]>(LEAVE_STORE);
+  const [items, setItems] = useState<LeaveRequest[]>(() =>
+    LEAVE_STORE.filter((item) => item.requester === CURRENT_USER.name)
+  );
   const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 

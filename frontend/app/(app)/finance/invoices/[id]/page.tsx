@@ -18,12 +18,12 @@ const STATUS_STEP: Record<string, number> = {
   pending:     1,
   in_progress: 2,
   approved:    3,
-  rejected:    1,
+  denied:      1,
 };
 
 const ACTIONABLE = new Set(["pending", "in_progress"]);
 
-type ActionResult = "approved" | "rejected" | "draft";
+type ActionResult = "approved" | "denied" | "draft";
 
 export default function InvoiceDetailPage({
   params,
@@ -43,7 +43,7 @@ export default function InvoiceDetailPage({
   const currentStep = STATUS_STEP[record?.status ?? ""] ?? 0;
 
   function handleAction(action: ActionResult) {
-    if ((action === "rejected" || action === "draft") && !comment.trim()) {
+    if ((action === "denied" || action === "draft") && !comment.trim()) {
       setCommentError("A comment is required when returning or denying.");
       return;
     }
@@ -153,7 +153,7 @@ export default function InvoiceDetailPage({
           {ACTIONABLE.has(record.status) && !actionDone && (
             <ViewSection title="Approval Action" description="Review and take action on this invoice.">
               <div className="space-y-4">
-                <div>
+                <div suppressHydrationWarning>
                   <label className="text-sm font-medium text-brand-text-primary block mb-1">
                     Comment
                   </label>
@@ -163,6 +163,7 @@ export default function InvoiceDetailPage({
                     onChange={(e) => { setComment(e.target.value); setCommentError(""); }}
                     placeholder="Add a comment..."
                     className="w-full rounded-lg border border-brand-border bg-white px-3 py-2 text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow resize-none"
+                    suppressHydrationWarning
                   />
                   {commentError ? (
                     <p className="text-xs text-red-600 mt-1">{commentError}</p>
@@ -191,7 +192,7 @@ export default function InvoiceDetailPage({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleAction("rejected")}
+                    onClick={() => handleAction("denied")}
                     className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-medium border border-red-400 text-red-600 bg-white hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
                   >
                     <XCircle size={15} />
@@ -207,13 +208,13 @@ export default function InvoiceDetailPage({
             <div className={`rounded-2xl p-4 flex items-start gap-3 border ${
               actionDone === "approved"
                 ? "bg-green-50 border-green-200"
-                : actionDone === "rejected"
+                : actionDone === "denied"
                 ? "bg-red-50 border-red-200"
                 : "bg-amber-50 border-amber-200"
             }`}>
               {actionDone === "approved" ? (
                 <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" />
-              ) : actionDone === "rejected" ? (
+              ) : actionDone === "denied" ? (
                 <XCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
               ) : (
                 <RotateCcw size={18} className="text-amber-600 shrink-0 mt-0.5" />
@@ -221,18 +222,18 @@ export default function InvoiceDetailPage({
               <div>
                 <p className={`text-sm font-semibold ${
                   actionDone === "approved" ? "text-green-800" :
-                  actionDone === "rejected" ? "text-red-800" : "text-amber-800"
+                  actionDone === "denied" ? "text-red-800" : "text-amber-800"
                 }`}>
                   {actionDone === "approved"
                     ? "Invoice Approved"
-                    : actionDone === "rejected"
+                    : actionDone === "denied"
                     ? "Invoice Denied"
                     : "Returned for Revision"}
                 </p>
                 {comment.trim() && (
                   <p className={`text-xs mt-0.5 ${
                     actionDone === "approved" ? "text-green-700" :
-                    actionDone === "rejected" ? "text-red-700" : "text-amber-700"
+                    actionDone === "denied" ? "text-red-700" : "text-amber-700"
                   }`}>
                     Comment: {comment}
                   </p>
@@ -252,6 +253,7 @@ export default function InvoiceDetailPage({
             initiator={record.requester}
             department={record.department}
             submittedAt={new Date(record.date)}
+            status={record.status}
           />
         </div>
       )}

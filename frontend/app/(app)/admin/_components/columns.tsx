@@ -40,13 +40,13 @@ export function createEmployeeColumns(
     { key: "grade", label: "Grade", sortable: true },
     {
       key: "lineManager",
-      label: "Line Manager",
+      label: "Operations Manager",
       sortable: true,
       render: (v) => <span className="text-brand-text-primary">{v ? String(v) : "—"}</span>,
     },
     {
       key: "lineManagerEmail",
-      label: "Line Manager Email",
+      label: "Operations Manager Email",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary text-xs">{v ? String(v) : "—"}</span>,
     },
