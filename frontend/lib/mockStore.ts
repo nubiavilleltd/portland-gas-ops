@@ -795,21 +795,22 @@ function migrateProcurementStatus(status: string): ProcurementRequest["status"] 
 export const procurementStore = {
   getList: (): ProcurementListItem[] =>
     read("mock_procurement_list", SEED_PROCUREMENT_LIST).map((p) => ({
-      payment_status: "unpaid" as PaymentStatus,
       ...p,
+      payment_status: p.payment_status ?? ("unpaid" as PaymentStatus),
       status: migrateProcurementStatus(p.status),
     })),
   getFull: (): ProcurementRequest[] =>
     read("mock_procurement_full", SEED_PROCUREMENT_FULL).map((p) => ({
-      payment_status: "unpaid" as PaymentStatus,
-      payment_terms: null,
-      po_issued_by: null,
       ...p,
+      payment_status: p.payment_status ?? ("unpaid" as PaymentStatus),
+      payment_terms: p.payment_terms ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      po_issued_by: (p as any).po_issued_by ?? null,
       status: migrateProcurementStatus(p.status),
     })),
   getById: (id: string): ProcurementRequest | null =>
     procurementStore.getFull().find((p) => p.id === id) ?? null,
-  add: (data: { category: string; justification?: string; required_by?: string; vendor_id?: string; one_time_vendor?: { name: string; contact_person?: string; address?: string; phone?: string; email?: string; bank_name?: string; account_name?: string; account_number?: string } | null; items: { description: string; quantity: number; unit: string; unit_cost: number; total_cost: number }[] }): ProcurementRequest => {
+  add: (data: { category: string; justification?: string; required_by?: string; vendor_id?: string; one_time_vendor?: { name: string; contact_person?: string | null; address?: string | null; phone?: string | null; email?: string | null; bank_name?: string | null; account_name?: string | null; account_number?: string | null } | null; items: { description: string; quantity: number; unit: string; unit_cost: number; total_cost: number }[] }): ProcurementRequest => {
     const id = newId();
     const list = procurementStore.getList();
     const year = new Date().getFullYear();
@@ -904,8 +905,9 @@ export const assetRequestStore = {
   getList: (): AssetRequestListItem[] => read("mock_asset_requests_list", SEED_ASSET_REQUESTS_LIST),
   getFull: (): AssetRequest[] =>
     read("mock_asset_requests_full", SEED_ASSET_REQUESTS_FULL).map((r) => ({
-      allocated_asset_ids: null,
       ...r,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      allocated_asset_ids: (r as any).allocated_asset_ids ?? null,
     })),
   getById: (id: string): AssetRequest | null =>
     assetRequestStore.getFull().find((r) => r.id === id) ?? null,

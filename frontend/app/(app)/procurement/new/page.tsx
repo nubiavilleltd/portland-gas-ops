@@ -155,13 +155,13 @@ export default function NewProcurementPage() {
 
     const oneTimeVendor = vendorMode === "new" && formData.new_vendor_name?.trim() ? {
       name: formData.new_vendor_name.trim(),
-      contact_person: formData.new_vendor_contact_person || undefined,
-      address: formData.new_vendor_address || undefined,
-      phone: formData.new_vendor_phone || undefined,
-      email: formData.new_vendor_email || undefined,
-      bank_name: formData.new_vendor_bank_name || undefined,
-      account_name: formData.new_vendor_account_name || undefined,
-      account_number: formData.new_vendor_account_number || undefined,
+      contact_person: formData.new_vendor_contact_person || null,
+      address: formData.new_vendor_address || null,
+      phone: formData.new_vendor_phone || null,
+      email: formData.new_vendor_email || null,
+      bank_name: formData.new_vendor_bank_name || null,
+      account_name: formData.new_vendor_account_name || null,
+      account_number: formData.new_vendor_account_number || null,
     } : undefined;
 
     try {
