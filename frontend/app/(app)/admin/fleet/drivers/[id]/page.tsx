@@ -102,7 +102,7 @@ const canAssign = canAssignDriver(driver);
     label: "",
     align: "right",
     render: (trip) => (
-      <Button size="sm" variant="outline" href={`/admin${FLEET_ROUTES.tripDetail(trip.id)}`}>
+      <Button size="sm" variant="outline" href={`${FLEET_ROUTES.tripDetail(trip.id)}`}>
         View
       </Button>
     ),
