@@ -140,9 +140,6 @@ export default function OrdersListPage() {
         customerMap[value as string]
           ?.name ?? "—"
     },
-
-    { key: "order_type", label: "TYPE" },
-
     {
       key: "total_amount",
       label: "AMOUNT",
