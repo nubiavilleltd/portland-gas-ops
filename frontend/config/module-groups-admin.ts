@@ -1,10 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
-  Banknote,
   BarChart2,
   BookOpen,
-  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
   ClipboardList,
@@ -50,39 +48,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
   //   ],
   // },
   {
-    title: "Finance",
-    routePrefixes: ["/finance"],
-    processes: [
-      {
-        name: "Cash Requisition",
-        description: "Petty cash and operational funds",
-        icon: Banknote,
-        href: "/finance/cash-requisitions",
-      },
-      {
-        name: "Invoice Processing",
-        description: "Supplier invoices and approvals",
-        icon: FileText,
-        href: "/finance/invoices",
-        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
-      },
-      {
-        name: "Payments",
-        description: "Record and review payments",
-        icon: DollarSign,
-        href: "/payments",
-        showOnHome: false,
-      },
-      {
-        name: "Billing",
-        description: "Billing operations",
-        icon: DollarSign,
-        href: "/billing",
-        showOnHome: false,
-      },
-    ],
-  },
-  {
     title: "HR Management",
     routePrefixes: ["/hr-management", "/hr"],
     processes: [
@@ -93,20 +58,14 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/hr-management/employees",
       },
       {
-        name: "Leave Requests",
-        description: "Leave applications and approvals",
-        icon: CalendarDays,
-        href: "/hr-management/leave-requests",
-      },
-      {
         name: "Leave Balances",
         description: "Entitlement and usage by employee",
         icon: BarChart2,
         href: "/hr-management/leave-balances",
       },
       {
-        name: "Pay Slips",
-        description: "Monthly pay slip viewer",
+        name: "Pay Slip Management",
+        description: "Generate and manage employee pay slips",
         icon: CreditCard,
         href: "/hr-management/payslips",
       },
