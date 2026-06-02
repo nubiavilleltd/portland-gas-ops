@@ -533,7 +533,7 @@ export default function PaySlipsPage() {
   const someChecked = checkedIds.size > 0 && !allChecked;
 
   return (
-    <AppLayout pageTitle="Pay Slips">
+    <AppLayout pageTitle="Pay Slip Management">
       {/* Month picker modal */}
       {showMonthPicker && (
         <MonthPickerModal
@@ -554,8 +554,8 @@ export default function PaySlipsPage() {
       {/* ── Header ── */}
       <div className="mb-6">
         <PageHeader
-          title="Pay Slips"
-          description="View and download monthly pay slips"
+          title="Pay Slip Management"
+          description="Generate, manage, and download employee pay slips"
           action={
             <Button leftIcon={<Plus size={16} />} onClick={openMonthPicker}>
               Generate Payslip

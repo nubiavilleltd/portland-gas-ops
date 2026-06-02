@@ -59,7 +59,7 @@ interface SubmittedInfo {
   submittedAt: Date;
 }
 
-const APPROVAL_ROUTE = ["Initiator (You)", "Line Manager", "Finance Review", "Processed"];
+const APPROVAL_ROUTE = ["Initiator (You)", "Operations Manager", "Finance Review", "Processed"];
 
 export default function InvoicesPage() {
   const [view, setView] = useState<View>("list");

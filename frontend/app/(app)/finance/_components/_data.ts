@@ -4,16 +4,16 @@ export const DEPARTMENTS = [
 ] as const;
 
 export const APPROVERS: Record<string, { lineManager: string; financeReview: string }> = {
-  Finance:     { lineManager: "Magdalene Edozie",  financeReview: "Oluwaseun Sowemimo" },
-  Operations:  { lineManager: "Johnson Ibikunle",  financeReview: "Oluwaseun Sowemimo" },
-  Marketing:   { lineManager: "Chioma Okafor",     financeReview: "Oluwaseun Sowemimo" },
-  HR:          { lineManager: "Adaeze Nwosu",      financeReview: "Oluwaseun Sowemimo" },
-  IT:          { lineManager: "Emeka Udoh",        financeReview: "Oluwaseun Sowemimo" },
-  Sales:       { lineManager: "Bola Adeyemi",      financeReview: "Oluwaseun Sowemimo" },
-  Procurement: { lineManager: "Ifeanyi Chukwu",    financeReview: "Oluwaseun Sowemimo" },
-  Admin:       { lineManager: "Grace Obi",         financeReview: "Oluwaseun Sowemimo" },
-  Safety:      { lineManager: "David Okeke",       financeReview: "Oluwaseun Sowemimo" },
-  Engineering: { lineManager: "Samuel Eze",        financeReview: "Oluwaseun Sowemimo" },
+  Finance:     { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Operations:  { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Marketing:   { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  HR:          { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  IT:          { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Sales:       { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Procurement: { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Admin:       { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Safety:      { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Engineering: { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
 };
 
 export const DEPT_OPTIONS = DEPARTMENTS.map((d) => ({ value: d, label: d }));
