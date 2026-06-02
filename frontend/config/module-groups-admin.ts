@@ -34,97 +34,47 @@ export type ModuleGroup = {
 };
 
 export const moduleGroups: readonly ModuleGroup[] = [
-  // {
-  //   title: "Administration",
-  //   processes: [
-  //     {
-  //       name: "Admin",
-  //       description: "Users, roles & system configuration",
-  //       icon: Settings,
-  //       href: "/admin",
-  //     },
-  //   ],
-  // },
-  {
-    title: "Finance",
-    routePrefixes: ["/finance"],
-    processes: [
-      {
-        name: "Cash Requisition",
-        description: "Petty cash and operational funds",
-        icon: Banknote,
-        href: "/finance/cash-requisitions",
-      },
-      {
-        name: "Invoice Processing",
-        description: "Supplier invoices and approvals",
-        icon: FileText,
-        href: "/finance/invoices",
-        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
-      },
-      {
-        name: "Payments",
-        description: "Record and review payments",
-        icon: DollarSign,
-        href: "/payments",
-        showOnHome: false,
-      },
-      {
-        name: "Billing",
-        description: "Billing operations",
-        icon: DollarSign,
-        href: "/billing",
-        showOnHome: false,
-      },
-    ],
-  },
   {
     title: "HR Management",
-    routePrefixes: ["/hr-management", "/hr"],
+    routePrefixes: ["/admin"],
     processes: [
       {
         name: "Employee Profile",
         description: "Staff profiles and records",
         icon: Users,
-        href: "/hr-management/employees",
-      },
-      {
-        name: "Leave Requests",
-        description: "Leave applications and approvals",
-        icon: CalendarDays,
-        href: "/hr-management/leave-requests",
+        href: "/admin/employees",
       },
       {
         name: "Leave Balances",
         description: "Entitlement and usage by employee",
         icon: BarChart2,
-        href: "/hr-management/leave-balances",
+        href: "/admin/leave-balances",
       },
       {
-        name: "Pay Slips",
-        description: "Monthly pay slip viewer",
+        name: "Pay Slip Management",
+        description: "Generate and manage employee pay slips",
         icon: CreditCard,
-        href: "/hr-management/payslips",
+        href: "/admin/payslips",
       },
       {
         name: "Employee Records",
         description: "Document vault",
         icon: FolderOpen,
-        href: "/hr-management/employee-records",
+        href: "/admin/employee-records",
         showOnHome: false,
       },
       {
         name: "HR Policies",
         description: "Policy library and acknowledgements",
         icon: BookOpen,
-        href: "/hr-management/policies",
+        href: "/admin/policies",
         showOnHome: false,
       },
       {
         name: "Payroll",
         description: "Payroll runs and disbursements",
         icon: DollarSign,
-        href: "/hr-management/payroll",
+        href: "/admin/payroll",
         showOnHome: false,
       },
     ],

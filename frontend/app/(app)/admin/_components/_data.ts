@@ -96,7 +96,7 @@ export interface LeaveRequest {
   reliever: string;
   reason?: string;
   supportingDocuments?: string[];
-  status: "draft" | "pending" | "approved" | "in_progress" | "denied";
+  status: "draft" | "pending" | "approved" | "in_progress" | "rejected";
   date: string;
 }
 
@@ -156,7 +156,7 @@ export interface PayrollRun {
   totalDeductions: number;
   totalNet: number;
   employees: number;
-  status: "pending" | "approved" | "processed" | "draft" | "denied";
+  status: "pending" | "approved" | "processed" | "draft" | "rejected";
   preparedBy: string;
 }
 
@@ -175,9 +175,9 @@ export const SEED_EMPLOYEES: Employee[] = [
 export const EMPLOYEE_STORE: Employee[] = [...SEED_EMPLOYEES];
 
 export const SEED_LEAVE_REQUESTS: LeaveRequest[] = [
-  { id: "l1", ref: "LRQ-20260515-J1K2", requestType: "self",   requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Annual Leave", department: "Finance", startDate: "2026-06-01", endDate: "2026-06-10", days: 8, reliever: "David Okeke", status: "approved", date: "15 May 2026", reason: "Annual leave for rest and personal matters." },
-  { id: "l2", ref: "LRQ-20260510-J3L4", requestType: "self", requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Sick Leave", department: "Finance", startDate: "2026-05-20", endDate: "2026-05-22", days: 2, reliever: "Johnson Ibikunle", status: "in_progress", date: "10 May 2026", reason: "Medical appointment and recuperation." },
-  { id: "l3", ref: "LRQ-20260508-J5M6", requestType: "self", requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Compassionate Leave", department: "Finance", startDate: "2026-05-25", endDate: "2026-05-27", days: 2, reliever: "Opeyemi Busari", status: "denied", date: "8 May 2026", reason: "Family emergency requiring immediate attention.", supportingDocuments: ["family-notice.pdf"] },
+  { id: "l1", ref: "LRQ-20260515-A1B2", requestType: "self",   requester: "Joseph Chika",    employee: "Joseph Chika",     jobTitle: "Operations Manager", type: "Annual Leave", department: "Operations", startDate: "2026-06-01", endDate: "2026-06-10", days: 8,  reliever: "David Okeke",      status: "pending",     date: "15 May 2026", reason: "Annual rest and family time during the Q2 break period." },
+  { id: "l2", ref: "LRQ-20260510-C3D4", requestType: "others", requester: "Joseph Chika",    employee: "Magdalene Edozie", jobTitle: "Software Developer",  type: "Sick Leave",   department: "Legal",      startDate: "2026-05-12", endDate: "2026-05-13", days: 2,  reliever: "Johnson Ibikunle", status: "approved",    date: "10 May 2026", reason: "Employee is unwell and has been advised to rest by her physician." },
+  { id: "l3", ref: "LRQ-20260503-E5F6", requestType: "others", requester: "Joseph Chika",    employee: "Opeyemi Busari",   jobTitle: "Data Analyst",        type: "Study Leave",  department: "Assets",     startDate: "2026-06-15", endDate: "2026-06-30", days: 12, reliever: "Felix Ohemu",      status: "in_progress", date: "3 May 2026",  reason: "Attending a professional data science certification program at the University of Lagos.", supportingDocuments: ["admission-letter-unilag.pdf"] },
 ];
 
 export const LEAVE_STORE: LeaveRequest[] = [...SEED_LEAVE_REQUESTS];

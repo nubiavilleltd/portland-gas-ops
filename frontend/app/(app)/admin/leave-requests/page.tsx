@@ -80,9 +80,7 @@ function calcDays(start: string, end: string): number {
 
 export default function LeaveRequestsPage() {
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<LeaveRequest[]>(() =>
-    LEAVE_STORE.filter((item) => item.requester === CURRENT_USER.name)
-  );
+  const [items, setItems] = useState<LeaveRequest[]>(LEAVE_STORE);
   const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 
@@ -214,7 +212,7 @@ export default function LeaveRequestsPage() {
           <DataTable
             columns={leaveRequestColumns}
             data={items}
-            rowHref={(row) => `/hr-management/leave-requests/${row.id}`}
+            rowHref={(row) => `/admin/leave-requests/${row.id}`}
             emptyMessage="No leave requests yet"
             emptyDescription="Submit your first leave request to get started"
           />
