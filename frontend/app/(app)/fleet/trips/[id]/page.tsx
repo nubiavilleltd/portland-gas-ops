@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate, formatCurrency, toTitleCase } from "@/lib/utils";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
@@ -63,45 +63,45 @@ export default function TripDetailPage() {
   const ordersMap = new Map(orders.map((o) => [o.id, o]));
 
   const customerMap = new Map(customers.map((c) => [c.id, c]));
-  
+
   const linkedOrders = trip.order_ids
-  .map((id) => ordersMap.get(id))
-  .filter(Boolean);
-  
-  console.log("orderMap:", {ordersMap, linkedOrders});
+    .map((id) => ordersMap.get(id))
+    .filter(Boolean);
+
+  console.log("orderMap:", { ordersMap, linkedOrders });
 
   const orderColumns: SimpleTableColumn<Order>[] = [
-  {
-    label: "Order",
-    render: (order) => (
-      <span className="font-mono text-xs">{order.order_number}</span>
-    ),
-  },
-  {
-    label: "Customer",
-    render: (order) =>
-      customerMap.get(order.customer_id)?.name ?? "Unknown Customer",
-  },
-  {
-    label: "Amount",
-    render: (order) => formatCurrency(order.total_amount),
-  },
-  {
-    label: "Status",
-    render: (order) => (
-      <FulfillmentStatusBadge status={order.fulfillment_status} />
-    ),
-  },
-  {
-    label: "",
-    align: "right",
-    render: (order) => (
-      <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
-        View
-      </Button>
-    ),
-  },
-];
+    {
+      label: "Order",
+      render: (order) => (
+        <span className="font-mono text-xs">{order.order_number}</span>
+      ),
+    },
+    {
+      label: "Customer",
+      render: (order) =>
+        customerMap.get(order.customer_id)?.name ?? "Unknown Customer",
+    },
+    {
+      label: "Amount",
+      render: (order) => formatCurrency(order.total_amount),
+    },
+    {
+      label: "Status",
+      render: (order) => (
+        <FulfillmentStatusBadge status={order.fulfillment_status} />
+      ),
+    },
+    {
+      label: "",
+      align: "right",
+      render: (order) => (
+        <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
+          View
+        </Button>
+      ),
+    },
+  ];
 
   const currentStepIndex = STATUS_ORDER.indexOf(
     trip.status as (typeof STATUS_ORDER)[number],
@@ -151,7 +151,7 @@ export default function TripDetailPage() {
         {/* TRIP SUMMARY */}
         <FormSection
           title="Trip Summary"
-          description={trip.type.replace(/_/g, " ")}
+          description={toTitleCase(trip.type.replace(/_/g, " "))}
         >
           <div className="flex items-start justify-between mb-4">
             <TripStatusBadge status={trip.status} />
@@ -194,13 +194,12 @@ export default function TripDetailPage() {
                     className="flex items-center gap-2"
                   >
                     <div
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                        isCurrent
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${isCurrent
                           ? "bg-brand-purple text-white"
                           : isActive
                             ? "bg-green-100 text-green-700"
                             : "bg-gray-100 text-gray-400"
-                      }`}
+                        }`}
                     >
                       {isActive && !isCurrent && <span>✓ </span>}
                       <span className="capitalize">
@@ -303,11 +302,11 @@ export default function TripDetailPage() {
               //   </table>
               // </div>
               <SimpleTable
-  columns={orderColumns}
-  rows={linkedOrders as Order[]}
-  keyExtractor={(order) => order.id}
-  emptyMessage="No orders attached."
-/>
+                columns={orderColumns}
+                rows={linkedOrders as Order[]}
+                keyExtractor={(order) => order.id}
+                emptyMessage="No orders attached."
+              />
             )}
           </FormSection>
         )}

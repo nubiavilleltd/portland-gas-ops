@@ -297,19 +297,20 @@ export default function OrderForm({
       <div className="bg-white border border-brand-border rounded-2xl p-6">
         <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
         <div className="space-y-5">
-          <FormInput
-            label="Delivery Address"
-            required
-            placeholder="Street, City, State"
-            error={errors.delivery_address?.message}
-            {...register("delivery_address")}
-          />
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <FormDatePicker
               label="Scheduled Date"
               required
               {...register("delivery_date")}
             />
+            <FormInput
+            label="Delivery Address"
+            required
+            placeholder="Street, City, State"
+            error={errors.delivery_address?.message}
+            {...register("delivery_address")}
+          />
           </div>
           <FormTextarea
             label="Special Instructions"
