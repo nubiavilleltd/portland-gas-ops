@@ -57,7 +57,9 @@ const APPROVAL_ROUTE = ["Initiator (You)", "Operations Manager", "Finance Review
 
 export default function CashRequisitionsPage() {
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<CashRequest[]>(SEED_CASH_REQUESTS);
+  const [items, setItems] = useState<CashRequest[]>(() =>
+    SEED_CASH_REQUESTS.filter((item) => item.requester === CURRENT_USER.name)
+  );
   const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 

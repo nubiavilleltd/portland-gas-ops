@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Paperclip, Building2, AlertCircle, CheckCircle, XCircle, RotateCcw, Clock, Circle } from "lucide-react";
-import ToggleGroup from "@/components/ui/ToggleGroup";
+import {
+  ArrowLeft, Download, Paperclip, Building2, AlertCircle,
+  CheckCircle, XCircle, RotateCcw, Clock, Circle, FileText,
+} from "lucide-react";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
@@ -12,99 +14,117 @@ import { useUpdateProcurementStatus, useCancelProcurement, useProcurement } from
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
-import { API_URL } from "@/lib/constants";
-import { useAuthStore } from "@/store/authStore";
-import type { ProcurementStatus } from "@/types";
+import { generatePO } from "@/lib/generatePO";
+import type { ProcurementStatus, ProcurementRequest } from "@/types";
 
-function DownloadPOButton({ requestId, reference }: { requestId: string; reference: string }) {
+type ApprovalAction = "approve" | "reject" | "return" | null;
+
+// ── Role helpers ───────────────────────────────────────────────────────────────
+
+function useRole() {
+  const { user } = useCurrentUser();
+  const role = user?.role;
+  return {
+    isLineManager:        role === "line_manager" || role === "approver_l1",
+    isProcurementOfficer: role === "procurement_officer",
+    isAdmin:              role === "super_admin" || role === "admin",
+  };
+}
+
+// ── Status trail config ────────────────────────────────────────────────────────
+
+const STATUS_STEPS: { status: ProcurementStatus; label: string; role: string }[] = [
+  { status: "pending_line_manager", label: "Awaiting Operations Manager",   role: "Operations Manager" },
+  { status: "pending_procurement",  label: "Awaiting Procurement Officer", role: "Procurement Officer" },
+  { status: "awaiting_payment",     label: "Awaiting Payment",             role: "Finance" },
+];
+
+const STATUS_ORDER: ProcurementStatus[] = [
+  "pending_line_manager",
+  "pending_procurement",
+  "awaiting_payment",
+];
+
+function statusIndex(s: ProcurementStatus): number {
+  return STATUS_ORDER.indexOf(s);
+}
+
+// ── Download PO button ─────────────────────────────────────────────────────────
+
+function DownloadPOButton({ req }: { req: ProcurementRequest }) {
   const [loading, setLoading] = useState(false);
-  const token = useAuthStore((s) => s.accessToken);
-
-  async function handleDownload() {
+  async function handleClick() {
     setLoading(true);
-    try {
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_URL}/api/procurement/${requestId}/download-po`, { headers, credentials: "include" });
-      if (!res.ok) throw new Error("Download failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${reference}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert("Could not download the PDF. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    try { await generatePO(req); } finally { setLoading(false); }
   }
-
   return (
-    <button onClick={handleDownload} disabled={loading} className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary disabled:opacity-50">
-      <Download size={14} />
-      {loading ? "Downloading…" : "Download PO"}
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary disabled:opacity-50"
+    >
+      <Download size={14} /> {loading ? "Generating…" : "Download PO"}
     </button>
   );
 }
 
-const STATUS_ACTIONS: Record<ProcurementStatus, { label: string; next: ProcurementStatus } | null> = {
-  draft:     { label: "Submit Request",    next: "submitted" },
-  submitted: { label: "Mark as Ordered",   next: "ordered"   },
-  ordered:   { label: "Mark as Delivered", next: "delivered" },
-  delivered: null,
-  cancelled: null,
-};
-
-// Mock approval audit trail — replace with real data when approval engine is wired
-const MOCK_TRAIL = [
-  { role: "Line Manager",        name: "Chinyere Okafor", status: "approved",    date: "11 May 2024",  comment: "Budgeted and necessary." },
-  { role: "Procurement Officer", name: "Emeka Nwosu",     status: "in_progress", date: null,           comment: null },
-];
-
-type DemoView = "requester" | "line_manager" | "procurement_officer";
-
-const DEMO_VIEWS: { value: DemoView; label: string }[] = [
-  { value: "requester",           label: "Requester"           },
-  { value: "line_manager",        label: "Line Manager"        },
-  { value: "procurement_officer", label: "Procurement Officer" },
-];
-
-type ApprovalAction = "approve" | "reject" | "return" | null;
+// ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function ProcurementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
-  const { user } = useCurrentUser();
 
   const { data: req, isLoading, isError } = useProcurement(id);
   const updateStatus = useUpdateProcurementStatus(id);
   const cancelRequest = useCancelProcurement(id);
-  const isManager = user?.role === "admin" || user?.role === "super_admin";
 
-  // DEMO toggle — remove when real auth is wired
-  const [demoView, setDemoView] = useState<DemoView>("requester");
+  const { isLineManager, isProcurementOfficer, isAdmin } = useRole();
+  const { user } = useCurrentUser();
+  const userName = user?.name;
 
   const [approvalAction, setApprovalAction] = useState<ApprovalAction>(null);
   const [approvalComment, setApprovalComment] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
 
   const approvalDialogConfig: Record<NonNullable<ApprovalAction>, { title: string; message: string; confirmLabel: string; destructive: boolean }> = {
     approve: { title: "Approve Request",     message: "Confirm that you are approving this procurement request.",                       confirmLabel: "Approve",      destructive: false },
-    reject:  { title: "Deny Request",        message: "This will deny the request. The requester will be notified and must resubmit.", confirmLabel: "Deny Request", destructive: true  },
-    return:  { title: "Return to Submitter", message: "The request will be sent back to the requester for revision.",                  confirmLabel: "Return",       destructive: false },
+    reject:  { title: "Reject Request",      message: "This will reject the request. The requester will be notified.",                  confirmLabel: "Reject",       destructive: true  },
+    return:  { title: "Return to Submitter", message: "The request will be sent back to the requester for revision.",                   confirmLabel: "Return",       destructive: false },
   };
 
-  async function handleStatusUpdate(next: ProcurementStatus) {
+  async function handleApprovalConfirm() {
+    if (!req || !approvalAction) return;
     try {
-      await updateStatus.mutateAsync(next);
-      toast.success(`Request marked as ${next}`);
+      if (approvalAction === "approve") {
+        const next: ProcurementStatus =
+          req.status === "pending_line_manager" ? "pending_procurement" : "awaiting_payment";
+        const terms = req.status === "pending_procurement" ? (paymentTerms || null) : undefined;
+        const issuingPO = req.status === "pending_procurement";
+        await updateStatus.mutateAsync({ status: next, paymentTerms: terms, poIssuedBy: issuingPO ? userName : undefined });
+
+        // Procurement officer issuing PO → generate PDF immediately
+        if (issuingPO) {
+          const updated = { ...req, status: "awaiting_payment" as ProcurementStatus, payment_terms: terms ?? null, po_issued_by: userName ?? null };
+          await generatePO(updated);
+          toast.success("PO issued and downloaded — request is now awaiting payment");
+        } else {
+          toast.success("Request approved");
+        }
+      } else if (approvalAction === "reject") {
+        await updateStatus.mutateAsync({ status: "rejected" as ProcurementStatus });
+        toast.success("Request rejected");
+      } else {
+        // return — send back to pending_line_manager for revision
+        await updateStatus.mutateAsync({ status: "pending_line_manager" });
+        toast.success("Request returned for revision");
+      }
     } catch {
-      toast.error("Failed to update status");
+      toast.error("Failed to submit decision");
     }
+    setApprovalAction(null);
+    setApprovalComment("");
+    setPaymentTerms("");
   }
 
   async function handleCancel() {
@@ -133,55 +153,56 @@ export default function ProcurementDetailPage() {
   }
 
   const grandTotal = req.items.reduce((sum, item) => sum + Number(item.total_cost), 0);
-  const statusAction = STATUS_ACTIONS[req.status];
-  const canCancel = req.status !== "cancelled" && req.status !== "delivered";
-  const isApproverView = demoView === "line_manager" || demoView === "procurement_officer";
-  const approverLabel = demoView === "line_manager" ? "Line Manager" : "Procurement Officer";
+  const vendor = req.vendor ?? req.one_time_vendor;
+  const isServices = req.category === "services";
+  const currentIdx = statusIndex(req.status as ProcurementStatus);
+  const hasPO = req.po_url != null || req.status === "awaiting_payment";
+
+  // What action panel to show
+  const showLineManagerPanel =
+    (isLineManager || isAdmin) && req.status === "pending_line_manager";
+  const showPOPanel =
+    (isProcurementOfficer || isAdmin) && req.status === "pending_procurement";
+  const canCancel =
+    (isAdmin || isLineManager || isProcurementOfficer) &&
+    req.status !== "awaiting_payment" && req.status !== "rejected";
 
   return (
     <AppLayout pageTitle="Procurement">
 
-      {/* ── Top bar ──────────────────────────────────────────────────────── */}
+      {/* ── Top bar ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors">
           <ArrowLeft size={14} /> Back to Procurement
         </button>
         <div className="flex items-center gap-2">
-          {req.po_url && <DownloadPOButton requestId={req.id} reference={req.reference} />}
-          {isManager && statusAction && req.status !== "submitted" && (
-            <button onClick={() => handleStatusUpdate(statusAction.next)} disabled={updateStatus.isPending} className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60">
-              {updateStatus.isPending ? "Updating…" : statusAction.label}
-            </button>
-          )}
-          {isManager && canCancel && req.status !== "submitted" && (
-            <button onClick={handleCancel} disabled={cancelRequest.isPending} className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60">
+          {hasPO && <DownloadPOButton req={req} />}
+          {canCancel && (
+            <button
+              onClick={handleCancel}
+              disabled={cancelRequest.isPending}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60"
+            >
               {cancelRequest.isPending ? "Cancelling…" : "Cancel Request"}
             </button>
           )}
         </div>
       </div>
 
-      <div className="max-w-3xl space-y-5">
-
-        {/* ── DEMO view toggle ─────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-brand-text-secondary shrink-0">Viewing as</span>
-          <ToggleGroup options={DEMO_VIEWS} value={demoView} onChange={setDemoView} />
-        </div>
+      <div className="space-y-5">
 
         {/* ── Section 1: Request Details ───────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
               <p className="text-xs font-mono text-brand-text-secondary mb-1">{req.reference}</p>
-              <h1 className="text-xl font-semibold text-brand-text-primary capitalize">{req.category} Request</h1>
+              <h1 className="text-xl font-semibold text-brand-text-primary capitalize">{req.category.replace(/_/g, " ")} Request</h1>
             </div>
             <ApprovalBadge status={req.status} />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 border-t border-brand-border pt-5 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 border-t border-brand-border pt-5 text-sm">
             {[
               ["Category",    capitalize(req.category)],
-              ["Priority",    capitalize(req.priority)],
               ["Required By", formatDate(req.required_by)],
               ["Submitted",   formatDate(req.created_at)],
             ].map(([label, val]) => (
@@ -191,9 +212,15 @@ export default function ProcurementDetailPage() {
               </div>
             ))}
           </div>
+          {req.payment_terms && (
+            <div className="mt-4 pt-4 border-t border-brand-border">
+              <p className="text-xs text-brand-text-secondary mb-0.5">Payment Terms</p>
+              <p className="text-sm font-medium text-brand-text-primary">{req.payment_terms}</p>
+            </div>
+          )}
           {req.justification && (
             <div className="mt-5 pt-5 border-t border-brand-border text-sm">
-              <p className="text-xs text-brand-text-secondary mb-1">Justification</p>
+              <p className="text-xs text-brand-text-secondary mb-1">Justification / Purpose</p>
               <p className="text-brand-text-primary leading-relaxed">{req.justification}</p>
             </div>
           )}
@@ -202,16 +229,16 @@ export default function ProcurementDetailPage() {
         {/* ── Section 2: Line Items ────────────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-brand-border">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Line Items</h2>
+            <h2 className="text-sm font-semibold text-brand-text-primary">{isServices ? "Service Items" : "Line Items"}</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-brand-border bg-gray-50/60">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Description</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Qty</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">{isServices ? "Duration" : "Qty"}</th>
                   <th className="px-5 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Unit</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Unit Cost</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">{isServices ? "Rate" : "Unit Cost"}</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Total</th>
                 </tr>
               </thead>
@@ -240,17 +267,24 @@ export default function ProcurementDetailPage() {
         <div className="bg-white border border-brand-border rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <Building2 size={14} className="text-brand-purple" />
-            <h2 className="text-sm font-semibold text-brand-text-primary">Vendor Information</h2>
+            <h2 className="text-sm font-semibold text-brand-text-primary">Preferred Vendor</h2>
+            {req.one_time_vendor && (
+              <span className="text-[10px] font-medium px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full">One-time</span>
+            )}
           </div>
-          {req.vendor ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 text-sm">
-              <div><p className="text-xs text-brand-text-secondary mb-0.5">Vendor Name</p><p className="font-medium text-brand-text-primary">{req.vendor.name}</p></div>
-              {req.vendor.address && <div><p className="text-xs text-brand-text-secondary mb-0.5">Address</p><p className="font-medium text-brand-text-primary">{req.vendor.address}</p></div>}
-              {req.vendor.phone  && <div><p className="text-xs text-brand-text-secondary mb-0.5">Phone</p><p className="font-medium text-brand-text-primary">{req.vendor.phone}</p></div>}
-              {req.vendor.email  && <div><p className="text-xs text-brand-text-secondary mb-0.5">Email</p><p className="font-medium text-brand-text-primary">{req.vendor.email}</p></div>}
+          {vendor ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-4 text-sm">
+              <div><p className="text-xs text-brand-text-secondary mb-0.5">Vendor Name</p><p className="font-medium text-brand-text-primary">{vendor.name}</p></div>
+              {vendor.contact_person && <div><p className="text-xs text-brand-text-secondary mb-0.5">Contact Person</p><p className="font-medium text-brand-text-primary">{vendor.contact_person}</p></div>}
+              {vendor.address    && <div><p className="text-xs text-brand-text-secondary mb-0.5">Address</p><p className="font-medium text-brand-text-primary">{vendor.address}</p></div>}
+              {vendor.phone      && <div><p className="text-xs text-brand-text-secondary mb-0.5">Phone</p><p className="font-medium text-brand-text-primary">{vendor.phone}</p></div>}
+              {vendor.email      && <div><p className="text-xs text-brand-text-secondary mb-0.5">Email</p><p className="font-medium text-brand-text-primary">{vendor.email}</p></div>}
+              {vendor.bank_name  && <div><p className="text-xs text-brand-text-secondary mb-0.5">Bank</p><p className="font-medium text-brand-text-primary">{vendor.bank_name}</p></div>}
+              {vendor.account_name && <div><p className="text-xs text-brand-text-secondary mb-0.5">Account Name</p><p className="font-medium text-brand-text-primary">{vendor.account_name}</p></div>}
+              {vendor.account_number && <div><p className="text-xs text-brand-text-secondary mb-0.5">Account Number</p><p className="font-medium text-brand-text-primary font-mono">{vendor.account_number}</p></div>}
             </div>
           ) : (
-            <p className="text-sm text-brand-text-secondary">No vendor assigned to this request.</p>
+            <p className="text-sm text-brand-text-secondary">No vendor specified for this request.</p>
           )}
         </div>
 
@@ -270,47 +304,74 @@ export default function ProcurementDetailPage() {
           </div>
         )}
 
-        {/* ── Section 4: Approval Progress (requester view) ───────────────── */}
-        {demoView === "requester" && (
+        {/* ── PO Document card (once issued) ──────────────────────────────── */}
+        {hasPO && (
+          <div className="bg-white border border-brand-border rounded-2xl p-5 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+              <FileText size={16} className="text-brand-purple" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-brand-text-primary">{req.reference}.pdf</p>
+              <p className="text-xs text-brand-text-secondary">
+                Purchase Order · Issued {req.po_issued_at ? formatDate(req.po_issued_at) : ""}
+              </p>
+            </div>
+            <button
+              onClick={() => void generatePO(req)}
+              className="flex items-center gap-1.5 text-sm font-medium text-brand-purple hover:underline shrink-0"
+            >
+              <Download size={13} /> Download
+            </button>
+          </div>
+        )}
+
+        {/* ── Approval Progress (non-approver view) ───────────────────────── */}
+        {!showLineManagerPanel && !showPOPanel && (
           <div className="bg-white border border-brand-border rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-text-primary mb-5">Approval Progress</h2>
             <div className="space-y-3">
-              {MOCK_TRAIL.map((step) => (
-                <div key={step.role} className="flex items-start gap-4 p-4 rounded-xl border border-brand-border">
-                  <div className={`mt-0.5 flex items-center justify-center h-7 w-7 rounded-full border-2 shrink-0 ${
-                    step.status === "approved"    ? "bg-green-50 border-green-500" :
-                    step.status === "in_progress" ? "bg-brand-purple/10 border-brand-purple" :
-                    "bg-gray-50 border-gray-300"
-                  }`}>
-                    {step.status === "approved"    && <CheckCircle size={13} className="text-green-600" />}
-                    {step.status === "in_progress" && <Clock size={13} className="text-brand-purple" />}
-                    {step.status === "pending"     && <Circle size={13} className="text-gray-300" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-brand-text-primary">{step.role}</p>
-                      {step.date
-                        ? <span className="text-xs text-green-600">{step.date}</span>
-                        : step.status === "in_progress"
-                          ? <span className="text-xs text-brand-purple">In review</span>
-                          : <span className="text-xs text-gray-400">Pending</span>
-                      }
+              {STATUS_STEPS.map((step, idx) => {
+                const isDone    = currentIdx > idx;
+                const isCurrent = currentIdx === idx && req.status !== "rejected";
+                const isRejected = req.status === "rejected" && idx === Math.max(0, currentIdx);
+                return (
+                  <div key={step.status} className="flex items-start gap-4 p-4 rounded-xl border border-brand-border">
+                    <div className={`mt-0.5 flex items-center justify-center h-7 w-7 rounded-full border-2 shrink-0 ${
+                      isRejected  ? "bg-red-50 border-red-400" :
+                      isDone      ? "bg-green-50 border-green-500" :
+                      isCurrent   ? "bg-brand-purple/10 border-brand-purple" :
+                      "bg-gray-50 border-gray-200"
+                    }`}>
+                      {isRejected  && <XCircle size={13} className="text-red-500" />}
+                      {!isRejected && isDone    && <CheckCircle size={13} className="text-green-600" />}
+                      {!isRejected && isCurrent && <Clock size={13} className="text-brand-purple" />}
+                      {!isRejected && !isDone && !isCurrent && <Circle size={13} className="text-gray-200" />}
                     </div>
-                    <p className="text-xs text-brand-text-secondary mt-0.5">{step.name}</p>
-                    {step.comment && <p className="text-xs text-brand-text-secondary italic mt-1">&ldquo;{step.comment}&rdquo;</p>}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-brand-text-primary">{step.label}</p>
+                        {isDone
+                          ? <span className="text-xs text-green-600">Done</span>
+                          : isCurrent
+                            ? <span className="text-xs text-brand-purple">In review</span>
+                            : <span className="text-xs text-gray-400">Pending</span>
+                        }
+                      </div>
+                      <p className="text-xs text-brand-text-secondary mt-0.5">{step.role}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* ── Section 4: Approval Decision (approver views) ───────────────── */}
-        {isApproverView && (
+        {/* ── Line Manager — Approval Decision ────────────────────────────── */}
+        {showLineManagerPanel && (
           <div className="bg-white border border-brand-border rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-brand-text-primary mb-1">Approval Decision</h2>
             <p className="text-xs text-brand-text-secondary mb-5">
-              Reviewing as <span className="font-medium text-brand-text-primary">{approverLabel}</span>
+              Reviewing as <span className="font-medium text-brand-text-primary">Operations Manager</span>
             </p>
             <FormTextarea
               label="Comment (optional)"
@@ -324,7 +385,7 @@ export default function ProcurementDetailPage() {
                 <RotateCcw size={14} /> Return
               </button>
               <button onClick={() => setApprovalAction("reject")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
-                <XCircle size={14} /> Deny
+                <XCircle size={14} /> Reject
               </button>
               <button onClick={() => setApprovalAction("approve")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors">
                 <CheckCircle size={14} /> Approve
@@ -333,15 +394,71 @@ export default function ProcurementDetailPage() {
           </div>
         )}
 
+        {/* ── Procurement Officer — Issue PO ───────────────────────────────── */}
+        {showPOPanel && (
+          <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <h2 className="text-sm font-semibold text-brand-text-primary mb-1">Issue Purchase Order</h2>
+            <p className="text-xs text-brand-text-secondary mb-5">
+              Reviewing as <span className="font-medium text-brand-text-primary">Procurement Officer</span>
+            </p>
+            <div className="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3 mb-5 text-sm text-purple-800">
+              Clicking <strong>Issue PO</strong> will generate and download the Purchase Order PDF. Download and send it to the vendor outside the system.
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-brand-text-secondary mb-1.5">
+                Payment Terms <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-brand-border rounded-lg bg-white text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+              >
+                <option value="">Select payment terms…</option>
+                <option value="Net 7">Net 7</option>
+                <option value="Net 14">Net 14</option>
+                <option value="Net 30">Net 30</option>
+                <option value="Net 60">Net 60</option>
+                <option value="50% upfront, 50% on delivery">50% upfront, 50% on delivery</option>
+                <option value="Payment on delivery">Payment on delivery</option>
+                <option value="Immediate payment">Immediate payment</option>
+              </select>
+            </div>
+            <FormTextarea
+              label="Comment (optional)"
+              placeholder="Add any notes before issuing…"
+              rows={2}
+              value={approvalComment}
+              onChange={(e) => setApprovalComment(e.target.value)}
+            />
+            <div className="flex items-center gap-2 justify-end mt-4">
+              <button onClick={() => setApprovalAction("return")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
+                <RotateCcw size={14} /> Return
+              </button>
+              <button onClick={() => setApprovalAction("reject")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                <XCircle size={14} /> Reject
+              </button>
+              <button onClick={() => setApprovalAction("approve")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors">
+                <FileText size={14} /> Issue PO
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
 
-      {/* ── Confirmation modal ───────────────────────────────────────────── */}
+      {/* ── Confirmation modal ───────────────────────────────────────────────── */}
       {approvalAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setApprovalAction(null)} />
           <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <h3 className="text-base font-semibold text-brand-text-primary">{approvalDialogConfig[approvalAction].title}</h3>
             <p className="text-sm text-brand-text-secondary mt-2 mb-4">{approvalDialogConfig[approvalAction].message}</p>
+            {approvalAction === "approve" && req.status === "pending_procurement" && (
+              <div className="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3 mb-4 text-sm text-purple-800">
+                <p>The PO PDF will download automatically.</p>
+                {paymentTerms && <p className="mt-1">Payment Terms: <strong>{paymentTerms}</strong></p>}
+              </div>
+            )}
             {approvalComment && (
               <div className="bg-gray-50 border border-brand-border rounded-lg px-3 py-2 mb-4">
                 <p className="text-xs text-brand-text-secondary">Your comment</p>
@@ -353,13 +470,14 @@ export default function ProcurementDetailPage() {
                 Cancel
               </button>
               <button
-                onClick={() => { toast.success("Decision submitted"); setApprovalAction(null); setApprovalComment(""); }}
+                onClick={handleApprovalConfirm}
+                disabled={updateStatus.isPending}
                 className={approvalDialogConfig[approvalAction].destructive
-                  ? "px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                  : "px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-lg hover:bg-brand-purple-dark transition-colors"
+                  ? "px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
+                  : "px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
                 }
               >
-                {approvalDialogConfig[approvalAction].confirmLabel}
+                {updateStatus.isPending ? "Processing…" : approvalDialogConfig[approvalAction].confirmLabel}
               </button>
             </div>
           </div>

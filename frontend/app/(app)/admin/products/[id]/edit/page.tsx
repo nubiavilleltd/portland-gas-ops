@@ -14,6 +14,7 @@ import { ProductsService } from "@/lib/modules/products/services/products.servic
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import ProductForm from "@/lib/modules/products/components/ProductForm";
 import { toast } from "sonner";
+import FormSection from "@/components/ui/FormSection";
 
 export default function EditProductPage() {
   const params  = useParams();
@@ -40,7 +41,7 @@ export default function EditProductPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => router.push(PRODUCT_ROUTES.list())}
+          onClick={() => router.push(`/admin${PRODUCT_ROUTES.list()}`)}
         >
           Back to Products
         </Button>
@@ -51,13 +52,16 @@ export default function EditProductPage() {
   async function handleSubmit(data: UpdateProductFormOutput) {
     await ProductsService.updateProduct(id, data);
     toast.success("Product successfully updated")
-    router.push(PRODUCT_ROUTES.detail(id));
+    // router.push(PRODUCT_ROUTES.detail(id));
+    router.push(`/admin${PRODUCT_ROUTES.detail(id)}`);
+
+    
   }
 
   return (
     <AppLayout pageTitle={`Edit — ${product.name}`}>
       <button
-        onClick={() => router.push(PRODUCT_ROUTES.detail(id))}
+        onClick={() => router.push(`/admin${PRODUCT_ROUTES.detail(id)}`)}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
@@ -70,22 +74,24 @@ export default function EditProductPage() {
         className="mb-6"
       />
 
-      <div className="bg-white border border-brand-border rounded-2xl p-6 max-w-2xl">
-        <h2 className="text-base font-semibold mb-5">Product Details</h2>
+    
 
-        {/*
-          Pass initial={product} — ProductForm uses it to pre-fill
-          defaultValues. The form is identical to the create form,
-          the only difference is the pre-filled values and submit labels.
-        */}
-        <ProductForm
+       <FormSection
+              title="Product Information"
+              description="Enter product details and pricing information"
+            >
+              <ProductForm
           initial={product}
           onSubmit={handleSubmit}
-          onCancel={() => router.push(PRODUCT_ROUTES.detail(id))}
+          onCancel={() => router.push(`/admin${PRODUCT_ROUTES.detail(id)}`)}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />
-      </div>
+            </FormSection>
+
+
+
+
     </AppLayout>
   );
 }

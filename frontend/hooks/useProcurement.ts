@@ -8,6 +8,7 @@ import type {
   ProcurementListItem,
   ProcurementCreateInput,
   ProcurementStatus,
+  PaymentStatus,
 } from "@/types";
 
 // ── MOCK implementations ───────────────────────────────────────────────────────
@@ -54,8 +55,8 @@ export function useCreateProcurement() {
 export function useUpdateProcurementStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (status: ProcurementStatus) => {
-      procurementStore.updateStatus(id, status);
+    mutationFn: ({ status, paymentTerms, poIssuedBy }: { status: ProcurementStatus; paymentTerms?: string | null; poIssuedBy?: string | null }) => {
+      procurementStore.updateStatus(id, status, paymentTerms, poIssuedBy);
       return Promise.resolve(procurementStore.getById(id)!);
     },
     onSuccess: () => {
@@ -70,6 +71,28 @@ export function useCancelProcurement(id: string) {
     mutationFn: () => {
       procurementStore.remove(id);
       return Promise.resolve();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["procurement"] });
+    },
+  });
+}
+
+export function useProcurementByVendor(vendorId: string) {
+  return useQuery<ProcurementRequest[]>({
+    queryKey: ["procurement", "vendor", vendorId],
+    queryFn: () => Promise.resolve(procurementStore.getByVendor(vendorId)),
+    enabled: !!vendorId,
+    staleTime: Infinity,
+  });
+}
+
+export function useUpdatePaymentStatus(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (paymentStatus: PaymentStatus) => {
+      procurementStore.updatePaymentStatus(id, paymentStatus);
+      return Promise.resolve(procurementStore.getById(id)!);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["procurement"] });

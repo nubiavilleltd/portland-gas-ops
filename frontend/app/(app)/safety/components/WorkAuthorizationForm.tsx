@@ -11,15 +11,10 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
+import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
 import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { AssignedWorkInitiationSummary } from "@/types/safety";
-
-const requesterDetails = {
-  name: "Daniel Okoro",
-  department: "Engineering",
-  role: "CNG Conversion Technician",
-};
 
 const optionFromStrings = (items: string[]): SelectOption[] =>
   items.map((item) => ({ value: item, label: item }));
@@ -38,11 +33,16 @@ export default function WorkAuthorizationForm() {
   const toast = useToast();
   const { workInitiations: storedWorkInitiations } = useSafetyDemoData();
   const requester = {
-    ...requesterDetails,
+    ...getSafetyCurrentUser(),
     requestDate: formatLocalDate(),
   };
   const approvedWorkInitiations = storedWorkInitiations
-    .filter((request) => request.status === "approved" && request.operationalReview?.decision === "Approve");
+    .filter(
+      (request) =>
+        request.status === "approved" &&
+        request.operationalReview?.decision === "Approve" &&
+        isSafetyCurrentUser(request.requester.name),
+    );
   const workInitiations: AssignedWorkInitiationSummary[] = approvedWorkInitiations
     .map((request) => ({
       id: request.id,

@@ -142,7 +142,7 @@ export default function CustomerDetailPage() {
         </div>
 
         {/* Action buttons — wrapped in a div so they sit side by side */}
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <Button
             variant="outline"
             href={CUSTOMER_ROUTES.edit(customer.id)}
@@ -163,7 +163,7 @@ export default function CustomerDetailPage() {
           >
             {isActive ? "Deactivate" : "Activate"}
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Details card */}

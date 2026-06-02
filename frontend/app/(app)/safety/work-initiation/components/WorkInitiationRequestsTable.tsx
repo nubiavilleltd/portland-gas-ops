@@ -2,6 +2,11 @@
 
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
+import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import {
+  getAdminWorkInitiationHref,
+  sortByLatestSafetyActivity,
+} from "@/lib/safety-demo-routing";
 import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { WorkInitiationRequest } from "@/types/safety";
 
@@ -23,14 +28,28 @@ const columns: Column<WorkInitiationRequest>[] = [
   },
 ];
 
-export default function WorkInitiationRequestsTable() {
+export default function WorkInitiationRequestsTable({
+  scope = "user",
+}: {
+  scope?: "user" | "admin";
+}) {
   const { workInitiations: requests } = useSafetyDemoData();
+  const scopedRequests = sortByLatestSafetyActivity(
+    requests.filter(
+      (request) => scope === "admin" || isSafetyCurrentUser(request.requester.name),
+    ),
+    (request) => request.requester.requestDate,
+  );
 
   return (
     <DataTable
       columns={columns}
-      data={requests}
-      rowHref={(request) => `/safety/work-initiation/${request.id}`}
+      data={scopedRequests}
+      rowHref={(request) =>
+        scope === "admin"
+          ? getAdminWorkInitiationHref(request)
+          : `/safety/work-initiation/${request.id}`
+      }
       emptyMessage="No work initiation requests found."
     />
   );

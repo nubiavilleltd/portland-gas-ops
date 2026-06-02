@@ -63,7 +63,9 @@ const APPROVAL_ROUTE = ["Initiator (You)", "Operations Manager", "Finance Review
 
 export default function InvoicesPage() {
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<InvoiceRequest[]>(SEED_INVOICES);
+  const [items, setItems] = useState<InvoiceRequest[]>(() =>
+    SEED_INVOICES.filter((item) => item.requester === CURRENT_USER.name)
+  );
   const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [invoiceId] = useState(() => genRef("IID"));

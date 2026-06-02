@@ -9,6 +9,7 @@ import type { CreateCustomerFormData } from "@/lib/modules/customers/schemas/cus
 import { CustomersService } from "@/lib/modules/customers/services/customers.service";
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 import CustomerForm from "@/lib/modules/customers/components/CustomerForm";
+import FormSection from "@/components/ui/FormSection";
 
 export default function NewCustomerPage() {
   const router = useRouter();
@@ -26,16 +27,17 @@ export default function NewCustomerPage() {
         className="mb-6"
       />
 
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-        <h2 className="text-base font-semibold mb-5">Customer Details</h2>
-
-        <CustomerForm
+      <FormSection
+        title="Customer Information"
+        description="Edit customer details and contact information"
+      >
+         <CustomerForm
           onSubmit={handleSubmit}
           onCancel={() => router.back()}
           submitLabel="Create Customer"
           submitLoadingLabel="Creating…"
         />
-      </div>
+      </FormSection>
     </AppLayout>
   );
 }

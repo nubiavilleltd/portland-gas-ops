@@ -17,9 +17,11 @@ import type {
   AssetAssignmentLog,
   ProcurementListItem,
   ProcurementRequest,
+  PaymentStatus,
   AssetRequestListItem,
   AssetRequest,
   AssetMaintenanceLog,
+  AssetRequestStatus,
 } from "@/types";
 
 // ── Generic localStorage helpers ───────────────────────────────────────────────
@@ -155,7 +157,6 @@ const SEED_CATEGORIES: AssetCategory[] = [
   { id: "c1", name: "IT Equipment",     colour: "#7C3AED", is_active: true, created_at: "2025-01-01T00:00:00Z" },
   { id: "c2", name: "Office Furniture", colour: "#059669", is_active: true, created_at: "2025-01-01T00:00:00Z" },
   { id: "c3", name: "Safety Equipment", colour: "#D97706", is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "c4", name: "Vehicles",         colour: "#2563EB", is_active: true, created_at: "2025-01-01T00:00:00Z" },
 ];
 
 // ── Seed: Asset Types ──────────────────────────────────────────────────────────
@@ -166,10 +167,8 @@ const SEED_ASSET_TYPES: AssetType[] = [
   { id: "t3", category_id: "c1", name: "Desktop Computer",prefix: "DSK", is_active: true, created_at: "2025-01-01T00:00:00Z" },
   { id: "t4", category_id: "c2", name: "Office Chair",    prefix: "CHR", is_active: true, created_at: "2025-01-01T00:00:00Z" },
   { id: "t5", category_id: "c2", name: "Desk",            prefix: "DSK", is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "t6", category_id: "c3", name: "Safety Helmet",   prefix: "HLM", is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "t7", category_id: "c3", name: "Fire Extinguisher",prefix: "FEX", is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "t8", category_id: "c4", name: "Pickup Truck",    prefix: "PCK", is_active: true, created_at: "2025-01-01T00:00:00Z" },
-  { id: "t9", category_id: "c4", name: "Generator",       prefix: "GEN", is_active: true, created_at: "2025-01-01T00:00:00Z" },
+  { id: "t6", category_id: "c3", name: "Safety Helmet",    prefix: "HLM", is_active: true, created_at: "2025-01-01T00:00:00Z" },
+  { id: "t7", category_id: "c3", name: "Fire Extinguisher", prefix: "FEX", is_active: true, created_at: "2025-01-01T00:00:00Z" },
 ];
 
 // ── Seed: Assets ───────────────────────────────────────────────────────────────
@@ -180,6 +179,8 @@ const SEED_ASSETS: Asset[] = [
     name: "Dell Latitude 5540 Laptop",
     category_id: "c1",
     category: SEED_CATEGORIES[0],
+    asset_type_id: "t1",
+    asset_type: SEED_ASSET_TYPES[0],
     asset_tag: "DEL-LKI-001",
     serial_number: "SN-2024-001",
     purchase_date: "2024-01-15",
@@ -205,6 +206,8 @@ const SEED_ASSETS: Asset[] = [
     name: "HP OfficeJet Pro Printer",
     category_id: "c1",
     category: SEED_CATEGORIES[0],
+    asset_type_id: "t2",
+    asset_type: SEED_ASSET_TYPES[1],
     asset_tag: "HPO-HQ-001",
     serial_number: "SN-2024-002",
     purchase_date: "2024-02-01",
@@ -230,6 +233,8 @@ const SEED_ASSETS: Asset[] = [
     name: "Executive Office Chair",
     category_id: "c2",
     category: SEED_CATEGORIES[1],
+    asset_type_id: "t4",
+    asset_type: SEED_ASSET_TYPES[3],
     asset_tag: "EXE-HQ-001",
     serial_number: null,
     purchase_date: "2023-06-01",
@@ -255,6 +260,8 @@ const SEED_ASSETS: Asset[] = [
     name: "Safety Helmet (White)",
     category_id: "c3",
     category: SEED_CATEGORIES[2],
+    asset_type_id: "t6",
+    asset_type: SEED_ASSET_TYPES[5],
     asset_tag: "SAF-APJ-001",
     serial_number: null,
     purchase_date: "2024-03-01",
@@ -277,39 +284,29 @@ const SEED_ASSETS: Asset[] = [
   },
   {
     id: "a5",
-    name: "Toyota Hilux Pickup (PH001)",
-    category_id: "c4",
-    category: SEED_CATEGORIES[3],
-    asset_tag: "TOY-PHC-001",
-    serial_number: "VIN-PH001-2022",
-    purchase_date: "2022-04-01",
-    purchase_cost: 18500000,
-    condition: "fair",
-    status: "assigned",
+    name: "Lenovo ThinkPad X1 Carbon",
+    category_id: "c1",
+    category: SEED_CATEGORIES[0],
+    asset_type_id: "t1",
+    asset_type: SEED_ASSET_TYPES[0],
+    asset_tag: "LEN-HQ-001",
+    serial_number: "SN-2024-005",
+    purchase_date: "2024-06-01",
+    purchase_cost: 920000,
+    condition: "new",
+    status: "available",
     image_url: null,
-    description: "2022 model, double cabin, field operations",
-    location: "Port Harcourt Depot",
-    assigned_to_name: "Field Operations Team",
+    description: "Core i7, 16GB RAM, 1TB SSD",
+    location: "IT Store, HQ",
+    assigned_to_name: null,
     maintenance_type: "routine",
-    maintenance_frequency_months: 3,
-    next_maintenance_due: "2025-05-01",
-    is_maintenance_due: true,
-    vehicle_details: {
-      plate_number: "KJA-234-PH",
-      vehicle_type: "pickup_truck",
-      fuel_type: "diesel",
-      year_of_manufacture: 2022,
-      color: "White",
-      engine_number: "2GD-FTV-PH001",
-      chassis_number: "MROFZ29G100123456",
-      mileage_at_registration: 12,
-      seating_capacity: 5,
-      insurance_expiry_date: "2026-03-31",
-      road_worthiness_expiry_date: "2026-03-31",
-    },
+    maintenance_frequency_months: 12,
+    next_maintenance_due: "2025-06-01",
+    is_maintenance_due: false,
+    vehicle_details: null,
     added_by: null,
     is_active: true,
-    created_at: "2022-04-01T00:00:00Z",
+    created_at: "2024-06-01T00:00:00Z",
     updated_at: null,
   },
   {
@@ -317,6 +314,8 @@ const SEED_ASSETS: Asset[] = [
     name: "Fire Extinguisher (CO2)",
     category_id: "c3",
     category: SEED_CATEGORIES[2],
+    asset_type_id: "t7",
+    asset_type: SEED_ASSET_TYPES[6],
     asset_tag: "FIR-HQ-001",
     serial_number: "FE-2024-007",
     purchase_date: "2024-01-01",
@@ -347,14 +346,12 @@ const SEED_ASSIGNMENT_LOGS: AssetAssignmentLog[] = [
   { id: "al2", asset_id: "a1", asset_tag: "DEL-LKI-001", event_type: "assigned",       from_person: null,             from_location: "IT Store, HQ",         to_person: "Tunde Okafor",     to_location: "Lekki Office, Floor 2",  notes: "Assigned for permanent use",                  performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-02-01T00:00:00Z" },
   // a3 — Chair
   { id: "al3", asset_id: "a3", asset_tag: "EXE-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: "Board Room",       to_location: "Board Room, HQ",         notes: "Registered and placed in board room",         performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2023-06-01T00:00:00Z" },
-  // a5 — Vehicle
-  { id: "al4", asset_id: "a5", asset_tag: "TOY-PHC-001", event_type: "registered",    from_person: null,             from_location: null,                   to_person: "Field Operations Team", to_location: "Port Harcourt Depot", notes: "Registered and assigned to field ops",       performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2022-04-01T00:00:00Z" },
-  { id: "al5", asset_id: "a5", asset_tag: "TOY-PHC-001", event_type: "status_changed", from_person: "Field Operations Team", from_location: "Port Harcourt Depot", to_person: null,          to_location: "Lagos Motors Ltd (Service)", notes: "Sent for routine maintenance — oil change & brakes", performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2025-02-01T00:00:00Z" },
-  { id: "al6", asset_id: "a5", asset_tag: "TOY-PHC-001", event_type: "returned",       from_person: null,             from_location: "Lagos Motors Ltd (Service)", to_person: "Field Operations Team", to_location: "Port Harcourt Depot", notes: "Maintenance complete, returned to service", performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2025-02-03T00:00:00Z" },
   // a4 — Helmet
   { id: "al7", asset_id: "a4", asset_tag: "SAF-APJ-001", event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Apapa Depot Store",      notes: "Registered into safety equipment store",      performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-03-01T00:00:00Z" },
   // a2 — Printer
   { id: "al8", asset_id: "a2", asset_tag: "HPO-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Admin Office, HQ",       notes: "Registered and placed in admin office",       performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-02-01T00:00:00Z" },
+  // a5 — ThinkPad (available laptop)
+  { id: "al10", asset_id: "a5", asset_tag: "LEN-HQ-001",  event_type: "registered",   from_person: null,             from_location: null,                   to_person: null,               to_location: "IT Store, HQ",           notes: "Registered into IT store",                    performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-06-01T00:00:00Z" },
   // a6 — Fire Extinguisher
   { id: "al9", asset_id: "a6", asset_tag: "FIR-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Server Room, HQ",        notes: "Registered and wall-mounted in server room",  performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-01-01T00:00:00Z" },
 ];
@@ -365,44 +362,44 @@ const SEED_PROCUREMENT_LIST: ProcurementListItem[] = [
   {
     id: "p1",
     reference: "PR-2025-001",
-    title: "Generator fuel supply — Q2 2025",
     category: "consumables",
-    priority: "routine",
-    status: "submitted",
+    status: "pending_line_manager",
     required_by: "2025-06-30",
     attachment_url: null,
     po_url: null,
+    payment_status: "unpaid" as PaymentStatus,
     created_by: "Portland Gas Admin",
     created_at: "2025-04-01T09:00:00Z",
     vendor: SEED_VENDORS[0],
+    one_time_vendor: null,
   },
   {
     id: "p2",
     reference: "PR-2025-002",
-    title: "PPE restock — safety helmets and gloves",
     category: "consumables",
-    priority: "urgent",
-    status: "ordered",
+    status: "awaiting_payment",
     required_by: "2025-05-15",
     attachment_url: null,
-    po_url: null,
+    po_url: "generated",
+    payment_status: "unpaid" as PaymentStatus,
     created_by: "Portland Gas Admin",
     created_at: "2025-04-10T10:00:00Z",
     vendor: SEED_VENDORS[1],
+    one_time_vendor: null,
   },
   {
     id: "p3",
     reference: "PR-2025-003",
-    title: "IT equipment upgrade — 3 laptops",
-    category: "capital",
-    priority: "routine",
-    status: "delivered",
+    category: "technical",
+    status: "awaiting_payment",
     required_by: "2025-03-31",
     attachment_url: null,
-    po_url: null,
+    po_url: "generated",
+    payment_status: "paid" as PaymentStatus,
     created_by: "Portland Gas Admin",
     created_at: "2025-03-01T08:00:00Z",
     vendor: SEED_VENDORS[2],
+    one_time_vendor: null,
   },
 ];
 
@@ -410,20 +407,23 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
   {
     id: "p1",
     reference: "PR-2025-001",
-    title: "Generator fuel supply — Q2 2025",
     category: "consumables",
-    priority: "routine",
     justification: "Monthly fuel supply for standby generators at all facilities.",
     required_by: "2025-06-30",
-    status: "submitted",
+    status: "pending_line_manager",
     attachment_url: null,
     attachment_name: null,
     po_url: null,
+    po_issued_at: null,
+    po_issued_by: null,
+    payment_terms: null,
+    payment_status: "unpaid" as PaymentStatus,
     created_by: "Portland Gas Admin",
     is_active: true,
     created_at: "2025-04-01T09:00:00Z",
     updated_at: null,
     vendor: SEED_VENDORS[0],
+    one_time_vendor: null,
     items: [
       { id: "pi1", description: "Diesel fuel (Automotive Gas Oil)", quantity: 5000, unit: "litres", unit_cost: 1100, total_cost: 5500000, created_at: "2025-04-01T09:00:00Z" },
     ],
@@ -431,20 +431,23 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
   {
     id: "p2",
     reference: "PR-2025-002",
-    title: "PPE restock — safety helmets and gloves",
     category: "consumables",
-    priority: "urgent",
     justification: "Field team PPE below minimum stock threshold.",
     required_by: "2025-05-15",
-    status: "ordered",
+    status: "awaiting_payment",
     attachment_url: null,
     attachment_name: null,
-    po_url: null,
+    po_url: "generated",
+    po_issued_at: "2025-04-15T10:00:00Z",
+    po_issued_by: "Emeka Nwosu",
+    payment_terms: "Net 30",
+    payment_status: "unpaid" as PaymentStatus,
     created_by: "Portland Gas Admin",
     is_active: true,
     created_at: "2025-04-10T10:00:00Z",
     updated_at: null,
     vendor: SEED_VENDORS[1],
+    one_time_vendor: null,
     items: [
       { id: "pi2", description: "Safety helmets (white, EN397)", quantity: 20, unit: "pieces", unit_cost: 12000, total_cost: 240000, created_at: "2025-04-10T10:00:00Z" },
       { id: "pi3", description: "Cut-resistant gloves (size L)", quantity: 50, unit: "pieces", unit_cost: 3500, total_cost: 175000, created_at: "2025-04-10T10:00:00Z" },
@@ -453,20 +456,23 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
   {
     id: "p3",
     reference: "PR-2025-003",
-    title: "IT equipment upgrade — 3 laptops",
-    category: "capital",
-    priority: "routine",
+    category: "technical",
     justification: "3 staff laptops are past end-of-life and require replacement.",
     required_by: "2025-03-31",
-    status: "delivered",
+    status: "awaiting_payment",
     attachment_url: null,
     attachment_name: null,
-    po_url: null,
+    po_url: "generated",
+    po_issued_at: "2025-03-10T08:00:00Z",
+    po_issued_by: "Emeka Nwosu",
+    payment_terms: "Payment on delivery",
+    payment_status: "paid" as PaymentStatus,
     created_by: "Portland Gas Admin",
     is_active: true,
     created_at: "2025-03-01T08:00:00Z",
     updated_at: null,
     vendor: SEED_VENDORS[2],
+    one_time_vendor: null,
     items: [
       { id: "pi4", description: "Dell Latitude 5540 (Core i7, 16GB, 512GB SSD)", quantity: 3, unit: "pieces", unit_cost: 850000, total_cost: 2550000, created_at: "2025-03-01T08:00:00Z" },
     ],
@@ -515,6 +521,9 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     requester_name: "Tunde Okafor",
     approved_by: "admin-001",
     approved_at: "2025-05-02T09:00:00Z",
+    allocated_at: null,
+    allocated_by_name: null,
+    allocated_asset_ids: null,
     items: [
       { id: "ari1", asset_type_id: "t1", asset_type: SEED_ASSET_TYPES[0], quantity: 1 },
     ],
@@ -534,6 +543,9 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     requester_name: "Ngozi Eze",
     approved_by: null,
     approved_at: null,
+    allocated_at: null,
+    allocated_by_name: null,
+    allocated_asset_ids: null,
     items: [
       { id: "ari2", asset_type_id: "t6", asset_type: SEED_ASSET_TYPES[5], quantity: 1 },
     ],
@@ -672,7 +684,9 @@ export const assetStore = {
     assetStore.getAll().find((a) => a.id === id) ?? null,
   add: (data: Partial<Asset> & { name: string; condition: Asset["condition"]; status: Asset["status"] }): Asset => {
     const categories = categoryStore.getAll();
+    const types = assetTypeStore.getAll();
     const category = data.category_id ? categories.find((c) => c.id === data.category_id) ?? null : null;
+    const assetType = data.asset_type_id ? types.find((t) => t.id === data.asset_type_id) ?? null : null;
     const existing = assetStore.getAll();
     const asset_tag = generateTag(data.name, data.location ?? "HQ", existing);
     const asset: Asset = {
@@ -680,6 +694,8 @@ export const assetStore = {
       name: data.name,
       category_id: data.category_id ?? null,
       category,
+      asset_type_id: data.asset_type_id ?? null,
+      asset_type: assetType,
       asset_tag,
       serial_number: data.serial_number ?? null,
       purchase_date: data.purchase_date ?? null,
@@ -719,11 +735,15 @@ export const assetStore = {
   },
   update: (id: string, patch: Partial<Asset>): Asset => {
     const categories = categoryStore.getAll();
+    const types = assetTypeStore.getAll();
     const list = assetStore.getAll().map((a) => {
       if (a.id !== id) return a;
       const updated = { ...a, ...patch, updated_at: new Date().toISOString() };
       if (patch.category_id !== undefined) {
         updated.category = categories.find((c) => c.id === patch.category_id) ?? null;
+      }
+      if (patch.asset_type_id !== undefined) {
+        updated.asset_type = types.find((t) => t.id === patch.asset_type_id) ?? null;
       }
       return updated;
     });
@@ -753,6 +773,13 @@ export const assetStore = {
     });
     return updated;
   },
+  countAvailableByType: (): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    assetStore.getAll()
+      .filter((a) => a.status === "available" && a.asset_type_id)
+      .forEach((a) => { counts[a.asset_type_id!] = (counts[a.asset_type_id!] ?? 0) + 1; });
+    return counts;
+  },
   remove: (id: string): void => {
     write("mock_assets", assetStore.getAll().filter((a) => a.id !== id));
   },
@@ -760,35 +787,67 @@ export const assetStore = {
 
 // ── Procurement store ──────────────────────────────────────────────────────────
 
+function migrateProcurementStatus(status: string): ProcurementRequest["status"] {
+  if (status === "po_issued" || status === "sent_to_finance") return "awaiting_payment";
+  return status as ProcurementRequest["status"];
+}
+
 export const procurementStore = {
-  getList: (): ProcurementListItem[] => read("mock_procurement_list", SEED_PROCUREMENT_LIST),
-  getFull: (): ProcurementRequest[] => read("mock_procurement_full", SEED_PROCUREMENT_FULL),
+  getList: (): ProcurementListItem[] =>
+    read("mock_procurement_list", SEED_PROCUREMENT_LIST).map((p) => ({
+      ...p,
+      payment_status: p.payment_status ?? ("unpaid" as PaymentStatus),
+      status: migrateProcurementStatus(p.status),
+    })),
+  getFull: (): ProcurementRequest[] =>
+    read("mock_procurement_full", SEED_PROCUREMENT_FULL).map((p) => ({
+      ...p,
+      payment_status: p.payment_status ?? ("unpaid" as PaymentStatus),
+      payment_terms: p.payment_terms ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      po_issued_by: (p as any).po_issued_by ?? null,
+      status: migrateProcurementStatus(p.status),
+    })),
   getById: (id: string): ProcurementRequest | null =>
     procurementStore.getFull().find((p) => p.id === id) ?? null,
-  add: (data: { title: string; category: string; priority: string; justification?: string; required_by?: string; vendor_id?: string; items: { description: string; quantity: number; unit: string; unit_cost: number; total_cost: number }[] }): ProcurementRequest => {
+  add: (data: { category: string; justification?: string; required_by?: string; vendor_id?: string; one_time_vendor?: { name: string; contact_person?: string; address?: string; phone?: string; email?: string; bank_name?: string; account_name?: string; account_number?: string } | null; items: { description: string; quantity: number; unit: string; unit_cost: number; total_cost: number }[] }): ProcurementRequest => {
     const id = newId();
     const list = procurementStore.getList();
-    const ref = `PR-2025-${String(list.length + 1).padStart(3, "0")}`;
+    const year = new Date().getFullYear();
+    const ref = `PR-${year}-${String(list.length + 1).padStart(3, "0")}`;
     const vendor = data.vendor_id ? vendorStore.getById(data.vendor_id) : null;
+    const oneTimeVendor = !data.vendor_id && data.one_time_vendor ? {
+      name: data.one_time_vendor.name,
+      contact_person: data.one_time_vendor.contact_person ?? null,
+      address: data.one_time_vendor.address ?? null,
+      phone: data.one_time_vendor.phone ?? null,
+      email: data.one_time_vendor.email ?? null,
+      bank_name: data.one_time_vendor.bank_name ?? null,
+      account_name: data.one_time_vendor.account_name ?? null,
+      account_number: data.one_time_vendor.account_number ?? null,
+    } : null;
     const now = new Date().toISOString();
 
     const full: ProcurementRequest = {
       id,
       reference: ref,
-      title: data.title,
       category: data.category as ProcurementRequest["category"],
-      priority: data.priority as ProcurementRequest["priority"],
       justification: data.justification ?? null,
       required_by: data.required_by ?? null,
-      status: "submitted",
+      status: "pending_line_manager",
       attachment_url: null,
       attachment_name: null,
       po_url: null,
+      po_issued_at: null,
+      po_issued_by: null,
+      payment_terms: null,
+      payment_status: "unpaid" as PaymentStatus,
       created_by: "Portland Gas Admin",
       is_active: true,
       created_at: now,
       updated_at: null,
       vendor,
+      one_time_vendor: oneTimeVendor,
       items: data.items.map((item, i) => ({
         id: `${id}-item-${i}`,
         description: item.description,
@@ -803,27 +862,37 @@ export const procurementStore = {
     const listItem: ProcurementListItem = {
       id,
       reference: ref,
-      title: data.title,
       category: full.category,
-      priority: full.priority,
-      status: "submitted",
+      status: "pending_line_manager",
       required_by: data.required_by ?? null,
       attachment_url: null,
       po_url: null,
+      payment_status: "unpaid" as PaymentStatus,
       created_by: "Portland Gas Admin",
       created_at: now,
       vendor,
+      one_time_vendor: oneTimeVendor,
     };
 
     write("mock_procurement_list", [listItem, ...list]);
     write("mock_procurement_full", [full, ...procurementStore.getFull()]);
     return full;
   },
-  updateStatus: (id: string, status: ProcurementRequest["status"]): void => {
+  updateStatus: (id: string, status: ProcurementRequest["status"], paymentTerms?: string | null, poIssuedBy?: string | null): void => {
     const now = new Date().toISOString();
-    write("mock_procurement_list", procurementStore.getList().map((p) => p.id === id ? { ...p, status } : p));
-    write("mock_procurement_full", procurementStore.getFull().map((p) => p.id === id ? { ...p, status, updated_at: now } : p));
+    const poFields = status === "awaiting_payment"
+      ? { po_url: "generated", po_issued_at: now, po_issued_by: poIssuedBy ?? null, payment_terms: paymentTerms ?? null }
+      : {};
+    write("mock_procurement_list", procurementStore.getList().map((p) => p.id === id ? { ...p, status, ...poFields } : p));
+    write("mock_procurement_full", procurementStore.getFull().map((p) => p.id === id ? { ...p, status, ...poFields, updated_at: now } : p));
   },
+  updatePaymentStatus: (id: string, paymentStatus: PaymentStatus): void => {
+    const now = new Date().toISOString();
+    write("mock_procurement_list", procurementStore.getList().map((p) => p.id === id ? { ...p, payment_status: paymentStatus } : p));
+    write("mock_procurement_full", procurementStore.getFull().map((p) => p.id === id ? { ...p, payment_status: paymentStatus, updated_at: now } : p));
+  },
+  getByVendor: (vendorId: string): ProcurementRequest[] =>
+    procurementStore.getFull().filter((p) => p.vendor?.id === vendorId),
   remove: (id: string): void => {
     write("mock_procurement_list", procurementStore.getList().filter((p) => p.id !== id));
     write("mock_procurement_full", procurementStore.getFull().filter((p) => p.id !== id));
@@ -834,7 +903,11 @@ export const procurementStore = {
 
 export const assetRequestStore = {
   getList: (): AssetRequestListItem[] => read("mock_asset_requests_list", SEED_ASSET_REQUESTS_LIST),
-  getFull: (): AssetRequest[] => read("mock_asset_requests_full", SEED_ASSET_REQUESTS_FULL),
+  getFull: (): AssetRequest[] =>
+    read("mock_asset_requests_full", SEED_ASSET_REQUESTS_FULL).map((r) => ({
+      allocated_asset_ids: null,
+      ...r,
+    })),
   getById: (id: string): AssetRequest | null =>
     assetRequestStore.getFull().find((r) => r.id === id) ?? null,
   add: (data: { request_type: string; purpose: string; return_date?: string; items: { asset_type_id: string; quantity: number }[] }): AssetRequest => {
@@ -856,6 +929,9 @@ export const assetRequestStore = {
       requester_name: "Portland Gas Admin",
       approved_by: null,
       approved_at: null,
+      allocated_at: null,
+      allocated_by_name: null,
+      allocated_asset_ids: null,
       items: data.items.map((item, i) => ({
         id: `${id}-item-${i}`,
         asset_type_id: item.asset_type_id,
@@ -886,8 +962,75 @@ export const assetRequestStore = {
   },
   updateStatus: (id: string, status: AssetRequest["status"], rejection_reason?: string): void => {
     const now = new Date().toISOString();
+
+    // When a loan is returned, free all allocated assets back to "available"
+    if (status === "returned") {
+      const request = assetRequestStore.getById(id);
+      if (request?.allocated_asset_ids) {
+        for (const assetId of request.allocated_asset_ids) {
+          const asset = assetStore.getById(assetId);
+          assetStore.update(assetId, { status: "available", assigned_to_name: null });
+          if (asset) {
+            assignmentLogStore.add({
+              asset_id: assetId,
+              asset_tag: asset.asset_tag,
+              event_type: "returned",
+              from_person: asset.assigned_to_name,
+              from_location: asset.location,
+              to_person: null,
+              to_location: asset.location,
+              notes: `Returned — ${request.reference}`,
+              performed_by: null,
+              performed_by_name: request.requester_name ?? "Staff",
+              performed_at: now,
+            });
+          }
+        }
+      }
+    }
+
     write("mock_asset_requests_list", assetRequestStore.getList().map((r) => r.id === id ? { ...r, status } : r));
     write("mock_asset_requests_full", assetRequestStore.getFull().map((r) => r.id === id ? { ...r, status, rejection_reason: rejection_reason ?? null, updated_at: now } : r));
+  },
+  allocate: (requestId: string, allocations: { itemId: string; assetIds: string[] }[], allocatedByName: string): AssetRequest => {
+    const request = assetRequestStore.getById(requestId);
+    if (!request) throw new Error("Request not found");
+    const now = new Date().toISOString();
+
+    for (const alloc of allocations) {
+      for (const assetId of alloc.assetIds) {
+        const asset = assetStore.getById(assetId);
+        if (!asset) continue;
+        assetStore.update(assetId, {
+          status: "assigned",
+          assigned_to_name: request.requester_name ?? "Unknown",
+        });
+        assignmentLogStore.add({
+          asset_id: assetId,
+          asset_tag: asset.asset_tag,
+          event_type: "assigned",
+          from_person: asset.assigned_to_name,
+          from_location: asset.location,
+          to_person: request.requester_name,
+          to_location: null,
+          notes: `Allocated via ${request.reference} (${request.request_type})`,
+          performed_by: null,
+          performed_by_name: allocatedByName,
+          performed_at: now,
+        });
+      }
+    }
+
+    const allAllocatedIds = allocations.flatMap((a) => a.assetIds);
+
+    write("mock_asset_requests_list", assetRequestStore.getList().map((r) =>
+      r.id === requestId ? { ...r, status: "allocated" as AssetRequestStatus } : r
+    ));
+    write("mock_asset_requests_full", assetRequestStore.getFull().map((r) =>
+      r.id === requestId ? { ...r, status: "allocated" as AssetRequestStatus, allocated_at: now, allocated_by_name: allocatedByName, allocated_asset_ids: allAllocatedIds, updated_at: now } : r
+    ));
+
+    return assetRequestStore.getById(requestId)!;
   },
 };
 
