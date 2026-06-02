@@ -2,8 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   Banknote,
-  BarChart2,
-  BookOpen,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -11,7 +9,6 @@ import {
   CreditCard,
   DollarSign,
   FileText,
-  FolderOpen,
   Package,
   Settings,
   ShieldCheck,
@@ -49,51 +46,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
   //     },
   //   ],
   // },
-  {
-    title: "HR Management",
-    routePrefixes: ["/hr-management", "/hr"],
-    processes: [
-      {
-        name: "Employee Profile",
-        description: "Staff profiles and records",
-        icon: Users,
-        href: "/hr-management/employees",
-      },
-      {
-        name: "Leave Balances",
-        description: "Entitlement and usage by employee",
-        icon: BarChart2,
-        href: "/hr-management/leave-balances",
-      },
-      {
-        name: "Pay Slip Management",
-        description: "Generate and manage employee pay slips",
-        icon: CreditCard,
-        href: "/hr-management/payslips",
-      },
-      {
-        name: "Employee Records",
-        description: "Document vault",
-        icon: FolderOpen,
-        href: "/hr-management/employee-records",
-        showOnHome: false,
-      },
-      {
-        name: "HR Policies",
-        description: "Policy library and acknowledgements",
-        icon: BookOpen,
-        href: "/hr-management/policies",
-        showOnHome: false,
-      },
-      {
-        name: "Payroll",
-        description: "Payroll runs and disbursements",
-        icon: DollarSign,
-        href: "/hr-management/payroll",
-        showOnHome: false,
-      },
-    ],
-  },
   {
     title: "Finance & HR Management",
     routePrefixes: ["/finance", "/hr-management/leave-requests", "/hr-management/my-payslips"],

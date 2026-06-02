@@ -36,58 +36,53 @@ export type ModuleGroup = {
 };
 
 export const moduleGroups: readonly ModuleGroup[] = [
-  // {
-  //   title: "Administration",
-  //   processes: [
-  //     {
-  //       name: "Admin",
-  //       description: "Users, roles & system configuration",
-  //       icon: Settings,
-  //       href: "/admin",
-  //     },
-  //   ],
-  // },
   {
-    title: "HR Management",
-    routePrefixes: ["/hr-management", "/hr"],
+    title: "Administration",
+    routePrefixes: ["/admin"],
     processes: [
+      {
+        name: "HR Management",
+        description: "Staff management and HR operations",
+        icon: Users,
+        href: "/admin",
+      },
       {
         name: "Employee Profile",
         description: "Staff profiles and records",
         icon: Users,
-        href: "/hr-management/employees",
+        href: "/admin/employees",
       },
       {
         name: "Leave Balances",
         description: "Entitlement and usage by employee",
         icon: BarChart2,
-        href: "/hr-management/leave-balances",
+        href: "/admin/leave-balances",
       },
       {
         name: "Pay Slip Management",
         description: "Generate and manage employee pay slips",
         icon: CreditCard,
-        href: "/hr-management/payslips",
+        href: "/admin/payslips",
       },
       {
         name: "Employee Records",
         description: "Document vault",
         icon: FolderOpen,
-        href: "/hr-management/employee-records",
+        href: "/admin/employee-records",
         showOnHome: false,
       },
       {
         name: "HR Policies",
         description: "Policy library and acknowledgements",
         icon: BookOpen,
-        href: "/hr-management/policies",
+        href: "/admin/policies",
         showOnHome: false,
       },
       {
         name: "Payroll",
         description: "Payroll runs and disbursements",
         icon: DollarSign,
-        href: "/hr-management/payroll",
+        href: "/admin/payroll",
         showOnHome: false,
       },
     ],
