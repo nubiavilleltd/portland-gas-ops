@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, Download, Pencil, Trash2 } from "lucide-react";
+import { Eye, Download, Trash2 } from "lucide-react";
 import type { Column } from "@/components/data-table/data-table";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { formatDate } from "@/lib/utils";
@@ -9,7 +9,6 @@ const fmt  = (n: number) => (n === 0 ? "—" : `₦${n.toLocaleString("en-NG")}`
 const fmtN = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : fmt(Number(v)));
 
 export function createEmployeeColumns(
-  onEdit: (emp: Employee) => void,
   onDelete: (id: string) => void,
 ): Column<Employee>[] {
   return [
@@ -111,13 +110,6 @@ export function createEmployeeColumns(
           >
             <Eye size={14} />
           </Link>
-          <button
-            onClick={() => onEdit(row)}
-            className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition"
-            title="Edit"
-          >
-            <Pencil size={14} />
-          </button>
           <button
             onClick={() => onDelete(row.id)}
             className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition"
