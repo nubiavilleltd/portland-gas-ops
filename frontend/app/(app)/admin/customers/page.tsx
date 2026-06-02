@@ -54,11 +54,11 @@ export default function CustomersPage() {
       <PageHeader
         title="Customers"
         description="Manage customer records and contact details"
-        // action={
-        //   <Button href={CUSTOMER_ROUTES.new()} leftIcon={<Plus size={16} />}>
-        //     New Customer
-        //   </Button>
-        // }
+        action={
+          <Button href={`/admin${CUSTOMER_ROUTES.new()}`} leftIcon={<Plus size={16} />}>
+            New Customer
+          </Button>
+        }
         className="mb-6"
       />
 
@@ -66,7 +66,7 @@ export default function CustomersPage() {
         columns={columns}
         data={customers}
         isLoading={isLoading}
-        rowHref={(row) => CUSTOMER_ROUTES.detail(row.id)}
+        rowHref={(row) => `/admin${CUSTOMER_ROUTES.detail(row.id)}`}
         emptyMessage="No customers found."
         emptyDescription="Add your first customer to get started."
       />

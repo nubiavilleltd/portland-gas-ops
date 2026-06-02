@@ -40,7 +40,7 @@ export default function EditCustomerPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => router.push(CUSTOMER_ROUTES.list())}
+          onClick={() => router.push(`/admin${CUSTOMER_ROUTES.list()}`)}
         >
           Back to Customers
         </Button>
@@ -50,13 +50,13 @@ export default function EditCustomerPage() {
 
   async function handleSubmit(data: CreateCustomerFormData) {
     await CustomersService.updateCustomer(id, data);
-    router.push(CUSTOMER_ROUTES.detail(id));
+    router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`);
   }
 
   return (
     <AppLayout pageTitle={`Edit — ${customer.name}`}>
       <button
-        onClick={() => router.push(CUSTOMER_ROUTES.detail(id))}
+        onClick={() => router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`)}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
@@ -69,23 +69,19 @@ export default function EditCustomerPage() {
         className="mb-6"
       />
 
-    
 
-
-<FormSection
-  title="Customer Information"
-  description="Edit customer details and contact information"
->
-  <CustomerForm
+            <FormSection
+        title="Customer Information"
+        description="Edit customer details and contact information"
+      >
+         <CustomerForm
           initial={customer}
           onSubmit={handleSubmit}
-          onCancel={() => router.push(CUSTOMER_ROUTES.detail(id))}
+          onCancel={() => router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`)}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />
-</FormSection>
-
-
+      </FormSection>
     </AppLayout>
   );
 }
