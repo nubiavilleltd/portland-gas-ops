@@ -85,12 +85,14 @@ function toInspectionCheckValue(
 
 export default function WorkAuthorizationDetailsView({
   requestId,
+  initialRole,
 }: {
   requestId: string;
+  initialRole?: WorkAuthorizationRole;
 }) {
   const router = useRouter();
   const [currentRole, setCurrentRole] =
-    useState<WorkAuthorizationRole>("requester");
+    useState<WorkAuthorizationRole>(initialRole ?? "requester");
   const [request, setRequest] = useState<WorkAuthorizationRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [hseComment, setHseComment] = useState("");
@@ -231,7 +233,7 @@ export default function WorkAuthorizationDetailsView({
     };
     const approval: WorkAuthorizationApprovalResult = {
       decision,
-      approver: "Samuel Bassey",
+      approver: "Daniel Okoro",
       dateTime: "2026-05-18 11:10 AM",
       comment:
         hseComment ||

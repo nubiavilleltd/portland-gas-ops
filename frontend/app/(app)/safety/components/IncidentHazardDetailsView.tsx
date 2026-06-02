@@ -36,13 +36,21 @@ const yesNoOptions = toOptions(["Yes", "No"]);
 const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
 const departmentOptions = toOptions(["Engineering", "Maintenance", "Operations", "Logistics", "HSE", "Admin"]);
 
-export default function IncidentHazardDetailsView({ reportId }: { reportId: string }) {
+export default function IncidentHazardDetailsView({
+  reportId,
+  initialRole,
+}: {
+  reportId: string;
+  initialRole?: IncidentHazardRole;
+}) {
   const router = useRouter();
   const initialReport = getMockIncidentHazardReport(reportId);
   const { incidentHazards } = useSafetyDemoData();
   const report = incidentHazards.find((item) => item.id === reportId) ?? initialReport;
   const completedWork = report ? getApprovedCloseOutForIncident(report.id) : null;
-  const [currentRole, setCurrentRole] = useState<IncidentHazardRole>("reporter");
+  const [currentRole, setCurrentRole] = useState<IncidentHazardRole>(
+    initialRole ?? "reporter",
+  );
   const [hseComment, setHseComment] = useState("");
   const [correctiveActionRequired, setCorrectiveActionRequired] = useState("");
   const [assignedDepartment, setAssignedDepartment] = useState("");
@@ -103,7 +111,7 @@ export default function IncidentHazardDetailsView({ reportId }: { reportId: stri
 
   function buildHseReview(decision: "Resolved" | "Not Resolved" | "Recommended" | ""): IncidentHazardHseReview {
     return {
-      inspector: "Samuel Bassey",
+      inspector: "Daniel Okoro",
       confirmedReportType: report?.reportType || "Hazard",
       confirmedSeverity: report?.severityEstimate || "Medium",
       findings: "HSE reviewed the report and confirmed the reported condition.",
@@ -357,7 +365,7 @@ function HseReviewAction({
   return (
     <FormSection title="HSE Review & Corrective Action" description="Assess the report and determine whether corrective work is required.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
+        <FormInput label="HSE Inspector" value="Daniel Okoro" disabled />
         <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
         <FormSelect label="Confirmed Severity" required options={toOptions(incidentSeverityOptions)} placeholder="Select confirmed severity" />
         <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
@@ -511,9 +519,19 @@ function CorrectiveWorkResolution({
         />
       </div>
       {report.status === "recommended" && !completedWorkReference ? (
-        <p className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Create and complete linked work using this incident before it can be marked resolved.
-        </p>
+        <div className="mt-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-blue-800">
+            Create and complete linked work using this incident before it can be marked resolved.
+          </p>
+          <Button
+            href="/safety/work-initiation/new"
+            size="sm"
+            variant="secondary"
+            className="shrink-0 bg-white"
+          >
+            Create Work Initiation
+          </Button>
+        </div>
       ) : null}
       {canResolve ? (
         <div className="mt-4">
@@ -536,7 +554,7 @@ function HseClosureAction({
   return (
     <FormSection title="HSE Final Closure" description="Verify the completed corrective work and close this report.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Samuel Bassey"} disabled />
+        <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Daniel Okoro"} disabled />
         <FormInput
           label="Verified Work Completion"
           value={report.resolutionWorkCompletionId || "No linked completion required"}

@@ -5,9 +5,9 @@ import type {
 import { assignedWorkInitiationOptions } from "./work-initiation";
 
 const requester = {
-  name: "Daniel Okoro",
+  name: "Ibrahim Musa",
   department: "Engineering",
-  role: "CNG Conversion Technician",
+  role: "Maintenance Technician",
   requestDate: "2026-05-18",
 };
 
@@ -41,7 +41,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       typeOfWork: ["Vehicle Inspection", "CNG Conversion"],
       description: "Inspect vehicle before CNG conversion work.",
       reason: "Pre-conversion readiness check.",
-      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      workersInvolved: ["Ibrahim Musa", "Mary James"],
       contractorRequired: false,
       contractorName: "",
       contractorContactEmail: "",
@@ -80,7 +80,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       typeOfWork: ["CNG Cylinder Work", "Lifting Work"],
       description: "Mount CNG cylinder bracket and inspect cylinder position.",
       reason: "Required for vehicle conversion completion.",
-      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      workersInvolved: ["Ibrahim Musa", "Mary James"],
       contractorRequired: false,
       contractorName: "",
       contractorContactEmail: "",
@@ -106,7 +106,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-18 09:30 AM",
         comment: "Work authorization request submitted.",
@@ -130,7 +130,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       typeOfWork: ["Gas System Work", "Vehicle Inspection"],
       description: "Perform gas system leak check before vehicle release.",
       reason: "Final safety validation before approval for use.",
-      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      workersInvolved: ["Ibrahim Musa", "Mary James"],
       contractorRequired: false,
       contractorName: "",
       contractorContactEmail: "",
@@ -153,7 +153,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-18 09:30 AM",
         comment: "Work authorization request submitted.",
@@ -177,7 +177,7 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
       typeOfWork: ["Hot Work", "CNG Cylinder Work"],
       description: "Weld reinforcement support on cylinder mounting bracket.",
       reason: "Bracket reinforcement required before final installation.",
-      workersInvolved: ["Daniel Okoro", "Ibrahim Musa"],
+      workersInvolved: ["Ibrahim Musa", "Mary James"],
       contractorRequired: true,
       contractorName: "SafeWeld Engineering Ltd",
       contractorContactEmail: "adewale.example",
@@ -201,28 +201,28 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     hseInspection: approvedHseInspection,
     hseApproval: {
       decision: "Approve",
-      approver: "Samuel Bassey",
+      approver: "Daniel Okoro",
       dateTime: "2026-05-18 11:10 AM",
       comment: "Cleared for controlled hot work.",
     },
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-18 09:30 AM",
         comment: "Work authorization request submitted.",
       },
       {
         action: "HSE Inspection Completed",
-        actor: "Samuel Bassey",
+        actor: "Daniel Okoro",
         role: "HSE Inspector",
         dateTime: "2026-05-18 11:00 AM",
         comment: "Inspection completed and passed.",
       },
       {
         action: "HSE Approved",
-        actor: "Samuel Bassey",
+        actor: "Daniel Okoro",
         role: "HSE Inspector",
         dateTime: "2026-05-18 11:10 AM",
         comment: "Request approved by HSE.",
@@ -267,21 +267,21 @@ export const mockWorkAuthorizationRequests: WorkAuthorizationRequest[] = [
     hseInspection: approvedHseInspection,
     hseApproval: {
       decision: "Approve",
-      approver: "Samuel Bassey",
+      approver: "Daniel Okoro",
       dateTime: "2026-05-24 09:30 AM",
       comment: "Corrective repair work approved with isolation controls.",
     },
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-24 08:30 AM",
         comment: "Work authorization submitted for corrective repair.",
       },
       {
         action: "HSE Approved",
-        actor: "Samuel Bassey",
+        actor: "Daniel Okoro",
         role: "HSE Inspector",
         dateTime: "2026-05-24 09:30 AM",
         comment: "Corrective repair work approved with isolation controls.",

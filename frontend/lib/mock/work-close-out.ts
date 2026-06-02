@@ -1,14 +1,14 @@
 import type {
   ApprovedWorkAuthorizationOption,
+  WorkCloseOutApprovalResult,
   WorkCloseOutRequest,
   WorkCloseOutHseApproval,
-  WorkAuthorizationApprovalResult,
 } from "@/types/safety";
 
 export const closeOutRequester = {
-  name: "Daniel Okoro",
+  name: "Ibrahim Musa",
   department: "Engineering",
-  role: "CNG Conversion Technician",
+  role: "Maintenance Technician",
   requestDate: "2026-05-18",
 };
 
@@ -17,7 +17,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     id: "WA-APP-001",
     title: "Hot work on cylinder mounting bracket",
     status: "approved",
-    requester: "Daniel Okoro",
+    requester: "Ibrahim Musa",
     requestDate: "2026-05-18",
     department: "Engineering",
     location: "Maintenance Workshop",
@@ -26,7 +26,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-23 12:00 PM",
     workTypes: ["Hot Work", "CNG Cylinder Work"],
     supervisor: "Mary James",
-    hseApprover: "Samuel Bassey",
+    hseApprover: "Daniel Okoro",
   },
   {
     id: "WA-APP-002",
@@ -41,13 +41,13 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-24 02:00 PM",
     workTypes: ["Gas System Work", "Vehicle Inspection"],
     supervisor: "Mary James",
-    hseApprover: "Samuel Bassey",
+    hseApprover: "Daniel Okoro",
   },
   {
     id: "WA-APP-003",
     title: "CNG cylinder installation",
     status: "approved",
-    requester: "Daniel Okoro",
+    requester: "Ibrahim Musa",
     requestDate: "2026-05-18",
     department: "Engineering",
     location: "Conversion Bay 2",
@@ -56,7 +56,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-25 01:00 PM",
     workTypes: ["CNG Cylinder Work", "Lifting Work"],
     supervisor: "Mary James",
-    hseApprover: "Samuel Bassey",
+    hseApprover: "Daniel Okoro",
   },
   {
     id: "WA-APP-004",
@@ -71,26 +71,40 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-26 10:00 AM",
     workTypes: ["Vehicle Inspection"],
     supervisor: "Mary James",
-    hseApprover: "Samuel Bassey",
+    hseApprover: "Daniel Okoro",
   },
 ];
 
-const supervisorApproval: WorkAuthorizationApprovalResult = {
+const supervisorApproval: WorkCloseOutApprovalResult = {
   decision: "Approve",
   approver: "Mary James",
   dateTime: "2026-05-18 03:00 PM",
   comment: "Completion reviewed and accepted.",
 };
 
-const operationsHeadApproval: WorkAuthorizationApprovalResult = {
+const operationsHeadApproval: WorkCloseOutApprovalResult = {
   decision: "Approve",
   approver: "Grace Bello",
   dateTime: "2026-05-18 03:20 PM",
   comment: "Completion reviewed and recommended for HSE verification.",
 };
 
+const supervisorAcknowledgement: WorkCloseOutApprovalResult = {
+  decision: "Acknowledge",
+  approver: "Mary James",
+  dateTime: "2026-05-25 03:00 PM",
+  comment: "Work was not completed as approved. Exception close-out acknowledged for audit.",
+};
+
+const operationsHeadAcknowledgement: WorkCloseOutApprovalResult = {
+  decision: "Acknowledge",
+  approver: "Grace Bello",
+  dateTime: "2026-05-25 03:20 PM",
+  comment: "Exception close-out reviewed and routed to HSE for final acknowledgement.",
+};
+
 const hseApproval: WorkCloseOutHseApproval = {
-  inspector: "Samuel Bassey",
+  inspector: "Daniel Okoro",
   verifiedCloseOut: true,
   areaSafeForOperations: true,
   correctiveActionRequired: false,
@@ -98,6 +112,17 @@ const hseApproval: WorkCloseOutHseApproval = {
   decision: "Approve",
   comment: "Area verified safe. Close-out approved.",
   dateTime: "2026-05-18 03:40 PM",
+};
+
+const hseAcknowledgement: WorkCloseOutHseApproval = {
+  inspector: "Daniel Okoro",
+  verifiedCloseOut: true,
+  areaSafeForOperations: false,
+  correctiveActionRequired: true,
+  correctiveActionDetails: "Corrective work must be re-planned and tracked separately.",
+  decision: "Acknowledge",
+  comment: "Exception close-out acknowledged for audit. Work is not counted as successfully closed.",
+  dateTime: "2026-05-25 03:40 PM",
 };
 
 function baseCloseOut(
@@ -159,7 +184,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -174,7 +199,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -197,7 +222,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -228,7 +253,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -249,7 +274,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
       },
       {
         action: "HSE Approved",
-        actor: "Samuel Bassey",
+        actor: "Daniel Okoro",
         role: "HSE Inspector",
         dateTime: "2026-05-18 03:40 PM",
         comment: "Area verified safe. Close-out approved.",
@@ -266,7 +291,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Daniel Okoro",
+        actor: "Ibrahim Musa",
         role: "Requester",
         dateTime: "2026-05-24 03:00 PM",
         comment: "Corrective repair completion submitted for close-out.",
@@ -287,10 +312,74 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
       },
       {
         action: "HSE Approved",
-        actor: "Samuel Bassey",
+        actor: "Daniel Okoro",
         role: "HSE Inspector",
         dateTime: "2026-05-24 03:45 PM",
         comment: "Area verified safe after corrective repair.",
+      },
+    ],
+  }),
+  baseCloseOut(2, {
+    id: "WC-ACK-001",
+    status: "acknowledged",
+    title: "Unsuccessful close-out for cylinder installation",
+    completionDetails: {
+      actualStartDateTime: "2026-05-25 10:10 AM",
+      actualCompletionDateTime: "2026-05-25 12:20 PM",
+      workCompleted: false,
+      completedAsApproved: false,
+      deviationExplanation: "Cylinder bracket alignment failed inspection and the installation could not be completed.",
+      completionSummary: "Work attempt stopped before completion. Area secured and exception close-out raised for audit.",
+      incidentObserved: true,
+      incidentNote: "Minor bracket deformation observed during fitment.",
+      completionEvidence: [{ name: "failed-fitment-photo.jpg", type: "image" }],
+      completionNotes: "New corrective work will be required before the incident can be closed.",
+    },
+    monitoring: {
+      monitoredDuringExecution: true,
+      stayedWithinScope: false,
+      ppeAndControlsMaintained: true,
+      unsafeConditionAddressed: "Yes",
+      monitoringComment: "Supervisor stopped the work when the fitment issue was identified.",
+    },
+    areaCondition: {
+      workAreaCleaned: true,
+      toolsRemoved: true,
+      systemSafe: false,
+      remainingHazard: true,
+      remainingHazardDetails: "Vehicle remains unavailable until bracket alignment is corrected.",
+    },
+    supervisorApproval: supervisorAcknowledgement,
+    operationsHeadApproval: operationsHeadAcknowledgement,
+    hseApproval: hseAcknowledgement,
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Ibrahim Musa",
+        role: "Requester",
+        dateTime: "2026-05-25 02:30 PM",
+        comment: "Exception close-out submitted because work was not completed.",
+      },
+      {
+        action: "Supervisor Acknowledged",
+        actor: "Mary James",
+        role: "Supervisor",
+        dateTime: "2026-05-25 03:00 PM",
+        comment: "Work was not completed as approved. Exception close-out acknowledged for audit.",
+      },
+      {
+        action: "Operations Head Acknowledged",
+        actor: "Grace Bello",
+        role: "Operations Head",
+        dateTime: "2026-05-25 03:20 PM",
+        comment: "Exception close-out reviewed and routed to HSE for final acknowledgement.",
+      },
+      {
+        action: "HSE Acknowledged",
+        actor: "Daniel Okoro",
+        role: "HSE Inspector",
+        dateTime: "2026-05-25 03:40 PM",
+        comment: "Exception close-out acknowledged for audit. Work is not counted as successfully closed.",
       },
     ],
   }),

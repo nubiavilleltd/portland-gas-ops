@@ -12,9 +12,9 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import {
   incidentLocationOptions,
-  mockReporter,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
+import { getSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import {
   createIncidentHazardReport,
   useSafetyDemoData,
@@ -37,7 +37,7 @@ export default function IncidentHazardForm() {
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
   const { workAuthorizations } = useSafetyDemoData();
   const reporter = {
-    ...mockReporter,
+    ...getSafetyCurrentUser(),
     reportDate: formatLocalDate(),
   };
   const relatedAuthorizationOptions = workAuthorizations.map((request) => ({
