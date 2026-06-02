@@ -195,6 +195,7 @@ export type WorkCloseOutStatus =
   | "submitted"
   | "pending_approval"
   | "approved"
+  | "acknowledged"
   | "returned"
   | "denied";
 
@@ -243,13 +244,22 @@ export interface WorkCloseOutAreaCondition {
   remainingHazardDetails: string;
 }
 
+export type WorkCloseOutDecision = WorkAuthorizationDecision | "Acknowledge";
+
+export interface WorkCloseOutApprovalResult {
+  decision: WorkCloseOutDecision;
+  approver: string;
+  dateTime: string;
+  comment: string;
+}
+
 export interface WorkCloseOutHseApproval {
   inspector: string;
   verifiedCloseOut: boolean;
   areaSafeForOperations: boolean;
   correctiveActionRequired: boolean;
   correctiveActionDetails: string;
-  decision: WorkAuthorizationDecision;
+  decision: WorkCloseOutDecision;
   comment: string;
   dateTime: string;
 }
@@ -263,8 +273,8 @@ export interface WorkCloseOutRequest {
   completionDetails: WorkCloseOutCompletionDetails;
   monitoring: WorkCloseOutMonitoring;
   areaCondition: WorkCloseOutAreaCondition;
-  supervisorApproval: WorkAuthorizationApprovalResult | null;
-  operationsHeadApproval: WorkAuthorizationApprovalResult | null;
+  supervisorApproval: WorkCloseOutApprovalResult | null;
+  operationsHeadApproval: WorkCloseOutApprovalResult | null;
   hseApproval: WorkCloseOutHseApproval | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
 }

@@ -21,7 +21,7 @@ export default function WorkflowPath({
   const steps = [
     { role: "Initiator",  name: initiator || "—", title: "Requester"    },
     { role: "Approver 1", name: reliever  || "—", title: "Reliever"     },
-    { role: "Approver 2", name: ap.lineManager,   title: "Line Manager" },
+    { role: "Approver 2", name: ap.lineManager,   title: "Operations Manager" },
     { role: "Approver 3", name: ap.hrReview,      title: approver3Label },
   ];
 

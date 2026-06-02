@@ -13,8 +13,6 @@ import {
   FileText,
   FolderOpen,
   Package,
-  Settings,
-  ShieldCheck,
   ShoppingCart,
   Store,
   Truck,
@@ -38,17 +36,17 @@ export type ModuleGroup = {
 };
 
 export const moduleGroups: readonly ModuleGroup[] = [
-  {
-    title: "Administration",
-    processes: [
-      {
-        name: "Admin",
-        description: "Users, roles & system configuration",
-        icon: Settings,
-        href: "/admin",
-      },
-    ],
-  },
+  // {
+  //   title: "Administration",
+  //   processes: [
+  //     {
+  //       name: "Admin",
+  //       description: "Users, roles & system configuration",
+  //       icon: Settings,
+  //       href: "/admin",
+  //     },
+  //   ],
+  // },
   {
     title: "Finance",
     routePrefixes: ["/finance"],
@@ -93,20 +91,14 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/hr-management/employees",
       },
       {
-        name: "Leave Requests",
-        description: "Leave applications and approvals",
-        icon: CalendarDays,
-        href: "/hr-management/leave-requests",
-      },
-      {
         name: "Leave Balances",
         description: "Entitlement and usage by employee",
         icon: BarChart2,
         href: "/hr-management/leave-balances",
       },
       {
-        name: "Pay Slips",
-        description: "Monthly pay slip viewer",
+        name: "Pay Slip Management",
+        description: "Generate and manage employee pay slips",
         icon: CreditCard,
         href: "/hr-management/payslips",
       },
@@ -129,6 +121,51 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Payroll runs and disbursements",
         icon: DollarSign,
         href: "/hr-management/payroll",
+        showOnHome: false,
+      },
+    ],
+  },
+  {
+    title: "Finance & HR Management",
+    routePrefixes: ["/finance", "/hr-management/leave-requests", "/hr-management/my-payslips"],
+    processes: [
+      {
+        name: "Cash Requisition",
+        description: "Petty cash and operational funds",
+        icon: Banknote,
+        href: "/finance/cash-requisitions",
+      },
+      {
+        name: "Invoice Processing",
+        description: "Supplier invoices and approvals",
+        icon: FileText,
+        href: "/finance/invoices",
+        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
+      },
+      {
+        name: "Leave Requests",
+        description: "Leave applications and approvals",
+        icon: CalendarDays,
+        href: "/hr-management/leave-requests",
+      },
+      {
+        name: "My Pay Slips",
+        description: "View and download your monthly pay slips",
+        icon: CreditCard,
+        href: "/hr-management/my-payslips",
+      },
+      {
+        name: "Payments",
+        description: "Record and review payments",
+        icon: DollarSign,
+        href: "/payments",
+        showOnHome: false,
+      },
+      {
+        name: "Billing",
+        description: "Billing operations",
+        icon: DollarSign,
+        href: "/billing",
         showOnHome: false,
       },
     ],
@@ -190,12 +227,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
     title: "Safety & Compliance",
     routePrefixes: ["/safety"],
     processes: [
-      {
-        name: "Safety Dashboard",
-        description: "Track HSE queue, close-outs, compliance, and hazard trends",
-        icon: ShieldCheck,
-        href: "/safety",
-      },
       {
         name: "Incident & Hazard Report",
         description: "Report incidents, hazards, near misses, and HSE corrective actions",

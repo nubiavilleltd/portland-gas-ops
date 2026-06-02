@@ -75,13 +75,13 @@ export default function ActivityHistory({
               <td className="px-5 py-4 text-brand-text-secondary">Awaiting review</td>
               <td className="px-5 py-4 font-medium text-brand-purple">
                 {ap.lineManager}
-                <span className="block text-xs text-brand-text-secondary font-normal">(Line Manager)</span>
+                <span className="block text-xs text-brand-text-secondary font-normal">(Operations Manager)</span>
               </td>
             </tr>
             <tr className="border-t border-brand-border hover:bg-gray-50/50">
               <td className="px-5 py-4 font-medium text-brand-purple">
                 {ap.lineManager}
-                <span className="block text-xs text-brand-text-secondary font-normal">(Line Manager)</span>
+                <span className="block text-xs text-brand-text-secondary font-normal">(Operations Manager)</span>
               </td>
               <td className="px-5 py-4">
                 <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">

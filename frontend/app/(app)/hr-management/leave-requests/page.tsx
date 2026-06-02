@@ -68,7 +68,7 @@ interface SubmittedInfo {
   submittedAt: Date;
 }
 
-const APPROVAL_ROUTE = ["Initiator (You)", "Reliever", "Line Manager", "HR Review", "Processed"];
+const APPROVAL_ROUTE = ["Initiator (You)", "Reliever", "Operations Manager", "HR Review", "Processed"];
 
 function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
