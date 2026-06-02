@@ -85,7 +85,7 @@ export default function DispatchTripPage() {
         className="mb-6"
       />
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6">
         {/* TRIP SUMMARY */}
         <FormSection
           title="Trip Summary"

@@ -76,7 +76,7 @@ export default function StartTripPage() {
         className="mb-6"
       />
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6">
         {/* TRIP DETAILS */}
         <FormSection
           title="Trip Details"
