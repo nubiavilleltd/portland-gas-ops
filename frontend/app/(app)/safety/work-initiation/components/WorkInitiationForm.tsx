@@ -12,10 +12,10 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import {
   contractorContactEmailByName,
-  mockWorkInitiationRequester,
   workCategoryOptions,
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
+import { getSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import {
   createWorkInitiation,
   useSafetyDemoData,
@@ -74,7 +74,7 @@ export default function WorkInitiationForm() {
   const [plannedEndDateTime, setPlannedEndDateTime] = useState("");
   const [materialsRequired, setMaterialsRequired] = useState("");
   const requester = {
-    ...mockWorkInitiationRequester,
+    ...getSafetyCurrentUser(),
     requestDate: formatLocalDate(),
   };
   const { incidentHazards } = useSafetyDemoData();
