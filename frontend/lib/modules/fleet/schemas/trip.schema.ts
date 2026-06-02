@@ -8,6 +8,10 @@ const TRIP_TYPES = [
   "emergency",
 ] as const;
 
+
+
+
+
 export const createTripSchema = z.object({
   type: z.enum(TRIP_TYPES, { message: "Select a trip type" }),
 

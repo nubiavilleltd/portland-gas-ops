@@ -20,13 +20,17 @@ import {
   invoiceSchema,
 } from "@/lib/modules/invoices/schemas/invoice.schema";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
-import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
-import { OrdersService } from "@/lib/services/api/orders.service";
+// import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
+// import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import FormSection from "@/components/ui/FormSection";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+// import { generateInvoiceNumber } from "@/lib/modules/invoices/utils";
+import { canGenerateInvoice } from "@/lib/modules/orders/guards/orders.guards";
+import { Order } from "@/lib/modules/orders/types/orders.types";
+import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreateInvoiceWorkflow";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
-function generateInvoiceNumber(sequence: number) {
-  return `INV-2026-${String(sequence).padStart(4, "0")}`;
-}
+
 
 export default function CreateInvoicePage() {
   return (
@@ -41,10 +45,21 @@ function CreateInvoicePageContent() {
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const { customers } = useCustomers()
+
   const orderId = searchParams.get("orderId") as string;
 
   // ── REAL order lookup (was hardcoded before) ───────────────────
-  const order = getOrderById(orderId);
+  const { order } = useOrderById(orderId);
+  const { mutate: generateInvoice, isPending } = useCreateInvoiceWorkflow(order as Order);
+  const canInvoice = canGenerateInvoice(order as Order);
+
+  const customerMap = Object.fromEntries(
+    customers.map((customer) => [
+      customer.id,
+      customer,
+    ])
+  );
 
   const {
     register,
@@ -81,13 +96,13 @@ function CreateInvoicePageContent() {
     );
   }
 
-  if (order.fulfillment_status !== "delivered") {
+  if (!canInvoice) {
     return (
       <AppLayout pageTitle="Invoice Not Ready">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
-          <h2 className="font-semibold mb-2">Order Not Yet Delivered</h2>
+          <h2 className="font-semibold mb-2">Invoice Not Available</h2>
           <p className="text-sm text-brand-text-secondary mb-3">
-            Invoices can only be generated after delivery is confirmed.
+            This order cannot be invoiced in its current state.
           </p>
           <p className="text-sm mb-4">
             Current status:{" "}
@@ -117,32 +132,36 @@ function CreateInvoicePageContent() {
     );
   }
 
+  // async function onSubmit(data: InvoiceForm) {
+  //   setSubmitError(null);
+  //   try {
+  //     const nextInvoiceSequence = invoices.length + 1;
+  //     const invoiceNumber = generateInvoiceNumber(nextInvoiceSequence);
+  //     const newInvoice = {
+  //       id: `inv-${nextInvoiceSequence}`,
+  //       order_id: orderId,
+  //       invoice_number: invoiceNumber,
+  //       total_amount: order!.total_amount,
+  //       status: "unpaid" as const,
+  //       issued_date: data.invoice_date,
+  //       due_date: data.due_date,
+  //     };
+
+  //     // Persist to mock array and link back to order
+  //     invoices.push(newInvoice);
+  //     await OrdersService.setInvoice(orderId, newInvoice.id);
+  //     await OrdersService.updatePaymentStatus(orderId, "unpaid");
+
+  //     router.push(`/invoices/${newInvoice.id}`);
+  //   } catch (err) {
+  //     setSubmitError(
+  //       err instanceof Error ? err.message : "Failed to generate invoice."
+  //     );
+  //   }
+  // }
+
   async function onSubmit(data: InvoiceForm) {
-    setSubmitError(null);
-    try {
-      const nextInvoiceSequence = invoices.length + 1;
-      const invoiceNumber = generateInvoiceNumber(nextInvoiceSequence);
-      const newInvoice = {
-        id: `inv-${nextInvoiceSequence}`,
-        order_id: orderId,
-        invoice_number: invoiceNumber,
-        total_amount: order!.total_amount,
-        status: "unpaid" as const,
-        issued_date: data.invoice_date,
-        due_date: data.due_date,
-      };
-
-      // Persist to mock array and link back to order
-      invoices.push(newInvoice);
-      await OrdersService.setInvoice(orderId, newInvoice.id);
-      await OrdersService.updatePaymentStatus(orderId, "unpaid");
-
-      router.push(`/invoices/${newInvoice.id}`);
-    } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to generate invoice."
-      );
-    }
+    generateInvoice(data);
   }
 
   return (
@@ -165,86 +184,86 @@ function CreateInvoicePageContent() {
       <div className="space-y-6">
 
         {/* ORDER SUMMARY — real data, not hardcoded */}
-<FormSection title="Order Summary">
-  <div className="bg-white border border-brand-border rounded-2xl p-6">
-    <div className="flex items-start justify-between mb-4">
-      <div>
-        <h2 className="text-base font-semibold">Order Summary</h2>
-        <p className="text-sm text-brand-text-secondary mt-1">
-          Invoice will be generated from this order
-        </p>
-      </div>
-      <FulfillmentStatusBadge status={order.fulfillment_status} />
-    </div>
+        <FormSection title="Order Summary">
+          <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-base font-semibold">Order Summary</h2>
+                <p className="text-sm text-brand-text-secondary mt-1">
+                  Invoice will be generated from this order
+                </p>
+              </div>
+              <FulfillmentStatusBadge status={order.fulfillment_status} />
+            </div>
 
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-      <div>
-        <p className="text-xs text-brand-text-secondary">Order Number</p>
-        <p className="font-medium mt-1">{order.order_number}</p>
-      </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+              <div>
+                <p className="text-xs text-brand-text-secondary">Order Number</p>
+                <p className="font-medium mt-1">{order.order_number}</p>
+              </div>
 
-      <div>
-        <p className="text-xs text-brand-text-secondary">Customer</p>
-        <p className="font-medium mt-1">{order.customer_name}</p>
-      </div>
+              <div>
+                <p className="text-xs text-brand-text-secondary">Customer</p>
+                <p className="font-medium mt-1">{customerMap[order.customer_id]?.name}</p>
+              </div>
 
-      <div>
-        <p className="text-xs text-brand-text-secondary">Total Amount</p>
-        <p className="font-medium mt-1">
-          {formatCurrency(order.total_amount)}
-        </p>
-      </div>
+              <div>
+                <p className="text-xs text-brand-text-secondary">Total Amount</p>
+                <p className="font-medium mt-1">
+                  {formatCurrency(order.total_amount)}
+                </p>
+              </div>
 
-      <div>
-        <p className="text-xs text-brand-text-secondary">Delivered On</p>
-        <p className="font-medium mt-1">
-          {order.delivered_at ? formatDate(order.delivered_at) : "—"}
-        </p>
-      </div>
-    </div>
-  </div>
-</FormSection>
+              <div>
+                <p className="text-xs text-brand-text-secondary">Delivered On</p>
+                <p className="font-medium mt-1">
+                  {order.delivered_at ? formatDate(order.delivered_at) : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </FormSection>
 
-       {/* INVOICE FORM */}
-<FormSection title="Invoice Details">
-  <div className="bg-white border border-brand-border rounded-2xl p-6">
-    <h2 className="text-base font-semibold mb-5">Invoice Details</h2>
+        {/* INVOICE FORM */}
+        <FormSection title="Invoice Details">
+          <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <h2 className="text-base font-semibold mb-5">Invoice Details</h2>
 
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="grid grid-cols-1 md:grid-cols-2 gap-5"
-    >
-      <FormDatePicker
-        label="Invoice Date"
-        value={invoiceDate}
-        onValueChange={(value) => setValue("invoice_date", value)}
-      />
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="grid grid-cols-1 md:grid-cols-2 gap-5"
+            >
+              <FormDatePicker
+                label="Invoice Date"
+                value={invoiceDate}
+                onValueChange={(value) => setValue("invoice_date", value)}
+              />
 
-      <FormDatePicker
-        label="Due Date"
-        value={dueDate}
-        onValueChange={(value) => setValue("due_date", value)}
-      />
+              <FormDatePicker
+                label="Due Date"
+                value={dueDate}
+                onValueChange={(value) => setValue("due_date", value)}
+              />
 
-      <div className="md:col-span-2">
-        <FormTextarea
-          label="Notes (Optional)"
-          placeholder="Payment terms, bank account details, remarks..."
-          {...register("notes")}
-        />
-      </div>
+              <div className="md:col-span-2">
+                <FormTextarea
+                  label="Notes (Optional)"
+                  placeholder="Payment terms, bank account details, remarks..."
+                  {...register("notes")}
+                />
+              </div>
 
-      {/* ERROR */}
-      {submitError && (
-        <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          <AlertCircle size={16} className="shrink-0" />
-          {submitError}
-        </div>
-      )}
+              {/* ERROR */}
+              {submitError && (
+                <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  <AlertCircle size={16} className="shrink-0" />
+                  {submitError}
+                </div>
+              )}
 
-      {/* ACTIONS */}
-      <div className="md:col-span-2 flex justify-end gap-3">
-        {/* <Button
+              {/* ACTIONS */}
+              <div className="md:col-span-2 flex justify-end gap-3">
+                {/* <Button
           type="button"
           variant="outline"
           onClick={() => router.back()}
@@ -252,17 +271,21 @@ function CreateInvoicePageContent() {
           Cancel
         </Button> */}
 
-        <Button
-          type="submit"
-          loading={isSubmitting}
-          loadingText="Generating..."
-        >
-          Generate Invoice
-        </Button>
-      </div>
-    </form>
-  </div>
-</FormSection>
+                {/* <Button
+                  type="submit"
+                  loading={isSubmitting}
+                  loadingText="Generating..."
+                >
+                  Generate Invoice
+                </Button> */}
+
+                {canInvoice && <Button type="submit" loading={isPending} loadingText="Generating...">
+                  Generate Invoice
+                </Button>}
+              </div>
+            </form>
+          </div>
+        </FormSection>
       </div>
     </AppLayout>
   );

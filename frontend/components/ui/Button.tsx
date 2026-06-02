@@ -10,6 +10,7 @@ const variantStyles = {
   outline: "border border-brand-border bg-white text-brand-text-secondary hover:bg-gray-50",
   ghost: "bg-transparent text-brand-text-secondary hover:bg-gray-50 hover:text-brand-text-primary",
   danger: "bg-red-600 text-white hover:bg-red-700",
+  success: "bg-green-600 text-white hover:bg-green-700",
 } as const;
 
 const sizeStyles = {

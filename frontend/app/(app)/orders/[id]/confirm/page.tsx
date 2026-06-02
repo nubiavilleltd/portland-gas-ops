@@ -14,18 +14,58 @@ import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 // import { OrdersService } from "@/lib/services/orders.service";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
-import { OrdersService } from "@/lib/services/api/orders.service";
+import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import FormSection from "@/components/ui/FormSection";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { toast } from "sonner";
+import { useConfirmOrder } from "@/lib/modules/orders/hooks/useOrderMutations";
+import { useConfirmOrderWorkflow } from "@/lib/modules/orders/hooks/useConfirmOrderWorkflow";
+
+import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
+import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 export default function ConfirmOrderPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const order = getOrderById(id);
+  const {order} = useOrderById(id);
+  const { customers } = useCustomers();
+const customerMap = new Map(customers.map((c) => [c.id, c]));
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [error, setError] = useState<string | null>(null);
+  // const confirmMutation = useConfirmOrder();
+
+  const { mutate: confirmOrder, isPending } =
+  useConfirmOrderWorkflow(order);
+
+
+    // // ── ACTION: confirm order (workflow layer)
+    // async function handleConfirm() {
+    //   await confirmOrder.mutate();
+  
+    //   // optional UX navigation (workflow already updated cache)
+    //   router.push(ORDER_ROUTES.detail(order.id));
+    // }
+  
+
+
+  // async function handleConfirm() {
+  //   setIsSubmitting(true);
+  //   setError(null);
+  //   try {
+  //     await confirmMutation.mutateAsync(id);
+
+  //   toast.success("Order confirmed");
+  //     router.push(`/orders/${id}`);
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : "Failed to confirm order");
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // }
 
   if (!order) {
     return (
@@ -56,18 +96,28 @@ export default function ConfirmOrderPage() {
     );
   }
 
-  async function handleConfirm() {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await OrdersService.confirmOrder(id);
-      router.push(`/orders/${id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to confirm order");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+
+
+const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+  {
+    label: "Product",
+    render: (item) => <span className="font-medium">{item.product_name}</span>,
+  },
+  {
+    label: "Quantity",
+    render: (item) => `${item.quantity.toLocaleString()} kg`,
+  },
+  {
+    label: "Unit Price",
+    render: (item) => formatCurrency(item.unit_price),
+  },
+  {
+    label: "Total",
+    align: "right",
+    render: (item) => formatCurrency(item.total),
+  },
+];
+
 
   return (
     <AppLayout pageTitle="Confirm Order">
@@ -85,10 +135,10 @@ export default function ConfirmOrderPage() {
         className="mb-6"
       />
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6">
 
         {/* ORDER SUMMARY REVIEW */}
-        <FormSection
+        {/* <FormSection
   title="Order Review"
   description="Review all order details before confirmation"
 >
@@ -126,6 +176,39 @@ export default function ConfirmOrderPage() {
       />
     </div>
   </div>
+</FormSection> */}
+<FormSection
+  title="Order Review"
+  description="Review all order details before confirmation"
+>
+  <div className="grid grid-cols-2 gap-4 text-sm mb-5">
+    <InfoRow label="Order Number" value={order.order_number} />
+    <InfoRow label="Customer" value={customerMap.get(order.customer_id)?.name ?? "—"} />
+    <InfoRow
+      label="Delivery Date"
+      value={order.delivery_date ? formatDate(order.delivery_date) : "Not set"}
+    />
+    <InfoRow label="Delivery Address" value={order.delivery_address} />
+  </div>
+
+  <div className="border-t border-brand-border pt-4">
+    <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
+    <SimpleTable
+      columns={itemColumns}
+      rows={order.order_items}
+      keyExtractor={(_, index) => String(index)}
+      footer={
+        <tr>
+          <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+            Grand Total
+          </td>
+          <td className="pt-3 text-right font-semibold">
+            {formatCurrency(order.total_amount)}
+          </td>
+        </tr>
+      }
+    />
+  </div>
 </FormSection>
 
         {/* STATUS PREVIEW */}
@@ -156,20 +239,20 @@ export default function ConfirmOrderPage() {
 </FormSection>
 
         {/* ERROR */}
-        {error && (
+        {/* {error && (
           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
             <AlertCircle size={16} />
             {error}
           </div>
-        )}
+        )} */}
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
           {/* <Button variant="outline" onClick={() => router.back()}>
             Cancel
           </Button> */}
-          <Button onClick={handleConfirm} disabled={isSubmitting}>
-            {isSubmitting ? "Confirming..." : "Confirm Order"}
+          <Button onClick={() => confirmOrder()} disabled={isPending}>
+            {isPending ? "Confirming..." : "Confirm Order"}
           </Button>
         </div>
 

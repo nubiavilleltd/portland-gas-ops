@@ -47,3 +47,12 @@ export interface Trip {
   notes?: string;
   created_at: string;
 }
+
+export type CreateTripInput = {
+  type?: Trip["type"];
+  order_ids?: string[];
+  start_location: string;
+  end_location: string;
+  scheduled_date: string;
+  notes?: string;
+};
