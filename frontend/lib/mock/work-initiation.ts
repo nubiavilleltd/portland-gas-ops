@@ -6,9 +6,9 @@ import type {
 } from "@/types/safety";
 
 export const mockWorkInitiationRequester: WorkAuthorizationRequester = {
-  name: "Daniel Okoro",
+  name: "Ibrahim Musa",
   department: "Engineering",
-  role: "CNG Conversion Technician",
+  role: "Maintenance Technician",
   requestDate: "2026-05-18",
 };
 
@@ -83,7 +83,7 @@ const baseAssetDetails = {
 const baseAssignment = {
   assignedDepartment: "Engineering",
   assignedSupervisor: "Mary James",
-  assignedWorkers: ["Daniel Okoro", "Ibrahim Musa"],
+  assignedWorkers: ["Ibrahim Musa", "Mary James"],
   contractorsNeeded: false,
   selectedContractor: "",
   contractorContactEmail: "",
@@ -95,7 +95,7 @@ const baseAssignment = {
 const submittedAudit: WorkAuthorizationAuditTrailItem[] = [
   {
     action: "Submitted",
-    actor: "Daniel Okoro",
+    actor: "Ibrahim Musa",
     role: "Requester",
     dateTime: "2026-05-18 09:30 AM",
     comment: "Work initiation request submitted.",

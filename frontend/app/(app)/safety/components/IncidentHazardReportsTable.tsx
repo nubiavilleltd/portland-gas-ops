@@ -1,6 +1,8 @@
 "use client";
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
+import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
 import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
 
@@ -55,15 +57,28 @@ const columns: Column<IncidentHazardReport>[] = [
 
 // Draft rows are hidden for now. Keep the mock draft records intact so draft
 // workflows can return later without rebuilding the data.
-export default function IncidentHazardReportsTable() {
+export default function IncidentHazardReportsTable({
+  scope = "user",
+}: {
+  scope?: "user" | "admin";
+}) {
   const { incidentHazards } = useSafetyDemoData();
-  const reports = incidentHazards.filter((report) => report.status !== "draft");
+  const reports = sortByLatestSafetyActivity(
+    incidentHazards.filter(
+      (report) =>
+        report.status !== "draft" &&
+        (scope === "admin" || isSafetyCurrentUser(report.reporter.name)),
+    ),
+    (report) => report.dateTimeObserved || report.reporter.reportDate,
+  );
 
   return (
     <DataTable
       columns={columns}
       data={reports}
-      rowHref={(report) => `/safety/incidents/${report.id}`}
+      rowHref={(report) =>
+        scope === "admin" ? getAdminIncidentHref(report) : `/safety/incidents/${report.id}`
+      }
       emptyMessage="No incident or hazard reports found."
     />
   );
