@@ -12,7 +12,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
-import MockUserSwitcher from "./MockUserSwitcher";
+import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -44,6 +44,10 @@ const inspectionResultOptions = [
   { value: "Passed", label: "Passed" },
   { value: "Returned", label: "Returned" },
   { value: "Failed", label: "Failed" },
+];
+const workAuthorizationRoles: { value: WorkAuthorizationRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "hse", label: "HSE Inspector" },
 ];
 
 function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
@@ -289,24 +293,15 @@ export default function WorkAuthorizationDetailsView({
         Back to Work Authorization
       </button>
 
-      <MockUserSwitcher value={currentRole} onChange={setCurrentRole} showSupervisor={false} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Work Authorization Details
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">
-              {request.id}
-            </h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              Viewing as {roleLabel(currentRole)}
-            </p>
-          </div>
-          <ApprovalBadge status={request.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={request.id}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        roleLabel={roleLabel(currentRole)}
+        roles={workAuthorizationRoles}
+        recordLabel="Work Authorization Details"
+        status={<ApprovalBadge status={request.status} />}
+      />
 
       <StatusNote request={request} currentRole={currentRole} />
 
