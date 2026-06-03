@@ -15,6 +15,9 @@ import {
     type CreateProductFormOutput,
 } from "@/lib/modules/products/schemas/product.schema";
 import type { Product, ProductUnit } from "@/lib/modules/products/types/product.types";
+import { Currency } from "lucide-react";
+import CurrencyInput from "@/components/forms/CurrencyInput";
+import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
 
 // ── Unit options ───────────────────────────────────────────
 const UNIT_OPTIONS: Array<{ value: ProductUnit; label: string }> = [
@@ -120,6 +123,22 @@ export default function ProductForm({
                     )}
                 />
 
+                {/* <FormCurrencyInput
+                    label="Default Unit Price (₦)"
+                    required
+                    // hint="Suggested price per unit. Can be overridden on each order."
+                    error={errors.default_unit_price?.message}
+                    {...register("default_unit_price")}
+                /> */}
+
+                 <FormCurrencyInput
+  control={control}
+  name="default_unit_price"
+  label="Default Unit Price (₦)"
+  error={errors.default_unit_price?.message}
+  required
+/>
+{/* 
                 <FormInput
                     label="Default Unit Price (₦)"
                     type="text"
@@ -129,7 +148,7 @@ export default function ProductForm({
                     // hint="Suggested price per unit. Can be overridden on each order."
                     error={errors.default_unit_price?.message}
                     {...register("default_unit_price")}
-                />
+                /> */}
             </div>
 
             {/* Description */}

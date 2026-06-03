@@ -30,6 +30,7 @@ import {
 } from "@/lib/modules/products/selectors/products.selectors";
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
+import CurrencyInput from "@/components/forms/CurrencyInput";
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -109,15 +110,6 @@ export default function OrderForm({
         <select
           value={row.product_id}
           disabled={productsLoading}
-          // onChange={(e) => {
-          //   const productId = e.target.value;
-          //   onChange({ product_id: productId });
-          //   const product = getProductById(products, productId);
-          //   if (product) {
-          //     setValue(`order_items.${index}.unit_price`, product.default_unit_price);
-          //   }
-          // }}
-
           onChange={(e) => {
             const productId = e.target.value;
 
@@ -156,24 +148,27 @@ export default function OrderForm({
         </select>
       ),
     },
+
     {
       key: "quantity",
       label: "Quantity",
       width: "130px",
+
       renderCell: (row, index, onChange) => {
         const product = getProductById(products, row.product_id);
         const unitLabel = product ? getUnitLabel(product) : "";
         return (
           <div className="flex items-center gap-1">
             <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={row.quantity || ""}
+              type="text"
+              inputMode="numeric"
+              value={row.quantity ? row.quantity.toLocaleString() : ""}
               placeholder="0"
-              onChange={(e) =>
-                onChange({ quantity: parseFloat(e.target.value) || 0 })
-              }
+              onChange={(e) => {
+                const raw = e.target.value.replace(/,/g, "");
+                if (!/^\d*\.?\d*$/.test(raw)) return;
+                onChange({ quantity: parseFloat(raw) || 0 });
+              }}
               className="w-full text-sm outline-none bg-transparent"
             />
             {unitLabel && (
@@ -184,22 +179,22 @@ export default function OrderForm({
           </div>
         );
       },
+
     },
+
+
+
+
     {
       key: "unit_price",
       label: "Unit Price (₦)",
       width: "140px",
       renderCell: (row, index, onChange) => (
-        <input
-          type="text"
-          inputMode="numeric"
+        <CurrencyInput
           value={row.unit_price || ""}
           placeholder="0.00"
-          onChange={(e) => {
-            const cleaned = e.target.value.replace(/,/g, "");
-            onChange({ unit_price: parseFloat(cleaned) || 0 });
-          }}
-          className="w-full text-sm outline-none bg-transparent"
+          onValueChange={(raw) => onChange({ unit_price: parseFloat(raw) || 0 })}
+          inputClassName="border-0 focus:ring-0 px-0 h-auto"
         />
       ),
     },
@@ -297,7 +292,7 @@ export default function OrderForm({
       <div className="bg-white border border-brand-border rounded-2xl p-6">
         <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
         <div className="space-y-5">
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <FormDatePicker
               label="Scheduled Date"
@@ -305,12 +300,12 @@ export default function OrderForm({
               {...register("delivery_date")}
             />
             <FormInput
-            label="Delivery Address"
-            required
-            placeholder="Street, City, State"
-            error={errors.delivery_address?.message}
-            {...register("delivery_address")}
-          />
+              label="Delivery Address"
+              required
+              placeholder="Street, City, State"
+              error={errors.delivery_address?.message}
+              {...register("delivery_address")}
+            />
           </div>
           <FormTextarea
             label="Special Instructions"
