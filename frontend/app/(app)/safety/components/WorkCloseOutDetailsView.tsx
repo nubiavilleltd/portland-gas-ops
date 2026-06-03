@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
-import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockWorkCloseOutRequest,

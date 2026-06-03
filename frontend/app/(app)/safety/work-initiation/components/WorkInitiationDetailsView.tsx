@@ -10,6 +10,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import {
   contractorContactEmailByName,
   getMockWorkInitiationRequest,
@@ -17,7 +18,6 @@ import {
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
 import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
-import RoleBasedRecordHeader from "../../components/RoleBasedRecordHeader";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,

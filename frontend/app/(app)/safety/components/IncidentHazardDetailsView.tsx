@@ -8,7 +8,7 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockIncidentHazardReport,

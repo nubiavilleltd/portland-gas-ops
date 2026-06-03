@@ -10,9 +10,9 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
-import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,

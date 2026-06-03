@@ -53,7 +53,7 @@ export default function MockUserSwitcher<T extends string = WorkAuthorizationRol
                 "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors md:flex-none",
                 value === option.value
                   ? "bg-brand-purple text-white"
-                  : "text-brand-text-secondary hover:text-brand-text-primary"
+                  : "text-brand-text-secondary hover:text-brand-text-primary",
               )}
             >
               {option.label}
