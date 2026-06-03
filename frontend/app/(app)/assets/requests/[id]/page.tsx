@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useAssetRequest, useUpdateAssetRequestStatus } from "@/hooks/useAssets";
 import { useToast } from "@/hooks/useToast";
@@ -79,16 +80,6 @@ export default function AssetRequestDetailPage() {
         >
           <ArrowLeft size={14} /> Back to Requests
         </Link>
-        {canMarkReturn && (
-          <button
-            onClick={handleMarkReturned}
-            disabled={updateStatus.isPending}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-primary hover:bg-gray-50 transition-colors disabled:opacity-60"
-          >
-            <RotateCcw size={14} />
-            {updateStatus.isPending ? "Updating…" : "Mark as Returned"}
-          </button>
-        )}
       </div>
 
       <div className="space-y-5">
@@ -207,6 +198,26 @@ export default function AssetRequestDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Mark as Returned ─────────────────────────────────────────────── */}
+        {canMarkReturn && (
+          <ApprovalPanel
+            title="Return Asset"
+            description="Confirm that the borrowed asset has been returned"
+            showComment={false}
+            showReturn={false}
+            showReject={false}
+            showApprove={false}
+            extraActions={[{
+              key: "mark_returned",
+              label: updateStatus.isPending ? "Updating…" : "Mark as Returned",
+              icon: <RotateCcw size={14} />,
+              variant: "approve",
+              onClick: () => handleMarkReturned(),
+              loading: updateStatus.isPending,
+            }]}
+          />
+        )}
 
       </div>
     </AppLayout>

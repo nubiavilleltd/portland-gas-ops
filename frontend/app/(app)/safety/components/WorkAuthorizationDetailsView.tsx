@@ -10,9 +10,10 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import AuditTrail from "@/components/forms/AuditTrail";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
-import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -237,7 +238,7 @@ export default function WorkAuthorizationDetailsView({
     };
     const approval: WorkAuthorizationApprovalResult = {
       decision,
-      approver: "Daniel Okoro",
+      approver: "Samuel Bassey",
       dateTime: "2026-05-18 11:10 AM",
       comment:
         hseComment ||
@@ -363,7 +364,7 @@ export default function WorkAuthorizationDetailsView({
       ) : null}
 
       {permissions.showAuditTrail ? (
-        <AuditTrailSection items={request.auditTrail} />
+        <AuditTrail items={request.auditTrail} />
       ) : null}
     </div>
   );
@@ -797,37 +798,6 @@ function HseInspectionResultSection({
   );
 }
 
-function AuditTrailSection({
-  items,
-}: {
-  items: WorkAuthorizationAuditTrailItem[];
-}) {
-  return (
-    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this request.">
-      {items.length === 0 ? (
-        <p className="text-sm text-brand-text-secondary">
-          No audit actions yet.
-        </p>
-      ) : (
-        <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-          {items.map((item, index) => (
-            <div
-              key={`${item.action}-${index}`}
-              className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]"
-            >
-              <AuditCell label="Action" value={item.action} />
-              <AuditCell label="Actor" value={item.actor} />
-              <AuditCell label="Role" value={item.role} />
-              <AuditCell label="Date/time" value={item.dateTime} />
-              <AuditCell label="Comment" value={item.comment} />
-            </div>
-          ))}
-        </div>
-      )}
-    </FormSection>
-  );
-}
-
 function StatusNote({
   request,
   currentRole,
@@ -883,17 +853,6 @@ function FormSection({
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
-  );
-}
-
-function AuditCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">
-        {label}
-      </p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
   );
 }
 

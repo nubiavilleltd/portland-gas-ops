@@ -1,9 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  AlertTriangle,
   Banknote,
   BarChart2,
   BookOpen,
   CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
   ClipboardList,
   CreditCard,
   DollarSign,
@@ -118,6 +121,30 @@ export const moduleGroups: readonly ModuleGroup[] = [
         icon: ShieldCheck,
         href: "/admin/safety",
       },
+      {
+        name: "Incident & Hazard Report",
+        description: "Review all incident, hazard, near-miss, and corrective-action records",
+        icon: AlertTriangle,
+        href: "/admin/safety/incidents",
+      },
+      {
+        name: "Work Initiation",
+        description: "View all operational work requests before safety authorization",
+        icon: ClipboardCheck,
+        href: "/admin/safety/work-initiation",
+      },
+      {
+        name: "Work Authorization",
+        description: "View all HSE authorization requests and decisions",
+        icon: ClipboardCheck,
+        href: "/admin/safety/work-authorization",
+      },
+      {
+        name: "Work Completion & Close-Out",
+        description: "View all completed work and close-out approvals",
+        icon: CheckCircle2,
+        href: "/admin/safety/work-close-out",
+      },
     ],
   },
   {
@@ -154,17 +181,18 @@ function matchesPath(pathname: string, prefix: string) {
 }
 
 export function getModuleGroupForPathname(pathname: string): ModuleGroup | undefined {
+  // Pass 1: exact process/routePrefix match (most specific)
   for (const group of moduleGroups) {
     const ownsProcessPath = group.processes.some((process) =>
       [process.href, ...(process.routePrefixes ?? [])].some((prefix) =>
         matchesPath(pathname, prefix),
       ),
     );
+    if (ownsProcessPath) return group;
+  }
 
-    if (ownsProcessPath) {
-      return group;
-    }
-
+  // Pass 2: group-level routePrefix fallback (less specific, e.g. /admin)
+  for (const group of moduleGroups) {
     if (group.routePrefixes?.some((prefix) => matchesPath(pathname, prefix))) {
       return group;
     }
