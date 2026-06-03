@@ -132,13 +132,13 @@ const paymentColumns: SimpleTableColumn<Payment>[] = [
         description="Invoice lifecycle and payment tracking"
         action={
           <div className="flex gap-2">
-            {!isPaid && (
+            {/* {!isPaid && (
               <Button
                 href={`/payments/new?invoiceId=${invoice.id}`}
               >
                 Record Payment
               </Button>
-            )}
+            )} */}
 
             <Button variant="outline">
               View PDF

@@ -17,6 +17,7 @@ import {
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
 import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
+import RoleBasedRecordHeader from "../../components/RoleBasedRecordHeader";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -24,7 +25,6 @@ import type {
   WorkInitiationRequest,
   WorkInitiationRole,
 } from "@/types/safety";
-import WorkInitiationRoleSwitcher from "./WorkInitiationRoleSwitcher";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const categoryOptions = toOptions(workCategoryOptions);
@@ -46,6 +46,11 @@ const contractorOptions = toOptions([
   "Electrical Support Contractors",
 ]);
 const yesNoOptions = toOptions(["Yes", "No"]);
+const workInitiationRoles: { value: WorkInitiationRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "supervisor", label: "Supervisor" },
+  { value: "operations_hod", label: "Operations HOD" },
+];
 
 export default function WorkInitiationDetailsView({
   requestId,
@@ -187,20 +192,17 @@ export default function WorkInitiationDetailsView({
         Back to Work Initiation
       </button>
 
-      <WorkInitiationRoleSwitcher value={currentRole} onChange={setCurrentRole} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Work Initiation
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">{request.id}</h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">{request.title}</p>
-          </div>
-          <ApprovalBadge status={request.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={request.id}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        roleLabel={getWorkInitiationRoleLabel(currentRole)}
+        roles={workInitiationRoles}
+        recordLabel="Work Initiation"
+        title={request.title}
+        status={<ApprovalBadge status={request.status} />}
+        switcherDescription="Switch roles to preview requester, supervisor, and Operations HOD views."
+      />
 
       <StatusNote request={request} currentRole={currentRole} />
       <RequesterDetails request={request} />
@@ -582,4 +584,10 @@ function AuditCell({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
     </div>
   );
+}
+
+function getWorkInitiationRoleLabel(role: WorkInitiationRole) {
+  if (role === "operations_hod") return "Operations HOD";
+  if (role === "supervisor") return "Supervisor";
+  return "Requester";
 }

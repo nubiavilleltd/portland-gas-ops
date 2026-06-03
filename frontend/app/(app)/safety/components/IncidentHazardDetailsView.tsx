@@ -8,7 +8,7 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import IncidentHazardRoleSwitcher from "./IncidentHazardRoleSwitcher";
+import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockIncidentHazardReport,
@@ -35,6 +35,11 @@ const toOptions = (items: string[]) => items.map((item) => ({ value: item, label
 const yesNoOptions = toOptions(["Yes", "No"]);
 const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
 const departmentOptions = toOptions(["Engineering", "Maintenance", "Operations", "Logistics", "HSE", "Admin"]);
+const incidentHazardRoles: { value: IncidentHazardRole; label: string }[] = [
+  { value: "reporter", label: "Reporter" },
+  { value: "hse", label: "HSE Inspector" },
+  { value: "action_owner", label: "Action Owner" },
+];
 
 export default function IncidentHazardDetailsView({
   reportId,
@@ -201,22 +206,15 @@ export default function IncidentHazardDetailsView({
         Back to Incident & Hazard Reports
       </button>
 
-      <IncidentHazardRoleSwitcher value={currentRole} onChange={setCurrentRole} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Incident & Hazard Report
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">{report.id}</h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              Viewing as {getIncidentHazardRoleLabel(currentRole)}
-            </p>
-          </div>
-          <IncidentHazardStatusBadge status={report.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={report.id}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        roleLabel={getIncidentHazardRoleLabel(currentRole)}
+        roles={incidentHazardRoles}
+        status={<IncidentHazardStatusBadge status={report.status} />}
+        switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
+      />
 
       <StatusNote report={report} currentRole={currentRole} />
       <ReporterDetails report={report} />
