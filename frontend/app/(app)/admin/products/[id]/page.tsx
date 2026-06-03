@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { Pencil, PowerOff, Power, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
@@ -15,6 +15,7 @@ import { parseError } from "@/lib/errors";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
+import FormSection from "@/components/ui/FormSection";
 
 // ── Small detail row ──────────────────────────────────────
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -145,31 +146,54 @@ export default function ProductDetailPage() {
             <ErrorBanner message={actionError} className="mb-4" />
 
             {/* Details card */}
-            <div className="bg-white border border-brand-border rounded-2xl p-6">
-                <DetailRow
-                    label="Status"
-                    value={
-                        <span
-                            className={
-                                isActive
-                                    ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
-                                    : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
-                            }
-                        >
-                            {isActive ? "Active" : "Inactive"}
-                        </span>
-                    }
-                />
-                <DetailRow label="Unit of Measurement" value={product.unit} />
-                <DetailRow
-                    label="Default Unit Price"
-                    value={`${formatCurrency(product.default_unit_price)} / ${product.unit}`}
-                />
-                <DetailRow
-                    label="Description"
-                    value={product.description ?? "—"}
-                />
-            </div>
+            <FormSection title="Product Details"
+                description="View product information and pricing details">
+                <div className="grid grid-cols-1 gap-5 text-sm md:grid-cols-3">
+                    <InfoRow
+                        label="Status"
+                        value={
+                            <span
+                                className={
+                                    isActive
+                                        ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
+                                        : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
+                                }
+                            >
+                                {isActive ? "Active" : "Inactive"}
+                            </span>
+                        }
+                    />
+                    <InfoRow label="Unit of Measurement" value={product.unit} />
+                    <InfoRow
+                        label="Default Unit Price"
+                        value={`${formatCurrency(product.default_unit_price)} / ${product.unit}`}
+                    />
+                    <InfoRow
+                        label="Description"
+                        value={product.description ?? "—"}
+                    />
+                </div>
+            </FormSection>
         </AppLayout>
+    );
+}
+
+function InfoRow({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | ReactNode;
+}) {
+    return (
+        <div>
+            <p className="text-xs text-brand-text-secondary">
+                {label}
+            </p>
+
+            <p className="mt-1 font-medium">
+                {value}
+            </p>
+        </div>
     );
 }
