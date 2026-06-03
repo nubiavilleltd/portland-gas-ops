@@ -7,7 +7,9 @@ const variants: Record<string, string> = {
   pending_line_manager:    "bg-amber-50 text-amber-700 border border-amber-200",
   pending_procurement:     "bg-blue-50 text-blue-700 border border-blue-200",
   awaiting_payment:        "bg-teal-50 text-teal-700 border border-teal-200",
-  returned_to_requester:   "bg-orange-50 text-orange-700 border border-orange-200",
+  awaiting_confirmation:   "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  returned:                "bg-orange-50 text-orange-700 border border-orange-200",
+  completed:               "bg-green-50 text-green-700 border border-green-200",
   submitted: "bg-sky-50 text-sky-700 border border-sky-200",
   pending: "bg-amber-50 text-amber-700 border border-amber-200",
   pending_approval: "bg-amber-50 text-amber-700 border border-amber-200",
@@ -50,10 +52,12 @@ const labels: Record<string, string> = {
   acknowledged: "Acknowledged",
   allocated: "Allocated",
   unauthorized: "Unauthorized",
-  pending_line_manager:  "Awaiting Manager",
-  pending_procurement:   "Awaiting Procurement",
-  awaiting_payment:      "Awaiting Payment",
-  returned_to_requester: "Returned",
+  pending_line_manager: "Pending",
+  pending_procurement:  "Pending",
+  awaiting_payment:        "Awaiting Payment",
+  awaiting_confirmation:   "Awaiting Confirmation",
+  returned:             "Returned",
+  completed:            "Completed",
 };
 
 export default function ApprovalBadge({ status, className }: Props) {

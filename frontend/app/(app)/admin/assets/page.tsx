@@ -101,20 +101,28 @@ export default function AdminAssetsPage() {
 
   const tableActions: DataTableAction<Asset>[] = [
     {
-      key: "edit",
+      key: "row-actions",
       label: "",
-      title: "Edit asset",
-      icon: <Pencil size={14} />,
-      href: (a) => `/admin/assets/${a.id}`,
-      variant: "ghost",
-    },
-    {
-      key: "delete",
-      label: "",
-      title: "Delete asset",
-      icon: <Trash2 size={14} />,
-      onClick: (a) => setDeleteTarget(a),
-      variant: "ghost",
+      render: (asset) => (
+        <div className="flex items-center gap-1">
+          <a
+            href={`/admin/assets/${asset.id}`}
+            title="Edit asset"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+          >
+            <Pencil size={14} />
+          </a>
+          <button
+            type="button"
+            title="Delete asset"
+            onClick={(e) => { e.stopPropagation(); setDeleteTarget(asset); }}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -178,7 +186,7 @@ export default function AdminAssetsPage() {
             searchable={false}
             showActions
             actions={tableActions}
-            actionsContainerClassName="gap-1"
+            minWidthClassName="min-w-[1100px]"
           />
         )}
 
