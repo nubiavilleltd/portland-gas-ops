@@ -18,20 +18,25 @@ const STATUS_OPTIONS = [
   { value: "pending_line_manager",  label: "Pending — Operations Manager" },
   { value: "pending_procurement",   label: "Pending — Procurement Officer" },
   { value: "awaiting_payment",      label: "Awaiting Payment" },
+  { value: "awaiting_confirmation", label: "Awaiting Confirmation" },
+  { value: "completed",             label: "Completed" },
   { value: "rejected",              label: "Rejected" },
-  { value: "returned_to_requester", label: "Returned to Requester" },
+  { value: "returned",              label: "Returned" },
 ];
 
 const NEXT_APPROVER: Partial<Record<string, string>> = {
-  pending_line_manager: "Operations Manager",
-  pending_procurement:  "Procurement Officer",
-  awaiting_payment:     "Finance",
+  pending_line_manager:  "Operations Manager",
+  pending_procurement:   "Procurement Officer",
+  awaiting_payment:      "Finance",
+  awaiting_confirmation: "Procurement Officer",
 };
 
 function StatusCell({ status }: { status: string }) {
   if (status === "rejected")              return <ApprovalBadge status="rejected" />;
-  if (status === "returned_to_requester") return <ApprovalBadge status="returned_to_requester" />;
+  if (status === "returned")              return <ApprovalBadge status="returned" />;
+  if (status === "completed")             return <ApprovalBadge status="completed" />;
   if (status === "awaiting_payment")      return <ApprovalBadge status="awaiting_payment" />;
+  if (status === "awaiting_confirmation") return <ApprovalBadge status="awaiting_confirmation" />;
   return <ApprovalBadge status="pending" />;
 }
 
@@ -59,9 +64,9 @@ const columns: Column<ProcurementListItem>[] = [
   },
   {
     key: "payment_status",
-    label: "Next Action",
+    label: "Next Actor",
     render: (_, row) => {
-      if (row.status === "returned_to_requester") {
+      if (row.status === "returned") {
         return <span className="text-xs text-orange-600 font-medium">Requester to revise</span>;
       }
       const approver = NEXT_APPROVER[row.status];

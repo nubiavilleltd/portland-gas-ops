@@ -112,6 +112,7 @@ export interface AssetRequest {
   rejection_reason: string | null;
   requested_by: string;
   requester_name: string | null;
+  requester: { name: string; department: string; job_title: string } | null;
   approved_by: string | null;
   approved_at: string | null;
   allocated_at: string | null;
@@ -121,6 +122,7 @@ export interface AssetRequest {
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
+  auditTrail: import("./procurement").RequestAuditEntry[];
 }
 
 export interface AssetRequestListItem {
