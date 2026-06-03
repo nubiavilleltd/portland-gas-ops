@@ -145,7 +145,7 @@ export default function MyPaySlipsPage() {
   const currentUserName = user?.name || "Joseph Chika";
   const userSlips = slips.filter((s) => s.employee === currentUserName);
   const filtered = filterPeriod ? userSlips.filter((s) => s.period === filterPeriod) : userSlips;
-  const columns = useMemo(() => createPaySlipColumns(setSelected), []);
+  const columns = useMemo(() => createPaySlipColumns(setSelected, downloadSinglePdf), []);
 
   const filterOptions = useMemo(() => {
     const known = new Set(PAYROLL_PERIODS as readonly string[]);

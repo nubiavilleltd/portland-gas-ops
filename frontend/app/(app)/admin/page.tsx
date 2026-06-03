@@ -60,17 +60,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {isLoading && (
-        <div className="mt-10">
-          <div className="h-4 w-40 bg-gray-100 rounded animate-pulse mb-3" />
-          <div className="flex gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="shrink-0 w-60 h-24 bg-white border border-brand-border rounded-xl animate-pulse" />
-            ))}
-          </div>
-        </div>
-      )}
-
     </AppLayout>
   );
 }

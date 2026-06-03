@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -15,9 +17,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import DataTable from "@/components/data-table/data-table";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
-import WorkflowPath from "../_components/WorkflowPath";
-import ApprovalStepper from "../_components/ApprovalStepper";
-import ActivityHistory from "../_components/ActivityHistory";
+import { formatNumber } from "@/lib/utils/format-number";
 import {
   DEPT_OPTIONS,
   CURRENCY_OPTIONS,
@@ -44,25 +44,15 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-type View = "list" | "form" | "submitted";
-
-interface SubmittedInfo {
-  ref: string;
-  requester: string;
-  department: string;
-  submittedAt: Date;
-}
-
-const APPROVAL_ROUTE = ["Initiator (You)", "Operations Manager", "Finance Review", "Processed"];
+type View = "list" | "form";
 
 export default function CashRequisitionsPage() {
+  const router = useRouter();
   const [view, setView] = useState<View>("list");
   const [items, setItems] = useState<CashRequest[]>(() =>
     SEED_CASH_REQUESTS.filter((item) => item.requester === CURRENT_USER.name)
   );
-  const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
-
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
 
@@ -86,20 +76,16 @@ export default function CashRequisitionsPage() {
     };
     CASH_STORE.unshift(newItem);
     setItems((prev) => [newItem, ...prev]);
-    setSubmitted({
-      ref,
-      requester: CURRENT_USER.name,
-      department: CURRENT_USER.department,
-      submittedAt: new Date(),
-    });
-    setView("submitted");
+    toast.success(`Request submitted successfully — Reference: ${ref}`);
+    form.reset();
+    setSupportingFiles([]);
+    setTimeout(() => location.reload(), 800);
   }
 
   function goBack() {
     setView("list");
     form.reset();
     setSupportingFiles([]);
-    setSubmitted(null);
   }
 
   return (
@@ -118,13 +104,15 @@ export default function CashRequisitionsPage() {
             }
             className="mb-6"
           />
-          <DataTable
-            columns={cashRequisitionColumns}
-            data={items}
-            rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
-            emptyMessage="No cash requisitions yet"
-            emptyDescription="Submit your first cash request to get started"
-          />
+          <div className="w-full overflow-hidden">
+            <DataTable
+              columns={cashRequisitionColumns}
+              data={items}
+              rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
+              emptyMessage="No cash requisitions yet"
+              emptyDescription="Submit your first cash request to get started"
+            />
+          </div>
         </>
       )}
 
@@ -176,11 +164,16 @@ export default function CashRequisitionsPage() {
                 />
                 <FormInput
                   label="Amount Requested"
-                  type="number"
                   required
                   placeholder="0.00"
                   error={errors.amount?.message}
-                  {...form.register("amount")}
+                  {...form.register("amount", {
+                    onBlur: (e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      const numValue = parseFloat(rawValue) || 0;
+                      e.target.value = formatNumber(numValue);
+                    },
+                  })}
                 />
                 <div className="md:col-span-2">
                   <FormTextarea
@@ -205,30 +198,6 @@ export default function CashRequisitionsPage() {
               </div>
             </FormSection>
 
-            <section className="rounded-xl border border-brand-border bg-gray-50 px-5 py-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
-                Approval Route
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {APPROVAL_ROUTE.map((step, i, arr) => (
-                  <div key={step} className="flex items-center gap-2">
-                    <span
-                      className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-                        i === 0
-                          ? "bg-brand-purple-faint text-brand-purple border-brand-purple-mid"
-                          : "bg-white text-brand-text-secondary border-brand-border"
-                      }`}
-                    >
-                      {step}
-                    </span>
-                    {i < arr.length - 1 && (
-                      <span className="text-brand-text-secondary text-xs">→</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
                 Submit for Approval
@@ -238,53 +207,6 @@ export default function CashRequisitionsPage() {
         </>
       )}
 
-      {/* ── SUBMITTED ── */}
-      {view === "submitted" && submitted && (
-        <>
-          <button
-            onClick={goBack}
-            className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
-          >
-            <ArrowLeft size={16} />
-            Back to Cash Requisitions
-          </button>
-
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
-            <CheckCircle2 size={22} className="text-green-600 shrink-0 mt-0.5" />
-            <div>
-              <h2 className="font-semibold text-green-800">Request Submitted Successfully</h2>
-              <p className="text-sm text-green-700 mt-0.5">
-                Reference:{" "}
-                <span className="font-mono font-bold">{submitted.ref}</span> — Your request has been routed to the first approver.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <ApprovalStepper currentStep={1} />
-            <WorkflowPath
-              initiator={submitted.requester}
-              department={submitted.department}
-              currentStep={1}
-            />
-            <ActivityHistory
-              initiator={submitted.requester}
-              department={submitted.department}
-              submittedAt={submitted.submittedAt}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-3 mt-6">
-            <Button onClick={goBack}>View All Requests</Button>
-            <Button
-              variant="outline"
-              onClick={() => { form.reset(); setSupportingFiles([]); setView("form"); }}
-            >
-              Submit Another
-            </Button>
-          </div>
-        </>
-      )}
     </AppLayout>
   );
 }

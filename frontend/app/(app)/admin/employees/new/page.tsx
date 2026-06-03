@@ -3,18 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PlusCircle, Trash2, FileText } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
+import FormFileUpload from "@/components/forms/FormFileUpload";
 import Button from "@/components/ui/Button";
+import { formatNumber } from "@/lib/utils/format-number";
 import {
   EMPLOYEE_STORE,
+  SEED_EMPLOYEE_RECORDS,
   HR_DEPT_OPTIONS,
   CATEGORY_OPTIONS,
   GRADE_OPTIONS,
   type Employee,
+  type EmployeeRecord,
 } from "../../_components/_data";
 
 type EmployeeFormState = Partial<Employee>;
@@ -76,6 +80,19 @@ export default function NewEmployeePage() {
     label: `${e.firstName} ${e.lastName}`,
   }));
 
+  const DOC_TYPE_OPTIONS = [
+    "Employment Contract", "ID / Passport Copy", "Certificates",
+    "Safety Certification", "Disciplinary Record", "Other",
+  ].map((t) => ({ value: t, label: t }));
+
+  type PendingDoc = { uid: string; docType: string };
+  const [pendingDocs, setPendingDocs] = useState<PendingDoc[]>([]);
+
+  const addDoc    = () => setPendingDocs(p => [...p, { uid: String(Date.now()), docType: "" }]);
+  const removeDoc = (uid: string) => setPendingDocs(p => p.filter(d => d.uid !== uid));
+  const setDocType = (uid: string, v: string) =>
+    setPendingDocs(p => p.map(d => d.uid === uid ? { ...d, docType: v } : d));
+
   const saveEmployee = () => {
     const newEmp = {
       ...empForm,
@@ -85,6 +102,21 @@ export default function NewEmployeePage() {
       id: String(Date.now()),
     } as Employee;
     EMPLOYEE_STORE.push(newEmp);
+
+    const empName = `${newEmp.firstName} ${newEmp.lastName}`;
+    const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    pendingDocs.forEach((d) => {
+      if (!d.docType) return;
+      SEED_EMPLOYEE_RECORDS.unshift({
+        id: String(Date.now()),
+        employee: empName,
+        docType: d.docType,
+        fileName: `${empName.replace(/\s+/g, "_")}_${d.docType.replace(/\s+/g, "_")}.pdf`,
+        uploadDate: today,
+        uploadedBy: "HR Admin",
+      } as EmployeeRecord);
+    });
+
     router.push("/admin/employees");
   };
 
@@ -174,24 +206,48 @@ export default function NewEmployeePage() {
         <Section title="Earnings">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormInput
-              label="Basic Salary" type="number" min={0} placeholder="0"
-              value={empForm.basicSalary !== undefined ? String(empForm.basicSalary) : ""}
-              onChange={(e) => un("basicSalary", e.target.value)}
+              label="Basic Salary" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("basicSalary", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
             <FormInput
-              label="Housing Allowance" type="number" min={0} placeholder="0"
-              value={empForm.housingAllowance !== undefined ? String(empForm.housingAllowance) : ""}
-              onChange={(e) => un("housingAllowance", e.target.value)}
+              label="Housing Allowance" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("housingAllowance", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
             <FormInput
-              label="Transport Allowance" type="number" min={0} placeholder="0"
-              value={empForm.transportAllowance !== undefined ? String(empForm.transportAllowance) : ""}
-              onChange={(e) => un("transportAllowance", e.target.value)}
+              label="Transport Allowance" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("transportAllowance", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
             <FormInput
-              label="Meal Allowance" type="number" min={0} placeholder="0"
-              value={empForm.mealAllowance !== undefined ? String(empForm.mealAllowance) : ""}
-              onChange={(e) => un("mealAllowance", e.target.value)}
+              label="Meal Allowance" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("mealAllowance", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
           </div>
         </Section>
@@ -200,29 +256,96 @@ export default function NewEmployeePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormInput
               label="PAYE Tax"
-              value={computed.paye > 0 ? computed.paye.toLocaleString("en-NG") : "0"}
+              value={computed.paye > 0 ? formatNumber(computed.paye) : "0.00"}
               disabled
               hint="[Annual gross − Pension − NHF − CRA] × 7/11/15/19/21/24% bands ÷ 12 · CRA = max(₦200k, 1% gross) + 20% gross"
             />
             <FormInput
               label="Pension"
-              value={computed.pension > 0 ? computed.pension.toLocaleString("en-NG") : "0"}
+              value={computed.pension > 0 ? formatNumber(computed.pension) : "0.00"}
               disabled
               hint="8% × (Basic + Housing + Transport)"
             />
             <FormInput
               label="NHF"
-              value={computed.nhf > 0 ? computed.nhf.toLocaleString("en-NG") : "0"}
+              value={computed.nhf > 0 ? formatNumber(computed.nhf) : "0.00"}
               disabled
               hint="2.5% × Basic Salary"
             />
             <FormInput
-              label="Loan Repayment" type="number" min={0} placeholder="0"
-              value={empForm.loanRepayment !== undefined ? String(empForm.loanRepayment) : ""}
-              onChange={(e) => un("loanRepayment", e.target.value)}
+              label="Loan Repayment" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("loanRepayment", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
           </div>
         </Section>
+
+        {/* Documents */}
+        <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">
+          <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-brand-text-primary">Documents</h2>
+            <button
+              type="button"
+              onClick={addDoc}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium bg-brand-purple text-white hover:bg-brand-purple-dark transition-colors"
+            >
+              <PlusCircle size={13} />
+              Add Document
+            </button>
+          </div>
+          <div className="px-6 pt-5 pb-6">
+            {pendingDocs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <FileText size={32} className="text-brand-text-secondary mb-2 opacity-40" />
+                <p className="text-sm text-brand-text-secondary">No documents added yet.</p>
+                <p className="text-xs text-brand-text-secondary mt-1">
+                  Click "Add Document" to attach files to this employee profile.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingDocs.map((doc) => (
+                  <div
+                    key={doc.uid}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-brand-border last:border-0 last:pb-0"
+                  >
+                    <FormSelect
+                      label="Document Type"
+                      required
+                      options={DOC_TYPE_OPTIONS}
+                      placeholder="Select type"
+                      value={doc.docType}
+                      onValueChange={(v) => setDocType(doc.uid, v)}
+                    />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <FormFileUpload
+                          label="Upload File"
+                          hint="PDF, DOC, JPG — max 10 MB"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDoc(doc.uid)}
+                        className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition mb-1"
+                        title="Remove"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="flex gap-3 pb-4">
           <Button onClick={saveEmployee}>Create Employee</Button>
