@@ -98,6 +98,7 @@ interface Props<T extends { id: string }> {
   className?: string;
   tableClassName?: string;
   minWidthClassName?: string;
+  scrollContainerClassName?: string;
   rowClassName?: (row: T) => string;
 }
 
@@ -192,6 +193,7 @@ export default function DataTable<T extends { id: string }>({
   className,
   tableClassName,
   minWidthClassName = "min-w-[720px]",
+  scrollContainerClassName,
   rowClassName,
 }: Props<T>) {
   const router = useRouter();
@@ -298,7 +300,7 @@ export default function DataTable<T extends { id: string }>({
   const skeletonRows = Array.from({ length: Math.min(currentPageSize, 8) });
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("min-w-0 max-w-full space-y-4", className)}>
       {shouldShowToolbar ? (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 flex-col gap-3 sm:flex-row">
@@ -334,8 +336,13 @@ export default function DataTable<T extends { id: string }>({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-brand-border bg-brand-card shadow-sm md:rounded-2xl">
-        <div className="overflow-x-auto -mx-px">
+      <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-brand-border bg-brand-card shadow-sm md:rounded-2xl">
+        <div
+          className={cn(
+            "-mx-px max-h-[60dvh] max-w-full overflow-auto md:max-h-[calc(100dvh-24rem)]",
+            scrollContainerClassName,
+          )}
+        >
           <table className={cn("w-full text-sm", minWidthClassName, tableClassName)}>
             <thead>
               <tr className="border-b border-brand-border bg-gray-50">
@@ -346,7 +353,7 @@ export default function DataTable<T extends { id: string }>({
                     <th
                       key={String(column.key)}
                       className={cn(
-                        "whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary",
+                        "sticky top-0 z-10 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary",
                         column.headerClassName,
                       )}
                     >

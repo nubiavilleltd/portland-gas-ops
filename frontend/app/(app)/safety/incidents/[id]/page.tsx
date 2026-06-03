@@ -2,7 +2,6 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
-import PageHeader from "@/components/ui/PageHeader";
 import IncidentHazardDetailsView from "../../components/IncidentHazardDetailsView";
 
 export default function IncidentHazardDetailPage() {
@@ -13,11 +12,6 @@ export default function IncidentHazardDetailPage() {
 
   return (
     <AppLayout pageTitle="Safety & Compliance">
-      <PageHeader
-        title="Incident/Hazard Details"
-        description="Review report details and simulate HSE closure."
-        className="mb-6"
-      />
       <IncidentHazardDetailsView
         reportId={params.id}
         initialRole={

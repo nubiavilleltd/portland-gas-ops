@@ -31,6 +31,7 @@ import {
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
 import CurrencyInput from "@/components/forms/CurrencyInput";
+import FormSection from "@/components/ui/FormSection";
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -236,9 +237,13 @@ export default function OrderForm({
       onSubmit={handleSubmit(handleFormSubmit)}
       className="space-y-6"
     >
+
+
       {/* CUSTOMER INFORMATION */}
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-        <h2 className="text-base font-semibold mb-5">Customer Information</h2>
+      <FormSection
+        title="Customer Information"
+        description="Select the customer for this order"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Controller
             control={control}
@@ -258,16 +263,13 @@ export default function OrderForm({
             )}
           />
         </div>
-      </div>
+      </FormSection>
 
       {/* ORDER ITEMS */}
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-        <div className="mb-5">
-          <h2 className="text-base font-semibold">Order Items</h2>
-          <p className="text-sm text-brand-text-secondary mt-1">
-            Add all products included in this order
-          </p>
-        </div>
+      <FormSection
+        title="Order Items"
+        description="Add all products included in this order"
+      >
         <LineItemTable<OrderLineItem>
           columns={columns}
           rows={orderItems}
@@ -286,13 +288,15 @@ export default function OrderForm({
           minRows={1}
           error={errors.order_items?.message}
         />
-      </div>
+      </FormSection>
+
 
       {/* DELIVERY INFORMATION */}
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-        <h2 className="text-base font-semibold mb-5">Delivery Information</h2>
+      <FormSection
+        title="Delivery Information"
+        description="Set delivery schedule, address, and special instructions"
+      >
         <div className="space-y-5">
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <FormDatePicker
               label="Scheduled Date"
@@ -307,26 +311,25 @@ export default function OrderForm({
               {...register("delivery_address")}
             />
           </div>
+
           <FormTextarea
             label="Special Instructions"
             placeholder="Delivery instructions, contact notes, access information…"
             {...register("notes")}
           />
         </div>
-      </div>
+      </FormSection>
+
 
       {/* ORDER SUMMARY */}
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-        <h2 className="text-base font-semibold mb-5">Order Summary</h2>
+      <FormSection
+        title="Order Summary"
+        description="Review calculated totals before submitting the order"
+      >
         <div className="space-y-4 max-w-sm">
-          <SummaryRow
-            label="Subtotal"
-            value={formatCurrency(subtotal)}
-          />
-          <SummaryRow
-            label="Tax"
-            value="₦0.00"
-          />
+          <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
+          <SummaryRow label="Tax" value="₦0.00" />
+
           <div className="border-t border-brand-border pt-4 flex items-center justify-between">
             <span className="font-semibold">Grand Total</span>
             <span className="text-lg font-semibold">
@@ -334,7 +337,7 @@ export default function OrderForm({
             </span>
           </div>
         </div>
-      </div>
+      </FormSection>
 
       <ErrorBanner message={errors.root?.message} />
 

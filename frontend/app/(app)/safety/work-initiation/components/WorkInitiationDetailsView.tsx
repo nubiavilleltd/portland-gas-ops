@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
@@ -19,6 +20,7 @@ import {
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
 import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
+import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -202,6 +204,7 @@ export default function WorkInitiationDetailsView({
         recordLabel="Work Initiation"
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkInitiationNextActor(request)}
         switcherDescription="Switch roles to preview requester, supervisor, and Operations HOD views."
       />
 
@@ -229,21 +232,27 @@ export default function WorkInitiationDetailsView({
       ) : null}
 
       {canSupervisorReview ? (
-        <FormSection title="Supervisor Review" description="Review the requested work before it proceeds to Operations HOD.">
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <DecisionSubmitControl
-              onDecision={supervisorReview}
-              reasonMissing={!supervisorComment.trim()}
-              reasonMessage="Add a supervisor comment before returning or denying this request."
-            />
-            <FormTextarea
-              label="Supervisor Comment"
-              value={supervisorComment}
-              onChange={(event) => setSupervisorComment(event.target.value)}
-              placeholder="Add supervisor review notes"
-            />
-          </div>
-        </FormSection>
+        <ApprovalPanel
+          title="Supervisor Review"
+          description="Review the requested work before it proceeds to Operations HOD."
+          commentLabel="Supervisor Comment"
+          commentPlaceholder="Add supervisor review notes"
+          commentValue={supervisorComment}
+          onCommentChange={setSupervisorComment}
+          onApprove={() => supervisorReview("Approve")}
+          onReturn={() => supervisorReview("Return")}
+          onReject={() => supervisorReview("Deny")}
+          rejectLabel="Deny"
+          returnDisabled={!supervisorComment.trim()}
+          rejectDisabled={!supervisorComment.trim()}
+          extraFields={
+            !supervisorComment.trim() ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Add a supervisor comment before returning or denying this request.
+              </p>
+            ) : null
+          }
+        />
       ) : request.supervisorApproval ? (
         <ApprovalResult
           title="Supervisor Review Result"
@@ -255,21 +264,27 @@ export default function WorkInitiationDetailsView({
       ) : null}
 
       {canOperationsHodReview ? (
-        <FormSection title="Operations HOD Review" description="Record the operational approval decision for this work.">
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <DecisionSubmitControl
-              onDecision={operationsHodReview}
-              reasonMissing={!operationsHodComment.trim()}
-              reasonMessage="Add an Operations HOD comment before returning or denying this request."
-            />
-          <FormTextarea
-              label="Operations HOD Comment"
-              value={operationsHodComment}
-              onChange={(event) => setOperationsHodComment(event.target.value)}
-              placeholder="Add operational approval notes"
-          />
-          </div>
-        </FormSection>
+        <ApprovalPanel
+          title="Operations HOD Review"
+          description="Record the operational approval decision for this work."
+          commentLabel="Operations HOD Comment"
+          commentPlaceholder="Add operational approval notes"
+          commentValue={operationsHodComment}
+          onCommentChange={setOperationsHodComment}
+          onApprove={() => operationsHodReview("Approve")}
+          onReturn={() => operationsHodReview("Return")}
+          onReject={() => operationsHodReview("Deny")}
+          rejectLabel="Deny"
+          returnDisabled={!operationsHodComment.trim()}
+          rejectDisabled={!operationsHodComment.trim()}
+          extraFields={
+            !operationsHodComment.trim() ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Add an Operations HOD comment before returning or denying this request.
+              </p>
+            ) : null
+          }
+        />
       ) : request.operationalReview ? (
         <ReviewResult request={request} />
       ) : null}
@@ -447,34 +462,6 @@ function AssignmentPlanning({
         <FormTextarea label="Materials / Parts Required" defaultValue={assignment.materialsRequired} disabled={!editable} className="md:col-span-2" />
       </div>
     </FormSection>
-  );
-}
-
-function DecisionSubmitControl({
-  onDecision,
-  reasonMissing,
-  reasonMessage,
-}: {
-  onDecision: (decision: WorkAuthorizationDecision) => void;
-  reasonMissing: boolean;
-  reasonMessage: string;
-}) {
-  const reasonRequired = reasonMissing;
-  return (
-    <div className="space-y-3">
-      {reasonRequired ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{reasonMessage}</p> : null}
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" onClick={() => onDecision("Approve")}>
-          Approve
-        </Button>
-        <Button type="button" variant="secondary" disabled={reasonRequired} onClick={() => onDecision("Return")}>
-          Return
-        </Button>
-        <Button type="button" variant="danger" disabled={reasonRequired} onClick={() => onDecision("Deny")}>
-          Deny
-        </Button>
-      </div>
-    </div>
   );
 }
 

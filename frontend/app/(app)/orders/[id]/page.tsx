@@ -149,7 +149,7 @@ export default function OrderDetailPage() {
 
             {canDeliver && (
               <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
-                Confirm Delivery
+                Confirm Delivery →
               </Button>
             )}
 
@@ -199,86 +199,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-    <InfoRow
-      label="Gas Type"
-      value={order.product_name ?? order.order_type}
-    />
-
-    <InfoRow
-      label="Quantity"
-      value={`${order.quantity.toLocaleString()} kg`}
-    />
-
-    <InfoRow
-      label="Unit Price"
-      value={formatCurrency(order.unit_price)}
-    />
-
-    <InfoRow
-      label="Total Amount"
-      value={formatCurrency(order.total_amount)}
-    />
-
-    <InfoRow
-      label="Delivery Date"
-      value={
-        order.delivery_date
-          ? formatDate(order.delivery_date)
-          : "Not set"
-      }
-    />
-
-    <InfoRow
-      label="Delivery Address"
-      value={order.delivery_address}
-    />
-
-    {order.confirmed_at && (
-      <InfoRow
-        label="Confirmed On"
-        value={formatDate(order.confirmed_at)}
-      />
-    )}
-
-    {order.delivered_at && (
-      <InfoRow
-        label="Delivered On"
-        value={formatDate(order.delivered_at)}
-      />
-    )}
-  </div> */}
-
-          {/* ORDER ITEMS */}
-          {/* <div className="mt-4 pt-4 border-t border-brand-border">
-  <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
-  <table className="w-full text-sm">
-    <thead>
-      <tr className="border-b text-left">
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Product</th>
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Quantity</th>
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Unit Price</th>
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs text-right">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {order.order_items.map((item, index) => (
-        <tr key={index} className="border-b last:border-0">
-          <td className="py-2 font-medium">{item.product_name}</td>
-          <td className="py-2">{item.quantity.toLocaleString()} kg</td>
-          <td className="py-2">{formatCurrency(item.unit_price)}</td>
-          <td className="py-2 text-right">{formatCurrency(item.total)}</td>
-        </tr>
-      ))}
-    </tbody>
-    <tfoot>
-      <tr>
-        <td colSpan={3} className="pt-3 text-right font-semibold text-xs text-brand-text-secondary">Grand Total</td>
-        <td className="pt-3 text-right font-semibold">{formatCurrency(order.total_amount)}</td>
-      </tr>
-    </tfoot>
-  </table>
-</div> */}
 
           <SimpleTable
             columns={itemColumns}
@@ -305,29 +225,30 @@ export default function OrderDetailPage() {
         </FormSection>
 
         {/* TRIP / DISPATCH */}
-        <SectionCard
+        <FormSection
           title="Dispatch / Trip"
-          action={
+          description="View trip assignment and delivery route details"
+        >
+
+          {
             canAssign ? (
-              <Button size="sm" href={FLEET_ROUTES.tripNew({ orderId: id })}>
-                Assign to Trip
-              </Button>
+              <div className="flex justify-end">
+                <Button size="sm" href={FLEET_ROUTES.tripNew({ orderId: id })}>
+                  Assign to Trip →
+                </Button>
+              </div>
             ) : order.trip_id ? (
-              <Button
-                size="sm"
-                variant="outline"
-                href={FLEET_ROUTES.tripDetail(order.trip_id)}
-              >
-                View Trip →
-              </Button>
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  href={FLEET_ROUTES.tripDetail(order.trip_id)}
+                >
+                  View Trip →
+                </Button>
+              </div>
             ) : undefined
           }
-          empty={
-            order.fulfillment_status === "pending"
-              ? "This order has not been assigned to a trip yet."
-              : "Trip information not available."
-          }
-        >
           {trip ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               <InfoRow label="Trip Number" value={trip.trip_number} />
@@ -335,18 +256,28 @@ export default function OrderDetailPage() {
               <InfoRow label="To" value={trip.end_location} />
               <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
             </div>
-          ) : null}
-        </SectionCard>
+          ) : (
+            <p className="text-sm text-brand-text-secondary">
+              {order.fulfillment_status === "pending"
+                ? "This order has not been assigned to a trip yet."
+                : "Trip information not available."}
+            </p>
+          )}
+        </FormSection>
 
         {/* INVOICE */}
-        <SectionCard
+        <FormSection
           title="Invoice"
-          action={
-            canInvoice ? (
+          description="Manage invoice generation and view invoice details"
+        >
+          {canInvoice ? (
+            <div className="flex justify-end">
               <Button size="sm" href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
-                Generate Invoice
+                Create Invoice →
               </Button>
-            ) : invoice ? (
+            </div>
+          ) : invoice ? (
+            <div className="flex justify-end">
               <Button
                 size="sm"
                 variant="outline"
@@ -354,14 +285,9 @@ export default function OrderDetailPage() {
               >
                 View Invoice →
               </Button>
-            ) : undefined
-          }
-          empty={
-            order.fulfillment_status !== "delivered"
-              ? "Invoice will be available after delivery is confirmed."
-              : "No invoice generated yet."
-          }
-        >
+            </div>
+          ) : undefined}
+
           {invoice ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               <InfoRow label="Invoice No" value={invoice.invoice_number} />
@@ -371,23 +297,35 @@ export default function OrderDetailPage() {
               <InfoRow label="Issued" value={formatDate(invoice.issued_date)} />
               <InfoRow label="Due" value={formatDate(invoice.due_date)} />
             </div>
-          ) : null}
-        </SectionCard>
+          ) : (
+            <p className="text-sm text-brand-text-secondary">
+              {order.order_status === "draft"
+                ? "Submit the order before generating an invoice."
+                : order.order_status === "submitted"
+                  ? "Generate an invoice so the customer can make payment."
+                  : "No invoice generated yet."}
+            </p>
+          )}
+        </FormSection>
+
+
 
         {/* PAYMENTS */}
-        <SectionCard
+        <FormSection
           title="Payments"
-          action={
-            invoice && order.payment_status !== "paid" ? (
+          description="Track invoice payments, amounts received, and outstanding balance"
+        >
+          {invoice && order.payment_status !== "paid" ? (
+            <div className="flex justify-end">
               <Button
                 size="sm"
                 href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice.id}`}
               >
-                Record Payment
+                Make Payment →
               </Button>
-            ) : undefined
-          }
-        >
+            </div>
+          ) : undefined}
+
           <div className="grid grid-cols-3 gap-5">
             <InfoRow
               label="Invoice Amount"
@@ -403,7 +341,7 @@ export default function OrderDetailPage() {
               valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
             />
           </div>
-        </SectionCard>
+        </FormSection>
 
       </div>
     </AppLayout>

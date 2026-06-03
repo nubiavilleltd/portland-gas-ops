@@ -73,13 +73,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/hr-management/my-payslips",
       },
       {
-        name: "Payments",
-        description: "Record and review payments",
-        icon: DollarSign,
-        href: "/payments",
-        showOnHome: false,
-      },
-      {
         name: "Billing",
         description: "Billing operations",
         icon: DollarSign,
@@ -108,6 +101,13 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Customer billing and invoice tracking",
         icon: FileText,
         href: "/invoices",
+      },
+        {
+        name: "Payments",
+        description: "Record and review payments",
+        icon: DollarSign,
+        href: "/payments",
+        showOnHome: false,
       },
     ],
   },

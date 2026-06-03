@@ -12,6 +12,7 @@ type Props<T extends string> = {
   status: ReactNode;
   recordLabel?: string;
   title?: string;
+  nextActor?: string;
   switcherTitle?: string;
   switcherDescription?: string;
 };
@@ -25,6 +26,7 @@ export default function RoleBasedRecordHeader<T extends string>({
   status,
   recordLabel,
   title,
+  nextActor,
   switcherTitle = "Mock user role",
   switcherDescription = "Switch roles to preview role-based visibility and actions.",
 }: Props<T>) {
@@ -52,6 +54,11 @@ export default function RoleBasedRecordHeader<T extends string>({
             <p className="mt-1 text-sm text-brand-text-secondary">
               Viewing as {roleLabel}
             </p>
+            {nextActor ? (
+              <p className="mt-1 text-sm text-brand-text-secondary">
+                Next actor <span className="font-medium text-brand-text-primary">{nextActor}</span>
+              </p>
+            ) : null}
             {title ? (
               <p className="mt-1 text-sm font-medium text-brand-text-primary">{title}</p>
             ) : null}

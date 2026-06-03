@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
@@ -15,6 +16,7 @@ import {
   getMockWorkCloseOutRequest,
 } from "@/lib/mock/work-close-out";
 import { isExceptionWorkCloseOut } from "@/lib/safety-demo-routing";
+import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   updateWorkCloseOut,
   useSafetyDemoData,
@@ -314,6 +316,7 @@ export default function WorkCloseOutDetailsView({
         recordLabel="Work Completion & Close-Out"
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkCloseOutNextActor(request)}
         switcherDescription="Switch roles to preview requester, supervisor, Operations Head, and HSE close-out reviews."
       />
 
@@ -333,121 +336,140 @@ export default function WorkCloseOutDetailsView({
       ) : null}
 
       {permissions.canSupervisorApprove ? (
-        <FormSection
+        <ApprovalPanel
           title={`Supervisor Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
               ? "This close-out reports incomplete, deviated, or unsafe work. Acknowledge it for audit, return it for correction, or deny it."
               : "Review the reported completion and record your supervisor decision."
           }
-        >
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <div className="space-y-4">
+          commentLabel="Supervisor Comment"
+          commentPlaceholder="Add close-out review notes"
+          commentValue={supervisorComment}
+          onCommentChange={setSupervisorComment}
+          approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
+          rejectLabel="Deny"
+          returnDisabled={!supervisorComment.trim()}
+          rejectDisabled={!supervisorComment.trim()}
+          onApprove={() => supervisorDecision(isExceptionCloseOut ? "Acknowledge" : "Approve")}
+          onReturn={() => supervisorDecision("Return")}
+          onReject={() => supervisorDecision("Deny")}
+          extraFields={
+            <div className="space-y-3">
               <FormInput label="Supervisor" value={request.workAuthorization.supervisor} disabled />
-              <DecisionSubmitControl
-                onDecision={supervisorDecision}
-                reasonMissing={!supervisorComment.trim()}
-                reasonMessage="Add a supervisor comment before returning or denying this close-out."
-                isExceptionCloseOut={isExceptionCloseOut}
-              />
+              {!supervisorComment.trim() ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Add a supervisor comment before returning or denying this close-out.
+                </p>
+              ) : null}
+              {isExceptionCloseOut ? <ExceptionCloseOutNotice /> : null}
             </div>
-            <FormTextarea
-              label="Supervisor Comment"
-              value={supervisorComment}
-              placeholder="Add close-out review notes"
-              onChange={(event) => setSupervisorComment(event.target.value)}
-            />
-          </div>
-        </FormSection>
+          }
+        />
       ) : permissions.showSupervisorApproval && request.supervisorApproval ? (
         <ApprovalResult title="Supervisor Close-Out Review Result" result={request.supervisorApproval} />
       ) : null}
 
       {permissions.canOperationsHeadApprove ? (
-        <FormSection
+        <ApprovalPanel
           title={`Operations Head Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
               ? "Acknowledge the exception close-out for audit and route it to HSE, or return/deny it with comments."
               : "Confirm the completed work is acceptable for final HSE review."
           }
-        >
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <div className="space-y-4">
+          commentLabel="Operations Head Comment"
+          commentPlaceholder="Add operational close-out review notes"
+          commentValue={operationsHeadComment}
+          onCommentChange={setOperationsHeadComment}
+          approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
+          rejectLabel="Deny"
+          returnDisabled={!operationsHeadComment.trim()}
+          rejectDisabled={!operationsHeadComment.trim()}
+          onApprove={() => operationsHeadDecision(isExceptionCloseOut ? "Acknowledge" : "Approve")}
+          onReturn={() => operationsHeadDecision("Return")}
+          onReject={() => operationsHeadDecision("Deny")}
+          extraFields={
+            <div className="space-y-3">
               <FormInput label="Operations Head" value="Grace Bello" disabled />
-              <DecisionSubmitControl
-                onDecision={operationsHeadDecision}
-                reasonMissing={!operationsHeadComment.trim()}
-                reasonMessage="Add an Operations Head comment before returning or denying this close-out."
-                isExceptionCloseOut={isExceptionCloseOut}
-              />
+              {!operationsHeadComment.trim() ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Add an Operations Head comment before returning or denying this close-out.
+                </p>
+              ) : null}
+              {isExceptionCloseOut ? <ExceptionCloseOutNotice /> : null}
             </div>
-            <FormTextarea
-              label="Operations Head Comment"
-              value={operationsHeadComment}
-              placeholder="Add operational close-out review notes"
-              onChange={(event) => setOperationsHeadComment(event.target.value)}
-            />
-          </div>
-        </FormSection>
+          }
+        />
       ) : permissions.showOperationsHeadApproval && request.operationsHeadApproval ? (
         <ApprovalResult title="Operations Head Close-Out Review Result" result={request.operationsHeadApproval} />
       ) : null}
 
       {permissions.canHseApprove ? (
-        <FormSection
+        <ApprovalPanel
           title={`HSE Final Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
               ? "Verify the exception close-out, preserve the audit record, and decide whether to acknowledge, return, or deny it."
               : "Verify site safety and complete the final close-out decision."
           }
-        >
-          <div className="grid gap-4">
-            <FormInput label="HSE Inspector" value={request.workAuthorization.hseApprover} disabled />
-            <SafetyChoiceTable
-              options={yesNoOptions}
-              rows={[
-                {
-                  label: "Did HSE inspect/verify close-out?",
-                  required: true,
-                  value: hseVerifiedCloseOut,
-                  onValueChange: setHseVerifiedCloseOut,
-                },
-                {
-                  label: "Area safe for normal operations?",
-                  required: true,
-                  value: hseAreaSafe,
-                  onValueChange: setHseAreaSafe,
-                },
-                {
-                  label: "Corrective action required?",
-                  required: true,
-                  value: hseCorrectiveActionRequired,
-                  onValueChange: setHseCorrectiveActionRequired,
-                },
-              ]}
-            />
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <DecisionSubmitControl
-              onDecision={hseDecision}
-              reasonMissing={!hseComment.trim()}
-              reasonMessage="Add an HSE comment before returning or denying this close-out."
-              submissionDisabled={hseChecksIncomplete}
-              submissionDisabledMessage="Complete all HSE close-out checks before submitting a decision."
-              disableApprove={hseApprovalBlocked}
-              disableApproveMessage="Approval is disabled unless close-out is verified, the area is safe, and no corrective action is required."
-              isExceptionCloseOut={isExceptionCloseOut}
-            />
-            <FormTextarea
-              label="HSE Comment"
-              value={hseComment}
-              placeholder="Add final close-out verification notes"
-              onChange={(event) => setHseComment(event.target.value)}
-            />
-          </div>
-        </FormSection>
+          commentLabel="HSE Comment"
+          commentPlaceholder="Add final close-out verification notes"
+          commentValue={hseComment}
+          onCommentChange={setHseComment}
+          approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
+          rejectLabel="Deny"
+          approveDisabled={hseChecksIncomplete || (!isExceptionCloseOut && hseApprovalBlocked)}
+          returnDisabled={!hseComment.trim() || hseChecksIncomplete}
+          rejectDisabled={!hseComment.trim() || hseChecksIncomplete}
+          onApprove={() => hseDecision(isExceptionCloseOut ? "Acknowledge" : "Approve")}
+          onReturn={() => hseDecision("Return")}
+          onReject={() => hseDecision("Deny")}
+          extraFields={
+            <div className="space-y-3">
+              <FormInput label="HSE Inspector" value={request.workAuthorization.hseApprover} disabled />
+              <SafetyChoiceTable
+                options={yesNoOptions}
+                rows={[
+                  {
+                    label: "Did HSE inspect/verify close-out?",
+                    required: true,
+                    value: hseVerifiedCloseOut,
+                    onValueChange: setHseVerifiedCloseOut,
+                  },
+                  {
+                    label: "Area safe for normal operations?",
+                    required: true,
+                    value: hseAreaSafe,
+                    onValueChange: setHseAreaSafe,
+                  },
+                  {
+                    label: "Corrective action required?",
+                    required: true,
+                    value: hseCorrectiveActionRequired,
+                    onValueChange: setHseCorrectiveActionRequired,
+                  },
+                ]}
+              />
+              {!hseComment.trim() ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Add an HSE comment before returning or denying this close-out.
+                </p>
+              ) : null}
+              {hseChecksIncomplete ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Complete all HSE close-out checks before submitting a decision.
+                </p>
+              ) : null}
+              {!isExceptionCloseOut && !hseChecksIncomplete && hseApprovalBlocked ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Approval is disabled unless close-out is verified, the area is safe, and no corrective action is required.
+                </p>
+              ) : null}
+              {isExceptionCloseOut ? <ExceptionCloseOutNotice /> : null}
+            </div>
+          }
+        />
       ) : permissions.showHseApproval && request.hseApproval ? (
         <HseResult result={request.hseApproval} />
       ) : null}
@@ -652,67 +674,11 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
   );
 }
 
-function DecisionSubmitControl({
-  onDecision,
-  reasonMissing = false,
-  reasonMessage,
-  submissionDisabled = false,
-  submissionDisabledMessage,
-  disableApprove = false,
-  disableApproveMessage,
-  isExceptionCloseOut = false,
-}: {
-  onDecision: (decision: WorkCloseOutDecision) => void;
-  reasonMissing?: boolean;
-  reasonMessage: string;
-  submissionDisabled?: boolean;
-  submissionDisabledMessage?: string;
-  disableApprove?: boolean;
-  disableApproveMessage?: string;
-  isExceptionCloseOut?: boolean;
-}) {
-  const primaryDecision: WorkCloseOutDecision = isExceptionCloseOut
-    ? "Acknowledge"
-    : "Approve";
-
+function ExceptionCloseOutNotice() {
   return (
-    <div className="space-y-3">
-      {reasonMissing ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {reasonMessage}
-        </p>
-      ) : null}
-      {submissionDisabled && submissionDisabledMessage ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {submissionDisabledMessage}
-        </p>
-      ) : null}
-      {!isExceptionCloseOut && !submissionDisabled && disableApprove && disableApproveMessage ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {disableApproveMessage}
-        </p>
-      ) : null}
-      {isExceptionCloseOut ? (
-        <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-          This is an exception close-out. It can be acknowledged for audit, returned, or denied, but it cannot be approved as successful.
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <Button
-          type="button"
-          disabled={submissionDisabled || (!isExceptionCloseOut && disableApprove)}
-          onClick={() => onDecision(primaryDecision)}
-        >
-          {isExceptionCloseOut ? "Acknowledge" : "Approve"}
-        </Button>
-        <Button type="button" variant="secondary" disabled={reasonMissing || submissionDisabled} onClick={() => onDecision("Return")}>
-          Return
-        </Button>
-        <Button type="button" variant="danger" disabled={reasonMissing || submissionDisabled} onClick={() => onDecision("Deny")}>
-          Deny
-        </Button>
-      </div>
-    </div>
+    <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+      This is an exception close-out. It can be acknowledged for audit, returned, or denied, but it cannot be approved as successful.
+    </p>
   );
 }
 

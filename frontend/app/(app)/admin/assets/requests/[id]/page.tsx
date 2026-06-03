@@ -117,6 +117,17 @@ export default function AdminAssetRequestDetailPage() {
             </div>
             <ApprovalBadge status={req.status} />
           </div>
+          {(() => {
+            const actor =
+              req.status === "pending" || req.status === "approved" ? "Asset Admin" :
+              req.status === "allocated" && req.request_type === "loan" ? "Requester" :
+              null;
+            return actor ? (
+              <p className="mt-2 text-sm text-brand-text-secondary">
+                Next actor <span className="font-medium text-brand-text-primary">{actor}</span>
+              </p>
+            ) : null;
+          })()}
           {req.rejection_reason && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-xs font-medium text-red-700 mb-1">Rejection Reason</p>

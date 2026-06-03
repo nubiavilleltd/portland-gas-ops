@@ -314,6 +314,13 @@ export default function ProcurementDetailPage() {
           status={statusBadge}
           recordLabel="Purchase & Service Request"
           title={`${capitalize(req.category.replace(/_/g, " "))} Request`}
+          nextActor={
+            req.status === "pending_line_manager"  ? "Operations Manager" :
+            req.status === "pending_procurement"   ? "Procurement Officer" :
+            req.status === "awaiting_payment"      ? "Finance" :
+            req.status === "awaiting_confirmation" ? "Procurement Officer" :
+            undefined
+          }
           switcherDescription="Switch roles to preview how each approver sees and acts on this request."
         />
 
