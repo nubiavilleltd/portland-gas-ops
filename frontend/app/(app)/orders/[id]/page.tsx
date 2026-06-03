@@ -38,15 +38,15 @@ export default function OrderDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const {customers} = useCustomers()
+  const { customers } = useCustomers()
 
   const { order, isLoading, error } = useOrderById(id);
   const { invoice } = useInvoiceByOrderId(id);
-  const {summary:paymentSummary} = usePaymentSummary(invoice?.id);
+  const { summary: paymentSummary } = usePaymentSummary(invoice?.id);
 
   const { trip } = useTripById(order?.trip_id as string);
 
-    const customerMap = Object.fromEntries(
+  const customerMap = Object.fromEntries(
     customers.map((customer) => [
       customer.id,
       customer,
@@ -90,25 +90,25 @@ export default function OrderDetailPage() {
     : 0;
 
 
-    const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
-  {
-    label: "Product",
-    render: (item) => <span className="font-medium">{item.product_name}</span>,
-  },
-  {
-    label: "Quantity",
-    render: (item) => `${item.quantity.toLocaleString()} kg`,
-  },
-  {
-    label: "Unit Price",
-    render: (item) => formatCurrency(item.unit_price),
-  },
-  {
-    label: "Total",
-    align: "right",
-    render: (item) => formatCurrency(item.total),
-  },
-];
+  const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+    {
+      label: "Product",
+      render: (item) => <span className="font-medium">{item.product_name}</span>,
+    },
+    {
+      label: "Quantity",
+      render: (item) => `${item.quantity.toLocaleString()} kg`,
+    },
+    {
+      label: "Unit Price",
+      render: (item) => formatCurrency(item.unit_price),
+    },
+    {
+      label: "Total",
+      align: "right",
+      render: (item) => formatCurrency(item.total),
+    },
+  ];
 
 
 
@@ -158,7 +158,7 @@ export default function OrderDetailPage() {
                 Generate Invoice
               </Button>
             )} */}
-{/* 
+            {/* 
             {canClose && (
               <Button href={ORDER_ROUTES.close(id)} variant="primary">
                 Close Order
@@ -168,38 +168,38 @@ export default function OrderDetailPage() {
         }
       />
 
-            <div className="space-y-6">
+      <div className="space-y-6">
 
         {/* ORDER SUMMARY */}
-                <FormSection
-  title="Order Summary"
-  description="Overview of customer, order, delivery, and payment details"
->
-  <div className="flex items-start justify-between mb-6">
-    <div>
-      <p className="text-xs font-mono text-brand-text-secondary">
-        {order.order_number}
-      </p>
+        <FormSection
+          title="Order Summary"
+          description="Overview of customer, order, delivery, and payment details"
+        >
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <p className="text-xs font-mono text-brand-text-secondary">
+                {order.order_number}
+              </p>
 
-      <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-        {customerMap[order.customer_id]
-          ?.name ?? "—"}
-      </h2>
-{/* 
+              <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
+                {customerMap[order.customer_id]
+                  ?.name ?? "—"}
+              </h2>
+              {/* 
       <p className="text-sm text-brand-text-secondary mt-1">
         {order.order_type}
       </p> */}
-    </div>
+            </div>
 
-    {/* Three status badges side by side */}
-    <div className="flex flex-col gap-1.5 items-end">
-      <OrderStatusBadge status={order.order_status} />
-      <FulfillmentStatusBadge status={order.fulfillment_status} />
-      <PaymentStatusBadge status={order.payment_status} />
-    </div>
-  </div>
+            {/* Three status badges side by side */}
+            <div className="flex flex-col gap-1.5 items-end">
+              <OrderStatusBadge status={order.order_status} />
+              <FulfillmentStatusBadge status={order.fulfillment_status} />
+              <PaymentStatusBadge status={order.payment_status} />
+            </div>
+          </div>
 
-  {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
     <InfoRow
       label="Gas Type"
       value={order.product_name ?? order.order_type}
@@ -249,8 +249,8 @@ export default function OrderDetailPage() {
     )}
   </div> */}
 
-  {/* ORDER ITEMS */}
-{/* <div className="mt-4 pt-4 border-t border-brand-border">
+          {/* ORDER ITEMS */}
+          {/* <div className="mt-4 pt-4 border-t border-brand-border">
   <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
   <table className="w-full text-sm">
     <thead>
@@ -280,29 +280,29 @@ export default function OrderDetailPage() {
   </table>
 </div> */}
 
-<SimpleTable
-  columns={itemColumns}
-  rows={order.order_items}
-  keyExtractor={(_, index) => String(index)}
-  footer={
-    <tr>
-      <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
-        Grand Total
-      </td>
-      <td className="pt-3 text-right font-semibold">
-        {formatCurrency(order.total_amount)}
-      </td>
-    </tr>
-  }
-/>
+          <SimpleTable
+            columns={itemColumns}
+            rows={order.order_items}
+            keyExtractor={(_, index) => String(index)}
+            footer={
+              <tr>
+                <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+                  Grand Total
+                </td>
+                <td className="pt-3 text-right font-semibold">
+                  {formatCurrency(order.total_amount)}
+                </td>
+              </tr>
+            }
+          />
 
-  {order.notes && (
-    <div className="mt-4 pt-4 border-t border-brand-border text-sm">
-      <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
-      <p>{order.notes}</p>
-    </div>
-  )}
-</FormSection>
+          {order.notes && (
+            <div className="mt-4 pt-4 border-t border-brand-border text-sm">
+              <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
+              <p>{order.notes}</p>
+            </div>
+          )}
+        </FormSection>
 
         {/* TRIP / DISPATCH */}
         <SectionCard

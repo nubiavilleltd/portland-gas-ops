@@ -8,6 +8,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormSection from "@/components/ui/FormSection";
+import CurrencyInput from "@/components/forms/CurrencyInput";
 
 const VEHICLE_TYPE_OPTIONS = [
   { value: "lpg_tanker", label: "LPG Tanker" },
@@ -163,6 +164,8 @@ export default function VehicleForm({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-5">
+                
           <FormInput
             label="Vehicle Name"
             required
@@ -178,6 +181,8 @@ export default function VehicleForm({
             value={form.plate_number}
             onChange={(e) => patch("plate_number", e.target.value)}
           />
+          </div>
+
 
           <div className="grid grid-cols-2 gap-5">
             <FormSelect
@@ -226,13 +231,20 @@ export default function VehicleForm({
       >
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-5">
-            <FormInput
+            {/* <FormInput
               label="Capacity (kg)"
               type="number"
               placeholder="e.g. 10000"
               value={form.capacity}
               onChange={(e) => patch("capacity", e.target.value)}
-            />
+            /> */}
+
+            <CurrencyInput
+  label="Capacity (kg)"
+  placeholder="e.g. 10,000"
+  value={form.capacity}
+  onValueChange={(v) => patch("capacity", v)}
+/>
 
             <FormSelect
               label="Fuel Type"
@@ -241,15 +253,23 @@ export default function VehicleForm({
               value={form.fuel_type}
               onValueChange={(v) => patch("fuel_type", v)}
             />
-          </div>
-
-          <FormInput
+            
+          {/* <FormInput
             label="Current Mileage (km)"
             type="number"
             placeholder="e.g. 45000"
             value={form.mileage}
             onChange={(e) => patch("mileage", e.target.value)}
-          />
+          /> */}
+
+          <CurrencyInput
+  label="Current Mileage (km)"
+  placeholder="e.g. 45,000"
+  value={form.mileage}
+  onValueChange={(v) => patch("mileage", v)}
+/>
+          </div>
+
         </div>
       </FormSection>
 
