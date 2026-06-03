@@ -132,20 +132,20 @@ export default function OrderDetailPage() {
               </Button>
             )} */}
 
-            {canAssign && (
+            {/* {canAssign && (
               <Button href={FLEET_ROUTES.tripNew({ orderId: id })}>
                 Assign to Trip
               </Button>
-            )}
+            )} */}
 
-            {order.trip_id && (
+            {/* {order.trip_id && (
               <Button
                 href={FLEET_ROUTES.tripDetail(order.trip_id)}
                 variant="outline"
               >
                 View Trip
               </Button>
-            )}
+            )} */}
 
             {canDeliver && (
               <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
@@ -153,11 +153,11 @@ export default function OrderDetailPage() {
               </Button>
             )}
 
-            {canInvoice && (
+            {/* {canInvoice && (
               <Button href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
                 Generate Invoice
               </Button>
-            )}
+            )} */}
 {/* 
             {canClose && (
               <Button href={ORDER_ROUTES.close(id)} variant="primary">

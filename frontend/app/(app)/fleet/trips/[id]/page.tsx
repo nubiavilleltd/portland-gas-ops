@@ -119,11 +119,7 @@ export default function TripDetailPage() {
         description="Trip execution and dispatch control center"
         action={
           <div className="flex gap-2">
-            {canAssign && (
-              <Button href={`/fleet/trips/${tripId}/assign`}>
-                Assign Driver & Vehicle
-              </Button>
-            )}
+          
 
             {canDispatch && (
               <Button href={`/fleet/trips/${tripId}/dispatch`}>
@@ -218,6 +214,14 @@ export default function TripDetailPage() {
           title="Assignment"
           description="Driver and vehicle allocation"
         >
+
+            {canAssign && (
+              <div className="flex justify-end">
+                <Button href={`/fleet/trips/${tripId}/assign`}>
+                Assign Driver & Vehicle
+              </Button>
+              </div>
+            )}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="border p-4 rounded-xl">
               <p className="text-xs text-brand-text-secondary">Driver</p>
