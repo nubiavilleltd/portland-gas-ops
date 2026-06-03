@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
@@ -29,7 +30,6 @@ import type {
   IncidentHazardHseReview,
   IncidentHazardReport,
   IncidentHazardRole,
-  IncidentHazardStatus,
   WorkAuthorizationAuditTrailItem,
 } from "@/types/safety";
 
@@ -214,7 +214,7 @@ export default function IncidentHazardDetailsView({
         onRoleChange={setCurrentRole}
         roleLabel={getIncidentHazardRoleLabel(currentRole)}
         roles={incidentHazardRoles}
-        status={<IncidentHazardStatusBadge status={report.status} />}
+        status={<ApprovalBadge status={report.status} />}
         switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
       />
 
@@ -640,32 +640,6 @@ function StatusNote({ report, currentRole }: { report: IncidentHazardReport; cur
     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       {note}
     </div>
-  );
-}
-
-function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus }) {
-  const labelByStatus: Record<IncidentHazardStatus, string> = {
-    draft: "Draft",
-    submitted: "Submitted",
-    recommended: "Recommended",
-    resolved: "Resolved",
-    closed: "Closed",
-    not_resolved: "Not Resolved",
-  };
-
-  const classByStatus: Record<IncidentHazardStatus, string> = {
-    draft: "bg-gray-100 text-gray-600",
-    submitted: "bg-amber-100 text-amber-700",
-    recommended: "bg-blue-100 text-blue-700",
-    resolved: "bg-green-100 text-green-700",
-    closed: "bg-slate-100 text-slate-700",
-    not_resolved: "bg-red-100 text-red-700",
-  };
-
-  return (
-    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${classByStatus[status]}`}>
-      {labelByStatus[status]}
-    </span>
   );
 }
 
