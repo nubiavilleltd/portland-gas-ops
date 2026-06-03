@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
-import WorkCloseOutRoleSwitcher from "./WorkCloseOutRoleSwitcher";
+import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockWorkCloseOutRequest,
@@ -34,6 +34,12 @@ const yesNoOptions = [
 ];
 
 const yesNoNaOptions = [...yesNoOptions, { value: "N/A", label: "N/A" }];
+const workCloseOutRoles: { value: WorkCloseOutRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "supervisor", label: "Supervisor" },
+  { value: "operations_head", label: "Operations Head" },
+  { value: "hse", label: "HSE Inspector" },
+];
 
 function decisionPastTense(decision: WorkCloseOutDecision) {
   if (decision === "Acknowledge") return "acknowledged";
@@ -298,22 +304,17 @@ export default function WorkCloseOutDetailsView({
         Back to Work Close-Out
       </button>
 
-      <WorkCloseOutRoleSwitcher value={currentRole} onChange={setCurrentRole} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Work Completion & Close-Out
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">{request.id}</h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              {request.title}
-            </p>
-          </div>
-          <ApprovalBadge status={request.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={request.id}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        roleLabel={getWorkCloseOutRoleLabel(currentRole)}
+        roles={workCloseOutRoles}
+        recordLabel="Work Completion & Close-Out"
+        title={request.title}
+        status={<ApprovalBadge status={request.status} />}
+        switcherDescription="Switch roles to preview requester, supervisor, Operations Head, and HSE close-out reviews."
+      />
 
       <StatusNote request={request} currentRole={currentRole} />
       <RequesterDetails request={request} />
@@ -822,4 +823,11 @@ function AuditCell({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
     </div>
   );
+}
+
+function getWorkCloseOutRoleLabel(role: WorkCloseOutRole) {
+  if (role === "operations_head") return "Operations Head";
+  if (role === "hse") return "HSE Inspector";
+  if (role === "supervisor") return "Supervisor";
+  return "Requester";
 }
