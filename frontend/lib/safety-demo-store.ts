@@ -14,7 +14,7 @@ import type {
   WorkInitiationRequest,
 } from "@/types/safety";
 
-const STORAGE_KEY = "portland-gas-ops.safety-demo.v6";
+const STORAGE_KEY = "portland-gas-ops.safety-demo.v7";
 const CHANGE_EVENT = "safety-demo-data-changed";
 
 export interface SafetyDemoData {
@@ -285,7 +285,7 @@ function toApprovedAuthorizationOption(
     approvedEndDateTime: request.workInitiation.plannedEndDateTime,
     workTypes: request.workInitiation.workType,
     supervisor: request.workInitiation.assignedSupervisor,
-    hseApprover: request.hseApproval?.approver ?? "Daniel Okoro",
+    hseApprover: request.hseApproval?.approver ?? "Samuel Bassey",
   };
 }
 
@@ -377,7 +377,7 @@ export function closeResolvedIncident(incidentId: string) {
     ...report.auditTrail,
     {
       action: "Closed by HSE",
-      actor: report.hseReview?.inspector || "Daniel Okoro",
+      actor: report.hseReview?.inspector || "Samuel Bassey",
       role: "HSE Inspector",
       dateTime: "2026-05-25 04:00 PM",
       comment: report.resolutionWorkCompletionId

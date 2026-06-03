@@ -8,6 +8,7 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
@@ -33,7 +34,7 @@ import type {
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
-const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
+const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Felix Ohemu", "Samuel Bassey"]);
 const departmentOptions = toOptions(["Engineering", "Maintenance", "Operations", "Logistics", "HSE", "Admin"]);
 const incidentHazardRoles: { value: IncidentHazardRole; label: string }[] = [
   { value: "reporter", label: "Reporter" },
@@ -116,7 +117,7 @@ export default function IncidentHazardDetailsView({
 
   function buildHseReview(decision: "Resolved" | "Not Resolved" | "Recommended" | ""): IncidentHazardHseReview {
     return {
-      inspector: "Daniel Okoro",
+      inspector: "Samuel Bassey",
       confirmedReportType: report?.reportType || "Hazard",
       confirmedSeverity: report?.severityEstimate || "Medium",
       findings: "HSE reviewed the report and confirmed the reported condition.",
@@ -266,7 +267,12 @@ export default function IncidentHazardDetailsView({
         <HseClosureAction report={report} onClose={closeIncident} />
       ) : null}
 
-      {permissions.showAuditTrail ? <AuditTrail items={report.auditTrail} /> : null}
+      {permissions.showAuditTrail ? (
+        <AuditTrail
+          items={report.auditTrail}
+          description="Recorded workflow actions and comments for this report."
+        />
+      ) : null}
     </div>
   );
 }
@@ -363,7 +369,7 @@ function HseReviewAction({
   return (
     <FormSection title="HSE Review & Corrective Action" description="Assess the report and determine whether corrective work is required.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value="Daniel Okoro" disabled />
+        <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
         <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
         <FormSelect label="Confirmed Severity" required options={toOptions(incidentSeverityOptions)} placeholder="Select confirmed severity" />
         <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
@@ -552,7 +558,7 @@ function HseClosureAction({
   return (
     <FormSection title="HSE Final Closure" description="Verify the completed corrective work and close this report.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Daniel Okoro"} disabled />
+        <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Samuel Bassey"} disabled />
         <FormInput
           label="Verified Work Completion"
           value={report.resolutionWorkCompletionId || "No linked completion required"}
@@ -593,28 +599,6 @@ function AttachmentList({ attachments }: { attachments: IncidentHazardAttachment
         </div>
       ))}
     </div>
-  );
-}
-
-function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
-  return (
-    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this report.">
-      {items.length === 0 ? (
-        <p className="text-sm text-brand-text-secondary">No audit actions yet.</p>
-      ) : (
-        <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-          {items.map((item, index) => (
-            <div key={`${item.action}-${index}`} className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]">
-              <AuditCell label="Action" value={item.action} />
-              <AuditCell label="Actor" value={item.actor} />
-              <AuditCell label="Role" value={item.role} />
-              <AuditCell label="Date/Time" value={item.dateTime} />
-              <AuditCell label="Comment" value={item.comment} />
-            </div>
-          ))}
-        </div>
-      )}
-    </FormSection>
   );
 }
 
@@ -695,14 +679,5 @@ function FormSection({ title, description, children }: { title: string; descript
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
-  );
-}
-
-function AuditCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">{label}</p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
   );
 }

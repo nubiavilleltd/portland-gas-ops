@@ -13,7 +13,7 @@ export const defaultSafetyUser: WorkAuthorizationRequester = {
 };
 
 export const defaultSafetyAdmin: WorkAuthorizationRequester = {
-  name: "Daniel Okoro",
+  name: "Samuel Bassey",
   department: "HSE",
   role: "HSE Officer",
   requestDate: "",

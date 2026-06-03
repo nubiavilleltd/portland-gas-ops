@@ -1,9 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  AlertTriangle,
   Banknote,
   BarChart2,
   BookOpen,
   CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
   ClipboardList,
   CreditCard,
   DollarSign,
@@ -191,6 +194,30 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Track HSE queue, close-outs, compliance, and hazard trends",
         icon: ShieldCheck,
         href: "/admin/safety",
+      },
+      {
+        name: "Incident & Hazard Report",
+        description: "Review all incident, hazard, near-miss, and corrective-action records",
+        icon: AlertTriangle,
+        href: "/admin/safety/incidents",
+      },
+      {
+        name: "Work Initiation",
+        description: "View all operational work requests before safety authorization",
+        icon: ClipboardCheck,
+        href: "/admin/safety/work-initiation",
+      },
+      {
+        name: "Work Authorization",
+        description: "View all HSE authorization requests and decisions",
+        icon: ClipboardCheck,
+        href: "/admin/safety/work-authorization",
+      },
+      {
+        name: "Work Completion & Close-Out",
+        description: "View all completed work and close-out approvals",
+        icon: CheckCircle2,
+        href: "/admin/safety/work-close-out",
       },
     ],
   },
