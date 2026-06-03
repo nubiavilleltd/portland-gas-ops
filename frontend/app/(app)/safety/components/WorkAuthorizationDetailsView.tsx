@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
@@ -674,52 +675,32 @@ function HseFinalActionSection({
   reasonMissing: boolean;
 }) {
   return (
-    <FormSection title="HSE Final Approval" description="Record the final safety decision for this work authorization.">
-      {disableApprove ? (
-        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Approval is disabled because one or more inspection checks failed.
-        </p>
-      ) : null}
-      <DecisionSubmitControl
-        onDecision={onDecision}
-        disableApprove={disableApprove}
-        reasonMissing={reasonMissing}
-        reasonMessage="Add an HSE inspection comment before returning or denying this request."
-      />
-    </FormSection>
-  );
-}
-
-function DecisionSubmitControl({
-  onDecision,
-  disableApprove = false,
-  reasonMissing = false,
-  reasonMessage,
-}: {
-  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
-  disableApprove?: boolean;
-  reasonMissing?: boolean;
-  reasonMessage: string;
-}) {
-  return (
-    <div className="space-y-3">
-      {reasonMissing ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {reasonMessage}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" disabled={disableApprove} onClick={() => onDecision("Approve")}>
-          Approve
-        </Button>
-        <Button type="button" variant="secondary" disabled={reasonMissing} onClick={() => onDecision("Return")}>
-          Return
-        </Button>
-        <Button type="button" variant="danger" disabled={reasonMissing} onClick={() => onDecision("Deny")}>
-          Deny
-        </Button>
-      </div>
-    </div>
+    <ApprovalPanel
+      title="HSE Final Approval"
+      description="Record the final safety decision for this work authorization."
+      showComment={false}
+      rejectLabel="Deny"
+      approveDisabled={disableApprove}
+      returnDisabled={reasonMissing}
+      rejectDisabled={reasonMissing}
+      onApprove={() => onDecision("Approve")}
+      onReturn={() => onDecision("Return")}
+      onReject={() => onDecision("Deny")}
+      extraFields={
+        <div className="space-y-3">
+          {disableApprove ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Approval is disabled because one or more inspection checks failed.
+            </p>
+          ) : null}
+          {reasonMissing ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Add an HSE inspection comment before returning or denying this request.
+            </p>
+          ) : null}
+        </div>
+      }
+    />
   );
 }
 

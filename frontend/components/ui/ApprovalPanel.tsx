@@ -34,6 +34,8 @@ export interface ApprovalPanelProps {
   commentPlaceholder?: string;
   commentRequired?: boolean;
   commentMaxLength?: number;
+  commentValue?: string;
+  onCommentChange?: (comment: string) => void;
 
   // ── Built-in buttons — each independently toggled ──────────────────────────
   showReturn?: boolean;
@@ -128,6 +130,8 @@ export default function ApprovalPanel({
   commentPlaceholder = "Add a comment before submitting your decision…",
   commentRequired = false,
   commentMaxLength = 500,
+  commentValue,
+  onCommentChange,
 
   showReturn = true,
   showReject = true,
@@ -157,7 +161,15 @@ export default function ApprovalPanel({
 
   disabled = false,
 }: ApprovalPanelProps) {
-  const [comment, setComment] = useState("");
+  const [internalComment, setInternalComment] = useState("");
+  const comment = commentValue ?? internalComment;
+
+  function handleCommentChange(nextComment: string) {
+    if (commentValue === undefined) {
+      setInternalComment(nextComment);
+    }
+    onCommentChange?.(nextComment);
+  }
 
   const sectionDescription = reviewingAs
     ? `Reviewing as ${reviewingAs}`
@@ -183,7 +195,7 @@ export default function ApprovalPanel({
           maxLength={commentMaxLength}
           required={commentRequired}
           value={comment}
-          onChange={(e) => setComment(e.target.value)}
+          onChange={(e) => handleCommentChange(e.target.value)}
         />
       )}
 
