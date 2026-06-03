@@ -145,7 +145,7 @@ export default function VehicleDetailPage() {
                 variant="primary"
                 href={`/fleet/trips/new?vehicleId=${vehicle.id}`}
               >
-                Assign Trip
+                Assign Trip →
               </Button>
             )}
           </div>
@@ -252,7 +252,7 @@ export default function VehicleDetailPage() {
                 href={`/fleet/trips/${activeTrip.id}`}
                 className="mt-3"
               >
-                View Trip
+                View Trip →
               </Button>
             </div>
           ) : (
@@ -284,7 +284,7 @@ export default function VehicleDetailPage() {
                 variant="outline"
                 href={`/fleet/trips?vehicleId=${vehicle.id}`}
               >
-                View All
+                View All →
               </Button>
             </div>
           )}

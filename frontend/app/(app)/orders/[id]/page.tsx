@@ -149,7 +149,7 @@ export default function OrderDetailPage() {
 
             {canDeliver && (
               <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
-                Confirm Delivery
+                Confirm Delivery →
               </Button>
             )}
 
@@ -234,7 +234,7 @@ export default function OrderDetailPage() {
             canAssign ? (
               <div className="flex justify-end">
                 <Button size="sm" href={FLEET_ROUTES.tripNew({ orderId: id })}>
-                  Assign to Trip
+                  Assign to Trip →
                 </Button>
               </div>
             ) : order.trip_id ? (
@@ -273,7 +273,7 @@ export default function OrderDetailPage() {
           {canInvoice ? (
             <div className="flex justify-end">
               <Button size="sm" href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
-                Generate Invoice
+                Create Invoice →
               </Button>
             </div>
           ) : invoice ? (
@@ -321,7 +321,7 @@ export default function OrderDetailPage() {
                 size="sm"
                 href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice.id}`}
               >
-                Record Payment
+                Make Payment →
               </Button>
             </div>
           ) : undefined}
