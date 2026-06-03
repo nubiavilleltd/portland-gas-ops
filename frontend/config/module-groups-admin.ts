@@ -155,17 +155,18 @@ function matchesPath(pathname: string, prefix: string) {
 }
 
 export function getModuleGroupForPathname(pathname: string): ModuleGroup | undefined {
+  // Pass 1: exact process/routePrefix match (most specific)
   for (const group of moduleGroups) {
     const ownsProcessPath = group.processes.some((process) =>
       [process.href, ...(process.routePrefixes ?? [])].some((prefix) =>
         matchesPath(pathname, prefix),
       ),
     );
+    if (ownsProcessPath) return group;
+  }
 
-    if (ownsProcessPath) {
-      return group;
-    }
-
+  // Pass 2: group-level routePrefix fallback (less specific, e.g. /admin)
+  for (const group of moduleGroups) {
     if (group.routePrefixes?.some((prefix) => matchesPath(pathname, prefix))) {
       return group;
     }

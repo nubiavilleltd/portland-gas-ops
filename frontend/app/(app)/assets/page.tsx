@@ -28,6 +28,7 @@ const CONDITION_STYLES: Record<string, string> = {
   poor: "bg-red-100 text-red-700",
 };
 
+/* ── Card view (commented out — kept for future use) ───────────────────────────
 function AssetCard({ asset }: { asset: Asset }) {
   const statusStyle = STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500";
   const conditionStyle = CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500";
@@ -50,6 +51,7 @@ function AssetCard({ asset }: { asset: Asset }) {
     </Link>
   );
 }
+────────────────────────────────────────────────────────────────────────────── */
 
 const TABLE_COLUMNS: Column<Asset>[] = [
   {
@@ -73,11 +75,9 @@ const TABLE_COLUMNS: Column<Asset>[] = [
   { key: "condition", label: "Condition", render: (_, asset) => <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}>{capitalize(asset.condition)}</span> },
 ];
 
-type ViewMode = "card" | "table";
-
 export default function AssetsPage() {
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  // const [viewMode, setViewMode] = useState<"card" | "table">("card"); // view toggle removed — table only
 
   const { data: assets = [], isLoading, isError } = useAssets({
     search: search || undefined,
@@ -106,6 +106,7 @@ export default function AssetsPage() {
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-brand-text-secondary">{!isLoading && `${assets.length} asset${assets.length !== 1 ? "s" : ""} available`}</p>
         <div className="flex items-center gap-3">
+          {/* View toggle removed — table only
           <div className="flex items-center gap-0.5 bg-white border border-brand-border rounded-lg p-0.5">
             <button onClick={() => setViewMode("card")} title="Card view" className={["p-1.5 rounded-md transition-colors", viewMode === "card" ? "bg-brand-purple text-white" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>
@@ -114,6 +115,7 @@ export default function AssetsPage() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
             </button>
           </div>
+          */}
           <Link href="/assets/requests" className="text-xs text-brand-purple hover:underline font-medium">My Requests →</Link>
         </div>
       </div>
@@ -122,11 +124,14 @@ export default function AssetsPage() {
         : isError ? <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>
         : assets.length === 0 ? (
           <EmptyState title="No assets available" description={search ? "Try a different search" : "There are no assets available to request right now"} />
-        ) : viewMode === "card" ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {assets.map((asset) => <AssetCard key={asset.id} asset={asset} />)}
-          </div>
         ) : (
+          /* Card view commented out — kept for future use
+          viewMode === "card" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {assets.map((asset) => <AssetCard key={asset.id} asset={asset} />)}
+            </div>
+          ) :
+          */
           <DataTable columns={TABLE_COLUMNS} data={assets} rowHref={(asset) => `/assets/${asset.id}`} emptyMessage="No assets found." searchable={false} />
         )}
     </AppLayout>
