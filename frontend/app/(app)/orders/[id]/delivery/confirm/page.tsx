@@ -144,13 +144,14 @@ export default function OrderDeliveryPage() {
        {/* DELIVERY DETAILS */}
 <FormSection
   title="Delivery Details"
-  description=""
+  description="Delivery details and items included in this order"
 >
-  <div className="bg-white border border-brand-border rounded-2xl p-6">
-    <div className="flex items-center gap-3 mb-5">
-      <div className="p-2 rounded-lg bg-brand-purple-faint text-brand-purple">
+
+
+      <div className="flex items-center gap-3 mb-5">
+      {/* <div className="p-2 rounded-lg bg-brand-purple-faint text-brand-purple">
         <Truck size={18} />
-      </div>
+      </div> */}
       <div>
         <h3 className="font-semibold">{order.order_number}</h3>
         <p className="text-sm text-brand-text-secondary">{customerMap.get(order.customer_id)?.name || "Unknown customer"}</p>
@@ -160,14 +161,6 @@ export default function OrderDeliveryPage() {
       </div>
     </div>
 
-    {/* <div className="grid grid-cols-2 gap-4 text-sm">
-      <InfoRow label="Order Type" value={order.order_type} />
-      <InfoRow label="Quantity" value={`${order.quantity.toLocaleString()} kg`} />
-      <InfoRow label="Total Amount" value={formatCurrency(order.total_amount)} />
-      {order.delivery_date && (
-        <InfoRow label="Expected Delivery" value={formatDate(order.delivery_date)} />
-      )}
-    </div> */}
 
     <div className="mt-4 pt-4 border-t border-brand-border">
   <p className="text-xs text-brand-text-secondary mb-3">Items</p>
@@ -185,17 +178,16 @@ export default function OrderDeliveryPage() {
         <p className="text-sm font-medium">{order.delivery_address}</p>
       </div>
     </div>
-  </div>
 </FormSection>
 
        {/* PROOF OF DELIVERY FORM */}
 {!alreadyDelivered && canConfirm && (
   <FormSection
     title="Proof of Delivery"
-    description=""
+    description="Record proof of delivery including recipient information and delivery notes"
   >
-    <div className="bg-white border border-brand-border rounded-2xl p-6">
-      <div className="space-y-4">
+
+     <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-brand-text-primary mb-1">
             Received By <span className="text-red-500">*</span>
@@ -226,17 +218,11 @@ export default function OrderDeliveryPage() {
           Note: After confirming delivery, you will be able to generate an invoice for this order.
         </p> */}
       </div>
-    </div>
   </FormSection>
 )}
 
         {/* ERROR */}
-        {/* {error && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <AlertCircle size={16} />
-            {error}
-          </div>
-        )} */}
+ 
 
         {confirmDelivery.error && (
   <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">

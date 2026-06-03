@@ -148,7 +148,7 @@ function CreateTripForm() {
 
                 <span>
                   Order <strong>{preloadedOrder.order_number}</strong> —{" "}
-                  {preloadedOrder.customer_name}
+                  {customerMap.get(preloadedOrder.customer_id)?.name ?? preloadedOrder.customer_name}
                 </span>
               </div>
             )}

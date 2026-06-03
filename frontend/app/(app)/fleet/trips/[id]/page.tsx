@@ -149,7 +149,7 @@ export default function TripDetailPage() {
           title="Trip Summary"
           description={toTitleCase(trip.type.replace(/_/g, " "))}
         >
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start justify-end mb-4">
             <TripStatusBadge status={trip.status} />
           </div>
 
