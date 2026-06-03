@@ -4,9 +4,10 @@ import { capitalize } from "@/lib/utils";
 const variants: Record<string, string> = {
   draft: "bg-gray-100 text-gray-600",
   // Procurement statuses
-  pending_line_manager: "bg-amber-50 text-amber-700 border border-amber-200",
-  pending_procurement:  "bg-blue-50 text-blue-700 border border-blue-200",
-  awaiting_payment:     "bg-teal-50 text-teal-700 border border-teal-200",
+  pending_line_manager:    "bg-amber-50 text-amber-700 border border-amber-200",
+  pending_procurement:     "bg-blue-50 text-blue-700 border border-blue-200",
+  awaiting_payment:        "bg-teal-50 text-teal-700 border border-teal-200",
+  returned_to_requester:   "bg-orange-50 text-orange-700 border border-orange-200",
   submitted: "bg-sky-50 text-sky-700 border border-sky-200",
   pending: "bg-amber-50 text-amber-700 border border-amber-200",
   pending_approval: "bg-amber-50 text-amber-700 border border-amber-200",
@@ -49,9 +50,10 @@ const labels: Record<string, string> = {
   acknowledged: "Acknowledged",
   allocated: "Allocated",
   unauthorized: "Unauthorized",
-  pending_line_manager: "Awaiting Manager",
-  pending_procurement: "Awaiting Procurement",
-  awaiting_payment: "Awaiting Payment",
+  pending_line_manager:  "Awaiting Manager",
+  pending_procurement:   "Awaiting Procurement",
+  awaiting_payment:      "Awaiting Payment",
+  returned_to_requester: "Returned",
 };
 
 export default function ApprovalBadge({ status, className }: Props) {

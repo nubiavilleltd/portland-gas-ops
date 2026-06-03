@@ -4,7 +4,8 @@ export type ProcurementStatus =
   | "pending_line_manager"
   | "pending_procurement"
   | "awaiting_payment"
-  | "rejected";
+  | "rejected"
+  | "returned_to_requester";
 
 export type PaymentStatus = "unpaid" | "part_paid" | "paid";
 
