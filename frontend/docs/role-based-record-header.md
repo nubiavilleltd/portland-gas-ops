@@ -6,10 +6,8 @@ Use `RoleBasedRecordHeader` on request detail pages that need a mock role switch
 
 ```tsx
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import RoleBasedRecordHeader from "../components/RoleBasedRecordHeader";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 ```
-
-Adjust the relative path based on where your page/component lives.
 
 ## Basic Usage
 
