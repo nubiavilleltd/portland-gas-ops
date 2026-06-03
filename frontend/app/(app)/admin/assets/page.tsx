@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
-import { Plus, Search, Package, LayoutGrid, Table2, MapPin, User } from "lucide-react";
+import { Plus, Search, Package, Pencil, Trash2 /*, LayoutGrid, Table2, MapPin, User */ } from "lucide-react";
 import SelectInput from "@/components/forms/SelectInput";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Button from "@/components/ui/Button";
-import DataTable, { type Column } from "@/components/ui/DataTable";
-import { useAssets, useAssetCategories } from "@/hooks/useAssets";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
+import { useAssets, useAssetCategories, useDeleteAsset } from "@/hooks/useAssets";
+import { useToast } from "@/hooks/useToast";
 import { formatCurrency, capitalize } from "@/lib/utils";
 import type { Asset, AssetStatus } from "@/types";
 
@@ -35,6 +36,10 @@ const CONDITION_STYLES: Record<string, string> = {
   fair: "bg-yellow-100 text-yellow-700",
   poor: "bg-red-100 text-red-700",
 };
+
+/* ── Card view (commented out — kept for future use) ───────────────────────────
+import Link from "next/link";
+import { MapPin, User } from "lucide-react";
 
 function AssetCard({ asset }: { asset: Asset }) {
   const statusStyle = STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500";
@@ -61,10 +66,11 @@ function AssetCard({ asset }: { asset: Asset }) {
     </Link>
   );
 }
+────────────────────────────────────────────────────────────────────────────── */
 
 const TABLE_COLUMNS: Column<Asset>[] = [
   { key: "name", label: "Asset", render: (_, asset) => <div className="flex items-center gap-3"><div className="h-9 w-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">{asset.image_url ? <Image src={asset.image_url} alt={asset.name} width={36} height={36} className="object-cover h-full w-full" /> : <Package size={16} className="text-gray-400" />}</div><div className="min-w-0"><p className="text-sm font-medium text-brand-text-primary truncate">{asset.name}</p>{asset.serial_number && <p className="text-xs text-brand-text-secondary font-mono">{asset.serial_number}</p>}</div></div> },
-  { key: "asset_tag", label: "Tag", render: (v) => v ? <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{String(v)}</span> : <span className="text-brand-text-secondary">—</span> },
+  { key: "asset_tag", label: "Tag", render: (v) => v ? <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded whitespace-nowrap">{String(v)}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "category", label: "Category", render: (_, asset) => asset.category ? <span className="text-sm text-brand-text-primary">{asset.category.name}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "status", label: "Status", render: (_, asset) => <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}>{capitalize(asset.status.replace(/_/g, " "))}</span> },
   { key: "assigned_to_name", label: "Assigned To", render: (v) => v ? <span className="text-sm text-brand-text-primary">{String(v)}</span> : <span className="text-brand-text-secondary">—</span> },
@@ -73,16 +79,44 @@ const TABLE_COLUMNS: Column<Asset>[] = [
   { key: "purchase_cost", label: "Cost", render: (_, asset) => asset.purchase_cost ? <span className="text-sm text-brand-text-primary">{formatCurrency(Number(asset.purchase_cost))}</span> : <span className="text-brand-text-secondary">—</span> },
 ];
 
-type ViewMode = "card" | "table";
-
 export default function AdminAssetsPage() {
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState<AssetStatus | undefined>(undefined);
   const [activeCategoryId, setActiveCategoryId] = useState<string | undefined>(undefined);
-  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
+  // const [viewMode, setViewMode] = useState<"card" | "table">("card"); // view toggle removed — table only
 
   const { data: assets = [], isLoading, isError } = useAssets({ search: search || undefined, status: activeStatus, category_id: activeCategoryId });
   const { data: categories = [] } = useAssetCategories();
+  const deleteAsset = useDeleteAsset();
+  const toast = useToast();
+
+  function handleDelete() {
+    if (!deleteTarget) return;
+    deleteAsset.mutate(deleteTarget.id, {
+      onSuccess: () => { toast.success("Asset deleted"); setDeleteTarget(null); },
+      onError: () => toast.error("Failed to delete asset"),
+    });
+  }
+
+  const tableActions: DataTableAction<Asset>[] = [
+    {
+      key: "edit",
+      label: "",
+      title: "Edit asset",
+      icon: <Pencil size={14} />,
+      href: (a) => `/admin/assets/${a.id}`,
+      variant: "ghost",
+    },
+    {
+      key: "delete",
+      label: "",
+      title: "Delete asset",
+      icon: <Trash2 size={14} />,
+      onClick: (a) => setDeleteTarget(a),
+      variant: "ghost",
+    },
+  ];
 
   return (
     <AppLayout pageTitle="Admin — Assets">
@@ -116,23 +150,47 @@ export default function AdminAssetsPage() {
 
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-brand-text-secondary">{!isLoading && `${assets.length} asset${assets.length !== 1 ? "s" : ""}`}</p>
+        {/* View toggle removed — table only
         <div className="flex items-center gap-0.5 bg-white border border-brand-border rounded-lg p-0.5">
           <button onClick={() => setViewMode("card")} title="Card view" className={["p-1.5 rounded-md transition-colors", viewMode === "card" ? "bg-brand-purple text-white" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}><LayoutGrid size={14} /></button>
           <button onClick={() => setViewMode("table")} title="Table view" className={["p-1.5 rounded-md transition-colors", viewMode === "table" ? "bg-brand-purple text-white" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}><Table2 size={14} /></button>
         </div>
+        */}
       </div>
 
       {isLoading ? <div className="flex justify-center py-20"><LoadingSpinner /></div>
         : isError ? <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>
         : assets.length === 0 ? (
           <EmptyState title="No assets found" description={search ? "Try a different search" : "No assets registered yet"} action={<Button href="/admin/assets/new" leftIcon={<Plus size={15} />}>Register First Asset</Button>} />
-        ) : viewMode === "card" ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {assets.map((asset) => <AssetCard key={asset.id} asset={asset} />)}
-          </div>
         ) : (
-          <DataTable columns={TABLE_COLUMNS} data={assets} rowHref={(asset) => `/admin/assets/${asset.id}`} emptyMessage="No assets found." searchable={false} />
+          /* Card view commented out — kept for future use
+          viewMode === "card" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {assets.map((asset) => <AssetCard key={asset.id} asset={asset} />)}
+            </div>
+          ) :
+          */
+          <DataTable
+            columns={TABLE_COLUMNS}
+            data={assets}
+            rowHref={(asset) => `/admin/assets/${asset.id}`}
+            emptyMessage="No assets found."
+            searchable={false}
+            showActions
+            actions={tableActions}
+            actionsContainerClassName="gap-1"
+          />
         )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Asset"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </AppLayout>
   );
 }

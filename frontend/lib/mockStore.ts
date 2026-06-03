@@ -24,6 +24,16 @@ import type {
   AssetRequestStatus,
 } from "@/types";
 
+// ── Store version — bump this when seed data changes to force a re-seed ────────
+const STORE_VERSION = "2";
+
+if (typeof window !== "undefined") {
+  if (localStorage.getItem("mock_store_version") !== STORE_VERSION) {
+    localStorage.clear();
+    localStorage.setItem("mock_store_version", STORE_VERSION);
+  }
+}
+
 // ── Generic localStorage helpers ───────────────────────────────────────────────
 
 function read<T>(key: string, seed: T[]): T[] {
@@ -592,12 +602,11 @@ export const vendorStore = {
   getAll: (): Vendor[] => read("mock_vendors", SEED_VENDORS),
   getById: (id: string): Vendor | null =>
     vendorStore.getAll().find((v) => v.id === id) ?? null,
-  add: (data: Omit<Vendor, "id" | "is_active" | "created_at" | "updated_at" | "vendor_code" | "logo_url">): Vendor => {
+  add: (data: Omit<Vendor, "id" | "is_active" | "created_at" | "updated_at" | "vendor_code">): Vendor => {
     const vendor: Vendor = {
       ...data,
       id: newId(),
       vendor_code: generateVendorCode(data.name),
-      logo_url: null,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: null,
