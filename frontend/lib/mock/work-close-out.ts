@@ -6,9 +6,9 @@ import type {
 } from "@/types/safety";
 
 export const closeOutRequester = {
-  name: "Ibrahim Musa",
-  department: "Engineering",
-  role: "Maintenance Technician",
+  name: "Felix Ohemu",
+  department: "Operations",
+  role: "Operations Officer",
   requestDate: "2026-05-18",
 };
 
@@ -17,7 +17,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     id: "WA-APP-001",
     title: "Hot work on cylinder mounting bracket",
     status: "approved",
-    requester: "Ibrahim Musa",
+    requester: "Felix Ohemu",
     requestDate: "2026-05-18",
     department: "Engineering",
     location: "Maintenance Workshop",
@@ -26,13 +26,13 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-23 12:00 PM",
     workTypes: ["Hot Work", "CNG Cylinder Work"],
     supervisor: "Mary James",
-    hseApprover: "Daniel Okoro",
+    hseApprover: "Samuel Bassey",
   },
   {
     id: "WA-APP-002",
     title: "Gas system leak check",
     status: "approved",
-    requester: "Ibrahim Musa",
+    requester: "Felix Ohemu",
     requestDate: "2026-05-18",
     department: "Engineering",
     location: "Inspection Bay",
@@ -41,13 +41,13 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-24 02:00 PM",
     workTypes: ["Gas System Work", "Vehicle Inspection"],
     supervisor: "Mary James",
-    hseApprover: "Daniel Okoro",
+    hseApprover: "Samuel Bassey",
   },
   {
     id: "WA-APP-003",
     title: "CNG cylinder installation",
     status: "approved",
-    requester: "Ibrahim Musa",
+    requester: "Felix Ohemu",
     requestDate: "2026-05-18",
     department: "Engineering",
     location: "Conversion Bay 2",
@@ -56,13 +56,13 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-25 01:00 PM",
     workTypes: ["CNG Cylinder Work", "Lifting Work"],
     supervisor: "Mary James",
-    hseApprover: "Daniel Okoro",
+    hseApprover: "Samuel Bassey",
   },
   {
     id: "WA-APP-004",
     title: "Vehicle inspection",
     status: "approved",
-    requester: "Ibrahim Musa",
+    requester: "Felix Ohemu",
     requestDate: "2026-05-18",
     department: "Engineering",
     location: "Inspection Bay",
@@ -71,7 +71,7 @@ export const approvedWorkAuthorizationOptions: ApprovedWorkAuthorizationOption[]
     approvedEndDateTime: "2026-05-26 10:00 AM",
     workTypes: ["Vehicle Inspection"],
     supervisor: "Mary James",
-    hseApprover: "Daniel Okoro",
+    hseApprover: "Samuel Bassey",
   },
 ];
 
@@ -104,7 +104,7 @@ const operationsHeadAcknowledgement: WorkCloseOutApprovalResult = {
 };
 
 const hseApproval: WorkCloseOutHseApproval = {
-  inspector: "Daniel Okoro",
+  inspector: "Samuel Bassey",
   verifiedCloseOut: true,
   areaSafeForOperations: true,
   correctiveActionRequired: false,
@@ -115,7 +115,7 @@ const hseApproval: WorkCloseOutHseApproval = {
 };
 
 const hseAcknowledgement: WorkCloseOutHseApproval = {
-  inspector: "Daniel Okoro",
+  inspector: "Samuel Bassey",
   verifiedCloseOut: true,
   areaSafeForOperations: false,
   correctiveActionRequired: true,
@@ -184,7 +184,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Ibrahim Musa",
+        actor: "Felix Ohemu",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -199,7 +199,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Ibrahim Musa",
+        actor: "Felix Ohemu",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -222,7 +222,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Ibrahim Musa",
+        actor: "Felix Ohemu",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -253,7 +253,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Ibrahim Musa",
+        actor: "Felix Ohemu",
         role: "Requester",
         dateTime: "2026-05-18 02:30 PM",
         comment: "Work completion submitted for close-out.",
@@ -274,7 +274,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
       },
       {
         action: "HSE Approved",
-        actor: "Daniel Okoro",
+        actor: "Samuel Bassey",
         role: "HSE Inspector",
         dateTime: "2026-05-18 03:40 PM",
         comment: "Area verified safe. Close-out approved.",
@@ -291,7 +291,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Ibrahim Musa",
+        actor: "Felix Ohemu",
         role: "Requester",
         dateTime: "2026-05-24 03:00 PM",
         comment: "Corrective repair completion submitted for close-out.",
@@ -312,7 +312,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
       },
       {
         action: "HSE Approved",
-        actor: "Daniel Okoro",
+        actor: "Samuel Bassey",
         role: "HSE Inspector",
         dateTime: "2026-05-24 03:45 PM",
         comment: "Area verified safe after corrective repair.",
@@ -355,7 +355,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
     auditTrail: [
       {
         action: "Submitted",
-        actor: "Ibrahim Musa",
+        actor: "Felix Ohemu",
         role: "Requester",
         dateTime: "2026-05-25 02:30 PM",
         comment: "Exception close-out submitted because work was not completed.",
@@ -376,10 +376,76 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
       },
       {
         action: "HSE Acknowledged",
-        actor: "Daniel Okoro",
+        actor: "Samuel Bassey",
         role: "HSE Inspector",
         dateTime: "2026-05-25 03:40 PM",
         comment: "Exception close-out acknowledged for audit. Work is not counted as successfully closed.",
+      },
+    ],
+  }),
+  baseCloseOut(0, {
+    id: "WC-RET-001",
+    status: "returned",
+    title: "Returned close-out for bracket hot work",
+    supervisorApproval: {
+      decision: "Return",
+      approver: "Mary James",
+      dateTime: "2026-05-27 03:00 PM",
+      comment: "Completion evidence is incomplete. Add final area photo and resubmit.",
+    },
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Felix Ohemu",
+        role: "Requester",
+        dateTime: "2026-05-27 02:30 PM",
+        comment: "Work completion submitted for close-out.",
+      },
+      {
+        action: "Supervisor Returned",
+        actor: "Mary James",
+        role: "Supervisor",
+        dateTime: "2026-05-27 03:00 PM",
+        comment: "Completion evidence is incomplete.",
+      },
+    ],
+  }),
+  baseCloseOut(1, {
+    id: "WC-DEN-001",
+    status: "denied",
+    title: "Denied close-out for gas system leak check",
+    completionDetails: {
+      actualStartDateTime: "2026-05-28 11:05 AM",
+      actualCompletionDateTime: "2026-05-28 12:00 PM",
+      workCompleted: false,
+      completedAsApproved: false,
+      deviationExplanation: "Leak test was stopped before completion because equipment was unavailable.",
+      completionSummary: "Requester attempted close-out even though work was not completed.",
+      incidentObserved: false,
+      incidentNote: "",
+      completionEvidence: [],
+      completionNotes: "Close-out was denied and must be raised again after work is completed.",
+    },
+    supervisorApproval: {
+      decision: "Deny",
+      approver: "Mary James",
+      dateTime: "2026-05-28 12:30 PM",
+      comment: "Close-out denied because the work was not completed.",
+    },
+    auditTrail: [
+      {
+        action: "Submitted",
+        actor: "Felix Ohemu",
+        role: "Requester",
+        dateTime: "2026-05-28 12:05 PM",
+        comment: "Close-out submitted.",
+      },
+      {
+        action: "Supervisor Denied",
+        actor: "Mary James",
+        role: "Supervisor",
+        dateTime: "2026-05-28 12:30 PM",
+        comment: "Work was not completed.",
       },
     ],
   }),

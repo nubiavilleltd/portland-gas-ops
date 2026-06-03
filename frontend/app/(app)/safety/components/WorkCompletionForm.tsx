@@ -50,7 +50,7 @@ export default function WorkCompletionForm() {
       approvedEndDateTime: request.workInitiation.plannedEndDateTime,
       workTypes: request.workInitiation.workType,
       supervisor: request.workInitiation.assignedSupervisor,
-      hseApprover: request.hseApproval?.approver ?? "Daniel Okoro",
+      hseApprover: request.hseApproval?.approver ?? "Samuel Bassey",
     }));
   const [actualStartDateTime, setActualStartDateTime] = useState("");
   const [actualCompletionDateTime, setActualCompletionDateTime] = useState("");

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
+import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkAuthorizationHref,
   sortByLatestSafetyActivity,
@@ -48,7 +50,13 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => <WorkAuthorizationStatusBadge status={String(value)} />,
+    render: (value) => <ApprovalBadge status={String(value)} />,
+  },
+  {
+    key: "nextAction",
+    label: "Next Actor",
+    getSearchValue: (row) => getWorkAuthorizationNextActor(row),
+    render: (_, row) => getWorkAuthorizationNextActor(row),
   },
 ];
 
@@ -120,21 +128,5 @@ export default function WorkAuthorizationRequestsTable({
         request.workInitiation.location,
       ]}
     />
-  );
-}
-
-function WorkAuthorizationStatusBadge({ status }: { status: string }) {
-  const labelByStatus: Record<string, string> = {
-    approved: "Approved",
-    denied: "Denied",
-    returned: "Returned",
-    submitted: "Submitted",
-    draft: "Draft",
-  };
-
-  return (
-    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-      {labelByStatus[status] ?? status}
-    </span>
   );
 }

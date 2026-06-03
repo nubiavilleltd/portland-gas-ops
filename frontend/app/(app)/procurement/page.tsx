@@ -15,11 +15,25 @@ import { useProcurementList } from "@/hooks/useProcurement";
 import type { ProcurementListItem, ProcurementStatus } from "@/types";
 
 const STATUS_OPTIONS = [
-  { value: "pending_line_manager", label: "Awaiting Manager" },
-  { value: "pending_procurement",  label: "Awaiting Procurement" },
-  { value: "awaiting_payment",     label: "Awaiting Payment" },
-  { value: "rejected",             label: "Rejected" },
+  { value: "pending_line_manager",  label: "Pending — Operations Manager" },
+  { value: "pending_procurement",   label: "Pending — Procurement Officer" },
+  { value: "awaiting_payment",      label: "Awaiting Payment" },
+  { value: "rejected",              label: "Rejected" },
+  { value: "returned_to_requester", label: "Returned to Requester" },
 ];
+
+const NEXT_APPROVER: Partial<Record<string, string>> = {
+  pending_line_manager: "Operations Manager",
+  pending_procurement:  "Procurement Officer",
+  awaiting_payment:     "Finance",
+};
+
+function StatusCell({ status }: { status: string }) {
+  if (status === "rejected")              return <ApprovalBadge status="rejected" />;
+  if (status === "returned_to_requester") return <ApprovalBadge status="returned_to_requester" />;
+  if (status === "awaiting_payment")      return <ApprovalBadge status="awaiting_payment" />;
+  return <ApprovalBadge status="pending" />;
+}
 
 const columns: Column<ProcurementListItem>[] = [
   { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
@@ -41,7 +55,20 @@ const columns: Column<ProcurementListItem>[] = [
   {
     key: "status",
     label: "Status",
-    render: (v) => <ApprovalBadge status={String(v)} />,
+    render: (v) => <StatusCell status={String(v)} />,
+  },
+  {
+    key: "payment_status",
+    label: "Next Action",
+    render: (_, row) => {
+      if (row.status === "returned_to_requester") {
+        return <span className="text-xs text-orange-600 font-medium">Requester to revise</span>;
+      }
+      const approver = NEXT_APPROVER[row.status];
+      return approver
+        ? <span className="text-sm text-brand-text-primary">{approver}</span>
+        : <span className="text-brand-text-secondary">—</span>;
+    },
   },
   {
     key: "po_url",

@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, toTitleCase } from "@/lib/utils";
 
 import { OrderLineItem, PaymentStatus } from "@/lib/modules/orders/types/orders.types";
 
@@ -33,9 +33,9 @@ import { Payment } from "@/lib/modules/payments/types/payments.types";
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const {customers} = useCustomers()
+  const { customers } = useCustomers()
 
-      const customerMap = Object.fromEntries(
+  const customerMap = Object.fromEntries(
     customers.map((cutomer) => [
       cutomer.id,
       cutomer,
@@ -80,50 +80,50 @@ export default function InvoiceDetailPage() {
   const badgeStatus: PaymentStatus = isPaid
     ? "paid"
     : isPartial
-    ? "partially_paid"
-    : "unpaid";
+      ? "partially_paid"
+      : "unpaid";
 
 
 
-    const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
-  {
-    label: "Product",
-    render: (item) => <span className="font-medium">{item.product_name}</span>,
-  },
-  {
-    label: "Quantity",
-    render: (item) => `${item.quantity.toLocaleString()} kg`,
-  },
-  {
-    label: "Total",
-    align: "right",
-    render: (item) => formatCurrency(item.total),
-  },
-];
+  const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+    {
+      label: "Product",
+      render: (item) => <span className="font-medium">{item.product_name}</span>,
+    },
+    {
+      label: "Quantity",
+      render: (item) => `${item.quantity.toLocaleString()} kg`,
+    },
+    {
+      label: "Total",
+      align: "right",
+      render: (item) => formatCurrency(item.total),
+    },
+  ];
 
-const paymentColumns: SimpleTableColumn<Payment>[] = [
-  {
-    label: "Reference",
-    render: (payment) => (
-      <span className="font-mono text-xs">{payment.payment_reference}</span>
-    ),
-  },
-  {
-    label: "Date",
-    render: (payment) => formatDate(payment.payment_date),
-  },
-  {
-    label: "Method",
-    render: (payment) => payment.payment_method.replace("_", " "),
-  },
-  {
-    label: "Amount",
-    align: "right",
-    render: (payment) => (
-      <span className="font-medium">{formatCurrency(payment.amount)}</span>
-    ),
-  },
-];
+  const paymentColumns: SimpleTableColumn<Payment>[] = [
+    {
+      label: "Reference",
+      render: (payment) => (
+        <span className="font-mono text-xs">{payment.payment_reference}</span>
+      ),
+    },
+    {
+      label: "Date",
+      render: (payment) => formatDate(payment.payment_date),
+    },
+    {
+      label: "Method",
+      render: (payment) => toTitleCase(payment.payment_method.replace("_", " ")),
+    },
+    {
+      label: "Amount",
+      align: "right",
+      render: (payment) => (
+        <span className="font-medium">{formatCurrency(payment.amount)}</span>
+      ),
+    },
+  ];
 
   return (
     <AppLayout pageTitle="Invoice Details">
@@ -132,13 +132,13 @@ const paymentColumns: SimpleTableColumn<Payment>[] = [
         description="Invoice lifecycle and payment tracking"
         action={
           <div className="flex gap-2">
-            {!isPaid && (
+            {/* {!isPaid && (
               <Button
                 href={`/payments/new?invoiceId=${invoice.id}`}
               >
                 Record Payment
               </Button>
-            )}
+            )} */}
 
             <Button variant="outline">
               View PDF
@@ -201,11 +201,10 @@ const paymentColumns: SimpleTableColumn<Payment>[] = [
               </p>
 
               <p
-                className={`mt-1 font-medium ${
-                  balance > 0
+                className={`mt-1 font-medium ${balance > 0
                     ? "text-red-600"
                     : "text-green-600"
-                }`}
+                  }`}
               >
                 {formatCurrency(balance)}
               </p>
@@ -244,159 +243,76 @@ const paymentColumns: SimpleTableColumn<Payment>[] = [
 
 
         {order && (
-  <FormSection
-    title="Related Order"
-    description="Linked order information for this invoice"
-  >
-    <div className="mb-4 grid grid-cols-2 gap-5 text-sm md:grid-cols-3">
-      <InfoRow label="Order Number" value={order.order_number} />
-      <InfoRow
-        label="Customer"
-        value={customerMap[order.customer_id]?.name ?? "—"}
-      />
-    </div>
+          <FormSection
+            title="Related Order"
+            description="Linked order information for this invoice"
+          >
+            <div className="mb-4 grid grid-cols-2 gap-5 text-sm md:grid-cols-3">
+              <InfoRow label="Order Number" value={order.order_number} />
+              <InfoRow
+                label="Customer"
+                value={customerMap[order.customer_id]?.name ?? "—"}
+              />
+            </div>
 
-    <div className="border-t border-brand-border pt-4 mb-4">
-      <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
-      <SimpleTable
-        columns={itemColumns}
-        rows={order.order_items}
-        keyExtractor={(_, index) => String(index)}
-        footer={
-          <tr>
-            <td colSpan={2} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
-              Grand Total
-            </td>
-            <td className="pt-3 text-right font-semibold">
-              {formatCurrency(order.total_amount)}
-            </td>
-          </tr>
-        }
-      />
-    </div>
+            <div className="border-t border-brand-border pt-4 mb-4">
+              <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
+              <SimpleTable
+                columns={itemColumns}
+                rows={order.order_items}
+                keyExtractor={(_, index) => String(index)}
+                footer={
+                  <tr>
+                    <td colSpan={2} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+                      Grand Total
+                    </td>
+                    <td className="pt-3 text-right font-semibold">
+                      {formatCurrency(order.total_amount)}
+                    </td>
+                  </tr>
+                }
+              />
+            </div>
 
-    <Button variant="outline" href={`/orders/${order.id}`}>
-      View Order →
-    </Button>
-  </FormSection>
-)}
+            <Button variant="outline" href={`/orders/${order.id}`}>
+              View Order →
+            </Button>
+          </FormSection>
+        )}
 
         {/* PAYMENTS */}
-        <FormSection title="Payments">
-          <div className="rounded-2xl border border-brand-border bg-white p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-semibold">
-                Payments
-              </h3>
-
+        <FormSection title="Payments" description="Review payment history and invoice payment status.">
+            <div className="mb-4 flex items-center justify-end">
               {!isPaid && (
                 <Button
                   size="sm"
                   href={`/payments/new?invoiceId=${invoice.id}`}
                 >
-                  + Record Payment
+                  Make Payment →
                 </Button>
               )}
             </div>
 
-            {/* {invoicePayments.length === 0 ? (
-              <p className="text-sm text-brand-text-secondary">
-                No payments recorded for this invoice
-                yet.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-brand-border text-left">
-                      <th className="pb-3">
-                        Reference
-                      </th>
 
-                      <th className="pb-3">
-                        Date
-                      </th>
-
-                      <th className="pb-3">
-                        Method
-                      </th>
-
-                      <th className="pb-3 text-right">
-                        Amount
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {invoicePayments.map((payment) => (
-                      <tr
-                        key={payment.id}
-                        className="border-b border-brand-border last:border-0"
-                      >
-                        <td className="py-3 font-mono text-xs">
-                          {
-                            payment.payment_reference
-                          }
-                        </td>
-
-                        <td className="py-3">
-                          {formatDate(
-                            payment.payment_date
-                          )}
-                        </td>
-
-                        <td className="py-3 capitalize">
-                          {payment.payment_method.replace(
-                            "_",
-                            " "
-                          )}
-                        </td>
-
-                        <td className="py-3 text-right font-medium">
-                          {formatCurrency(
-                            payment.amount
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-
-                  <tfoot>
-                    <tr className="border-t-2 border-brand-border">
-                      <td
-                        colSpan={3}
-                        className="pt-3 font-semibold"
-                      >
-                        Total Paid
-                      </td>
-
-                      <td className="pt-3 text-right font-semibold text-green-600">
-                        {formatCurrency(amountPaid)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )} */}
 
             <SimpleTable
-  columns={paymentColumns}
-  rows={invoicePayments}
-  keyExtractor={(payment) => payment.id}
-  emptyMessage="No payments recorded for this invoice yet."
-  footer={
-    invoicePayments.length > 0 ? (
-      <tr className="border-t-2 border-brand-border">
-        <td colSpan={3} className="pt-3 font-semibold">
-          Total Paid
-        </td>
-        <td className="pt-3 text-right font-semibold text-green-600">
-          {formatCurrency(amountPaid)}
-        </td>
-      </tr>
-    ) : undefined
-  }
-/>
+              columns={paymentColumns}
+              rows={invoicePayments}
+              keyExtractor={(payment) => payment.id}
+              emptyMessage="No payments recorded for this invoice yet."
+              footer={
+                invoicePayments.length > 0 ? (
+                  <tr className="border-t-2 border-brand-border">
+                    <td colSpan={3} className="pt-3 font-semibold">
+                      Total Paid
+                    </td>
+                    <td className="pt-3 text-right font-semibold text-green-600">
+                      {formatCurrency(amountPaid)}
+                    </td>
+                  </tr>
+                ) : undefined
+              }
+            />
 
             {isPaid && (
               <div className="mt-4 flex gap-2">
@@ -404,11 +320,10 @@ const paymentColumns: SimpleTableColumn<Payment>[] = [
                   href={`/payments/${invoice.id}/receipt`}
                   variant="outline"
                 >
-                  View Receipt
+                  View Receipt →
                 </Button>
               </div>
             )}
-          </div>
         </FormSection>
       </div>
     </AppLayout>

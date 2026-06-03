@@ -249,7 +249,7 @@ export default function CompleteTripPage() {
             disabled={completeTrip.isPending}
             loading={completeTrip.isPending}
           >
-            Complete Trip
+            Close Trip
           </Button>
         </div>
       </div>

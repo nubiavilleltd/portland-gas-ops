@@ -24,6 +24,7 @@ import { CustomersService } from "@/lib/modules/customers/services/customers.ser
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 import { parseError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils";
+import FormSection from "@/components/ui/FormSection";
 
 // ── Detail row ────────────────────────────────────────────
 function DetailRow({
@@ -167,7 +168,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* Details card */}
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
+      {/* <div className="bg-white border border-brand-border rounded-2xl p-6">
         <DetailRow
           icon={
             customer.type === "corporate"
@@ -192,7 +193,62 @@ export default function CustomerDetailPage() {
           label="Address"
           value={customer.address}
         />
-      </div>
+      </div> */}
+
+      <FormSection
+  title="Customer Details"
+  description="View customer information and contact details"
+>
+
+  <div className="grid grid-cols-1 gap-5 text-sm md:grid-cols-3">
+          <InfoRow
+    // icon={
+    //   customer.type === "corporate"
+    //     ? <Building2 size={16} />
+    //     : <User size={16} />
+    // }
+    label="Type"
+    value={customer.type === "corporate" ? "Corporate" : "Individual"}
+  />
+  <InfoRow
+    // icon={<Phone size={16} />}
+    label="Phone"
+    value={customer.phone}
+  />
+  <InfoRow
+    // icon={<Mail size={16} />}
+    label="Email"
+    value={customer.email}
+  />
+  <InfoRow
+    // icon={<MapPin size={16} />}
+    label="Address"
+    value={customer.address}
+  />
+  </div>
+
+</FormSection>
     </AppLayout>
+  );
+}
+
+
+function InfoRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-brand-text-secondary">
+        {label}
+      </p>
+
+      <p className="mt-1 font-medium">
+        {value}
+      </p>
+    </div>
   );
 }

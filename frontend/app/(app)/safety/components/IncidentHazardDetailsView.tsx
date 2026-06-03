@@ -3,12 +3,15 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import IncidentHazardRoleSwitcher from "./IncidentHazardRoleSwitcher";
+import AuditTrail from "@/components/forms/AuditTrail";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockIncidentHazardReport,
@@ -22,19 +25,24 @@ import {
   updateIncidentHazardReport,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
+import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import type {
   IncidentHazardAttachment,
   IncidentHazardHseReview,
   IncidentHazardReport,
   IncidentHazardRole,
-  IncidentHazardStatus,
   WorkAuthorizationAuditTrailItem,
 } from "@/types/safety";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
-const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Daniel Okoro", "Ibrahim Musa"]);
+const actionOwnerOptions = toOptions(["Workshop Supervisor", "Mary James", "Felix Ohemu", "Samuel Bassey"]);
 const departmentOptions = toOptions(["Engineering", "Maintenance", "Operations", "Logistics", "HSE", "Admin"]);
+const incidentHazardRoles: { value: IncidentHazardRole; label: string }[] = [
+  { value: "reporter", label: "Reporter" },
+  { value: "hse", label: "HSE Inspector" },
+  { value: "action_owner", label: "Action Owner" },
+];
 
 export default function IncidentHazardDetailsView({
   reportId,
@@ -111,7 +119,7 @@ export default function IncidentHazardDetailsView({
 
   function buildHseReview(decision: "Resolved" | "Not Resolved" | "Recommended" | ""): IncidentHazardHseReview {
     return {
-      inspector: "Daniel Okoro",
+      inspector: "Samuel Bassey",
       confirmedReportType: report?.reportType || "Hazard",
       confirmedSeverity: report?.severityEstimate || "Medium",
       findings: "HSE reviewed the report and confirmed the reported condition.",
@@ -201,22 +209,16 @@ export default function IncidentHazardDetailsView({
         Back to Incident & Hazard Reports
       </button>
 
-      <IncidentHazardRoleSwitcher value={currentRole} onChange={setCurrentRole} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Incident & Hazard Report
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">{report.id}</h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              Viewing as {getIncidentHazardRoleLabel(currentRole)}
-            </p>
-          </div>
-          <IncidentHazardStatusBadge status={report.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={report.id}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        roleLabel={getIncidentHazardRoleLabel(currentRole)}
+        roles={incidentHazardRoles}
+        status={<ApprovalBadge status={report.status} />}
+        nextActor={getIncidentHazardNextActor(report)}
+        switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
+      />
 
       <StatusNote report={report} currentRole={currentRole} />
       <ReporterDetails report={report} />
@@ -268,7 +270,12 @@ export default function IncidentHazardDetailsView({
         <HseClosureAction report={report} onClose={closeIncident} />
       ) : null}
 
-      {permissions.showAuditTrail ? <AuditTrail items={report.auditTrail} /> : null}
+      {permissions.showAuditTrail ? (
+        <AuditTrail
+          items={report.auditTrail}
+          description="Recorded workflow actions and comments for this report."
+        />
+      ) : null}
     </div>
   );
 }
@@ -363,94 +370,94 @@ function HseReviewAction({
   const canDenyWithoutCorrectiveWork = canResolveWithoutCorrectiveWork && Boolean(comment.trim());
 
   return (
-    <FormSection title="HSE Review & Corrective Action" description="Assess the report and determine whether corrective work is required.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value="Daniel Okoro" disabled />
-        <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
-        <FormSelect label="Confirmed Severity" required options={toOptions(incidentSeverityOptions)} placeholder="Select confirmed severity" />
-        <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
-        {/* <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" /> */}
-        <div className="md:col-span-2">
-          <SafetyChoiceTable
-            options={yesNoOptions}
-            rows={[
+    <ApprovalPanel
+      title="HSE Review & Corrective Action"
+      description="Assess the report and determine whether corrective work is required."
+      commentLabel="HSE Comment"
+      commentPlaceholder="Add HSE comment"
+      commentValue={comment}
+      onCommentChange={onCommentChange}
+      showReturn={false}
+      showReject={!requiresCorrectiveWork}
+      showApprove={!requiresCorrectiveWork}
+      approveDisabled={!canResolveWithoutCorrectiveWork}
+      rejectDisabled={!canDenyWithoutCorrectiveWork}
+      rejectLabel="Deny"
+      onApprove={() => onDecision("Resolved")}
+      onReject={() => onDecision("Not Resolved")}
+      extraActions={
+        requiresCorrectiveWork
+          ? [
               {
-                label: "Corrective Action Required?",
-                required: true,
-                value: correctiveActionRequired,
-                onValueChange: onCorrectiveActionRequiredChange,
+                key: "recommend",
+                label: "Recommend Corrective Action",
+                variant: "approve",
+                disabled: !canRecommendCorrectiveWork,
+                onClick: onForward,
               },
-            ]}
-          />
+            ]
+          : []
+      }
+      extraFields={
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
+            <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
+            <FormSelect label="Confirmed Severity" required options={toOptions(incidentSeverityOptions)} placeholder="Select confirmed severity" />
+            <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
+            {/* <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" /> */}
+            <div className="md:col-span-2">
+              <SafetyChoiceTable
+                options={yesNoOptions}
+                rows={[
+                  {
+                    label: "Corrective Action Required?",
+                    required: true,
+                    value: correctiveActionRequired,
+                    onValueChange: onCorrectiveActionRequiredChange,
+                  },
+                ]}
+              />
+            </div>
+            {correctiveActionRequired === "Yes" ? (
+              <>
+                <FormTextarea label="Corrective Action Details" required placeholder="Describe corrective action" />
+                <FormSelect
+                  label="Assigned Department"
+                  required
+                  searchable
+                  options={departmentOptions}
+                  placeholder="Select department"
+                  value={assignedDepartment}
+                  onValueChange={onAssignedDepartmentChange}
+                />
+                <FormSelect
+                  label="Action Owner"
+                  required
+                  searchable
+                  options={actionOwnerOptions}
+                  placeholder="Select action owner"
+                  value={actionOwner}
+                  onValueChange={onActionOwnerChange}
+                />
+                <FormDatePicker label="Target Completion Date" required />
+              </>
+            ) : null}
+            <FormInput label="HSE Review Date/Time" value="2026-05-18 10:00 AM" disabled />
+          </div>
+          {correctiveActionRequired === "Yes" ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Approval is disabled because corrective action is required.
+            </p>
+          ) : null}
+          {correctiveActionRequired === "No" && !comment.trim() ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Add an HSE comment before denying this report.
+            </p>
+          ) : null}
         </div>
-        {correctiveActionRequired === "Yes" ? (
-          <>
-            <FormTextarea label="Corrective Action Details" required placeholder="Describe corrective action" />
-            <FormSelect
-              label="Assigned Department"
-              required
-              searchable
-              options={departmentOptions}
-              placeholder="Select department"
-              value={assignedDepartment}
-              onValueChange={onAssignedDepartmentChange}
-            />
-            <FormSelect
-              label="Action Owner"
-              required
-              searchable
-              options={actionOwnerOptions}
-              placeholder="Select action owner"
-              value={actionOwner}
-              onValueChange={onActionOwnerChange}
-            />
-            <FormDatePicker label="Target Completion Date" required />
-          </>
-        ) : null}
-        <FormTextarea
-          label="HSE Comment"
-          value={comment}
-          onChange={(event) => onCommentChange(event.target.value)}
-          placeholder="Add HSE comment"
-        />
-        <FormInput label="HSE Review Date/Time" value="2026-05-18 10:00 AM" disabled />
-      </div>
-      <div className="mt-4 flex flex-wrap gap-3">
-        {requiresCorrectiveWork ? (
-          <Button type="button" disabled={!canRecommendCorrectiveWork} onClick={onForward}>
-            Recommend Corrective Action
-          </Button>
-        ) : (
-          <>
-            <Button
-              type="button"
-              disabled={!canResolveWithoutCorrectiveWork}
-              onClick={() => onDecision("Resolved")}
-            >
-              Approve
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              disabled={!canDenyWithoutCorrectiveWork}
-              onClick={() => onDecision("Not Resolved")}
-            >
-              Deny
-            </Button>
-          </>
-        )}
-      </div>
-      {correctiveActionRequired === "Yes" ? (
-        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Approval is disabled because corrective action is required.
-        </p>
-      ) : null}
-      {correctiveActionRequired === "No" && !comment.trim() ? (
-        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Add an HSE comment before denying this report.
-        </p>
-      ) : null}
-    </FormSection>
+      }
+    />
   );
 }
 
@@ -552,22 +559,30 @@ function HseClosureAction({
   onClose: () => void;
 }) {
   return (
-    <FormSection title="HSE Final Closure" description="Verify the completed corrective work and close this report.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Daniel Okoro"} disabled />
-        <FormInput
-          label="Verified Work Completion"
-          value={report.resolutionWorkCompletionId || "No linked completion required"}
-          disabled
-        />
-      </div>
-      <p className="mt-4 text-sm text-brand-text-secondary">
-        Confirm the reported issue has been resolved and close this incident record.
-      </p>
-      <div className="mt-4">
-        <Button type="button" onClick={onClose}>Close Incident</Button>
-      </div>
-    </FormSection>
+    <ApprovalPanel
+      title="HSE Final Closure"
+      description="Verify the completed corrective work and close this report."
+      showComment={false}
+      showReturn={false}
+      showReject={false}
+      approveLabel="Close Incident"
+      onApprove={onClose}
+      extraFields={
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormInput label="HSE Inspector" value={report.hseReview?.inspector || "Samuel Bassey"} disabled />
+            <FormInput
+              label="Verified Work Completion"
+              value={report.resolutionWorkCompletionId || "No linked completion required"}
+              disabled
+            />
+          </div>
+          <p className="text-sm text-brand-text-secondary">
+            Confirm the reported issue has been resolved and close this incident record.
+          </p>
+        </div>
+      }
+    />
   );
 }
 
@@ -595,28 +610,6 @@ function AttachmentList({ attachments }: { attachments: IncidentHazardAttachment
         </div>
       ))}
     </div>
-  );
-}
-
-function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
-  return (
-    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this report.">
-      {items.length === 0 ? (
-        <p className="text-sm text-brand-text-secondary">No audit actions yet.</p>
-      ) : (
-        <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-          {items.map((item, index) => (
-            <div key={`${item.action}-${index}`} className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]">
-              <AuditCell label="Action" value={item.action} />
-              <AuditCell label="Actor" value={item.actor} />
-              <AuditCell label="Role" value={item.role} />
-              <AuditCell label="Date/Time" value={item.dateTime} />
-              <AuditCell label="Comment" value={item.comment} />
-            </div>
-          ))}
-        </div>
-      )}
-    </FormSection>
   );
 }
 
@@ -652,32 +645,6 @@ function StatusNote({ report, currentRole }: { report: IncidentHazardReport; cur
   );
 }
 
-function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus }) {
-  const labelByStatus: Record<IncidentHazardStatus, string> = {
-    draft: "Draft",
-    submitted: "Submitted",
-    recommended: "Recommended",
-    resolved: "Resolved",
-    closed: "Closed",
-    not_resolved: "Not Resolved",
-  };
-
-  const classByStatus: Record<IncidentHazardStatus, string> = {
-    draft: "bg-gray-100 text-gray-600",
-    submitted: "bg-amber-100 text-amber-700",
-    recommended: "bg-blue-100 text-blue-700",
-    resolved: "bg-green-100 text-green-700",
-    closed: "bg-slate-100 text-slate-700",
-    not_resolved: "bg-red-100 text-red-700",
-  };
-
-  return (
-    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${classByStatus[status]}`}>
-      {labelByStatus[status]}
-    </span>
-  );
-}
-
 function getIncidentHazardRoleLabel(role: IncidentHazardRole) {
   const labelByRole: Record<IncidentHazardRole, string> = {
     reporter: "Reporter",
@@ -697,14 +664,5 @@ function FormSection({ title, description, children }: { title: string; descript
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
-  );
-}
-
-function AuditCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">{label}</p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
   );
 }

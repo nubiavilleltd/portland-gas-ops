@@ -3,6 +3,7 @@
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkInitiationHref,
   sortByLatestSafetyActivity,
@@ -25,6 +26,12 @@ const columns: Column<WorkInitiationRequest>[] = [
     key: "status",
     label: "Status",
     render: (value) => <ApprovalBadge status={String(value)} />,
+  },
+  {
+    key: "nextAction",
+    label: "Next Actor",
+    getSearchValue: (row) => getWorkInitiationNextActor(row),
+    render: (_, row) => getWorkInitiationNextActor(row),
   },
 ];
 

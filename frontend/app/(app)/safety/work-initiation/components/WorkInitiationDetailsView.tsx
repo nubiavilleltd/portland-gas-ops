@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
@@ -10,6 +11,8 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import AuditTrail from "@/components/forms/AuditTrail";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import {
   contractorContactEmailByName,
   getMockWorkInitiationRequest,
@@ -17,6 +20,7 @@ import {
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
 import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
+import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -24,11 +28,10 @@ import type {
   WorkInitiationRequest,
   WorkInitiationRole,
 } from "@/types/safety";
-import WorkInitiationRoleSwitcher from "./WorkInitiationRoleSwitcher";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const categoryOptions = toOptions(workCategoryOptions);
-const employeeOptions = toOptions(["Mary James", "Daniel Okoro", "Ibrahim Musa", "Grace Bello"]);
+const employeeOptions = toOptions(["Mary James", "Felix Ohemu", "Samuel Bassey", "Grace Bello"]);
 const locationOptions = toOptions([
   "Conversion Bay 1",
   "Conversion Bay 2",
@@ -46,6 +49,11 @@ const contractorOptions = toOptions([
   "Electrical Support Contractors",
 ]);
 const yesNoOptions = toOptions(["Yes", "No"]);
+const workInitiationRoles: { value: WorkInitiationRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "supervisor", label: "Supervisor" },
+  { value: "operations_hod", label: "Operations HOD" },
+];
 
 export default function WorkInitiationDetailsView({
   requestId,
@@ -187,20 +195,18 @@ export default function WorkInitiationDetailsView({
         Back to Work Initiation
       </button>
 
-      <WorkInitiationRoleSwitcher value={currentRole} onChange={setCurrentRole} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Work Initiation
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">{request.id}</h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">{request.title}</p>
-          </div>
-          <ApprovalBadge status={request.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={request.id}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        roleLabel={getWorkInitiationRoleLabel(currentRole)}
+        roles={workInitiationRoles}
+        recordLabel="Work Initiation"
+        title={request.title}
+        status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkInitiationNextActor(request)}
+        switcherDescription="Switch roles to preview requester, supervisor, and Operations HOD views."
+      />
 
       <StatusNote request={request} currentRole={currentRole} />
       <RequesterDetails request={request} />
@@ -226,21 +232,27 @@ export default function WorkInitiationDetailsView({
       ) : null}
 
       {canSupervisorReview ? (
-        <FormSection title="Supervisor Review" description="Review the requested work before it proceeds to Operations HOD.">
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <DecisionSubmitControl
-              onDecision={supervisorReview}
-              reasonMissing={!supervisorComment.trim()}
-              reasonMessage="Add a supervisor comment before returning or denying this request."
-            />
-            <FormTextarea
-              label="Supervisor Comment"
-              value={supervisorComment}
-              onChange={(event) => setSupervisorComment(event.target.value)}
-              placeholder="Add supervisor review notes"
-            />
-          </div>
-        </FormSection>
+        <ApprovalPanel
+          title="Supervisor Review"
+          description="Review the requested work before it proceeds to Operations HOD."
+          commentLabel="Supervisor Comment"
+          commentPlaceholder="Add supervisor review notes"
+          commentValue={supervisorComment}
+          onCommentChange={setSupervisorComment}
+          onApprove={() => supervisorReview("Approve")}
+          onReturn={() => supervisorReview("Return")}
+          onReject={() => supervisorReview("Deny")}
+          rejectLabel="Deny"
+          returnDisabled={!supervisorComment.trim()}
+          rejectDisabled={!supervisorComment.trim()}
+          extraFields={
+            !supervisorComment.trim() ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Add a supervisor comment before returning or denying this request.
+              </p>
+            ) : null
+          }
+        />
       ) : request.supervisorApproval ? (
         <ApprovalResult
           title="Supervisor Review Result"
@@ -252,21 +264,27 @@ export default function WorkInitiationDetailsView({
       ) : null}
 
       {canOperationsHodReview ? (
-        <FormSection title="Operations HOD Review" description="Record the operational approval decision for this work.">
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <DecisionSubmitControl
-              onDecision={operationsHodReview}
-              reasonMissing={!operationsHodComment.trim()}
-              reasonMessage="Add an Operations HOD comment before returning or denying this request."
-            />
-          <FormTextarea
-              label="Operations HOD Comment"
-              value={operationsHodComment}
-              onChange={(event) => setOperationsHodComment(event.target.value)}
-              placeholder="Add operational approval notes"
-          />
-          </div>
-        </FormSection>
+        <ApprovalPanel
+          title="Operations HOD Review"
+          description="Record the operational approval decision for this work."
+          commentLabel="Operations HOD Comment"
+          commentPlaceholder="Add operational approval notes"
+          commentValue={operationsHodComment}
+          onCommentChange={setOperationsHodComment}
+          onApprove={() => operationsHodReview("Approve")}
+          onReturn={() => operationsHodReview("Return")}
+          onReject={() => operationsHodReview("Deny")}
+          rejectLabel="Deny"
+          returnDisabled={!operationsHodComment.trim()}
+          rejectDisabled={!operationsHodComment.trim()}
+          extraFields={
+            !operationsHodComment.trim() ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Add an Operations HOD comment before returning or denying this request.
+              </p>
+            ) : null
+          }
+        />
       ) : request.operationalReview ? (
         <ReviewResult request={request} />
       ) : null}
@@ -447,34 +465,6 @@ function AssignmentPlanning({
   );
 }
 
-function DecisionSubmitControl({
-  onDecision,
-  reasonMissing,
-  reasonMessage,
-}: {
-  onDecision: (decision: WorkAuthorizationDecision) => void;
-  reasonMissing: boolean;
-  reasonMessage: string;
-}) {
-  const reasonRequired = reasonMissing;
-  return (
-    <div className="space-y-3">
-      {reasonRequired ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{reasonMessage}</p> : null}
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" onClick={() => onDecision("Approve")}>
-          Approve
-        </Button>
-        <Button type="button" variant="secondary" disabled={reasonRequired} onClick={() => onDecision("Return")}>
-          Return
-        </Button>
-        <Button type="button" variant="danger" disabled={reasonRequired} onClick={() => onDecision("Deny")}>
-          Deny
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function ReviewResult({ request }: { request: WorkInitiationRequest }) {
   const review = request.operationalReview;
   if (!review) return null;
@@ -534,24 +524,6 @@ function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachm
   );
 }
 
-function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
-  return (
-    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this request.">
-      <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-        {items.map((item, index) => (
-          <div key={`${item.action}-${index}`} className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]">
-            <AuditCell label="Action" value={item.action} />
-            <AuditCell label="Actor" value={item.actor} />
-            <AuditCell label="Role" value={item.role} />
-            <AuditCell label="Date/Time" value={item.dateTime} />
-            <AuditCell label="Comment" value={item.comment} />
-          </div>
-        ))}
-      </div>
-    </FormSection>
-  );
-}
-
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
   if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your supervisor review." : "Waiting for supervisor approval.";
@@ -575,11 +547,8 @@ function FormSection({ title, description, children }: { title: string; descript
   );
 }
 
-function AuditCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">{label}</p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
-  );
+function getWorkInitiationRoleLabel(role: WorkInitiationRole) {
+  if (role === "operations_hod") return "Operations HOD";
+  if (role === "supervisor") return "Supervisor";
+  return "Requester";
 }

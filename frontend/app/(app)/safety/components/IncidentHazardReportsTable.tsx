@@ -1,7 +1,9 @@
 "use client";
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
+import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
 import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
@@ -46,7 +48,13 @@ const columns: Column<IncidentHazardReport>[] = [
     key: "status",
     label: "Status",
     getSearchValue: (row) => incidentHazardStatusLabels[row.status],
-    render: (value) => <IncidentHazardStatusBadge status={value as IncidentHazardStatus} />,
+    render: (value) => <ApprovalBadge status={value as IncidentHazardStatus} />,
+  },
+  {
+    key: "nextAction",
+    label: "Next Actor",
+    getSearchValue: (row) => getIncidentHazardNextActor(row),
+    render: (_, row) => getIncidentHazardNextActor(row),
   },
   {
     key: "dateTimeObserved",
@@ -81,22 +89,5 @@ export default function IncidentHazardReportsTable({
       }
       emptyMessage="No incident or hazard reports found."
     />
-  );
-}
-
-function IncidentHazardStatusBadge({ status }: { status: IncidentHazardStatus }) {
-  const classByStatus: Record<IncidentHazardStatus, string> = {
-    draft: "bg-gray-100 text-gray-600",
-    submitted: "bg-amber-100 text-amber-700",
-    recommended: "bg-blue-100 text-blue-700",
-    resolved: "bg-green-100 text-green-700",
-    closed: "bg-slate-100 text-slate-700",
-    not_resolved: "bg-red-100 text-red-700",
-  };
-
-  return (
-    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${classByStatus[status]}`}>
-      {incidentHazardStatusLabels[status]}
-    </span>
   );
 }

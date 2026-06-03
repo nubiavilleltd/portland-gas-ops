@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Button from "@/components/ui/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { useVendor } from "@/hooks/useVendors";
+import { useVendor, useDeleteVendor } from "@/hooks/useVendors";
 import { useProcurementByVendor } from "@/hooks/useProcurement";
+import { useToast } from "@/hooks/useToast";
 import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
 import type { VendorCategory, ProcurementRequest, PaymentStatus } from "@/types";
 
@@ -74,8 +79,12 @@ const REQUEST_COLUMNS: Column<ProcurementRequest>[] = [
 
 export default function AdminVendorDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const toast = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { data: vendor, isLoading, isError } = useVendor(id);
   const { data: requests = [], isLoading: reqLoading } = useProcurementByVendor(id);
+  const deleteVendor = useDeleteVendor();
 
   if (isLoading) {
     return <AppLayout pageTitle="Admin — Vendors"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
@@ -88,27 +97,53 @@ export default function AdminVendorDetailPage() {
   const catColour = CATEGORY_COLOURS[vendor.category] ?? "bg-gray-100 text-gray-600";
   const avatarColour = AVATAR_COLOURS[vendor.category] ?? "bg-gray-500";
 
+  function handleDelete() {
+    deleteVendor.mutate(id, {
+      onSuccess: () => { toast.success("Vendor removed"); router.push("/admin/vendors"); },
+      onError: () => toast.error("Failed to delete vendor"),
+    });
+  }
+
   return (
     <AppLayout pageTitle="Admin — Vendors">
       <Link href="/admin/vendors" className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5">
         <ArrowLeft size={14} /> Back to Vendors
       </Link>
 
-      <div className="flex items-start gap-4 mb-6">
-        <div className={`h-14 w-14 rounded-xl shrink-0 flex items-center justify-center text-white font-bold text-xl ${avatarColour}`}>
-          {vendor.name.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-semibold text-brand-text-primary">{vendor.name}</h1>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${catColour}`}>{capitalize(vendor.category.replace(/_/g, " "))}</span>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${vendor.status === "active" ? "bg-green-50 text-green-700 border border-green-200" : "bg-gray-100 text-gray-500"}`}>{capitalize(vendor.status)}</span>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="flex items-start gap-4">
+          <div className={`h-14 w-14 rounded-xl shrink-0 flex items-center justify-center overflow-hidden ${vendor.logo_url ? "bg-white border border-brand-border" : `text-white font-bold text-xl ${avatarColour}`}`}>
+            {vendor.logo_url
+              ? <Image src={vendor.logo_url} alt={vendor.name} width={56} height={56} className="object-contain h-full w-full" />
+              : vendor.name.charAt(0).toUpperCase()
+            }
           </div>
-          {vendor.vendor_code && (
-            <span className="inline-block mt-1 text-xs font-mono bg-gray-100 text-brand-text-secondary px-2 py-0.5 rounded">{vendor.vendor_code}</span>
-          )}
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl font-semibold text-brand-text-primary">{vendor.name}</h1>
+              <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${catColour}`}>{vendor.category.replace(/_/g, " ").toUpperCase()}</span>
+              <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${vendor.status === "active" ? "bg-green-50 text-green-700 border border-green-200" : "bg-gray-100 text-gray-500"}`}>{capitalize(vendor.status)}</span>
+            </div>
+            {vendor.vendor_code && (
+              <span className="inline-block mt-1 text-xs font-mono bg-gray-100 text-brand-text-secondary px-2 py-0.5 rounded">{vendor.vendor_code}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button href={`/admin/vendors/${id}/edit`} variant="ghost" size="sm" leftIcon={<Pencil size={14} />} />
+          <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => setConfirmDelete(true)} />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Vendor"
+        message={`Are you sure you want to remove "${vendor.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
         <SectionCard title="Company Information" icon={<Building2 size={16} />}>

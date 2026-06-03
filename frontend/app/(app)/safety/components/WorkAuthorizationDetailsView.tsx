@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
@@ -10,9 +11,11 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import AuditTrail from "@/components/forms/AuditTrail";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
-import MockUserSwitcher from "./MockUserSwitcher";
+import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -44,6 +47,10 @@ const inspectionResultOptions = [
   { value: "Passed", label: "Passed" },
   { value: "Returned", label: "Returned" },
   { value: "Failed", label: "Failed" },
+];
+const workAuthorizationRoles: { value: WorkAuthorizationRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "hse", label: "HSE Inspector" },
 ];
 
 function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
@@ -233,7 +240,7 @@ export default function WorkAuthorizationDetailsView({
     };
     const approval: WorkAuthorizationApprovalResult = {
       decision,
-      approver: "Daniel Okoro",
+      approver: "Samuel Bassey",
       dateTime: "2026-05-18 11:10 AM",
       comment:
         hseComment ||
@@ -289,24 +296,16 @@ export default function WorkAuthorizationDetailsView({
         Back to Work Authorization
       </button>
 
-      <MockUserSwitcher value={currentRole} onChange={setCurrentRole} showSupervisor={false} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Work Authorization Details
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">
-              {request.id}
-            </h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              Viewing as {roleLabel(currentRole)}
-            </p>
-          </div>
-          <ApprovalBadge status={request.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={request.id}
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        roleLabel={roleLabel(currentRole)}
+        roles={workAuthorizationRoles}
+        recordLabel="Work Authorization Details"
+        status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkAuthorizationNextActor(request)}
+      />
 
       <StatusNote request={request} currentRole={currentRole} />
 
@@ -368,7 +367,7 @@ export default function WorkAuthorizationDetailsView({
       ) : null}
 
       {permissions.showAuditTrail ? (
-        <AuditTrailSection items={request.auditTrail} />
+        <AuditTrail items={request.auditTrail} />
       ) : null}
     </div>
   );
@@ -678,52 +677,32 @@ function HseFinalActionSection({
   reasonMissing: boolean;
 }) {
   return (
-    <FormSection title="HSE Final Approval" description="Record the final safety decision for this work authorization.">
-      {disableApprove ? (
-        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Approval is disabled because one or more inspection checks failed.
-        </p>
-      ) : null}
-      <DecisionSubmitControl
-        onDecision={onDecision}
-        disableApprove={disableApprove}
-        reasonMissing={reasonMissing}
-        reasonMessage="Add an HSE inspection comment before returning or denying this request."
-      />
-    </FormSection>
-  );
-}
-
-function DecisionSubmitControl({
-  onDecision,
-  disableApprove = false,
-  reasonMissing = false,
-  reasonMessage,
-}: {
-  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
-  disableApprove?: boolean;
-  reasonMissing?: boolean;
-  reasonMessage: string;
-}) {
-  return (
-    <div className="space-y-3">
-      {reasonMissing ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {reasonMessage}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" disabled={disableApprove} onClick={() => onDecision("Approve")}>
-          Approve
-        </Button>
-        <Button type="button" variant="secondary" disabled={reasonMissing} onClick={() => onDecision("Return")}>
-          Return
-        </Button>
-        <Button type="button" variant="danger" disabled={reasonMissing} onClick={() => onDecision("Deny")}>
-          Deny
-        </Button>
-      </div>
-    </div>
+    <ApprovalPanel
+      title="HSE Final Approval"
+      description="Record the final safety decision for this work authorization."
+      showComment={false}
+      rejectLabel="Deny"
+      approveDisabled={disableApprove}
+      returnDisabled={reasonMissing}
+      rejectDisabled={reasonMissing}
+      onApprove={() => onDecision("Approve")}
+      onReturn={() => onDecision("Return")}
+      onReject={() => onDecision("Deny")}
+      extraFields={
+        <div className="space-y-3">
+          {disableApprove ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Approval is disabled because one or more inspection checks failed.
+            </p>
+          ) : null}
+          {reasonMissing ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Add an HSE inspection comment before returning or denying this request.
+            </p>
+          ) : null}
+        </div>
+      }
+    />
   );
 }
 
@@ -802,37 +781,6 @@ function HseInspectionResultSection({
   );
 }
 
-function AuditTrailSection({
-  items,
-}: {
-  items: WorkAuthorizationAuditTrailItem[];
-}) {
-  return (
-    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this request.">
-      {items.length === 0 ? (
-        <p className="text-sm text-brand-text-secondary">
-          No audit actions yet.
-        </p>
-      ) : (
-        <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-          {items.map((item, index) => (
-            <div
-              key={`${item.action}-${index}`}
-              className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]"
-            >
-              <AuditCell label="Action" value={item.action} />
-              <AuditCell label="Actor" value={item.actor} />
-              <AuditCell label="Role" value={item.role} />
-              <AuditCell label="Date/time" value={item.dateTime} />
-              <AuditCell label="Comment" value={item.comment} />
-            </div>
-          ))}
-        </div>
-      )}
-    </FormSection>
-  );
-}
-
 function StatusNote({
   request,
   currentRole,
@@ -888,17 +836,6 @@ function FormSection({
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
-  );
-}
-
-function AuditCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">
-        {label}
-      </p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
   );
 }
 
