@@ -36,6 +36,15 @@ const columns: Column<AssetRequestListItem>[] = [
   { key: "item_count", label: "Items", render: (v) => <span className="text-brand-text-secondary">{String(v)} item{Number(v) !== 1 ? "s" : ""}</span> },
   { key: "return_date", label: "Return Date", render: (v, row) => row.request_type === "loan" ? <span>{formatDate(v as string | null)}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "status", label: "Status", render: (v) => <ApprovalBadge status={String(v)} /> },
+  {
+    key: "next_actor",
+    label: "Next Actor",
+    render: (_, row) => {
+      if (row.status === "pending" || row.status === "approved") return <span className="text-sm text-brand-text-primary">Asset Admin</span>;
+      if (row.status === "allocated" && row.request_type === "loan") return <span className="text-sm text-brand-text-primary">Requester</span>;
+      return <span className="text-brand-text-secondary">—</span>;
+    },
+  },
   { key: "created_at", label: "Submitted", render: (v) => <span className="text-brand-text-secondary text-xs">{formatDate(v as string)}</span> },
 ];
 
