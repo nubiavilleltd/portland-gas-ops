@@ -2,15 +2,13 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Upload, Eye, Download, Trash2, FileText } from "lucide-react";
+import { ArrowLeft, Pencil, PlusCircle, Eye, Download, Trash2, FileText } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormFileUpload from "@/components/forms/FormFileUpload";
-import FormTextarea from "@/components/forms/FormTextarea";
 import Button from "@/components/ui/Button";
-import Modal from "../../_components/Modal";
 import { formatNumber } from "@/lib/utils/format-number";
 import {
   EMPLOYEE_STORE,
@@ -95,19 +93,25 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const [docs, setDocs] = useState<EmployeeRecord[]>(() =>
     SEED_EMPLOYEE_RECORDS.filter((r) => r.employee === empName)
   );
-  const [uploadModal, setUploadModal] = useState(false);
-  const [docForm, setDocForm] = useState<{ docType?: string; notes?: string }>({});
 
   const DOC_TYPE_OPTIONS = [
     "Employment Contract", "ID / Passport Copy", "Certificates",
     "Safety Certification", "Disciplinary Record", "Other",
   ].map((t) => ({ value: t, label: t }));
 
+  type PendingDoc = { uid: string; docType: string };
+  const [pendingDocs, setPendingDocs] = useState<PendingDoc[]>([]);
+
+  const addDoc = () => setPendingDocs(p => [...p, { uid: String(Date.now()), docType: "" }]);
+  const removePending = (uid: string) => setPendingDocs(p => p.filter(d => d.uid !== uid));
+  const setDocType = (uid: string, v: string) =>
+    setPendingDocs(p => p.map(d => d.uid === uid ? { ...d, docType: v } : d));
+
   const ue = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v }));
   const un = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v === "" ? undefined : Number(v) }));
 
   const openEdit  = () => { setEmpForm(emp ? { ...emp } : {}); setIsEditing(true); };
-  const cancelEdit = () => { setIsEditing(false); setEmpForm({}); };
+  const cancelEdit = () => { setIsEditing(false); setEmpForm({}); setPendingDocs([]); };
 
   const computed = calcDeductions(
     empForm.basicSalary,
@@ -125,30 +129,77 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     const idx = EMPLOYEE_STORE.findIndex((e) => e.id === id);
     if (idx !== -1) Object.assign(EMPLOYEE_STORE[idx], updated);
     setEmp((prev) => prev ? { ...prev, ...updated } : prev);
+
+    const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const newDocs: EmployeeRecord[] = [];
+    pendingDocs.forEach((d) => {
+      if (!d.docType) return;
+      const doc: EmployeeRecord = {
+        id: String(Date.now()),
+        employee: empName,
+        docType: d.docType,
+        fileName: `${empName.replace(/\s+/g, "_")}_${d.docType.replace(/\s+/g, "_")}.pdf`,
+        uploadDate: today,
+        uploadedBy: "HR Admin",
+      };
+      SEED_EMPLOYEE_RECORDS.unshift(doc);
+      newDocs.push(doc);
+    });
+    if (newDocs.length) setDocs(p => [...newDocs, ...p]);
+
     setIsEditing(false);
     setEmpForm({});
-  };
-
-  const uploadDoc = () => {
-    const fileName = `${empName.replace(/\s+/g, "_")}_${(docForm.docType || "doc").replace(/\s+/g, "_")}.pdf`;
-    const newDoc: EmployeeRecord = {
-      id: String(Date.now()),
-      employee: empName,
-      docType: docForm.docType || "Other",
-      fileName,
-      uploadDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-      uploadedBy: "HR Admin",
-    };
-    SEED_EMPLOYEE_RECORDS.unshift(newDoc);
-    setDocs((p) => [newDoc, ...p]);
-    setUploadModal(false);
-    setDocForm({});
+    setPendingDocs([]);
   };
 
   const removeDoc = (docId: string) => {
     const idx = SEED_EMPLOYEE_RECORDS.findIndex((r) => r.id === docId);
     if (idx !== -1) SEED_EMPLOYEE_RECORDS.splice(idx, 1);
     setDocs((p) => p.filter((r) => r.id !== docId));
+  };
+
+  const mockViewDoc = async (doc: EmployeeRecord) => {
+    const { default: jsPDF } = await import("jspdf");
+    const pdf = new jsPDF({ unit: "mm", format: "a4" });
+    pdf.setFillColor(88, 28, 135);
+    pdf.rect(0, 0, 210, 18, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+    pdf.setTextColor(30, 30, 30);
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(doc.docType, 20, 34);
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Employee: ${doc.employee}`, 20, 44);
+    pdf.text(`File: ${doc.fileName}`, 20, 51);
+    pdf.text(`Uploaded: ${doc.uploadDate}  ·  By: ${doc.uploadedBy}`, 20, 58);
+    window.open(pdf.output("bloburl"), "_blank");
+  };
+
+  const mockDownloadDoc = async (doc: EmployeeRecord) => {
+    const { default: jsPDF } = await import("jspdf");
+    const pdf = new jsPDF({ unit: "mm", format: "a4" });
+    pdf.setFillColor(88, 28, 135);
+    pdf.rect(0, 0, 210, 18, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+    pdf.setTextColor(30, 30, 30);
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(doc.docType, 20, 34);
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Employee: ${doc.employee}`, 20, 44);
+    pdf.text(`File: ${doc.fileName}`, 20, 51);
+    pdf.text(`Uploaded: ${doc.uploadDate}  ·  By: ${doc.uploadedBy}`, 20, 58);
+    pdf.save(doc.fileName);
   };
 
   const fmt = (n: number | undefined) => n !== undefined && n > 0 ? formatNumber(n) : "—";
@@ -211,15 +262,17 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               </div>
             </div>
-            <div className="border-t border-brand-border px-6 py-5">
-              <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide mb-4">{`Leave Balance — ${YEAR}`}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                {LEAVE_TYPES.map((type) => {
-                  const bal = calcLeaveBalance(`${emp.firstName} ${emp.lastName}`, type, YEAR);
-                  return <BalanceCard key={type} type={type} used={bal.used} entitlement={bal.entitlement} />;
-                })}
+            {!isEditing && (
+              <div className="border-t border-brand-border px-6 py-5">
+                <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide mb-4">{`Leave Balance — ${YEAR}`}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+                  {LEAVE_TYPES.map((type) => {
+                    const bal = calcLeaveBalance(`${emp.firstName} ${emp.lastName}`, type, YEAR);
+                    return <BalanceCard key={type} type={type} used={bal.used} entitlement={bal.entitlement} />;
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Personal Details */}
@@ -364,98 +417,105 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
           <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">
             <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4 flex items-center justify-between">
               <h2 className="text-base font-semibold text-brand-text-primary">Documents</h2>
-              <button
-                type="button"
-                onClick={() => { setDocForm({}); setUploadModal(true); }}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium bg-brand-purple text-white hover:bg-brand-purple-dark transition-colors"
-              >
-                <Upload size={13} />
-                Upload Document
-              </button>
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={addDoc}
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium bg-brand-purple text-white hover:bg-brand-purple-dark transition-colors"
+                >
+                  <PlusCircle size={13} />
+                  Add Document
+                </button>
+              )}
             </div>
             <div className="px-6 pt-5 pb-6">
-              {docs.length === 0 ? (
+              {docs.length === 0 && pendingDocs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <FileText size={32} className="text-brand-text-secondary mb-2 opacity-40" />
                   <p className="text-sm text-brand-text-secondary">No documents uploaded yet.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-brand-border">
-                  {docs.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between py-3 gap-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <FileText size={16} className="text-brand-text-secondary shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-brand-text-primary truncate">{doc.docType}</p>
-                          <p className="text-xs font-mono text-brand-text-secondary truncate">{doc.fileName}</p>
+                <>
+                  {docs.length > 0 && (
+                    <div className="divide-y divide-brand-border">
+                      {docs.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between py-3 gap-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileText size={16} className="text-brand-text-secondary shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-brand-text-primary truncate">{doc.docType}</p>
+                              <p className="text-xs font-mono text-brand-text-secondary truncate">{doc.fileName}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 shrink-0">
+                            <span className="text-xs text-brand-text-secondary hidden sm:block">{doc.uploadDate}</span>
+                            <span className="text-xs text-brand-text-secondary hidden md:block">{doc.uploadedBy}</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition"
+                                title="View"
+                                onClick={() => mockViewDoc(doc)}
+                              >
+                                <Eye size={14} />
+                              </button>
+                              <button
+                                className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition"
+                                title="Download"
+                                onClick={() => mockDownloadDoc(doc)}
+                              >
+                                <Download size={14} />
+                              </button>
+                              {isEditing && (
+                                <button onClick={() => removeDoc(doc.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition" title="Delete">
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-4 shrink-0">
-                        <span className="text-xs text-brand-text-secondary hidden sm:block">{doc.uploadDate}</span>
-                        <span className="text-xs text-brand-text-secondary hidden md:block">{doc.uploadedBy}</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition disabled:opacity-40"
-                            title="View"
-                            onClick={() => doc.filePath && window.open(doc.filePath, "_blank")}
-                            disabled={!doc.filePath}
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <a
-                            href={doc.filePath ?? "#"}
-                            download={doc.fileName}
-                            className={`p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition ${!doc.filePath ? "pointer-events-none opacity-40" : ""}`}
-                            title="Download"
-                            onClick={(e) => !doc.filePath && e.preventDefault()}
-                          >
-                            <Download size={14} />
-                          </a>
-                          <button onClick={() => removeDoc(doc.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition" title="Delete">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                  {isEditing && pendingDocs.length > 0 && (
+                    <div className={`space-y-4 ${docs.length > 0 ? "mt-4 pt-4 border-t border-brand-border" : ""}`}>
+                      {pendingDocs.map((doc) => (
+                        <div key={doc.uid} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <FormSelect
+                            label="Document Type"
+                            required
+                            options={DOC_TYPE_OPTIONS}
+                            placeholder="Select type"
+                            value={doc.docType}
+                            onValueChange={(v) => setDocType(doc.uid, v)}
+                          />
+                          <div className="flex items-end gap-2">
+                            <div className="flex-1">
+                              <FormFileUpload
+                                label="Upload File"
+                                hint="PDF, DOC, JPG — max 10 MB"
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removePending(doc.uid)}
+                              className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition mb-1"
+                              title="Remove"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
 
         </div>
       )}
-
-      {/* Upload Document Modal */}
-      <Modal open={uploadModal} title="Upload Document" onClose={() => setUploadModal(false)}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-          <FormInput label="Employee" value={empName} disabled />
-          <FormSelect
-            label="Document Type"
-            required
-            options={DOC_TYPE_OPTIONS}
-            placeholder="Select type"
-            value={docForm.docType ?? ""}
-            onValueChange={(v) => setDocForm((p) => ({ ...p, docType: v }))}
-          />
-          <div className="md:col-span-2">
-            <FormFileUpload label="Upload File" required hint="PDF, DOC, JPG — max 10 MB" />
-          </div>
-          <div className="md:col-span-2">
-            <FormTextarea
-              label="Notes"
-              placeholder="Optional notes about this document…"
-              rows={3}
-              value={docForm.notes ?? ""}
-              onChange={(e) => setDocForm((p) => ({ ...p, notes: e.target.value }))}
-            />
-          </div>
-        </div>
-        <div className="flex gap-3 mt-6 pt-4 border-t border-brand-border">
-          <Button onClick={uploadDoc}>Upload</Button>
-          <Button variant="outline" onClick={() => setUploadModal(false)}>Cancel</Button>
-        </div>
-      </Modal>
     </AppLayout>
   );
 }

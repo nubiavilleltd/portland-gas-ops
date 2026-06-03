@@ -160,20 +160,47 @@ export function createEmployeeRecordColumns(
           <button
             className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition"
             title="View"
-            onClick={() => row.filePath && window.open(row.filePath, "_blank")}
-            disabled={!row.filePath}
+            onClick={async () => {
+              const { default: jsPDF } = await import("jspdf");
+              const pdf = new jsPDF({ unit: "mm", format: "a4" });
+              pdf.setFillColor(88, 28, 135);
+              pdf.rect(0, 0, 210, 18, "F");
+              pdf.setFont("helvetica", "bold"); pdf.setFontSize(13);
+              pdf.setTextColor(255, 255, 255);
+              pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+              pdf.setTextColor(30, 30, 30); pdf.setFontSize(11); pdf.setFont("helvetica", "bold");
+              pdf.text(row.docType, 20, 34);
+              pdf.setFontSize(9); pdf.setFont("helvetica", "normal"); pdf.setTextColor(100, 100, 100);
+              pdf.text(`Employee: ${row.employee}`, 20, 44);
+              pdf.text(`File: ${row.fileName}`, 20, 51);
+              pdf.text(`Uploaded: ${row.uploadDate}  ·  By: ${row.uploadedBy}`, 20, 58);
+              window.open(pdf.output("bloburl"), "_blank");
+            }}
           >
             <Eye size={14} />
           </button>
-          <a
-            href={row.filePath ?? "#"}
-            download={row.fileName}
-            className={`p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition ${!row.filePath ? "pointer-events-none opacity-40" : ""}`}
+          <button
+            className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition"
             title="Download"
-            onClick={(e) => !row.filePath && e.preventDefault()}
+            onClick={async () => {
+              const { default: jsPDF } = await import("jspdf");
+              const pdf = new jsPDF({ unit: "mm", format: "a4" });
+              pdf.setFillColor(88, 28, 135);
+              pdf.rect(0, 0, 210, 18, "F");
+              pdf.setFont("helvetica", "bold"); pdf.setFontSize(13);
+              pdf.setTextColor(255, 255, 255);
+              pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+              pdf.setTextColor(30, 30, 30); pdf.setFontSize(11); pdf.setFont("helvetica", "bold");
+              pdf.text(row.docType, 20, 34);
+              pdf.setFontSize(9); pdf.setFont("helvetica", "normal"); pdf.setTextColor(100, 100, 100);
+              pdf.text(`Employee: ${row.employee}`, 20, 44);
+              pdf.text(`File: ${row.fileName}`, 20, 51);
+              pdf.text(`Uploaded: ${row.uploadDate}  ·  By: ${row.uploadedBy}`, 20, 58);
+              pdf.save(row.fileName);
+            }}
           >
             <Download size={14} />
-          </a>
+          </button>
           <button onClick={() => onDelete(row.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition" title="Delete">
             <Trash2 size={14} />
           </button>
@@ -185,6 +212,7 @@ export function createEmployeeRecordColumns(
 
 export function createPaySlipColumns(
   onView: (slip: PaySlip) => void,
+  onDownload?: (slip: PaySlip) => void,
 ): Column<PaySlip>[] {
   return [
     {
@@ -217,13 +245,22 @@ export function createPaySlipColumns(
       key: "id",
       label: "",
       render: (_, row) => (
-        <div onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onView(row)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-brand-text-secondary hover:bg-gray-200 transition"
           >
             <Eye size={12} /> View
           </button>
+          {onDownload && (
+            <button
+              onClick={() => onDownload(row)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+              title="Download PDF"
+            >
+              <Download size={12} /> Download
+            </button>
+          )}
         </div>
       ),
     },

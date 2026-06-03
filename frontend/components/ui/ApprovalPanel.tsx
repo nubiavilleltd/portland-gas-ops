@@ -36,6 +36,7 @@ export interface ApprovalPanelProps {
   commentMaxLength?: number;
   commentValue?: string;
   onCommentChange?: (comment: string) => void;
+  requireCommentForRejectReturn?: boolean;
 
   // ── Built-in buttons — each independently toggled ──────────────────────────
   showReturn?: boolean;
@@ -132,6 +133,7 @@ export default function ApprovalPanel({
   commentMaxLength = 500,
   commentValue,
   onCommentChange,
+  requireCommentForRejectReturn = false,
 
   showReturn = true,
   showReject = true,
@@ -162,6 +164,7 @@ export default function ApprovalPanel({
   disabled = false,
 }: ApprovalPanelProps) {
   const [internalComment, setInternalComment] = useState("");
+  const [validationError, setValidationError] = useState("");
   const comment = commentValue ?? internalComment;
 
   function handleCommentChange(nextComment: string) {
@@ -169,6 +172,25 @@ export default function ApprovalPanel({
       setInternalComment(nextComment);
     }
     onCommentChange?.(nextComment);
+    setValidationError("");
+  }
+
+  function handleReturnClick() {
+    if (requireCommentForRejectReturn && !comment.trim()) {
+      setValidationError("Please add a comment before returning this request.");
+      return;
+    }
+    setValidationError("");
+    onReturn?.(comment);
+  }
+
+  function handleRejectClick() {
+    if (requireCommentForRejectReturn && !comment.trim()) {
+      setValidationError("Please add a comment before denying this request.");
+      return;
+    }
+    setValidationError("");
+    onReject?.(comment);
   }
 
   const sectionDescription = reviewingAs
@@ -199,6 +221,13 @@ export default function ApprovalPanel({
         />
       )}
 
+      {/* Validation error message */}
+      {validationError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-sm text-red-700">{validationError}</p>
+        </div>
+      )}
+
       {/* Action buttons */}
       {hasButtons && (
         <div className="flex items-center justify-end gap-2 pt-1">
@@ -209,7 +238,7 @@ export default function ApprovalPanel({
               label={returnLabel}
               icon={returnIcon}
               variant="return"
-              onClick={() => onReturn(comment)}
+              onClick={handleReturnClick}
               loading={returnLoading}
               disabled={disabled || returnDisabled || anyLoading}
             />
@@ -221,7 +250,7 @@ export default function ApprovalPanel({
               label={rejectLabel}
               icon={rejectIcon}
               variant="reject"
-              onClick={() => onReject(comment)}
+              onClick={handleRejectClick}
               loading={rejectLoading}
               disabled={disabled || rejectDisabled || anyLoading}
             />

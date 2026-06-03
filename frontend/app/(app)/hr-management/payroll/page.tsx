@@ -13,9 +13,8 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormFileUpload from "@/components/forms/FormFileUpload";
 import DataTable from "@/components/data-table/data-table";
-import ApprovalStepper from "../_components/ApprovalStepper";
-import WorkflowPath from "../_components/WorkflowPath";
-import ActivityHistory from "../_components/ActivityHistory";
+import AuditTrail from "@/components/forms/AuditTrail";
+import { formatDate } from "@/lib/utils";
 import { payrollColumns } from "../_components/columns";
 import { SEED_PAYROLL, PAYROLL_PERIODS, genHRRef, type PayrollRun } from "../_components/_data";
 
@@ -89,9 +88,17 @@ export default function PayrollPage() {
           reference={submitted.ref}
         />
         <div className="space-y-4">
-          <ApprovalStepper currentStep={1} steps={PAYROLL_STEPS} />
-          <WorkflowPath initiator={submitted.preparedBy} department="Finance" reliever="" currentStep={1} approver3Label="Finance Review" />
-          <ActivityHistory initiator={submitted.preparedBy} department="Finance" reliever="" submittedAt={submitted.submittedAt} approver3Label="Finance Review" />
+          <AuditTrail
+            items={[
+              {
+                action: "Submitted",
+                actor: submitted.preparedBy,
+                role: "HR Officer",
+                dateTime: formatDate(submitted.submittedAt),
+                comment: "Payroll run submitted",
+              },
+            ]}
+          />
         </div>
         <div className="flex flex-wrap gap-3 mt-6">
           <Button onClick={goBack}>View All Payroll Runs</Button>
