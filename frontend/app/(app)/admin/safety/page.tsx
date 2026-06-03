@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import {
   getAdminIncidentHref,
@@ -20,7 +19,6 @@ import type {
 import {
   AlertTriangle,
   CheckCircle2,
-  ClipboardCheck,
   Flame,
   Gauge,
   ListChecks,
@@ -34,33 +32,6 @@ const severityRank: Record<string, number> = {
   Medium: 2,
   Low: 1,
 };
-
-const adminSafetyLists = [
-  {
-    title: "Incident & Hazard Reports",
-    description: "Review all incident, hazard, near-miss, and corrective-action records",
-    href: "/admin/safety/incidents",
-    icon: <AlertTriangle className="h-5 w-5 md:h-6 md:w-6" />,
-  },
-  {
-    title: "Work Initiations",
-    description: "View all operational work requests before safety authorization",
-    href: "/admin/safety/work-initiation",
-    icon: <ClipboardCheck className="h-5 w-5 md:h-6 md:w-6" />,
-  },
-  {
-    title: "Work Authorizations",
-    description: "View all HSE authorization requests and decisions",
-    href: "/admin/safety/work-authorization",
-    icon: <ClipboardCheck className="h-5 w-5 md:h-6 md:w-6" />,
-  },
-  {
-    title: "Work Close-Outs",
-    description: "View all completed work and close-out approvals",
-    href: "/admin/safety/work-close-out",
-    icon: <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6" />,
-  },
-];
 
 type PendingHseRequest = {
   id: string;
@@ -155,6 +126,19 @@ export default function AdminSafetyDashboardPage() {
         />
       </div>
 
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <TrendPanel
+          title="Most Reported Hazard Types"
+          description="Based on submitted, recommended, resolved, and closed incident reports."
+          rows={topHazardTypes}
+        />
+        <TrendPanel
+          title="Most Reported Locations"
+          description="Shows where repeat safety signals are clustering."
+          rows={topHazardLocations}
+        />
+      </div>
+
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.8fr)]">
         <section className="rounded-xl border border-brand-border bg-white">
           <div className="flex flex-col gap-2 border-b border-brand-border px-5 py-4 md:flex-row md:items-center md:justify-between">
@@ -246,42 +230,6 @@ export default function AdminSafetyDashboardPage() {
         </section>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <TrendPanel
-          title="Most Reported Hazard Types"
-          description="Based on submitted, recommended, resolved, and closed incident reports."
-          rows={topHazardTypes}
-        />
-        <TrendPanel
-          title="Most Reported Locations"
-          description="Shows where repeat safety signals are clustering."
-          rows={topHazardLocations}
-        />
-      </div>
-
-      <section className="mt-5 rounded-xl border border-brand-border bg-white p-4 md:p-5">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold text-brand-text-primary">
-            Safety Request Lists
-          </h2>
-          <p className="mt-1 text-sm text-brand-text-secondary">
-            Admin list views for all safety and compliance requests.
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {adminSafetyLists.map((process) => (
-            <Card
-              key={process.href}
-              title={process.title}
-              description={process.description}
-              href={process.href}
-              icon={process.icon}
-              className="h-full"
-            />
-          ))}
-        </div>
-      </section>
     </AppLayout>
   );
 }

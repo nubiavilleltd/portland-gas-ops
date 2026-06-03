@@ -45,7 +45,7 @@ const departmentTeamOptions = toOptions([
   "HSE",
   "Admin",
 ]);
-const employeeOptions = toOptions(["Mary James", "Daniel Okoro", "Ibrahim Musa", "Grace Bello"]);
+const employeeOptions = toOptions(["Mary James", "Felix Ohemu", "Samuel Bassey", "Grace Bello"]);
 const contractorOptions = toOptions([
   "SafeWeld Engineering Ltd",
   "Prime Gas Services",

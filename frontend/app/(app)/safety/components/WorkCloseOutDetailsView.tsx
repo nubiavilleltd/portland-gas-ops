@@ -8,7 +8,8 @@ import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
-import RoleBasedRecordHeader from "./RoleBasedRecordHeader";
+import AuditTrail from "@/components/forms/AuditTrail";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockWorkCloseOutRequest,
@@ -451,7 +452,12 @@ export default function WorkCloseOutDetailsView({
         <HseResult result={request.hseApproval} />
       ) : null}
 
-      {permissions.showAuditTrail ? <AuditTrail items={request.auditTrail} /> : null}
+      {permissions.showAuditTrail ? (
+        <AuditTrail
+          items={request.auditTrail}
+          description="Recorded workflow actions and comments for this close-out."
+        />
+      ) : null}
     </div>
   );
 }
@@ -732,28 +738,6 @@ function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachm
   );
 }
 
-function AuditTrail({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
-  return (
-    <FormSection title="Audit Trail" description="Recorded workflow actions and comments for this close-out.">
-      {items.length === 0 ? (
-        <p className="text-sm text-brand-text-secondary">No audit actions yet.</p>
-      ) : (
-        <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-          {items.map((item, index) => (
-            <div key={`${item.action}-${index}`} className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]">
-              <AuditCell label="Action" value={item.action} />
-              <AuditCell label="Actor" value={item.actor} />
-              <AuditCell label="Role" value={item.role} />
-              <AuditCell label="Date/Time" value={item.dateTime} />
-              <AuditCell label="Comment" value={item.comment} />
-            </div>
-          ))}
-        </div>
-      )}
-    </FormSection>
-  );
-}
-
 function StatusNote({
   request,
   currentRole,
@@ -813,15 +797,6 @@ function FormSection({ title, description, children }: { title: string; descript
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
-  );
-}
-
-function AuditCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">{label}</p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
   );
 }
 

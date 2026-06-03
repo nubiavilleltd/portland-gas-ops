@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Download, Paperclip, Building2, AlertCircle,
-  CheckCircle, XCircle, RotateCcw, Clock, Circle, FileText,
+  CheckCircle, XCircle, Clock, Circle, FileText,
 } from "lucide-react";
-import FormTextarea from "@/components/forms/FormTextarea";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useUpdateProcurementStatus, useCancelProcurement, useProcurement } from "@/hooks/useProcurement";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -125,6 +125,11 @@ export default function ProcurementDetailPage() {
     setApprovalAction(null);
     setApprovalComment("");
     setPaymentTerms("");
+  }
+
+  function triggerAction(action: NonNullable<ApprovalAction>, comment: string) {
+    setApprovalComment(comment);
+    setApprovalAction(action);
   }
 
   async function handleCancel() {
@@ -368,80 +373,54 @@ export default function ProcurementDetailPage() {
 
         {/* ── Line Manager — Approval Decision ────────────────────────────── */}
         {showLineManagerPanel && (
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-brand-text-primary mb-1">Approval Decision</h2>
-            <p className="text-xs text-brand-text-secondary mb-5">
-              Reviewing as <span className="font-medium text-brand-text-primary">Operations Manager</span>
-            </p>
-            <FormTextarea
-              label="Comment (optional)"
-              placeholder="Add a comment before submitting your decision…"
-              rows={3}
-              value={approvalComment}
-              onChange={(e) => setApprovalComment(e.target.value)}
-            />
-            <div className="flex items-center gap-2 justify-end mt-4">
-              <button onClick={() => setApprovalAction("return")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
-                <RotateCcw size={14} /> Return
-              </button>
-              <button onClick={() => setApprovalAction("reject")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
-                <XCircle size={14} /> Reject
-              </button>
-              <button onClick={() => setApprovalAction("approve")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors">
-                <CheckCircle size={14} /> Approve
-              </button>
-            </div>
-          </div>
+          <ApprovalPanel
+            reviewingAs="Operations Manager"
+            onReturn={(c) => triggerAction("return", c)}
+            onReject={(c) => triggerAction("reject", c)}
+            onApprove={(c) => triggerAction("approve", c)}
+            disabled={updateStatus.isPending}
+          />
         )}
 
         {/* ── Procurement Officer — Issue PO ───────────────────────────────── */}
         {showPOPanel && (
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-brand-text-primary mb-1">Issue Purchase Order</h2>
-            <p className="text-xs text-brand-text-secondary mb-5">
-              Reviewing as <span className="font-medium text-brand-text-primary">Procurement Officer</span>
-            </p>
-            <div className="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3 mb-5 text-sm text-purple-800">
-              Clicking <strong>Issue PO</strong> will generate and download the Purchase Order PDF. Download and send it to the vendor outside the system.
-            </div>
-            <div className="mb-4">
-              <label className="block text-xs font-medium text-brand-text-secondary mb-1.5">
-                Payment Terms <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={paymentTerms}
-                onChange={(e) => setPaymentTerms(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-brand-border rounded-lg bg-white text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
-              >
-                <option value="">Select payment terms…</option>
-                <option value="Net 7">Net 7</option>
-                <option value="Net 14">Net 14</option>
-                <option value="Net 30">Net 30</option>
-                <option value="Net 60">Net 60</option>
-                <option value="50% upfront, 50% on delivery">50% upfront, 50% on delivery</option>
-                <option value="Payment on delivery">Payment on delivery</option>
-                <option value="Immediate payment">Immediate payment</option>
-              </select>
-            </div>
-            <FormTextarea
-              label="Comment (optional)"
-              placeholder="Add any notes before issuing…"
-              rows={2}
-              value={approvalComment}
-              onChange={(e) => setApprovalComment(e.target.value)}
-            />
-            <div className="flex items-center gap-2 justify-end mt-4">
-              <button onClick={() => setApprovalAction("return")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
-                <RotateCcw size={14} /> Return
-              </button>
-              <button onClick={() => setApprovalAction("reject")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
-                <XCircle size={14} /> Reject
-              </button>
-              <button onClick={() => setApprovalAction("approve")} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors">
-                <FileText size={14} /> Issue PO
-              </button>
-            </div>
-          </div>
+          <ApprovalPanel
+            title="Issue Purchase Order"
+            reviewingAs="Procurement Officer"
+            showReturn={false}
+            approveLabel="Issue PO"
+            approveIcon={<FileText size={14} />}
+            approveDisabled={!paymentTerms}
+            extraFields={
+              <>
+                <div className="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3 text-sm text-purple-800">
+                  Clicking <strong>Issue PO</strong> will generate and download the Purchase Order PDF. Download and send it to the vendor outside the system.
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-brand-text-secondary mb-1.5">
+                    Payment Terms <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-brand-border rounded-lg bg-white text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+                  >
+                    <option value="">Select payment terms…</option>
+                    <option value="Net 7">Net 7</option>
+                    <option value="Net 14">Net 14</option>
+                    <option value="Net 30">Net 30</option>
+                    <option value="Net 60">Net 60</option>
+                    <option value="50% upfront, 50% on delivery">50% upfront, 50% on delivery</option>
+                    <option value="Payment on delivery">Payment on delivery</option>
+                    <option value="Immediate payment">Immediate payment</option>
+                  </select>
+                </div>
+              </>
+            }
+            onReject={(c) => triggerAction("reject", c)}
+            onApprove={(c) => triggerAction("approve", c)}
+            disabled={updateStatus.isPending}
+          />
         )}
 
       </div>

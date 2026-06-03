@@ -6,9 +6,9 @@ import type {
 } from "@/types/safety";
 
 export const mockWorkInitiationRequester: WorkAuthorizationRequester = {
-  name: "Ibrahim Musa",
-  department: "Engineering",
-  role: "Maintenance Technician",
+  name: "Felix Ohemu",
+  department: "Operations",
+  role: "Operations Officer",
   requestDate: "2026-05-18",
 };
 
@@ -83,7 +83,7 @@ const baseAssetDetails = {
 const baseAssignment = {
   assignedDepartment: "Engineering",
   assignedSupervisor: "Mary James",
-  assignedWorkers: ["Ibrahim Musa", "Mary James"],
+  assignedWorkers: ["Felix Ohemu", "Mary James"],
   contractorsNeeded: false,
   selectedContractor: "",
   contractorContactEmail: "",
@@ -95,7 +95,7 @@ const baseAssignment = {
 const submittedAudit: WorkAuthorizationAuditTrailItem[] = [
   {
     action: "Submitted",
-    actor: "Ibrahim Musa",
+    actor: "Felix Ohemu",
     role: "Requester",
     dateTime: "2026-05-18 09:30 AM",
     comment: "Work initiation request submitted.",
@@ -143,7 +143,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     exactWorkArea: "Pipe section near storage valve A",
     attachments: [{ name: "pipe-leak-photo.jpg", type: "image" }],
     assetDetails: { ...baseAssetDetails, assetType: "Gas Pipe", assetReference: "PIPE-A-04" },
-    assignment: { ...baseAssignment, assignedWorkers: ["Ibrahim Musa"] },
+    assignment: { ...baseAssignment, assignedWorkers: ["Felix Ohemu"] },
     supervisorApproval: null,
     operationalReview: null,
     auditTrail: submittedAudit,
@@ -303,7 +303,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     assetDetails: { ...baseAssetDetails, assetType: "Gas Pipe", assetReference: "PIPE-A-04" },
     assignment: {
       ...baseAssignment,
-      assignedWorkers: ["Ibrahim Musa"],
+      assignedWorkers: ["Felix Ohemu"],
       contractorsNeeded: false,
       selectedContractor: "",
       contractorContactEmail: "",
