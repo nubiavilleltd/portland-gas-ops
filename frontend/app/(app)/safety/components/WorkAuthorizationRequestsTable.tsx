@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkAuthorizationHref,
   sortByLatestSafetyActivity,
@@ -50,6 +51,12 @@ const columns: Column<WorkAuthorizationRequest>[] = [
     key: "status",
     label: "Status",
     render: (value) => <ApprovalBadge status={String(value)} />,
+  },
+  {
+    key: "nextAction",
+    label: "Next Actor",
+    getSearchValue: (row) => getWorkAuthorizationNextActor(row),
+    render: (_, row) => getWorkAuthorizationNextActor(row),
   },
 ];
 

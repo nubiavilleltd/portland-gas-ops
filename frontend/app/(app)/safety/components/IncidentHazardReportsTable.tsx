@@ -3,6 +3,7 @@
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
 import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
@@ -48,6 +49,12 @@ const columns: Column<IncidentHazardReport>[] = [
     label: "Status",
     getSearchValue: (row) => incidentHazardStatusLabels[row.status],
     render: (value) => <ApprovalBadge status={value as IncidentHazardStatus} />,
+  },
+  {
+    key: "nextAction",
+    label: "Next Actor",
+    getSearchValue: (row) => getIncidentHazardNextActor(row),
+    render: (_, row) => getIncidentHazardNextActor(row),
   },
   {
     key: "dateTimeObserved",

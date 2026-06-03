@@ -2,7 +2,6 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
-import PageHeader from "@/components/ui/PageHeader";
 import WorkCloseOutDetailsView from "../../components/WorkCloseOutDetailsView";
 
 export default function WorkCloseOutDetailPage() {
@@ -13,11 +12,6 @@ export default function WorkCloseOutDetailPage() {
 
   return (
     <AppLayout pageTitle="Safety & Compliance">
-      <PageHeader
-        title="Work Close-Out Details"
-        description="Review completed work and simulate close-out approval roles."
-        className="mb-6"
-      />
       <WorkCloseOutDetailsView
         requestId={params.id}
         initialRole={

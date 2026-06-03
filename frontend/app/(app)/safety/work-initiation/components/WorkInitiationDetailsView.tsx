@@ -20,6 +20,7 @@ import {
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
 import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
+import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -203,6 +204,7 @@ export default function WorkInitiationDetailsView({
         recordLabel="Work Initiation"
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkInitiationNextActor(request)}
         switcherDescription="Switch roles to preview requester, supervisor, and Operations HOD views."
       />
 

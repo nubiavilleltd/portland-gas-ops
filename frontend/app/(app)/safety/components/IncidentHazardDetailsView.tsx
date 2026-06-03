@@ -25,6 +25,7 @@ import {
   updateIncidentHazardReport,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
+import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import type {
   IncidentHazardAttachment,
   IncidentHazardHseReview,
@@ -215,6 +216,7 @@ export default function IncidentHazardDetailsView({
         roleLabel={getIncidentHazardRoleLabel(currentRole)}
         roles={incidentHazardRoles}
         status={<ApprovalBadge status={report.status} />}
+        nextActor={getIncidentHazardNextActor(report)}
         switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
       />
 

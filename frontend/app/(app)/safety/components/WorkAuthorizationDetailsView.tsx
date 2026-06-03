@@ -15,6 +15,7 @@ import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
+import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -303,6 +304,7 @@ export default function WorkAuthorizationDetailsView({
         roles={workAuthorizationRoles}
         recordLabel="Work Authorization Details"
         status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkAuthorizationNextActor(request)}
       />
 
       <StatusNote request={request} currentRole={currentRole} />

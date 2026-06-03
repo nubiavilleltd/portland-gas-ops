@@ -16,6 +16,7 @@ import {
   getMockWorkCloseOutRequest,
 } from "@/lib/mock/work-close-out";
 import { isExceptionWorkCloseOut } from "@/lib/safety-demo-routing";
+import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   updateWorkCloseOut,
   useSafetyDemoData,
@@ -315,6 +316,7 @@ export default function WorkCloseOutDetailsView({
         recordLabel="Work Completion & Close-Out"
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkCloseOutNextActor(request)}
         switcherDescription="Switch roles to preview requester, supervisor, Operations Head, and HSE close-out reviews."
       />
 

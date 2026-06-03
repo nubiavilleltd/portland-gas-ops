@@ -3,6 +3,7 @@
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkCloseOutHref,
   sortByLatestSafetyActivity,
@@ -37,6 +38,12 @@ const columns: Column<WorkCloseOutRequest>[] = [
     key: "status",
     label: "Status",
     render: (value) => <ApprovalBadge status={String(value)} />,
+  },
+  {
+    key: "nextAction",
+    label: "Next Actor",
+    getSearchValue: (row) => getWorkCloseOutNextActor(row),
+    render: (_, row) => getWorkCloseOutNextActor(row),
   },
 ];
 
