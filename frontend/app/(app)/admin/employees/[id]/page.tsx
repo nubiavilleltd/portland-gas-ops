@@ -11,6 +11,7 @@ import FormFileUpload from "@/components/forms/FormFileUpload";
 import FormTextarea from "@/components/forms/FormTextarea";
 import Button from "@/components/ui/Button";
 import Modal from "../../_components/Modal";
+import { formatNumber } from "@/lib/utils/format-number";
 import {
   EMPLOYEE_STORE,
   SEED_EMPLOYEE_RECORDS,
@@ -150,7 +151,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     setDocs((p) => p.filter((r) => r.id !== docId));
   };
 
-  const fmt = (n: number | undefined) => n !== undefined && n > 0 ? `₦${n.toLocaleString("en-NG")}` : "—";
+  const fmt = (n: number | undefined) => n !== undefined && n > 0 ? formatNumber(n) : "—";
 
   return (
     <AppLayout pageTitle="Employee Profile">
@@ -203,6 +204,15 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                     </button>
                   )}
                 </div>
+              </div>
+            </div>
+            <div className="border-t border-brand-border px-6 py-5">
+              <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide mb-4">{`Leave Balance — ${YEAR}`}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+                {LEAVE_TYPES.map((type) => {
+                  const bal = calcLeaveBalance(`${emp.firstName} ${emp.lastName}`, type, YEAR);
+                  return <BalanceCard key={type} type={type} used={bal.used} entitlement={bal.entitlement} />;
+                })}
               </div>
             </div>
           </div>
@@ -277,26 +287,54 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {isEditing ? (
                 <>
-                  <FormInput label="Basic Salary" type="number" min={0} placeholder="0"
+                  <FormInput label="Basic Salary" min={0} placeholder="0.00"
                     value={empForm.basicSalary !== undefined ? String(empForm.basicSalary) : ""}
-                    onChange={(e) => un("basicSalary", e.target.value)} />
-                  <FormInput label="Housing Allowance" type="number" min={0} placeholder="0"
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      un("basicSalary", rawValue);
+                    }}
+                    onBlur={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      e.target.value = formatNumber(parseFloat(rawValue) || 0);
+                    }} />
+                  <FormInput label="Housing Allowance" min={0} placeholder="0.00"
                     value={empForm.housingAllowance !== undefined ? String(empForm.housingAllowance) : ""}
-                    onChange={(e) => un("housingAllowance", e.target.value)} />
-                  <FormInput label="Transport Allowance" type="number" min={0} placeholder="0"
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      un("housingAllowance", rawValue);
+                    }}
+                    onBlur={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      e.target.value = formatNumber(parseFloat(rawValue) || 0);
+                    }} />
+                  <FormInput label="Transport Allowance" min={0} placeholder="0.00"
                     value={empForm.transportAllowance !== undefined ? String(empForm.transportAllowance) : ""}
-                    onChange={(e) => un("transportAllowance", e.target.value)} />
-                  <FormInput label="Meal Allowance" type="number" min={0} placeholder="0"
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      un("transportAllowance", rawValue);
+                    }}
+                    onBlur={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      e.target.value = formatNumber(parseFloat(rawValue) || 0);
+                    }} />
+                  <FormInput label="Meal Allowance" min={0} placeholder="0.00"
                     value={empForm.mealAllowance !== undefined ? String(empForm.mealAllowance) : ""}
-                    onChange={(e) => un("mealAllowance", e.target.value)} />
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      un("mealAllowance", rawValue);
+                    }}
+                    onBlur={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      e.target.value = formatNumber(parseFloat(rawValue) || 0);
+                    }} />
                   <FormInput label="PAYE Tax"
-                    value={computed.paye > 0 ? computed.paye.toLocaleString("en-NG") : "0"} disabled
+                    value={computed.paye > 0 ? formatNumber(computed.paye) : "0.00"} disabled
                     hint="[Annual gross − Pension − NHF − CRA] × 7/11/15/19/21/24% bands ÷ 12 · CRA = max(₦200k, 1% gross) + 20% gross" />
                   <FormInput label="Pension"
-                    value={computed.pension > 0 ? computed.pension.toLocaleString("en-NG") : "0"} disabled
+                    value={computed.pension > 0 ? formatNumber(computed.pension) : "0.00"} disabled
                     hint="8% × (Basic + Housing + Transport)" />
                   <FormInput label="NHF"
-                    value={computed.nhf > 0 ? computed.nhf.toLocaleString("en-NG") : "0"} disabled
+                    value={computed.nhf > 0 ? formatNumber(computed.nhf) : "0.00"} disabled
                     hint="2.5% × Basic Salary" />
                   <FormInput label="Loan Repayment" type="number" min={0} placeholder="0"
                     value={empForm.loanRepayment !== undefined ? String(empForm.loanRepayment) : ""}
@@ -379,16 +417,6 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               )}
             </div>
           </div>
-
-          {/* Leave Balance */}
-          <Section title={`Leave Balance — ${YEAR}`}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-              {LEAVE_TYPES.map((type) => {
-                const bal = calcLeaveBalance(`${emp.firstName} ${emp.lastName}`, type, YEAR);
-                return <BalanceCard key={type} type={type} used={bal.used} entitlement={bal.entitlement} />;
-              })}
-            </div>
-          </Section>
 
           {/* Save/Cancel Buttons */}
           {isEditing && (

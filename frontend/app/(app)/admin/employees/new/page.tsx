@@ -9,6 +9,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import Button from "@/components/ui/Button";
+import { formatNumber } from "@/lib/utils/format-number";
 import {
   EMPLOYEE_STORE,
   HR_DEPT_OPTIONS,
@@ -174,24 +175,48 @@ export default function NewEmployeePage() {
         <Section title="Earnings">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormInput
-              label="Basic Salary" type="number" min={0} placeholder="0"
-              value={empForm.basicSalary !== undefined ? String(empForm.basicSalary) : ""}
-              onChange={(e) => un("basicSalary", e.target.value)}
+              label="Basic Salary" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("basicSalary", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
             <FormInput
-              label="Housing Allowance" type="number" min={0} placeholder="0"
-              value={empForm.housingAllowance !== undefined ? String(empForm.housingAllowance) : ""}
-              onChange={(e) => un("housingAllowance", e.target.value)}
+              label="Housing Allowance" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("housingAllowance", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
             <FormInput
-              label="Transport Allowance" type="number" min={0} placeholder="0"
-              value={empForm.transportAllowance !== undefined ? String(empForm.transportAllowance) : ""}
-              onChange={(e) => un("transportAllowance", e.target.value)}
+              label="Transport Allowance" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("transportAllowance", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
             <FormInput
-              label="Meal Allowance" type="number" min={0} placeholder="0"
-              value={empForm.mealAllowance !== undefined ? String(empForm.mealAllowance) : ""}
-              onChange={(e) => un("mealAllowance", e.target.value)}
+              label="Meal Allowance" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("mealAllowance", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
           </div>
         </Section>
@@ -200,26 +225,32 @@ export default function NewEmployeePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormInput
               label="PAYE Tax"
-              value={computed.paye > 0 ? computed.paye.toLocaleString("en-NG") : "0"}
+              value={computed.paye > 0 ? formatNumber(computed.paye) : "0.00"}
               disabled
               hint="[Annual gross − Pension − NHF − CRA] × 7/11/15/19/21/24% bands ÷ 12 · CRA = max(₦200k, 1% gross) + 20% gross"
             />
             <FormInput
               label="Pension"
-              value={computed.pension > 0 ? computed.pension.toLocaleString("en-NG") : "0"}
+              value={computed.pension > 0 ? formatNumber(computed.pension) : "0.00"}
               disabled
               hint="8% × (Basic + Housing + Transport)"
             />
             <FormInput
               label="NHF"
-              value={computed.nhf > 0 ? computed.nhf.toLocaleString("en-NG") : "0"}
+              value={computed.nhf > 0 ? formatNumber(computed.nhf) : "0.00"}
               disabled
               hint="2.5% × Basic Salary"
             />
             <FormInput
-              label="Loan Repayment" type="number" min={0} placeholder="0"
-              value={empForm.loanRepayment !== undefined ? String(empForm.loanRepayment) : ""}
-              onChange={(e) => un("loanRepayment", e.target.value)}
+              label="Loan Repayment" min={0} placeholder="0.00"
+              onChange={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                un("loanRepayment", rawValue);
+              }}
+              onBlur={(e) => {
+                const rawValue = e.target.value.replace(/,/g, "");
+                e.target.value = formatNumber(parseFloat(rawValue) || 0);
+              }}
             />
           </div>
         </Section>

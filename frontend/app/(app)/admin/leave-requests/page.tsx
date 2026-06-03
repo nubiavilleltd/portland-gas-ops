@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -14,9 +16,6 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormTextarea from "@/components/forms/FormTextarea";
 import DataTable from "@/components/data-table/data-table";
-import ApprovalStepper from "../_components/ApprovalStepper";
-import WorkflowPath from "../_components/WorkflowPath";
-import ActivityHistory from "../_components/ActivityHistory";
 import { leaveRequestColumns } from "../_components/columns";
 import {
   LEAVE_STORE,
@@ -58,17 +57,7 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
-type View = "list" | "form" | "submitted";
-
-interface SubmittedInfo {
-  ref: string;
-  employee: string;
-  department: string;
-  reliever: string;
-  submittedAt: Date;
-}
-
-const APPROVAL_ROUTE = ["Initiator (You)", "Reliever", "Operations Manager", "HR Review", "Processed"];
+type View = "list" | "form";
 
 function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
@@ -79,9 +68,9 @@ function calcDays(start: string, end: string): number {
 }
 
 export default function LeaveRequestsPage() {
+  const router = useRouter();
   const [view, setView] = useState<View>("list");
   const [items, setItems] = useState<LeaveRequest[]>(LEAVE_STORE);
-  const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
@@ -151,15 +140,16 @@ export default function LeaveRequestsPage() {
     };
     LEAVE_STORE.unshift(newItem);
     setItems([...LEAVE_STORE]);
-    setSubmitted({ ref, employee: employeeName, department, reliever: data.reliever, submittedAt: now });
-    setView("submitted");
+    toast.success(`Request submitted successfully — Reference: ${ref}`);
+    form.reset();
+    setSupportingFiles([]);
+    setTimeout(() => location.reload(), 800);
   }
 
   function goBack() {
     setView("list");
     form.reset();
     setSupportingFiles([]);
-    setSubmitted(null);
   }
 
   return (
@@ -209,13 +199,15 @@ export default function LeaveRequestsPage() {
             </div>
           </div>
 
-          <DataTable
-            columns={leaveRequestColumns}
-            data={items}
-            rowHref={(row) => `/admin/leave-requests/${row.id}`}
-            emptyMessage="No leave requests yet"
-            emptyDescription="Submit your first leave request to get started"
-          />
+          <div className="w-full overflow-hidden">
+            <DataTable
+              columns={leaveRequestColumns}
+              data={items}
+              rowHref={(row) => `/admin/leave-requests/${row.id}`}
+              emptyMessage="No leave requests yet"
+              emptyDescription="Submit your first leave request to get started"
+            />
+          </div>
         </>
       )}
 
@@ -261,38 +253,24 @@ export default function LeaveRequestsPage() {
                   {...form.register("leave_type")}
                 />
                 <FormSelect
-                  label="Request Type"
+                  label="Raise For"
                   required
                   options={REQUEST_TYPE_OPTIONS}
                   sortOptions={false}
-                  placeholder="Select request type"
+                  placeholder="Select Raise For"
                   error={errors.request_type?.message}
                   {...form.register("request_type")}
                 />
 
                 {/* Balance banner — updates when leave type (and employee for others) is selected */}
                 {activeBal && (
-                  <div className={`md:col-span-2 rounded-xl border px-4 py-3 flex items-center justify-between gap-4 ${
-                    (() => {
-                      const pct = activeBal.entitlement > 0 ? (activeBal.remaining / activeBal.entitlement) * 100 : 100;
-                      return pct <= 20
-                        ? "bg-red-50 border-red-200"
-                        : pct <= 50
-                        ? "bg-amber-50 border-amber-200"
-                        : "bg-green-50 border-green-200";
-                    })()
-                  }`}>
+                  <div className="md:col-span-2 rounded-xl border border-brand-purple bg-white px-4 py-3 flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
+                      <p className="text-sm font-semibold text-brand-text-secondary uppercase tracking-wide">
                         {isOthers && watchEmployee ? `${watchEmployee}'s` : "Your"} {watchLeaveType} Balance
                       </p>
                       <div className="flex items-baseline gap-1.5 mt-1">
-                        <span className={`text-2xl font-bold ${
-                          (() => {
-                            const pct = activeBal.entitlement > 0 ? (activeBal.remaining / activeBal.entitlement) * 100 : 100;
-                            return pct <= 20 ? "text-red-700" : pct <= 50 ? "text-amber-700" : "text-green-700";
-                          })()
-                        }`}>
+                        <span className="text-sm font-bold text-brand-purple">
                           {activeBal.remaining}
                         </span>
                         <span className="text-sm text-brand-text-secondary">
@@ -301,14 +279,9 @@ export default function LeaveRequestsPage() {
                       </div>
                     </div>
                     <div className="w-28 shrink-0">
-                      <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white">
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
                         <div
-                          className={`h-full rounded-full ${
-                            (() => {
-                              const pct = activeBal.entitlement > 0 ? (activeBal.remaining / activeBal.entitlement) * 100 : 100;
-                              return pct <= 20 ? "bg-red-500" : pct <= 50 ? "bg-amber-500" : "bg-green-500";
-                            })()
-                          }`}
+                          className="h-full rounded-full bg-brand-purple"
                           style={{
                             width: `${activeBal.entitlement > 0 ? Math.min(100, (activeBal.remaining / activeBal.entitlement) * 100) : 100}%`,
                           }}
@@ -406,28 +379,6 @@ export default function LeaveRequestsPage() {
               </div>
             </FormSection>
 
-            <section className="rounded-xl border border-brand-border bg-gray-50 px-5 py-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
-                Approval Route
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {APPROVAL_ROUTE.map((step, i, arr) => (
-                  <div key={step} className="flex items-center gap-2">
-                    <span className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-                      i === 0
-                        ? "bg-brand-purple-faint text-brand-purple border-brand-purple-mid"
-                        : "bg-white text-brand-text-secondary border-brand-border"
-                    }`}>
-                      {step}
-                    </span>
-                    {i < arr.length - 1 && (
-                      <span className="text-brand-text-secondary text-xs">→</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance}>
                 Submit for Approval
@@ -438,53 +389,6 @@ export default function LeaveRequestsPage() {
       )}
 
       {/* ── SUBMITTED ── */}
-      {view === "submitted" && submitted && (
-        <>
-          <button
-            onClick={goBack}
-            className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
-          >
-            <ArrowLeft size={16} /> Back to Leave Requests
-          </button>
-
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
-            <CheckCircle2 size={22} className="text-green-600 shrink-0 mt-0.5" />
-            <div>
-              <h2 className="font-semibold text-green-800">Request Submitted Successfully</h2>
-              <p className="text-sm text-green-700 mt-0.5">
-                Reference:{" "}
-                <span className="font-mono font-bold">{submitted.ref}</span> — Routed to Reliever for review.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <ApprovalStepper currentStep={1} />
-            <WorkflowPath
-              initiator={submitted.employee}
-              department={submitted.department}
-              reliever={submitted.reliever}
-              currentStep={1}
-            />
-            <ActivityHistory
-              initiator={submitted.employee}
-              department={submitted.department}
-              reliever={submitted.reliever}
-              submittedAt={submitted.submittedAt}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-3 mt-6">
-            <Button onClick={goBack}>View All Requests</Button>
-            <Button
-              variant="outline"
-              onClick={() => { form.reset(); setSupportingFiles([]); setView("form"); }}
-            >
-              Submit Another
-            </Button>
-          </div>
-        </>
-      )}
     </AppLayout>
   );
 }

@@ -106,10 +106,10 @@ export default function LeaveRequestDetailPage({
           <ViewSection title="Leave Details" description="Details about the leave being requested.">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-              {/* Row 1: Leave Type | Request Type */}
+              {/* Row 1: Leave Type | Raise For */}
               <FormInput label="Leave Type"   value={record.type} />
               <FormInput
-                label="Request Type"
+                label="Raise For"
                 value={record.requestType === "self" ? "Self" : record.requestType === "others" ? "Others" : "—"}
               />
 

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import SuccessAlert from "@/components/ui/SuccessAlert";
 import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
@@ -82,15 +83,11 @@ export default function PayrollPage() {
         <button onClick={goBack} className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5">
           <ArrowLeft size={16} /> Back to Payroll
         </button>
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
-          <CheckCircle2 size={22} className="text-green-600 shrink-0 mt-0.5" />
-          <div>
-            <h2 className="font-semibold text-green-800">Payroll Run Submitted Successfully</h2>
-            <p className="text-sm text-green-700 mt-0.5">
-              Reference: <span className="font-mono font-bold">{submitted.ref}</span> — Routed to Line Manager for review.
-            </p>
-          </div>
-        </div>
+        <SuccessAlert
+          title="Payroll Run Submitted Successfully"
+          message="Routed to Line Manager for review."
+          reference={submitted.ref}
+        />
         <div className="space-y-4">
           <ApprovalStepper currentStep={1} steps={PAYROLL_STEPS} />
           <WorkflowPath initiator={submitted.preparedBy} department="Finance" reliever="" currentStep={1} approver3Label="Finance Review" />
