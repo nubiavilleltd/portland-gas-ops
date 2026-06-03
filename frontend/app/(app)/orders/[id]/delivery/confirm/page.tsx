@@ -49,28 +49,9 @@ export default function OrderDeliveryPage() {
   }
 
   const alreadyDelivered = order.fulfillment_status === "delivered";
-  // const cannotConfirm =
-  //   order.fulfillment_status !== "in_transit" &&
-  //   order.fulfillment_status !== "dispatched" &&
-  //   !alreadyDelivered;
-
+ 
   const canConfirm = canConfirmDelivery(order)
 
-  // async function handleConfirmDelivery() {
-  //   if (!receivedBy.trim()) {
-  //     setError("Please enter the name of the person who received the delivery.");
-  //     return;
-  //   }
-  //   setIsSubmitting(true);
-  //   setError(null);
-  //   try {
-  //     await confirmDelivery.mutateAsync(order as Order)
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : "Failed to confirm delivery");
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // }
 
 
   async function handleConfirmDelivery() {
@@ -248,19 +229,19 @@ export default function OrderDeliveryPage() {
   disabled={confirmDelivery.isPending}
   loading={confirmDelivery.isPending}
 >
-  Confirm Delivery
+  Submit Delivery Confirmation
 </Button>
           )}
 
           {alreadyDelivered && !order.invoice_id && (
             <Button href={`/invoices/new?orderId=${id}`}>
-              Generate Invoice
+              Create Invoice →
             </Button>
           )}
 
           {alreadyDelivered && order.invoice_id && (
             <Button href={`/invoices/${order.invoice_id}`} variant="outline">
-              View Invoice
+              View Invoice →
             </Button>
           )}
         </div>

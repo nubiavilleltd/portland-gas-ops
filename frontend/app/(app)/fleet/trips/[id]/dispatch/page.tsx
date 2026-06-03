@@ -58,7 +58,7 @@ export default function DispatchTripPage() {
               href={`/fleet/trips/${tripId}/assign`}
               className="mr-2"
             >
-              Assign Driver & Vehicle First
+              Assign Driver & Vehicle First →
             </Button>
           )}
 
@@ -182,27 +182,6 @@ export default function DispatchTripPage() {
           </div>
         </FormSection>
 
-        {/* NOTICE */}
-        {/* <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-          <p className="font-medium mb-1">
-            What happens when you dispatch:
-          </p>
-
-          <ul className="list-disc ml-4 space-y-1 text-blue-600">
-            <li>
-              Trip changes from <strong>Assigned → Dispatched</strong>
-            </li>
-            <li>
-              {trip.order_ids.length} order(s) become <strong>Dispatched</strong>
-            </li>
-            <li>
-              Vehicle marked as <strong>In Transit</strong>
-            </li>
-            <li>
-              Departure time is recorded
-            </li>
-          </ul>
-        </div> */}
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
           <p className="font-medium mb-1">What happens when you dispatch:</p>
@@ -239,7 +218,7 @@ export default function DispatchTripPage() {
             loading={dispatchTrip.isPending}
           >
             {/* {isSubmitting ? "Dispatching..." : "Dispatch Trip"} */}
-            Dispatch Trip
+            Confirm Trip Dispatch
           </Button>
         </div>
       </div>

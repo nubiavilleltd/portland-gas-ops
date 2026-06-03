@@ -288,7 +288,7 @@ export default function InvoiceDetailPage() {
                   size="sm"
                   href={`/payments/new?invoiceId=${invoice.id}`}
                 >
-                  + Record Payment
+                  Make Payment →
                 </Button>
               )}
             </div>
@@ -320,7 +320,7 @@ export default function InvoiceDetailPage() {
                   href={`/payments/${invoice.id}/receipt`}
                   variant="outline"
                 >
-                  View Receipt
+                  View Receipt →
                 </Button>
               </div>
             )}
