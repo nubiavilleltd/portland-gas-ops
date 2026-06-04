@@ -7,6 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
+import FormDatePicker from "@/components/forms/FormDatePicker";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import AuditTrail from "@/components/forms/AuditTrail";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -119,7 +120,7 @@ export default function AssetRequestDetailPage() {
             <FormInput label="Requester Name" value={req.requester?.name ?? req.requester_name ?? "—"} />
             <FormInput label="Department" value={req.requester?.department ?? "—"} />
             <FormInput label="Job Title" value={req.requester?.job_title ?? "—"} />
-            <FormInput label="Request Date" value={formatDate(req.created_at)} />
+            <FormDatePicker label="Request Date" value={req.created_at.slice(0, 10)} disabled />
           </div>
         </FormSection>
 
