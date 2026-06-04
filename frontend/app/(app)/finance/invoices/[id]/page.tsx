@@ -11,6 +11,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
+import { useToast } from "@/hooks/useToast";
 import { INVOICE_STORE, type InvoiceRequest } from "../../_components/_data";
 
 const STATUS_STEP: Record<string, number> = {
@@ -45,11 +46,15 @@ export default function InvoiceDetailPage({
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
+  const toast = useToast();
 
   function handleApprovalAction(action: ActionResult, comment: string) {
     setRecord((prev) => (prev ? { ...prev, status: action } : prev));
     setActionDone(action);
     setActionComment(comment);
+    if (action === "approved") toast.success("Invoice approved successfully");
+    else if (action === "denied") toast.error("Invoice denied");
+    else toast.info("Invoice returned to requester");
   }
 
   return (

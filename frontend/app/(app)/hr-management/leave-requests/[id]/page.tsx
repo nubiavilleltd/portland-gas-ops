@@ -11,6 +11,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { formatDate } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
+import { useToast } from "@/hooks/useToast";
 import { LEAVE_STORE, type LeaveRequest } from "../../_components/_data";
 
 const CURRENT_USER = {
@@ -49,6 +50,7 @@ export default function LeaveRequestDetailPage({
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
+  const toast = useToast();
 
   const isOthers = record?.requestType === "others";
 
@@ -183,8 +185,8 @@ export default function LeaveRequestDetailPage({
               rejectLabel="Decline"
               approveLabel="Accept"
               requireCommentForRejectReturn
-              onReject={(comment) => handleApprovalAction("draft", comment)}
-              onApprove={(comment) => handleApprovalAction("in_progress", comment)}
+              onReject={(comment) => { toast.error("Reliever declined the request"); handleApprovalAction("draft", comment); }}
+              onApprove={(comment) => { toast.success("Reliever accepted — awaiting manager approval"); handleApprovalAction("in_progress", comment); }}
             />
           )}
 
@@ -199,9 +201,9 @@ export default function LeaveRequestDetailPage({
               rejectLabel="Deny"
               approveLabel="Approve"
               requireCommentForRejectReturn
-              onReturn={(comment) => handleApprovalAction("draft", comment)}
-              onReject={(comment) => handleApprovalAction("denied", comment)}
-              onApprove={(comment) => handleApprovalAction("approved", comment)}
+              onReturn={(comment) => { toast.info("Leave request returned to requester"); handleApprovalAction("draft", comment); }}
+              onReject={(comment) => { toast.error("Leave request denied"); handleApprovalAction("denied", comment); }}
+              onApprove={(comment) => { toast.success("Leave request approved successfully"); handleApprovalAction("approved", comment); }}
             />
           )}
 
