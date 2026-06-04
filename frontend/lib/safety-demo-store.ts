@@ -45,13 +45,14 @@ function mergeMissingById<T extends { id: string }>(current: T[], seed: T[]) {
 
 function mergeSeedRecords(data: SafetyDemoData) {
   const seed = seedData();
-  const incidentHazards = mergeMissingById(data.incidentHazards ?? [], seed.incidentHazards);
-  const workInitiations = mergeMissingById(data.workInitiations ?? [], seed.workInitiations);
+  const normalized = normalizeSafetyStatuses(data);
+  const incidentHazards = mergeMissingById(normalized.data.incidentHazards ?? [], seed.incidentHazards);
+  const workInitiations = mergeMissingById(normalized.data.workInitiations ?? [], seed.workInitiations);
   const workAuthorizations = mergeMissingById(
-    data.workAuthorizations ?? [],
+    normalized.data.workAuthorizations ?? [],
     seed.workAuthorizations,
   );
-  const workCloseOuts = mergeMissingById(data.workCloseOuts ?? [], seed.workCloseOuts);
+  const workCloseOuts = mergeMissingById(normalized.data.workCloseOuts ?? [], seed.workCloseOuts);
 
   return {
     data: {
@@ -61,10 +62,36 @@ function mergeSeedRecords(data: SafetyDemoData) {
       workCloseOuts: workCloseOuts.items,
     },
     changed:
+      normalized.changed ||
       incidentHazards.changed ||
       workInitiations.changed ||
       workAuthorizations.changed ||
       workCloseOuts.changed,
+  };
+}
+
+function normalizeSafetyStatuses(data: SafetyDemoData) {
+  let changed = false;
+
+  const workInitiations = (data.workInitiations ?? []).map((request) => {
+    if ((request.status as string) !== "pending_approval") return request;
+    changed = true;
+    return { ...request, status: "pending" as const };
+  });
+
+  const workCloseOuts = (data.workCloseOuts ?? []).map((request) => {
+    if ((request.status as string) !== "pending_approval") return request;
+    changed = true;
+    return { ...request, status: "pending" as const };
+  });
+
+  return {
+    data: {
+      ...data,
+      workInitiations,
+      workCloseOuts,
+    },
+    changed,
   };
 }
 

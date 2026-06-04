@@ -13,6 +13,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import { useToast } from "@/hooks/useToast";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
@@ -98,6 +99,7 @@ export default function WorkAuthorizationDetailsView({
   initialRole?: WorkAuthorizationRole;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [currentRole, setCurrentRole] =
     useState<WorkAuthorizationRole>(initialRole ?? "requester");
   const [request, setRequest] = useState<WorkAuthorizationRequest | null>(null);
@@ -199,6 +201,7 @@ export default function WorkAuthorizationDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
+    toast.success("Work authorization submitted.");
   }
 
   function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
@@ -283,6 +286,13 @@ export default function WorkAuthorizationDetailsView({
       hseApproval: approval,
       auditTrail: [...current.auditTrail, inspectionAudit, decisionAudit],
     }));
+    if (decision === "Approve") {
+      toast.success("Work authorization approved by HSE.");
+    } else if (decision === "Return") {
+      toast.info("Work authorization returned to requester.");
+    } else {
+      toast.error("Work authorization denied by HSE.");
+    }
   }
 
   return (

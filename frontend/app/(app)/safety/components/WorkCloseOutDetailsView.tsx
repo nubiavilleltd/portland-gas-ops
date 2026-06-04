@@ -11,6 +11,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockWorkCloseOutRequest,
@@ -62,6 +63,7 @@ export default function WorkCloseOutDetailsView({
   initialRole?: WorkCloseOutRole;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const initialRequest = getMockWorkCloseOutRequest(requestId);
   const { workCloseOuts } = useSafetyDemoData();
   const request = workCloseOuts.find((item) => item.id === requestId) ?? initialRequest;
@@ -86,7 +88,7 @@ export default function WorkCloseOutDetailsView({
   const permissions = useMemo(() => {
     const isDraft = request?.status === "draft";
     const isSubmitted = request?.status === "submitted";
-    const isPendingApproval = request?.status === "pending_approval";
+    const isPending = request?.status === "pending";
     const isApproved = request?.status === "approved";
     const isAcknowledged = request?.status === "acknowledged";
     const isReturned = request?.status === "returned";
@@ -97,15 +99,15 @@ export default function WorkCloseOutDetailsView({
       canSupervisorApprove: currentRole === "supervisor" && isSubmitted,
       canOperationsHeadApprove:
         currentRole === "operations_head" &&
-        isPendingApproval &&
+        isPending &&
         Boolean(request?.supervisorApproval) &&
         !request?.operationsHeadApproval,
       canHseApprove:
         currentRole === "hse" &&
-        isPendingApproval &&
+        isPending &&
         Boolean(request?.operationsHeadApproval),
       showSupervisorApproval: Boolean(
-        isPendingApproval || isApproved || isAcknowledged || isReturned || isDenied,
+        isPending || isApproved || isAcknowledged || isReturned || isDenied,
       ),
       showOperationsHeadApproval: Boolean(
         request?.operationsHeadApproval || isApproved || isAcknowledged || isReturned || isDenied,
@@ -154,6 +156,7 @@ export default function WorkCloseOutDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
+    toast.success("Close-out submitted.");
   }
 
   function supervisorDecision(decision: WorkCloseOutDecision) {
@@ -191,13 +194,14 @@ export default function WorkCloseOutDetailsView({
       ...current,
       status:
         decision === "Approve" || decision === "Acknowledge"
-          ? "pending_approval"
+          ? "pending"
           : decision === "Return"
             ? "returned"
             : "denied",
       supervisorApproval: approval,
       auditTrail: [...current.auditTrail, audit],
     }));
+    showCloseOutDecisionToast(toast, decision, "Supervisor");
   }
 
   function hseDecision(decision: WorkCloseOutDecision) {
@@ -250,6 +254,7 @@ export default function WorkCloseOutDetailsView({
       hseApproval: approval,
       auditTrail: [...current.auditTrail, audit],
     }));
+    showCloseOutDecisionToast(toast, decision, "HSE");
   }
 
   function operationsHeadDecision(decision: WorkCloseOutDecision) {
@@ -287,13 +292,14 @@ export default function WorkCloseOutDetailsView({
       ...current,
       status:
         decision === "Approve" || decision === "Acknowledge"
-          ? "pending_approval"
+          ? "pending"
           : decision === "Return"
             ? "returned"
             : "denied",
       operationsHeadApproval: approval,
       auditTrail: [...current.auditTrail, audit],
     }));
+    showCloseOutDecisionToast(toast, decision, "Operations Head");
   }
 
   return (
@@ -729,7 +735,7 @@ function StatusNote({
     note = "This close-out has been denied and is closed.";
   } else if (request.status === "acknowledged") {
     note = "This exception close-out has been acknowledged for audit. It is not counted as a successful close-out.";
-  } else if (request.status === "pending_approval") {
+  } else if (request.status === "pending") {
     if (!request.operationsHeadApproval) {
       note =
         currentRole === "operations_head"
@@ -771,4 +777,20 @@ function getWorkCloseOutRoleLabel(role: WorkCloseOutRole) {
   if (role === "hse") return "HSE Inspector";
   if (role === "supervisor") return "Supervisor";
   return "Requester";
+}
+
+function showCloseOutDecisionToast(
+  toast: ReturnType<typeof useToast>,
+  decision: WorkCloseOutDecision,
+  actorLabel: string,
+) {
+  if (decision === "Approve") {
+    toast.success(`Close-out approved by ${actorLabel}.`);
+  } else if (decision === "Acknowledge") {
+    toast.success(`Close-out acknowledged by ${actorLabel}.`);
+  } else if (decision === "Return") {
+    toast.info("Close-out returned to requester.");
+  } else {
+    toast.error(`Close-out denied by ${actorLabel}.`);
+  }
 }
