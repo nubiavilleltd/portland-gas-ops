@@ -9,6 +9,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormSection from "@/components/ui/FormSection";
 import CurrencyInput from "@/components/forms/CurrencyInput";
+import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 
 const VEHICLE_TYPE_OPTIONS = [
   { value: "lpg_tanker", label: "LPG Tanker" },
@@ -79,24 +80,9 @@ export default function VehicleForm({
     ...defaultValues,
   });
 
-  const [imagePreview, setImagePreview] = useState<string | null>(
-    defaultValues?.image ?? null
-  );
-
   const [loading, setLoading] = useState(false);
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setImagePreview(base64);
-      setForm((prev) => ({ ...prev, image: base64 }));
-    };
-    reader.readAsDataURL(file);
-  }
 
   function patch(field: keyof VehicleFormValues, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -139,30 +125,25 @@ export default function VehicleForm({
         <div className="space-y-5">
 
           {/* IMAGE */}
-          <div>
-            <p className="text-sm font-medium mb-2">Vehicle Image</p>
-            <div className="flex items-center gap-4">
-              <div className="w-24 h-24 rounded-xl border border-brand-border bg-gray-50 overflow-hidden flex items-center justify-center">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Vehicle preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <p className="text-xs text-brand-text-secondary text-center px-2">
-                    No image
-                  </p>
-                )}
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="text-sm"
-              />
-            </div>
-          </div>
+          <ProfilePicUpload
+            value={null}
+            onChange={(file) => {
+              if (!file) {
+                setForm((prev) => ({ ...prev, image: "" }));
+                return;
+              }
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result as string;
+                setForm((prev) => ({ ...prev, image: base64 }));
+              };
+              reader.readAsDataURL(file);
+            }}
+            shape="circle"
+            size={110}
+            fallback="IMG"
+            label="Vehicle Image"
+          />
 
           <div className="grid grid-cols-2 gap-5">
 
