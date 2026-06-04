@@ -28,7 +28,7 @@ type PageRole = "requester" | "approver" | "admin";
 
 const ROLE_OPTIONS: { value: PageRole; label: string }[] = [
   { value: "requester", label: "Requester" },
-  { value: "approver", label: "Approver" },
+  { value: "approver", label: "Operations Manager/Finance" },
 ];
 
 export default function InvoiceDetailPage({
@@ -77,7 +77,7 @@ export default function InvoiceDetailPage({
             id={record.ref}
             currentRole={currentRole}
             onRoleChange={setCurrentRole}
-            roleLabel={currentRole === "approver" ? "Approver" : currentRole === "admin" ? "Admin" : "Requester"}
+            roleLabel={currentRole === "approver" ? "Operations Manager/Finance" : currentRole === "admin" ? "Admin" : "Requester"}
             roles={ROLE_OPTIONS}
             status={<ApprovalBadge status={record.status} />}
             recordLabel="Invoice"
@@ -151,7 +151,7 @@ export default function InvoiceDetailPage({
           {/* Approval Action */}
           {ACTIONABLE.has(record.status) && !actionDone && currentRole !== "requester" && (
             <ApprovalPanel
-              reviewingAs={currentRole === "approver" ? "Approver" : "Requester"}
+              reviewingAs={currentRole === "approver" ? "Operations Manager/Finance" : "Requester"}
               showReturn
               showReject
               showApprove

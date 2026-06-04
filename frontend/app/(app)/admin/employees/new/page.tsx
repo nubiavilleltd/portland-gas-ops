@@ -180,6 +180,7 @@ export default function NewEmployeePage() {
             />
             <FormSelect
               label="Grade Level" required options={GRADE_OPTIONS} placeholder="Select grade level"
+              sortOptions={false}
               value={empForm.grade ?? ""}
               onValueChange={(v) => ue("grade", v)}
             />
