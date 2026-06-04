@@ -144,7 +144,7 @@ export default function AdminAssetsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, tag, assignee…" className="w-full pl-9 pr-4 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, tag, assignee…" className="w-full pl-9 pr-4 py-2 bg-white border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30" />
         </div>
         <div className="w-44 shrink-0">
           <SelectInput placeholder="All Statuses" sortOptions={false} value={activeStatus ?? ""} onValueChange={(v) => setActiveStatus((v || undefined) as AssetStatus | undefined)} options={STATUS_OPTIONS} />

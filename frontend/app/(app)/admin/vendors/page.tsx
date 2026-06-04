@@ -4,11 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 // import { useRouter } from "next/navigation";
-import { Plus, Search, Pencil, Trash2, /* Phone, Mail, MapPin, LayoutGrid, Table2 */ } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import EmptyState from "@/components/ui/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
 import { useVendors, useDeleteVendor } from "@/hooks/useVendors";
@@ -126,11 +125,10 @@ const TABLE_COLUMNS: Column<Vendor>[] = [
 
 export default function AdminVendorsPage() {
   const toast = useToast();
-  const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Vendor | null>(null);
   // const [view, setView] = useState<"card" | "table">("card"); // view toggle removed — table only
 
-  const { data: vendors = [], isLoading, isError } = useVendors(search || undefined);
+  const { data: vendors = [], isLoading, isError } = useVendors();
   const deleteVendor = useDeleteVendor();
 
   function handleDelete() {
@@ -172,43 +170,22 @@ export default function AdminVendorsPage() {
         }
       />
 
-      <div className="mb-6 flex items-center gap-3">
-        <div className="relative max-w-sm flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendors…" className="w-full pl-9 pr-4 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30" />
-        </div>
-        {/* View toggle removed — table only */}
-      </div>
-
       {isLoading ? (
         <div className="flex justify-center py-20"><LoadingSpinner /></div>
       ) : isError ? (
         <div className="text-center py-20 text-brand-text-secondary">Failed to load vendors.</div>
-      ) : vendors.length === 0 ? (
-        <EmptyState
-          title={search ? "No vendors match your search" : "No vendors yet"}
-          description={search ? "Try a different search term" : "Add your first vendor to get started"}
-          action={!search ? <Link href="/admin/vendors/new" className="px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors">Add Vendor</Link> : undefined}
-        />
       ) : (
-        <>
-          <p className="text-xs text-brand-text-secondary mb-4">{vendors.length} vendor{vendors.length !== 1 ? "s" : ""}</p>
-          {/* Card view commented out — kept for future use
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vendors.map((v) => <VendorCard key={v.id} vendor={v} onDelete={setDeleteTarget} />)}
-          </div>
-          */}
-          <DataTable
-            columns={TABLE_COLUMNS}
-            data={vendors}
-            emptyMessage="No vendors found."
-            searchable={false}
-            rowHref={(v) => `/admin/vendors/${v.id}`}
-            showActions
-            actions={tableActions}
-            actionsContainerClassName="gap-1"
-          />
-        </>
+        <DataTable
+          columns={TABLE_COLUMNS}
+          data={vendors}
+          searchPlaceholder="Search vendors…"
+          emptyMessage="No vendors found."
+          emptyDescription="Add your first vendor to get started."
+          rowHref={(v) => `/admin/vendors/${v.id}`}
+          showActions
+          actions={tableActions}
+          actionsContainerClassName="gap-1"
+        />
       )}
 
       <ConfirmDialog open={!!deleteTarget} title="Delete Vendor" message={`Are you sure you want to remove "${deleteTarget?.name}"? This cannot be undone.`} confirmLabel="Delete" destructive onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />

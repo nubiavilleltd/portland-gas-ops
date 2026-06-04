@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Search, Package } from "lucide-react";
+import { Plus, Package } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -76,13 +75,9 @@ const TABLE_COLUMNS: Column<Asset>[] = [
 ];
 
 export default function AssetsPage() {
-  const [search, setSearch] = useState("");
   // const [viewMode, setViewMode] = useState<"card" | "table">("card"); // view toggle removed — table only
 
-  const { data: assets = [], isLoading, isError } = useAssets({
-    search: search || undefined,
-    status: "available",
-  });
+  const { data: assets = [], isLoading, isError } = useAssets({ status: "available" });
 
   return (
     <AppLayout pageTitle="Assets">
@@ -96,34 +91,14 @@ export default function AssetsPage() {
         }
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or tag…" className="w-full pl-9 pr-4 py-2 border border-brand-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30" />
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-brand-text-secondary">{!isLoading && `${assets.length} asset${assets.length !== 1 ? "s" : ""} available`}</p>
-        <div className="flex items-center gap-3">
-          {/* View toggle removed — table only
-          <div className="flex items-center gap-0.5 bg-white border border-brand-border rounded-lg p-0.5">
-            <button onClick={() => setViewMode("card")} title="Card view" className={["p-1.5 rounded-md transition-colors", viewMode === "card" ? "bg-brand-purple text-white" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>
-            </button>
-            <button onClick={() => setViewMode("table")} title="Table view" className={["p-1.5 rounded-md transition-colors", viewMode === "table" ? "bg-brand-purple text-white" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
-            </button>
-          </div>
-          */}
-          <Link href="/assets/requests" className="text-xs text-brand-purple hover:underline font-medium">My Requests →</Link>
-        </div>
+      <div className="flex justify-end mb-4">
+        <Link href="/assets/requests" className="text-xs text-brand-purple hover:underline font-medium">My Requests →</Link>
       </div>
 
       {isLoading ? <div className="flex justify-center py-20"><LoadingSpinner /></div>
         : isError ? <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>
         : assets.length === 0 ? (
-          <EmptyState title="No assets available" description={search ? "Try a different search" : "There are no assets available to request right now"} />
+          <EmptyState title="No assets available" description="There are no assets available to request right now" />
         ) : (
           /* Card view commented out — kept for future use
           viewMode === "card" ? (
@@ -132,7 +107,7 @@ export default function AssetsPage() {
             </div>
           ) :
           */
-          <DataTable columns={TABLE_COLUMNS} data={assets} rowHref={(asset) => `/assets/${asset.id}`} emptyMessage="No assets found." searchable={false} />
+          <DataTable columns={TABLE_COLUMNS} data={assets} rowHref={(asset) => `/assets/${asset.id}`} emptyMessage="No assets found." searchPlaceholder="Search by name or tag…" />
         )}
     </AppLayout>
   );
