@@ -9,6 +9,7 @@ import type {
   ProcurementCreateInput,
   ProcurementStatus,
   PaymentStatus,
+  RequestAuditEntry,
 } from "@/types";
 
 // ── MOCK implementations ───────────────────────────────────────────────────────
@@ -55,8 +56,8 @@ export function useCreateProcurement() {
 export function useUpdateProcurementStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ status, paymentTerms, poIssuedBy }: { status: ProcurementStatus; paymentTerms?: string | null; poIssuedBy?: string | null }) => {
-      procurementStore.updateStatus(id, status, paymentTerms, poIssuedBy);
+    mutationFn: ({ status, paymentTerms, poIssuedBy, auditEntry }: { status: ProcurementStatus; paymentTerms?: string | null; poIssuedBy?: string | null; auditEntry?: RequestAuditEntry }) => {
+      procurementStore.updateStatus(id, status, paymentTerms, poIssuedBy, auditEntry);
       return Promise.resolve(procurementStore.getById(id)!);
     },
     onSuccess: () => {
@@ -90,8 +91,8 @@ export function useProcurementByVendor(vendorId: string) {
 export function useUpdatePaymentStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (paymentStatus: PaymentStatus) => {
-      procurementStore.updatePaymentStatus(id, paymentStatus);
+    mutationFn: ({ paymentStatus, auditEntry }: { paymentStatus: PaymentStatus; auditEntry?: RequestAuditEntry }) => {
+      procurementStore.updatePaymentStatus(id, paymentStatus, auditEntry);
       return Promise.resolve(procurementStore.getById(id)!);
     },
     onSuccess: () => {

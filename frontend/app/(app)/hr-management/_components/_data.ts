@@ -96,7 +96,7 @@ export interface LeaveRequest {
   reliever: string;
   reason?: string;
   supportingDocuments?: string[];
-  status: "draft" | "pending" | "approved" | "in_progress" | "denied";
+  status: "draft" | "pending" | "approved" | "denied";
   date: string;
 }
 
@@ -176,7 +176,7 @@ export const EMPLOYEE_STORE: Employee[] = [...SEED_EMPLOYEES];
 
 export const SEED_LEAVE_REQUESTS: LeaveRequest[] = [
   { id: "l1", ref: "LRQ-20260515-J1K2", requestType: "self",   requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Annual Leave", department: "Finance", startDate: "2026-06-01", endDate: "2026-06-10", days: 8, reliever: "David Okeke", status: "approved", date: "15 May 2026", reason: "Annual leave for rest and personal matters." },
-  { id: "l2", ref: "LRQ-20260510-J3L4", requestType: "self", requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Sick Leave", department: "Finance", startDate: "2026-05-20", endDate: "2026-05-22", days: 2, reliever: "Johnson Ibikunle", status: "in_progress", date: "10 May 2026", reason: "Medical appointment and recuperation." },
+  { id: "l2", ref: "LRQ-20260510-J3L4", requestType: "self", requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Sick Leave", department: "Finance", startDate: "2026-05-20", endDate: "2026-05-22", days: 2, reliever: "Johnson Ibikunle", status: "pending", date: "10 May 2026", reason: "Medical appointment and recuperation." },
   { id: "l3", ref: "LRQ-20260508-J5M6", requestType: "self", requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Compassionate Leave", department: "Finance", startDate: "2026-05-25", endDate: "2026-05-27", days: 2, reliever: "Opeyemi Busari", status: "denied", date: "8 May 2026", reason: "Family emergency requiring immediate attention.", supportingDocuments: ["family-notice.pdf"] },
 ];
 

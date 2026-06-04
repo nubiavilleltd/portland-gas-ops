@@ -1,41 +1,54 @@
-import { cn } from "@/lib/utils";
 import { capitalize } from "@/lib/utils";
+import type { BadgeVariant } from "@/config/badge.config";
+import Badge from "./Badge";
 
-const variants: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
+const variants: Record<string, BadgeVariant> = {
+  draft: "neutral",
+
   // Procurement statuses
-  pending_line_manager: "bg-amber-50 text-amber-700 border border-amber-200",
-  pending_procurement:  "bg-blue-50 text-blue-700 border border-blue-200",
-  awaiting_payment:     "bg-teal-50 text-teal-700 border border-teal-200",
-  submitted: "bg-sky-50 text-sky-700 border border-sky-200",
-  pending: "bg-amber-50 text-amber-700 border border-amber-200",
-  pending_approval: "bg-amber-50 text-amber-700 border border-amber-200",
-  in_progress: "bg-blue-50 text-blue-700 border border-blue-200",
-  approved: "bg-green-50 text-green-700 border border-green-200",
-  acknowledged: "bg-orange-50 text-orange-700 border border-orange-200",
-  allocated: "bg-teal-50 text-teal-700 border border-teal-200",
-  denied: "bg-red-50 text-red-700 border border-red-200",
-  unauthorized: "bg-red-50 text-red-700 border border-red-200",
-  rejected: "bg-red-50 text-red-700 border border-red-200",
-  returned: "bg-orange-50 text-orange-700 border border-orange-200",
+  pending_line_manager:  "warning",
+  pending_procurement:   "info",
+  awaiting_payment:      "teal",
+  awaiting_confirmation: "indigo",
+  returned:              "orange",
+
+  // Common approval statuses
+  submitted:       "info",
+  pending:         "warning",
+  pending_approval: "warning",
+  in_progress:     "info",
+  approved:        "success",
+  acknowledged:    "orange",
+  allocated:       "teal",
+  denied:          "danger",
+  unauthorized:    "danger",
+  rejected:        "danger",
+
+  // Safety statuses
+  recommended:  "warning",
+  resolved:     "success",
+  not_resolved: "danger",
+
   // Order statuses
-  confirmed: "bg-blue-50 text-blue-700 border border-blue-200",
-  dispatched: "bg-indigo-50 text-indigo-700 border border-indigo-200",
-  delivered: "bg-green-50 text-green-700 border border-green-200",
-  cancelled: "bg-gray-100 text-gray-500",
-  // Vehicle / fleet
-  available: "bg-green-50 text-green-700 border border-green-200",
-  in_use: "bg-blue-50 text-blue-700 border border-blue-200",
-  maintenance: "bg-amber-50 text-amber-700 border border-amber-200",
-  retired: "bg-gray-100 text-gray-500",
-  // Safety / HR / Finance
-  active: "bg-green-50 text-green-700 border border-green-200",
-  open: "bg-blue-50 text-blue-700 border border-blue-200",
-  closed: "bg-gray-100 text-gray-500",
-  paid: "bg-green-50 text-green-700 border border-green-200",
-  overdue: "bg-red-50 text-red-700 border border-red-200",
-  scheduled: "bg-amber-50 text-amber-700 border border-amber-200",
-  completed: "bg-green-50 text-green-700 border border-green-200",
+  confirmed:  "info",
+  dispatched: "indigo",
+  delivered:  "success",
+  cancelled:  "neutral",
+
+  // Vehicle / fleet statuses
+  available:   "success",
+  in_use:      "info",
+  maintenance: "warning",
+  retired:     "neutral",
+
+  // Safety / HR / Finance statuses
+  active:    "success",
+  open:      "info",
+  closed:    "neutral",
+  paid:      "success",
+  overdue:   "danger",
+  scheduled: "warning",
+  completed: "success",
 };
 
 interface Props {
@@ -44,26 +57,27 @@ interface Props {
 }
 
 const labels: Record<string, string> = {
-  rejected: "Rejected",
-  approved: "Approved",
-  acknowledged: "Acknowledged",
-  allocated: "Allocated",
-  unauthorized: "Unauthorized",
-  pending_line_manager: "Awaiting Manager",
-  pending_procurement: "Awaiting Procurement",
-  awaiting_payment: "Awaiting Payment",
+  rejected:              "Rejected",
+  approved:              "Approved",
+  acknowledged:          "Acknowledged",
+  allocated:             "Allocated",
+  unauthorized:          "Unauthorized",
+  pending_line_manager:  "Pending",
+  pending_procurement:   "Pending",
+  awaiting_payment:      "Awaiting Payment",
+  awaiting_confirmation: "Awaiting Confirmation",
+  returned:              "Returned",
+  completed:             "Completed",
+  pending_approval:      "Pending Approval",
+  not_resolved:          "Not Resolved",
 };
 
 export default function ApprovalBadge({ status, className }: Props) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-        variants[status],
-        className
-      )}
-    >
-      {labels[status] ?? capitalize(status)}
-    </span>
+    <Badge
+      variant={variants[status] ?? "neutral"}
+      label={labels[status] ?? capitalize(status)}
+      className={className}
+    />
   );
 }

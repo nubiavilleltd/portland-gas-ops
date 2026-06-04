@@ -18,11 +18,22 @@ import type {
   ProcurementListItem,
   ProcurementRequest,
   PaymentStatus,
+  RequestAuditEntry,
   AssetRequestListItem,
   AssetRequest,
   AssetMaintenanceLog,
   AssetRequestStatus,
 } from "@/types";
+
+// ── Store version — bump this when seed data changes to force a re-seed ────────
+const STORE_VERSION = "3";
+
+if (typeof window !== "undefined") {
+  if (localStorage.getItem("mock_store_version") !== STORE_VERSION) {
+    localStorage.clear();
+    localStorage.setItem("mock_store_version", STORE_VERSION);
+  }
+}
 
 // ── Generic localStorage helpers ───────────────────────────────────────────────
 
@@ -391,7 +402,7 @@ const SEED_PROCUREMENT_LIST: ProcurementListItem[] = [
     id: "p3",
     reference: "PR-2025-003",
     category: "technical",
-    status: "awaiting_payment",
+    status: "awaiting_confirmation",
     required_by: "2025-03-31",
     attachment_url: null,
     po_url: "generated",
@@ -418,7 +429,8 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     po_issued_by: null,
     payment_terms: null,
     payment_status: "unpaid" as PaymentStatus,
-    created_by: "Portland Gas Admin",
+    created_by: "felix.ohemu@portlandgas.com",
+    requester: { name: "Felix Ohemu", department: "Assets", job_title: "Field Supervisor" },
     is_active: true,
     created_at: "2025-04-01T09:00:00Z",
     updated_at: null,
@@ -426,6 +438,9 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     one_time_vendor: null,
     items: [
       { id: "pi1", description: "Diesel fuel (Automotive Gas Oil)", quantity: 5000, unit: "litres", unit_cost: 1100, total_cost: 5500000, created_at: "2025-04-01T09:00:00Z" },
+    ],
+    auditTrail: [
+      { action: "Submitted", actor: "Felix Ohemu", role: "Requester", dateTime: "01 Apr 2025, 09:00 AM", comment: "Monthly fuel supply request for standby generators." },
     ],
   },
   {
@@ -442,7 +457,8 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     po_issued_by: "Emeka Nwosu",
     payment_terms: "Net 30",
     payment_status: "unpaid" as PaymentStatus,
-    created_by: "Portland Gas Admin",
+    created_by: "david.okeke@portlandgas.com",
+    requester: { name: "David Okeke", department: "Safety", job_title: "Safety Officer" },
     is_active: true,
     created_at: "2025-04-10T10:00:00Z",
     updated_at: null,
@@ -452,6 +468,11 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
       { id: "pi2", description: "Safety helmets (white, EN397)", quantity: 20, unit: "pieces", unit_cost: 12000, total_cost: 240000, created_at: "2025-04-10T10:00:00Z" },
       { id: "pi3", description: "Cut-resistant gloves (size L)", quantity: 50, unit: "pieces", unit_cost: 3500, total_cost: 175000, created_at: "2025-04-10T10:00:00Z" },
     ],
+    auditTrail: [
+      { action: "Submitted", actor: "David Okeke", role: "Requester", dateTime: "10 Apr 2025, 10:00 AM", comment: "Field team PPE stock is below minimum threshold." },
+      { action: "Approved", actor: "Joseph Chika", role: "Operations Manager", dateTime: "12 Apr 2025, 09:30 AM", comment: "Approved. PPE stock is critical — prioritise delivery." },
+      { action: "PO Issued", actor: "Emeka Nwosu", role: "Procurement Officer", dateTime: "15 Apr 2025, 10:00 AM", comment: "Purchase Order issued to Dangote PPE Supplies. Net 30 payment terms." },
+    ],
   },
   {
     id: "p3",
@@ -459,7 +480,7 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     category: "technical",
     justification: "3 staff laptops are past end-of-life and require replacement.",
     required_by: "2025-03-31",
-    status: "awaiting_payment",
+    status: "awaiting_confirmation",
     attachment_url: null,
     attachment_name: null,
     po_url: "generated",
@@ -467,7 +488,8 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     po_issued_by: "Emeka Nwosu",
     payment_terms: "Payment on delivery",
     payment_status: "paid" as PaymentStatus,
-    created_by: "Portland Gas Admin",
+    created_by: "opeyemi.busari@portlandgas.com",
+    requester: { name: "Opeyemi Busari", department: "Assets", job_title: "Data Analyst" },
     is_active: true,
     created_at: "2025-03-01T08:00:00Z",
     updated_at: null,
@@ -475,6 +497,12 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     one_time_vendor: null,
     items: [
       { id: "pi4", description: "Dell Latitude 5540 (Core i7, 16GB, 512GB SSD)", quantity: 3, unit: "pieces", unit_cost: 850000, total_cost: 2550000, created_at: "2025-03-01T08:00:00Z" },
+    ],
+    auditTrail: [
+      { action: "Submitted", actor: "Opeyemi Busari", role: "Requester", dateTime: "01 Mar 2025, 08:00 AM", comment: "3 staff laptops are past end-of-life and require replacement." },
+      { action: "Approved", actor: "Joseph Chika", role: "Operations Manager", dateTime: "03 Mar 2025, 09:00 AM", comment: "Approved. Replacement is overdue." },
+      { action: "PO Issued", actor: "Emeka Nwosu", role: "Procurement Officer", dateTime: "10 Mar 2025, 08:00 AM", comment: "PO issued to TechHub IT Solutions. Payment on delivery terms." },
+      { action: "Payment Confirmed", actor: "Finance Team", role: "Finance", dateTime: "20 Mar 2025, 02:00 PM", comment: "Payment processed and confirmed." },
     ],
   },
 ];
@@ -489,8 +517,8 @@ const SEED_ASSET_REQUESTS_LIST: AssetRequestListItem[] = [
     purpose: "Site inspection at Eleme facility — need laptop for documentation",
     return_date: "2025-06-01",
     status: "approved",
-    requested_by: "staff-001",
-    requester_name: "Tunde Okafor",
+    requested_by: "felix.ohemu@portlandgas.com",
+    requester_name: "Felix Ohemu",
     item_count: 1,
     created_at: "2025-05-01T08:00:00Z",
   },
@@ -501,8 +529,8 @@ const SEED_ASSET_REQUESTS_LIST: AssetRequestListItem[] = [
     purpose: "Permanent assignment of safety helmet for new field engineer",
     return_date: null,
     status: "pending",
-    requested_by: "staff-002",
-    requester_name: "Ngozi Eze",
+    requested_by: "david.okeke@portlandgas.com",
+    requester_name: "David Okeke",
     item_count: 1,
     created_at: "2025-05-10T10:00:00Z",
   },
@@ -517,8 +545,9 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     return_date: "2025-06-01",
     status: "approved",
     rejection_reason: null,
-    requested_by: "staff-001",
-    requester_name: "Tunde Okafor",
+    requested_by: "felix.ohemu@portlandgas.com",
+    requester_name: "Felix Ohemu",
+    requester: { name: "Felix Ohemu", department: "Assets", job_title: "Field Supervisor" },
     approved_by: "admin-001",
     approved_at: "2025-05-02T09:00:00Z",
     allocated_at: null,
@@ -530,6 +559,10 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     is_active: true,
     created_at: "2025-05-01T08:00:00Z",
     updated_at: "2025-05-02T09:00:00Z",
+    auditTrail: [
+      { action: "Submitted", actor: "Felix Ohemu", role: "Requester", dateTime: "01 May 2025, 08:00 AM", comment: "Need a laptop for documentation during site inspection at Eleme facility." },
+      { action: "Approved", actor: "Asset Admin", role: "Asset Admin", dateTime: "02 May 2025, 09:00 AM", comment: "Approved. Laptop to be prepared and issued." },
+    ],
   },
   {
     id: "ar2",
@@ -539,8 +572,9 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     return_date: null,
     status: "pending",
     rejection_reason: null,
-    requested_by: "staff-002",
-    requester_name: "Ngozi Eze",
+    requested_by: "david.okeke@portlandgas.com",
+    requester_name: "David Okeke",
+    requester: { name: "David Okeke", department: "Safety", job_title: "Safety Officer" },
     approved_by: null,
     approved_at: null,
     allocated_at: null,
@@ -552,6 +586,9 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     is_active: true,
     created_at: "2025-05-10T10:00:00Z",
     updated_at: null,
+    auditTrail: [
+      { action: "Submitted", actor: "David Okeke", role: "Requester", dateTime: "10 May 2025, 10:00 AM", comment: "New field engineer joining the team requires safety helmet assignment." },
+    ],
   },
 ];
 
@@ -592,12 +629,11 @@ export const vendorStore = {
   getAll: (): Vendor[] => read("mock_vendors", SEED_VENDORS),
   getById: (id: string): Vendor | null =>
     vendorStore.getAll().find((v) => v.id === id) ?? null,
-  add: (data: Omit<Vendor, "id" | "is_active" | "created_at" | "updated_at" | "vendor_code" | "logo_url">): Vendor => {
+  add: (data: Omit<Vendor, "id" | "is_active" | "created_at" | "updated_at" | "vendor_code">): Vendor => {
     const vendor: Vendor = {
       ...data,
       id: newId(),
       vendor_code: generateVendorCode(data.name),
-      logo_url: null,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: null,
@@ -787,8 +823,11 @@ export const assetStore = {
 
 // ── Procurement store ──────────────────────────────────────────────────────────
 
-function migrateProcurementStatus(status: string): ProcurementRequest["status"] {
+function migrateProcurementStatus(status: string, paymentStatus?: string): ProcurementRequest["status"] {
   if (status === "po_issued" || status === "sent_to_finance") return "awaiting_payment";
+  if (status === "returned_to_requester") return "returned";
+  // Records that were paid before the awaiting_confirmation status existed
+  if (status === "awaiting_payment" && paymentStatus === "paid") return "awaiting_confirmation";
   return status as ProcurementRequest["status"];
 }
 
@@ -797,7 +836,7 @@ export const procurementStore = {
     read("mock_procurement_list", SEED_PROCUREMENT_LIST).map((p) => ({
       ...p,
       payment_status: p.payment_status ?? ("unpaid" as PaymentStatus),
-      status: migrateProcurementStatus(p.status),
+      status: migrateProcurementStatus(p.status, p.payment_status),
     })),
   getFull: (): ProcurementRequest[] =>
     read("mock_procurement_full", SEED_PROCUREMENT_FULL).map((p) => ({
@@ -806,7 +845,11 @@ export const procurementStore = {
       payment_terms: p.payment_terms ?? null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       po_issued_by: (p as any).po_issued_by ?? null,
-      status: migrateProcurementStatus(p.status),
+      status: migrateProcurementStatus(p.status, p.payment_status),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      requester: (p as any).requester ?? { name: p.created_by, department: "—", job_title: "—" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      auditTrail: (p as any).auditTrail ?? [],
     })),
   getById: (id: string): ProcurementRequest | null =>
     procurementStore.getFull().find((p) => p.id === id) ?? null,
@@ -842,12 +885,16 @@ export const procurementStore = {
       po_issued_by: null,
       payment_terms: null,
       payment_status: "unpaid" as PaymentStatus,
-      created_by: "Portland Gas Admin",
+      created_by: "current-user",
+      requester: { name: "Portland Gas Admin", department: "—", job_title: "—" },
       is_active: true,
       created_at: now,
       updated_at: null,
       vendor,
       one_time_vendor: oneTimeVendor,
+      auditTrail: [
+        { action: "Submitted", actor: "Portland Gas Admin", role: "Requester", dateTime: new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), comment: "Request submitted." },
+      ],
       items: data.items.map((item, i) => ({
         id: `${id}-item-${i}`,
         description: item.description,
@@ -878,18 +925,26 @@ export const procurementStore = {
     write("mock_procurement_full", [full, ...procurementStore.getFull()]);
     return full;
   },
-  updateStatus: (id: string, status: ProcurementRequest["status"], paymentTerms?: string | null, poIssuedBy?: string | null): void => {
+  updateStatus: (id: string, status: ProcurementRequest["status"], paymentTerms?: string | null, poIssuedBy?: string | null, auditEntry?: RequestAuditEntry): void => {
     const now = new Date().toISOString();
     const poFields = status === "awaiting_payment"
       ? { po_url: "generated", po_issued_at: now, po_issued_by: poIssuedBy ?? null, payment_terms: paymentTerms ?? null }
       : {};
     write("mock_procurement_list", procurementStore.getList().map((p) => p.id === id ? { ...p, status, ...poFields } : p));
-    write("mock_procurement_full", procurementStore.getFull().map((p) => p.id === id ? { ...p, status, ...poFields, updated_at: now } : p));
+    write("mock_procurement_full", procurementStore.getFull().map((p) => {
+      if (p.id !== id) return p;
+      const trail = auditEntry ? [...(p.auditTrail ?? []), auditEntry] : (p.auditTrail ?? []);
+      return { ...p, status, ...poFields, updated_at: now, auditTrail: trail };
+    }));
   },
-  updatePaymentStatus: (id: string, paymentStatus: PaymentStatus): void => {
+  updatePaymentStatus: (id: string, paymentStatus: PaymentStatus, auditEntry?: RequestAuditEntry): void => {
     const now = new Date().toISOString();
     write("mock_procurement_list", procurementStore.getList().map((p) => p.id === id ? { ...p, payment_status: paymentStatus } : p));
-    write("mock_procurement_full", procurementStore.getFull().map((p) => p.id === id ? { ...p, payment_status: paymentStatus, updated_at: now } : p));
+    write("mock_procurement_full", procurementStore.getFull().map((p) => {
+      if (p.id !== id) return p;
+      const trail = auditEntry ? [...(p.auditTrail ?? []), auditEntry] : (p.auditTrail ?? []);
+      return { ...p, payment_status: paymentStatus, updated_at: now, auditTrail: trail };
+    }));
   },
   getByVendor: (vendorId: string): ProcurementRequest[] =>
     procurementStore.getFull().filter((p) => p.vendor?.id === vendorId),
@@ -908,6 +963,10 @@ export const assetRequestStore = {
       ...r,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       allocated_asset_ids: (r as any).allocated_asset_ids ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      requester: (r as any).requester ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      auditTrail: (r as any).auditTrail ?? [],
     })),
   getById: (id: string): AssetRequest | null =>
     assetRequestStore.getFull().find((r) => r.id === id) ?? null,
@@ -928,11 +987,15 @@ export const assetRequestStore = {
       rejection_reason: null,
       requested_by: "current-user",
       requester_name: "Portland Gas Admin",
+      requester: { name: "Portland Gas Admin", department: "—", job_title: "—" },
       approved_by: null,
       approved_at: null,
       allocated_at: null,
       allocated_by_name: null,
       allocated_asset_ids: null,
+      auditTrail: [
+        { action: "Submitted", actor: "Portland Gas Admin", role: "Requester", dateTime: new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), comment: "Request submitted." },
+      ],
       items: data.items.map((item, i) => ({
         id: `${id}-item-${i}`,
         asset_type_id: item.asset_type_id,
@@ -961,7 +1024,7 @@ export const assetRequestStore = {
     write("mock_asset_requests_full", [full, ...assetRequestStore.getFull()]);
     return full;
   },
-  updateStatus: (id: string, status: AssetRequest["status"], rejection_reason?: string): void => {
+  updateStatus: (id: string, status: AssetRequest["status"], rejection_reason?: string, auditEntry?: RequestAuditEntry): void => {
     const now = new Date().toISOString();
 
     // When a loan is returned, free all allocated assets back to "available"
@@ -991,7 +1054,11 @@ export const assetRequestStore = {
     }
 
     write("mock_asset_requests_list", assetRequestStore.getList().map((r) => r.id === id ? { ...r, status } : r));
-    write("mock_asset_requests_full", assetRequestStore.getFull().map((r) => r.id === id ? { ...r, status, rejection_reason: rejection_reason ?? null, updated_at: now } : r));
+    write("mock_asset_requests_full", assetRequestStore.getFull().map((r) => {
+      if (r.id !== id) return r;
+      const trail = auditEntry ? [...(r.auditTrail ?? []), auditEntry] : (r.auditTrail ?? []);
+      return { ...r, status, rejection_reason: rejection_reason ?? null, updated_at: now, auditTrail: trail };
+    }));
   },
   allocate: (requestId: string, allocations: { itemId: string; assetIds: string[] }[], allocatedByName: string): AssetRequest => {
     const request = assetRequestStore.getById(requestId);

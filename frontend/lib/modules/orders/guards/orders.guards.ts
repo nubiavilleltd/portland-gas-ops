@@ -52,9 +52,9 @@ export function canAssignToTrip(order: Order): boolean {
 export function canDispatchOrder(order: Order): boolean {
   if (order.order_status !== "confirmed") return false;
 
-  if (order.requires_approval && order.approval_status !== "approved") {
-    return false;
-  }
+//   if (order.requires_approval && order.approval_status !== "approved") {
+//     return false;
+//   }
 
   return true;
 }

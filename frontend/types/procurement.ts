@@ -4,7 +4,19 @@ export type ProcurementStatus =
   | "pending_line_manager"
   | "pending_procurement"
   | "awaiting_payment"
-  | "rejected";
+  | "awaiting_confirmation"
+  | "completed"
+  | "rejected"
+  | "returned";
+
+/** Shared audit trail entry — used on procurement and asset requests */
+export interface RequestAuditEntry {
+  action: string;
+  actor: string;
+  role: string;
+  dateTime: string;
+  comment: string;
+}
 
 export type PaymentStatus = "unpaid" | "part_paid" | "paid";
 
@@ -63,12 +75,14 @@ export interface ProcurementRequest {
   payment_terms: string | null;
   payment_status: PaymentStatus;
   created_by: string;
+  requester: { name: string; department: string; job_title: string };
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
   vendor: Vendor | null;
   one_time_vendor: OneTimeVendor | null;
   items: ProcurementItem[];
+  auditTrail: RequestAuditEntry[];
 }
 
 /** Lighter type used in list views — no items array */

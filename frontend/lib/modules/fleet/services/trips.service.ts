@@ -177,9 +177,15 @@ export class TripsService {
     if (trip.order_ids.length > 0) {
       for (const orderId of trip.order_ids) {
         const order = await OrdersService.getOrderById(orderId);
-        if (!order || order.fulfillment_status !== "delivered") {
+        // if (!order || order.fulfillment_status !== "delivered") {
+        //   throw new Error(
+        //     "All orders must be delivered before completing the trip",
+        //   );
+        // }
+
+        if (!order || order.order_status !== "completed") {
           throw new Error(
-            "All orders must be delivered before completing the trip",
+            "All orders must be completed before completing the trip",
           );
         }
       }
@@ -231,25 +237,25 @@ export class TripsService {
 
   // ── ADD ORDER TO TRIP ────────────────────────────────────
 
-static async addOrderToTrip(tripId: string, orderId: string): Promise<Trip> {
-  const trip = trips.find((t) => t.id === tripId);
-  if (!trip) throw new Error("Trip not found");
-  if (trip.status !== "pending" && trip.status !== "assigned") {
-    throw new Error("Cannot add orders to a trip that is already dispatched");
-  }
+  static async addOrderToTrip(tripId: string, orderId: string): Promise<Trip> {
+    const trip = trips.find((t) => t.id === tripId);
+    if (!trip) throw new Error("Trip not found");
+    if (trip.status !== "pending" && trip.status !== "assigned") {
+      throw new Error("Cannot add orders to a trip that is already dispatched");
+    }
 
-  const order = await OrdersService.getOrderById(orderId);
-  if (!order) throw new Error("Order not found");
-  if (!canLinkOrderToTrip(order)) {
-    throw new Error("Order cannot be assigned to a trip in its current state");
-  }
+    const order = await OrdersService.getOrderById(orderId);
+    if (!order) throw new Error("Order not found");
+    if (!canLinkOrderToTrip(order)) {
+      throw new Error("Order cannot be assigned to a trip in its current state");
+    }
 
-  if (!trip.order_ids.includes(orderId)) {
-    trip.order_ids.push(orderId);
-    await OrdersService.assignToTrip(orderId, tripId);
-  }
+    if (!trip.order_ids.includes(orderId)) {
+      trip.order_ids.push(orderId);
+      await OrdersService.assignToTrip(orderId, tripId);
+    }
 
-  return Promise.resolve(trip);
-}
+    return Promise.resolve(trip);
+  }
 
 }

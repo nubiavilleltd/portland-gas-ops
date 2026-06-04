@@ -59,7 +59,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Supplier invoices and approvals",
         icon: FileText,
         href: "/finance/invoices",
-        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
       },
       {
         name: "Leave Requests",
@@ -72,13 +71,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "View and download your monthly pay slips",
         icon: CreditCard,
         href: "/hr-management/my-payslips",
-      },
-      {
-        name: "Payments",
-        description: "Record and review payments",
-        icon: DollarSign,
-        href: "/payments",
-        showOnHome: false,
       },
       {
         name: "Billing",
@@ -109,6 +101,13 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Customer billing and invoice tracking",
         icon: FileText,
         href: "/invoices",
+      },
+        {
+        name: "Payments",
+        description: "Record and review payments",
+        icon: DollarSign,
+        href: "/payments",
+        showOnHome: false,
       },
     ],
   },

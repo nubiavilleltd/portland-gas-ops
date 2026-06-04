@@ -25,12 +25,12 @@ export default function AppLayout({ children, pageTitle }: Props) {
       )}
 
       {/* Main content — offset by sidebar width on desktop only */}
-      <div className="flex min-h-screen flex-1 flex-col lg:ml-64">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:ml-64">
         <AppHeader
           pageTitle={pageTitle}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="flex-1 p-4 md:p-6">
+        <main className="min-w-0 flex-1 p-4 md:p-6">
           {children}
         </main>
       </div>

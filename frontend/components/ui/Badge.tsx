@@ -1,6 +1,7 @@
 // components/ui/Badge.tsx
 
 import { BADGE_VARIANTS, BadgeVariant } from "@/config/badge.config";
+import { cn } from "@/lib/utils";
 
 
 interface BadgeProps {
@@ -11,7 +12,13 @@ interface BadgeProps {
 
 export default function Badge({ variant = "neutral", label, className }: BadgeProps) {
   return (
-    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${BADGE_VARIANTS[variant]} ${className ?? ""}`}>
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
+        BADGE_VARIANTS[variant],
+        className,
+      )}
+    >
       {label}
     </span>
   );

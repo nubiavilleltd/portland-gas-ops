@@ -119,27 +119,23 @@ export default function TripDetailPage() {
         description="Trip execution and dispatch control center"
         action={
           <div className="flex gap-2">
-            {canAssign && (
-              <Button href={`/fleet/trips/${tripId}/assign`}>
-                Assign Driver & Vehicle
-              </Button>
-            )}
+          
 
             {canDispatch && (
               <Button href={`/fleet/trips/${tripId}/dispatch`}>
-                Dispatch Trip
+                Dispatch Trip →
               </Button>
             )}
 
             {canStart && (
               <Button href={`/fleet/trips/${tripId}/start`}>
-                Start Transit
+                Start Transit →
               </Button>
             )}
 
             {canComplete && (
               <Button href={`/fleet/trips/${tripId}/complete`}>
-                Complete Trip
+                Complete Trip →
               </Button>
             )}
           </div>
@@ -153,7 +149,7 @@ export default function TripDetailPage() {
           title="Trip Summary"
           description={toTitleCase(trip.type.replace(/_/g, " "))}
         >
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start justify-end mb-4">
             <TripStatusBadge status={trip.status} />
           </div>
 
@@ -218,6 +214,14 @@ export default function TripDetailPage() {
           title="Assignment"
           description="Driver and vehicle allocation"
         >
+
+            {canAssign && (
+              <div className="flex justify-end">
+                <Button href={`/fleet/trips/${tripId}/assign`}>
+                Assign Driver & Vehicle →
+              </Button>
+              </div>
+            )}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="border p-4 rounded-xl">
               <p className="text-xs text-brand-text-secondary">Driver</p>
@@ -248,59 +252,6 @@ export default function TripDetailPage() {
                 No orders attached.
               </p>
             ) : (
-              // <div className="overflow-x-auto">
-              //   <table className="w-full text-sm">
-              //     <thead>
-              //       <tr className="border-b text-left">
-              //         <th className="py-2">Order</th>
-              //         <th className="py-2">Customer</th>
-              //         <th className="py-2">Amount</th>
-              //         <th className="py-2">Status</th>
-              //         <th className="py-2"></th>
-              //       </tr>
-              //     </thead>
-
-              //     <tbody>
-              //       {linkedOrders.map((order) =>
-              //         order ? (
-              //           <tr
-              //             key={order.id}
-              //             className="border-b"
-              //           >
-              //             <td className="py-2 font-mono text-xs">
-              //               {order.order_number}
-              //             </td>
-
-              //             <td className="py-2">
-              //               {customerMap.get(order.customer_id)?.name ||
-              //                 "Unknown Customer"}
-              //             </td>
-
-              //             <td className="py-2">
-              //               {formatCurrency(order.total_amount)}
-              //             </td>
-
-              //             <td className="py-2">
-              //               <FulfillmentStatusBadge
-              //                 status={order.fulfillment_status}
-              //               />
-              //             </td>
-
-              //             <td className="py-3 text-right">
-              //               <Button
-              //                 size="sm"
-              //                 variant="outline"
-              //                 href={`/orders/${order.id}`}
-              //               >
-              //                 View
-              //               </Button>
-              //             </td>
-              //           </tr>
-              //         ) : null,
-              //       )}
-              //     </tbody>
-              //   </table>
-              // </div>
               <SimpleTable
                 columns={orderColumns}
                 rows={linkedOrders as Order[]}

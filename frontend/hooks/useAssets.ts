@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { categoryStore, assetTypeStore, assetStore, assetRequestStore, maintenanceLogStore, assignmentLogStore } from "@/lib/mockStore";
-import type { Asset, AssetCategory, AssetType, AssetAssignmentLog, AssetRequest, AssetRequestListItem, AssetRequestStatus, AssetMaintenanceLog, AssetTransferInput } from "@/types";
+import type { Asset, AssetCategory, AssetType, AssetAssignmentLog, AssetRequest, AssetRequestListItem, AssetRequestStatus, AssetMaintenanceLog, AssetTransferInput, RequestAuditEntry } from "@/types";
 
 // ── Categories ─────────────────────────────────────────────────────────────────
 
@@ -226,8 +226,8 @@ export function useCreateAssetRequest() {
 export function useUpdateAssetRequestStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { status: AssetRequestStatus; rejection_reason?: string }) => {
-      assetRequestStore.updateStatus(id, data.status, data.rejection_reason);
+    mutationFn: (data: { status: AssetRequestStatus; rejection_reason?: string; auditEntry?: RequestAuditEntry }) => {
+      assetRequestStore.updateStatus(id, data.status, data.rejection_reason, data.auditEntry);
       return Promise.resolve(assetRequestStore.getById(id)!);
     },
     onSuccess: () => {

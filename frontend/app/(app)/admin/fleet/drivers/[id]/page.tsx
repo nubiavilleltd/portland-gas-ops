@@ -148,7 +148,7 @@ const canAssign = canAssignDriver(driver);
 
       {canAssign && (
         <Button href={`/fleet/trips/new?driverId=${driver.id}`}>
-          Assign Trip
+          Assign Trip →
         </Button>
       )}
   </div>
@@ -207,7 +207,7 @@ const canAssign = canAssignDriver(driver);
                   variant="outline"
                   href={`/fleet/trips/${activeTrip.id}`}
                 >
-                  View Trip
+                  View Trip →
                 </Button>
               </div>
             </div>
