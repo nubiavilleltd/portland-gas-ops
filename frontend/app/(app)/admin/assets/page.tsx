@@ -106,7 +106,7 @@ export default function AdminAssetsPage() {
       render: (asset) => (
         <div className="flex items-center gap-1">
           <a
-            href={`/admin/assets/${asset.id}`}
+            href={`/admin/assets/${asset.id}?edit=true`}
             title="Edit asset"
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
