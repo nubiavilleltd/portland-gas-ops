@@ -96,7 +96,7 @@ export interface LeaveRequest {
   reliever: string;
   reason?: string;
   supportingDocuments?: string[];
-  status: "draft" | "pending" | "approved" | "denied";
+  status: "draft" | "pending" | "approved" | "in_progress" | "denied";
   date: string;
 }
 

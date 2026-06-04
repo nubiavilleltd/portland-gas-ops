@@ -307,6 +307,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                   <FormSelect label="Category" required options={CATEGORY_OPTIONS} placeholder="Select category"
                     value={empForm.category ?? ""} onValueChange={(v) => ue("category", v)} />
                   <FormSelect label="Grade Level" required options={GRADE_OPTIONS} placeholder="Select grade level"
+                    sortOptions={false}
                     value={empForm.grade ?? ""} onValueChange={(v) => ue("grade", v)} />
                   <FormSelect label="Operations Manager" options={managerOptions} placeholder="Select operations manager"
                     value={empForm.lineManagerEmail ?? ""}

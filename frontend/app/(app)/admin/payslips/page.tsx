@@ -358,7 +358,7 @@ export default function PaySlipsPage() {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const filtered = slips.filter((s) => s.period === filterPeriod);
-  const columns  = useMemo(() => createPaySlipColumns(setSelected), []);
+  const columns  = useMemo(() => createPaySlipColumns(setSelected, downloadSinglePdf), []);
 
   // Filter options — unique periods only
   const filterOptions = useMemo(() => {
