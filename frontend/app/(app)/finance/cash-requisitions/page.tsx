@@ -18,6 +18,13 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import DataTable from "@/components/data-table/data-table";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
 import { formatNumber } from "@/lib/utils/format-number";
+
+function applyCommas(raw: string): string {
+  const clean = raw.replace(/[^0-9.]/g, "");
+  const [int, dec] = clean.split(".");
+  const formatted = (int || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dec !== undefined ? `${formatted}.${dec}` : formatted;
+}
 import {
   DEPT_OPTIONS,
   CURRENCY_OPTIONS,
@@ -63,7 +70,7 @@ export default function CashRequisitionsPage() {
       ref,
       title: data.title,
       department: CURRENT_USER.department,
-      amount: parseFloat(data.amount),
+      amount: parseFloat(data.amount.replace(/,/g, "")),
       requester: CURRENT_USER.name,
       jobTitle: CURRENT_USER.role,
       date: TODAY,
@@ -168,10 +175,8 @@ export default function CashRequisitionsPage() {
                   placeholder="0.00"
                   error={errors.amount?.message}
                   {...form.register("amount", {
-                    onBlur: (e) => {
-                      const rawValue = e.target.value.replace(/,/g, "");
-                      const numValue = parseFloat(rawValue) || 0;
-                      e.target.value = formatNumber(numValue);
+                    onChange: (e) => {
+                      e.target.value = applyCommas(e.target.value);
                     },
                   })}
                 />
