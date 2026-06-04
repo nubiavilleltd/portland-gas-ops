@@ -272,7 +272,7 @@ function getPendingHseRequests({
   const closeOutReviews: PendingHseRequest[] = workCloseOuts
     .filter(
       (request) =>
-        request.status === "pending_approval" &&
+        request.status === "pending" &&
         Boolean(request.operationsHeadApproval) &&
         !request.hseApproval,
     )

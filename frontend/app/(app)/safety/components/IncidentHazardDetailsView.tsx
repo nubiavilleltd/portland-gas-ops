@@ -12,6 +12,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockIncidentHazardReport,
@@ -52,6 +53,7 @@ export default function IncidentHazardDetailsView({
   initialRole?: IncidentHazardRole;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const initialReport = getMockIncidentHazardReport(reportId);
   const { incidentHazards } = useSafetyDemoData();
   const report = incidentHazards.find((item) => item.id === reportId) ?? initialReport;
@@ -115,6 +117,7 @@ export default function IncidentHazardDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
+    toast.success("Incident/hazard report submitted.");
   }
 
   function buildHseReview(decision: "Resolved" | "Not Resolved" | "Recommended" | ""): IncidentHazardHseReview {
@@ -160,14 +163,17 @@ export default function IncidentHazardDetailsView({
       hseReview: review,
       auditTrail: [...current.auditTrail, audit],
     }));
+    toast.success("Corrective action recommended to action owner.");
   }
 
   function resolveRecommendedIncident() {
     resolveIncidentWithCompletedWork(persistedReportId);
+    toast.success("Incident marked resolved.");
   }
 
   function closeIncident() {
     closeResolvedIncident(persistedReportId);
+    toast.success("Incident closed by HSE.");
   }
 
   function hseFinalDecision(decision: "Resolved" | "Not Resolved") {
@@ -196,6 +202,11 @@ export default function IncidentHazardDetailsView({
       hseReview: review,
       auditTrail: [...current.auditTrail, audit],
     }));
+    if (decision === "Resolved") {
+      toast.success("Incident resolved by HSE.");
+    } else {
+      toast.error("Incident marked not resolved.");
+    }
   }
 
   return (

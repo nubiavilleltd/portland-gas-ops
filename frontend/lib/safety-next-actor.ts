@@ -15,7 +15,7 @@ export function getIncidentHazardNextActor(report: IncidentHazardReport) {
 
 export function getWorkInitiationNextActor(request: WorkInitiationRequest) {
   if (request.status === "submitted") return "Supervisor";
-  if (request.status === "pending_approval") return "Operations HOD";
+  if (request.status === "pending") return "Operations HOD";
   if (request.status === "returned") return "Requester";
   if (request.status === "approved" || request.status === "denied") return "Closed";
   return "Requester";
@@ -30,7 +30,7 @@ export function getWorkAuthorizationNextActor(request: WorkAuthorizationRequest)
 
 export function getWorkCloseOutNextActor(request: WorkCloseOutRequest) {
   if (request.status === "submitted") return "Supervisor";
-  if (request.status === "pending_approval") {
+  if (request.status === "pending") {
     return request.operationsHeadApproval ? "HSE Inspector" : "Operations Head";
   }
   if (request.status === "returned") return "Requester";

@@ -30,7 +30,7 @@ export type WorkInitiationRole = "requester" | "supervisor" | "operations_hod";
 export type WorkInitiationStatus =
   | "draft"
   | "submitted"
-  | "pending_approval"
+  | "pending"
   | "returned"
   | "approved"
   | "denied";
@@ -193,7 +193,7 @@ export interface WorkAuthorizationRequest {
 export type WorkCloseOutStatus =
   | "draft"
   | "submitted"
-  | "pending_approval"
+  | "pending"
   | "approved"
   | "acknowledged"
   | "returned"

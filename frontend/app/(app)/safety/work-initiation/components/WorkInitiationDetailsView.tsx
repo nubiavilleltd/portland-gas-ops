@@ -13,6 +13,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import { useToast } from "@/hooks/useToast";
 import {
   contractorContactEmailByName,
   getMockWorkInitiationRequest,
@@ -63,6 +64,7 @@ export default function WorkInitiationDetailsView({
   initialRole?: WorkInitiationRole;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const initialRequest = getMockWorkInitiationRequest(requestId);
   const { incidentHazards, workInitiations } = useSafetyDemoData();
   const request = workInitiations.find((item) => item.id === requestId) ?? initialRequest;
@@ -98,7 +100,7 @@ export default function WorkInitiationDetailsView({
     currentRole === "requester" && (request.status === "draft" || request.status === "returned");
   const canSupervisorReview = currentRole === "supervisor" && request.status === "submitted";
   const canOperationsHodReview =
-    currentRole === "operations_hod" && request.status === "pending_approval";
+    currentRole === "operations_hod" && request.status === "pending";
 
   function persistUpdate(
     update: (current: WorkInitiationRequest) => WorkInitiationRequest,
@@ -120,13 +122,14 @@ export default function WorkInitiationDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
+    toast.success("Work initiation submitted.");
   }
 
   function supervisorReview(decision: WorkAuthorizationDecision) {
     if (!request) return;
     if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) return;
     const nextStatus =
-      decision === "Approve" ? "pending_approval" : decision === "Return" ? "returned" : "denied";
+      decision === "Approve" ? "pending" : decision === "Return" ? "returned" : "denied";
     const result = {
       decision,
       approver: request.assignment.assignedSupervisor || "Mary James",
@@ -150,6 +153,7 @@ export default function WorkInitiationDetailsView({
       supervisorApproval: result,
       auditTrail: [...current.auditTrail, audit],
     }));
+    showDecisionToast(toast, "Work initiation", decision, "Supervisor");
   }
 
   function operationsHodReview(decision: WorkAuthorizationDecision) {
@@ -182,6 +186,7 @@ export default function WorkInitiationDetailsView({
       operationalReview: result,
       auditTrail: [...current.auditTrail, audit],
     }));
+    showDecisionToast(toast, "Work initiation", decision, "Operations HOD");
   }
 
   return (
@@ -527,7 +532,7 @@ function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachm
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
   if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your supervisor review." : "Waiting for supervisor approval.";
-  if (request.status === "pending_approval") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
+  if (request.status === "pending") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
   if (request.status === "approved") note = "Work approved by Operations HOD. Its assigned team is eligible for Work Authorization.";
   if (request.status === "returned") note = currentRole === "requester" ? "This request was returned. Update and resubmit." : "This request was returned to the requester.";
   if (request.status === "denied") note = "This work initiation request has been denied and closed.";
@@ -551,4 +556,19 @@ function getWorkInitiationRoleLabel(role: WorkInitiationRole) {
   if (role === "operations_hod") return "Operations HOD";
   if (role === "supervisor") return "Supervisor";
   return "Requester";
+}
+
+function showDecisionToast(
+  toast: ReturnType<typeof useToast>,
+  recordLabel: string,
+  decision: WorkAuthorizationDecision,
+  actorLabel: string,
+) {
+  if (decision === "Approve") {
+    toast.success(`${recordLabel} approved by ${actorLabel}.`);
+  } else if (decision === "Return") {
+    toast.info(`${recordLabel} returned to requester.`);
+  } else {
+    toast.error(`${recordLabel} denied by ${actorLabel}.`);
+  }
 }
