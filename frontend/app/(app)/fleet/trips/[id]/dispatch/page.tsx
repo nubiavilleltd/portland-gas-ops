@@ -17,6 +17,8 @@ import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useDispatchTripWorkflow } from "@/lib/modules/fleet/hooks/useDispatchTripWorkflow";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function DispatchTripPage() {
   const params = useParams();
@@ -79,6 +81,11 @@ export default function DispatchTripPage() {
 
   return (
     <AppLayout pageTitle="Dispatch Trip">
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        label="Back to Trip"
+      />
       <PageHeader
         title={`Dispatch — ${trip.trip_number}`}
         description="Formally dispatch this trip from the depot. Orders will be updated."

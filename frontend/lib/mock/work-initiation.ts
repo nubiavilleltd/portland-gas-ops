@@ -183,7 +183,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
   },
   {
     id: "WI-PEND-001",
-    status: "pending_approval",
+    status: "pending",
     requester: mockWorkInitiationRequester,
     title: "Routine maintenance on conversion bay equipment",
     workDescription: "Service conversion bay equipment and verify readiness.",

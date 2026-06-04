@@ -29,6 +29,7 @@ import { canGenerateInvoice } from "@/lib/modules/orders/guards/orders.guards";
 import { Order } from "@/lib/modules/orders/types/orders.types";
 import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreateInvoiceWorkflow";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { BackButton } from "@/components/ui/BackButton";
 
 
 
@@ -147,6 +148,8 @@ function CreateInvoicePageContent() {
         <ArrowLeft size={14} />
         Back to Order
       </button> */}
+
+       <BackButton label="Back" />
 
       <PageHeader
         title="Generate Invoice"
