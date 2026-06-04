@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { FLEET_ROUTES } from "@/lib/routes";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function DriverDetailPage() {
   const params = useParams();
@@ -29,14 +30,14 @@ export default function DriverDetailPage() {
     driver,
     isLoading: driversLoading,
   } = useDriverById(id);
-    // const { trips } = useTrips();
+  // const { trips } = useTrips();
 
 
-    const { trips: driverTrips } = useTripsByDriver(driver?.id as string);
+  const { trips: driverTrips } = useTripsByDriver(driver?.id as string);
 
-const sortedTrips = [...driverTrips].sort(
-  (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-);
+  const sortedTrips = [...driverTrips].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // ✅ DERIVE DRIVER (no selector, no hook, no extra abstraction)
   // const driver = drivers.find((d) => d.id === id);
@@ -59,18 +60,18 @@ const sortedTrips = [...driverTrips].sort(
   }
 
   const canSuspend = canSuspendDriver(driver);
-const canReinstate = canReinstateDriver(driver);
-const canGoOffDuty = canSetOffDuty(driver);
-const canGoAvailable = canSetAvailable(driver);
-const canAssign = canAssignDriver(driver);
+  const canReinstate = canReinstateDriver(driver);
+  const canGoOffDuty = canSetOffDuty(driver);
+  const canGoAvailable = canSetAvailable(driver);
+  const canAssign = canAssignDriver(driver);
 
 
   // const activeTrip = driver.current_trip_id
   //   ? trips.find((t) => t.id === driver.current_trip_id)
   //   : undefined;
   const activeTrip = driver.current_trip_id
-  ? driverTrips.find((t) => t.id === driver.current_trip_id)
-  : undefined;
+    ? driverTrips.find((t) => t.id === driver.current_trip_id)
+    : undefined;
 
   const profileImage =
     driver.profile_image ??
@@ -79,80 +80,85 @@ const canAssign = canAssignDriver(driver);
     )}`;
 
 
-    const tripColumns: SimpleTableColumn<Trip>[] = [
-  {
-    label: "Trip",
-    render: (trip) => (
-      <span className="font-mono text-xs">{trip.trip_number}</span>
-    ),
-  },
-  {
-    label: "Type",
-    render: (trip) => toTitleCase(trip.type.replaceAll("_", " ")),
-  },
-  {
-    label: "Date",
-    render: (trip) => formatDate(trip.scheduled_date),
-  },
-  {
-    label: "Status",
-    render: (trip) => <TripStatusBadge status={trip.status} />,
-  },
-  {
-    label: "",
-    align: "right",
-    render: (trip) => (
-      <Button size="sm" variant="outline" href={`${FLEET_ROUTES.tripDetail(trip.id)}`}>
-        View
-      </Button>
-    ),
-  },
-];
+  const tripColumns: SimpleTableColumn<Trip>[] = [
+    {
+      label: "Trip",
+      render: (trip) => (
+        <span className="font-mono text-xs">{trip.trip_number}</span>
+      ),
+    },
+    {
+      label: "Type",
+      render: (trip) => toTitleCase(trip.type.replaceAll("_", " ")),
+    },
+    {
+      label: "Date",
+      render: (trip) => formatDate(trip.scheduled_date),
+    },
+    {
+      label: "Status",
+      render: (trip) => <TripStatusBadge status={trip.status} />,
+    },
+    {
+      label: "",
+      align: "right",
+      render: (trip) => (
+        <Button size="sm" variant="outline" href={`${FLEET_ROUTES.tripDetail(trip.id)}`}>
+          View
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <AppLayout pageTitle={driver.full_name}>
+
+      <BackButton
+        href={`/admin${FLEET_ROUTES.driverList()}`}
+        label="Back to Drivers"
+      />
       <PageHeader
         title={driver.full_name}
         description={`${driver.phone_number} • ${driver.license_number}`}
 
 
         action={
-  <div className="flex gap-2">
-    <Button variant="outline" href={`/admin${FLEET_ROUTES.driverEdit(driver.id)}`}>
-      Edit Driver
-    </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" href={`/admin${FLEET_ROUTES.driverEdit(driver.id)}`}>
+              Edit Driver
+            </Button>
 
-    {canGoOffDuty && (
-      <Button variant="outline" onClick={() => toast.info("Coming soon")}>
-        Set Off Duty
-      </Button>
-    )}
+            {canGoOffDuty && (
+              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
+                Set Off Duty
+              </Button>
+            )}
 
-    {canGoAvailable && (
-      <Button variant="outline" onClick={() => toast.info("Coming soon")}>
-        Set Available
-      </Button>
-    )}
+            {canGoAvailable && (
+              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
+                Set Available
+              </Button>
+            )}
 
-    {canSuspend && (
-      <Button variant="outline" onClick={() => toast.info("Coming soon")}>
-        Suspend Driver
-      </Button>
-    )}
+            {canSuspend && (
+              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
+                Suspend Driver
+              </Button>
+            )}
 
-    {canReinstate && (
-      <Button variant="outline" onClick={() => toast.info("Coming soon")}>
-        Reinstate Driver
-      </Button>
-    )}
+            {canReinstate && (
+              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
+                Reinstate Driver
+              </Button>
+            )}
 
-      {canAssign && (
-        <Button href={`/fleet/trips/new?driverId=${driver.id}`}>
-          Assign Trip →
-        </Button>
-      )}
-  </div>
-}
+            {canAssign && (
+              <Button href={`/fleet/trips/new?driverId=${driver.id}`}>
+                Assign Trip →
+              </Button>
+            )}
+          </div>
+        }
       />
 
       <div className="space-y-6">
@@ -175,15 +181,15 @@ const canAssign = canAssignDriver(driver);
             <DriverStatusBadge status={driver.status} />
           </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 text-sm">
-  <Info label="Full Name" value={driver.full_name} />
-  <Info label="Phone" value={driver.phone_number} />
-  <Info label="Email" value={driver.email} />
-  <Info label="Address" value={driver.address ?? "—"} />
-  <Info label="License Number" value={driver.license_number} />
-  <Info label="License Expiry" value={formatDate(driver.license_expiry_date)} />
-  <Info label="Experience" value={`${driver.experience_years ?? 0} years`} />
-</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 text-sm">
+            <Info label="Full Name" value={driver.full_name} />
+            <Info label="Phone" value={driver.phone_number} />
+            <Info label="Email" value={driver.email} />
+            <Info label="Address" value={driver.address ?? "—"} />
+            <Info label="License Number" value={driver.license_number} />
+            <Info label="License Expiry" value={formatDate(driver.license_expiry_date)} />
+            <Info label="Experience" value={`${driver.experience_years ?? 0} years`} />
+          </div>
         </FormSection>
 
         {/* CURRENT ASSIGNMENT */}
@@ -233,19 +239,19 @@ const canAssign = canAssignDriver(driver);
         </FormSection>
 
         {/* TRIP HISTORY */}
-      <FormSection
-  title="Trip History"
-  description="All trips associated with this driver"
->
+        <FormSection
+          title="Trip History"
+          description="All trips associated with this driver"
+        >
 
 
-    <SimpleTable
-    columns={tripColumns}
-    rows={sortedTrips.slice(0, 5)}
-    keyExtractor={(trip) => trip.id}
-    emptyMessage="No trips recorded yet."
-  />
-</FormSection>
+          <SimpleTable
+            columns={tripColumns}
+            rows={sortedTrips.slice(0, 5)}
+            keyExtractor={(trip) => trip.id}
+            emptyMessage="No trips recorded yet."
+          />
+        </FormSection>
 
       </div>
     </AppLayout>

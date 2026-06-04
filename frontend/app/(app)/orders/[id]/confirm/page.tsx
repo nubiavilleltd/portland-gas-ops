@@ -24,48 +24,24 @@ import { useConfirmOrderWorkflow } from "@/lib/modules/orders/hooks/useConfirmOr
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { BackButton } from "@/components/ui/BackButton";
+import { ORDER_ROUTES } from "@/lib/routes";
 
 export default function ConfirmOrderPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params.id as string;
-  const {order} = useOrderById(id);
+  const { order } = useOrderById(id);
   const { customers } = useCustomers();
-const customerMap = new Map(customers.map((c) => [c.id, c]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   // const [isSubmitting, setIsSubmitting] = useState(false);
   // const [error, setError] = useState<string | null>(null);
   // const confirmMutation = useConfirmOrder();
 
   const { mutate: confirmOrder, isPending } =
-  useConfirmOrderWorkflow(order);
-
-
-    // // ── ACTION: confirm order (workflow layer)
-    // async function handleConfirm() {
-    //   await confirmOrder.mutate();
-  
-    //   // optional UX navigation (workflow already updated cache)
-    //   router.push(ORDER_ROUTES.detail(order.id));
-    // }
-  
-
-
-  // async function handleConfirm() {
-  //   setIsSubmitting(true);
-  //   setError(null);
-  //   try {
-  //     await confirmMutation.mutateAsync(id);
-
-  //   toast.success("Order confirmed");
-  //     router.push(`/orders/${id}`);
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : "Failed to confirm order");
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // }
+    useConfirmOrderWorkflow(order);
 
   if (!order) {
     return (
@@ -98,25 +74,25 @@ const customerMap = new Map(customers.map((c) => [c.id, c]));
 
 
 
-const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
-  {
-    label: "Product",
-    render: (item) => <span className="font-medium">{item.product_name}</span>,
-  },
-  {
-    label: "Quantity",
-    render: (item) => `${item.quantity.toLocaleString()} kg`,
-  },
-  {
-    label: "Unit Price",
-    render: (item) => formatCurrency(item.unit_price),
-  },
-  {
-    label: "Total",
-    align: "right",
-    render: (item) => formatCurrency(item.total),
-  },
-];
+  const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+    {
+      label: "Product",
+      render: (item) => <span className="font-medium">{item.product_name}</span>,
+    },
+    {
+      label: "Quantity",
+      render: (item) => `${item.quantity.toLocaleString()} kg`,
+    },
+    {
+      label: "Unit Price",
+      render: (item) => formatCurrency(item.unit_price),
+    },
+    {
+      label: "Total",
+      align: "right",
+      render: (item) => formatCurrency(item.total),
+    },
+  ];
 
 
   return (
@@ -128,6 +104,11 @@ const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
         <ArrowLeft size={14} />
         Back to Order
       </button> */}
+
+      <BackButton
+        href={`${ORDER_ROUTES.detail(id)}`}
+        label="Back to Order"
+      />
 
       <PageHeader
         title="Confirm Order"
@@ -177,66 +158,66 @@ const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     </div>
   </div>
 </FormSection> */}
-<FormSection
-  title="Order Review"
-  description="Review all order details before confirmation"
->
-  <div className="grid grid-cols-2 gap-4 text-sm mb-5">
-    <InfoRow label="Order Number" value={order.order_number} />
-    <InfoRow label="Customer" value={customerMap.get(order.customer_id)?.name ?? "—"} />
-    <InfoRow
-      label="Delivery Date"
-      value={order.delivery_date ? formatDate(order.delivery_date) : "Not set"}
-    />
-    <InfoRow label="Delivery Address" value={order.delivery_address} />
-  </div>
+        <FormSection
+          title="Order Review"
+          description="Review all order details before confirmation"
+        >
+          <div className="grid grid-cols-2 gap-4 text-sm mb-5">
+            <InfoRow label="Order Number" value={order.order_number} />
+            <InfoRow label="Customer" value={customerMap.get(order.customer_id)?.name ?? "—"} />
+            <InfoRow
+              label="Delivery Date"
+              value={order.delivery_date ? formatDate(order.delivery_date) : "Not set"}
+            />
+            <InfoRow label="Delivery Address" value={order.delivery_address} />
+          </div>
 
-  <div className="border-t border-brand-border pt-4">
-    <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
-    <SimpleTable
-      columns={itemColumns}
-      rows={order.order_items}
-      keyExtractor={(_, index) => String(index)}
-      footer={
-        <tr>
-          <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
-            Grand Total
-          </td>
-          <td className="pt-3 text-right font-semibold">
-            {formatCurrency(order.total_amount)}
-          </td>
-        </tr>
-      }
-    />
-  </div>
-</FormSection>
+          <div className="border-t border-brand-border pt-4">
+            <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
+            <SimpleTable
+              columns={itemColumns}
+              rows={order.order_items}
+              keyExtractor={(_, index) => String(index)}
+              footer={
+                <tr>
+                  <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+                    Grand Total
+                  </td>
+                  <td className="pt-3 text-right font-semibold">
+                    {formatCurrency(order.total_amount)}
+                  </td>
+                </tr>
+              }
+            />
+          </div>
+        </FormSection>
 
         {/* STATUS PREVIEW */}
         <FormSection
-  title="Status Change"
-  description="Preview how the order status will change after confirmation"
->
-  <div className="flex items-center gap-4 text-sm">
-    <div>
-      <p className="text-xs text-brand-text-secondary mb-1">Current</p>
-      <OrderStatusBadge status="draft" />
-    </div>
+          title="Status Change"
+          description="Preview how the order status will change after confirmation"
+        >
+          <div className="flex items-center gap-4 text-sm">
+            <div>
+              <p className="text-xs text-brand-text-secondary mb-1">Current</p>
+              <OrderStatusBadge status="draft" />
+            </div>
 
-    <span className="text-brand-text-secondary">→</span>
+            <span className="text-brand-text-secondary">→</span>
 
-    <div>
-      <p className="text-xs text-brand-text-secondary mb-1">
-        After Confirmation
-      </p>
-      <OrderStatusBadge status="confirmed" />
-    </div>
-  </div>
+            <div>
+              <p className="text-xs text-brand-text-secondary mb-1">
+                After Confirmation
+              </p>
+              <OrderStatusBadge status="confirmed" />
+            </div>
+          </div>
 
-  <p className="text-xs text-brand-text-secondary mt-4">
-    After confirmation, this order will appear in the dispatch queue and can
-    be assigned to a trip.
-  </p>
-</FormSection>
+          <p className="text-xs text-brand-text-secondary mt-4">
+            After confirmation, this order will appear in the dispatch queue and can
+            be assigned to a trip.
+          </p>
+        </FormSection>
 
         {/* ERROR */}
         {/* {error && (

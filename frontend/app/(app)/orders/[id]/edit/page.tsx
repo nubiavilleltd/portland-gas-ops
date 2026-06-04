@@ -21,6 +21,7 @@ import { getProductById } from "@/lib/modules/products/selectors/products.select
 import { buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
 import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function EditOrderPage() {
   const params = useParams();
@@ -30,10 +31,10 @@ export default function EditOrderPage() {
 
   const { order, isLoading, error } = useOrderById(id);
 
-  console.log("order id", {order})
+  console.log("order id", { order })
   const { products } = useProducts();
   const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
-const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
+  const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 
   // ── Loading skeleton ──────────────────────────────────
   if (isLoading) {
@@ -111,16 +112,16 @@ const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 
 
   const defaultValues: Partial<CreateOrderFormValues> = {
-  customer_id: order.customer_id,
-  order_items: order.order_items.map((item) => ({
-    product_id: item.product_id,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-  })),
-  delivery_address: order.delivery_address,
-  delivery_date: order.delivery_date ?? "",
-  notes: order.notes ?? "",
-};
+    customer_id: order.customer_id,
+    order_items: order.order_items.map((item) => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+    })),
+    delivery_address: order.delivery_address,
+    delivery_date: order.delivery_date ?? "",
+    notes: order.notes ?? "",
+  };
 
   // ── Submit ────────────────────────────────────────────
   // async function handleSubmit(data: CreateOrderFormValues) {
@@ -143,11 +144,11 @@ const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
   // }
 
   async function handleSubmit(data: CreateOrderFormValues) {
-  await submitOrder({ input: buildOrderPayload(data, products), existingDraftId: id });
-}
-async function handleSaveDraft(data: CreateOrderFormValues) {
-  await saveDraft({ input: buildOrderPayload(data, products), existingDraftId: id });
-}
+    await submitOrder({ input: buildOrderPayload(data, products), existingDraftId: id });
+  }
+  async function handleSaveDraft(data: CreateOrderFormValues) {
+    await saveDraft({ input: buildOrderPayload(data, products), existingDraftId: id });
+  }
 
   return (
     <AppLayout pageTitle="Edit Order">
@@ -158,6 +159,11 @@ async function handleSaveDraft(data: CreateOrderFormValues) {
         <ArrowLeft size={14} />
         Back to Order
       </button> */}
+
+      <BackButton
+        href={`${ORDER_ROUTES.detail(id)}`}
+        label="Back to Order"
+      />
 
       <PageHeader
         title={`Edit — ${order.order_number}`}
@@ -173,14 +179,14 @@ async function handleSaveDraft(data: CreateOrderFormValues) {
         submitLoadingLabel="Submitting..."
       /> */}
       <OrderForm
-  defaultValues={defaultValues}
-  onSubmit={handleSubmit}
-  // onCancel={() => router.push(ORDER_ROUTES.detail(id))}
-  onSaveDraft={handleSaveDraft}
-  submitLabel="Submit Order"
-  submitLoadingLabel="Submitting..."
-  showDraft
-/>
+        defaultValues={defaultValues}
+        onSubmit={handleSubmit}
+        // onCancel={() => router.push(ORDER_ROUTES.detail(id))}
+        onSaveDraft={handleSaveDraft}
+        submitLabel="Submit Order"
+        submitLoadingLabel="Submitting..."
+        showDraft
+      />
     </AppLayout>
   );
 }

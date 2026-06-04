@@ -1621,7 +1621,7 @@ import { useRecordPaymentWorkflow } from "@/lib/modules/payments/hooks/useRecord
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { PAYMENT_METHOD_OPTIONS, PaymentMethod } from "@/lib/modules/payments/types/payments.types";
 import FormSelect from "@/components/forms/FormSelect";
-import {FormCurrencyInput} from "@/components/forms/FormCurrencyInput";
+import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
 
 /* ── INVOICE SELECTOR ─────────────────────────────────────── */
 function InvoiceSelector({
@@ -1700,9 +1700,9 @@ function CreatePaymentPageContent() {
   const [selectedInvoice, setSelectedInvoice] =
     useState<Invoice | null>(invoice ?? null);
 
-      const { mutate: recordPayment, isPending } = useRecordPaymentWorkflow(
-  selectedInvoice ?? ({ id: "" } as Invoice)
-);
+  const { mutate: recordPayment, isPending } = useRecordPaymentWorkflow(
+    selectedInvoice ?? ({ id: "" } as Invoice)
+  );
 
   useEffect(() => {
     if (invoice) {
@@ -1783,9 +1783,9 @@ function CreatePaymentPageContent() {
   // }
 
   async function onSubmit(data: PaymentForm) {
-  if (!selectedInvoice) return;
-  recordPayment(data);
-}
+    if (!selectedInvoice) return;
+    recordPayment(data);
+  }
 
   return (
     <AppLayout pageTitle="Record Payment">
@@ -1813,15 +1813,15 @@ function CreatePaymentPageContent() {
 
               <div className="flex justify-end">
                 <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedInvoice(null);
-                  router.replace("/payments/new");
-                }}
-              >
-                Change Invoice
-              </Button>
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedInvoice(null);
+                    router.replace("/payments/new");
+                  }}
+                >
+                  Change Invoice
+                </Button>
               </div>
               <div className="grid grid-cols-3 gap-5 text-sm">
                 <InfoRow
@@ -1872,12 +1872,12 @@ function CreatePaymentPageContent() {
                   })}
                 /> */}
 
- <FormCurrencyInput
-  control={control}
-  name="amount"
-  label="Amount (₦)"
-  error={errors.amount?.message}
-/>
+                <FormCurrencyInput
+                  control={control}
+                  name="amount"
+                  label="Amount (₦)"
+                  error={errors.amount?.message}
+                />
 
 
                 <FormInput
@@ -1907,7 +1907,7 @@ function CreatePaymentPageContent() {
                 <div className="md:col-span-2 flex justify-end">
                   <Button
                     type="submit"
-                   loading={isSubmitting || isPending}
+                    loading={isSubmitting || isPending}
                   >
                     Record Payment
                   </Button>

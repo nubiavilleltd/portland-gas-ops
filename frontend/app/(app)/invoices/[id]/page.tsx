@@ -29,6 +29,7 @@ import {
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { Payment } from "@/lib/modules/payments/types/payments.types";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -127,6 +128,8 @@ export default function InvoiceDetailPage() {
 
   return (
     <AppLayout pageTitle="Invoice Details">
+
+      <BackButton label="Back" />
       <PageHeader
         title={invoice.invoice_number}
         description="Invoice lifecycle and payment tracking"
@@ -202,8 +205,8 @@ export default function InvoiceDetailPage() {
 
               <p
                 className={`mt-1 font-medium ${balance > 0
-                    ? "text-red-600"
-                    : "text-green-600"
+                  ? "text-red-600"
+                  : "text-green-600"
                   }`}
               >
                 {formatCurrency(balance)}
@@ -282,48 +285,48 @@ export default function InvoiceDetailPage() {
 
         {/* PAYMENTS */}
         <FormSection title="Payments" description="Review payment history and invoice payment status.">
-            <div className="mb-4 flex items-center justify-end">
-              {!isPaid && (
-                <Button
-                  size="sm"
-                  href={`/payments/new?invoiceId=${invoice.id}`}
-                >
-                  Make Payment →
-                </Button>
-              )}
-            </div>
-
-
-
-            <SimpleTable
-              columns={paymentColumns}
-              rows={invoicePayments}
-              keyExtractor={(payment) => payment.id}
-              emptyMessage="No payments recorded for this invoice yet."
-              footer={
-                invoicePayments.length > 0 ? (
-                  <tr className="border-t-2 border-brand-border">
-                    <td colSpan={3} className="pt-3 font-semibold">
-                      Total Paid
-                    </td>
-                    <td className="pt-3 text-right font-semibold text-green-600">
-                      {formatCurrency(amountPaid)}
-                    </td>
-                  </tr>
-                ) : undefined
-              }
-            />
-
-            {isPaid && (
-              <div className="mt-4 flex gap-2">
-                <Button
-                  href={`/payments/${invoice.id}/receipt`}
-                  variant="outline"
-                >
-                  View Receipt →
-                </Button>
-              </div>
+          <div className="mb-4 flex items-center justify-end">
+            {!isPaid && (
+              <Button
+                size="sm"
+                href={`/payments/new?invoiceId=${invoice.id}`}
+              >
+                Make Payment →
+              </Button>
             )}
+          </div>
+
+
+
+          <SimpleTable
+            columns={paymentColumns}
+            rows={invoicePayments}
+            keyExtractor={(payment) => payment.id}
+            emptyMessage="No payments recorded for this invoice yet."
+            footer={
+              invoicePayments.length > 0 ? (
+                <tr className="border-t-2 border-brand-border">
+                  <td colSpan={3} className="pt-3 font-semibold">
+                    Total Paid
+                  </td>
+                  <td className="pt-3 text-right font-semibold text-green-600">
+                    {formatCurrency(amountPaid)}
+                  </td>
+                </tr>
+              ) : undefined
+            }
+          />
+
+          {isPaid && (
+            <div className="mt-4 flex gap-2">
+              <Button
+                href={`/payments/${invoice.id}/receipt`}
+                variant="outline"
+              >
+                View Receipt →
+              </Button>
+            </div>
+          )}
         </FormSection>
       </div>
     </AppLayout>

@@ -8,6 +8,8 @@ import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
 import { UploadService } from "@/lib/services/upload.service";
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { FLEET_ROUTES } from "@/lib/routes";
+import { toast } from "sonner";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function EditDriverPage() {
   const params = useParams();
@@ -41,11 +43,18 @@ export default function EditDriverPage() {
       profile_image: profileImageUrl,
     });
 
+    toast.success("Driver successfully updated")
+
     router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`);
   }
 
   return (
     <AppLayout pageTitle="Edit Driver">
+
+      <BackButton
+        href={`/admin/${FLEET_ROUTES.driverDetail(id)}`}
+        label="Back to Driver"
+      />
       <PageHeader
         title={`Edit — ${driver.full_name}`}
         description={driver.license_number}

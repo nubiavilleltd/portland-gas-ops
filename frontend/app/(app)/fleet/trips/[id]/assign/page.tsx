@@ -19,6 +19,8 @@ import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { useAvailableDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useAvailableVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useAssignResourcesWorkflow } from "@/lib/modules/fleet/hooks/useAssignResourcesWorkflow";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES, ORDER_ROUTES } from "@/lib/routes";
 
 export default function AssignResourcesPage() {
   const params = useParams();
@@ -89,6 +91,11 @@ export default function AssignResourcesPage() {
 
   return (
     <AppLayout pageTitle="Assign Driver & Vehicle">
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        label="Back to Trip"
+      />
       <PageHeader
         title={`Assign Driver & Vehicle — ${trip.trip_number}`}
         description="Select a driver and vehicle to assign to this trip."

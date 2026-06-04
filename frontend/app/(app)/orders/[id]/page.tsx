@@ -31,6 +31,7 @@ import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBad
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
+import { BackButton } from "@/components/ui/BackButton";
 
 
 
@@ -114,6 +115,11 @@ export default function OrderDetailPage() {
 
   return (
     <AppLayout pageTitle="Order Details">
+
+      <BackButton
+        href={`${ORDER_ROUTES.list()}`}
+        label="Back to Orders"
+      />
       <PageHeader
         title={order.order_number}
         description="Customer gas order workflow and transaction details"

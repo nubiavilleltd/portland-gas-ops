@@ -14,11 +14,13 @@ import { CustomersService } from "@/lib/modules/customers/services/customers.ser
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 import CustomerForm from "@/lib/modules/customers/components/CustomerForm";
 import FormSection from "@/components/ui/FormSection";
+import { BackButton } from "@/components/ui/BackButton";
+import { toast } from "sonner";
 
 export default function EditCustomerPage() {
   const params = useParams();
   const router = useRouter();
-  const id     = params.id as string;
+  const id = params.id as string;
 
   const { customer, isLoading, error } = useCustomerById(id);
 
@@ -37,31 +39,43 @@ export default function EditCustomerPage() {
     return (
       <AppLayout pageTitle="Customer Not Found">
         <ErrorBanner message={error ?? "This customer could not be found."} />
-        <Button
+        {/* <Button
           variant="outline"
           className="mt-4"
           onClick={() => router.push(`/admin${CUSTOMER_ROUTES.list()}`)}
         >
           Back to Customers
-        </Button>
+        </Button> */}
+
+        <BackButton
+          href={`/admin${CUSTOMER_ROUTES.list()}`}
+          label="Back to Customers"
+          className="mt-4"
+        />
       </AppLayout>
     );
   }
 
   async function handleSubmit(data: CreateCustomerFormData) {
     await CustomersService.updateCustomer(id, data);
+    toast.success("Customer successfully updated")
     router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`);
   }
 
   return (
     <AppLayout pageTitle={`Edit — ${customer.name}`}>
-      <button
+      {/* <button
         onClick={() => router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`)}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Customer
-      </button>
+      </button> */}
+
+       <BackButton
+          href={`/admin${CUSTOMER_ROUTES.detail(id)}`}
+          label="Back to Customer"
+        />
 
       <PageHeader
         title={`Edit — ${customer.name}`}
@@ -70,11 +84,11 @@ export default function EditCustomerPage() {
       />
 
 
-            <FormSection
+      <FormSection
         title="Customer Information"
         description="Edit customer details and contact information"
       >
-         <CustomerForm
+        <CustomerForm
           initial={customer}
           onSubmit={handleSubmit}
           onCancel={() => router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`)}

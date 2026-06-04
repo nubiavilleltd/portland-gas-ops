@@ -8,6 +8,8 @@ import DriverForm, { type DriverFormValues } from "@/lib/modules/fleet/component
 import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
 import { UploadService } from "@/lib/services/upload.service";
 import { FLEET_ROUTES } from "@/lib/routes";
+import { toast } from "sonner";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function AddDriverPage() {
   const router = useRouter();
@@ -31,12 +33,17 @@ export default function AddDriverPage() {
       status: "available",
     });
 
-
+    toast.success("Driver successfully created")
     router.push(`/admin/${FLEET_ROUTES.driverList()}`);
   }
 
   return (
     <AppLayout pageTitle="Add Driver">
+
+      <BackButton
+        href={`/admin${FLEET_ROUTES.driverList()}`}
+        label="Back to Drivers"
+      />
       <PageHeader
         title="Add Driver"
         description="Register a new fleet driver for dispatch operations"

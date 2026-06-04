@@ -20,6 +20,8 @@ import {
 import { useStartTripWorkflow } from "@/lib/modules/fleet/hooks/useStartTripWorkflow";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { canStartTrip } from "@/lib/modules/fleet/guards/trip.guards";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function StartTripPage() {
   const params = useParams();
@@ -70,6 +72,11 @@ export default function StartTripPage() {
 
   return (
     <AppLayout pageTitle="Start Trip">
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        label="Back to Trip"
+      />
       <PageHeader
         title={`Start Trip — ${trip.trip_number}`}
         description="Mark this trip as in transit. Driver and vehicle will be updated."

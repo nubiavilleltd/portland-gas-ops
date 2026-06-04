@@ -10,6 +10,9 @@ import VehicleForm, { type VehicleFormValues } from "@/lib/modules/fleet/compone
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { VehiclesService } from "@/lib/modules/fleet/services/vehicles.service";
 import { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+import { toast } from "sonner";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function EditVehiclePage() {
   const params = useParams();
@@ -27,28 +30,35 @@ export default function EditVehiclePage() {
 
 
   async function handleSubmit(data: VehicleFormValues) {
-  await VehiclesService.updateVehicle(id, {
-    name: data.name,
-    plate_number: data.plate_number,
-    type: data.type as Vehicle["type"],
-    make: data.make,
-    model: data.model,
-    year: Number(data.year),
-    image: data.image || undefined,
-    capacity: data.capacity ? Number(data.capacity) : undefined,
-    fuel_type: data.fuel_type,
-    mileage: data.mileage ? Number(data.mileage) : undefined,
-    last_service_date: data.last_service_date,
-    next_service_date: data.next_service_date,
-    insurance_expiry_date: data.insurance_expiry_date,
-    roadworthiness_expiry_date: data.roadworthiness_expiry_date,
-  });
+    await VehiclesService.updateVehicle(id, {
+      name: data.name,
+      plate_number: data.plate_number,
+      type: data.type as Vehicle["type"],
+      make: data.make,
+      model: data.model,
+      year: Number(data.year),
+      image: data.image || undefined,
+      capacity: data.capacity ? Number(data.capacity) : undefined,
+      fuel_type: data.fuel_type,
+      mileage: data.mileage ? Number(data.mileage) : undefined,
+      last_service_date: data.last_service_date,
+      next_service_date: data.next_service_date,
+      insurance_expiry_date: data.insurance_expiry_date,
+      roadworthiness_expiry_date: data.roadworthiness_expiry_date,
+    });
 
-  router.push(`/admin/fleet/vehicles/${id}`);
-}
+    toast.success("Vehicle successfully updated")
+
+    router.push(`/admin/fleet/vehicles/${id}`);
+  }
 
   return (
     <AppLayout pageTitle="Edit Vehicle">
+
+      <BackButton
+        href={`/admin/${FLEET_ROUTES.vehicleDetail(id)}`}
+        label="Back to Vehicle"
+      />
       <PageHeader
         title={`Edit — ${vehicle.name}`}
         description={vehicle.plate_number}

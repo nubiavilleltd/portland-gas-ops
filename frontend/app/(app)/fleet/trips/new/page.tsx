@@ -33,6 +33,8 @@ import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 
 import { useCreateTripWorkflow } from "@/lib/modules/fleet/hooks/useCreateTripWorkflow";
 import { canAssignToTrip } from "@/lib/modules/orders/guards/orders.guards";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
@@ -127,6 +129,11 @@ function CreateTripForm() {
 
   return (
     <AppLayout pageTitle="Create Trip">
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripList()}`}
+        label="Back to Trips"
+      />
       <PageHeader
         title="Create Trip"
         description="Schedule a new logistics trip for order delivery or fleet operations"
