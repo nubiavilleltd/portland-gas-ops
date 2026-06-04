@@ -27,7 +27,7 @@ type View = "list" | "form" | "submitted";
 interface SubmittedInfo {
   ref: string;
   preparedBy: string;
-  submittedAt: Date;
+  submittedAt: string;
 }
 
 type FormState = {
@@ -69,7 +69,7 @@ export default function PayrollPage() {
       },
       ...p,
     ]);
-    setSubmitted({ ref, preparedBy: form.preparedBy || "HR Admin", submittedAt: now });
+    setSubmitted({ ref, preparedBy: form.preparedBy || "HR Admin", submittedAt: now.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) });
     setView("submitted");
   };
 
