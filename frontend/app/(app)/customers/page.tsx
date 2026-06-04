@@ -54,11 +54,11 @@ export default function CustomersPage() {
       <PageHeader
         title="Customers"
         description="Manage customer records and contact details"
-        action={
-          <Button href={CUSTOMER_ROUTES.new()} leftIcon={<Plus size={16} />}>
-            New Customer
-          </Button>
-        }
+        // action={
+        //   <Button href={CUSTOMER_ROUTES.new()} leftIcon={<Plus size={16} />}>
+        //     New Customer
+        //   </Button>
+        // }
         className="mb-6"
       />
 

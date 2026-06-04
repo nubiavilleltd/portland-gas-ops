@@ -1,18 +1,3 @@
-// import AppLayout from "@/components/layout/AppLayout";
-// import PageHeader from "@/components/ui/PageHeader";
-// import EmptyState from "@/components/ui/EmptyState";
-
-// export default function ModulePage() {
-//   const name = "admin";
-//   return (
-//     <AppLayout pageTitle={name}>
-//       <PageHeader title={name} description="This module is under active development" className="mb-6" />
-//       <EmptyState title="Coming soon" description="This module page will be built next. The backend API stubs are ready." />
-//     </AppLayout>
-//   );
-// }
-
-
 "use client";
 
 import Link from "next/link";
@@ -22,7 +7,6 @@ import { homeModuleGroups, type ModuleProcess } from "@/config/module-groups-adm
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
-// TODO: implement real per-role access control
 function canAccessModule(href: string, role: UserRole | undefined): boolean {
   void href;
   void role;
@@ -37,8 +21,7 @@ export default function AdminPage() {
       {/* Welcome row */}
       <div className="mb-2">
         <h2 className="text-2xl font-semibold text-brand-text-primary">
-          {/* Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""} */}
-          Welcome back, Admin
+          Admin Dashboard
         </h2>
       </div>
 
@@ -52,9 +35,6 @@ export default function AdminPage() {
               <h3 className="text-sm font-semibold text-brand-text-primary">
                 {group.title}
               </h3>
-              {/* <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-brand-text-secondary">
-                {group.processes.length} {group.processes.length === 1 ? "process" : "processes"}
-              </span> */}
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {group.processes.map((mod) => (
@@ -68,31 +48,6 @@ export default function AdminPage() {
           </section>
         ))}
       </div>
-
-      {/* Pending approvals strip */}
-      {/* {pendingApprovals && pendingApprovals.items.length > 0 && (
-        <div className="mt-10">
-          <h3 className="text-sm font-semibold text-brand-text-primary mb-3">
-            My pending approvals ({pendingApprovals.total})
-          </h3>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {pendingApprovals.items.slice(0, 5).map((item) => (
-              <Link
-                key={item.id}
-                href="/approvals"
-                className="shrink-0 bg-white border border-brand-border rounded-xl p-4 hover:border-brand-purple hover:shadow-sm transition-all w-60"
-              >
-                <p className="text-xs font-mono text-brand-text-secondary">{item.reference_id}</p>
-                <p className="text-sm font-medium text-brand-text-primary mt-1 line-clamp-1">{item.reference_label}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <ApprovalBadge status={item.status} />
-                  <span className="text-xs text-brand-purple font-medium">Review →</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )} */}
 
       {isLoading && (
         <div className="mt-10">
@@ -121,7 +76,6 @@ function ProcessLink({
   return (
     <Link
       href={disabled ? "#" : module.href}
-      // href={disabled ? "#" : `/admin${module.href}`}
       aria-disabled={disabled}
       className={cn(
         "group flex min-h-[58px] items-center gap-3 rounded-lg px-3 py-2 transition-all",

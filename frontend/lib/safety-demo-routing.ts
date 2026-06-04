@@ -51,7 +51,7 @@ export function getAdminIncidentHref(report: IncidentHazardReport) {
 export function getAdminWorkInitiationHref(request: WorkInitiationRequest) {
   const roleByStatus: Partial<Record<WorkInitiationRequest["status"], WorkInitiationRole>> = {
     submitted: "supervisor",
-    pending_approval: "operations_hod",
+    pending: "operations_hod",
   };
   return withAdminRole(`/safety/work-initiation/${request.id}`, roleByStatus[request.status]);
 }
@@ -68,7 +68,7 @@ export function getAdminWorkCloseOutHref(request: WorkCloseOutRequest) {
 
   if (request.status === "submitted") {
     role = "supervisor";
-  } else if (request.status === "pending_approval") {
+  } else if (request.status === "pending") {
     role = request.operationsHeadApproval ? "hse" : "operations_head";
   }
 

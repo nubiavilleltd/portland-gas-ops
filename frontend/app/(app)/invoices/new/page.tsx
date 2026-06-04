@@ -29,6 +29,7 @@ import { canGenerateInvoice } from "@/lib/modules/orders/guards/orders.guards";
 import { Order } from "@/lib/modules/orders/types/orders.types";
 import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreateInvoiceWorkflow";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { BackButton } from "@/components/ui/BackButton";
 
 
 
@@ -132,33 +133,6 @@ function CreateInvoicePageContent() {
     );
   }
 
-  // async function onSubmit(data: InvoiceForm) {
-  //   setSubmitError(null);
-  //   try {
-  //     const nextInvoiceSequence = invoices.length + 1;
-  //     const invoiceNumber = generateInvoiceNumber(nextInvoiceSequence);
-  //     const newInvoice = {
-  //       id: `inv-${nextInvoiceSequence}`,
-  //       order_id: orderId,
-  //       invoice_number: invoiceNumber,
-  //       total_amount: order!.total_amount,
-  //       status: "unpaid" as const,
-  //       issued_date: data.invoice_date,
-  //       due_date: data.due_date,
-  //     };
-
-  //     // Persist to mock array and link back to order
-  //     invoices.push(newInvoice);
-  //     await OrdersService.setInvoice(orderId, newInvoice.id);
-  //     await OrdersService.updatePaymentStatus(orderId, "unpaid");
-
-  //     router.push(`/invoices/${newInvoice.id}`);
-  //   } catch (err) {
-  //     setSubmitError(
-  //       err instanceof Error ? err.message : "Failed to generate invoice."
-  //     );
-  //   }
-  // }
 
   async function onSubmit(data: InvoiceForm) {
     generateInvoice(data);
@@ -175,95 +149,88 @@ function CreateInvoicePageContent() {
         Back to Order
       </button> */}
 
+       <BackButton label="Back" />
+
       <PageHeader
         title="Generate Invoice"
-        description="Convert completed delivery into a billable invoice"
+        description="Create and issue an invoice for this order"
         className="mb-6"
       />
 
       <div className="space-y-6">
 
         {/* ORDER SUMMARY — real data, not hardcoded */}
-        <FormSection title="Order Summary">
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold">Order Summary</h2>
-                <p className="text-sm text-brand-text-secondary mt-1">
-                  Invoice will be generated from this order
-                </p>
-              </div>
-              <FulfillmentStatusBadge status={order.fulfillment_status} />
+        <FormSection title="Order Summary" description="Invoice will be generated from this order">
+          <div className="flex items-start justify-end mb-4">
+
+            <FulfillmentStatusBadge status={order.fulfillment_status} />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
+            <div>
+              <p className="text-xs text-brand-text-secondary">Order Number</p>
+              <p className="font-medium mt-1">{order.order_number}</p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-              <div>
-                <p className="text-xs text-brand-text-secondary">Order Number</p>
-                <p className="font-medium mt-1">{order.order_number}</p>
-              </div>
+            <div>
+              <p className="text-xs text-brand-text-secondary">Customer</p>
+              <p className="font-medium mt-1">{customerMap[order.customer_id]?.name}</p>
+            </div>
 
-              <div>
-                <p className="text-xs text-brand-text-secondary">Customer</p>
-                <p className="font-medium mt-1">{customerMap[order.customer_id]?.name}</p>
-              </div>
+            <div>
+              <p className="text-xs text-brand-text-secondary">Total Amount</p>
+              <p className="font-medium mt-1">
+                {formatCurrency(order.total_amount)}
+              </p>
+            </div>
 
-              <div>
-                <p className="text-xs text-brand-text-secondary">Total Amount</p>
-                <p className="font-medium mt-1">
-                  {formatCurrency(order.total_amount)}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-brand-text-secondary">Delivered On</p>
-                <p className="font-medium mt-1">
-                  {order.delivered_at ? formatDate(order.delivered_at) : "—"}
-                </p>
-              </div>
+            <div>
+              <p className="text-xs text-brand-text-secondary">Delivered On</p>
+              <p className="font-medium mt-1">
+                {order.delivered_at ? formatDate(order.delivered_at) : "—"}
+              </p>
             </div>
           </div>
+
         </FormSection>
 
         {/* INVOICE FORM */}
-        <FormSection title="Invoice Details">
-          <div className="bg-white border border-brand-border rounded-2xl p-6">
-            <h2 className="text-base font-semibold mb-5">Invoice Details</h2>
+        <FormSection title="Invoice Generation" description="Fill in invoice information and generate an invoice for this order">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="grid grid-cols-1 md:grid-cols-2 gap-5"
+          >
+            <FormDatePicker
+              label="Invoice Date"
+              value={invoiceDate}
+              onValueChange={(value) => setValue("invoice_date", value)}
+            />
 
-            <form
-              onSubmit={handleSubmit(onSubmit)}
-              className="grid grid-cols-1 md:grid-cols-2 gap-5"
-            >
-              <FormDatePicker
-                label="Invoice Date"
-                value={invoiceDate}
-                onValueChange={(value) => setValue("invoice_date", value)}
+            <FormDatePicker
+              label="Due Date"
+              value={dueDate}
+              onValueChange={(value) => setValue("due_date", value)}
+            />
+
+            <div className="md:col-span-2">
+              <FormTextarea
+                label="Notes (Optional)"
+                placeholder="Payment terms, bank account details, remarks..."
+                {...register("notes")}
               />
+            </div>
 
-              <FormDatePicker
-                label="Due Date"
-                value={dueDate}
-                onValueChange={(value) => setValue("due_date", value)}
-              />
-
-              <div className="md:col-span-2">
-                <FormTextarea
-                  label="Notes (Optional)"
-                  placeholder="Payment terms, bank account details, remarks..."
-                  {...register("notes")}
-                />
+            {/* ERROR */}
+            {submitError && (
+              <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                <AlertCircle size={16} className="shrink-0" />
+                {submitError}
               </div>
+            )}
 
-              {/* ERROR */}
-              {submitError && (
-                <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                  <AlertCircle size={16} className="shrink-0" />
-                  {submitError}
-                </div>
-              )}
-
-              {/* ACTIONS */}
-              <div className="md:col-span-2 flex justify-end gap-3">
-                {/* <Button
+            {/* ACTIONS */}
+            <div className="md:col-span-2 flex justify-end gap-3">
+              {/* <Button
           type="button"
           variant="outline"
           onClick={() => router.back()}
@@ -271,20 +238,11 @@ function CreateInvoicePageContent() {
           Cancel
         </Button> */}
 
-                {/* <Button
-                  type="submit"
-                  loading={isSubmitting}
-                  loadingText="Generating..."
-                >
-                  Generate Invoice
-                </Button> */}
-
-                {canInvoice && <Button type="submit" loading={isPending} loadingText="Generating...">
-                  Generate Invoice
-                </Button>}
-              </div>
-            </form>
-          </div>
+              {canInvoice && <Button type="submit" loading={isPending} loadingText="Generating...">
+                Generate Invoice
+              </Button>}
+            </div>
+          </form>
         </FormSection>
       </div>
     </AppLayout>

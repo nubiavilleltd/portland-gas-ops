@@ -106,7 +106,9 @@ export default function ProductDetailPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* These actions are not meant for users anymore */}
+
+                {/* <div className="flex items-center gap-2">
                     <Button
                         variant="outline"
                         href={PRODUCT_ROUTES.edit(product.id)}
@@ -127,7 +129,7 @@ export default function ProductDetailPage() {
                     >
                         {isActive ? "Deactivate" : "Activate"}
                     </Button>
-                </div>
+                </div> */}
             </div>
 
             <ErrorBanner message={actionError} className="mb-4" />

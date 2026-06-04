@@ -20,6 +20,8 @@ import { canCompleteTrip } from "@/lib/modules/fleet/guards/trip.guards";
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function CompleteTripPage() {
   const params = useParams();
@@ -31,14 +33,14 @@ export default function CompleteTripPage() {
 
   // ✅ React Query (trip)
   const completeTrip = useCompleteTripWorkflow();
-  
+
   // ✅ React Query (orders)
   const { orders } = useOrders();
-  const {customers} = useCustomers()
-  
+  const { customers } = useCustomers()
+
   const [proofNotes, setProofNotes] = useState("");
 
-  
+
   if (!trip) {
     return (
       <AppLayout pageTitle="Trip Not Found">
@@ -113,6 +115,11 @@ export default function CompleteTripPage() {
 
   return (
     <AppLayout pageTitle="Complete Trip">
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        label="Back to Trip"
+      />
       <PageHeader
         title={`Complete Trip — ${trip.trip_number}`}
         description="Confirm the trip is done. Driver and vehicle will be released."
@@ -249,7 +256,7 @@ export default function CompleteTripPage() {
             disabled={completeTrip.isPending}
             loading={completeTrip.isPending}
           >
-            Complete Trip
+            Close Trip
           </Button>
         </div>
       </div>

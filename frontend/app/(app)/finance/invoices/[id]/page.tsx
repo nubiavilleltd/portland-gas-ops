@@ -2,15 +2,15 @@
 
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Paperclip, CheckCircle2, RotateCcw, XCircle } from "lucide-react";
+import { ArrowLeft, Paperclip, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import ApprovalStepper from "../../_components/ApprovalStepper";
-import WorkflowPath from "../../_components/WorkflowPath";
-import ActivityHistory from "../../_components/ActivityHistory";
+import AuditTrail from "@/components/forms/AuditTrail";
 import { INVOICE_STORE, type InvoiceRequest } from "../../_components/_data";
 
 const STATUS_STEP: Record<string, number> = {
@@ -18,12 +18,18 @@ const STATUS_STEP: Record<string, number> = {
   pending:     1,
   in_progress: 2,
   approved:    3,
-  rejected:    1,
+  denied:      1,
 };
 
 const ACTIONABLE = new Set(["pending", "in_progress"]);
 
-type ActionResult = "approved" | "rejected" | "draft";
+type ActionResult = "approved" | "denied" | "draft";
+type PageRole = "requester" | "approver" | "admin";
+
+const ROLE_OPTIONS: { value: PageRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "approver", label: "Approver" },
+];
 
 export default function InvoiceDetailPage({
   params,
@@ -36,20 +42,14 @@ export default function InvoiceDetailPage({
   const [record, setRecord] = useState<InvoiceRequest | undefined>(
     () => INVOICE_STORE.find((r) => r.id === id)
   );
-  const [comment, setComment] = useState("");
-  const [commentError, setCommentError] = useState("");
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
+  const [actionComment, setActionComment] = useState<string>("");
+  const [currentRole, setCurrentRole] = useState<PageRole>("requester");
 
-  const currentStep = STATUS_STEP[record?.status ?? ""] ?? 0;
-
-  function handleAction(action: ActionResult) {
-    if ((action === "rejected" || action === "draft") && !comment.trim()) {
-      setCommentError("A comment is required when returning or denying.");
-      return;
-    }
-    setCommentError("");
+  function handleApprovalAction(action: ActionResult, comment: string) {
     setRecord((prev) => (prev ? { ...prev, status: action } : prev));
     setActionDone(action);
+    setActionComment(comment);
   }
 
   return (
@@ -73,17 +73,16 @@ export default function InvoiceDetailPage({
       ) : (
         <div className="space-y-5">
           {/* Header */}
-          <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div>
-                  <p className="font-mono text-xs text-brand-text-secondary">{record.ref}</p>
-                  <h1 className="text-lg font-semibold text-brand-text-primary mt-1">{record.title}</h1>
-                </div>
-                <ApprovalBadge status={record.status} className="self-start" />
-              </div>
-            </div>
-          </div>
+          <RoleBasedRecordHeader
+            id={record.ref}
+            currentRole={currentRole}
+            onRoleChange={setCurrentRole}
+            roleLabel={currentRole === "approver" ? "Approver" : currentRole === "admin" ? "Admin" : "Requester"}
+            roles={ROLE_OPTIONS}
+            status={<ApprovalBadge status={record.status} />}
+            recordLabel="Invoice"
+            title={record.title}
+          />
 
           {/* Requester Details */}
           <ViewSection title="Requester Details" description="Your employee information for this invoice request.">
@@ -150,56 +149,20 @@ export default function InvoiceDetailPage({
           </ViewSection>
 
           {/* Approval Action */}
-          {ACTIONABLE.has(record.status) && !actionDone && (
-            <ViewSection title="Approval Action" description="Review and take action on this invoice.">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-brand-text-primary block mb-1">
-                    Comment
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={comment}
-                    onChange={(e) => { setComment(e.target.value); setCommentError(""); }}
-                    placeholder="Add a comment..."
-                    className="w-full rounded-lg border border-brand-border bg-white px-3 py-2 text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow resize-none"
-                  />
-                  {commentError ? (
-                    <p className="text-xs text-red-600 mt-1">{commentError}</p>
-                  ) : (
-                    <p className="text-xs text-brand-text-secondary mt-1">
-                      Comment is required when returning or denying.
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleAction("approved")}
-                    className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                  >
-                    <CheckCircle2 size={15} />
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAction("draft")}
-                    className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-medium border border-amber-400 text-amber-600 bg-white hover:bg-amber-50 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
-                  >
-                    <RotateCcw size={15} />
-                    Return for Revision
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAction("rejected")}
-                    className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-medium border border-red-400 text-red-600 bg-white hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
-                  >
-                    <XCircle size={15} />
-                    Deny
-                  </button>
-                </div>
-              </div>
-            </ViewSection>
+          {ACTIONABLE.has(record.status) && !actionDone && currentRole !== "requester" && (
+            <ApprovalPanel
+              reviewingAs={currentRole === "approver" ? "Approver" : "Requester"}
+              showReturn
+              showReject
+              showApprove
+              returnLabel="Return"
+              rejectLabel="Deny"
+              approveLabel="Approve"
+              requireCommentForRejectReturn
+              onReturn={(comment) => handleApprovalAction("draft", comment)}
+              onReject={(comment) => handleApprovalAction("denied", comment)}
+              onApprove={(comment) => handleApprovalAction("approved", comment)}
+            />
           )}
 
           {/* Action confirmation banner */}
@@ -207,13 +170,13 @@ export default function InvoiceDetailPage({
             <div className={`rounded-2xl p-4 flex items-start gap-3 border ${
               actionDone === "approved"
                 ? "bg-green-50 border-green-200"
-                : actionDone === "rejected"
+                : actionDone === "denied"
                 ? "bg-red-50 border-red-200"
                 : "bg-amber-50 border-amber-200"
             }`}>
               {actionDone === "approved" ? (
                 <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" />
-              ) : actionDone === "rejected" ? (
+              ) : actionDone === "denied" ? (
                 <XCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
               ) : (
                 <RotateCcw size={18} className="text-amber-600 shrink-0 mt-0.5" />
@@ -221,37 +184,37 @@ export default function InvoiceDetailPage({
               <div>
                 <p className={`text-sm font-semibold ${
                   actionDone === "approved" ? "text-green-800" :
-                  actionDone === "rejected" ? "text-red-800" : "text-amber-800"
+                  actionDone === "denied" ? "text-red-800" : "text-amber-800"
                 }`}>
                   {actionDone === "approved"
                     ? "Invoice Approved"
-                    : actionDone === "rejected"
+                    : actionDone === "denied"
                     ? "Invoice Denied"
-                    : "Returned for Revision"}
+                    : "Returned"}
                 </p>
-                {comment.trim() && (
+                {actionComment.trim() && (
                   <p className={`text-xs mt-0.5 ${
                     actionDone === "approved" ? "text-green-700" :
-                    actionDone === "rejected" ? "text-red-700" : "text-amber-700"
+                    actionDone === "denied" ? "text-red-700" : "text-amber-700"
                   }`}>
-                    Comment: {comment}
+                    Comment: {actionComment}
                   </p>
                 )}
               </div>
             </div>
           )}
 
-          {/* Workflow */}
-          <ApprovalStepper currentStep={currentStep} />
-          <WorkflowPath
-            initiator={record.requester}
-            department={record.department}
-            currentStep={currentStep}
-          />
-          <ActivityHistory
-            initiator={record.requester}
-            department={record.department}
-            submittedAt={new Date(record.date)}
+          {/* Activity */}
+          <AuditTrail
+            items={[
+              {
+                action: "Submitted",
+                actor: record.requester,
+                role: "Requester",
+                dateTime: formatDate(record.date),
+                comment: "Request submitted",
+              },
+            ]}
           />
         </div>
       )}

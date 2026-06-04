@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function PaymentReceiptPage() {
   const { paymentId } = useParams();
@@ -23,6 +24,8 @@ export default function PaymentReceiptPage() {
 
   return (
     <AppLayout pageTitle="Payment Receipt">
+
+      <BackButton label="Back" />
 
       <PageHeader
         title="Payment Receipt"

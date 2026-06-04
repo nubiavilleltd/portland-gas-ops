@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
@@ -12,6 +13,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import { useToast } from "@/hooks/useToast";
 import {
   contractorContactEmailByName,
   getMockWorkInitiationRequest,
@@ -19,6 +21,7 @@ import {
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
 import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
+import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -61,6 +64,7 @@ export default function WorkInitiationDetailsView({
   initialRole?: WorkInitiationRole;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const initialRequest = getMockWorkInitiationRequest(requestId);
   const { incidentHazards, workInitiations } = useSafetyDemoData();
   const request = workInitiations.find((item) => item.id === requestId) ?? initialRequest;
@@ -96,7 +100,7 @@ export default function WorkInitiationDetailsView({
     currentRole === "requester" && (request.status === "draft" || request.status === "returned");
   const canSupervisorReview = currentRole === "supervisor" && request.status === "submitted";
   const canOperationsHodReview =
-    currentRole === "operations_hod" && request.status === "pending_approval";
+    currentRole === "operations_hod" && request.status === "pending";
 
   function persistUpdate(
     update: (current: WorkInitiationRequest) => WorkInitiationRequest,
@@ -118,13 +122,14 @@ export default function WorkInitiationDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
+    toast.success("Work initiation submitted.");
   }
 
   function supervisorReview(decision: WorkAuthorizationDecision) {
     if (!request) return;
     if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) return;
     const nextStatus =
-      decision === "Approve" ? "pending_approval" : decision === "Return" ? "returned" : "denied";
+      decision === "Approve" ? "pending" : decision === "Return" ? "returned" : "denied";
     const result = {
       decision,
       approver: request.assignment.assignedSupervisor || "Mary James",
@@ -148,6 +153,7 @@ export default function WorkInitiationDetailsView({
       supervisorApproval: result,
       auditTrail: [...current.auditTrail, audit],
     }));
+    showDecisionToast(toast, "Work initiation", decision, "Supervisor");
   }
 
   function operationsHodReview(decision: WorkAuthorizationDecision) {
@@ -180,6 +186,7 @@ export default function WorkInitiationDetailsView({
       operationalReview: result,
       auditTrail: [...current.auditTrail, audit],
     }));
+    showDecisionToast(toast, "Work initiation", decision, "Operations HOD");
   }
 
   return (
@@ -202,6 +209,7 @@ export default function WorkInitiationDetailsView({
         recordLabel="Work Initiation"
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
+        nextActor={getWorkInitiationNextActor(request)}
         switcherDescription="Switch roles to preview requester, supervisor, and Operations HOD views."
       />
 
@@ -229,21 +237,27 @@ export default function WorkInitiationDetailsView({
       ) : null}
 
       {canSupervisorReview ? (
-        <FormSection title="Supervisor Review" description="Review the requested work before it proceeds to Operations HOD.">
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <DecisionSubmitControl
-              onDecision={supervisorReview}
-              reasonMissing={!supervisorComment.trim()}
-              reasonMessage="Add a supervisor comment before returning or denying this request."
-            />
-            <FormTextarea
-              label="Supervisor Comment"
-              value={supervisorComment}
-              onChange={(event) => setSupervisorComment(event.target.value)}
-              placeholder="Add supervisor review notes"
-            />
-          </div>
-        </FormSection>
+        <ApprovalPanel
+          title="Supervisor Review"
+          description="Review the requested work before it proceeds to Operations HOD."
+          commentLabel="Supervisor Comment"
+          commentPlaceholder="Add supervisor review notes"
+          commentValue={supervisorComment}
+          onCommentChange={setSupervisorComment}
+          onApprove={() => supervisorReview("Approve")}
+          onReturn={() => supervisorReview("Return")}
+          onReject={() => supervisorReview("Deny")}
+          rejectLabel="Deny"
+          returnDisabled={!supervisorComment.trim()}
+          rejectDisabled={!supervisorComment.trim()}
+          extraFields={
+            !supervisorComment.trim() ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Add a supervisor comment before returning or denying this request.
+              </p>
+            ) : null
+          }
+        />
       ) : request.supervisorApproval ? (
         <ApprovalResult
           title="Supervisor Review Result"
@@ -255,21 +269,27 @@ export default function WorkInitiationDetailsView({
       ) : null}
 
       {canOperationsHodReview ? (
-        <FormSection title="Operations HOD Review" description="Record the operational approval decision for this work.">
-          <div className="grid gap-4 md:grid-cols-[minmax(220px,360px)_1fr] md:items-start">
-            <DecisionSubmitControl
-              onDecision={operationsHodReview}
-              reasonMissing={!operationsHodComment.trim()}
-              reasonMessage="Add an Operations HOD comment before returning or denying this request."
-            />
-          <FormTextarea
-              label="Operations HOD Comment"
-              value={operationsHodComment}
-              onChange={(event) => setOperationsHodComment(event.target.value)}
-              placeholder="Add operational approval notes"
-          />
-          </div>
-        </FormSection>
+        <ApprovalPanel
+          title="Operations HOD Review"
+          description="Record the operational approval decision for this work."
+          commentLabel="Operations HOD Comment"
+          commentPlaceholder="Add operational approval notes"
+          commentValue={operationsHodComment}
+          onCommentChange={setOperationsHodComment}
+          onApprove={() => operationsHodReview("Approve")}
+          onReturn={() => operationsHodReview("Return")}
+          onReject={() => operationsHodReview("Deny")}
+          rejectLabel="Deny"
+          returnDisabled={!operationsHodComment.trim()}
+          rejectDisabled={!operationsHodComment.trim()}
+          extraFields={
+            !operationsHodComment.trim() ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Add an Operations HOD comment before returning or denying this request.
+              </p>
+            ) : null
+          }
+        />
       ) : request.operationalReview ? (
         <ReviewResult request={request} />
       ) : null}
@@ -450,34 +470,6 @@ function AssignmentPlanning({
   );
 }
 
-function DecisionSubmitControl({
-  onDecision,
-  reasonMissing,
-  reasonMessage,
-}: {
-  onDecision: (decision: WorkAuthorizationDecision) => void;
-  reasonMissing: boolean;
-  reasonMessage: string;
-}) {
-  const reasonRequired = reasonMissing;
-  return (
-    <div className="space-y-3">
-      {reasonRequired ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{reasonMessage}</p> : null}
-      <div className="flex flex-wrap gap-3">
-        <Button type="button" onClick={() => onDecision("Approve")}>
-          Approve
-        </Button>
-        <Button type="button" variant="secondary" disabled={reasonRequired} onClick={() => onDecision("Return")}>
-          Return
-        </Button>
-        <Button type="button" variant="danger" disabled={reasonRequired} onClick={() => onDecision("Deny")}>
-          Deny
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function ReviewResult({ request }: { request: WorkInitiationRequest }) {
   const review = request.operationalReview;
   if (!review) return null;
@@ -540,7 +532,7 @@ function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachm
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
   if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your supervisor review." : "Waiting for supervisor approval.";
-  if (request.status === "pending_approval") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
+  if (request.status === "pending") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
   if (request.status === "approved") note = "Work approved by Operations HOD. Its assigned team is eligible for Work Authorization.";
   if (request.status === "returned") note = currentRole === "requester" ? "This request was returned. Update and resubmit." : "This request was returned to the requester.";
   if (request.status === "denied") note = "This work initiation request has been denied and closed.";
@@ -564,4 +556,19 @@ function getWorkInitiationRoleLabel(role: WorkInitiationRole) {
   if (role === "operations_hod") return "Operations HOD";
   if (role === "supervisor") return "Supervisor";
   return "Requester";
+}
+
+function showDecisionToast(
+  toast: ReturnType<typeof useToast>,
+  recordLabel: string,
+  decision: WorkAuthorizationDecision,
+  actorLabel: string,
+) {
+  if (decision === "Approve") {
+    toast.success(`${recordLabel} approved by ${actorLabel}.`);
+  } else if (decision === "Return") {
+    toast.info(`${recordLabel} returned to requester.`);
+  } else {
+    toast.error(`${recordLabel} denied by ${actorLabel}.`);
+  }
 }

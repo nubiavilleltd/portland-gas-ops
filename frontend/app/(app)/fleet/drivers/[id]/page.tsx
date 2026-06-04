@@ -11,7 +11,7 @@ import FormSection from "@/components/ui/FormSection";
 import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useTripsByDriver } from "@/lib/modules/fleet/hooks/useTrips";
 import { DriverStatusBadge } from "@/lib/modules/fleet/badges/DriverStatusBadge";
-import { formatDate } from "@/lib/utils";
+import { formatDate, toTitleCase } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { canReinstateDriver, canSetAvailable, canSetOffDuty, canSuspendDriver } from "@/lib/modules/fleet/guards/driver.guards";
 import { canAssignDriver } from "@/lib/modules/fleet/guards/trip.guards";
@@ -87,7 +87,7 @@ const canAssign = canAssignDriver(driver);
   },
   {
     label: "Type",
-    render: (trip) => trip.type.replaceAll("_", " "),
+    render: (trip) => toTitleCase(trip.type.replaceAll("_", " ")),
   },
   {
     label: "Date",
@@ -113,24 +113,11 @@ const canAssign = canAssignDriver(driver);
       <PageHeader
         title={driver.full_name}
         description={`${driver.phone_number} • ${driver.license_number}`}
-        // action={
-        //   <div className="flex gap-2">
-        //     <Button
-        //       variant="outline"
-        //       href={`/fleet/drivers/${driver.id}/edit`}
-        //     >
-        //       Edit Driver
-        //     </Button>
-
-        //     <Button href={`/fleet/trips/new?driverId=${driver.id}`}>
-        //       Assign Trip
-        //     </Button>
-        //   </div>
-        // }
+    
 
         action={
   <div className="flex gap-2">
-    <Button variant="outline" href={`/fleet/drivers/${driver.id}/edit`}>
+    {/* <Button variant="outline" href={`/fleet/drivers/${driver.id}/edit`}>
       Edit Driver
     </Button>
 
@@ -156,7 +143,7 @@ const canAssign = canAssignDriver(driver);
       <Button variant="outline" onClick={() => toast.info("Coming soon")}>
         Reinstate Driver
       </Button>
-    )}
+    )} */}
 
       {canAssign && (
         <Button href={`/fleet/trips/new?driverId=${driver.id}`}>
@@ -249,40 +236,7 @@ const canAssign = canAssignDriver(driver);
   title="Trip History"
   description="All trips associated with this driver"
 >
-  {/* {sortedTrips.length === 0 ? (
-    <p className="text-sm text-brand-text-secondary">
-      No trips recorded yet.
-    </p>
-  ) : (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left">
-            <th className="py-2">Trip</th>
-            <th className="py-2">Type</th>
-            <th className="py-2">Date</th>
-            <th className="py-2">Status</th>
-            <th className="py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedTrips.slice(0, 5).map((trip) => (
-            <tr key={trip.id} className="border-b">
-              <td className="py-2 font-mono text-xs">{trip.trip_number}</td>
-              <td className="py-2 capitalize">{trip.type.replaceAll("_", " ")}</td>
-              <td className="py-2">{formatDate(trip.scheduled_date)}</td>
-              <td className="py-2"><TripStatusBadge status={trip.status} /></td>
-              <td className="py-2 text-right">
-                <Button size="sm" variant="outline" href={`/fleet/trips/${trip.id}`}>
-                  View
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )} */}
+  
 
     <SimpleTable
     columns={tripColumns}

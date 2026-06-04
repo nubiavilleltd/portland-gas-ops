@@ -1,7 +1,7 @@
 export type AssetCondition = "new" | "good" | "fair" | "poor";
 export type AssetStatus = "available" | "assigned" | "under_repair" | "retired";
 export type AssetRequestType = "loan" | "requisition";
-export type AssetRequestStatus = "pending" | "approved" | "rejected" | "returned";
+export type AssetRequestStatus = "pending" | "approved" | "rejected" | "returned" | "allocated";
 export type MaintenanceType = "routine" | "inspection" | "calibration" | "repair";
 export type AssetAssignmentEventType = "registered" | "assigned" | "returned" | "transferred" | "status_changed" | "retired";
 
@@ -44,6 +44,8 @@ export interface Asset {
   name: string;
   category_id: string | null;
   category: AssetCategory | null;
+  asset_type_id: string | null;
+  asset_type: AssetType | null;
   asset_tag: string | null;         // e.g. "LAP-LKI-001" = Laptop, Lekki, #001
   serial_number: string | null;
   purchase_date: string | null;
@@ -110,12 +112,17 @@ export interface AssetRequest {
   rejection_reason: string | null;
   requested_by: string;
   requester_name: string | null;
+  requester: { name: string; department: string; job_title: string } | null;
   approved_by: string | null;
   approved_at: string | null;
+  allocated_at: string | null;
+  allocated_by_name: string | null;
+  allocated_asset_ids: string[] | null;
   items: AssetRequestItem[];
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
+  auditTrail: import("./procurement").RequestAuditEntry[];
 }
 
 export interface AssetRequestListItem {
@@ -134,6 +141,7 @@ export interface AssetRequestListItem {
 export interface AssetCreateInput {
   name: string;
   category_id?: string;
+  asset_type_id?: string;
   serial_number?: string;
   purchase_date?: string;
   purchase_cost?: number;

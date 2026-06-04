@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { Pencil, PowerOff, Power, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
@@ -14,6 +14,8 @@ import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { parseError } from "@/lib/errors";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import Link from "next/link";
+import FormSection from "@/components/ui/FormSection";
 
 // ── Small detail row ──────────────────────────────────────
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -56,10 +58,14 @@ export default function ProductDetailPage() {
                 <Button
                     variant="outline"
                     className="mt-4"
-                    onClick={() => router.push(PRODUCT_ROUTES.list())}
+                    onClick={() => router.push(`/admin${PRODUCT_ROUTES.list()}`)}
                 >
                     Back to Products
                 </Button>
+
+                {/* <Link href={`admin${PRODUCT_ROUTES.list()}`}>
+                    Back to Products
+                </Link> */}
             </AppLayout>
         );
     }
@@ -74,7 +80,8 @@ export default function ProductDetailPage() {
                 : await ProductsService.activateProduct(product.id);
             toast.success(`${updated.name} is now ${updated.status}`);
             // Refresh by navigating back to list — refetch will pick up the change
-            router.push(PRODUCT_ROUTES.list());
+            // router.push(PRODUCT_ROUTES.list());
+            router.push(`/admin${PRODUCT_ROUTES.list()}`)
         } catch (err) {
             setActionError(parseError(err));
         } finally {
@@ -88,12 +95,17 @@ export default function ProductDetailPage() {
         <AppLayout pageTitle={product.name}>
             {/* Back */}
             <button
-                onClick={() => router.push(PRODUCT_ROUTES.list())}
+                onClick={() => router.push(`/admin${PRODUCT_ROUTES.list()}`)}
                 className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
             >
                 <ArrowLeft size={14} />
                 Back to Products
             </button>
+
+            {/* <Link href={`admin${PRODUCT_ROUTES.list()}`}>
+            <ArrowLeft size={14} />
+                    Back to Products
+                </Link> */}
 
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
@@ -109,7 +121,8 @@ export default function ProductDetailPage() {
                 <div className="flex items-center gap-2">
                     <Button
                         variant="outline"
-                        href={PRODUCT_ROUTES.edit(product.id)}
+                        // href={PRODUCT_ROUTES.edit(product.id)}
+                        href={`/admin${PRODUCT_ROUTES.edit(product.id)}`}
                         leftIcon={<Pencil size={14} />}
                     >
                         Edit
@@ -133,31 +146,54 @@ export default function ProductDetailPage() {
             <ErrorBanner message={actionError} className="mb-4" />
 
             {/* Details card */}
-            <div className="bg-white border border-brand-border rounded-2xl p-6 max-w-2xl">
-                <DetailRow
-                    label="Status"
-                    value={
-                        <span
-                            className={
-                                isActive
-                                    ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
-                                    : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
-                            }
-                        >
-                            {isActive ? "Active" : "Inactive"}
-                        </span>
-                    }
-                />
-                <DetailRow label="Unit of Measurement" value={product.unit} />
-                <DetailRow
-                    label="Default Unit Price"
-                    value={`${formatCurrency(product.default_unit_price)} / ${product.unit}`}
-                />
-                <DetailRow
-                    label="Description"
-                    value={product.description ?? "—"}
-                />
-            </div>
+            <FormSection title="Product Details"
+                description="View product information and pricing details">
+                <div className="grid grid-cols-1 gap-5 text-sm md:grid-cols-3">
+                    <InfoRow
+                        label="Status"
+                        value={
+                            <span
+                                className={
+                                    isActive
+                                        ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
+                                        : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
+                                }
+                            >
+                                {isActive ? "Active" : "Inactive"}
+                            </span>
+                        }
+                    />
+                    <InfoRow label="Unit of Measurement" value={product.unit} />
+                    <InfoRow
+                        label="Default Unit Price"
+                        value={`${formatCurrency(product.default_unit_price)} / ${product.unit}`}
+                    />
+                    <InfoRow
+                        label="Description"
+                        value={product.description ?? "—"}
+                    />
+                </div>
+            </FormSection>
         </AppLayout>
+    );
+}
+
+function InfoRow({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | ReactNode;
+}) {
+    return (
+        <div>
+            <p className="text-xs text-brand-text-secondary">
+                {label}
+            </p>
+
+            <p className="mt-1 font-medium">
+                {value}
+            </p>
+        </div>
     );
 }

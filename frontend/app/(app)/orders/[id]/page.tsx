@@ -31,6 +31,7 @@ import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBad
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
+import { BackButton } from "@/components/ui/BackButton";
 
 
 
@@ -38,15 +39,15 @@ export default function OrderDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const {customers} = useCustomers()
+  const { customers } = useCustomers()
 
   const { order, isLoading, error } = useOrderById(id);
   const { invoice } = useInvoiceByOrderId(id);
-  const {summary:paymentSummary} = usePaymentSummary(invoice?.id);
+  const { summary: paymentSummary } = usePaymentSummary(invoice?.id);
 
   const { trip } = useTripById(order?.trip_id as string);
 
-    const customerMap = Object.fromEntries(
+  const customerMap = Object.fromEntries(
     customers.map((customer) => [
       customer.id,
       customer,
@@ -90,30 +91,35 @@ export default function OrderDetailPage() {
     : 0;
 
 
-    const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
-  {
-    label: "Product",
-    render: (item) => <span className="font-medium">{item.product_name}</span>,
-  },
-  {
-    label: "Quantity",
-    render: (item) => `${item.quantity.toLocaleString()} kg`,
-  },
-  {
-    label: "Unit Price",
-    render: (item) => formatCurrency(item.unit_price),
-  },
-  {
-    label: "Total",
-    align: "right",
-    render: (item) => formatCurrency(item.total),
-  },
-];
+  const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+    {
+      label: "Product",
+      render: (item) => <span className="font-medium">{item.product_name}</span>,
+    },
+    {
+      label: "Quantity",
+      render: (item) => `${item.quantity.toLocaleString()} kg`,
+    },
+    {
+      label: "Unit Price",
+      render: (item) => formatCurrency(item.unit_price),
+    },
+    {
+      label: "Total",
+      align: "right",
+      render: (item) => formatCurrency(item.total),
+    },
+  ];
 
 
 
   return (
     <AppLayout pageTitle="Order Details">
+
+      <BackButton
+        href={`${ORDER_ROUTES.list()}`}
+        label="Back to Orders"
+      />
       <PageHeader
         title={order.order_number}
         description="Customer gas order workflow and transaction details"
@@ -132,33 +138,33 @@ export default function OrderDetailPage() {
               </Button>
             )} */}
 
-            {canAssign && (
+            {/* {canAssign && (
               <Button href={FLEET_ROUTES.tripNew({ orderId: id })}>
                 Assign to Trip
               </Button>
-            )}
+            )} */}
 
-            {order.trip_id && (
+            {/* {order.trip_id && (
               <Button
                 href={FLEET_ROUTES.tripDetail(order.trip_id)}
                 variant="outline"
               >
                 View Trip
               </Button>
-            )}
+            )} */}
 
             {canDeliver && (
               <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
-                Confirm Delivery
+                Confirm Delivery →
               </Button>
             )}
 
-            {canInvoice && (
+            {/* {canInvoice && (
               <Button href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
                 Generate Invoice
               </Button>
-            )}
-{/* 
+            )} */}
+            {/* 
             {canClose && (
               <Button href={ORDER_ROUTES.close(id)} variant="primary">
                 Close Order
@@ -168,166 +174,87 @@ export default function OrderDetailPage() {
         }
       />
 
-            <div className="space-y-6">
+      <div className="space-y-6">
 
         {/* ORDER SUMMARY */}
-                <FormSection
-  title="Order Summary"
-  description="Overview of customer, order, delivery, and payment details"
->
-  <div className="flex items-start justify-between mb-6">
-    <div>
-      <p className="text-xs font-mono text-brand-text-secondary">
-        {order.order_number}
-      </p>
+        <FormSection
+          title="Order Summary"
+          description="Overview of customer, order, delivery, and payment details"
+        >
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <p className="text-xs font-mono text-brand-text-secondary">
+                {order.order_number}
+              </p>
 
-      <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-        {customerMap[order.customer_id]
-          ?.name ?? "—"}
-      </h2>
-{/* 
+              <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
+                {customerMap[order.customer_id]
+                  ?.name ?? "—"}
+              </h2>
+              {/* 
       <p className="text-sm text-brand-text-secondary mt-1">
         {order.order_type}
       </p> */}
-    </div>
+            </div>
 
-    {/* Three status badges side by side */}
-    <div className="flex flex-col gap-1.5 items-end">
-      <OrderStatusBadge status={order.order_status} />
-      <FulfillmentStatusBadge status={order.fulfillment_status} />
-      <PaymentStatusBadge status={order.payment_status} />
-    </div>
-  </div>
+            {/* Three status badges side by side */}
+            <div className="flex flex-col gap-1.5 items-end">
+              <OrderStatusBadge status={order.order_status} />
+              <FulfillmentStatusBadge status={order.fulfillment_status} />
+              <PaymentStatusBadge status={order.payment_status} />
+            </div>
+          </div>
 
-  {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
-    <InfoRow
-      label="Gas Type"
-      value={order.product_name ?? order.order_type}
-    />
 
-    <InfoRow
-      label="Quantity"
-      value={`${order.quantity.toLocaleString()} kg`}
-    />
+          <SimpleTable
+            columns={itemColumns}
+            rows={order.order_items}
+            keyExtractor={(_, index) => String(index)}
+            footer={
+              <tr>
+                <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+                  Grand Total
+                </td>
+                <td className="pt-3 text-right font-semibold">
+                  {formatCurrency(order.total_amount)}
+                </td>
+              </tr>
+            }
+          />
 
-    <InfoRow
-      label="Unit Price"
-      value={formatCurrency(order.unit_price)}
-    />
-
-    <InfoRow
-      label="Total Amount"
-      value={formatCurrency(order.total_amount)}
-    />
-
-    <InfoRow
-      label="Delivery Date"
-      value={
-        order.delivery_date
-          ? formatDate(order.delivery_date)
-          : "Not set"
-      }
-    />
-
-    <InfoRow
-      label="Delivery Address"
-      value={order.delivery_address}
-    />
-
-    {order.confirmed_at && (
-      <InfoRow
-        label="Confirmed On"
-        value={formatDate(order.confirmed_at)}
-      />
-    )}
-
-    {order.delivered_at && (
-      <InfoRow
-        label="Delivered On"
-        value={formatDate(order.delivered_at)}
-      />
-    )}
-  </div> */}
-
-  {/* ORDER ITEMS */}
-{/* <div className="mt-4 pt-4 border-t border-brand-border">
-  <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
-  <table className="w-full text-sm">
-    <thead>
-      <tr className="border-b text-left">
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Product</th>
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Quantity</th>
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs">Unit Price</th>
-        <th className="pb-2 font-medium text-brand-text-secondary text-xs text-right">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {order.order_items.map((item, index) => (
-        <tr key={index} className="border-b last:border-0">
-          <td className="py-2 font-medium">{item.product_name}</td>
-          <td className="py-2">{item.quantity.toLocaleString()} kg</td>
-          <td className="py-2">{formatCurrency(item.unit_price)}</td>
-          <td className="py-2 text-right">{formatCurrency(item.total)}</td>
-        </tr>
-      ))}
-    </tbody>
-    <tfoot>
-      <tr>
-        <td colSpan={3} className="pt-3 text-right font-semibold text-xs text-brand-text-secondary">Grand Total</td>
-        <td className="pt-3 text-right font-semibold">{formatCurrency(order.total_amount)}</td>
-      </tr>
-    </tfoot>
-  </table>
-</div> */}
-
-<SimpleTable
-  columns={itemColumns}
-  rows={order.order_items}
-  keyExtractor={(_, index) => String(index)}
-  footer={
-    <tr>
-      <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
-        Grand Total
-      </td>
-      <td className="pt-3 text-right font-semibold">
-        {formatCurrency(order.total_amount)}
-      </td>
-    </tr>
-  }
-/>
-
-  {order.notes && (
-    <div className="mt-4 pt-4 border-t border-brand-border text-sm">
-      <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
-      <p>{order.notes}</p>
-    </div>
-  )}
-</FormSection>
+          {order.notes && (
+            <div className="mt-4 pt-4 border-t border-brand-border text-sm">
+              <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
+              <p>{order.notes}</p>
+            </div>
+          )}
+        </FormSection>
 
         {/* TRIP / DISPATCH */}
-        <SectionCard
+        <FormSection
           title="Dispatch / Trip"
-          action={
+          description="View trip assignment and delivery route details"
+        >
+
+          {
             canAssign ? (
-              <Button size="sm" href={FLEET_ROUTES.tripNew({ orderId: id })}>
-                Assign to Trip
-              </Button>
+              <div className="flex justify-end">
+                <Button size="sm" href={FLEET_ROUTES.tripNew({ orderId: id })}>
+                  Assign to Trip →
+                </Button>
+              </div>
             ) : order.trip_id ? (
-              <Button
-                size="sm"
-                variant="outline"
-                href={FLEET_ROUTES.tripDetail(order.trip_id)}
-              >
-                View Trip →
-              </Button>
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  href={FLEET_ROUTES.tripDetail(order.trip_id)}
+                >
+                  View Trip →
+                </Button>
+              </div>
             ) : undefined
           }
-          empty={
-            order.fulfillment_status === "pending"
-              ? "This order has not been assigned to a trip yet."
-              : "Trip information not available."
-          }
-        >
           {trip ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               <InfoRow label="Trip Number" value={trip.trip_number} />
@@ -335,18 +262,28 @@ export default function OrderDetailPage() {
               <InfoRow label="To" value={trip.end_location} />
               <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
             </div>
-          ) : null}
-        </SectionCard>
+          ) : (
+            <p className="text-sm text-brand-text-secondary">
+              {order.fulfillment_status === "pending"
+                ? "This order has not been assigned to a trip yet."
+                : "Trip information not available."}
+            </p>
+          )}
+        </FormSection>
 
         {/* INVOICE */}
-        <SectionCard
+        <FormSection
           title="Invoice"
-          action={
-            canInvoice ? (
+          description="Manage invoice generation and view invoice details"
+        >
+          {canInvoice ? (
+            <div className="flex justify-end">
               <Button size="sm" href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
-                Generate Invoice
+                Create Invoice →
               </Button>
-            ) : invoice ? (
+            </div>
+          ) : invoice ? (
+            <div className="flex justify-end">
               <Button
                 size="sm"
                 variant="outline"
@@ -354,14 +291,9 @@ export default function OrderDetailPage() {
               >
                 View Invoice →
               </Button>
-            ) : undefined
-          }
-          empty={
-            order.fulfillment_status !== "delivered"
-              ? "Invoice will be available after delivery is confirmed."
-              : "No invoice generated yet."
-          }
-        >
+            </div>
+          ) : undefined}
+
           {invoice ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               <InfoRow label="Invoice No" value={invoice.invoice_number} />
@@ -371,23 +303,35 @@ export default function OrderDetailPage() {
               <InfoRow label="Issued" value={formatDate(invoice.issued_date)} />
               <InfoRow label="Due" value={formatDate(invoice.due_date)} />
             </div>
-          ) : null}
-        </SectionCard>
+          ) : (
+            <p className="text-sm text-brand-text-secondary">
+              {order.order_status === "draft"
+                ? "Submit the order before generating an invoice."
+                : order.order_status === "submitted"
+                  ? "Generate an invoice so the customer can make payment."
+                  : "No invoice generated yet."}
+            </p>
+          )}
+        </FormSection>
+
+
 
         {/* PAYMENTS */}
-        <SectionCard
+        <FormSection
           title="Payments"
-          action={
-            invoice && order.payment_status !== "paid" ? (
+          description="Track invoice payments, amounts received, and outstanding balance"
+        >
+          {invoice && order.payment_status !== "paid" ? (
+            <div className="flex justify-end">
               <Button
                 size="sm"
                 href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice.id}`}
               >
-                Record Payment
+                Make Payment →
               </Button>
-            ) : undefined
-          }
-        >
+            </div>
+          ) : undefined}
+
           <div className="grid grid-cols-3 gap-5">
             <InfoRow
               label="Invoice Amount"
@@ -403,7 +347,7 @@ export default function OrderDetailPage() {
               valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
             />
           </div>
-        </SectionCard>
+        </FormSection>
 
       </div>
     </AppLayout>

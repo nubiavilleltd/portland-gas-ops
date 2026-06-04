@@ -4,6 +4,9 @@ export type UserRole =
   | "approver_l1"
   | "approver_l2"
   | "approver_l3"
+  | "line_manager"
+  | "procurement_officer"
+  | "asset_admin"
   | "staff"
   | "viewer";
 
@@ -15,7 +18,8 @@ export type Department =
   | "it"
   | "logistics"
   | "executive"
-  | "engineering";
+  | "engineering"
+  | "procurement";
 
 export interface User {
   id: string;

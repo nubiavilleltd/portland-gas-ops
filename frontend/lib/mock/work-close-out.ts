@@ -193,7 +193,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
   }),
   baseCloseOut(2, {
     id: "WC-PEND-001",
-    status: "pending_approval",
+    status: "pending",
     title: "Close-out for CNG cylinder installation",
     supervisorApproval,
     auditTrail: [
@@ -215,7 +215,7 @@ export const mockWorkCloseOutRequests: WorkCloseOutRequest[] = [
   }),
   baseCloseOut(3, {
     id: "WC-PEND-002",
-    status: "pending_approval",
+    status: "pending",
     title: "Close-out awaiting HSE verification",
     supervisorApproval,
     operationsHeadApproval,

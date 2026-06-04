@@ -41,6 +41,7 @@ export function useCreateVendor() {
         bank_name: data.bank_name ?? null,
         account_name: data.account_name ?? null,
         account_number: data.account_number ?? null,
+        logo_url: data.logo_url ?? null,
         status: "active",
         added_by: null,
       });

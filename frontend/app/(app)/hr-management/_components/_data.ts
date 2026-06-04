@@ -30,16 +30,16 @@ export const LEAVE_TYPE_OPTIONS = LEAVE_TYPES.map((t) => ({ value: t, label: t }
 // ── Approvers ─────────────────────────────────────────────────────────────────
 
 export const HR_APPROVERS: Record<string, { lineManager: string; hrReview: string }> = {
-  Legal:       { lineManager: "Magdalene Edozie",  hrReview: "Oluwaseun Sowemimo" },
-  Commercial:  { lineManager: "Bola Adeyemi",      hrReview: "Oluwaseun Sowemimo" },
-  Assets:      { lineManager: "Opeyemi Busari",    hrReview: "Oluwaseun Sowemimo" },
-  Engineering: { lineManager: "Samuel Eze",        hrReview: "Oluwaseun Sowemimo" },
-  Operations:  { lineManager: "Johnson Ibikunle",  hrReview: "Oluwaseun Sowemimo" },
-  Finance:     { lineManager: "Ifeanyi Chukwu",    hrReview: "Oluwaseun Sowemimo" },
-  HR:          { lineManager: "Adaeze Nwosu",      hrReview: "Oluwaseun Sowemimo" },
-  IT:          { lineManager: "Emeka Udoh",        hrReview: "Oluwaseun Sowemimo" },
-  Safety:      { lineManager: "David Okeke",       hrReview: "Oluwaseun Sowemimo" },
-  Admin:       { lineManager: "Grace Obi",         hrReview: "Oluwaseun Sowemimo" },
+  Legal:       { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Commercial:  { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Assets:      { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Engineering: { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Operations:  { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Finance:     { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  HR:          { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  IT:          { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Safety:      { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
+  Admin:       { lineManager: "Samuel Eze", hrReview: "Oluwaseun Sowemimo" },
 };
 
 // ── Reference generator ───────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ export interface LeaveRequest {
   reliever: string;
   reason?: string;
   supportingDocuments?: string[];
-  status: "draft" | "pending" | "approved" | "in_progress" | "rejected";
+  status: "draft" | "pending" | "approved" | "denied";
   date: string;
 }
 
@@ -156,7 +156,7 @@ export interface PayrollRun {
   totalDeductions: number;
   totalNet: number;
   employees: number;
-  status: "pending" | "approved" | "processed" | "draft" | "rejected";
+  status: "pending" | "approved" | "processed" | "draft" | "denied";
   preparedBy: string;
 }
 
@@ -175,9 +175,9 @@ export const SEED_EMPLOYEES: Employee[] = [
 export const EMPLOYEE_STORE: Employee[] = [...SEED_EMPLOYEES];
 
 export const SEED_LEAVE_REQUESTS: LeaveRequest[] = [
-  { id: "l1", ref: "LRQ-20260515-A1B2", requestType: "self",   requester: "Joseph Chika",    employee: "Joseph Chika",     jobTitle: "Operations Manager", type: "Annual Leave", department: "Operations", startDate: "2026-06-01", endDate: "2026-06-10", days: 8,  reliever: "David Okeke",      status: "pending",     date: "15 May 2026", reason: "Annual rest and family time during the Q2 break period." },
-  { id: "l2", ref: "LRQ-20260510-C3D4", requestType: "others", requester: "Joseph Chika",    employee: "Magdalene Edozie", jobTitle: "Software Developer",  type: "Sick Leave",   department: "Legal",      startDate: "2026-05-12", endDate: "2026-05-13", days: 2,  reliever: "Johnson Ibikunle", status: "approved",    date: "10 May 2026", reason: "Employee is unwell and has been advised to rest by her physician." },
-  { id: "l3", ref: "LRQ-20260503-E5F6", requestType: "others", requester: "Joseph Chika",    employee: "Opeyemi Busari",   jobTitle: "Data Analyst",        type: "Study Leave",  department: "Assets",     startDate: "2026-06-15", endDate: "2026-06-30", days: 12, reliever: "Felix Ohemu",      status: "in_progress", date: "3 May 2026",  reason: "Attending a professional data science certification program at the University of Lagos.", supportingDocuments: ["admission-letter-unilag.pdf"] },
+  { id: "l1", ref: "LRQ-20260515-J1K2", requestType: "self",   requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Annual Leave", department: "Finance", startDate: "2026-06-01", endDate: "2026-06-10", days: 8, reliever: "David Okeke", status: "approved", date: "15 May 2026", reason: "Annual leave for rest and personal matters." },
+  { id: "l2", ref: "LRQ-20260510-J3L4", requestType: "self", requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Sick Leave", department: "Finance", startDate: "2026-05-20", endDate: "2026-05-22", days: 2, reliever: "Johnson Ibikunle", status: "pending", date: "10 May 2026", reason: "Medical appointment and recuperation." },
+  { id: "l3", ref: "LRQ-20260508-J5M6", requestType: "self", requester: "Joseph Chika", employee: "Joseph Chika", jobTitle: "Finance Manager", type: "Compassionate Leave", department: "Finance", startDate: "2026-05-25", endDate: "2026-05-27", days: 2, reliever: "Opeyemi Busari", status: "denied", date: "8 May 2026", reason: "Family emergency requiring immediate attention.", supportingDocuments: ["family-notice.pdf"] },
 ];
 
 export const LEAVE_STORE: LeaveRequest[] = [...SEED_LEAVE_REQUESTS];
@@ -253,7 +253,14 @@ export const POLICY_DOCS: Record<number, PolicyDoc> = {
 };
 
 export const SEED_PAYSLIPS: PaySlip[] = [
-  { id: "ps1", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "April 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  // Joseph Chika - Jan to Jun 2026
+  { id: "ps1-jc-jan", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "January 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-feb", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "February 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-mar", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "March 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-apr", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "April 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-may", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "May 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  { id: "ps1-jc-jun", employee: "Joseph Chika",      empId: "PG-006", department: "Operations", period: "June 2026", basic: 850000, housing: 200000, transport: 100000, meal: 50000, paye: 125000, pension: 68000, nhf: 21250, loan: 0,     net: 985750  },
+  // Other employees - April 2026 only
   { id: "ps2", employee: "Magdalene Edozie",  empId: "PG-001", department: "Legal",      period: "April 2026", basic: 650000, housing: 150000, transport: 80000,  meal: 40000, paye: 85000,  pension: 52000, nhf: 16250, loan: 30000, net: 736750  },
   { id: "ps3", employee: "Oluwaseun Sowemimo",empId: "PG-002", department: "Commercial", period: "April 2026", basic: 950000, housing: 250000, transport: 120000, meal: 60000, paye: 165000, pension: 76000, nhf: 23750, loan: 0,     net: 1115250 },
 ];

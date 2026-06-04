@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate, formatCurrency, toTitleCase } from "@/lib/utils";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
@@ -27,6 +27,8 @@ import {
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 
 import type { Order } from "@/lib/modules/orders/types/orders.types";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 
 const STATUS_ORDER = [
@@ -63,45 +65,45 @@ export default function TripDetailPage() {
   const ordersMap = new Map(orders.map((o) => [o.id, o]));
 
   const customerMap = new Map(customers.map((c) => [c.id, c]));
-  
+
   const linkedOrders = trip.order_ids
-  .map((id) => ordersMap.get(id))
-  .filter(Boolean);
-  
-  console.log("orderMap:", {ordersMap, linkedOrders});
+    .map((id) => ordersMap.get(id))
+    .filter(Boolean);
+
+  console.log("orderMap:", { ordersMap, linkedOrders });
 
   const orderColumns: SimpleTableColumn<Order>[] = [
-  {
-    label: "Order",
-    render: (order) => (
-      <span className="font-mono text-xs">{order.order_number}</span>
-    ),
-  },
-  {
-    label: "Customer",
-    render: (order) =>
-      customerMap.get(order.customer_id)?.name ?? "Unknown Customer",
-  },
-  {
-    label: "Amount",
-    render: (order) => formatCurrency(order.total_amount),
-  },
-  {
-    label: "Status",
-    render: (order) => (
-      <FulfillmentStatusBadge status={order.fulfillment_status} />
-    ),
-  },
-  {
-    label: "",
-    align: "right",
-    render: (order) => (
-      <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
-        View
-      </Button>
-    ),
-  },
-];
+    {
+      label: "Order",
+      render: (order) => (
+        <span className="font-mono text-xs">{order.order_number}</span>
+      ),
+    },
+    {
+      label: "Customer",
+      render: (order) =>
+        customerMap.get(order.customer_id)?.name ?? "Unknown Customer",
+    },
+    {
+      label: "Amount",
+      render: (order) => formatCurrency(order.total_amount),
+    },
+    {
+      label: "Status",
+      render: (order) => (
+        <FulfillmentStatusBadge status={order.fulfillment_status} />
+      ),
+    },
+    {
+      label: "",
+      align: "right",
+      render: (order) => (
+        <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
+          View
+        </Button>
+      ),
+    },
+  ];
 
   const currentStepIndex = STATUS_ORDER.indexOf(
     trip.status as (typeof STATUS_ORDER)[number],
@@ -114,32 +116,33 @@ export default function TripDetailPage() {
 
   return (
     <AppLayout pageTitle={trip.trip_number}>
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripList()}`}
+        label="Back to Trips"
+      />
       <PageHeader
         title={trip.trip_number}
         description="Trip execution and dispatch control center"
         action={
           <div className="flex gap-2">
-            {canAssign && (
-              <Button href={`/fleet/trips/${tripId}/assign`}>
-                Assign Driver & Vehicle
-              </Button>
-            )}
+
 
             {canDispatch && (
               <Button href={`/fleet/trips/${tripId}/dispatch`}>
-                Dispatch Trip
+                Dispatch Trip →
               </Button>
             )}
 
             {canStart && (
               <Button href={`/fleet/trips/${tripId}/start`}>
-                Start Transit
+                Start Transit →
               </Button>
             )}
 
             {canComplete && (
               <Button href={`/fleet/trips/${tripId}/complete`}>
-                Complete Trip
+                Complete Trip →
               </Button>
             )}
           </div>
@@ -151,9 +154,9 @@ export default function TripDetailPage() {
         {/* TRIP SUMMARY */}
         <FormSection
           title="Trip Summary"
-          description={trip.type.replace(/_/g, " ")}
+          description={toTitleCase(trip.type.replace(/_/g, " "))}
         >
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex items-start justify-end mb-4">
             <TripStatusBadge status={trip.status} />
           </div>
 
@@ -194,13 +197,12 @@ export default function TripDetailPage() {
                     className="flex items-center gap-2"
                   >
                     <div
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                        isCurrent
-                          ? "bg-brand-purple text-white"
-                          : isActive
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-400"
-                      }`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${isCurrent
+                        ? "bg-brand-purple text-white"
+                        : isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-400"
+                        }`}
                     >
                       {isActive && !isCurrent && <span>✓ </span>}
                       <span className="capitalize">
@@ -219,6 +221,14 @@ export default function TripDetailPage() {
           title="Assignment"
           description="Driver and vehicle allocation"
         >
+
+          {canAssign && (
+            <div className="flex justify-end">
+              <Button href={`/fleet/trips/${tripId}/assign`}>
+                Assign Driver & Vehicle →
+              </Button>
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="border p-4 rounded-xl">
               <p className="text-xs text-brand-text-secondary">Driver</p>
@@ -249,65 +259,12 @@ export default function TripDetailPage() {
                 No orders attached.
               </p>
             ) : (
-              // <div className="overflow-x-auto">
-              //   <table className="w-full text-sm">
-              //     <thead>
-              //       <tr className="border-b text-left">
-              //         <th className="py-2">Order</th>
-              //         <th className="py-2">Customer</th>
-              //         <th className="py-2">Amount</th>
-              //         <th className="py-2">Status</th>
-              //         <th className="py-2"></th>
-              //       </tr>
-              //     </thead>
-
-              //     <tbody>
-              //       {linkedOrders.map((order) =>
-              //         order ? (
-              //           <tr
-              //             key={order.id}
-              //             className="border-b"
-              //           >
-              //             <td className="py-2 font-mono text-xs">
-              //               {order.order_number}
-              //             </td>
-
-              //             <td className="py-2">
-              //               {customerMap.get(order.customer_id)?.name ||
-              //                 "Unknown Customer"}
-              //             </td>
-
-              //             <td className="py-2">
-              //               {formatCurrency(order.total_amount)}
-              //             </td>
-
-              //             <td className="py-2">
-              //               <FulfillmentStatusBadge
-              //                 status={order.fulfillment_status}
-              //               />
-              //             </td>
-
-              //             <td className="py-3 text-right">
-              //               <Button
-              //                 size="sm"
-              //                 variant="outline"
-              //                 href={`/orders/${order.id}`}
-              //               >
-              //                 View
-              //               </Button>
-              //             </td>
-              //           </tr>
-              //         ) : null,
-              //       )}
-              //     </tbody>
-              //   </table>
-              // </div>
               <SimpleTable
-  columns={orderColumns}
-  rows={linkedOrders as Order[]}
-  keyExtractor={(order) => order.id}
-  emptyMessage="No orders attached."
-/>
+                columns={orderColumns}
+                rows={linkedOrders as Order[]}
+                keyExtractor={(order) => order.id}
+                emptyMessage="No orders attached."
+              />
             )}
           </FormSection>
         )}

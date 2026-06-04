@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, CheckCircle2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -15,9 +17,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import DataTable from "@/components/data-table/data-table";
 import { invoiceColumns } from "@/components/data-table/columns";
-import WorkflowPath from "../_components/WorkflowPath";
-import ApprovalStepper from "../_components/ApprovalStepper";
-import ActivityHistory from "../_components/ActivityHistory";
+import { formatNumber } from "@/lib/utils/format-number";
 import {
   CURRENCY_OPTIONS,
   VENDOR_OPTIONS,
@@ -50,21 +50,14 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-type View = "list" | "form" | "submitted";
-
-interface SubmittedInfo {
-  ref: string;
-  requester: string;
-  department: string;
-  submittedAt: Date;
-}
-
-const APPROVAL_ROUTE = ["Initiator (You)", "Line Manager", "Finance Review", "Processed"];
+type View = "list" | "form";
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<InvoiceRequest[]>(SEED_INVOICES);
-  const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
+  const [items, setItems] = useState<InvoiceRequest[]>(() =>
+    SEED_INVOICES.filter((item) => item.requester === CURRENT_USER.name)
+  );
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [invoiceId] = useState(() => genRef("IID"));
 
@@ -73,6 +66,7 @@ export default function InvoicesPage() {
 
   const watchGross = form.watch("gross_amount");
   const watchTax   = form.watch("tax_amount");
+  const watchNet   = form.watch("net_amount");
   useEffect(() => {
     const gross = parseFloat(watchGross ?? "");
     if (isNaN(gross)) return;
@@ -107,20 +101,16 @@ export default function InvoicesPage() {
     };
     INVOICE_STORE.unshift(newItem);
     setItems((prev) => [newItem, ...prev]);
-    setSubmitted({
-      ref,
-      requester: CURRENT_USER.name,
-      department: CURRENT_USER.department,
-      submittedAt: new Date(),
-    });
-    setView("submitted");
+    toast.success(`Invoice submitted successfully — Reference: ${ref}`);
+    form.reset();
+    setSupportingFiles([]);
+    setTimeout(() => location.reload(), 800);
   }
 
   function goBack() {
     setView("list");
     form.reset();
     setSupportingFiles([]);
-    setSubmitted(null);
   }
 
   return (
@@ -139,13 +129,15 @@ export default function InvoicesPage() {
             }
             className="mb-6"
           />
-          <DataTable
-            columns={invoiceColumns}
-            data={items}
-            rowHref={(row) => `/finance/invoices/${row.id}`}
-            emptyMessage="No invoices yet"
-            emptyDescription="Submit your first invoice to get started"
-          />
+          <div className="w-full overflow-hidden">
+            <DataTable
+              columns={invoiceColumns}
+              data={items}
+              rowHref={(row) => `/finance/invoices/${row.id}`}
+              emptyMessage="No invoices yet"
+              emptyDescription="Submit your first invoice to get started"
+            />
+          </div>
         </>
       )}
 
@@ -239,25 +231,40 @@ export default function InvoicesPage() {
                     />
                     <FormInput
                       label="Gross Amount"
-                      type="number"
                       required
                       placeholder="0.00"
                       error={errors.gross_amount?.message}
-                      {...form.register("gross_amount")}
+                      {...form.register("gross_amount", {
+                        onBlur: (e) => {
+                          const rawValue = e.target.value.replace(/,/g, "");
+                          const numValue = parseFloat(rawValue) || 0;
+                          e.target.value = formatNumber(numValue);
+                        },
+                      })}
                     />
                     <FormInput
                       label="VAT / WHT Amount"
-                      type="number"
                       placeholder="0.00 (optional)"
-                      {...form.register("tax_amount")}
+                      {...form.register("tax_amount", {
+                        onBlur: (e) => {
+                          const rawValue = e.target.value.replace(/,/g, "");
+                          const numValue = parseFloat(rawValue) || 0;
+                          e.target.value = formatNumber(numValue);
+                        },
+                      })}
                     />
                     <FormInput
                       label="Net Payable"
-                      type="number"
                       required
                       placeholder="0.00"
                       error={errors.net_amount?.message}
-                      {...form.register("net_amount")}
+                      {...form.register("net_amount", {
+                        onBlur: (e) => {
+                          const rawValue = e.target.value.replace(/,/g, "");
+                          const numValue = parseFloat(rawValue) || 0;
+                          e.target.value = formatNumber(numValue);
+                        },
+                      })}
                     />
                     <div className="md:col-span-2">
                       <FormTextarea
@@ -284,30 +291,6 @@ export default function InvoicesPage() {
               </div>
             </FormSection>
 
-            <section className="rounded-xl border border-brand-border bg-gray-50 px-5 py-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
-                Approval Route
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {APPROVAL_ROUTE.map((step, i, arr) => (
-                  <div key={step} className="flex items-center gap-2">
-                    <span
-                      className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-                        i === 0
-                          ? "bg-brand-purple-faint text-brand-purple border-brand-purple-mid"
-                          : "bg-white text-brand-text-secondary border-brand-border"
-                      }`}
-                    >
-                      {step}
-                    </span>
-                    {i < arr.length - 1 && (
-                      <span className="text-brand-text-secondary text-xs">→</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
                 Submit for Approval
@@ -317,53 +300,6 @@ export default function InvoicesPage() {
         </>
       )}
 
-      {/* ── SUBMITTED ── */}
-      {view === "submitted" && submitted && (
-        <>
-          <button
-            onClick={goBack}
-            className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
-          >
-            <ArrowLeft size={16} />
-            Back to Invoice Processing
-          </button>
-
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
-            <CheckCircle2 size={22} className="text-green-600 shrink-0 mt-0.5" />
-            <div>
-              <h2 className="font-semibold text-green-800">Invoice Submitted Successfully</h2>
-              <p className="text-sm text-green-700 mt-0.5">
-                Reference:{" "}
-                <span className="font-mono font-bold">{submitted.ref}</span> — Your invoice has been routed to the first approver.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <ApprovalStepper currentStep={1} />
-            <WorkflowPath
-              initiator={submitted.requester}
-              department={submitted.department}
-              currentStep={1}
-            />
-            <ActivityHistory
-              initiator={submitted.requester}
-              department={submitted.department}
-              submittedAt={submitted.submittedAt}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-3 mt-6">
-            <Button onClick={goBack}>View All Invoices</Button>
-            <Button
-              variant="outline"
-              onClick={() => { form.reset(); setSupportingFiles([]); setView("form"); }}
-            >
-              Submit Another
-            </Button>
-          </div>
-        </>
-      )}
     </AppLayout>
   );
 }

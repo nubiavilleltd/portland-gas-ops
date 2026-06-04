@@ -37,97 +37,46 @@ export type ModuleGroup = {
 };
 
 export const moduleGroups: readonly ModuleGroup[] = [
-  // {
-  //   title: "Administration",
-  //   processes: [
-  //     {
-  //       name: "Admin",
-  //       description: "Users, roles & system configuration",
-  //       icon: Settings,
-  //       href: "/admin",
-  //     },
-  //   ],
-  // },
   {
-    title: "Finance",
-    routePrefixes: ["/finance"],
-    processes: [
-      {
-        name: "Cash Requisition",
-        description: "Petty cash and operational funds",
-        icon: Banknote,
-        href: "/finance/cash-requisitions",
-      },
-      {
-        name: "Invoice Processing",
-        description: "Supplier invoices and approvals",
-        icon: FileText,
-        href: "/finance/invoices",
-        routePrefixes: ["/finance/invoices", "/finance/process-map/invoice", "/invoices"],
-      },
-      {
-        name: "Payments",
-        description: "Record and review payments",
-        icon: DollarSign,
-        href: "/payments",
-        showOnHome: false,
-      },
-      {
-        name: "Billing",
-        description: "Billing operations",
-        icon: DollarSign,
-        href: "/billing",
-        showOnHome: false,
-      },
-    ],
-  },
-  {
-    title: "HR Management",
-    routePrefixes: ["/hr-management", "/hr"],
+    title: "Finance & HR Management",
     processes: [
       {
         name: "Employee Profile",
         description: "Staff profiles and records",
         icon: Users,
-        href: "/hr-management/employees",
-      },
-      {
-        name: "Leave Requests",
-        description: "Leave applications and approvals",
-        icon: CalendarDays,
-        href: "/hr-management/leave-requests",
+        href: "/admin/employees",
       },
       {
         name: "Leave Balances",
         description: "Entitlement and usage by employee",
         icon: BarChart2,
-        href: "/hr-management/leave-balances",
+        href: "/admin/leave-balances",
       },
       {
-        name: "Pay Slips",
-        description: "Monthly pay slip viewer",
+        name: "Pay Slip Management",
+        description: "Generate and manage employee pay slips",
         icon: CreditCard,
-        href: "/hr-management/payslips",
+        href: "/admin/payslips",
       },
       {
         name: "Employee Records",
         description: "Document vault",
         icon: FolderOpen,
-        href: "/hr-management/employee-records",
+        href: "/admin/employee-records",
         showOnHome: false,
       },
       {
         name: "HR Policies",
         description: "Policy library and acknowledgements",
         icon: BookOpen,
-        href: "/hr-management/policies",
+        href: "/admin/policies",
         showOnHome: false,
       },
       {
         name: "Payroll",
         description: "Payroll runs and disbursements",
         icon: DollarSign,
-        href: "/hr-management/payroll",
+        href: "/admin/payroll",
         showOnHome: false,
       },
     ],
@@ -135,53 +84,30 @@ export const moduleGroups: readonly ModuleGroup[] = [
   {
     title: "Operations",
     processes: [
-      // {
-      //   name: "Fleet Management",
-      //   description: "Vehicles, drivers & maintenance",
-      //   icon: Truck,
-      //   href: "/fleet",
-      // },
-      {
-        name: "Trips & Dispatch",
-        description: "Trip planning, dispatch, and delivery tracking",
-        icon: Truck,
-        href: "/fleet/trips",
-      },
       {
         name: "Vehicles",
         description: "Vehicle records, maintenance, and inspections",
         icon: Truck,
-        href: "/fleet/vehicles",
+        href: "/admin/fleet/vehicles",
       },
       {
         name: "Drivers",
         description: "Driver records, licenses, and training",
         icon: User,
-        href: "/fleet/drivers",
+        href: "/admin/fleet/drivers",
       },
-      {
-        name: "Orders",
-        description: "Gas orders and delivery",
-        icon: ClipboardList,
-        href: "/orders",
-      },
+
       {
         name: "Customers",
         description: "Customer accounts and records",
         icon: Users,
-        href: "/customers",
+        href: "/admin/customers",
       },
       {
         name: "Products",
         description: "Gas products and pricing",
         icon: Package,
-        href: "/products",
-      },
-      {
-        name: "Invoices",
-        description: "Customer billing and invoice tracking",
-        icon: FileText,
-        href: "/invoices",
+        href: "/admin/products",
       },
     ],
   },
@@ -223,24 +149,21 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Supply Chain",
+    routePrefixes: ["/admin/assets", "/admin/vendors"],
     processes: [
       {
         name: "Assets",
-        description: "Register, track & request company assets",
+        description: "Register, track & manage all company assets",
         icon: Package,
-        href: "/assets",
-      },
-      {
-        name: "Purchase Requests",
-        description: "Raise & manage purchase requisitions",
-        icon: ShoppingCart,
-        href: "/procurement",
+        href: "/admin/assets",
+        routePrefixes: ["/admin/assets"],
       },
       {
         name: "Vendors",
         description: "Suppliers & service providers",
         icon: Store,
-        href: "/vendors",
+        href: "/admin/vendors",
+        routePrefixes: ["/admin/vendors"],
       },
     ],
   },
@@ -258,17 +181,18 @@ function matchesPath(pathname: string, prefix: string) {
 }
 
 export function getModuleGroupForPathname(pathname: string): ModuleGroup | undefined {
+  // Pass 1: exact process/routePrefix match (most specific)
   for (const group of moduleGroups) {
     const ownsProcessPath = group.processes.some((process) =>
       [process.href, ...(process.routePrefixes ?? [])].some((prefix) =>
         matchesPath(pathname, prefix),
       ),
     );
+    if (ownsProcessPath) return group;
+  }
 
-    if (ownsProcessPath) {
-      return group;
-    }
-
+  // Pass 2: group-level routePrefix fallback (less specific, e.g. /admin)
+  for (const group of moduleGroups) {
     if (group.routePrefixes?.some((prefix) => matchesPath(pathname, prefix))) {
       return group;
     }

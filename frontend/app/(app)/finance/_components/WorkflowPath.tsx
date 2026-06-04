@@ -12,7 +12,7 @@ export default function WorkflowPath({ initiator, department, currentStep }: Pro
 
   const steps = [
     { role: "Initiator",   name: initiator || "—",          title: "Requester"     },
-    { role: "Approver 1",  name: approvers.lineManager,     title: "Line Manager"  },
+    { role: "Approver 1",  name: approvers.lineManager,     title: "Operations Manager"  },
     { role: "Approver 2",  name: approvers.financeReview,   title: "Finance Review" },
   ];
 

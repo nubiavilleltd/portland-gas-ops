@@ -17,6 +17,8 @@ import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useDispatchTripWorkflow } from "@/lib/modules/fleet/hooks/useDispatchTripWorkflow";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function DispatchTripPage() {
   const params = useParams();
@@ -58,7 +60,7 @@ export default function DispatchTripPage() {
               href={`/fleet/trips/${tripId}/assign`}
               className="mr-2"
             >
-              Assign Driver & Vehicle First
+              Assign Driver & Vehicle First →
             </Button>
           )}
 
@@ -79,6 +81,11 @@ export default function DispatchTripPage() {
 
   return (
     <AppLayout pageTitle="Dispatch Trip">
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        label="Back to Trip"
+      />
       <PageHeader
         title={`Dispatch — ${trip.trip_number}`}
         description="Formally dispatch this trip from the depot. Orders will be updated."
@@ -182,27 +189,6 @@ export default function DispatchTripPage() {
           </div>
         </FormSection>
 
-        {/* NOTICE */}
-        {/* <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-          <p className="font-medium mb-1">
-            What happens when you dispatch:
-          </p>
-
-          <ul className="list-disc ml-4 space-y-1 text-blue-600">
-            <li>
-              Trip changes from <strong>Assigned → Dispatched</strong>
-            </li>
-            <li>
-              {trip.order_ids.length} order(s) become <strong>Dispatched</strong>
-            </li>
-            <li>
-              Vehicle marked as <strong>In Transit</strong>
-            </li>
-            <li>
-              Departure time is recorded
-            </li>
-          </ul>
-        </div> */}
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
           <p className="font-medium mb-1">What happens when you dispatch:</p>
@@ -239,7 +225,7 @@ export default function DispatchTripPage() {
             loading={dispatchTrip.isPending}
           >
             {/* {isSubmitting ? "Dispatching..." : "Dispatch Trip"} */}
-            Dispatch Trip
+            Confirm Trip Dispatch
           </Button>
         </div>
       </div>

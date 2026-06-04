@@ -65,11 +65,11 @@ export default function DriversPage() {
       <PageHeader
         title="Drivers"
         description="Manage fleet drivers and assignments"
-        action={
-          <Button href="/fleet/drivers/new">
-            Add Driver
-          </Button>
-        }
+        // action={
+        //   <Button href="/fleet/drivers/new">
+        //     Add Driver
+        //   </Button>
+        // }
       />
 
       <DataTable<Driver>

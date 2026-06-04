@@ -2,26 +2,43 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, FileText, Download } from "lucide-react";
-import { API_URL } from "@/lib/constants";
-import { useAuthStore } from "@/store/authStore";
+import { Plus, Download } from "lucide-react";
+import { procurementStore } from "@/lib/mockStore";
+import { generatePO } from "@/lib/generatePO";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import EmptyState from "@/components/ui/EmptyState";
+import SelectInput from "@/components/forms/SelectInput";
 import { formatDate, capitalize } from "@/lib/utils";
 import { useProcurementList } from "@/hooks/useProcurement";
 import type { ProcurementListItem, ProcurementStatus } from "@/types";
 
-const STATUS_TABS: { label: string; value: ProcurementStatus | undefined }[] = [
-  { label: "All", value: undefined },
-  { label: "Submitted", value: "submitted" },
-  { label: "Ordered", value: "ordered" },
-  { label: "Delivered", value: "delivered" },
-  { label: "Cancelled", value: "cancelled" },
+const STATUS_OPTIONS = [
+  { value: "pending_line_manager",  label: "Pending — Operations Manager" },
+  { value: "pending_procurement",   label: "Pending — Procurement Officer" },
+  { value: "awaiting_payment",      label: "Awaiting Payment" },
+  { value: "awaiting_confirmation", label: "Awaiting Confirmation" },
+  { value: "completed",             label: "Completed" },
+  { value: "rejected",              label: "Rejected" },
+  { value: "returned",              label: "Returned" },
 ];
+
+const NEXT_APPROVER: Partial<Record<string, string>> = {
+  pending_line_manager:  "Operations Manager",
+  pending_procurement:   "Procurement Officer",
+  awaiting_payment:      "Finance",
+  awaiting_confirmation: "Procurement Officer",
+};
+
+function StatusCell({ status }: { status: string }) {
+  if (status === "rejected")              return <ApprovalBadge status="rejected" />;
+  if (status === "returned")              return <ApprovalBadge status="returned" />;
+  if (status === "completed")             return <ApprovalBadge status="completed" />;
+  if (status === "awaiting_payment")      return <ApprovalBadge status="awaiting_payment" />;
+  if (status === "awaiting_confirmation") return <ApprovalBadge status="awaiting_confirmation" />;
+  return <ApprovalBadge status="pending" />;
+}
 
 const columns: Column<ProcurementListItem>[] = [
   { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
@@ -29,18 +46,6 @@ const columns: Column<ProcurementListItem>[] = [
     key: "category",
     label: "Category",
     render: (v) => <span className="capitalize">{String(v).replace(/_/g, " ")}</span>,
-  },
-  {
-    key: "priority",
-    label: "Priority",
-    render: (v) => {
-      const colours: Record<string, string> = {
-        routine: "text-gray-500",
-        urgent: "text-amber-600 font-medium",
-        emergency: "text-red-600 font-semibold",
-      };
-      return <span className={colours[String(v)] ?? ""}>{capitalize(String(v))}</span>;
-    },
   },
   {
     key: "vendor",
@@ -55,46 +60,45 @@ const columns: Column<ProcurementListItem>[] = [
   {
     key: "status",
     label: "Status",
-    render: (v) => <ApprovalBadge status={String(v)} />,
+    render: (v) => <StatusCell status={String(v)} />,
+  },
+  {
+    key: "payment_status",
+    label: "Next Actor",
+    render: (_, row) => {
+      if (row.status === "returned") {
+        return <span className="text-xs text-orange-600 font-medium">Requester to revise</span>;
+      }
+      const approver = NEXT_APPROVER[row.status];
+      return approver
+        ? <span className="text-sm text-brand-text-primary">{approver}</span>
+        : <span className="text-brand-text-secondary">—</span>;
+    },
   },
   {
     key: "po_url",
     label: "PO",
     render: (v, row) =>
       v ? (
-        <PODownloadCell requestId={row.id} reference={row.reference} />
+        <PODownloadCell requestId={row.id} />
       ) : (
         <span className="text-brand-text-secondary text-xs">—</span>
       ),
   },
 ];
 
-function PODownloadCell({ requestId, reference }: { requestId: string; reference: string }) {
+function PODownloadCell({ requestId }: { requestId: string }) {
   const [loading, setLoading] = useState(false);
-  const token = useAuthStore((s) => s.accessToken);
 
   async function handleDownload(e: React.MouseEvent) {
     e.stopPropagation();
     setLoading(true);
     try {
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_URL}/api/procurement/${requestId}/download-po`, {
-        headers,
-        credentials: "include",   // sends access_token cookie, same as axios withCredentials
-      });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${reference}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const req = procurementStore.getById(requestId);
+      if (!req) throw new Error("Not found");
+      await generatePO(req);
     } catch {
-      alert("Could not download the PDF. Please try again.");
+      alert("Could not generate the PDF. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -119,8 +123,8 @@ export default function ProcurementPage() {
   return (
     <AppLayout pageTitle="Procurement">
       <PageHeader
-        title="Purchase Requests"
-        description="Raise and manage purchase requisitions"
+        title="Purchase & Service Requests"
+        description="Raise and manage purchase and service requisitions"
         action={
           <Link
             href="/procurement/new"
@@ -132,42 +136,31 @@ export default function ProcurementPage() {
         className="mb-6"
       />
 
-      {/* Status filter tabs */}
-      <div className="inline-flex gap-1 mb-4 bg-white border border-brand-border rounded-xl p-1 max-w-full overflow-x-auto">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.label}
-            onClick={() => setActiveStatus(tab.value)}
-            className={[
-              "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap",
-              activeStatus === tab.value
-                ? "bg-brand-purple text-white font-medium"
-                : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
-            ].join(" ")}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <LoadingSpinner />
-        </div>
-      ) : isError ? (
-        <EmptyState title="Could not load requests" description="Check your connection and try again." />
-      ) : !data?.length ? (
-        <EmptyState
-          title="No procurement requests"
-          description={activeStatus ? `No requests with status "${activeStatus}".` : "Raise your first request to get started."}
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={data}
-          rowHref={(row) => `/procurement/${row.id}`}
-        />
-      )}
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        rowHref={(row) => `/procurement/${row.id}`}
+        emptyMessage={isError ? "Could not load requests" : "No procurement requests"}
+        emptyDescription={
+          isError
+            ? "Check your connection and try again."
+            : activeStatus
+              ? `No requests with status "${activeStatus}".`
+              : "Raise your first request to get started."
+        }
+        toolbarActions={
+          <div className="w-52 shrink-0">
+            <SelectInput
+              placeholder="All Statuses"
+              sortOptions={false}
+              value={activeStatus ?? ""}
+              onValueChange={(v) => setActiveStatus((v || undefined) as ProcurementStatus | undefined)}
+              options={STATUS_OPTIONS}
+            />
+          </div>
+        }
+      />
     </AppLayout>
   );
 }

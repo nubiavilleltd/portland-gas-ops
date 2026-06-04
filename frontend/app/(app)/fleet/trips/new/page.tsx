@@ -32,6 +32,9 @@ import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 
 import { useCreateTripWorkflow } from "@/lib/modules/fleet/hooks/useCreateTripWorkflow";
+import { canAssignToTrip } from "@/lib/modules/orders/guards/orders.guards";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
@@ -80,7 +83,7 @@ function CreateTripForm() {
   const assignableOrders = orders
     .filter(
       (o) =>
-        o.order_status === "confirmed" && o.fulfillment_status === "pending",
+        canAssignToTrip(o),
     )
     .map((o) => ({
       value: o.id,
@@ -126,6 +129,11 @@ function CreateTripForm() {
 
   return (
     <AppLayout pageTitle="Create Trip">
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripList()}`}
+        label="Back to Trips"
+      />
       <PageHeader
         title="Create Trip"
         description="Schedule a new logistics trip for order delivery or fleet operations"
@@ -147,7 +155,7 @@ function CreateTripForm() {
 
                 <span>
                   Order <strong>{preloadedOrder.order_number}</strong> —{" "}
-                  {preloadedOrder.customer_name}
+                  {customerMap.get(preloadedOrder.customer_id)?.name ?? preloadedOrder.customer_name}
                 </span>
               </div>
             )}
@@ -180,7 +188,7 @@ function CreateTripForm() {
           title="Trip Details"
           description="Configure trip type, destination, and scheduling information"
         >
-          <div className="space-y-5">
+          <div className="space-y-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               control={control}
               name="type"
