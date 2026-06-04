@@ -9,6 +9,9 @@ import VehicleForm, { type VehicleFormValues } from "@/lib/modules/fleet/compone
 import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
 import { VehiclesService } from "@/lib/modules/fleet/services/vehicles.service";
+import { toast } from "sonner";
+import { FLEET_ROUTES } from "@/lib/routes";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function AddVehiclePage() {
   const router = useRouter();
@@ -32,11 +35,18 @@ export default function AddVehiclePage() {
     status: "available",
   });
 
-  router.push(`/admin/fleet/vehicles/${newVehicle.id}`);
+  toast.success("Vehicle successfully created")
+
+  router.push(`/admin/${FLEET_ROUTES.vehicleList()}`);
 }
 
   return (
     <AppLayout pageTitle="Add Vehicle">
+
+        <BackButton
+              href={`/admin${FLEET_ROUTES.vehicleList()}`}
+              label="Back to Vehicles"
+            />
       <PageHeader
         title="Add Vehicle"
         description="Register a new fleet vehicle for operations"

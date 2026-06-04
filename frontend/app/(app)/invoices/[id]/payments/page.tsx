@@ -6,6 +6,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function InvoicePaymentsPage() {
   const { id } = useParams();
@@ -30,6 +31,8 @@ export default function InvoicePaymentsPage() {
 
   return (
     <AppLayout pageTitle="Payment Transactions">
+
+      <BackButton label="Back" />
 
       <PageHeader
         title="Payment Transactions"

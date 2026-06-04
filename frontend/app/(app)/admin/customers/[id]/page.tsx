@@ -25,6 +25,7 @@ import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 import { parseError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils";
 import FormSection from "@/components/ui/FormSection";
+import { BackButton } from "@/components/ui/BackButton";
 
 // ── Detail row ────────────────────────────────────────────
 function DetailRow({
@@ -32,7 +33,7 @@ function DetailRow({
   label,
   value,
 }: {
-  icon:  React.ReactNode;
+  icon: React.ReactNode;
   label: string;
   value: string;
 }) {
@@ -53,10 +54,10 @@ function DetailRow({
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id     = params.id as string;
+  const id = params.id as string;
 
   const { customer, isLoading, error } = useCustomerById(id);
-  const [isToggling, setIsToggling]    = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const isActive = customer?.status === "active"
 
@@ -112,13 +113,10 @@ export default function CustomerDetailPage() {
   return (
     <AppLayout pageTitle={customer.name}>
       {/* Back */}
-      <button
-        onClick={() => router.push(`/admin${CUSTOMER_ROUTES.list()}`)}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back to Customers
-      </button>
+      <BackButton
+        href={`/admin${CUSTOMER_ROUTES.list()}`}
+        label="Back to Customers"
+      />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -131,7 +129,7 @@ export default function CustomerDetailPage() {
               className={
                 customer.type === "corporate"
                   ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700"
-                  : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+                  : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600"
               }
             >
               {customer.type === "corporate" ? "Corporate" : "Individual"}
@@ -196,38 +194,38 @@ export default function CustomerDetailPage() {
       </div> */}
 
       <FormSection
-  title="Customer Details"
-  description="View customer information and contact details"
->
+        title="Customer Details"
+        description="View customer information and contact details"
+      >
 
-  <div className="grid grid-cols-1 gap-5 text-sm md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 text-sm md:grid-cols-3">
           <InfoRow
-    // icon={
-    //   customer.type === "corporate"
-    //     ? <Building2 size={16} />
-    //     : <User size={16} />
-    // }
-    label="Type"
-    value={customer.type === "corporate" ? "Corporate" : "Individual"}
-  />
-  <InfoRow
-    // icon={<Phone size={16} />}
-    label="Phone"
-    value={customer.phone}
-  />
-  <InfoRow
-    // icon={<Mail size={16} />}
-    label="Email"
-    value={customer.email}
-  />
-  <InfoRow
-    // icon={<MapPin size={16} />}
-    label="Address"
-    value={customer.address}
-  />
-  </div>
+            // icon={
+            //   customer.type === "corporate"
+            //     ? <Building2 size={16} />
+            //     : <User size={16} />
+            // }
+            label="Type"
+            value={customer.type === "corporate" ? "Corporate" : "Individual"}
+          />
+          <InfoRow
+            // icon={<Phone size={16} />}
+            label="Phone"
+            value={customer.phone}
+          />
+          <InfoRow
+            // icon={<Mail size={16} />}
+            label="Email"
+            value={customer.email}
+          />
+          <InfoRow
+            // icon={<MapPin size={16} />}
+            label="Address"
+            value={customer.address}
+          />
+        </div>
 
-</FormSection>
+      </FormSection>
     </AppLayout>
   );
 }

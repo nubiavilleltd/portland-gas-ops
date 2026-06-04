@@ -27,6 +27,8 @@ import {
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 
 import type { Order } from "@/lib/modules/orders/types/orders.types";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 
 const STATUS_ORDER = [
@@ -114,12 +116,17 @@ export default function TripDetailPage() {
 
   return (
     <AppLayout pageTitle={trip.trip_number}>
+
+      <BackButton
+        href={`${FLEET_ROUTES.tripList()}`}
+        label="Back to Trips"
+      />
       <PageHeader
         title={trip.trip_number}
         description="Trip execution and dispatch control center"
         action={
           <div className="flex gap-2">
-          
+
 
             {canDispatch && (
               <Button href={`/fleet/trips/${tripId}/dispatch`}>
@@ -191,10 +198,10 @@ export default function TripDetailPage() {
                   >
                     <div
                       className={`px-3 py-1.5 rounded-full text-xs font-medium ${isCurrent
-                          ? "bg-brand-purple text-white"
-                          : isActive
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-400"
+                        ? "bg-brand-purple text-white"
+                        : isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-400"
                         }`}
                     >
                       {isActive && !isCurrent && <span>✓ </span>}
@@ -215,13 +222,13 @@ export default function TripDetailPage() {
           description="Driver and vehicle allocation"
         >
 
-            {canAssign && (
-              <div className="flex justify-end">
-                <Button href={`/fleet/trips/${tripId}/assign`}>
+          {canAssign && (
+            <div className="flex justify-end">
+              <Button href={`/fleet/trips/${tripId}/assign`}>
                 Assign Driver & Vehicle →
               </Button>
-              </div>
-            )}
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="border p-4 rounded-xl">
               <p className="text-xs text-brand-text-secondary">Driver</p>

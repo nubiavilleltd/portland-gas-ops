@@ -24,6 +24,8 @@ import {
 } from "@/lib/modules/fleet/guards/vehicle.guards";
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
+import { FLEET_ROUTES } from "@/lib/routes";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function VehicleDetailPage() {
   const params = useParams();
@@ -94,6 +96,11 @@ export default function VehicleDetailPage() {
   return (
     <AppLayout pageTitle={vehicle.name}>
       {/* HEADER */}
+
+        <BackButton
+              href={`/admin${FLEET_ROUTES.vehicleList()}`}
+              label="Back to Vehicles"
+            />
       <PageHeader
         title={vehicle.name}
         description={`${vehicle.plate_number} • ${toTitleCase(vehicle.type)}`}
@@ -101,7 +108,7 @@ export default function VehicleDetailPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              href={`/fleet/vehicles/${vehicle.id}/edit`}
+              href={`/admin/fleet/vehicles/${vehicle.id}/edit`}
             >
               Edit Vehicle
             </Button>

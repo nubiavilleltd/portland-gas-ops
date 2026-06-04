@@ -15,6 +15,8 @@ import { useState } from "react";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
 import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
 import { buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
+import { BackButton } from "@/components/ui/BackButton";
+import { ORDER_ROUTES } from "@/lib/routes";
 
 
 
@@ -38,6 +40,11 @@ const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
 
   return (
     <AppLayout pageTitle="Create Order">
+
+      <BackButton
+        href={`${ORDER_ROUTES.list()}`}
+        label="Back to Orders"
+      />
       <PageHeader
         title="Create Order"
         description="Create and manage customer transaction orders"

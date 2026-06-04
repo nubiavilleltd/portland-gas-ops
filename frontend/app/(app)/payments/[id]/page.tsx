@@ -12,6 +12,7 @@ import { usePaymentById, usePaymentsByInvoice } from "@/lib/modules/payments/hoo
 import { INVOICE_ROUTES, PAYMENT_ROUTES } from "@/lib/routes";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function PaymentDetailPage() {
   const params = useParams();
@@ -41,6 +42,9 @@ export default function PaymentDetailPage() {
 
   return (
     <AppLayout pageTitle="Payment Details">
+
+      <BackButton label="Back" />
+
       <PageHeader
         title={payment?.payment_reference as string}
         description="Payment transaction record"
