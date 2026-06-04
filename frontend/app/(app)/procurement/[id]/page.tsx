@@ -460,6 +460,7 @@ export default function ProcurementDetailPage() {
         {showLineManagerPanel && (
           <ApprovalPanel
             reviewingAs="Operations Manager"
+            rejectLabel="Deny"
             onReturn={(c) => triggerAction("return", c)}
             onReject={(c) => triggerAction("reject", c)}
             onApprove={(c) => triggerAction("approve", c)}
@@ -502,6 +503,7 @@ export default function ProcurementDetailPage() {
                 </div>
               </>
             }
+            rejectLabel="Deny"
             onReject={(c) => triggerAction("reject", c)}
             onApprove={(c) => triggerAction("approve", c)}
             disabled={updateStatus.isPending}
