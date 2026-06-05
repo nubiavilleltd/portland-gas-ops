@@ -86,6 +86,7 @@ function AllocateAssetsContent() {
   const allocate = useAllocateAssetRequest();
 
   const [slots, setSlots] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (!request) return;
@@ -130,6 +131,7 @@ function AllocateAssetsContent() {
         allocations,
         allocatedByName: user?.name ?? "Asset Admin",
       });
+      setSubmitted(true);
       toast.success("Assets allocated successfully");
       router.push(`/admin/assets/requests/${request.id}`);
     } catch {
@@ -169,7 +171,7 @@ function AllocateAssetsContent() {
     );
   }
 
-  if (request.status !== "approved") {
+  if (!submitted && request.status !== "approved") {
     return (
       <AppLayout pageTitle="Admin — Assets">
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-brand-text-secondary">

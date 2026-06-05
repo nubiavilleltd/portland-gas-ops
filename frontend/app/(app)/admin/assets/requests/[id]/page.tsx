@@ -11,7 +11,7 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import AuditTrail from "@/components/forms/AuditTrail";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { useAssetRequest, useUpdateAssetRequestStatus, useAssetAvailability } from "@/hooks/useAssets";
+import { useAssetRequest, useUpdateAssetRequestStatus } from "@/hooks/useAssets";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestStatus } from "@/types";
@@ -33,7 +33,6 @@ export default function AdminAssetRequestDetailPage() {
 
   const { data: req, isLoading, isError } = useAssetRequest(id);
   const updateStatus = useUpdateAssetRequestStatus(id);
-  const availability = useAssetAvailability();
 
   async function handleAction(status: AssetRequestStatus, comment: string) {
     const actionLabel =
@@ -85,15 +84,6 @@ export default function AdminAssetRequestDetailPage() {
 
   const canApprove = req.status === "pending";
   const canAllocate = req.status === "approved";
-
-  const stockIssues = req.items
-    .map((item) => ({
-      typeName: item.asset_type?.name ?? "Unknown type",
-      requested: item.quantity,
-      available: availability[item.asset_type_id] ?? 0,
-    }))
-    .filter((issue) => issue.available < issue.requested);
-  const hasStockIssues = stockIssues.length > 0;
 
   return (
     <AppLayout pageTitle="Admin — Asset Requests">
@@ -169,55 +159,30 @@ export default function AdminAssetRequestDetailPage() {
                 <tr className="border-b border-brand-border bg-gray-50/60">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Asset Type</th>
                   <th className="px-5 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Qty</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Available</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border">
-                {req.items.map((item) => {
-                  const avail = availability[item.asset_type_id] ?? 0;
-                  const insufficient = avail < item.quantity;
-                  return (
-                    <tr key={item.id}>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                            <Package size={14} className="text-gray-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-brand-text-primary">{item.asset_type?.name ?? "Unknown type"}</p>
-                            {item.asset_type?.prefix && (
-                              <p className="text-xs text-brand-text-secondary font-mono">{item.asset_type.prefix}</p>
-                            )}
-                          </div>
+                {req.items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                          <Package size={14} className="text-gray-400" />
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-center text-brand-text-secondary">{item.quantity}</td>
-                      <td className="px-5 py-3.5 text-center">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${insufficient ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                          {avail}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        <div>
+                          <p className="font-medium text-brand-text-primary">{item.asset_type?.name ?? "Unknown type"}</p>
+                          {item.asset_type?.prefix && (
+                            <p className="text-xs text-brand-text-secondary font-mono">{item.asset_type.prefix}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-center text-brand-text-secondary">{item.quantity}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-          {hasStockIssues && (
-            <div className="px-5 pb-5 pt-2">
-              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3">
-                <p className="text-sm font-semibold text-red-700 mb-2">Insufficient Stock</p>
-                <div className="space-y-1">
-                  {stockIssues.map((issue) => (
-                    <div key={issue.typeName} className="flex items-center justify-between text-xs text-red-600">
-                      <span>{issue.typeName}</span>
-                      <span className="font-mono">{issue.available} available / {issue.requested} requested</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </FormSection>
 
         {/* Allocate Assets banner */}
@@ -265,8 +230,7 @@ export default function AdminAssetRequestDetailPage() {
             showReject
             showApprove
             rejectLabel="Deny"
-            approveDisabled={hasStockIssues}
-            approveLabel={hasStockIssues ? "Approve (blocked)" : "Approve"}
+            approveLabel="Approve"
             onReturn={(comment) => handleAction("pending", comment)}
             onReject={(comment) => handleAction("rejected", comment)}
             onApprove={(comment) => handleAction("approved", comment)}
