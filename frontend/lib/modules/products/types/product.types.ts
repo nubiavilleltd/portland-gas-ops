@@ -34,6 +34,7 @@ export interface CreateProductInput {
   default_unit_price: number;  // always number here — no form concerns
   product_type: ProductType;
   description?: string;
+  code?: string;
   status?: ProductStatus;
   minimum_stock?: number;
 }
@@ -44,6 +45,7 @@ export interface UpdateProductInput {
   default_unit_price?: number;
   product_type?: ProductType;
   description?: string;
+  code?: string;
   status?: ProductStatus;
   minimum_stock?: number;
 }

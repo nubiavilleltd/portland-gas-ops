@@ -79,8 +79,8 @@ export const products: Product[] = [
 
   {
   id: "prod-006",
-  code: "CYL-001",
-  name: "Cylinder",
+  code: "CYL12",
+  name: "LPG Cylinder 12.5kg",
   unit: "unit",
   default_unit_price: 15000,
   description: "LPG cylinder — 12.5kg capacity",
@@ -92,8 +92,8 @@ export const products: Product[] = [
 },
 {
   id: "prod-007",
-  code: "GEN-001",
-  name: "Generator",
+  code: "GEN-IND",
+  name: "Industrial Generator",
   unit: "unit",
   default_unit_price: 250000,
   description: "Industrial gas generator",

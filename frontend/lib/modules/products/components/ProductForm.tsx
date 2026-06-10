@@ -160,6 +160,18 @@ export default function ProductForm({
                 /> */}
 
 
+                {productType === "tracked" && (
+                    <FormInput
+                        label="Product Code / Tag Prefix"
+                        required
+                        placeholder="e.g. CYL12, GEN50, REG"
+                        hint="Used as prefix for inventory tag numbers e.g. CYL12-20260601-001"
+                        error={errors.code?.message}
+                        {...register("code")}
+                    />
+                )}
+
+
                 {productType === "consumable" && (
                     <Controller
                         control={control}
@@ -202,7 +214,7 @@ export default function ProductForm({
             {/* Description */}
             <FormTextarea
                 label="Description"
-                placeholder="Optional — short description or internal SKU reference"
+                placeholder="Optional notes about this product for internal reference."
                 hint="Not shown to customers. For internal reference only."
                 error={errors.description?.message}
                 {...register("description")}

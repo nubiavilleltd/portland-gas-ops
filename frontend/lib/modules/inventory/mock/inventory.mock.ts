@@ -5,7 +5,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-001",
     product_id: "prod-006",
-    tag_number: "CYL-20260601-001",
+    tag_number: "CYL12-20260601-001",
     status: "available",
     condition: "new",
     location_id: "loc-1",
@@ -14,7 +14,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-002",
     product_id: "prod-006",
-    tag_number: "CYL-20260601-002",
+    tag_number: "CYL12-20260601-002",
     status: "available",
     condition: "new",
     location_id: "loc-1",
@@ -23,7 +23,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-003",
     product_id: "prod-006",
-    tag_number: "CYL-20260601-003",
+    tag_number: "CYL12-20260601-003",
     status: "available",
     condition: "used",
     location_id: "loc-1",
@@ -32,7 +32,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-004",
     product_id: "prod-006",
-    tag_number: "CYL-20260601-004",
+    tag_number: "CYL12-20260601-004",
     status: "with_customer",
     condition: "used",
     disposition: "loaned",
@@ -45,7 +45,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-005",
     product_id: "prod-006",
-    tag_number: "CYL-20260601-005",
+    tag_number: "CYL12-20260601-005",
     status: "retired",
     condition: "damaged",
     disposition: "sold",
@@ -58,7 +58,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-006",
     product_id: "prod-007",
-    tag_number: "GEN-20260601-001",
+    tag_number: "GEN-IND-20260601-001",
     status: "available",
     condition: "new",
     location_id: "loc-1",
@@ -67,7 +67,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-007",
     product_id: "prod-007",
-    tag_number: "GEN-20260601-002",
+    tag_number: "GEN-IND-20260601-002",
     status: "available",
     condition: "refurbished",
     location_id: "loc-1",
@@ -78,7 +78,7 @@ export const inventoryItems: InventoryItem[] = [
   {
     id: "inv-item-008",
     product_id: "prod-007",
-    tag_number: "GEN-20260601-003",
+    tag_number: "GEN-IND-20260601-003",
     status: "maintenance",
     condition: "used",
     location_id: "loc-1",

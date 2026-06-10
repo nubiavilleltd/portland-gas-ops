@@ -81,6 +81,7 @@ export interface ConsumableStock {
 // ── 7. INPUT TYPES ───────────────────────────────────────
 export interface CheckInTrackedInput {
   product_id: string;
+  product_code: string;
   location_id: string;
   quantity: number;
   condition: InventoryItem["condition"];

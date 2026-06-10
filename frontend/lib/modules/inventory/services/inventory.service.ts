@@ -32,6 +32,16 @@ function getItemOrThrow(id: string): { item: InventoryItem; idx: number } {
   return { item: inventoryItems[idx], idx };
 }
 
+// function generateTagNumber(productCode: string): string {
+//   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+//   const existing = inventoryItems.filter((i) =>
+//     i.tag_number.startsWith(`${productCode}-${date}`)
+//   );
+//   const sequence = String(existing.length + 1).padStart(3, "0");
+//   return `${productCode}-${date}-${sequence}`;
+// }
+
+
 function generateTagNumber(productCode: string): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const existing = inventoryItems.filter((i) =>
