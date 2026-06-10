@@ -147,12 +147,13 @@ export class InventoryService {
 
   static async checkInTracked(input: CheckInTrackedInput): Promise<InventoryItem[]> {
     // Derive product code from existing items or use product_id prefix
-    const existingItem = inventoryItems.find(
-      (i) => i.product_id === input.product_id
-    );
-    const productCode = existingItem
-      ? existingItem.tag_number.split("-")[0]
-      : input.product_id.toUpperCase().slice(0, 3);
+    // const existingItem = inventoryItems.find(
+    //   (i) => i.product_id === input.product_id
+    // );
+    // const productCode = existingItem
+    //   ? existingItem.tag_number.split("-")[0]
+    //   : input.product_id.toUpperCase().slice(0, 3);
+    const productCode = input.product_code;
 
     const newItems: InventoryItem[] = [];
 

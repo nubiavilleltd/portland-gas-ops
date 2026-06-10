@@ -32,6 +32,8 @@ import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
 import CurrencyInput from "@/components/forms/CurrencyInput";
 import FormSection from "@/components/ui/FormSection";
+import { useConsumableStock, useInventoryItems } from "../../inventory/hooks/useInventory";
+import { getAvailableCount, getConsumableStockLevel } from "../../inventory/selectors/inventory.selectors";
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -81,12 +83,25 @@ export default function OrderForm({
   const { options: customerOptions, isLoading: customersLoading } =
     useCustomerSelectOptions();
   const { products, isLoading: productsLoading } = useProducts();
+  const { items: inventoryItems } = useInventoryItems();
+const { stock: consumableStock } = useConsumableStock();
   const activeProducts = getActiveProducts(products);
 
   const productOptions = activeProducts.map((p) => ({
     value: p.id,
     label: p.name,
   }));
+
+//   const productOptions = activeProducts.map((p) => {
+//   const stockInfo = p.product_type === "tracked"
+//     ? `${getAvailableCount(inventoryItems, p.id)} available`
+//     : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
+  
+//   return {
+//     value: p.id,
+//     label: `${p.name} — ${stockInfo}`,
+//   };
+// });
 
   // ── Field array ─────────────────────────────────────────
   const { fields, append, remove } = useFieldArray({

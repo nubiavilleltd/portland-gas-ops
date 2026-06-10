@@ -17,7 +17,8 @@ export type InventoryItemStatus =
   | "checked_out"    // On the truck / in transit
   | "with_customer"  // Delivered, at customer site
   | "maintenance"    // Unavailable, being serviced
-  | "retired";       // Sold, disposed, or written off
+  | "retired"       // Sold, disposed, or written off
+  | "returned";      // Returned from customer, pending inspection
 
 // ── 3. ITEM DISPOSITION ──────────────────────────────────
 export type ItemDisposition = "sold" | "loaned" | "rented";

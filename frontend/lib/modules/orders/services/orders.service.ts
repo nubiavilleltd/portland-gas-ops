@@ -255,6 +255,24 @@ async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Or
   return OrdersService.updateOrder(id, extra);
 },
 
+// Add to orders.service.ts
+async updateOrderLineItem(
+  orderId: string,
+  productId: string,
+  inventoryItemIds: string[]
+): Promise<Order> {
+  const { order, idx } = getOrThrow(orderId);
+
+  const updatedItems = order.order_items?.map((item) =>
+    item.product_id === productId
+      ? { ...item, inventory_item_ids: inventoryItemIds }
+      : item
+  ) ?? [];
+
+  orders[idx] = { ...order, order_items: updatedItems };
+  return Promise.resolve(orders[idx]);
+},
+
   async assignToTrip(orderId: string, tripId: string): Promise<Order> {
     return OrdersService.updateOrder(orderId, {
       trip_id: tripId,

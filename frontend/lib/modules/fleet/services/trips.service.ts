@@ -258,4 +258,16 @@ export class TripsService {
     return Promise.resolve(trip);
   }
 
+
+  // Add to trips.service.ts
+static async setReady(tripId: string): Promise<Trip> {
+  const trip = trips.find((t) => t.id === tripId);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.status !== "awaiting_inventory") {
+    throw new Error("Trip must be awaiting inventory before marking ready");
+  }
+  trip.status = "ready";
+  return Promise.resolve(trip);
+}
+
 }

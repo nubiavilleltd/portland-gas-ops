@@ -99,8 +99,15 @@ export function canDispatchTrip(trip: Trip): boolean {
   return trip.status === "assigned" || trip.status === "ready";
 }
 
+// export function canAssignInventory(trip: Trip): boolean {
+//   return trip.status === "awaiting_inventory";
+// }
+
 export function canAssignInventory(trip: Trip): boolean {
-  return trip.status === "awaiting_inventory";
+  return (
+    trip.status === "awaiting_inventory" &&
+    trip.type === "order_delivery"
+  );
 }
 
 export function canMarkReady(trip: Trip): boolean {
