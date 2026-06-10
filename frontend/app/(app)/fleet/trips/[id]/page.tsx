@@ -19,6 +19,7 @@ import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import {
+  canAssignInventory,
   canAssignResourcesToTrip,
   canCompleteTrip,
   canDispatchTrip,
@@ -34,6 +35,8 @@ import { FLEET_ROUTES } from "@/lib/routes";
 const STATUS_ORDER = [
   "pending",
   "assigned",
+  "awaiting_inventory",
+  "ready",
   "dispatched",
   "in_transit",
   "completed",
@@ -113,6 +116,7 @@ export default function TripDetailPage() {
   const canDispatch = canDispatchTrip(trip);
   const canStart = canStartTrip(trip);
   const canComplete = canCompleteTrip(trip);
+  const canAssignInventoryToTrip = canAssignInventory(trip);
 
   return (
     <AppLayout pageTitle={trip.trip_number}>
@@ -143,6 +147,12 @@ export default function TripDetailPage() {
             {canComplete && (
               <Button href={`/fleet/trips/${tripId}/complete`}>
                 Complete Trip →
+              </Button>
+            )}
+
+            {canAssignInventoryToTrip && (
+              <Button href={`/fleet/trips/${tripId}/assign-inventory`}>
+                Assign Inventory →
               </Button>
             )}
           </div>

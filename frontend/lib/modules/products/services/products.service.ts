@@ -34,6 +34,7 @@ export class ProductsService {
       id: `prod-${Date.now()}`,
       name: input.name.trim(),
       unit: input.unit,
+      product_type: input.product_type ?? "consumable",
       default_unit_price: input.default_unit_price,
       description: input.description?.trim(),
       status: "active",
