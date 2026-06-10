@@ -63,15 +63,13 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
     >
       {/* Logo + mobile close button */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shrink-0 p-1">
-            <Image src={logo} alt="Portland Gas" width={28} height={28} />
-          </div>
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <Image src={logo} alt="Portland Gas" width={32} height={32} className="brightness-0 invert shrink-0" />
           <div>
             <p className="text-white text-sm font-semibold leading-none">Portland Gas</p>
             <p className="text-purple-400 text-xs mt-0.5">Operations</p>
           </div>
-        </div>
+        </Link>
         {/* Close button — mobile only */}
         <button
           onClick={onClose}
