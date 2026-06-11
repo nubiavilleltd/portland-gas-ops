@@ -19,6 +19,7 @@ import {
   Truck,
   User,
   Users,
+  Warehouse,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -109,6 +110,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         icon: Package,
         href: "/admin/products",
       },
+      {
+        name: "Inventory",
+        description: "Stock levels, tracked assets, and movements",
+        icon: Warehouse,
+        href: "/admin/inventory",
+      },
     ],
   },
   {
@@ -117,19 +124,22 @@ export const moduleGroups: readonly ModuleGroup[] = [
     processes: [
       {
         name: "Safety Dashboard",
-        description: "Track HSE queue, close-outs, compliance, and hazard trends",
+        description:
+          "Track HSE queue, close-outs, compliance, and hazard trends",
         icon: ShieldCheck,
         href: "/admin/safety",
       },
       {
         name: "Incident & Hazard Report",
-        description: "Review all incident, hazard, near-miss, and corrective-action records",
+        description:
+          "Review all incident, hazard, near-miss, and corrective-action records",
         icon: AlertTriangle,
         href: "/admin/safety/incidents",
       },
       {
         name: "Work Initiation",
-        description: "View all operational work requests before safety authorization",
+        description:
+          "View all operational work requests before safety authorization",
         icon: ClipboardCheck,
         href: "/admin/safety/work-initiation",
       },
@@ -172,7 +182,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
 export const homeModuleGroups = moduleGroups
   .map((group) => ({
     ...group,
-    processes: group.processes.filter((process) => process.showOnHome !== false).sort((a, b) => a.name.localeCompare(b.name)),
+    processes: group.processes
+      .filter((process) => process.showOnHome !== false)
+      .sort((a, b) => a.name.localeCompare(b.name)),
   }))
   .filter((group) => group.processes.length > 0);
 
@@ -180,7 +192,9 @@ function matchesPath(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-export function getModuleGroupForPathname(pathname: string): ModuleGroup | undefined {
+export function getModuleGroupForPathname(
+  pathname: string,
+): ModuleGroup | undefined {
   // Pass 1: exact process/routePrefix match (most specific)
   for (const group of moduleGroups) {
     const ownsProcessPath = group.processes.some((process) =>
