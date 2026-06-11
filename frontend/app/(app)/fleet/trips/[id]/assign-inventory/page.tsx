@@ -16,6 +16,7 @@ import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { useInventoryItems } from "@/lib/modules/inventory/hooks/useInventory";
+import { useAssignInventoryWorkflow } from "@/lib/modules/fleet/hooks/useAssignInventoryWorkflow";
 
 import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
@@ -28,8 +29,9 @@ import { TripsService } from "@/lib/modules/fleet/services/trips.service";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
-import type { OrderLineItem } from "@/lib/modules/orders/schemas/create-order.schema";
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
+import { Trip } from "@/lib/modules/fleet/types/trip.types";
+import { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 
 // ── Types ─────────────────────────────────────────────────
 // Tracks selected unit IDs per order line item
@@ -156,7 +158,7 @@ function TrackedLineItem({
 export default function AssignInventoryPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
+  const assignInventory = useAssignInventoryWorkflow();
 
   const { trip, isLoading: tripLoading } = useTripById(id);
   const { orders, isLoading: ordersLoading } = useOrders();
@@ -275,54 +277,81 @@ export default function AssignInventoryPage() {
   }
 
   // ── Submit ────────────────────────────────────────────────
+  // async function handleSubmit() {
+  //   if (!isAllAssigned()) {
+  //     toast.error("Please assign all required units before proceeding");
+  //     return;
+  //   }
+
+  //   setSubmitting(true);
+  //   try {
+  //     // 1. Reserve each selected group of items + update order line items
+  //     for (const order of tripOrders) {
+  //       if (!order?.order_items) continue;
+  //       for (const lineItem of order.order_items) {
+  //         const product = getProductById(products, lineItem.product_id);
+  //         if (!product || !isTracked(product)) continue;
+
+  //         const key = lineItemKey(order.id, lineItem.product_id);
+  //         const itemIds = selection[key] ?? [];
+  //         if (itemIds.length === 0) continue;
+
+  //         // Reserve the items
+  //         await reserveItemsWorkflow({
+  //           item_ids: itemIds,
+  //           order_id: order.id,
+  //           recorded_by: "Warehouse Staff",
+  //         });
+
+  //         // Update order line item with assigned inventory IDs
+  //         await OrdersService.updateOrderLineItem(
+  //           order.id,
+  //           lineItem.product_id,
+  //           itemIds,
+  //         );
+  //       }
+  //     }
+
+  //     // 2. Mark trip as ready
+  //     await TripsService.setReady(id);
+
+  //     toast.success("Inventory assigned — trip is ready to dispatch");
+  //     router.push(FLEET_ROUTES.tripDetail(id));
+  //   } catch (err) {
+  //     toast.error(
+  //       err instanceof Error ? err.message : "Failed to assign inventory",
+  //     );
+  //   } finally {
+  //     setSubmitting(false);
+  //   }
+  // }
+
+
   async function handleSubmit() {
-    if (!isAllAssigned()) {
-      toast.error("Please assign all required units before proceeding");
-      return;
-    }
+  if (!isAllAssigned()) {
+    toast.error("Please assign all required units before proceeding");
+    return;
+  }
 
-    setSubmitting(true);
-    try {
-      // 1. Reserve each selected group of items + update order line items
-      for (const order of tripOrders) {
-        if (!order?.order_items) continue;
-        for (const lineItem of order.order_items) {
-          const product = getProductById(products, lineItem.product_id);
-          if (!product || !isTracked(product)) continue;
-
-          const key = lineItemKey(order.id, lineItem.product_id);
-          const itemIds = selection[key] ?? [];
-          if (itemIds.length === 0) continue;
-
-          // Reserve the items
-          await reserveItemsWorkflow({
-            item_ids: itemIds,
-            order_id: order.id,
-            recorded_by: "Warehouse Staff",
-          });
-
-          // Update order line item with assigned inventory IDs
-          await OrdersService.updateOrderLineItem(
-            order.id,
-            lineItem.product_id,
-            itemIds,
-          );
-        }
-      }
-
-      // 2. Mark trip as ready
-      await TripsService.setReady(id);
-
-      toast.success("Inventory assigned — trip is ready to dispatch");
-      router.push(FLEET_ROUTES.tripDetail(id));
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to assign inventory",
-      );
-    } finally {
-      setSubmitting(false);
+  const assignments = [];
+  for (const order of tripOrders) {
+    if (!order?.order_items) continue;
+    for (const lineItem of order.order_items) {
+      const product = getProductById(products, lineItem.product_id);
+      if (!product || !isTracked(product)) continue;
+      const key = lineItemKey(order.id, lineItem.product_id);
+      const itemIds = selection[key] ?? [];
+      if (itemIds.length === 0) continue;
+      assignments.push({
+        orderId: order.id,
+        productId: lineItem.product_id,
+        itemIds,
+      });
     }
   }
+
+  await assignInventory.mutateAsync({ trip: trip as Trip, assignments });
+}
 
   // ── Render ────────────────────────────────────────────────
   return (
@@ -421,14 +450,14 @@ export default function AssignInventoryPage() {
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              loading={isSubmitting}
-              loadingText="Saving…"
-              disabled={!isAllAssigned()}
-            >
-              Confirm & Mark Ready
-            </Button>
+         <Button
+  onClick={handleSubmit}
+  loading={assignInventory.isPending}
+  loadingText="Saving…"
+  disabled={!isAllAssigned() || assignInventory.isPending}
+>
+  Confirm & Mark Ready
+</Button>
           </div>
         </div>
       </div>
