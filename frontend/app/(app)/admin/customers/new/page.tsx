@@ -12,21 +12,28 @@ import CustomerForm from "@/lib/modules/customers/components/CustomerForm";
 import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
 import { toast } from "sonner";
+import { useCreateCustomer } from "@/lib/modules/customers/hooks/useCustomerMutations";
 
 export default function NewCustomerPage() {
   const router = useRouter();
 
-  async function handleSubmit(data: CreateCustomerFormData) {
-    await CustomersService.createCustomer(data);
-    toast.success("Customer created successfully")
-    router.push(`/admin${CUSTOMER_ROUTES.list()}`);
-  }
+  // async function handleSubmit(data: CreateCustomerFormData) {
+  //   await CustomersService.createCustomer(data);
+  //   toast.success("Customer created successfully")
+  //   router.push(CUSTOMER_ROUTES.list());
+  // }
+
+  const { mutateAsync: createCustomer, isPending } = useCreateCustomer();
+
+async function handleSubmit(data: CreateCustomerFormData) {
+  await createCustomer(data);
+}
 
   return (
     <AppLayout pageTitle="New Customer">
 
       <BackButton
-        href={`/admin${CUSTOMER_ROUTES.list()}`}
+        href={CUSTOMER_ROUTES.list()}
         label="Back to Customers"
       />
       <PageHeader

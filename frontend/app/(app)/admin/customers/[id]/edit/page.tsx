@@ -16,6 +16,7 @@ import CustomerForm from "@/lib/modules/customers/components/CustomerForm";
 import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
 import { toast } from "sonner";
+import { useUpdateCustomer } from "@/lib/modules/customers/hooks/useCustomerMutations";
 
 export default function EditCustomerPage() {
   const params = useParams();
@@ -48,7 +49,7 @@ export default function EditCustomerPage() {
         </Button> */}
 
         <BackButton
-          href={`/admin${CUSTOMER_ROUTES.list()}`}
+          href={CUSTOMER_ROUTES.list()}
           label="Back to Customers"
           className="mt-4"
         />
@@ -56,11 +57,18 @@ export default function EditCustomerPage() {
     );
   }
 
-  async function handleSubmit(data: CreateCustomerFormData) {
-    await CustomersService.updateCustomer(id, data);
-    toast.success("Customer successfully updated")
-    router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`);
-  }
+  // async function handleSubmit(data: CreateCustomerFormData) {
+  //   await CustomersService.updateCustomer(id, data);
+  //   toast.success("Customer successfully updated")
+  //   router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`);
+  // }
+
+
+  const { mutateAsync: updateCustomer } = useUpdateCustomer(id);
+
+async function handleSubmit(data: CreateCustomerFormData) {
+  await updateCustomer(data);
+}
 
   return (
     <AppLayout pageTitle={`Edit — ${customer.name}`}>
@@ -73,7 +81,7 @@ export default function EditCustomerPage() {
       </button> */}
 
        <BackButton
-          href={`/admin${CUSTOMER_ROUTES.detail(id)}`}
+          href={CUSTOMER_ROUTES.detail(id)}
           label="Back to Customer"
         />
 
@@ -91,7 +99,7 @@ export default function EditCustomerPage() {
         <CustomerForm
           initial={customer}
           onSubmit={handleSubmit}
-          onCancel={() => router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`)}
+          onCancel={() => router.push(CUSTOMER_ROUTES.detail(id))}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />

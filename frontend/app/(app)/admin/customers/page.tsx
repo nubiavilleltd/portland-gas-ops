@@ -10,6 +10,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import type { Customer } from "@/lib/modules/customers/types/customer.types";
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
+import { CustomerStatusBadge } from "@/lib/modules/customers/badges/CustomerStatusBadge";
 
 const columns: Column<Customer>[] = [
   { key: "name", label: "Customer Name" },
@@ -34,15 +35,8 @@ const columns: Column<Customer>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => (
-      <span className={
-        value === "active"
-          ? "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
-          : "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500"
-      }>
-        {value === "active" ? "Active" : "Inactive"}
-      </span>
-    ),
+
+    render: (_, row) => <CustomerStatusBadge status={row.status} />,
   },
 ];
 
@@ -55,7 +49,7 @@ export default function CustomersPage() {
         title="Customers"
         description="Manage customer records and contact details"
         action={
-          <Button href={`/admin${CUSTOMER_ROUTES.new()}`} leftIcon={<Plus size={16} />}>
+          <Button href={CUSTOMER_ROUTES.new()} leftIcon={<Plus size={16} />}>
             New Customer
           </Button>
         }
@@ -66,7 +60,7 @@ export default function CustomersPage() {
         columns={columns}
         data={customers}
         isLoading={isLoading}
-        rowHref={(row) => `/admin${CUSTOMER_ROUTES.detail(row.id)}`}
+        rowHref={(row) => CUSTOMER_ROUTES.detail(row.id)}
         emptyMessage="No customers found."
         emptyDescription="Add your first customer to get started."
       />
