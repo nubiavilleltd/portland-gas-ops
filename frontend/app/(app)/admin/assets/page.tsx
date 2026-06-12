@@ -135,7 +135,6 @@ export default function AdminAssetsPage() {
           <div className="flex items-center gap-2">
             <Button href="/assets/history" variant="outline" size="sm">Asset History</Button>
             <Button href="/admin/assets/categories" variant="outline" size="sm">Categories</Button>
-            <Button href="/admin/assets/requests" variant="outline" size="sm">All Requests</Button>
             <Button href="/admin/assets/new" leftIcon={<Plus size={15} />} size="sm">Register Asset</Button>
           </div>
         }
