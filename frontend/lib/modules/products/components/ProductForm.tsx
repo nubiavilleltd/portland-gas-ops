@@ -14,10 +14,12 @@ import {
     type CreateProductFormInput,
     type CreateProductFormOutput,
 } from "@/lib/modules/products/schemas/product.schema";
-import type { Product, ProductUnit } from "@/lib/modules/products/types/product.types";
+import type { Product, ProductImage, ProductUnit } from "@/lib/modules/products/types/product.types";
 import { Currency } from "lucide-react";
 import CurrencyInput from "@/components/forms/CurrencyInput";
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
+import ImageUpload from "@/components/ui/ImageUpload";
+import { useState } from "react";
 
 // ── Unit options ───────────────────────────────────────────
 const UNIT_OPTIONS: Array<{ value: ProductUnit; label: string }> = [
@@ -39,7 +41,7 @@ interface ProductFormProps {
      * Omit for the create flow.
      */
     initial?: Product;
-    onSubmit: (data: CreateProductFormOutput) => Promise<void>;
+    onSubmit: (data: CreateProductFormOutput, images: File[], keptImages: ProductImage[]) => Promise<void>;
     onCancel: () => void;
     /** Label for the submit button */
     submitLabel?: string;
@@ -70,6 +72,7 @@ export default function ProductForm({
             ? {
                 name: initial.name,
                 unit: initial.unit,
+                code: initial.code,
                 default_unit_price: String(initial.default_unit_price),
                 description: initial.description ?? "",
                 product_type: initial.product_type,
@@ -77,6 +80,7 @@ export default function ProductForm({
             : {
                 name: "",
                 unit: "kg",
+                code: "",
                 default_unit_price: "",
                 description: "",
                 product_type: "consumable",
@@ -85,10 +89,20 @@ export default function ProductForm({
 
     const productType = watch("product_type");
 
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+
+    const [keptImages, setKeptImages] = useState<ProductImage[]>(
+        initial?.images ?? []
+    );
+
+    function handleRemoveExisting(id: string) {
+        setKeptImages((prev) => prev.filter((img) => img.id !== id));
+    }
+
 
     async function handleFormSubmit(data: CreateProductFormOutput) {
         try {
-            await onSubmit(data);
+            await onSubmit(data, imageFiles, keptImages);
         } catch (err) {
             // Re-throw so the page/modal can also handle it if needed,
             // but also set the root error so ErrorBanner renders
@@ -218,6 +232,17 @@ export default function ProductForm({
                 hint="Not shown to customers. For internal reference only."
                 error={errors.description?.message}
                 {...register("description")}
+            />
+
+            <ImageUpload
+                label="Product Images"
+                value={imageFiles}
+                onChange={setImageFiles}
+                existingImages={keptImages}
+                onRemoveExisting={handleRemoveExisting}
+                maxFiles={3}
+                maxSizeMB={5}
+                hint="Up to 3 images. First image is used as the primary display image."
             />
 
             {/* Root error */}

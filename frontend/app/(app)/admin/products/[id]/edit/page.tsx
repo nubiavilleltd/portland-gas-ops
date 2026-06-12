@@ -16,6 +16,7 @@ import ProductForm from "@/lib/modules/products/components/ProductForm";
 import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
 import { useUpdateProduct } from "@/lib/modules/products/hooks/useProductMutations";
+import { ProductImage } from "@/lib/modules/products/types/product.types";
 
 export default function EditProductPage() {
   const params = useParams();
@@ -23,6 +24,8 @@ export default function EditProductPage() {
   const id = params.id as string;
 
   const { product, isLoading, error } = useProductById(id);
+
+  console.log("product", {product})
     const { mutateAsync: updateProduct } = useUpdateProduct(id);
 
   if (isLoading) {
@@ -62,8 +65,25 @@ export default function EditProductPage() {
 
 
 
-async function handleSubmit(data: UpdateProductFormOutput) {
-  await updateProduct(data);
+// async function handleSubmit(data: UpdateProductFormOutput) {
+//   await updateProduct(data);
+// }
+
+async function handleSubmit(
+  data: UpdateProductFormOutput,
+  newImages: File[],
+  keptImages: ProductImage[]
+) {
+  const addedImages: ProductImage[] = newImages.map((file, i) => ({
+    id:   `img-local-${Date.now()}-${i}`,
+    url:  URL.createObjectURL(file),
+    name: file.name,
+  }));
+
+  // Merge kept existing images + newly added images
+  const mergedImages: ProductImage[] = [...keptImages, ...addedImages];
+
+  await updateProduct({ ...data, images: mergedImages });
 }
 
   return (

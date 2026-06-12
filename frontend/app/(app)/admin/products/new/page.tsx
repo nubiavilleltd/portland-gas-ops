@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
 import { useCreateProduct } from "@/lib/modules/products/hooks/useProductMutations";
+import { ProductImage } from "@/lib/modules/products/types/product.types";
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -26,8 +27,20 @@ export default function NewProductPage() {
 
   const { mutateAsync: createProduct, isPending } = useCreateProduct();
 
-async function handleSubmit(data: CreateProductFormOutput) {
-  await createProduct(data);
+// async function handleSubmit(data: CreateProductFormOutput) {
+//   await createProduct(data);
+// }
+
+
+
+async function handleSubmit(data: CreateProductFormOutput, images: File[], _keptImages: ProductImage[]) {
+  const productImages: ProductImage[] = images.map((file, i) => ({
+    id:   `img-local-${Date.now()}-${i}`,
+    url:  URL.createObjectURL(file),
+    name: file.name,
+  }));
+
+  await createProduct({ ...data, images: productImages });
 }
 
   return (

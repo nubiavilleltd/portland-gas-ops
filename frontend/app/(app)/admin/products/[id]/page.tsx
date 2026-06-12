@@ -12,23 +12,13 @@ import { useProductById } from "@/lib/modules/products/hooks/useProducts";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { parseError } from "@/lib/errors";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
 import FormSection from "@/components/ui/FormSection";
 import { useToggleProductStatus } from "@/lib/modules/products/hooks/useProductMutations";
+import { ProductImage } from "@/lib/modules/products/types/product.types";
 
-// ── Small detail row ──────────────────────────────────────
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-    return (
-        <div className="flex flex-col gap-1 py-4 border-b border-brand-border last:border-0">
-            <p className="text-xs font-medium text-brand-text-secondary uppercase tracking-wide">
-                {label}
-            </p>
-            <p className="text-sm text-brand-text-primary">{value}</p>
-        </div>
-    );
-}
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -36,7 +26,7 @@ export default function ProductDetailPage() {
     const id = params.id as string;
 
     const { product, isLoading, error } = useProductById(id);
-    const [actionError, setActionError] = useState<string | null>(null);
+    // const [actionError, setActionError] = useState<string | null>(null);
 
     const isActive = product?.status == "active"
     const { mutate: toggleStatus, isPending: isToggling } = useToggleProductStatus(id);
@@ -64,7 +54,7 @@ export default function ProductDetailPage() {
                     Back to Products
                 </Button>
 
-       
+
             </AppLayout>
         );
     }
@@ -137,10 +127,10 @@ export default function ProductDetailPage() {
                 </div>
             </div>
 
-            <ErrorBanner message={actionError} className="mb-4" />
+            {/* <ErrorBanner message={actionError} className="mb-4" /> */}
 
             {/* Details card */}
-            <FormSection title="Product Details"
+            <FormSection title="Product Details" className="mb-4"
                 description="View product information and pricing details">
                 <div className="grid grid-cols-1 gap-5 text-sm md:grid-cols-3">
                     <InfoRow
@@ -168,6 +158,13 @@ export default function ProductDetailPage() {
                     />
                 </div>
             </FormSection>
+
+            <FormSection
+                title="Product Images"
+                description="Images uploaded for this product"
+            >
+                <ProductImageGallery images={product.images ?? []} />
+            </FormSection>
         </AppLayout>
     );
 }
@@ -188,6 +185,61 @@ function InfoRow({
             <p className="mt-1 font-medium">
                 {value}
             </p>
+        </div>
+    );
+}
+
+function ProductImageGallery({ images }: { images: ProductImage[] }) {
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    if (images.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-48 rounded-xl border-2 border-dashed border-brand-border bg-gray-50">
+                <p className="text-sm text-brand-text-secondary">No images uploaded</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {/* Hero */}
+            <div className="relative w-full aspect-[16/7] rounded-xl overflow-hidden border border-brand-border bg-gray-50">
+                <img
+                    src={images[activeIndex].url}
+                    alt={images[activeIndex].name}
+                    className="w-full h-full object-cover"
+                />
+                {images.length > 1 && (
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
+                        {activeIndex + 1} / {images.length}
+                    </div>
+                )}
+            </div>
+
+            {/* Thumbnail strip */}
+            {images.length > 1 && (
+                <div className="flex items-center gap-2">
+                    {images.map((img, i) => (
+                        <button
+                            key={img.id}
+                            type="button"
+                            onClick={() => setActiveIndex(i)}
+                            className={cn(
+                                "w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors shrink-0",
+                                i === activeIndex
+                                    ? "border-brand-purple"
+                                    : "border-brand-border hover:border-brand-purple/50"
+                            )}
+                        >
+                            <img
+                                src={img.url}
+                                alt={img.name}
+                                className="w-full h-full object-cover"
+                            />
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

@@ -1,3 +1,11 @@
+export interface ProductImage {
+  id: string;
+  // NOTE: object URL in POC — valid for this session only.
+  // Replace with Cloudinary URL in production.
+  url: string;
+  name: string;
+}
+
 export type ProductType = "consumable" | "tracked";
 
 export type ProductStatus =
@@ -22,6 +30,7 @@ export interface Product {
   status: ProductStatus;
   product_type: ProductType;
   minimum_stock?: number;
+  images?: ProductImage[];
   created_at: string;
   updated_at?: string;
 }
@@ -37,6 +46,7 @@ export interface CreateProductInput {
   code?: string;
   status?: ProductStatus;
   minimum_stock?: number;
+  images?: ProductImage[];
 }
 
 export interface UpdateProductInput {
@@ -48,6 +58,7 @@ export interface UpdateProductInput {
   code?: string;
   status?: ProductStatus;
   minimum_stock?: number;
+  images?: ProductImage[];
 }
 
 export const UNIT_LABELS: Record<ProductUnit, string> = {
