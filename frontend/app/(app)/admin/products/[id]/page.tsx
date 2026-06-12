@@ -16,6 +16,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
 import FormSection from "@/components/ui/FormSection";
+import { useToggleProductStatus } from "@/lib/modules/products/hooks/useProductMutations";
 
 // ── Small detail row ──────────────────────────────────────
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -36,9 +37,9 @@ export default function ProductDetailPage() {
 
     const { product, isLoading, error } = useProductById(id);
     const [actionError, setActionError] = useState<string | null>(null);
-    const [isToggling, setIsToggling] = useState(false);
 
     const isActive = product?.status == "active"
+    const { mutate: toggleStatus, isPending: isToggling } = useToggleProductStatus(id);
 
     if (isLoading) {
         return (
@@ -58,36 +59,34 @@ export default function ProductDetailPage() {
                 <Button
                     variant="outline"
                     className="mt-4"
-                    onClick={() => router.push(`/admin${PRODUCT_ROUTES.list()}`)}
+                    onClick={() => router.push(PRODUCT_ROUTES.list())}
                 >
                     Back to Products
                 </Button>
 
-                {/* <Link href={`admin${PRODUCT_ROUTES.list()}`}>
-                    Back to Products
-                </Link> */}
+       
             </AppLayout>
         );
     }
 
-    async function handleToggleStatus() {
-        if (!product) return;
-        setIsToggling(true);
-        setActionError(null);
-        try {
-            const updated = product.status === "active"
-                ? await ProductsService.deactivateProduct(product.id)
-                : await ProductsService.activateProduct(product.id);
-            toast.success(`${updated.name} is now ${updated.status}`);
-            // Refresh by navigating back to list — refetch will pick up the change
-            // router.push(PRODUCT_ROUTES.list());
-            router.push(`/admin${PRODUCT_ROUTES.list()}`)
-        } catch (err) {
-            setActionError(parseError(err));
-        } finally {
-            setIsToggling(false);
-        }
-    }
+    // async function handleToggleStatus() {
+    //     if (!product) return;
+    //     setIsToggling(true);
+    //     setActionError(null);
+    //     try {
+    //         const updated = product.status === "active"
+    //             ? await ProductsService.deactivateProduct(product.id)
+    //             : await ProductsService.activateProduct(product.id);
+    //         toast.success(`${updated.name} is now ${updated.status}`);
+    //         // Refresh by navigating back to list — refetch will pick up the change
+    //         // router.push(PRODUCT_ROUTES.list());
+    //         router.push(`/admin${PRODUCT_ROUTES.list()}`)
+    //     } catch (err) {
+    //         setActionError(parseError(err));
+    //     } finally {
+    //         setIsToggling(false);
+    //     }
+    // }
 
     //   const unitLabel = getUnitLabel(product);
 
@@ -95,17 +94,12 @@ export default function ProductDetailPage() {
         <AppLayout pageTitle={product.name}>
             {/* Back */}
             <button
-                onClick={() => router.push(`/admin${PRODUCT_ROUTES.list()}`)}
+                onClick={() => router.push(PRODUCT_ROUTES.list())}
                 className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
             >
                 <ArrowLeft size={14} />
                 Back to Products
             </button>
-
-            {/* <Link href={`admin${PRODUCT_ROUTES.list()}`}>
-            <ArrowLeft size={14} />
-                    Back to Products
-                </Link> */}
 
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
@@ -122,7 +116,7 @@ export default function ProductDetailPage() {
                     <Button
                         variant="outline"
                         // href={PRODUCT_ROUTES.edit(product.id)}
-                        href={`/admin${PRODUCT_ROUTES.edit(product.id)}`}
+                        href={PRODUCT_ROUTES.edit(product.id)}
                         leftIcon={<Pencil size={14} />}
                     >
                         Edit
@@ -131,7 +125,7 @@ export default function ProductDetailPage() {
                         variant={isActive ? "danger" : "primary"}
                         loading={isToggling}
                         loadingText={isActive ? "Deactivating…" : "Activating…"}
-                        onClick={handleToggleStatus}
+                        onClick={() => toggleStatus(isActive ?? false)}
                         leftIcon={
                             isActive
                                 ? <PowerOff size={14} />

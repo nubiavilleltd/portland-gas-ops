@@ -12,22 +12,29 @@ import ProductForm from "@/lib/modules/products/components/ProductForm";
 import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
+import { useCreateProduct } from "@/lib/modules/products/hooks/useProductMutations";
 
 export default function NewProductPage() {
   const router = useRouter();
 
-  async function handleSubmit(data: CreateProductFormOutput) {
+  // async function handleSubmit(data: CreateProductFormOutput) {
 
-    await ProductsService.createProduct(data);
-    toast.success("Product Created successfully")
-    router.push(`/admin${PRODUCT_ROUTES.list()}`);
-  }
+  //   await ProductsService.createProduct(data);
+  //   toast.success("Product Created successfully")
+  //   router.push(PRODUCT_ROUTES.list());
+  // }
+
+  const { mutateAsync: createProduct, isPending } = useCreateProduct();
+
+async function handleSubmit(data: CreateProductFormOutput) {
+  await createProduct(data);
+}
 
   return (
     <AppLayout pageTitle="New Product">
 
       <BackButton
-        href={`/admin${PRODUCT_ROUTES.list()}`}
+        href={PRODUCT_ROUTES.list()}
         label="Back to Products"
       />
       <PageHeader

@@ -17,6 +17,7 @@
 //    });
 // ============================================================
 
+import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 import type { Product } from "@/lib/modules/products/types/product.types";
@@ -26,6 +27,7 @@ import {
     getProductSelectOptions,
 } from "@/lib/modules/products/selectors/products.selectors";
 import { parseError } from "@/lib/errors";
+import { PRODUCT_KEYS } from "../constants/query-keys";
 
 // ── Shared result shape ────────────────────────────────────
 interface UseProductsResult {
@@ -36,62 +38,68 @@ interface UseProductsResult {
 }
 
 // ── Base hook ─────────────────────────────────────────────
-export function useProducts(): UseProductsResult {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+// export function useProducts(): UseProductsResult {
+//     const [products, setProducts] = useState<Product[]>([]);
+//     const [isLoading, setIsLoading] = useState(true);
+//     const [error, setError] = useState<string | null>(null);
 
-    const fetch = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const data = await ProductsService.getProducts();
-            console.log("data", {data})
-            setProducts(data);
-        } catch (err) {
-            setError(parseError(err));
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+//     const fetch = useCallback(async () => {
+//         setIsLoading(true);
+//         setError(null);
+//         try {
+//             const data = await ProductsService.getProducts();
+//             console.log("data", {data})
+//             setProducts(data);
+//         } catch (err) {
+//             setError(parseError(err));
+//         } finally {
+//             setIsLoading(false);
+//         }
+//     }, []);
 
-    useEffect(() => { fetch(); }, [fetch]);
+//     useEffect(() => { fetch(); }, [fetch]);
 
-    return { products, isLoading, error, refetch: fetch };
+//     return { products, isLoading, error, refetch: fetch };
+// }
+
+export function useProducts() {
+  const query = useQuery({
+    queryKey: PRODUCT_KEYS.lists(),
+    queryFn: ProductsService.getProducts,
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    products: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
 }
+
 
 // ── Derived: single product ───────────────────────────────
-interface UseProductByIdResult {
-    product: Product | undefined;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-}
+// interface UseProductByIdResult {
+//     product: Product | undefined;
+//     isLoading: boolean;
+//     error: string | null;
+//     refetch: () => void;
+// }
 
-export function useProductById(id: string): UseProductByIdResult {
+export function useProductById(id: string) {
     const { products, isLoading, error, refetch } = useProducts();
-
-    console.log("product in ", { products })
-    const product = getProductById(products, id);   // selector
-    return { product, isLoading, error, refetch };
+    return { product:getProductById(products, id), isLoading, error, refetch };
 }
 
 // ── Derived: active products only ────────────────────────
-export function useActiveProducts(): UseProductsResult {
+export function useActiveProducts() {
     const { products, isLoading, error, refetch } = useProducts();
     const active = getActiveProducts(products);   // selector
     return { products: active, isLoading, error, refetch };
 }
 
-// ── Derived: formatted options for dropdowns ─────────────
-interface UseProductOptionsResult {
-    options: Array<{ value: string; label: string }>;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-}
 
-export function useProductSelectOptions(): UseProductOptionsResult {
+export function useProductSelectOptions() {
     const { products, isLoading, error, refetch } = useProducts();
     const options = getProductSelectOptions(products);   // selector
     return { options, isLoading, error, refetch };
