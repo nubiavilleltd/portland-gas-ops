@@ -57,13 +57,18 @@ export function canAssignVehicle(
 //   return trip.status === "pending"
 // }
 
+// export function canAssignResourcesToTrip(trip: Trip | undefined) {
+//   if (!trip) return false;
+//   return (
+//     trip.status === "pending" ||
+//     trip.status === "assigned" ||
+//     trip.status === "awaiting_inventory"
+//   );
+// }
+
 export function canAssignResourcesToTrip(trip: Trip | undefined) {
   if (!trip) return false;
-  return (
-    trip.status === "pending" ||
-    trip.status === "assigned" ||
-    trip.status === "awaiting_inventory"
-  );
+  return trip.status === "pending";  // only show before first assignment
 }
 
 
