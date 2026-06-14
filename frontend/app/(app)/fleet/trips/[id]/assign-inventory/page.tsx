@@ -19,20 +19,16 @@ import { useInventoryItems } from "@/lib/modules/inventory/hooks/useInventory";
 import { useAssignInventoryWorkflow } from "@/lib/modules/fleet/hooks/useAssignInventoryWorkflow";
 
 import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
-import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 import { getAvailableItems } from "@/lib/modules/inventory/selectors/inventory.selectors";
 import { isTracked } from "@/lib/modules/products/types/product.types";
 import { canAssignInventory } from "@/lib/modules/fleet/guards/trip.guards";
-
-import { reserveItemsWorkflow } from "@/lib/modules/inventory/workflows/reserve.workflow";
-import { TripsService } from "@/lib/modules/fleet/services/trips.service";
-import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 // ── Types ─────────────────────────────────────────────────
 // Tracks selected unit IDs per order line item
@@ -164,12 +160,13 @@ export default function AssignInventoryPage() {
   const { trip, isLoading: tripLoading } = useTripById(id);
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products, isLoading: productsLoading } = useProducts();
+  const { customers, isLoading: customersLoading } = useCustomers();
   const { items, isLoading: itemsLoading } = useInventoryItems();
 
   const [selection, setSelection] = useState<SelectionMap>({});
-  const [isSubmitting, setSubmitting] = useState(false);
 
   const productMap = new Map(products.map((p) => [p.id, p]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   const isLoading =
     tripLoading || ordersLoading || productsLoading || itemsLoading;
@@ -263,46 +260,87 @@ export default function AssignInventoryPage() {
     }
   }
 
-  // ── Validation ────────────────────────────────────────────
-  function isAllAssigned(): boolean {
-    for (const order of tripOrders) {
-      if (!order?.order_items) continue;
-      for (const lineItem of order.order_items) {
-          // const product = getProductById(products, lineItem.product_id);
-        const product = productMap.get(lineItem.product_id);
-        if (!product || !isTracked(product)) continue;
-        const key = lineItemKey(order.id, lineItem.product_id);
-        const selected = selection[key]?.length ?? 0;
-        const required = Math.ceil(lineItem.quantity);
-        if (selected < required) return false;
-      }
-    }
-    return true;
+  // Add this before isAllAssigned:
+  function getTrackedLineItems() {
+    return tripOrders.flatMap((order) =>
+      (order?.order_items ?? [])
+        .filter((lineItem) => {
+          const product = productMap.get(lineItem.product_id);
+          return product && isTracked(product);
+        })
+        .map((lineItem) => ({
+          order: order!,
+          lineItem,
+          product: productMap.get(lineItem.product_id)!,
+          key: lineItemKey(order!.id, lineItem.product_id),
+          required: Math.ceil(lineItem.quantity),
+        })),
+    );
   }
 
-  
+  // ── Validation ────────────────────────────────────────────
+  //   function isAllAssigned(): boolean {
+  //     for (const order of tripOrders) {
+  //       if (!order?.order_items) continue;
+  //       for (const lineItem of order.order_items) {
+  //           // const product = getProductById(products, lineItem.product_id);
+  //         const product = productMap.get(lineItem.product_id);
+  //         if (!product || !isTracked(product)) continue;
+  //         const key = lineItemKey(order.id, lineItem.product_id);
+  //         const selected = selection[key]?.length ?? 0;
+  //         const required = Math.ceil(lineItem.quantity);
+  //         if (selected < required) return false;
+  //       }
+  //     }
+  //     return true;
+  //   }
+
+  function isAllAssigned(): boolean {
+    return getTrackedLineItems().every(({ key, required }) => {
+      const selected = selection[key]?.length ?? 0;
+      return selected >= required;
+    });
+  }
+
+  //   async function handleSubmit() {
+  //     if (!isAllAssigned()) {
+  //       toast.error("Please assign all required units before proceeding");
+  //       return;
+  //     }
+
+  //     const assignments = [];
+  //     for (const order of tripOrders) {
+  //       if (!order?.order_items) continue;
+  //       for (const lineItem of order.order_items) {
+  //         const product = productMap.get(lineItem.product_id);
+  //         if (!product || !isTracked(product)) continue;
+  //         const key = lineItemKey(order.id, lineItem.product_id);
+  //         const itemIds = selection[key] ?? [];
+  //         if (itemIds.length === 0) continue;
+  //         assignments.push({
+  //           orderId: order.id,
+  //           productId: lineItem.product_id,
+  //           itemIds,
+  //         });
+  //       }
+  //     }
+
+  //     await assignInventory.mutateAsync({ trip: trip as Trip, assignments });
+  //   }
+
   async function handleSubmit() {
     if (!isAllAssigned()) {
       toast.error("Please assign all required units before proceeding");
       return;
     }
 
-    const assignments = [];
-    for (const order of tripOrders) {
-      if (!order?.order_items) continue;
-      for (const lineItem of order.order_items) {
-        const product = productMap.get(lineItem.product_id);
-        if (!product || !isTracked(product)) continue;
-        const key = lineItemKey(order.id, lineItem.product_id);
-        const itemIds = selection[key] ?? [];
-        if (itemIds.length === 0) continue;
-        assignments.push({
-          orderId: order.id,
-          productId: lineItem.product_id,
-          itemIds,
-        });
-      }
-    }
+    const assignments = getTrackedLineItems()
+      .map(({ order, lineItem, key }) => ({
+        orderId: order.id,
+        productId: lineItem.product_id,
+        itemIds: selection[key] ?? [],
+      }))
+      .filter((a) => a.itemIds.length > 0);
 
     await assignInventory.mutateAsync({ trip: trip as Trip, assignments });
   }
@@ -324,7 +362,7 @@ export default function AssignInventoryPage() {
         className="mb-6"
       />
 
-      <div className="space-y-8 max-w-2xl">
+      <div className="space-y-8">
         {tripOrders.map((order) => {
           if (!order) return null;
 
@@ -339,7 +377,8 @@ export default function AssignInventoryPage() {
                   {order.order_number}
                 </h2>
                 <p className="text-xs text-brand-text-secondary mt-0.5">
-                  {order.customer_name}
+                  {/* {order.customer_name} */}
+                  {customerMap.get(order.customer_id)?.name ?? "-"}
                 </p>
               </div>
 
@@ -403,7 +442,7 @@ export default function AssignInventoryPage() {
             ) : (
               <div className="space-y-1">
                 {/* Show a specific message per unresolved line item */}
-                {tripOrders.flatMap(
+                {/* {tripOrders.flatMap(
                   (order) =>
                     order?.order_items
                       ?.filter((lineItem) => {
@@ -459,7 +498,52 @@ export default function AssignInventoryPage() {
                           </p>
                         );
                       }) ?? [],
-                )}
+                )} */}
+
+                {getTrackedLineItems()
+                  .filter(
+                    ({ key, required }) =>
+                      (selection[key]?.length ?? 0) < required,
+                  )
+                  .map(({ product, key, required }) => {
+                    const selected = selection[key]?.length ?? 0;
+                    const available = getAvailableItems(
+                      items,
+                      product.id,
+                    ).length;
+                    const isStockGap = available < required;
+
+                    return (
+                      <p
+                        key={product.id}
+                        className="text-sm text-amber-700 flex items-start gap-1.5"
+                      >
+                        <AlertCircle
+                          size={14}
+                          className="shrink-0 mt-0.5"
+                        />
+                        {isStockGap ? (
+                          <span>
+                            <strong>{product.name}</strong>: only {available} of{" "}
+                            {required} units available in stock.{" "}
+                            <a
+                              href={INVENTORY_ROUTES.checkIn()}
+                              className="underline hover:text-amber-900"
+                            >
+                              Check in more stock
+                            </a>{" "}
+                            before proceeding.
+                          </span>
+                        ) : (
+                          <span>
+                            <strong>{product.name}</strong>: select{" "}
+                            {required - selected} more unit
+                            {required - selected !== 1 ? "s" : ""} to continue.
+                          </span>
+                        )}
+                      </p>
+                    );
+                  })}
               </div>
             )}
           </div>
