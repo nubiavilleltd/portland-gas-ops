@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle, Package } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle, Package } from "lucide-react";
 import { toast } from "sonner";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -32,6 +32,7 @@ import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
+import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 
 // ── Types ─────────────────────────────────────────────────
 // Tracks selected unit IDs per order line item
@@ -168,6 +169,8 @@ export default function AssignInventoryPage() {
   const [selection, setSelection] = useState<SelectionMap>({});
   const [isSubmitting, setSubmitting] = useState(false);
 
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
   const isLoading =
     tripLoading || ordersLoading || productsLoading || itemsLoading;
 
@@ -265,7 +268,8 @@ export default function AssignInventoryPage() {
     for (const order of tripOrders) {
       if (!order?.order_items) continue;
       for (const lineItem of order.order_items) {
-        const product = getProductById(products, lineItem.product_id);
+          // const product = getProductById(products, lineItem.product_id);
+        const product = productMap.get(lineItem.product_id);
         if (!product || !isTracked(product)) continue;
         const key = lineItemKey(order.id, lineItem.product_id);
         const selected = selection[key]?.length ?? 0;
@@ -276,82 +280,32 @@ export default function AssignInventoryPage() {
     return true;
   }
 
-  // ── Submit ────────────────────────────────────────────────
-  // async function handleSubmit() {
-  //   if (!isAllAssigned()) {
-  //     toast.error("Please assign all required units before proceeding");
-  //     return;
-  //   }
-
-  //   setSubmitting(true);
-  //   try {
-  //     // 1. Reserve each selected group of items + update order line items
-  //     for (const order of tripOrders) {
-  //       if (!order?.order_items) continue;
-  //       for (const lineItem of order.order_items) {
-  //         const product = getProductById(products, lineItem.product_id);
-  //         if (!product || !isTracked(product)) continue;
-
-  //         const key = lineItemKey(order.id, lineItem.product_id);
-  //         const itemIds = selection[key] ?? [];
-  //         if (itemIds.length === 0) continue;
-
-  //         // Reserve the items
-  //         await reserveItemsWorkflow({
-  //           item_ids: itemIds,
-  //           order_id: order.id,
-  //           recorded_by: "Warehouse Staff",
-  //         });
-
-  //         // Update order line item with assigned inventory IDs
-  //         await OrdersService.updateOrderLineItem(
-  //           order.id,
-  //           lineItem.product_id,
-  //           itemIds,
-  //         );
-  //       }
-  //     }
-
-  //     // 2. Mark trip as ready
-  //     await TripsService.setReady(id);
-
-  //     toast.success("Inventory assigned — trip is ready to dispatch");
-  //     router.push(FLEET_ROUTES.tripDetail(id));
-  //   } catch (err) {
-  //     toast.error(
-  //       err instanceof Error ? err.message : "Failed to assign inventory",
-  //     );
-  //   } finally {
-  //     setSubmitting(false);
-  //   }
-  // }
-
-
+  
   async function handleSubmit() {
-  if (!isAllAssigned()) {
-    toast.error("Please assign all required units before proceeding");
-    return;
-  }
-
-  const assignments = [];
-  for (const order of tripOrders) {
-    if (!order?.order_items) continue;
-    for (const lineItem of order.order_items) {
-      const product = getProductById(products, lineItem.product_id);
-      if (!product || !isTracked(product)) continue;
-      const key = lineItemKey(order.id, lineItem.product_id);
-      const itemIds = selection[key] ?? [];
-      if (itemIds.length === 0) continue;
-      assignments.push({
-        orderId: order.id,
-        productId: lineItem.product_id,
-        itemIds,
-      });
+    if (!isAllAssigned()) {
+      toast.error("Please assign all required units before proceeding");
+      return;
     }
-  }
 
-  await assignInventory.mutateAsync({ trip: trip as Trip, assignments });
-}
+    const assignments = [];
+    for (const order of tripOrders) {
+      if (!order?.order_items) continue;
+      for (const lineItem of order.order_items) {
+        const product = productMap.get(lineItem.product_id);
+        if (!product || !isTracked(product)) continue;
+        const key = lineItemKey(order.id, lineItem.product_id);
+        const itemIds = selection[key] ?? [];
+        if (itemIds.length === 0) continue;
+        assignments.push({
+          orderId: order.id,
+          productId: lineItem.product_id,
+          itemIds,
+        });
+      }
+    }
+
+    await assignInventory.mutateAsync({ trip: trip as Trip, assignments });
+  }
 
   // ── Render ────────────────────────────────────────────────
   return (
@@ -392,7 +346,7 @@ export default function AssignInventoryPage() {
               {/* Line items */}
               <div className="p-6 space-y-4">
                 {order.order_items?.map((lineItem) => {
-                  const product = getProductById(products, lineItem.product_id);
+                  const product = productMap.get(lineItem.product_id);
                   if (!product) return null;
 
                   if (!isTracked(product)) {
@@ -437,27 +391,95 @@ export default function AssignInventoryPage() {
 
         {/* Actions */}
         <div className="flex items-center justify-between pb-10">
-          <p className="text-sm text-brand-text-secondary">
-            {isAllAssigned()
-              ? "✓ All tracked items assigned"
-              : "Assign all tracked items to continue"}
-          </p>
-          <div className="flex gap-3">
+          <div className="flex-1 mr-6">
+            {isAllAssigned() ? (
+              <p className="text-sm text-green-700 flex items-center gap-1.5">
+                <CheckCircle
+                  size={14}
+                  className="shrink-0"
+                />
+                All tracked items assigned — ready to proceed
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {/* Show a specific message per unresolved line item */}
+                {tripOrders.flatMap(
+                  (order) =>
+                    order?.order_items
+                      ?.filter((lineItem) => {
+                       const product = productMap.get(lineItem.product_id);
+                        if (!product || !isTracked(product)) return false;
+                        const key = lineItemKey(order.id, lineItem.product_id);
+                        const selected = selection[key]?.length ?? 0;
+                        return selected < Math.ceil(lineItem.quantity);
+                      })
+                      .map((lineItem) => {
+                        const product = productMap.get(lineItem.product_id);
+                        const key = lineItemKey(order!.id, lineItem.product_id);
+                        const selected = selection[key]?.length ?? 0;
+                        const required = Math.ceil(lineItem.quantity);
+                        const available = getAvailableItems(
+                          items,
+                          lineItem.product_id,
+                        ).length;
+                        const isStockGap = available < required;
+
+                        return (
+                          <p
+                            key={lineItem.product_id}
+                            className="text-sm text-amber-700 flex items-start gap-1.5"
+                          >
+                            <AlertCircle
+                              size={14}
+                              className="shrink-0 mt-0.5"
+                            />
+                            {isStockGap ? (
+                              <>
+                                <span>
+                                  <strong>{product?.name}</strong>: only{" "}
+                                  {available} of {required} units available in
+                                  stock.{" "}
+                                  <a
+                                    href={INVENTORY_ROUTES.checkIn()}
+                                    className="underline hover:text-amber-900"
+                                  >
+                                    Check in more stock
+                                  </a>{" "}
+                                  before proceeding.
+                                </span>
+                              </>
+                            ) : (
+                              <span>
+                                <strong>{product?.name}</strong>: select{" "}
+                                {required - selected} more unit
+                                {required - selected !== 1 ? "s" : ""} to
+                                continue.
+                              </span>
+                            )}
+                          </p>
+                        );
+                      }) ?? [],
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 shrink-0">
             <Button
               variant="outline"
               onClick={() => router.back()}
-              disabled={isSubmitting}
+              disabled={assignInventory.isPending}
             >
               Cancel
             </Button>
-         <Button
-  onClick={handleSubmit}
-  loading={assignInventory.isPending}
-  loadingText="Saving…"
-  disabled={!isAllAssigned() || assignInventory.isPending}
->
-  Confirm & Mark Ready
-</Button>
+            <Button
+              onClick={handleSubmit}
+              loading={assignInventory.isPending}
+              loadingText="Saving…"
+              disabled={!isAllAssigned() || assignInventory.isPending}
+            >
+              Confirm & Mark Ready
+            </Button>
           </div>
         </div>
       </div>
