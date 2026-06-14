@@ -22,6 +22,7 @@ import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { getAvailableItems } from "@/lib/modules/inventory/selectors/inventory.selectors";
 import { isTracked } from "@/lib/modules/products/types/product.types";
 import { canAssignInventory } from "@/lib/modules/fleet/guards/trip.guards";
+import InventoryUnitPickerModal from "@/components/ui/InventoryUnitPickerModal";
 
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
@@ -164,6 +165,12 @@ export default function AssignInventoryPage() {
   const { items, isLoading: itemsLoading } = useInventoryItems();
 
   const [selection, setSelection] = useState<SelectionMap>({});
+  const [activePicker, setActivePicker] = useState<{
+    orderId: string;
+    productId: string;
+    productName: string;
+    required: number;
+  } | null>(null);
 
   const productMap = new Map(products.map((p) => [p.id, p]));
   const customerMap = new Map(customers.map((c) => [c.id, c]));
@@ -403,24 +410,95 @@ export default function AssignInventoryPage() {
                   );
                   const key = lineItemKey(order.id, lineItem.product_id);
                   const selectedIds = selection[key] ?? [];
+                  const required = Math.ceil(lineItem.quantity);
+                  const fulfilled = selectedIds.length >= required;
+
+                  //   return (
+                  //     <TrackedLineItem
+                  //       key={lineItem.product_id}
+                  //       orderId={order.id}
+                  //       lineItem={lineItem}
+                  //       productName={product.name}
+                  //       availableItems={available}
+                  //       selectedIds={selectedIds}
+                  //       onToggle={(itemId) =>
+                  //         handleToggle(
+                  //           order.id,
+                  //           lineItem.product_id,
+                  //           itemId,
+                  //           Math.ceil(lineItem.quantity),
+                  //         )
+                  //       }
+                  //     />
+                  //   );
 
                   return (
-                    <TrackedLineItem
+                    <div
                       key={lineItem.product_id}
-                      orderId={order.id}
-                      lineItem={lineItem}
-                      productName={product.name}
-                      availableItems={available}
-                      selectedIds={selectedIds}
-                      onToggle={(itemId) =>
-                        handleToggle(
-                          order.id,
-                          lineItem.product_id,
-                          itemId,
-                          Math.ceil(lineItem.quantity),
-                        )
-                      }
-                    />
+                      className="border border-brand-border rounded-xl overflow-hidden"
+                    >
+                      {/* Header */}
+                      <div className="px-4 py-3 bg-gray-50 border-b border-brand-border flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Package
+                            size={14}
+                            className="text-brand-text-secondary"
+                          />
+                          <span className="text-sm font-medium">
+                            {product.name}
+                          </span>
+                          <span className="text-sm text-brand-text-secondary">
+                            × {required}
+                          </span>
+                        </div>
+                        <Badge
+                          variant={fulfilled ? "success" : "warning"}
+                          label={`${selectedIds.length} of ${required} selected`}
+                        />
+                      </div>
+
+                      {/* Trigger */}
+                      <div className="px-4 py-4 flex items-center justify-between">
+                        {/* Selected unit tags */}
+                        <div className="flex flex-wrap gap-2">
+                          {selectedIds.length === 0 ? (
+                            <p className="text-sm text-brand-text-secondary">
+                              No units selected yet
+                            </p>
+                          ) : (
+                            selectedIds.map((itemId) => {
+                              const unit = items.find((i) => i.id === itemId);
+                              return (
+                                <span
+                                  key={itemId}
+                                  className="text-xs font-mono bg-brand-purple/10 text-brand-purple px-2 py-1 rounded-lg"
+                                >
+                                  {unit?.tag_number ?? itemId}
+                                </span>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {/* Open picker button */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActivePicker({
+                              orderId: order.id,
+                              productId: lineItem.product_id,
+                              productName: product.name,
+                              required,
+                            })
+                          }
+                          className="shrink-0 ml-4 text-sm text-brand-purple font-medium hover:underline"
+                        >
+                          {selectedIds.length === 0
+                            ? "Select units →"
+                            : "Change →"}
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -428,9 +506,7 @@ export default function AssignInventoryPage() {
           );
         })}
 
-        {/* Actions */}
-        <div className="flex items-center justify-between pb-10">
-          <div className="flex-1 mr-6">
+         <div className="flex-1 mr-6">
             {isAllAssigned() ? (
               <p className="text-sm text-green-700 flex items-center gap-1.5">
                 <CheckCircle
@@ -548,14 +624,18 @@ export default function AssignInventoryPage() {
             )}
           </div>
 
+        {/* Actions */}
+        <div className="flex justify-end pb-10">
+         
+
           <div className="flex gap-3 shrink-0">
-            <Button
+            {/* <Button
               variant="outline"
               onClick={() => router.back()}
               disabled={assignInventory.isPending}
             >
               Cancel
-            </Button>
+            </Button> */}
             <Button
               onClick={handleSubmit}
               loading={assignInventory.isPending}
@@ -566,6 +646,30 @@ export default function AssignInventoryPage() {
             </Button>
           </div>
         </div>
+
+        {/* Inventory Unit Picker Modal */}
+        {activePicker && (
+          <InventoryUnitPickerModal
+            open={activePicker !== null}
+            onClose={() => setActivePicker(null)}
+            onConfirm={(itemIds) => {
+              const key = lineItemKey(
+                activePicker.orderId,
+                activePicker.productId,
+              );
+              setSelection((prev) => ({ ...prev, [key]: itemIds }));
+              setActivePicker(null);
+            }}
+            items={getAvailableItems(items, activePicker.productId)}
+            selectedIds={
+              selection[
+                lineItemKey(activePicker.orderId, activePicker.productId)
+              ] ?? []
+            }
+            productName={activePicker.productName}
+            required={activePicker.required}
+          />
+        )}
       </div>
     </AppLayout>
   );
