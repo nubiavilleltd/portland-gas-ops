@@ -3,11 +3,13 @@ import { OrdersService } from "../../orders/services/orders.service";
 import { reserveItemsWorkflow } from "../../inventory/workflows/reserve.workflow";
 import { canAssignInventory } from "../guards/trip.guards";
 import type { Trip } from "../types/trip.types";
+import type { ItemDisposition } from "@/lib/modules/inventory/types/inventory.types";
 
 export type InventoryAssignment = {
   orderId: string;
   productId: string;
   itemIds: string[];
+  disposition: ItemDisposition
 };
 
 export type AssignInventoryInput = {
@@ -33,7 +35,8 @@ export async function assignInventoryWorkflow(
     await OrdersService.updateOrderLineItem(
       assignment.orderId,
       assignment.productId,
-      assignment.itemIds
+      assignment.itemIds,
+      assignment.disposition,
     );
   }
 

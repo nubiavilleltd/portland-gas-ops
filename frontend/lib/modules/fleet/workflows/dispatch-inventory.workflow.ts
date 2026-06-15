@@ -26,7 +26,7 @@ export async function dispatchInventoryWorkflow(trip: Trip): Promise<void> {
         await InventoryService.checkOutItems({
           item_ids: itemIds,
           trip_id: trip.id,
-          disposition: lineItem.disposition ?? "loaned",
+          disposition: lineItem.disposition ?? "sold",
           recorded_by: RECORDED_BY,
         });
       } else {

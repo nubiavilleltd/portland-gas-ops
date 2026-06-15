@@ -25,7 +25,7 @@ import { canAssignInventory } from "@/lib/modules/fleet/guards/trip.guards";
 import InventoryUnitPickerModal from "@/components/ui/InventoryUnitPickerModal";
 
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
-import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
+import type { InventoryItem, ItemDisposition } from "@/lib/modules/inventory/types/inventory.types";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
@@ -34,7 +34,8 @@ import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 // ── Types ─────────────────────────────────────────────────
 // Tracks selected unit IDs per order line item
 // key: `${orderId}__${productId}`
-type SelectionMap = Record<string, string[]>;
+// type SelectionMap = Record<string, string[]>;
+type SelectionMap = Record<string, { itemIds: string[]; disposition: ItemDisposition }>;
 
 // ── Helper ────────────────────────────────────────────────
 function lineItemKey(orderId: string, productId: string) {
@@ -240,36 +241,7 @@ export default function AssignInventoryPage() {
     .filter(Boolean);
 
   // ── Toggle handler ────────────────────────────────────────
-  function handleToggle(
-    orderId: string,
-    productId: string,
-    itemId: string,
-    required: number,
-  ) {
-    const key = lineItemKey(orderId, productId);
-    const current = selection[key] ?? [];
-    const isSelected = current.includes(itemId);
 
-    if (isSelected) {
-      // Deselect
-      setSelection((prev) => ({
-        ...prev,
-        [key]: current.filter((id) => id !== itemId),
-      }));
-    } else {
-      // Select — enforce max = required
-      if (current.length >= required) {
-        toast.warning(
-          `You can only select ${required} unit(s) for this line item`,
-        );
-        return;
-      }
-      setSelection((prev) => ({
-        ...prev,
-        [key]: [...current, itemId],
-      }));
-    }
-  }
 
   // Add this before isAllAssigned:
   function getTrackedLineItems() {
@@ -350,6 +322,7 @@ export default function AssignInventoryPage() {
         orderId: order.id,
         productId: lineItem.product_id,
         itemIds: selection[key] ?? [],
+        disposition: (selection[key]?.disposition ?? "sold") as ItemDisposition,
       }))
       .filter((a) => a.itemIds.length > 0);
 

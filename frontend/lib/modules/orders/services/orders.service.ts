@@ -13,6 +13,7 @@ import type {
   OrderKPIs,
 } from "@/lib/modules/orders/types/orders.types";
 import { generateOrderId, generateOrderNumber } from "../utils";
+import { ItemDisposition } from "../../inventory/types/inventory.types";
 
 // ============================================================
 // INTERNAL HELPERS
@@ -259,13 +260,14 @@ async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Or
 async updateOrderLineItem(
   orderId: string,
   productId: string,
-  inventoryItemIds: string[]
+  inventoryItemIds: string[],
+  disposition: ItemDisposition,
 ): Promise<Order> {
   const { order, idx } = getOrThrow(orderId);
 
   const updatedItems = order.order_items?.map((item) =>
     item.product_id === productId
-      ? { ...item, inventory_item_ids: inventoryItemIds }
+      ? { ...item, inventory_item_ids: inventoryItemIds, disposition }
       : item
   ) ?? [];
 

@@ -28,7 +28,8 @@ export type OrderStatus =
 
 export type OrderStatusTransition = Record<OrderStatus, readonly OrderStatus[]>;
 
-export type DispositionStatus = "sold" | "loaned" | "rented";
+// export type DispositionStatus = "sold" | "loaned" | "rented";
+export type DispositionStatus = "sold" | "loaned";
 
 
 // ── 2. FULFILLMENT STATUS ─────────────────────────────────

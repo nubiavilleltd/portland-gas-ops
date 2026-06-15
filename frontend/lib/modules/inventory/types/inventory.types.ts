@@ -21,7 +21,8 @@ export type InventoryItemStatus =
   | "returned";      // Returned from customer, pending inspection
 
 // ── 3. ITEM DISPOSITION ──────────────────────────────────
-export type ItemDisposition = "sold" | "loaned" | "rented";
+// export type ItemDisposition = "sold" | "loaned" | "rented";
+export type ItemDisposition = "sold" | "loaned";
 
 // ── 4. INVENTORY ITEM ────────────────────────────────────
 export interface InventoryItem {

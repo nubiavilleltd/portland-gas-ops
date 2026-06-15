@@ -11,7 +11,7 @@ export const CONDITION_OPTIONS: Array<{
 ];
 
 export const DISPOSITION_OPTIONS: Array<{
-  value: "sold" | "loaned" | "rented";
+  value: InventoryItem["disposition"];
   label: string;
   description: string;
 }> = [
@@ -25,11 +25,11 @@ export const DISPOSITION_OPTIONS: Array<{
     label: "Loaned",
     description: "Item will be returned by the customer",
   },
-  {
-    value: "rented",
-    label: "Rented",
-    description: "Item is rented — return expected with rental fee",
-  },
+//   {
+//     value: "rented",
+//     label: "Rented",
+//     description: "Item is rented — return expected with rental fee",
+//   },
 ];
 
 export const INVENTORY_STATUS_OPTIONS: Array<{
