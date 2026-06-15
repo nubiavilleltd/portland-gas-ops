@@ -176,7 +176,11 @@ export default function AssignInventoryPage() {
   const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   const isLoading =
-    tripLoading || ordersLoading || productsLoading || itemsLoading;
+    tripLoading ||
+    ordersLoading ||
+    productsLoading ||
+    itemsLoading ||
+    customersLoading;
 
   // ── Loading ──────────────────────────────────────────────
   if (isLoading) {
@@ -506,19 +510,19 @@ export default function AssignInventoryPage() {
           );
         })}
 
-         <div className="flex-1 mr-6">
-            {isAllAssigned() ? (
-              <p className="text-sm text-green-700 flex items-center gap-1.5">
-                <CheckCircle
-                  size={14}
-                  className="shrink-0"
-                />
-                All tracked items assigned — ready to proceed
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {/* Show a specific message per unresolved line item */}
-                {/* {tripOrders.flatMap(
+        <div className="flex-1 mr-6">
+          {isAllAssigned() ? (
+            <p className="text-sm text-green-700 flex items-center gap-1.5">
+              <CheckCircle
+                size={14}
+                className="shrink-0"
+              />
+              All tracked items assigned — ready to proceed
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {/* Show a specific message per unresolved line item */}
+              {/* {tripOrders.flatMap(
                   (order) =>
                     order?.order_items
                       ?.filter((lineItem) => {
@@ -576,58 +580,54 @@ export default function AssignInventoryPage() {
                       }) ?? [],
                 )} */}
 
-                {getTrackedLineItems()
-                  .filter(
-                    ({ key, required }) =>
-                      (selection[key]?.length ?? 0) < required,
-                  )
-                  .map(({ product, key, required }) => {
-                    const selected = selection[key]?.length ?? 0;
-                    const available = getAvailableItems(
-                      items,
-                      product.id,
-                    ).length;
-                    const isStockGap = available < required;
+              {getTrackedLineItems()
+                .filter(
+                  ({ key, required }) =>
+                    (selection[key]?.length ?? 0) < required,
+                )
+                .map(({ product, key, required }) => {
+                  const selected = selection[key]?.length ?? 0;
+                  const available = getAvailableItems(items, product.id).length;
+                  const isStockGap = available < required;
 
-                    return (
-                      <p
-                        key={product.id}
-                        className="text-sm text-amber-700 flex items-start gap-1.5"
-                      >
-                        <AlertCircle
-                          size={14}
-                          className="shrink-0 mt-0.5"
-                        />
-                        {isStockGap ? (
-                          <span>
-                            <strong>{product.name}</strong>: only {available} of{" "}
-                            {required} units available in stock.{" "}
-                            <a
+                  return (
+                    <p
+                      key={product.id}
+                      className="text-sm text-amber-700 flex items-start gap-1.5"
+                    >
+                      <AlertCircle
+                        size={14}
+                        className="shrink-0 mt-0.5"
+                      />
+                      {isStockGap ? (
+                        <span>
+                          <strong>{product.name}</strong>: only {available} of{" "}
+                          {required} units available in stock.{" "}
+                          {/* <a
                               href={INVENTORY_ROUTES.checkIn()}
                               className="underline hover:text-amber-900"
                             >
                               Check in more stock
                             </a>{" "}
-                            before proceeding.
-                          </span>
-                        ) : (
-                          <span>
-                            <strong>{product.name}</strong>: select{" "}
-                            {required - selected} more unit
-                            {required - selected !== 1 ? "s" : ""} to continue.
-                          </span>
-                        )}
-                      </p>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
+                            before proceeding. */}
+                          Check in more stock before proceeding.
+                        </span>
+                      ) : (
+                        <span>
+                          <strong>{product.name}</strong>: select{" "}
+                          {required - selected} more unit
+                          {required - selected !== 1 ? "s" : ""} to continue.
+                        </span>
+                      )}
+                    </p>
+                  );
+                })}
+            </div>
+          )}
+        </div>
 
         {/* Actions */}
         <div className="flex justify-end pb-10">
-         
-
           <div className="flex gap-3 shrink-0">
             {/* <Button
               variant="outline"

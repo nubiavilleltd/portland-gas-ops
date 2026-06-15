@@ -21,6 +21,10 @@ export class ProductsService {
     return Promise.resolve([...products]);
   }
 
+   static async getProductById(id: string): Promise<Product | undefined> {
+      return Promise.resolve(products.find((p) => p.id === id));
+    }
+
 
   // ── CREATE ──────────────────────────────────────────────
 
