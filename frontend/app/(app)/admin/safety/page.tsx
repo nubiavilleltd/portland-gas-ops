@@ -212,19 +212,19 @@ export default function AdminSafetyDashboardPage() {
               icon={<Flame size={18} />}
               label="Gas, fire, or environmental concerns"
               value={gasOrFireConcerns.length}
-              href="/admin/safety/incidents"
+              href="/safety/incidents"
             />
             <SignalRow
               icon={<ListChecks size={18} />}
               label="Open corrective-action records"
               value={openCorrectiveActions.length}
-              href="/admin/safety/incidents"
+              href="/safety/incidents"
             />
             <SignalRow
               icon={<Gauge size={18} />}
               label="Approved close-outs reviewed"
               value={approvedCloseOuts.length}
-              href="/admin/safety/work-close-out"
+              href="/safety/work-close-out"
             />
           </div>
         </section>
