@@ -9,8 +9,8 @@
 // ─────────────────────────────────────────────────────────
 
 export const PRODUCT_ROUTES = {
-    list: () => "/products",
-    new: () => "/products/new",
-    detail: (id: string) => `/products/${id}`,
-    edit: (id: string) => `/products/${id}/edit`,
+    list: () => "/admin/products",
+    new: () => "/admin/products/new",
+    detail: (id: string) => `/admin/products/${id}`,
+    edit: (id: string) => `/admin/products/${id}/edit`,
 } as const;

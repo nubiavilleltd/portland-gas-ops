@@ -28,6 +28,9 @@ export type OrderStatus =
 
 export type OrderStatusTransition = Record<OrderStatus, readonly OrderStatus[]>;
 
+// export type DispositionStatus = "sold" | "loaned" | "rented";
+export type DispositionStatus = "sold" | "loaned";
+
 
 // ── 2. FULFILLMENT STATUS ─────────────────────────────────
 // Tracks where the physical delivery is in its journey.
@@ -63,6 +66,8 @@ export interface OrderLineItem {
   quantity: number;
   unit_price: number;
   total: number;
+  inventory_item_ids?: string[];
+  disposition?: DispositionStatus
 }
 
 // ── 4. ORDER ENTITY ───────────────────────────────────────
@@ -75,8 +80,8 @@ export interface Order {
   customer_name: string;
 
   // Products
-order_items: OrderLineItem[];
-total_amount: number; // derived — sum of all line item totals
+  order_items: OrderLineItem[];
+  total_amount: number; // derived — sum of all line item totals
 
   // Delivery
   delivery_address: string;
@@ -108,13 +113,13 @@ total_amount: number; // derived — sum of all line item totals
 // ── 5. INPUT / FORM TYPES ─────────────────────────────────
 export interface CreateOrderInput {
   customer_id: string;
-order_items: {
-  product_id: string;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-  total: number;
-}[];
+  order_items: {
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+  }[];
   delivery_address: string;
   delivery_date?: string;
   notes?: string;
