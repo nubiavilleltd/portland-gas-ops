@@ -38,7 +38,7 @@ function LoginContent() {
     try {
       await login(data.email, data.password, data.remember_me ?? false);
       toast.success("Welcome back!");
-      router.replace("/home");
+      router.replace("/");
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { detail?: string } } };
       if (error?.response?.status === 403) {
