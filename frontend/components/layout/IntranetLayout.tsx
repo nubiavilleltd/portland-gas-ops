@@ -29,6 +29,7 @@ const NAV_LINKS = [
   { label: "Home",   href: "/" },
   { label: "News",   href: "/news" },
   { label: "Events", href: "/events" },
+  { label: "FAQ",    href: "/faq" },
 ];
 
 const NOTIFICATIONS = [
@@ -94,8 +95,10 @@ export default function IntranetLayout({ children }: Props) {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150",
-                    active ? "bg-white/15 text-white" : "text-white/60 hover:text-white hover:bg-white/10"
+                    "px-4 py-2 text-sm font-semibold transition-all duration-150 border-b-2",
+                    active
+                      ? "text-white border-[#FFBC00]"
+                      : "text-white/60 hover:text-white hover:bg-white/10 border-transparent rounded-lg"
                   )}
                 >
                   {link.label}

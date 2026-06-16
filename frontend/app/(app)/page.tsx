@@ -18,17 +18,14 @@ import {
   Star,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
-  BookOpen,
   HelpCircle,
-  ShieldCheck,
-  Briefcase,
   X,
   User,
   FolderOpen,
   Receipt,
 } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
+import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
 
@@ -103,12 +100,6 @@ const QUICK_LINKS = [
   { icon: Users,           label: "Employee Directory",    href: "#",                          bg: "#FFFBEB", fg: "#B45309" },
 ];
 
-const FAQ_CATEGORIES = [
-  { icon: BookOpen,    label: "IT Support",   color: "#1E40AF", bg: "#EFF6FF", faqs: ["How do I reset my work password?", "How do I connect to the VPN?", "How do I request a new device?"] },
-  { icon: Users,       label: "HR & Payroll", color: "#7234BD", bg: "#F3EEFF", faqs: ["How do I apply for leave?", "When is payroll processed?", "How do I update my bank details?"] },
-  { icon: ShieldCheck, label: "HSE",          color: "#166534", bg: "#F0FDF4", faqs: ["Where do I find the HSE manual?", "How do I report a near-miss?", "Who is my nearest first-aider?"] },
-  { icon: Briefcase,   label: "Procurement",  color: "#C2410C", bg: "#FFF7ED", faqs: ["How do I raise a purchase request?", "What is the vendor approval process?", "How do I track my PR status?"] },
-];
 
 const EMPLOYEE_OF_MONTH = {
   name: "Adaeze Nwankwo",
@@ -183,7 +174,6 @@ export default function IntranetHomePage() {
   const [tab,         setTab]         = useState("All");
   const [q,           setQ]           = useState("");
   const [slide,       setSlide]       = useState(0);
-  const [faqOpen,     setFaqOpen]     = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [mounted,     setMounted]     = useState(false);
   useEffect(() => setMounted(true), []);
@@ -250,19 +240,12 @@ export default function IntranetHomePage() {
           <p className="text-white/55 text-base mb-8">The Clean Energy Standard — stay informed, stay connected.</p>
 
           {/* Search bar */}
-          <div className="relative max-w-xl mx-auto">
-            <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search news, events, policies, people…"
-              className="w-full bg-white rounded-full pl-12 pr-14 py-3.5 text-gray-700 placeholder:text-gray-400 text-sm outline-none shadow-xl transition-all duration-150"
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 h-6 px-2 bg-gray-100 rounded text-gray-400 text-xs font-mono flex items-center pointer-events-none">
-              /
-            </div>
-          </div>
+          <IntranetSearchBar
+            value={q}
+            onChange={setQ}
+            placeholder="Search news, events, policies, people…"
+            className="max-w-xl mx-auto"
+          />
         </div>
       </section>
 
@@ -390,8 +373,9 @@ export default function IntranetHomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {feed.slice(0, 6).map((item, i) => (
-                <article
+                <Link
                   key={item.id}
+                  href={`/news/${item.id}`}
                   className={cn(
                     "group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer animate-fade-up",
                     `animate-fade-up-${Math.min(i + 1, 5)}`
@@ -420,7 +404,7 @@ export default function IntranetHomePage() {
                       <span>{item.date}</span>
                     </div>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           )}
@@ -561,8 +545,9 @@ export default function IntranetHomePage() {
                 </div>
               ) : (
                 visibleEvents.map((ev) => (
-                  <div
+                  <Link
                     key={ev.id}
+                    href={`/events/${ev.id}`}
                     className="flex items-start gap-4 px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer group"
                   >
                     <div
@@ -581,7 +566,7 @@ export default function IntranetHomePage() {
                       </div>
                     </div>
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-[#7234BD] transition-colors shrink-0 mt-1" />
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
@@ -683,54 +668,26 @@ export default function IntranetHomePage() {
           </section>
         </div>
 
-        {/* ── 7. FAQ / Knowledge Base ──────────────────────────────────── */}
+        {/* ── 7. FAQ CTA ───────────────────────────────────────────────── */}
         <section className="animate-fade-up">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-xl bg-[#F3EEFF] flex items-center justify-center">
-                <HelpCircle size={16} className="text-[#7234BD]" />
+          <div className="bg-white rounded-2xl border border-gray-100 px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <div className="h-12 w-12 rounded-2xl bg-[#F3EEFF] flex items-center justify-center shrink-0">
+                <HelpCircle size={22} className="text-[#7234BD]" />
               </div>
-              <h2 className="text-xl font-bold text-[#1C043B]" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
-                Knowledge Base & FAQs
-              </h2>
+              <div>
+                <h2 className="text-base font-bold text-[#1C043B]" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
+                  Frequently Asked Questions
+                </h2>
+                <p className="text-sm text-gray-400 mt-0.5">IT support, HR, HSE, procurement — all in one place.</p>
+              </div>
             </div>
-            <button className="flex items-center gap-1 text-sm text-[#7234BD] font-semibold hover:gap-2 transition-all">
-              Browse all <ArrowRight size={14} />
-            </button>
-          </div>
-
-          <div className="relative max-w-sm mb-6">
-            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search FAQs and how-to guides…"
-              className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-700 placeholder:text-gray-400 outline-none transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {FAQ_CATEGORIES.map((cat) => (
-              <div key={cat.label} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-200">
-                <div className="p-4 border-b border-gray-100 flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: cat.bg }}>
-                    <cat.icon size={15} style={{ color: cat.color }} />
-                  </div>
-                  <p className="text-sm font-bold text-[#1C043B]">{cat.label}</p>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {cat.faqs.map((faq) => (
-                    <button
-                      key={faq}
-                      onClick={() => setFaqOpen(faqOpen === faq ? null : faq)}
-                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors btn-press"
-                    >
-                      <span className="text-xs text-gray-600 hover:text-[#7234BD] pr-2 leading-snug transition-colors">{faq}</span>
-                      <ChevronDown size={12} className={cn("text-gray-300 shrink-0 transition-transform duration-200", faqOpen === faq && "rotate-180 text-[#7234BD]")} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <Link
+              href="/faq"
+              className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7234BD] text-white text-sm font-semibold hover:bg-[#5c2899] transition-colors btn-press"
+            >
+              Browse FAQs <ArrowRight size={14} />
+            </Link>
           </div>
         </section>
 
