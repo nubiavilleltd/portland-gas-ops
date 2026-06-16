@@ -4,11 +4,8 @@ import { TOKEN_COOKIE_NAME } from "@/lib/constants";
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", "/reset-password"];
 
 export function middleware(request: NextRequest) {
-  // Dev bypass: set NEXT_PUBLIC_DEV_BYPASS_AUTH=true in .env.local to skip auth
-  return NextResponse.next();
-  // if (process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true") {
-  //   return NextResponse.next();
-  // }
+  // Dev bypass: uncomment the line below to skip auth checks during development
+  // return NextResponse.next();
 
   const { pathname } = request.nextUrl;
 
@@ -20,7 +17,7 @@ export function middleware(request: NextRequest) {
 
   // Already authenticated — redirect away from login
   if (isPublicPath && token) {
-    return NextResponse.redirect(new URL("/home", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   // Protected route — no token — redirect to login

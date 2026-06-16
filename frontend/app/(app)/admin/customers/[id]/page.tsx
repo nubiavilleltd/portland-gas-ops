@@ -26,6 +26,7 @@ import { parseError } from "@/lib/errors";
 import { formatDate } from "@/lib/utils";
 import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
+import { useToggleCustomerStatus } from "@/lib/modules/customers/hooks/useCustomerMutations";
 
 // ── Detail row ────────────────────────────────────────────
 function DetailRow({
@@ -57,9 +58,10 @@ export default function CustomerDetailPage() {
   const id = params.id as string;
 
   const { customer, isLoading, error } = useCustomerById(id);
-  const [isToggling, setIsToggling] = useState(false);
+  // const [isToggling, setIsToggling] = useState(false);
 
   const isActive = customer?.status === "active"
+  const { mutate: toggleStatus, isPending: isToggling } = useToggleCustomerStatus(id);
 
   // ── Loading skeleton ──────────────────────────────────
   if (isLoading) {
@@ -81,7 +83,7 @@ export default function CustomerDetailPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => router.push(`/admin${CUSTOMER_ROUTES.list()}`)}
+          onClick={() => router.push(CUSTOMER_ROUTES.list())}
         >
           Back to Customers
         </Button>
@@ -90,31 +92,33 @@ export default function CustomerDetailPage() {
   }
 
   // ── Handlers — defined after guards so customer is guaranteed ──
-  async function handleToggleStatus() {
-    setIsToggling(true);
-    try {
-      isActive
-        ? await CustomersService.deactivateCustomer(id)
-        : await CustomersService.activateCustomer(id);
-      toast.success(
-        isActive
-          ? "Customer deactivated"
-          : "Customer activated"
-      );
-      router.push(`/admin${CUSTOMER_ROUTES.list()}`);
-    } catch (err) {
-      toast.error(parseError(err));
-    } finally {
-      setIsToggling(false);
-    }
-  }
+  // async function handleToggleStatus() {
+  //   setIsToggling(true);
+  //   try {
+  //     isActive
+  //       ? await CustomersService.deactivateCustomer(id)
+  //       : await CustomersService.activateCustomer(id);
+  //     toast.success(
+  //       isActive
+  //         ? "Customer deactivated"
+  //         : "Customer activated"
+  //     );
+  //     router.push(CUSTOMER_ROUTES.list());
+  //   } catch (err) {
+  //     toast.error(parseError(err));
+  //   } finally {
+  //     setIsToggling(false);
+  //   }
+  // }
+
+ 
 
   // ── Render ────────────────────────────────────────────
   return (
     <AppLayout pageTitle={customer.name}>
       {/* Back */}
       <BackButton
-        href={`/admin${CUSTOMER_ROUTES.list()}`}
+        href={CUSTOMER_ROUTES.list()}
         label="Back to Customers"
       />
 
@@ -144,7 +148,7 @@ export default function CustomerDetailPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            href={`/admin${CUSTOMER_ROUTES.edit(customer.id)}`}
+            href={CUSTOMER_ROUTES.edit(customer.id)}
             leftIcon={<Pencil size={14} />}
           >
             Edit
@@ -153,7 +157,7 @@ export default function CustomerDetailPage() {
             variant={isActive ? "danger" : "primary"}
             loading={isToggling}
             loadingText={isActive ? "Deactivating…" : "Activating…"}
-            onClick={handleToggleStatus}
+            onClick={() => toggleStatus(isActive ?? false)}
             leftIcon={
               isActive
                 ? <PowerOff size={14} />

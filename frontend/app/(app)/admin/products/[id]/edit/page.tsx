@@ -15,13 +15,18 @@ import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import ProductForm from "@/lib/modules/products/components/ProductForm";
 import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
+import { useUpdateProduct } from "@/lib/modules/products/hooks/useProductMutations";
+import { ProductImage } from "@/lib/modules/products/types/product.types";
 
 export default function EditProductPage() {
-  const params  = useParams();
-  const router  = useRouter();
-  const id      = params.id as string;
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id as string;
 
   const { product, isLoading, error } = useProductById(id);
+
+  console.log("product", {product})
+    const { mutateAsync: updateProduct } = useUpdateProduct(id);
 
   if (isLoading) {
     return (
@@ -41,7 +46,7 @@ export default function EditProductPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => router.push(`/admin${PRODUCT_ROUTES.list()}`)}
+          onClick={() => router.push(PRODUCT_ROUTES.list())}
         >
           Back to Products
         </Button>
@@ -49,19 +54,42 @@ export default function EditProductPage() {
     );
   }
 
-  async function handleSubmit(data: UpdateProductFormOutput) {
-    await ProductsService.updateProduct(id, data);
-    toast.success("Product successfully updated")
-    // router.push(PRODUCT_ROUTES.detail(id));
-    router.push(`/admin${PRODUCT_ROUTES.detail(id)}`);
+  // async function handleSubmit(data: UpdateProductFormOutput) {
+  //   await ProductsService.updateProduct(id, data);
+  //   toast.success("Product successfully updated")
+  //   // router.push(PRODUCT_ROUTES.detail(id));
+  //   router.push(PRODUCT_ROUTES.detail(id));
 
-    
-  }
+
+  // }
+
+
+
+// async function handleSubmit(data: UpdateProductFormOutput) {
+//   await updateProduct(data);
+// }
+
+async function handleSubmit(
+  data: UpdateProductFormOutput,
+  newImages: File[],
+  keptImages: ProductImage[]
+) {
+  const addedImages: ProductImage[] = newImages.map((file, i) => ({
+    id:   `img-local-${Date.now()}-${i}`,
+    url:  URL.createObjectURL(file),
+    name: file.name,
+  }));
+
+  // Merge kept existing images + newly added images
+  const mergedImages: ProductImage[] = [...keptImages, ...addedImages];
+
+  await updateProduct({ ...data, images: mergedImages });
+}
 
   return (
     <AppLayout pageTitle={`Edit — ${product.name}`}>
       <button
-        onClick={() => router.push(`/admin${PRODUCT_ROUTES.detail(id)}`)}
+        onClick={() => router.push(PRODUCT_ROUTES.detail(id))}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
@@ -74,20 +102,20 @@ export default function EditProductPage() {
         className="mb-6"
       />
 
-    
 
-       <FormSection
-              title="Product Information"
-              description="Enter product details and pricing information"
-            >
-              <ProductForm
+
+      <FormSection
+        title="Product Information"
+        description="Enter product details and pricing information"
+      >
+        <ProductForm
           initial={product}
           onSubmit={handleSubmit}
-          onCancel={() => router.push(`/admin${PRODUCT_ROUTES.detail(id)}`)}
+          onCancel={() => router.push(PRODUCT_ROUTES.detail(id))}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />
-            </FormSection>
+      </FormSection>
 
 
 

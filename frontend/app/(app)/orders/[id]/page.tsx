@@ -13,9 +13,6 @@ import { useInvoiceByOrderId } from "@/lib/modules/invoices/hooks/useInvoices";
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
 
-
-
-
 import {
   ORDER_ROUTES,
   FLEET_ROUTES,
@@ -24,7 +21,14 @@ import {
 } from "@/lib/routes";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { canAssignToTrip, canCloseOrder, canConfirmOrder, canEditOrder, canGenerateInvoice, canConfirmDelivery } from "@/lib/modules/orders/guards/orders.guards";
+import {
+  canAssignToTrip,
+  canCloseOrder,
+  canConfirmOrder,
+  canEditOrder,
+  canGenerateInvoice,
+  canConfirmDelivery,
+} from "@/lib/modules/orders/guards/orders.guards";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
@@ -33,13 +37,15 @@ import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { BackButton } from "@/components/ui/BackButton";
 
-
+import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { pluralizeNumber } from "@/lib/utils/format-number";
 
 export default function OrderDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const { customers } = useCustomers()
+  const { customers } = useCustomers();
+  const { products } = useProducts();
 
   const { order, isLoading, error } = useOrderById(id);
   const { invoice } = useInvoiceByOrderId(id);
@@ -48,13 +54,10 @@ export default function OrderDetailPage() {
   const { trip } = useTripById(order?.trip_id as string);
 
   const customerMap = Object.fromEntries(
-    customers.map((customer) => [
-      customer.id,
-      customer,
-    ])
+    customers.map((customer) => [customer.id, customer]),
   );
 
-
+  const productMap = new Map(products.map((p) => [p.id, p]));
 
   // ── loading / error
   if (isLoading) {
@@ -84,21 +87,24 @@ export default function OrderDetailPage() {
   // const canClose = canCloseOrder(order);
   const canDeliver = canConfirmDelivery(order);
 
-
-
   const balance = invoice
     ? invoice.total_amount - paymentSummary.amountPaid
     : 0;
 
-
   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
       label: "Product",
-      render: (item) => <span className="font-medium">{item.product_name}</span>,
+      render: (item) => (
+        <span className="font-medium">{item.product_name}</span>
+      ),
     },
     {
       label: "Quantity",
-      render: (item) => `${item.quantity.toLocaleString()} kg`,
+      render: (item) => {
+        const unit = productMap.get(item.product_id)?.unit ?? "unit";
+        const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
+        return `${item.quantity.toLocaleString()} ${formattedUnit}`;
+      },
     },
     {
       label: "Unit Price",
@@ -111,11 +117,8 @@ export default function OrderDetailPage() {
     },
   ];
 
-
-
   return (
     <AppLayout pageTitle="Order Details">
-
       <BackButton
         href={`${ORDER_ROUTES.list()}`}
         label="Back to Orders"
@@ -125,9 +128,11 @@ export default function OrderDetailPage() {
         description="Customer gas order workflow and transaction details"
         action={
           <div className="flex gap-2 flex-wrap justify-end">
-
             {canEdit && (
-              <Button href={ORDER_ROUTES.edit(id)} variant="outline">
+              <Button
+                href={ORDER_ROUTES.edit(id)}
+                variant="outline"
+              >
                 Edit
               </Button>
             )}
@@ -175,7 +180,6 @@ export default function OrderDetailPage() {
       />
 
       <div className="space-y-6">
-
         {/* ORDER SUMMARY */}
         <FormSection
           title="Order Summary"
@@ -188,8 +192,7 @@ export default function OrderDetailPage() {
               </p>
 
               <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-                {customerMap[order.customer_id]
-                  ?.name ?? "—"}
+                {customerMap[order.customer_id]?.name ?? "—"}
               </h2>
               {/* 
       <p className="text-sm text-brand-text-secondary mt-1">
@@ -205,14 +208,16 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-
           <SimpleTable
             columns={itemColumns}
             rows={order.order_items}
             keyExtractor={(_, index) => String(index)}
             footer={
               <tr>
-                <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+                <td
+                  colSpan={3}
+                  className="pt-3 text-right text-xs font-semibold text-brand-text-secondary"
+                >
                   Grand Total
                 </td>
                 <td className="pt-3 text-right font-semibold">
@@ -235,32 +240,44 @@ export default function OrderDetailPage() {
           title="Dispatch / Trip"
           description="View trip assignment and delivery route details"
         >
-
-          {
-            canAssign ? (
-              <div className="flex justify-end">
-                <Button size="sm" href={FLEET_ROUTES.tripNew({ orderId: id })}>
-                  Assign to Trip →
-                </Button>
-              </div>
-            ) : order.trip_id ? (
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  href={FLEET_ROUTES.tripDetail(order.trip_id)}
-                >
-                  View Trip →
-                </Button>
-              </div>
-            ) : undefined
-          }
+          {canAssign ? (
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                href={FLEET_ROUTES.tripNew({ orderId: id })}
+              >
+                Assign to Trip →
+              </Button>
+            </div>
+          ) : order.trip_id ? (
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                href={FLEET_ROUTES.tripDetail(order.trip_id)}
+              >
+                View Trip →
+              </Button>
+            </div>
+          ) : undefined}
           {trip ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              <InfoRow label="Trip Number" value={trip.trip_number} />
-              <InfoRow label="From" value={trip.start_location} />
-              <InfoRow label="To" value={trip.end_location} />
-              <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
+              <InfoRow
+                label="Trip Number"
+                value={trip.trip_number}
+              />
+              <InfoRow
+                label="From"
+                value={trip.start_location}
+              />
+              <InfoRow
+                label="To"
+                value={trip.end_location}
+              />
+              <InfoRow
+                label="Scheduled"
+                value={formatDate(trip.scheduled_date)}
+              />
             </div>
           ) : (
             <p className="text-sm text-brand-text-secondary">
@@ -278,7 +295,10 @@ export default function OrderDetailPage() {
         >
           {canInvoice ? (
             <div className="flex justify-end">
-              <Button size="sm" href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
+              <Button
+                size="sm"
+                href={`${INVOICE_ROUTES.new()}?orderId=${id}`}
+              >
                 Create Invoice →
               </Button>
             </div>
@@ -296,12 +316,21 @@ export default function OrderDetailPage() {
 
           {invoice ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              <InfoRow label="Invoice No" value={invoice.invoice_number} />
+              <InfoRow
+                label="Invoice No"
+                value={invoice.invoice_number}
+              />
               <InfoRow label="Status">
                 <PaymentStatusBadge status={invoice.status} />
               </InfoRow>
-              <InfoRow label="Issued" value={formatDate(invoice.issued_date)} />
-              <InfoRow label="Due" value={formatDate(invoice.due_date)} />
+              <InfoRow
+                label="Issued"
+                value={formatDate(invoice.issued_date)}
+              />
+              <InfoRow
+                label="Due"
+                value={formatDate(invoice.due_date)}
+              />
             </div>
           ) : (
             <p className="text-sm text-brand-text-secondary">
@@ -313,8 +342,6 @@ export default function OrderDetailPage() {
             </p>
           )}
         </FormSection>
-
-
 
         {/* PAYMENTS */}
         <FormSection
@@ -348,21 +375,10 @@ export default function OrderDetailPage() {
             />
           </div>
         </FormSection>
-
       </div>
     </AppLayout>
   );
 }
-
-
-
-
-
-
-
-
-
-
 
 // ── InfoRow ───────────────────────────────────────────────
 function InfoRow({
@@ -385,31 +401,6 @@ function InfoRow({
         <p className={`font-medium mt-0.5 text-sm ${valueClassName ?? ""}`}>
           {value}
         </p>
-      )}
-    </div>
-  );
-}
-
-// ── SectionCard ───────────────────────────────────────────
-function SectionCard({
-  title,
-  action,
-  children,
-  empty,
-}: {
-  title: string;
-  action?: React.ReactNode;
-  children?: React.ReactNode;
-  empty?: string;
-}) {
-  return (
-    <div className="bg-white border border-brand-border rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold">{title}</h3>
-        {action}
-      </div>
-      {children ?? (
-        <p className="text-sm text-brand-text-secondary italic">{empty}</p>
       )}
     </div>
   );

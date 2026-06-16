@@ -21,6 +21,10 @@ export class ProductsService {
     return Promise.resolve([...products]);
   }
 
+   static async getProductById(id: string): Promise<Product | undefined> {
+      return Promise.resolve(products.find((p) => p.id === id));
+    }
+
 
   // ── CREATE ──────────────────────────────────────────────
 
@@ -34,9 +38,12 @@ export class ProductsService {
       id: `prod-${Date.now()}`,
       name: input.name.trim(),
       unit: input.unit,
+      code:input.code,
+      product_type: input.product_type ?? "consumable",
       default_unit_price: input.default_unit_price,
       description: input.description?.trim(),
       status: "active",
+      images: input.images ?? [],
       created_at: new Date().toISOString().slice(0, 10),
       updated_at: new Date().toISOString().slice(0, 10),
     };

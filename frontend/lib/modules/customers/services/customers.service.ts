@@ -26,13 +26,13 @@ export class CustomersService {
     if (duplicate) throwAppError("CUSTOMER_DUPLICATE");
 
     const newCustomer: Customer = {
-      id:        `c-${Date.now()}`,
-      name:      input.name.trim(),
-      type:      input.type,
-      phone:     input.phone.trim(),
-      email:     input.email.trim().toLowerCase(),
-      address:   input.address.trim(),
-      status:"active",
+      id: `c-${Date.now()}`,
+      name: input.name.trim(),
+      type: input.type,
+      phone: input.phone.trim(),
+      email: input.email.trim().toLowerCase(),
+      address: input.address.trim(),
+      status: "active",
       createdAt: new Date().toISOString().slice(0, 10),
     };
 
@@ -61,9 +61,9 @@ export class CustomersService {
 
     Object.assign(customer, {
       ...input,
-      name:    input.name?.trim()    ?? customer.name,
-      phone:   input.phone?.trim()   ?? customer.phone,
-      email:   input.email?.trim().toLowerCase() ?? customer.email,
+      name: input.name?.trim() ?? customer.name,
+      phone: input.phone?.trim() ?? customer.phone,
+      email: input.email?.trim().toLowerCase() ?? customer.email,
       address: input.address?.trim() ?? customer.address,
     });
 
@@ -71,10 +71,10 @@ export class CustomersService {
   }
 
   static async deactivateCustomer(id: string): Promise<Customer> {
-  return CustomersService.updateCustomer(id, { status: "inactive" });
-}
+    return CustomersService.updateCustomer(id, { status: "inactive" });
+  }
 
-static async activateCustomer(id: string): Promise<Customer> {
-  return CustomersService.updateCustomer(id, { status: "active" });
-}
+  static async activateCustomer(id: string): Promise<Customer> {
+    return CustomersService.updateCustomer(id, { status: "active" });
+  }
 }

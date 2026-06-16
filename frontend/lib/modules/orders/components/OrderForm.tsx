@@ -12,8 +12,10 @@ import LineItemTable, {
   type LineItemColumn,
   type LineItemTotalCell,
 } from "@/components/ui/LineItemTable";
+// import SelectInput from "@/components/forms/SelectInput";
+import ProductPickerModal from "@/components/ui/ProductPickerModal";
 
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import {
   useCreateOrderForm,
   DEFAULT_LINE_ITEM,
@@ -32,6 +34,15 @@ import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
 import CurrencyInput from "@/components/forms/CurrencyInput";
 import FormSection from "@/components/ui/FormSection";
+import {
+  useConsumableStock,
+  useInventoryItems,
+} from "../../inventory/hooks/useInventory";
+import {
+  getAvailableCount,
+  getConsumableStockLevel,
+} from "../../inventory/selectors/inventory.selectors";
+import { useState } from "react";
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -66,6 +77,7 @@ export default function OrderForm({
   showDraft = true,
 }: OrderFormProps) {
   const { form } = useCreateOrderForm({ defaultValues });
+  const [pickerIndex, setPickerIndex] = useState<number | null>(null);
 
   const {
     control,
@@ -81,12 +93,38 @@ export default function OrderForm({
   const { options: customerOptions, isLoading: customersLoading } =
     useCustomerSelectOptions();
   const { products, isLoading: productsLoading } = useProducts();
+  const { items: inventoryItems } = useInventoryItems();
+  const { stock: consumableStock } = useConsumableStock();
   const activeProducts = getActiveProducts(products);
 
-  const productOptions = activeProducts.map((p) => ({
-    value: p.id,
-    label: p.name,
-  }));
+  // const productOptions = activeProducts.map((p) => ({
+  //   value: p.id,
+  //   label: p.name,
+  // }));
+
+  //   const productOptions = activeProducts.map((p) => {
+  //   const stockInfo = p.product_type === "tracked"
+  //     ? `${getAvailableCount(inventoryItems, p.id)} available`
+  //     : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
+
+  //   return {
+  //     value: p.id,
+  //     label: `${p.name} — ${stockInfo}`,
+  //   };
+  // });
+
+  const productOptions = activeProducts.map((p) => {
+    const stockInfo =
+      p.product_type === "tracked"
+        ? `${getAvailableCount(inventoryItems, p.id)} unit(s) available`
+        : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
+
+    return {
+      value: p.id,
+      label: p.name, // ← shown when selected (clean)
+      description: stockInfo, // ← shown only in dropdown
+    };
+  });
 
   // ── Field array ─────────────────────────────────────────
   const { fields, append, remove } = useFieldArray({
@@ -103,52 +141,116 @@ export default function OrderForm({
 
   // ── Columns ──────────────────────────────────────────────
   const columns: LineItemColumn<OrderLineItem>[] = [
+    // {
+    //   key: "product_id",
+    //   label: "Product",
+    //   width: "2fr",
+    //   // renderCell: (row, index, onChange) => (
+    //   //   <select
+    //   //     value={row.product_id}
+    //   //     disabled={productsLoading}
+    //   //     onChange={(e) => {
+    //   //       const productId = e.target.value;
+
+    //   //       // Check if product is already in another row
+    //   //       const isDuplicate = orderItems.some(
+    //   //         (item, i) => i !== index && item.product_id === productId,
+    //   //       );
+
+    //   //       if (isDuplicate) {
+    //   //         toast.error(
+    //   //           "This product is already in the order. Update the quantity instead.",
+    //   //         );
+    //   //         return;
+    //   //       }
+
+    //   //       onChange({ product_id: productId });
+    //   //       const product = getProductById(products, productId);
+    //   //       if (product) {
+    //   //         setValue(
+    //   //           `order_items.${index}.unit_price`,
+    //   //           product.default_unit_price,
+    //   //         );
+    //   //       }
+    //   //     }}
+    //   //     className="w-full text-sm outline-none bg-transparent"
+    //   //   >
+    //   //     <option value="">Select product</option>
+    //   //     {productOptions.map((opt) => (
+    //   //       <option
+    //   //         key={opt.value}
+    //   //         value={opt.value}
+    //   //       >
+    //   //         {opt.label}
+    //   //       </option>
+    //   //     ))}
+    //   //   </select>
+    //   // ),
+
+    //   renderCell: (row, index, onChange) => (
+    //     <SelectInput
+    //       value={row.product_id}
+    //       options={productOptions}
+    //       placeholder={productsLoading ? "Loading…" : "Select product"}
+    //       disabled={productsLoading}
+    //       searchable
+    //       sortOptions={false}
+    //       onValueChange={(productId) => {
+    //         if (!productId) return;
+
+    //         const isDuplicate = orderItems.some(
+    //           (item, i) => i !== index && item.product_id === productId,
+    //         );
+
+    //         if (isDuplicate) {
+    //           toast.error(
+    //             "This product is already in the order. Update the quantity instead.",
+    //           );
+    //           return;
+    //         }
+
+    //         onChange({ product_id: productId });
+    //         const product = getProductById(products, productId);
+    //         if (product) {
+    //           setValue(
+    //             `order_items.${index}.unit_price`,
+    //             product.default_unit_price,
+    //           );
+    //         }
+    //       }}
+    //       triggerClassName="border-0 focus:ring-0 px-0 h-auto shadow-none"
+    //     />
+    //   ),
+    // },
+
     {
-      key: "product_id",
-      label: "Product",
-      width: "2fr",
-      renderCell: (row, index, onChange) => (
-        <select
-          value={row.product_id}
-          disabled={productsLoading}
-          onChange={(e) => {
-            const productId = e.target.value;
-
-            // Check if product is already in another row
-            const isDuplicate = orderItems.some(
-              (item, i) => i !== index && item.product_id === productId,
-            );
-
-            if (isDuplicate) {
-              toast.error(
-                "This product is already in the order. Update the quantity instead.",
-              );
-              return;
-            }
-
-            onChange({ product_id: productId });
-            const product = getProductById(products, productId);
-            if (product) {
-              setValue(
-                `order_items.${index}.unit_price`,
-                product.default_unit_price,
-              );
-            }
-          }}
-          className="w-full text-sm outline-none bg-transparent"
-        >
-          <option value="">Select product</option>
-          {productOptions.map((opt) => (
-            <option
-              key={opt.value}
-              value={opt.value}
-            >
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      ),
-    },
+  key: "product_id",
+  label: "Product",
+  width: "2fr",
+  renderCell: (row, index) => {
+    const selected = getProductById(products, row.product_id);
+    return (
+      <button
+        type="button"
+        onClick={() => setPickerIndex(index)}
+        className={cn(
+          "w-full text-left text-sm py-0.5 transition-colors",
+          selected
+            ? "text-brand-text-primary font-medium"
+            : "text-brand-text-secondary"
+        )}
+      >
+        {selected ? (
+          <span>{selected.name}</span>
+        ) : (
+          <span className="text-brand-text-secondary">
+            {productsLoading ? "Loading…" : "Click to select product"}
+          </span>
+        )}
+      </button>
+    );
+  },
+},
 
     {
       key: "quantity",
@@ -180,11 +282,7 @@ export default function OrderForm({
           </div>
         );
       },
-
     },
-
-
-
 
     {
       key: "unit_price",
@@ -194,7 +292,9 @@ export default function OrderForm({
         <CurrencyInput
           value={row.unit_price || ""}
           placeholder="0.00"
-          onValueChange={(raw) => onChange({ unit_price: parseFloat(raw) || 0 })}
+          onValueChange={(raw) =>
+            onChange({ unit_price: parseFloat(raw) || 0 })
+          }
           inputClassName="border-0 focus:ring-0 px-0 h-auto"
         />
       ),
@@ -237,8 +337,6 @@ export default function OrderForm({
       onSubmit={handleSubmit(handleFormSubmit)}
       className="space-y-6"
     >
-
-
       {/* CUSTOMER INFORMATION */}
       <FormSection
         title="Customer Information"
@@ -290,7 +388,6 @@ export default function OrderForm({
         />
       </FormSection>
 
-
       {/* DELIVERY INFORMATION */}
       <FormSection
         title="Delivery Information"
@@ -320,15 +417,20 @@ export default function OrderForm({
         </div>
       </FormSection>
 
-
       {/* ORDER SUMMARY */}
       <FormSection
         title="Order Summary"
         description="Review calculated totals before submitting the order"
       >
         <div className="space-y-4 max-w-sm">
-          <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
-          <SummaryRow label="Tax" value="₦0.00" />
+          <SummaryRow
+            label="Subtotal"
+            value={formatCurrency(subtotal)}
+          />
+          <SummaryRow
+            label="Tax"
+            value="₦0.00"
+          />
 
           <div className="border-t border-brand-border pt-4 flex items-center justify-between">
             <span className="font-semibold">Grand Total</span>
@@ -364,6 +466,34 @@ export default function OrderForm({
           {submitLabel}
         </Button>
       </div>
+
+      <ProductPickerModal
+  open={pickerIndex !== null}
+  onClose={() => setPickerIndex(null)}
+  onSelect={(product) => {
+    if (pickerIndex === null) return;
+
+    // Uniqueness check
+    const isDuplicate = orderItems.some(
+      (item, i) => i !== pickerIndex && item.product_id === product.id
+    );
+    if (isDuplicate) {
+      toast.error("This product is already in the order. Update the quantity instead.");
+      return;
+    }
+
+    // Set product and auto-fill price
+    setValue(`order_items.${pickerIndex}.product_id`, product.id, { shouldValidate: true });
+    setValue(`order_items.${pickerIndex}.unit_price`, product.default_unit_price);
+    setPickerIndex(null);
+  }}
+  products={activeProducts}
+  inventoryItems={inventoryItems}
+  consumableStock={consumableStock}
+  selectedProductIds={orderItems
+    .map((item) => item.product_id)
+    .filter(Boolean)}
+/>
     </form>
   );
 }

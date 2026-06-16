@@ -19,3 +19,7 @@ export function parseFormattedNumber(value: string): string {
   if (!value) return "";
   return value.replace(/,/g, "");
 }
+
+export function pluralizeNumber(value: number, unit: string): string {
+  return value === 1 ? unit : `${unit}s`;
+}
