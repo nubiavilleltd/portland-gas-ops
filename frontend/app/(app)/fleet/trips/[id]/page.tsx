@@ -30,6 +30,8 @@ import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable
 import type { Order } from "@/lib/modules/orders/types/orders.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
+import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
+import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
 
 
 const STATUS_ORDER = [
@@ -50,6 +52,7 @@ export default function TripDetailPage() {
 
   // ── React Query hooks (single sources of truth) ─────────
   const { trip } = useTripById(tripId);
+  const { entries } = useAuditByEntity("trip", tripId);
 
   const { orders } = useOrders();
   const { customers } = useCustomers();
@@ -287,6 +290,10 @@ export default function TripDetailPage() {
             <p className="text-sm whitespace-pre-line">{trip.notes}</p>
           </FormSection>
         )}
+
+        <FormSection title="Activity" description="Timeline of actions taken on this trip">
+  <AuditTimeline entries={entries} />
+</FormSection>
       </div>
     </AppLayout>
   );

@@ -39,6 +39,8 @@ import { BackButton } from "@/components/ui/BackButton";
 
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { pluralizeNumber } from "@/lib/utils/format-number";
+import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
+import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -46,8 +48,9 @@ export default function OrderDetailPage() {
 
   const { customers } = useCustomers();
   const { products } = useProducts();
-
   const { order, isLoading, error } = useOrderById(id);
+  const { entries } = useAuditByEntity("order", id);
+
   const { invoice } = useInvoiceByOrderId(id);
   const { summary: paymentSummary } = usePaymentSummary(invoice?.id);
 
@@ -374,6 +377,10 @@ export default function OrderDetailPage() {
               valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
             />
           </div>
+        </FormSection>
+
+        <FormSection title="Activity" description="Timeline of actions taken on this order">
+          <AuditTimeline entries={entries} />
         </FormSection>
       </div>
     </AppLayout>
