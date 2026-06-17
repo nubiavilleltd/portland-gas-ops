@@ -107,6 +107,7 @@ export default function PickerModal<T>({
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        style={{minHeight:"100vh"}}
         onClick={handleClose}
       />
 
