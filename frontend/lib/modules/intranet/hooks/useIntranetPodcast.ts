@@ -6,10 +6,10 @@ import type { PodcastEpisode } from "../types/intranet.types";
 const NOW = new Date().toISOString();
 
 const INITIAL_EPISODES: PodcastEpisode[] = [
-  { id: 1, episode_number: 12, title: "Nigeria's Gas-to-Power Opportunity — EP. 12", guest_name: "MD & Chief Engineer",      duration: "38 min", cover_image_url: "", audio_url: "", is_published: true,  is_featured: true,  created_at: NOW, updated_at: NOW },
-  { id: 2, episode_number: 11, title: "Pipeline Safety & Inspection Standards",        guest_name: "Chief Operating Officer", duration: "44 min", cover_image_url: "", audio_url: "", is_published: true,  is_featured: false, created_at: NOW, updated_at: NOW },
-  { id: 3, episode_number: 10, title: "Building a Culture of HSE Excellence",          guest_name: "Head of HSE",             duration: "31 min", cover_image_url: "", audio_url: "", is_published: true,  is_featured: false, created_at: NOW, updated_at: NOW },
-  { id: 4, episode_number: 9,  title: "Procurement & Vendor Management in the Field",  guest_name: "Procurement Director",    duration: "27 min", cover_image_url: "", audio_url: "", is_published: false, is_featured: false, created_at: NOW, updated_at: NOW },
+  { id: 1, episode_number: 12, title: "Nigeria's Gas-to-Power Opportunity — EP. 12", guest_name: "MD & Chief Engineer",      duration: "38 min", cover_image_url: "", audio_url: "", media_type: "audio", is_published: true,  is_featured: true,  created_at: NOW, updated_at: NOW },
+  { id: 2, episode_number: 11, title: "Pipeline Safety & Inspection Standards",        guest_name: "Chief Operating Officer", duration: "44 min", cover_image_url: "", audio_url: "", media_type: "audio", is_published: true,  is_featured: false, created_at: NOW, updated_at: NOW },
+  { id: 3, episode_number: 10, title: "Building a Culture of HSE Excellence",          guest_name: "Head of HSE",             duration: "31 min", cover_image_url: "", audio_url: "", media_type: "audio", is_published: true,  is_featured: false, created_at: NOW, updated_at: NOW },
+  { id: 4, episode_number: 9,  title: "Procurement & Vendor Management in the Field",  guest_name: "Procurement Director",    duration: "27 min", cover_image_url: "", audio_url: "", media_type: "audio", is_published: false, is_featured: false, created_at: NOW, updated_at: NOW },
 ];
 
 let nextId = 5;

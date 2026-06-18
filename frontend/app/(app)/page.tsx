@@ -748,12 +748,12 @@ export default function IntranetHomePage() {
               </h3>
               <p className="text-white/50 text-xs">The MD and Chief Engineer on CNG&apos;s expanding role. 38 min.</p>
             </div>
-            <button className="mt-4 flex items-center gap-3 group self-start">
+            <Link href="/podcast/1" className="mt-4 flex items-center gap-3 group self-start">
               <div className="h-10 w-10 rounded-full bg-[#FFBC00] flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
                 <Play size={14} className="text-[#1C043B] ml-0.5 fill-[#1C043B]" />
               </div>
               <span className="text-white/60 text-xs group-hover:text-white transition-colors">Play episode</span>
-            </button>
+            </Link>
           </div>
 
           <div className="rounded-2xl p-6 flex flex-col gap-3" style={{ backgroundColor: "#7234BD" }}>

@@ -26,10 +26,11 @@ const DEMO_NAME   = "Kemi Adeyemi";
 const DEMO_AVATAR = "https://i.pravatar.cc/150?img=21";
 
 const NAV_LINKS = [
-  { label: "Home",   href: "/" },
-  { label: "News",   href: "/news" },
-  { label: "Events", href: "/events" },
-  { label: "FAQ",    href: "/faq" },
+  { label: "Home",    href: "/" },
+  { label: "News",    href: "/news" },
+  { label: "Events",  href: "/events" },
+  { label: "Podcast", href: "/podcast" },
+  { label: "FAQ",     href: "/faq" },
 ];
 
 const NOTIFICATIONS = [
