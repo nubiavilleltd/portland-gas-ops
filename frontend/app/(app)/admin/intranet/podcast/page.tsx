@@ -10,25 +10,47 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import FormInput from "@/components/forms/FormInput";
-import FormTextarea from "@/components/forms/FormTextarea";
+import FormFileUpload from "@/components/forms/FormFileUpload";
+import SegmentedControl from "@/components/ui/SegmentedControl";
 import { BackButton } from "@/components/ui/BackButton";
 import { useIntranetPodcast } from "@/lib/modules/intranet/hooks/useIntranetPodcast";
 import { useToast } from "@/hooks/useToast";
-import type { PodcastEpisode } from "@/lib/modules/intranet/types/intranet.types";
+import type { PodcastEpisode, PodcastMediaType } from "@/lib/modules/intranet/types/intranet.types";
 
 type EpisodeRow = Omit<PodcastEpisode, "id"> & { id: string; _numId: number };
 
+const MEDIA_TYPE_OPTIONS    = [{ value: "audio", label: "Audio" }, { value: "video", label: "Video" }];
+const MEDIA_SOURCE_OPTIONS  = [{ value: "url", label: "Paste Link" }, { value: "upload", label: "Upload File" }];
+const COVER_SOURCE_OPTIONS  = [{ value: "url", label: "Paste URL" }, { value: "upload", label: "Upload Image" }];
+const DURATION_UNIT_OPTIONS = [{ value: "sec", label: "sec" }, { value: "min", label: "min" }, { value: "hr", label: "hr" }];
+
 const EMPTY_FORM = {
-  episode_number:  1,
-  title:           "",
-  guest_name:      "",
-  duration:        "",
-  cover_image_url: "",
-  audio_url:       "",
-  is_published:    false,
-  is_featured:     false,
+  episode_number:    1,
+  title:             "",
+  guest_name:        "",
+  duration_value:    "",
+  duration_unit:     "min" as "sec" | "min" | "hr",
+  cover_image_url:   "",
+  cover_mode:        "url" as "url" | "upload",
+  audio_url:         "",
+  media_mode:        "url" as "url" | "upload",
+  media_type:        "audio" as PodcastMediaType,
+  is_published:      false,
+  is_featured:       false,
 };
 type FormState = typeof EMPTY_FORM;
+
+function parseDuration(raw: string): { duration_value: string; duration_unit: "sec" | "min" | "hr" } {
+  const match = raw.trim().match(/^(\d+)\s*(sec|min|hr)?/i);
+  if (!match) return { duration_value: raw, duration_unit: "min" };
+  const unit = (match[2]?.toLowerCase() ?? "min") as "sec" | "min" | "hr";
+  return { duration_value: match[1], duration_unit: unit };
+}
+
+function formatDuration(value: string, unit: "sec" | "min" | "hr") {
+  if (!value.trim()) return "";
+  return `${value.trim()} ${unit}`;
+}
 
 const columns: Column<EpisodeRow>[] = [
   {
@@ -56,6 +78,13 @@ const columns: Column<EpisodeRow>[] = [
           <p className="text-xs text-brand-text-secondary mt-0.5">with {row.guest_name}</p>
         )}
       </div>
+    ),
+  },
+  {
+    key: "media_type",
+    label: "Type",
+    render: (_, row) => (
+      <Badge variant={row.media_type === "video" ? "purple" : "info"} label={row.media_type === "video" ? "Video" : "Audio"} />
     ),
   },
   {
@@ -100,13 +129,18 @@ export default function PodcastPage() {
   function openEdit(row: EpisodeRow) {
     const item = episodes.find((e) => e.id === row._numId)!;
     setEditTarget(item);
+    const { duration_value, duration_unit } = parseDuration(item.duration);
     setForm({
       episode_number:  item.episode_number,
       title:           item.title,
       guest_name:      item.guest_name,
-      duration:        item.duration,
+      duration_value,
+      duration_unit,
       cover_image_url: item.cover_image_url,
+      cover_mode:      "url",
       audio_url:       item.audio_url,
+      media_mode:      "url",
+      media_type:      item.media_type,
       is_published:    item.is_published,
       is_featured:     item.is_featured,
     });
@@ -123,8 +157,8 @@ export default function PodcastPage() {
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!form.title.trim())  e.title = "Episode title is required";
-    if (!form.duration.trim()) e.duration = "Duration is required";
+    if (!form.title.trim()) e.title = "Episode title is required";
+    if (!form.duration_value.trim()) e.duration_value = "Duration is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -134,19 +168,31 @@ export default function PodcastPage() {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 300));
     const ts = new Date().toISOString();
+    const duration = formatDuration(form.duration_value, form.duration_unit);
+    const payload = {
+      episode_number:  form.episode_number,
+      title:           form.title,
+      guest_name:      form.guest_name,
+      duration,
+      cover_image_url: form.cover_image_url,
+      audio_url:       form.audio_url,
+      media_type:      form.media_type,
+      is_published:    form.is_published,
+      is_featured:     form.is_featured,
+    };
     if (editTarget) {
-      update(editTarget.id, { ...form, updated_at: ts });
+      update(editTarget.id, { ...payload, updated_at: ts });
     } else {
-      create({ ...form });
+      create({ ...payload });
     }
     setSaving(false);
     toast.success(editTarget ? "Episode updated." : "Episode created.");
     handleClose();
   }
 
-  function field(key: keyof FormState, value: string | boolean | number) {
+  function field<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
-    if (key === "title" || key === "duration") setErrors((p) => ({ ...p, [key]: "" }));
+    if (key === "title" || key === "duration_value") setErrors((p) => ({ ...p, [key]: "" }));
   }
 
   const tableActions: DataTableAction<EpisodeRow>[] = [
@@ -235,15 +281,41 @@ export default function PodcastPage() {
               value={String(form.episode_number)}
               onChange={(e) => field("episode_number", Number(e.target.value))}
             />
-            <FormInput
-              label="Duration"
-              required
-              placeholder="e.g. 38 min"
-              value={form.duration}
-              onChange={(e) => field("duration", e.target.value)}
-              error={errors.duration}
-            />
+            {/* Duration: number input + unit pill buttons */}
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-brand-text-primary">
+                Duration <span className="text-red-500">*</span>
+              </p>
+              <div className="flex h-10 rounded-lg border border-brand-border bg-white overflow-hidden focus-within:ring-2 focus-within:ring-brand-purple focus-within:border-transparent">
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="38"
+                  value={form.duration_value}
+                  onChange={(e) => field("duration_value", e.target.value)}
+                  className="flex-1 min-w-0 px-3 text-sm text-brand-text-primary outline-none bg-transparent"
+                />
+                <div className="flex items-center border-l border-brand-border bg-gray-50 px-1 gap-0.5">
+                  {DURATION_UNIT_OPTIONS.map((u) => (
+                    <button
+                      key={u.value}
+                      type="button"
+                      onClick={() => field("duration_unit", u.value as "sec" | "min" | "hr")}
+                      className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                        form.duration_unit === u.value
+                          ? "bg-brand-purple text-white"
+                          : "text-brand-text-secondary hover:text-brand-text-primary"
+                      }`}
+                    >
+                      {u.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {errors.duration_value && <p className="text-xs text-red-600">{errors.duration_value}</p>}
+            </div>
           </div>
+
           <FormInput
             label="Episode Title"
             required
@@ -258,18 +330,77 @@ export default function PodcastPage() {
             value={form.guest_name}
             onChange={(e) => field("guest_name", e.target.value)}
           />
-          <FormInput
-            label="Cover Image URL"
-            placeholder="https://…"
-            value={form.cover_image_url}
-            onChange={(e) => field("cover_image_url", e.target.value)}
+
+          {/* Media type: Audio or Video */}
+          <SegmentedControl
+            label="Podcast Type"
+            options={MEDIA_TYPE_OPTIONS}
+            value={form.media_type}
+            onChange={(v) => field("media_type", v as PodcastMediaType)}
           />
-          <FormInput
-            label="Audio / Stream URL"
-            placeholder="https://…"
-            value={form.audio_url}
-            onChange={(e) => field("audio_url", e.target.value)}
-          />
+
+          {/* Cover Image */}
+          <div className="space-y-3">
+            <SegmentedControl
+              label="Cover Image"
+              options={COVER_SOURCE_OPTIONS}
+              value={form.cover_mode}
+              onChange={(v) => {
+                field("cover_mode", v as "url" | "upload");
+                field("cover_image_url", "");
+              }}
+            />
+            {form.cover_mode === "url" ? (
+              <FormInput
+                label=""
+                placeholder="https://…"
+                value={form.cover_image_url}
+                onChange={(e) => field("cover_image_url", e.target.value)}
+              />
+            ) : (
+              <FormFileUpload
+                label=""
+                accept="image/*"
+                hint="JPG, PNG or WebP — max 5 MB"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) field("cover_image_url", URL.createObjectURL(file));
+                }}
+              />
+            )}
+          </div>
+
+          {/* Media file */}
+          <div className="space-y-3">
+            <SegmentedControl
+              label={form.media_type === "video" ? "Video Source" : "Audio Source"}
+              options={MEDIA_SOURCE_OPTIONS}
+              value={form.media_mode}
+              onChange={(v) => {
+                field("media_mode", v as "url" | "upload");
+                field("audio_url", "");
+              }}
+            />
+            {form.media_mode === "url" ? (
+              <FormInput
+                label=""
+                placeholder={form.media_type === "video" ? "https://youtube.com/… or direct .mp4" : "https://… or Spotify / Anchor link"}
+                value={form.audio_url}
+                onChange={(e) => field("audio_url", e.target.value)}
+              />
+            ) : (
+              <FormFileUpload
+                label=""
+                accept={form.media_type === "video" ? "video/*" : "audio/*"}
+                hint={form.media_type === "video" ? "MP4 or WebM — max 500 MB" : "MP3 or WAV — max 100 MB"}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) field("audio_url", URL.createObjectURL(file));
+                }}
+              />
+            )}
+          </div>
+
           <div className="space-y-3 pt-1">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input

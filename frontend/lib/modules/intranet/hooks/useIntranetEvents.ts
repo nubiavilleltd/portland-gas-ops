@@ -6,11 +6,11 @@ import type { IntranetEvent } from "../types/intranet.types";
 const NOW = new Date().toISOString();
 
 const INITIAL_EVENTS: IntranetEvent[] = [
-  { id: 1, title: "Q2 All-Staff Town Hall — MD Briefing",        description: "", event_type: "Town Hall", location: "Head Office, Boardroom A",     event_date: "2026-06-12", color: "#7234BD", is_published: true, created_at: NOW, updated_at: NOW },
-  { id: 2, title: "HSE Field Safety Refresher — Lagos Stations", description: "", event_type: "Training",  location: "Portland Gas Training Centre", event_date: "2026-06-18", color: "#166534", is_published: true, created_at: NOW, updated_at: NOW },
-  { id: 3, title: "Q2 Performance Appraisal Submissions Due",    description: "", event_type: "Deadline",  location: "HR Portal (online)",           event_date: "2026-06-20", color: "#C2410C", is_published: true, created_at: NOW, updated_at: NOW },
-  { id: 4, title: "Fleet Conversion Technology Symposium",       description: "", event_type: "Workshop",  location: "Eko Hotel Convention Centre",  event_date: "2026-06-25", color: "#1E40AF", is_published: true, created_at: NOW, updated_at: NOW },
-  { id: 5, title: "Annual Family Fun Day 2026",                  description: "", event_type: "Social",    location: "Landmark Event Centre, VI",    event_date: "2026-06-28", color: "#B45309", is_published: true, created_at: NOW, updated_at: NOW },
+  { id: 1, title: "Q2 All-Staff Town Hall — MD Briefing",        description: "", event_type: "Town Hall", location: "Head Office, Boardroom A",     virtual_link: "", event_date: "2026-06-12", color: "#7234BD", is_published: true, created_at: NOW, updated_at: NOW },
+  { id: 2, title: "HSE Field Safety Refresher — Lagos Stations", description: "", event_type: "Training",  location: "Portland Gas Training Centre", virtual_link: "", event_date: "2026-06-18", color: "#166534", is_published: true, created_at: NOW, updated_at: NOW },
+  { id: 3, title: "Q2 Performance Appraisal Submissions Due",    description: "", event_type: "Deadline",  location: "HR Portal (online)",           virtual_link: "", event_date: "2026-06-20", color: "#C2410C", is_published: true, created_at: NOW, updated_at: NOW },
+  { id: 4, title: "Fleet Conversion Technology Symposium",       description: "", event_type: "Workshop",  location: "Eko Hotel Convention Centre",  virtual_link: "", event_date: "2026-06-25", color: "#1E40AF", is_published: true, created_at: NOW, updated_at: NOW },
+  { id: 5, title: "Annual Family Fun Day 2026",                  description: "", event_type: "Social",    location: "Landmark Event Centre, VI",    virtual_link: "", event_date: "2026-06-28", color: "#B45309", is_published: true, created_at: NOW, updated_at: NOW },
 ];
 
 export function useIntranetEvents() {

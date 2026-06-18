@@ -207,6 +207,14 @@ export default function FeedbackInboxPage() {
               <p className="text-base font-semibold text-brand-text-primary">{viewTarget.subject}</p>
             </div>
 
+            {/* Status — placed before message so dropdown opens downward with room */}
+            <FormSelect
+              label="Status"
+              options={STATUS_OPTIONS}
+              value={statusEdit}
+              onValueChange={(v) => setStatusEdit(v as FeedbackStatus)}
+            />
+
             {/* Message */}
             <div>
               <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wider mb-2">Message</p>
@@ -214,14 +222,6 @@ export default function FeedbackInboxPage() {
                 {viewTarget.message}
               </p>
             </div>
-
-            {/* Status */}
-            <FormSelect
-              label="Status"
-              options={STATUS_OPTIONS}
-              value={statusEdit}
-              onValueChange={(v) => setStatusEdit(v as FeedbackStatus)}
-            />
 
             {viewTarget.resolved_at && (
               <p className="text-xs text-brand-text-secondary">

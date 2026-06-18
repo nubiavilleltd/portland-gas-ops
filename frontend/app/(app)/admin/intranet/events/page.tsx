@@ -12,6 +12,8 @@ import Badge from "@/components/ui/Badge";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormSelect from "@/components/forms/FormSelect";
+import FormDatePicker from "@/components/forms/FormDatePicker";
+import SegmentedControl from "@/components/ui/SegmentedControl";
 import { BackButton } from "@/components/ui/BackButton";
 import { useIntranetEvents } from "@/lib/modules/intranet/hooks/useIntranetEvents";
 import { useToast } from "@/hooks/useToast";
@@ -43,6 +45,11 @@ const TYPE_BADGE: Record<EventType, "purple" | "info" | "danger" | "warning" | "
   "Workshop":  "warning",
   "Social":    "success",
 };
+
+const LOCATION_OPTIONS = [
+  { value: "physical", label: "Physical" },
+  { value: "virtual",  label: "Virtual" },
+];
 
 const columns: Column<EventRow>[] = [
   {
@@ -82,15 +89,24 @@ const columns: Column<EventRow>[] = [
 ];
 
 const EMPTY_FORM = {
-  title:        "",
-  description:  "",
-  event_type:   "Town Hall" as EventType,
-  location:     "",
-  event_date:   "",
-  color:        "#7234BD",
-  is_published: false,
+  title:         "",
+  description:   "",
+  event_type:    "Town Hall" as EventType,
+  location_type: "physical" as "physical" | "virtual",
+  location:      "",
+  virtual_link:  "",
+  event_date:    "",
+  color:         "#7234BD",
+  is_published:  false,
 };
 type FormState = typeof EMPTY_FORM;
+
+function isPast(dateStr: string) {
+  if (!dateStr) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return new Date(dateStr + "T00:00:00") < today;
+}
 
 export default function IntranetEventsPage() {
   const { items, create, update, remove, togglePublished } = useIntranetEvents();
@@ -115,13 +131,15 @@ export default function IntranetEventsPage() {
     const item = items.find((e) => e.id === row._numId)!;
     setEditTarget(item);
     setForm({
-      title:        item.title,
-      description:  item.description,
-      event_type:   item.event_type,
-      location:     item.location,
-      event_date:   item.event_date,
-      color:        item.color,
-      is_published: item.is_published,
+      title:         item.title,
+      description:   item.description,
+      event_type:    item.event_type,
+      location_type: item.virtual_link ? "virtual" : "physical",
+      location:      item.location,
+      virtual_link:  item.virtual_link ?? "",
+      event_date:    item.event_date,
+      color:         item.color,
+      is_published:  item.is_published,
     });
     setModalOpen(true);
   }
@@ -137,17 +155,28 @@ export default function IntranetEventsPage() {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 300));
     const ts = new Date().toISOString();
+    const location = form.location_type === "virtual" ? (form.virtual_link || "Online") : form.location;
+    const payload = {
+      title:        form.title,
+      description:  form.description,
+      event_type:   form.event_type,
+      location,
+      virtual_link: form.location_type === "virtual" ? form.virtual_link : "",
+      event_date:   form.event_date,
+      color:        form.color,
+      is_published: form.is_published,
+    };
     if (editTarget) {
-      update(editTarget.id, { ...form, updated_at: ts });
+      update(editTarget.id, { ...payload, updated_at: ts });
     } else {
-      create({ ...form });
+      create({ ...payload });
     }
     setSaving(false);
     toast.success(editTarget ? "Event updated." : "Event created.");
     handleClose();
   }
 
-  function field(key: keyof FormState, value: string | boolean) {
+  function field<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -166,6 +195,7 @@ export default function IntranetEventsPage() {
       icon: <Pencil size={14} />,
       title: "Edit",
       variant: "ghost",
+      hidden: (row) => isPast(row.event_date),
       onClick: (row) => openEdit(row),
     },
     {
@@ -234,19 +264,35 @@ export default function IntranetEventsPage() {
             value={form.event_type}
             onValueChange={(v) => field("event_type", v as EventType)}
           />
-          <FormInput
+          <FormDatePicker
             label="Date"
             required
-            type="date"
             value={form.event_date}
-            onChange={(e) => field("event_date", e.target.value)}
+            onValueChange={(v) => field("event_date", v)}
           />
-          <FormInput
-            label="Location"
-            placeholder="Venue or 'Online'"
-            value={form.location}
-            onChange={(e) => field("location", e.target.value)}
-          />
+          <div className="space-y-3">
+            <SegmentedControl
+              label="Location Type"
+              options={LOCATION_OPTIONS}
+              value={form.location_type}
+              onChange={(v) => field("location_type", v as "physical" | "virtual")}
+            />
+            {form.location_type === "physical" ? (
+              <FormInput
+                label="Venue"
+                placeholder="e.g. Board Room, Head Office"
+                value={form.location}
+                onChange={(e) => field("location", e.target.value)}
+              />
+            ) : (
+              <FormInput
+                label="Meeting Link"
+                placeholder="https://meet.google.com/…"
+                value={form.virtual_link}
+                onChange={(e) => field("virtual_link", e.target.value)}
+              />
+            )}
+          </div>
           <FormTextarea
             label="Description"
             placeholder="Optional details about the event…"
