@@ -95,10 +95,10 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
 .badge-approved { background: rgba(74,222,128,0.12);  color: #4ade80; }
 .badge-returned { background: rgba(251,146,60,0.12);  color: #fb923c; }
 
-/* ── Main layout ── */
+/* ── Main layout — 3 columns ── */
 .main {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1px;
   background: #1e1332;
   height: calc(100vh - 130px);
@@ -124,7 +124,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
 }
 
 /* ── Code view ── */
-.code-block { font-family: 'Courier New', monospace; font-size: 11.5px; line-height: 1.85; }
+.code-block { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.85; }
 .code-line {
   padding: 1px 8px;
   border-radius: 3px;
@@ -175,6 +175,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
 .step-item.commit   { border-color: rgba(255,188,0,0.4);  background: rgba(255,188,0,0.04); }
 .step-item.email    { border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.04); }
 .step-item.warning  { border-color: rgba(251,146,60,0.4); background: rgba(251,146,60,0.04); }
+.step-item.audit    { border-color: rgba(129,140,248,0.5); background: rgba(129,140,248,0.06); }
 
 .step-num {
   width: 22px; height: 22px;
@@ -192,6 +193,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
 .step-item.commit  .step-num { background: #FFBC00; color: #1C043B; }
 .step-item.email   .step-num { background: #4ade80; color: #1C043B; }
 .step-item.warning .step-num { background: #fb923c; color: #1C043B; }
+.step-item.audit   .step-num { background: #818cf8; color: #0f0a1e; }
 
 .step-content h4 { font-size: 12px; font-weight: 600; color: #e2e8f0; margin-bottom: 3px; }
 .step-content p  { font-size: 11px; color: #94a3b8; line-height: 1.6; }
@@ -205,33 +207,155 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
 }
 .step-content strong { color: #c3e88d; }
 
-/* ── Email preview ── */
-.email-preview {
-  background: #0d1f14;
-  border: 1px solid rgba(74,222,128,0.3);
-  border-radius: 8px;
-  padding: 14px 16px;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: all 0.4s ease;
-  margin-top: 4px;
-}
-.email-preview.visible { opacity: 1; transform: translateY(0); }
-.email-meta { font-family: 'Courier New', monospace; font-size: 10px; color: #4ade80; line-height: 2; margin-bottom: 10px; }
-.email-body {
-  font-size: 12px;
-  color: #e2e8f0;
-  line-height: 1.8;
-  border-top: 1px solid rgba(74,222,128,0.15);
-  padding-top: 10px;
-}
-.email-actions { display: flex; gap: 8px; margin-top: 12px; }
-.btn-approve { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); padding: 5px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
-.btn-reject  { background: rgba(248,113,113,0.1);  color: #f87171; border: 1px solid rgba(248,113,113,0.3); padding: 5px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
-.btn-return  { background: rgba(251,146,60,0.1);   color: #fb923c; border: 1px solid rgba(251,146,60,0.3);  padding: 5px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
-
 /* ── Idle state ── */
 .idle-msg { color: #2d1f4e; font-size: 12px; font-family: 'Courier New', monospace; padding: 20px 8px; }
+
+/* ── Live Tables Panel ── */
+.lt-section { margin-bottom: 18px; }
+.lt-section-title {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #818cf8;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lt-section-title span { font-family: 'Courier New', monospace; }
+.lt-badge {
+  font-size: 8px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-weight: 700;
+  background: rgba(129,140,248,0.15);
+  color: #818cf8;
+  border: 1px solid rgba(129,140,248,0.2);
+}
+.lt-badge.no-write {
+  background: rgba(148,163,184,0.1);
+  color: #475569;
+  border-color: rgba(148,163,184,0.15);
+}
+.lt-empty {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: #2d1f4e;
+  padding: 8px 10px;
+  border: 1px dashed #1e1040;
+  border-radius: 5px;
+  text-align: center;
+}
+.lt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+}
+.lt-table th {
+  background: #1a0c38;
+  color: #7234BD;
+  padding: 5px 8px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid #2d1f4e;
+}
+.lt-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #13092b;
+  color: #94a3b8;
+  vertical-align: top;
+}
+.lt-table tr.new-row td { color: #e2e8f0; }
+.lt-table tr.new-row { animation: rowIn 0.4s ease forwards; }
+@keyframes rowIn {
+  from { opacity: 0; background: rgba(129,140,248,0.12); }
+  to   { opacity: 1; background: transparent; }
+}
+.lt-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.lt-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.pill-submitted  { background: rgba(255,188,0,0.12);   color: #FFBC00; }
+.pill-approved   { background: rgba(74,222,128,0.12);  color: #4ade80; }
+.pill-returned   { background: rgba(251,146,60,0.12);  color: #fb923c; }
+.pill-rejected   { background: rgba(248,113,113,0.12); color: #f87171; }
+.pill-pending    { background: rgba(255,188,0,0.10);   color: #fbbf24; }
+.pill-null       { color: #2d3748; font-style: italic; }
+
+.lt-state-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #120930;
+  border: 1px solid #1e1040;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+.lt-state-field { display: flex; flex-direction: column; gap: 2px; }
+.lt-state-label { font-size: 8px; color: #4a3570; text-transform: uppercase; letter-spacing: 0.06em; }
+.lt-state-val   { color: #c4b5fd; }
+.lt-state-val.changed { color: #4ade80; animation: pulse 0.5s ease; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+.lt-divider {
+  border: none;
+  border-top: 1px solid #1e1040;
+  margin: 14px 0;
+}
+.lt-callout {
+  background: rgba(129,140,248,0.06);
+  border: 1px solid rgba(129,140,248,0.15);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 10px;
+  color: #818cf8;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.lt-callout strong { color: #a5b4fc; }
+
+/* Phase headers in E2E */
+.phase-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #1a0c38;
+  border: 1px solid #7234BD;
+  border-radius: 7px;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+.phase-header.visible { opacity: 1; }
+.phase-num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: #7234BD;
+  color: #FFBC00;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.phase-content h4 { font-size: 12px; font-weight: 700; color: #c4b5fd; margin-bottom: 2px; }
+.phase-content p  { font-size: 10px; color: #4a3570; }
+
+.step-item.approved { border-color: rgba(74,222,128,0.5); background: rgba(74,222,128,0.07); }
+.step-item.approved .step-num { background: #4ade80; color: #1C043B; }
 </style>
 </head>
 <body>
@@ -239,11 +363,11 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
 <div class="header">
   <div>
     <h1>PORTLAND GAS — WORKFLOW ENGINE SIMULATOR</h1>
-    <p>Visual walkthrough · Read the code on the left · Watch the DB writes on the right</p>
+    <p>Read the code on the left · Watch DB writes in the middle · See live table state on the right</p>
   </div>
   <div style="font-size:10px; color:#4a3570; text-align:right;">
     Procurement Purchase Request<br>
-    3-step approval workflow
+    3-step approval · workflowEngine.audit() included
   </div>
 </div>
 
@@ -252,6 +376,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
   <button class="scenario-btn"        id="tab-approve" onclick="switchTab('approve')">② Approver Approves</button>
   <button class="scenario-btn"        id="tab-return"  onclick="switchTab('return')">③ Return to Initiator</button>
   <button class="scenario-btn"        id="tab-reject"  onclick="switchTab('reject')">④ Approver Rejects</button>
+  <button class="scenario-btn" id="tab-e2e" onclick="switchTab('e2e')">⑤ Full E2E Walkthrough</button>
 </div>
 
 <div class="form-bar">
@@ -275,20 +400,31 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f0a1e; color: #e2e8f0;
     <div id="badge-status" class="badge badge-draft">DRAFT</div>
   </div>
   <button class="btn-primary"    id="btn-action" onclick="runScenario()">Submit Request →</button>
-  <button class="btn-secondary"  onclick="reset()">↺ Reset</button>
+  <button class="btn-secondary"  onclick="reset()">↺ Reset All</button>
 </div>
 
 <div class="main">
+  <!-- LEFT: Code execution -->
   <div class="panel" id="panel-code">
     <div class="panel-title">⌨ Code Execution</div>
     <div class="code-block" id="code-view">
       <div class="idle-msg">// Click the action button above to start the simulation</div>
     </div>
   </div>
+
+  <!-- MIDDLE: DB operations -->
   <div class="panel" id="panel-db">
     <div class="panel-title">🗄 Database Operations</div>
     <div id="db-view">
       <div class="idle-msg">// Waiting for action...</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Live table state -->
+  <div class="panel" id="panel-tables">
+    <div class="panel-title">📊 Live Table State</div>
+    <div id="tables-view">
+      <div class="idle-msg">// Tables update as each DB write runs</div>
     </div>
   </div>
 </div>
@@ -303,16 +439,18 @@ const EMPLOYEES = {
   amaka: { id: 15, name: "Amaka Eze",  no: "PGL-017", dept: "Finance",    lm_id: 7,  lm_name: "Mr. Bello Usman"    },
 };
 
-const WORKFLOW_STEPS = [
-  { num: 1, name: "Line Manager Review", type: "requester_line_manager", can_approve: true, can_reject: true,  can_return: true  },
-  { num: 2, name: "Finance Review",      type: "role → finance_manager", can_approve: true, can_reject: true,  can_return: false },
-  { num: 3, name: "MD Approval",         type: "specific → MD",          can_approve: true, can_reject: true,  can_return: false },
-];
-
-let currentTab     = 'submit';
-let animating      = false;
-let reqCounter     = 100;
+let currentTab      = 'submit';
+let animating       = false;
+let reqCounter      = 100;
 let approvalCounter = 200;
+
+// Persistent DB state — accumulates across scenario runs, resets on ↺ Reset
+const DB_STATE = {
+  audit_trail:       [],   // workflow_audit_trail rows
+  approval_history:  [],   // approval_history rows
+  approval_req:      null, // current approval_requests row state
+  all_req:           null, // current all_requests row state
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CODE DEFINITIONS
@@ -339,7 +477,7 @@ submit: [
   { id:'c16', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">raised_by</span>: req.user.employee_id` },
   { id:'c17', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
   { id:'c18', t:`` },
-  { id:'c19', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ③–⑥ Hand off to workflow engine (steps 3–6 happen inside)</span>` },
+  { id:'c19', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ③–⑦ Hand off to workflow engine (steps 3–7 happen inside)</span>` },
   { id:'c20', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">approver</span> = <span class="kw">await</span> <span class="fn">WorkflowEngine.start</span>({` },
   { id:'c21', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">request_type</span>: <span class="str">"procurement"</span>,` },
   { id:'c22', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">request_id</span>: pr.id,` },
@@ -347,70 +485,80 @@ submit: [
   { id:'c24', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">trx</span>  <span class="cm">// same transaction passed in</span>` },
   { id:'c25', t:`&nbsp;&nbsp;&nbsp;&nbsp;})` },
   { id:'c26', t:`` },
-  { id:'c27', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ⑦ Commit — all 5 rows written atomically</span>` },
+  { id:'c27', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ⑧ Commit — all 6 rows written atomically</span>` },
   { id:'c28', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">commit</span>()` },
   { id:'c29', t:`` },
-  { id:'c30', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ⑧ Email AFTER commit — never inside transaction</span>` },
-  { id:'c31', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({` },
-  { id:'c32', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">to</span>: approver.email,` },
-  { id:'c33', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">template</span>: <span class="str">"approval_required"</span>,` },
-  { id:'c34', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">context</span>: { approver, pr, step: <span class="num">1</span> }` },
-  { id:'c35', t:`&nbsp;&nbsp;&nbsp;&nbsp;})` },
-  { id:'c36', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> res.<span class="fn">json</span>({ success: <span class="kw">true</span>, id: pr.id })` },
-  { id:'c37', t:`&nbsp;&nbsp;} <span class="kw">catch</span> (err) {` },
-  { id:'c38', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">rollback</span>()  <span class="cm">// all 5 writes undone if any step fails</span>` },
-  { id:'c39', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">throw</span> err` },
-  { id:'c40', t:`&nbsp;&nbsp;}` },
-  { id:'c41', t:`}` },
+  { id:'c30', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ⑨ Email AFTER commit — never inside transaction</span>` },
+  { id:'c31', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({ to: approver.email, template: <span class="str">"approval_required"</span> })` },
+  { id:'c32', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> res.<span class="fn">json</span>({ success: <span class="kw">true</span>, id: pr.id })` },
+  { id:'c33', t:`&nbsp;&nbsp;} <span class="kw">catch</span> (err) {` },
+  { id:'c34', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">rollback</span>()  <span class="cm">// all 6 writes undone if any step fails</span>` },
+  { id:'c35', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">throw</span> err` },
+  { id:'c36', t:`&nbsp;&nbsp;}` },
+  { id:'c37', t:`}` },
+  { id:'c38', t:`` },
+  { id:'c39', t:`<span class="cm">// ── WorkflowEngine.start() ─────────────────────────</span>` },
+  { id:'c40', t:`<span class="kw">async function</span> <span class="fn">start</span>({ request_type, request_id, submitted_by, trx }) {` },
+  { id:'c41', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">wf</span> = <span class="kw">await</span> <span class="fn">WorkflowAssignment.find</span>({ request_type })` },
   { id:'c42', t:`` },
-  { id:'c43', t:`<span class="cm">// ── WorkflowEngine.start() ─────────────────────────</span>` },
-  { id:'c44', t:`<span class="kw">async function</span> <span class="fn">start</span>({ request_type, request_id, submitted_by, trx }) {` },
-  { id:'c45', t:`&nbsp;&nbsp;<span class="cm">// Find which workflow handles this process type</span>` },
-  { id:'c46', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">wf</span> = <span class="kw">await</span> <span class="fn">WorkflowAssignment.find</span>({ request_type })` },
-  { id:'c47', t:`` },
-  { id:'c48', t:`&nbsp;&nbsp;<span class="cm">// ③ Create approval_requests — the live tracker</span>` },
-  { id:'c49', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">ar</span> = <span class="kw">await</span> <span class="fn">ApprovalRequest.create</span>({` },
-  { id:'c50', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">workflow_id</span>: wf.id,` },
-  { id:'c51', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">request_type</span>, <span class="prop">request_id</span>, <span class="prop">submitted_by</span>,` },
-  { id:'c52', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">current_step_number</span>: <span class="num">1</span>,` },
-  { id:'c53', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">overall_status</span>: <span class="str">"pending"</span>,` },
-  { id:'c54', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">attempt_number</span>: <span class="num">1</span>` },
-  { id:'c55', t:`&nbsp;&nbsp;}, { trx })` },
-  { id:'c56', t:`` },
-  { id:'c57', t:`&nbsp;&nbsp;<span class="cm">// ④ Resolve who approves step 1</span>` },
-  { id:'c58', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">step1</span>    = <span class="kw">await</span> <span class="fn">WorkflowStep.find</span>({ workflow_id: wf.id, step_number: <span class="num">1</span> })` },
-  { id:'c59', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">approver</span> = <span class="kw">await</span> <span class="fn">resolveAssignee</span>(step1, submitted_by)` },
-  { id:'c60', t:`` },
-  { id:'c61', t:`&nbsp;&nbsp;<span class="cm">// ⑤ Save the resolved approver for this step</span>` },
-  { id:'c62', t:`&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ApprovalStepAssignment.create</span>({` },
-  { id:'c63', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">approval_request_id</span>: ar.id,` },
-  { id:'c64', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">step_number</span>: <span class="num">1</span>,` },
-  { id:'c65', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">assigned_to</span>: approver.id` },
-  { id:'c66', t:`&nbsp;&nbsp;}, { trx })` },
-  { id:'c67', t:`` },
-  { id:'c68', t:`&nbsp;&nbsp;<span class="cm">// ⑥ Create in-app notification (displayed in portal)</span>` },
-  { id:'c69', t:`&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({` },
-  { id:'c70', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">recipient_id</span>: approver.id,` },
-  { id:'c71', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">type</span>: <span class="str">"approval_required"</span>,` },
-  { id:'c72', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">reference_type</span>: <span class="str">"procurement"</span>,` },
-  { id:'c73', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">reference_id</span>: request_id` },
-  { id:'c74', t:`&nbsp;&nbsp;}, { trx })` },
+  { id:'c43', t:`&nbsp;&nbsp;<span class="cm">// ③ Create approval_requests — the live tracker row</span>` },
+  { id:'c44', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">ar</span> = <span class="kw">await</span> <span class="fn">ApprovalRequest.create</span>({` },
+  { id:'c45', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">workflow_id</span>: wf.id, <span class="prop">request_type</span>, <span class="prop">request_id</span>, <span class="prop">submitted_by</span>,` },
+  { id:'c46', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">current_step_number</span>: <span class="num">1</span>, <span class="prop">overall_status</span>: <span class="str">"pending"</span>, <span class="prop">attempt_number</span>: <span class="num">1</span>` },
+  { id:'c47', t:`&nbsp;&nbsp;}, { trx })` },
+  { id:'c48', t:`` },
+  { id:'c49', t:`&nbsp;&nbsp;<span class="cm">// ④ Resolve who approves step 1</span>` },
+  { id:'c50', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">step1</span>    = <span class="kw">await</span> <span class="fn">WorkflowStep.find</span>({ workflow_id: wf.id, step_number: <span class="num">1</span> })` },
+  { id:'c51', t:`&nbsp;&nbsp;<span class="kw">const</span> <span class="var">approver</span> = <span class="kw">await</span> <span class="fn">resolveAssignee</span>(step1, submitted_by)` },
+  { id:'c52', t:`` },
+  { id:'c53', t:`&nbsp;&nbsp;<span class="cm">// ⑤ Save the resolved approver for step 1</span>` },
+  { id:'c54', t:`&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ApprovalStepAssignment.create</span>({` },
+  { id:'c55', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">approval_request_id</span>: ar.id, <span class="prop">step_number</span>: <span class="num">1</span>, <span class="prop">assigned_to</span>: approver.id` },
+  { id:'c56', t:`&nbsp;&nbsp;}, { trx })` },
+  { id:'c57', t:`` },
+  { id:'c58', t:`&nbsp;&nbsp;<span class="cm">// ⑥ In-app notification</span>` },
+  { id:'c59', t:`&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({` },
+  { id:'c60', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">recipient_id</span>: approver.id, <span class="prop">type</span>: <span class="str">"approval_required"</span>,` },
+  { id:'c61', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">reference_type</span>: <span class="str">"procurement"</span>, <span class="prop">reference_id</span>: request_id` },
+  { id:'c62', t:`&nbsp;&nbsp;}, { trx })` },
+  { id:'c63', t:`` },
+  { id:'c64', t:`&nbsp;&nbsp;<span class="cm">// ⑦ Write audit trail — requester action, step_number is null</span>` },
+  { id:'c65', t:`&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">WorkflowEngine.audit</span>({` },
+  { id:'c66', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">workflow_id</span>: wf.id, <span class="prop">request_id</span>, <span class="prop">request_type</span>,` },
+  { id:'c67', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_id</span>:    submitted_by,` },
+  { id:'c68', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_role</span>:  <span class="str">"requester"</span>,` },
+  { id:'c69', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">step_number</span>: <span class="kw">null</span>,  <span class="cm">// null = requester action (not an approver step)</span>` },
+  { id:'c70', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>:      <span class="str">"submitted"</span>` },
+  { id:'c71', t:`&nbsp;&nbsp;}, trx)` },
+  { id:'c72', t:`` },
+  { id:'c73', t:`&nbsp;&nbsp;<span class="kw">return</span> approver  <span class="cm">// route handler uses this for email</span>` },
+  { id:'c74', t:`}` },
   { id:'c75', t:`` },
-  { id:'c76', t:`&nbsp;&nbsp;<span class="kw">return</span> approver  <span class="cm">// returned to route handler for email</span>` },
-  { id:'c77', t:`}` },
-  { id:'c78', t:`` },
-  { id:'c79', t:`<span class="cm">// ── resolveAssignee() ──────────────────────────────</span>` },
-  { id:'c80', t:`<span class="kw">async function</span> <span class="fn">resolveAssignee</span>(step, submitted_by) {` },
-  { id:'c81', t:`&nbsp;&nbsp;<span class="kw">switch</span> (step.assignee_type) {` },
-  { id:'c82', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">case</span> <span class="str">"requester_line_manager"</span>:` },
-  { id:'c83', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">emp</span> = <span class="kw">await</span> <span class="fn">Employee.findById</span>(submitted_by)` },
-  { id:'c84', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="fn">Employee.findById</span>(emp.line_manager_id)` },
-  { id:'c85', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">case</span> <span class="str">"role"</span>:` },
-  { id:'c86', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="fn">Employee.findByRole</span>(step.role)` },
-  { id:'c87', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">case</span> <span class="str">"specific"</span>:` },
-  { id:'c88', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="fn">Employee.findById</span>(step.employee_id)` },
-  { id:'c89', t:`&nbsp;&nbsp;}` },
-  { id:'c90', t:`}` },
+  { id:'c76', t:`<span class="cm">// ── WorkflowEngine.audit() ─────────────────────────</span>` },
+  { id:'c77', t:`<span class="cm">// Standalone method — called by route handlers AND by the engine.</span>` },
+  { id:'c78', t:`<span class="cm">// Captures EVERY actor event: requester actions + approver actions.</span>` },
+  { id:'c79', t:`<span class="kw">async function</span> <span class="fn">audit</span>({ workflow_id, request_id, request_type,` },
+  { id:'c80', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; actor_id, actor_role, step_number, action, comment }, trx) {` },
+  { id:'c81', t:`&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">WorkflowAuditTrail.create</span>({` },
+  { id:'c82', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">workflow_id</span>, <span class="prop">request_id</span>, <span class="prop">request_type</span>,` },
+  { id:'c83', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_id</span>, <span class="prop">actor_role</span>,` },
+  { id:'c84', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">step_number</span>,  <span class="cm">// null for requester actions, 1/2/3 for approver actions</span>` },
+  { id:'c85', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>, <span class="prop">comment</span>` },
+  { id:'c86', t:`&nbsp;&nbsp;}, { trx })` },
+  { id:'c87', t:`}` },
+  { id:'c88', t:`` },
+  { id:'c89', t:`<span class="cm">// ── resolveAssignee() ──────────────────────────────</span>` },
+  { id:'c90', t:`<span class="kw">async function</span> <span class="fn">resolveAssignee</span>(step, submitted_by) {` },
+  { id:'c91', t:`&nbsp;&nbsp;<span class="kw">switch</span> (step.assignee_type) {` },
+  { id:'c92', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">case</span> <span class="str">"requester_line_manager"</span>:` },
+  { id:'c93', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">emp</span> = <span class="kw">await</span> <span class="fn">Employee.findById</span>(submitted_by)` },
+  { id:'c94', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="fn">Employee.findById</span>(emp.line_manager_id)` },
+  { id:'c95', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">case</span> <span class="str">"role"</span>:` },
+  { id:'c96', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="fn">Employee.findByRole</span>(step.role)` },
+  { id:'c97', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">case</span> <span class="str">"specific"</span>:` },
+  { id:'c98', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="fn">Employee.findById</span>(step.employee_id)` },
+  { id:'c99', t:`&nbsp;&nbsp;}` },
+  { id:'c100',t:`}` },
 ],
 
 approve: [
@@ -425,35 +573,43 @@ approve: [
   { id:'a9',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Guard — reject if status no longer pending</span>` },
   { id:'a10', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> (ar.overall_status !== <span class="str">"pending"</span>) <span class="kw">throw</span> <span class="fn">Error</span>(<span class="str">"Already actioned"</span>)` },
   { id:'a11', t:`` },
-  { id:'a12', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Write immutable audit log entry</span>` },
+  { id:'a12', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ① Write approval_history — step-by-step approver log</span>` },
   { id:'a13', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ApprovalHistory.create</span>({` },
   { id:'a14', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">approval_request_id</span>: ar.id,` },
   { id:'a15', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">step_number</span>: ar.current_step_number,` },
   { id:'a16', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_id</span>: req.user.employee_id,` },
-  { id:'a17', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"approved"</span>,` },
-  { id:'a18', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">comment</span>: req.body.comment` },
-  { id:'a19', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
-  { id:'a20', t:`` },
-  { id:'a21', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Is there a next step?</span>` },
-  { id:'a22', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">nextStep</span> = <span class="kw">await</span> <span class="fn">WorkflowStep.findNext</span>(ar.workflow_id, ar.current_step_number)` },
-  { id:'a23', t:`` },
-  { id:'a24', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> (nextStep) {` },
-  { id:'a25', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Advance to next step</span>` },
-  { id:'a26', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ current_step_number: nextStep.step_number }, { trx })` },
-  { id:'a27', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">nextApprover</span> = <span class="kw">await</span> <span class="fn">resolveAssignee</span>(nextStep, ar.submitted_by)` },
-  { id:'a28', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ApprovalStepAssignment.create</span>({ step: nextStep.step_number, assigned_to: nextApprover.id }, { trx })` },
-  { id:'a29', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({ recipient_id: nextApprover.id, type: <span class="str">"approval_required"</span> }, { trx })` },
-  { id:'a30', t:`&nbsp;&nbsp;&nbsp;&nbsp;} <span class="kw">else</span> {` },
-  { id:'a31', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// No more steps — workflow complete</span>` },
-  { id:'a32', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ overall_status: <span class="str">"approved"</span> }, { trx })` },
-  { id:'a33', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ProcurementRequest.update</span>(ar.request_id, { status: <span class="str">"approved"</span> }, { trx })` },
-  { id:'a34', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({ recipient_id: ar.submitted_by, type: <span class="str">"approved"</span> }, { trx })` },
-  { id:'a35', t:`&nbsp;&nbsp;&nbsp;&nbsp;}` },
-  { id:'a36', t:`` },
-  { id:'a37', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">commit</span>()` },
-  { id:'a38', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({ to: nextApprover?.email ?? requester.email, ... })` },
-  { id:'a39', t:`&nbsp;&nbsp;} <span class="kw">catch</span> (err) { <span class="kw">await</span> trx.<span class="fn">rollback</span>(); <span class="kw">throw</span> err }` },
-  { id:'a40', t:`}` },
+  { id:'a17', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"approved"</span>, <span class="prop">comment</span>: req.body.comment` },
+  { id:'a18', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
+  { id:'a19', t:`` },
+  { id:'a20', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ② Write workflow_audit_trail — engine calls audit() here too</span>` },
+  { id:'a21', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">WorkflowEngine.audit</span>({` },
+  { id:'a22', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">workflow_id</span>: ar.workflow_id, <span class="prop">request_id</span>: ar.request_id,` },
+  { id:'a23', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">request_type</span>: ar.request_type,` },
+  { id:'a24', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_id</span>: req.user.employee_id,` },
+  { id:'a25', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_role</span>: <span class="str">"line_manager"</span>,  <span class="cm">// resolved from step.assignee_type</span>` },
+  { id:'a26', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">step_number</span>: ar.current_step_number,  <span class="cm">// 1</span>` },
+  { id:'a27', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"approved"</span>, <span class="prop">comment</span>: req.body.comment` },
+  { id:'a28', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, trx)` },
+  { id:'a29', t:`` },
+  { id:'a30', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ③ Is there a next step?</span>` },
+  { id:'a31', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">nextStep</span> = <span class="kw">await</span> <span class="fn">WorkflowStep.findNext</span>(ar.workflow_id, ar.current_step_number)` },
+  { id:'a32', t:`` },
+  { id:'a33', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> (nextStep) {` },
+  { id:'a34', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Advance to next step</span>` },
+  { id:'a35', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ current_step_number: nextStep.step_number }, { trx })` },
+  { id:'a36', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">nextApprover</span> = <span class="kw">await</span> <span class="fn">resolveAssignee</span>(nextStep, ar.submitted_by)` },
+  { id:'a37', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ApprovalStepAssignment.create</span>({ step: nextStep.step_number, assigned_to: nextApprover.id }, { trx })` },
+  { id:'a38', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({ recipient_id: nextApprover.id, type: <span class="str">"approval_required"</span> }, { trx })` },
+  { id:'a39', t:`&nbsp;&nbsp;&nbsp;&nbsp;} <span class="kw">else</span> {` },
+  { id:'a40', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// No more steps — workflow complete</span>` },
+  { id:'a41', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ overall_status: <span class="str">"approved"</span> }, { trx })` },
+  { id:'a42', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ProcurementRequest.update</span>(ar.request_id, { status: <span class="str">"approved"</span> }, { trx })` },
+  { id:'a43', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({ recipient_id: ar.submitted_by, type: <span class="str">"approved"</span> }, { trx })` },
+  { id:'a44', t:`&nbsp;&nbsp;&nbsp;&nbsp;}` },
+  { id:'a45', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">commit</span>()` },
+  { id:'a46', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({ to: nextApprover?.email ?? requester.email, ... })` },
+  { id:'a47', t:`&nbsp;&nbsp;} <span class="kw">catch</span> (err) { <span class="kw">await</span> trx.<span class="fn">rollback</span>(); <span class="kw">throw</span> err }` },
+  { id:'a48', t:`}` },
 ],
 
 return: [
@@ -463,34 +619,34 @@ return: [
   { id:'r4',  t:`&nbsp;&nbsp;<span class="kw">try</span> {` },
   { id:'r5',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">ar</span> = <span class="kw">await</span> <span class="fn">ApprovalRequest.findForUpdate</span>(req.params.id, trx)` },
   { id:'r6',  t:`` },
-  { id:'r7',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Write audit history — returned at step N</span>` },
+  { id:'r7',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ① Write approval_history — step N returned</span>` },
   { id:'r8',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ApprovalHistory.create</span>({` },
   { id:'r9',  t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">approval_request_id</span>: ar.id,` },
   { id:'r10', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">step_number</span>: ar.current_step_number,  <span class="cm">// frozen here</span>` },
   { id:'r11', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_id</span>: req.user.employee_id,` },
-  { id:'r12', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"returned"</span>,` },
-  { id:'r13', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">comment</span>: req.body.comment  <span class="cm">// reason shown to initiator</span>` },
-  { id:'r14', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
-  { id:'r15', t:`` },
-  { id:'r16', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Flip status to returned — current_step stays frozen</span>` },
-  { id:'r17', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ overall_status: <span class="str">"returned"</span> }, { trx })` },
-  { id:'r18', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ProcurementRequest.update</span>(ar.request_id, { status: <span class="str">"returned"</span> }, { trx })` },
-  { id:'r19', t:`` },
-  { id:'r20', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Notify the original requester</span>` },
-  { id:'r21', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({` },
-  { id:'r22', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">recipient_id</span>: ar.submitted_by,  <span class="cm">// back to John</span>` },
-  { id:'r23', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">type</span>: <span class="str">"returned"</span>,` },
-  { id:'r24', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">message</span>: req.body.comment` },
-  { id:'r25', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
-  { id:'r26', t:`` },
-  { id:'r27', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">commit</span>()` },
-  { id:'r28', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({ to: requester.email, template: <span class="str">"request_returned"</span>, ... })` },
-  { id:'r29', t:`` },
-  { id:'r30', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ── When John fixes & resubmits ─────────────────</span>` },
-  { id:'r31', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// A NEW approval_requests row is created</span>` },
-  { id:'r32', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// attempt_number increments: 1 → 2</span>` },
-  { id:'r33', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Old row stays as history (returned at step 1)</span>` },
-  { id:'r34', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// New row starts fresh from step 1</span>` },
+  { id:'r12', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"returned"</span>, <span class="prop">comment</span>: req.body.comment` },
+  { id:'r13', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
+  { id:'r14', t:`` },
+  { id:'r15', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ② Write workflow_audit_trail</span>` },
+  { id:'r16', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">WorkflowEngine.audit</span>({` },
+  { id:'r17', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_role</span>: <span class="str">"line_manager"</span>, <span class="prop">step_number</span>: ar.current_step_number,` },
+  { id:'r18', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"returned"</span>, <span class="prop">comment</span>: req.body.comment` },
+  { id:'r19', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, trx)` },
+  { id:'r20', t:`` },
+  { id:'r21', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ③ Flip status to returned — current_step stays frozen</span>` },
+  { id:'r22', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ overall_status: <span class="str">"returned"</span> }, { trx })` },
+  { id:'r23', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ProcurementRequest.update</span>(ar.request_id, { status: <span class="str">"returned"</span> }, { trx })` },
+  { id:'r24', t:`` },
+  { id:'r25', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ④ Notify the original requester</span>` },
+  { id:'r26', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({ recipient_id: ar.submitted_by, type: <span class="str">"returned"</span> }, { trx })` },
+  { id:'r27', t:`` },
+  { id:'r28', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">commit</span>()` },
+  { id:'r29', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({ to: requester.email, template: <span class="str">"request_returned"</span>, ... })` },
+  { id:'r30', t:`` },
+  { id:'r31', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ── When requester fixes & resubmits ─────────────</span>` },
+  { id:'r32', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// A NEW approval_requests row is created</span>` },
+  { id:'r33', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// attempt_number increments: 1 → 2</span>` },
+  { id:'r34', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// WorkflowEngine.audit() called again: action="submitted"</span>` },
   { id:'r35', t:`&nbsp;&nbsp;} <span class="kw">catch</span> (err) { <span class="kw">await</span> trx.<span class="fn">rollback</span>(); <span class="kw">throw</span> err }` },
   { id:'r36', t:`}` },
 ],
@@ -502,89 +658,494 @@ reject: [
   { id:'j4',  t:`&nbsp;&nbsp;<span class="kw">try</span> {` },
   { id:'j5',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> <span class="var">ar</span> = <span class="kw">await</span> <span class="fn">ApprovalRequest.findForUpdate</span>(req.params.id, trx)` },
   { id:'j6',  t:`` },
-  { id:'j7',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Write audit history</span>` },
+  { id:'j7',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ① Write approval_history</span>` },
   { id:'j8',  t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ApprovalHistory.create</span>({` },
   { id:'j9',  t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">approval_request_id</span>: ar.id,` },
   { id:'j10', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">step_number</span>: ar.current_step_number,` },
   { id:'j11', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_id</span>: req.user.employee_id,` },
-  { id:'j12', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"rejected"</span>,` },
-  { id:'j13', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">comment</span>: req.body.comment  <span class="cm">// reason is mandatory on reject</span>` },
-  { id:'j14', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
-  { id:'j15', t:`` },
-  { id:'j16', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Terminate the workflow — no more steps</span>` },
-  { id:'j17', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ overall_status: <span class="str">"rejected"</span> }, { trx })` },
-  { id:'j18', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ProcurementRequest.update</span>(ar.request_id, { status: <span class="str">"rejected"</span> }, { trx })` },
-  { id:'j19', t:`` },
-  { id:'j20', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Notify requester — workflow is dead</span>` },
-  { id:'j21', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({` },
-  { id:'j22', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">recipient_id</span>: ar.submitted_by,` },
-  { id:'j23', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">type</span>: <span class="str">"rejected"</span>,` },
-  { id:'j24', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">message</span>: req.body.comment` },
-  { id:'j25', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
-  { id:'j26', t:`` },
-  { id:'j27', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">commit</span>()` },
-  { id:'j28', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({ to: requester.email, template: <span class="str">"request_rejected"</span>, ... })` },
-  { id:'j29', t:`` },
-  { id:'j30', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Unlike return — requester CANNOT resubmit after reject</span>` },
-  { id:'j31', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// They must raise a brand new request if needed</span>` },
-  { id:'j32', t:`&nbsp;&nbsp;} <span class="kw">catch</span> (err) { <span class="kw">await</span> trx.<span class="fn">rollback</span>(); <span class="kw">throw</span> err }` },
-  { id:'j33', t:`}` },
+  { id:'j12', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"rejected"</span>, <span class="prop">comment</span>: req.body.comment` },
+  { id:'j13', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, { trx })` },
+  { id:'j14', t:`` },
+  { id:'j15', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ② Write workflow_audit_trail</span>` },
+  { id:'j16', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">WorkflowEngine.audit</span>({` },
+  { id:'j17', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">actor_role</span>: <span class="str">"finance_manager"</span>, <span class="prop">step_number</span>: ar.current_step_number,` },
+  { id:'j18', t:`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">action</span>: <span class="str">"rejected"</span>, <span class="prop">comment</span>: req.body.comment` },
+  { id:'j19', t:`&nbsp;&nbsp;&nbsp;&nbsp;}, trx)` },
+  { id:'j20', t:`` },
+  { id:'j21', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ③ Terminate the workflow — no more steps</span>` },
+  { id:'j22', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> ar.<span class="fn">update</span>({ overall_status: <span class="str">"rejected"</span> }, { trx })` },
+  { id:'j23', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">ProcurementRequest.update</span>(ar.request_id, { status: <span class="str">"rejected"</span> }, { trx })` },
+  { id:'j24', t:`` },
+  { id:'j25', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// ④ Notify requester — workflow is dead</span>` },
+  { id:'j26', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">Notification.create</span>({ recipient_id: ar.submitted_by, type: <span class="str">"rejected"</span> }, { trx })` },
+  { id:'j27', t:`` },
+  { id:'j28', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> trx.<span class="fn">commit</span>()` },
+  { id:'j29', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">await</span> <span class="fn">EmailService.send</span>({ to: requester.email, template: <span class="str">"request_rejected"</span>, ... })` },
+  { id:'j30', t:`` },
+  { id:'j31', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Unlike return — requester CANNOT resubmit after reject</span>` },
+  { id:'j32', t:`&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// They must raise a brand new request</span>` },
+  { id:'j33', t:`&nbsp;&nbsp;} <span class="kw">catch</span> (err) { <span class="kw">await</span> trx.<span class="fn">rollback</span>(); <span class="kw">throw</span> err }` },
+  { id:'j34', t:`}` },
+],
+
+e2e: [
+  { id:'e1',  t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e2',  t:`<span class="cm">// PHASE 1 — Requester submits the procurement request</span>` },
+  { id:'e3',  t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e4',  t:`<span class="kw">const</span> <span class="var">approver</span> = <span class="kw">await</span> <span class="fn">WorkflowEngine.start</span>({` },
+  { id:'e5',  t:`&nbsp;&nbsp;<span class="cm">// ① procurement_requests INSERT  (status: pending)</span>` },
+  { id:'e6',  t:`&nbsp;&nbsp;<span class="cm">// ② all_requests INSERT           (status: pending)</span>` },
+  { id:'e7',  t:`&nbsp;&nbsp;<span class="cm">// ③ approval_requests INSERT      (step:1, attempt:1)</span>` },
+  { id:'e8',  t:`&nbsp;&nbsp;<span class="cm">// ④ resolveAssignee(step1)        → ${'{'}lm_name{'}'}</span>` },
+  { id:'e9',  t:`&nbsp;&nbsp;<span class="cm">// ⑤ step_assignments INSERT       (step 1)</span>` },
+  { id:'e10', t:`&nbsp;&nbsp;<span class="cm">// ⑥ notifications INSERT          → Line Manager</span>` },
+  { id:'e11', t:`&nbsp;&nbsp;<span class="cm">// ⑦ workflow_audit_trail INSERT   (submitted, step null)</span>` },
+  { id:'e12', t:`})  <span class="cm">// COMMIT ✓  ·  email → Line Manager</span>` },
+  { id:'e13', t:`` },
+  { id:'e14', t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e15', t:`<span class="cm">// PHASE 2 — Line Manager approves Step 1</span>` },
+  { id:'e16', t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e17', t:`<span class="cm">// Same approveStep() function runs for every step</span>` },
+  { id:'e18', t:`<span class="kw">await</span> <span class="fn">WorkflowEngine.approveStep</span>({ step_number: <span class="num">1</span> })` },
+  { id:'e19', t:`&nbsp;&nbsp;<span class="cm">// ① approval_history INSERT        (step:1, approved)</span>` },
+  { id:'e20', t:`&nbsp;&nbsp;<span class="cm">// ② workflow_audit_trail INSERT    (approved, step:1, line_manager)</span>` },
+  { id:'e21', t:`&nbsp;&nbsp;<span class="cm">// ③ nextStep? YES → step 2 (Finance Review)</span>` },
+  { id:'e22', t:`&nbsp;&nbsp;<span class="cm">// ④ approval_requests UPDATE       (step: 1 → 2)</span>` },
+  { id:'e23', t:`&nbsp;&nbsp;<span class="cm">// ⑤ resolveAssignee(step2)         → Mr. Okafor (Finance)</span>` },
+  { id:'e24', t:`&nbsp;&nbsp;<span class="cm">// ⑥ step_assignments INSERT        (step 2)</span>` },
+  { id:'e25', t:`&nbsp;&nbsp;<span class="cm">// ⑦ notifications INSERT           → Mr. Okafor</span>` },
+  { id:'e26', t:`<span class="cm">// COMMIT ✓  ·  email → Mr. Okafor (Finance Manager)</span>` },
+  { id:'e27', t:`` },
+  { id:'e28', t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e29', t:`<span class="cm">// PHASE 3 — Finance Manager approves Step 2</span>` },
+  { id:'e30', t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e31', t:`<span class="kw">await</span> <span class="fn">WorkflowEngine.approveStep</span>({ step_number: <span class="num">2</span> })` },
+  { id:'e32', t:`&nbsp;&nbsp;<span class="cm">// ① approval_history INSERT        (step:2, approved)</span>` },
+  { id:'e33', t:`&nbsp;&nbsp;<span class="cm">// ② workflow_audit_trail INSERT    (approved, step:2, finance_manager)</span>` },
+  { id:'e34', t:`&nbsp;&nbsp;<span class="cm">// ③ nextStep? YES → step 3 (MD Approval)</span>` },
+  { id:'e35', t:`&nbsp;&nbsp;<span class="cm">// ④ approval_requests UPDATE       (step: 2 → 3)</span>` },
+  { id:'e36', t:`&nbsp;&nbsp;<span class="cm">// ⑤ resolveAssignee(step3)         → Adeola Ogunleye (MD)</span>` },
+  { id:'e37', t:`&nbsp;&nbsp;<span class="cm">// ⑥ step_assignments INSERT        (step 3)</span>` },
+  { id:'e38', t:`&nbsp;&nbsp;<span class="cm">// ⑦ notifications INSERT           → MD</span>` },
+  { id:'e39', t:`<span class="cm">// COMMIT ✓  ·  email → Adeola Ogunleye (MD)</span>` },
+  { id:'e40', t:`` },
+  { id:'e41', t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e42', t:`<span class="cm">// PHASE 4 — MD approves Step 3  ·  FINAL STEP</span>` },
+  { id:'e43', t:`<span class="cm">// nextStep? NO — this was the last step → close workflow</span>` },
+  { id:'e44', t:`<span class="cm">// ══════════════════════════════════════════════════════</span>` },
+  { id:'e45', t:`<span class="kw">await</span> <span class="fn">WorkflowEngine.approveStep</span>({ step_number: <span class="num">3</span> })` },
+  { id:'e46', t:`&nbsp;&nbsp;<span class="cm">// ① approval_history INSERT        (step:3, approved)</span>` },
+  { id:'e47', t:`&nbsp;&nbsp;<span class="cm">// ② workflow_audit_trail INSERT    (approved, step:3, md)</span>` },
+  { id:'e48', t:`&nbsp;&nbsp;<span class="cm">// ③ approval_requests UPDATE       (overall_status → APPROVED)</span>` },
+  { id:'e49', t:`&nbsp;&nbsp;<span class="cm">// ④ procurement_requests UPDATE    (status → approved)</span>` },
+  { id:'e50', t:`&nbsp;&nbsp;<span class="cm">// ⑤ all_requests UPDATE            (status → approved)</span>` },
+  { id:'e51', t:`&nbsp;&nbsp;<span class="cm">// ⑥ notifications INSERT           → requester — APPROVED!</span>` },
+  { id:'e52', t:`<span class="cm">// COMMIT ✓  ·  email → Requester — "Your request is approved!"</span>` },
 ],
 
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  DB STEP CONFIGS
+//  DB STEP CONFIGS  +  state update functions
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getSteps(tab, emp) {
   reqCounter++; approvalCounter++;
+  const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
   const steps = {
     submit: [
-      { id:'s1', type:'normal', num:'1', title:'procurement_requests — INSERT',        body:`status: <code>draft → pending</code> · raised_by: <code>${emp.name}</code> · id: <code>${reqCounter}</code>` },
-      { id:'s2', type:'normal', num:'2', title:'all_requests — INSERT',                body:`request_type: <code>procurement</code> · request_id: <code>${reqCounter}</code>` },
-      { id:'s3', type:'normal', num:'3', title:'WorkflowEngine.start() called',        body:`Reads <code>workflow_assignments</code> → Procurement Purchase Request (3 steps)` },
-      { id:'s4', type:'normal', num:'4', title:'approval_requests — INSERT',           body:`workflow_id: <code>1</code> · current_step: <code>1</code> · status: <code>pending</code> · attempt: <code>1</code> · id: <code>${approvalCounter}</code>` },
-      { id:'s5', type:'normal', num:'5', title:'resolveAssignee() — Step 1',           body:`assignee_type: <code>requester_line_manager</code> → reads <code>${emp.name}.line_manager_id</code> → <strong>${emp.lm_name}</strong>` },
-      { id:'s6', type:'normal', num:'6', title:'approval_step_assignments — INSERT',   body:`approval_request_id: <code>${approvalCounter}</code> · step_number: <code>1</code> · assigned_to: <code>${emp.lm_name}</code>` },
-      { id:'s7', type:'normal', num:'7', title:'notifications — INSERT',               body:`recipient: <code>${emp.lm_name}</code> · type: <code>approval_required</code>` },
-      { id:'s8', type:'commit', num:'✓', title:'Transaction committed',                body:`All 5 rows written atomically. If any step had failed, all would have rolled back.` },
-      { id:'s9', type:'email',  num:'✉', title:'EmailService.send() — after commit',  body:`To: <code>${emp.lm_name}</code> · Template: <code>approval_required</code> · Step 1 of 3` },
+      {
+        id:'s1', type:'normal', num:'1',
+        title:'procurement_requests — INSERT',
+        body:`status: <code>draft → pending</code> · raised_by: <code>${emp.name}</code> · id: <code>${reqCounter}</code>`,
+        stateFn: () => {
+          DB_STATE.all_req = { no: `PR-2026-${reqCounter}`, type: 'procurement', status: 'pending', updated: now };
+        }
+      },
+      {
+        id:'s2', type:'normal', num:'2',
+        title:'all_requests — INSERT',
+        body:`request_no: <code>PR-2026-${reqCounter}</code> · request_type: <code>procurement</code> · status: <code>pending</code>`,
+        stateFn: null
+      },
+      {
+        id:'s3', type:'normal', num:'3',
+        title:'WorkflowEngine.start() called',
+        body:`Reads <code>workflow_assignments</code> → Procurement Purchase Request (3 steps)`,
+        stateFn: null
+      },
+      {
+        id:'s4', type:'normal', num:'4',
+        title:'approval_requests — INSERT',
+        body:`workflow_id: <code>1</code> · current_step: <code>1</code> · status: <code>pending</code> · attempt: <code>1</code> · id: <code>${approvalCounter}</code>`,
+        stateFn: () => {
+          DB_STATE.approval_req = { id: approvalCounter, status: 'pending', step: 1, attempt: 1, updated: now };
+        }
+      },
+      {
+        id:'s5', type:'normal', num:'5',
+        title:'resolveAssignee() — Step 1',
+        body:`assignee_type: <code>requester_line_manager</code> → reads <code>${emp.name}.line_manager_id</code> → <strong>${emp.lm_name}</strong>`,
+        stateFn: null
+      },
+      {
+        id:'s6', type:'normal', num:'6',
+        title:'approval_step_assignments — INSERT',
+        body:`step_number: <code>1</code> · assigned_to: <code>${emp.lm_name}</code>`,
+        stateFn: null
+      },
+      {
+        id:'s7', type:'normal', num:'7',
+        title:'notifications — INSERT',
+        body:`recipient: <code>${emp.lm_name}</code> · type: <code>approval_required</code>`,
+        stateFn: null
+      },
+      {
+        id:'sa', type:'audit', num:'A',
+        title:'workflow_audit_trail — INSERT  ← workflowEngine.audit()',
+        body:`action: <code>submitted</code> · actor: <code>${emp.name}</code> · actor_role: <code>requester</code> · step_number: <code>null</code> · no comment`,
+        stateFn: () => {
+          DB_STATE.audit_trail.push({ action:'submitted', actor: emp.name, role:'requester', step:'—', comment:'—', time: now, isNew: true });
+          // NOTE: approval_history gets NO write here — that's the key difference
+        }
+      },
+      {
+        id:'s8', type:'commit', num:'✓',
+        title:'Transaction committed',
+        body:`All 6 rows written atomically. If any step had failed, all would have rolled back.`,
+        stateFn: null
+      },
+      {
+        id:'s9', type:'email',  num:'✉',
+        title:'EmailService.send() — after commit',
+        body:`To: <code>${emp.lm_name}</code> · Template: <code>approval_required</code> · Step 1 of 3`,
+        stateFn: null
+      },
     ],
+
     approve: [
-      { id:'s1', type:'normal', num:'1', title:'SELECT FOR UPDATE — row locked',         body:`Locks <code>approval_requests id=${approvalCounter}</code> to prevent race conditions` },
-      { id:'s2', type:'normal', num:'2', title:'Status guard check',                     body:`overall_status is <code>pending</code> ✓ — safe to proceed` },
-      { id:'s3', type:'normal', num:'3', title:'approval_history — INSERT',              body:`step_number: <code>1</code> · actor: <code>${emp.lm_name}</code> · action: <code>approved</code>` },
-      { id:'s4', type:'normal', num:'4', title:'Next step check',                        body:`Step 2 exists → Finance Review. resolveAssignee: role = <code>finance_manager</code> → <strong>Mr. Okafor</strong>` },
-      { id:'s5', type:'normal', num:'5', title:'approval_requests — UPDATE',             body:`current_step_number: <code>1 → 2</code>` },
-      { id:'s6', type:'normal', num:'6', title:'approval_step_assignments — INSERT',     body:`step_number: <code>2</code> · assigned_to: <code>Mr. Okafor (Finance Manager)</code>` },
-      { id:'s7', type:'normal', num:'7', title:'notifications — INSERT',                 body:`recipient: <code>Mr. Okafor</code> · type: <code>approval_required</code>` },
-      { id:'s8', type:'commit', num:'✓', title:'Transaction committed',                  body:`Step advanced from 1 → 2. Approver resolved and notified.` },
-      { id:'s9', type:'email',  num:'✉', title:'EmailService.send() — after commit',    body:`To: <code>Mr. Okafor</code> · Template: <code>approval_required</code> · Step 2 of 3` },
+      {
+        id:'s1', type:'normal', num:'1',
+        title:'SELECT FOR UPDATE — row locked',
+        body:`Locks <code>approval_requests id=${approvalCounter}</code> to prevent race conditions`,
+        stateFn: null
+      },
+      {
+        id:'s2', type:'normal', num:'2',
+        title:'Status guard check',
+        body:`overall_status is <code>pending</code> ✓ — safe to proceed`,
+        stateFn: null
+      },
+      {
+        id:'s3', type:'normal', num:'3',
+        title:'approval_history — INSERT',
+        body:`step_number: <code>1</code> · actor: <code>${emp.lm_name}</code> · action: <code>approved</code> · comment: "Verified & approved"`,
+        stateFn: () => {
+          DB_STATE.approval_history.push({ step: 1, actor: emp.lm_name, action:'approved', comment:'Verified & approved', time: now, isNew: true });
+        }
+      },
+      {
+        id:'sa', type:'audit', num:'A',
+        title:'workflow_audit_trail — INSERT  ← workflowEngine.audit()',
+        body:`action: <code>approved</code> · actor: <code>${emp.lm_name}</code> · actor_role: <code>line_manager</code> · step_number: <code>1</code>`,
+        stateFn: () => {
+          DB_STATE.audit_trail.push({ action:'approved', actor: emp.lm_name, role:'line_manager', step:'1', comment:'Verified & approved', time: now, isNew: true });
+        }
+      },
+      {
+        id:'s4', type:'normal', num:'4',
+        title:'Next step check',
+        body:`Step 2 exists → Finance Review · resolveAssignee: role = <code>finance_manager</code> → <strong>Mr. Okafor</strong>`,
+        stateFn: null
+      },
+      {
+        id:'s5', type:'normal', num:'5',
+        title:'approval_requests — UPDATE',
+        body:`current_step_number: <code>1 → 2</code>`,
+        stateFn: () => {
+          if (DB_STATE.approval_req) { DB_STATE.approval_req.step = 2; DB_STATE.approval_req.updated = now; }
+          else DB_STATE.approval_req = { id: approvalCounter, status:'pending', step:2, attempt:1, updated: now };
+        }
+      },
+      {
+        id:'s6', type:'normal', num:'6',
+        title:'approval_step_assignments — INSERT',
+        body:`step_number: <code>2</code> · assigned_to: <code>Mr. Okafor (Finance Manager)</code>`,
+        stateFn: null
+      },
+      {
+        id:'s7', type:'normal', num:'7',
+        title:'notifications — INSERT',
+        body:`recipient: <code>Mr. Okafor</code> · type: <code>approval_required</code>`,
+        stateFn: null
+      },
+      {
+        id:'s8', type:'commit', num:'✓',
+        title:'Transaction committed',
+        body:`Step advanced 1 → 2. Finance Manager notified.`,
+        stateFn: null
+      },
+      {
+        id:'s9', type:'email',  num:'✉',
+        title:'EmailService.send() — after commit',
+        body:`To: <code>Mr. Okafor</code> · Template: <code>approval_required</code> · Step 2 of 3`,
+        stateFn: null
+      },
     ],
+
     return: [
-      { id:'s1', type:'normal',  num:'1', title:'SELECT FOR UPDATE — row locked',       body:`Locks <code>approval_requests id=${approvalCounter}</code>` },
-      { id:'s2', type:'normal',  num:'2', title:'approval_history — INSERT',            body:`step_number: <code>1</code> · actor: <code>${emp.lm_name}</code> · action: <code>returned</code> · comment: "Please attach 3 quotes"` },
-      { id:'s3', type:'warning', num:'3', title:'approval_requests — UPDATE',           body:`overall_status: <code>pending → returned</code> · current_step_number stays at <code>1</code> (frozen)` },
-      { id:'s4', type:'warning', num:'4', title:'procurement_requests — UPDATE',        body:`status: <code>pending → returned</code>` },
-      { id:'s5', type:'normal',  num:'5', title:'notifications — INSERT',               body:`recipient: <code>${emp.name}</code> (back to John) · type: <code>returned</code>` },
-      { id:'s6', type:'commit',  num:'✓', title:'Transaction committed',                body:`Request is now with the initiator. Workflow is paused.` },
-      { id:'s7', type:'email',   num:'✉', title:'EmailService.send() — after commit',  body:`To: <code>${emp.name}</code> · Template: <code>request_returned</code> · Reason: "Please attach 3 quotes"` },
-      { id:'s8', type:'warning', num:'↺', title:'When John resubmits — new attempt',   body:`A NEW <code>approval_requests</code> row is created · attempt_number: <code>2</code> · starts from step <code>1</code> again · old row preserved as history` },
+      {
+        id:'s1', type:'normal',  num:'1',
+        title:'SELECT FOR UPDATE — row locked',
+        body:`Locks <code>approval_requests id=${approvalCounter}</code>`,
+        stateFn: null
+      },
+      {
+        id:'s2', type:'normal',  num:'2',
+        title:'approval_history — INSERT',
+        body:`step_number: <code>1</code> · actor: <code>${emp.lm_name}</code> · action: <code>returned</code> · comment: "Please attach 3 quotes"`,
+        stateFn: () => {
+          DB_STATE.approval_history.push({ step:1, actor: emp.lm_name, action:'returned', comment:'Please attach 3 quotes', time: now, isNew: true });
+        }
+      },
+      {
+        id:'sa', type:'audit', num:'A',
+        title:'workflow_audit_trail — INSERT  ← workflowEngine.audit()',
+        body:`action: <code>returned</code> · actor: <code>${emp.lm_name}</code> · actor_role: <code>line_manager</code> · step_number: <code>1</code>`,
+        stateFn: () => {
+          DB_STATE.audit_trail.push({ action:'returned', actor: emp.lm_name, role:'line_manager', step:'1', comment:'Please attach 3 quotes', time: now, isNew: true });
+        }
+      },
+      {
+        id:'s3', type:'warning', num:'3',
+        title:'approval_requests — UPDATE',
+        body:`overall_status: <code>pending → returned</code> · current_step_number stays at <code>1</code> (frozen)`,
+        stateFn: () => {
+          if (DB_STATE.approval_req) { DB_STATE.approval_req.status = 'returned'; DB_STATE.approval_req.updated = now; }
+          else DB_STATE.approval_req = { id: approvalCounter, status:'returned', step:1, attempt:1, updated: now };
+          if (DB_STATE.all_req) { DB_STATE.all_req.status = 'returned'; DB_STATE.all_req.updated = now; }
+        }
+      },
+      {
+        id:'s4', type:'warning', num:'4',
+        title:'procurement_requests — UPDATE',
+        body:`status: <code>pending → returned</code>`,
+        stateFn: null
+      },
+      {
+        id:'s5', type:'normal',  num:'5',
+        title:'notifications — INSERT',
+        body:`recipient: <code>${emp.name}</code> (back to requester) · type: <code>returned</code>`,
+        stateFn: null
+      },
+      {
+        id:'s6', type:'commit',  num:'✓',
+        title:'Transaction committed',
+        body:`Request is now with the initiator. Workflow is paused.`,
+        stateFn: null
+      },
+      {
+        id:'s7', type:'email',   num:'✉',
+        title:'EmailService.send() — after commit',
+        body:`To: <code>${emp.name}</code> · Template: <code>request_returned</code> · Reason: "Please attach 3 quotes"`,
+        stateFn: null
+      },
+      {
+        id:'s8', type:'warning', num:'↺',
+        title:'When requester resubmits — new attempt',
+        body:`NEW <code>approval_requests</code> row · attempt_number: <code>2</code> · starts step <code>1</code> again · old row preserved · <code>audit_trail</code> gets a new "submitted" row`,
+        stateFn: null
+      },
     ],
+
     reject: [
-      { id:'s1', type:'normal',  num:'1', title:'SELECT FOR UPDATE — row locked',       body:`Locks <code>approval_requests id=${approvalCounter}</code>` },
-      { id:'s2', type:'normal',  num:'2', title:'approval_history — INSERT',            body:`step_number: <code>2</code> · actor: <code>Mr. Okafor</code> · action: <code>rejected</code> · comment: "Budget exceeded Q2 limit"` },
-      { id:'s3', type:'warning', num:'3', title:'approval_requests — UPDATE',           body:`overall_status: <code>pending → rejected</code> · workflow terminated` },
-      { id:'s4', type:'warning', num:'4', title:'procurement_requests — UPDATE',        body:`status: <code>pending → rejected</code>` },
-      { id:'s5', type:'normal',  num:'5', title:'notifications — INSERT',               body:`recipient: <code>${emp.name}</code> · type: <code>rejected</code> · message: "Budget exceeded Q2 limit"` },
-      { id:'s6', type:'commit',  num:'✓', title:'Transaction committed',                body:`Workflow dead — no further steps will run.` },
-      { id:'s7', type:'email',   num:'✉', title:'EmailService.send() — after commit',  body:`To: <code>${emp.name}</code> · Template: <code>request_rejected</code>` },
-      { id:'s8', type:'warning', num:'✕', title:'No resubmission possible',            body:`Unlike return — the request is closed. Requester must raise a brand new request if needed.` },
+      {
+        id:'s1', type:'normal',  num:'1',
+        title:'SELECT FOR UPDATE — row locked',
+        body:`Locks <code>approval_requests id=${approvalCounter}</code>`,
+        stateFn: null
+      },
+      {
+        id:'s2', type:'normal',  num:'2',
+        title:'approval_history — INSERT',
+        body:`step_number: <code>2</code> · actor: <code>Mr. Okafor</code> · action: <code>rejected</code> · comment: "Budget exceeded Q2 limit"`,
+        stateFn: () => {
+          DB_STATE.approval_history.push({ step:2, actor:'Mr. Okafor', action:'rejected', comment:'Budget exceeded Q2 limit', time: now, isNew: true });
+        }
+      },
+      {
+        id:'sa', type:'audit', num:'A',
+        title:'workflow_audit_trail — INSERT  ← workflowEngine.audit()',
+        body:`action: <code>rejected</code> · actor: <code>Mr. Okafor</code> · actor_role: <code>finance_manager</code> · step_number: <code>2</code>`,
+        stateFn: () => {
+          DB_STATE.audit_trail.push({ action:'rejected', actor:'Mr. Okafor', role:'finance_manager', step:'2', comment:'Budget exceeded Q2 limit', time: now, isNew: true });
+        }
+      },
+      {
+        id:'s3', type:'warning', num:'3',
+        title:'approval_requests — UPDATE',
+        body:`overall_status: <code>pending → rejected</code> · workflow terminated`,
+        stateFn: () => {
+          if (DB_STATE.approval_req) { DB_STATE.approval_req.status = 'rejected'; DB_STATE.approval_req.updated = now; }
+          else DB_STATE.approval_req = { id: approvalCounter, status:'rejected', step:2, attempt:1, updated: now };
+          if (DB_STATE.all_req) { DB_STATE.all_req.status = 'rejected'; DB_STATE.all_req.updated = now; }
+        }
+      },
+      {
+        id:'s4', type:'warning', num:'4',
+        title:'procurement_requests — UPDATE',
+        body:`status: <code>pending → rejected</code>`,
+        stateFn: null
+      },
+      {
+        id:'s5', type:'normal',  num:'5',
+        title:'notifications — INSERT',
+        body:`recipient: <code>${emp.name}</code> · type: <code>rejected</code> · message: "Budget exceeded Q2 limit"`,
+        stateFn: null
+      },
+      {
+        id:'s6', type:'commit',  num:'✓',
+        title:'Transaction committed',
+        body:`Workflow dead — no further steps will run.`,
+        stateFn: null
+      },
+      {
+        id:'s7', type:'email',   num:'✉',
+        title:'EmailService.send() — after commit',
+        body:`To: <code>${emp.name}</code> · Template: <code>request_rejected</code>`,
+        stateFn: null
+      },
+      {
+        id:'s8', type:'warning', num:'✕',
+        title:'No resubmission possible',
+        body:`Unlike return — the request is closed. Requester must raise a brand new request.`,
+        stateFn: null
+      },
+    ],
+
+    e2e: [
+      // Phase 1
+      { id:'p1ph', type:'phase',  num:'①', title:'PHASE 1 — Submit Request', body:`Requester: ${emp.name} · WorkflowEngine.start() fires`, stateFn: null },
+      { id:'p1a',  type:'normal', num:'1',  title:'procurement_requests — INSERT', body:`status: <code>pending</code> · id: <code>${reqCounter}</code>`,
+        stateFn: () => { DB_STATE.all_req = { no:`PR-2026-${reqCounter}`, type:'procurement', status:'pending', updated:now }; }
+      },
+      { id:'p1b',  type:'normal', num:'2',  title:'all_requests — INSERT', body:`request_no: <code>PR-2026-${reqCounter}</code> · status: <code>pending</code>`, stateFn: null },
+      { id:'p1c',  type:'normal', num:'3',  title:'approval_requests — INSERT', body:`step: <code>1</code> · status: <code>pending</code> · attempt: <code>1</code> · id: <code>${approvalCounter}</code>`,
+        stateFn: () => { DB_STATE.approval_req = { id:approvalCounter, status:'pending', step:1, attempt:1, updated:now }; }
+      },
+      { id:'p1d',  type:'normal', num:'4',  title:'approval_step_assignments — INSERT', body:`step 1 → <strong>${emp.lm_name}</strong> (Line Manager)`, stateFn: null },
+      { id:'p1e',  type:'normal', num:'5',  title:'notifications — INSERT', body:`recipient: <code>${emp.lm_name}</code> · type: <code>approval_required</code>`, stateFn: null },
+      { id:'p1f',  type:'audit',  num:'A',  title:'workflow_audit_trail — INSERT', body:`action: <code>submitted</code> · actor: <code>${emp.name}</code> · role: <code>requester</code> · step: <code>null</code>`,
+        stateFn: () => { DB_STATE.audit_trail.push({ action:'submitted', actor:emp.name, role:'requester', step:'—', comment:'—', time:now, isNew:true }); }
+      },
+      { id:'p1g',  type:'commit', num:'✓', title:'COMMIT — Phase 1 complete', body:`6 rows written atomically`, stateFn: null },
+      { id:'p1h',  type:'email',  num:'✉', title:'Email → Line Manager', body:`To: <code>${emp.lm_name}</code> · "You have a request awaiting your approval"`, stateFn: null },
+
+      // Phase 2
+      { id:'p2ph', type:'phase',  num:'②', title:'PHASE 2 — Line Manager approves Step 1', body:`${emp.lm_name} logs in · reviews · clicks Approve`, stateFn: null },
+      { id:'p2a',  type:'normal', num:'1',  title:'approval_history — INSERT', body:`step: <code>1</code> · actor: <code>${emp.lm_name}</code> · action: <code>approved</code> · comment: "Verified & approved"`,
+        stateFn: () => { DB_STATE.approval_history.push({ step:1, actor:emp.lm_name, action:'approved', comment:'Verified & approved', time:now, isNew:true }); }
+      },
+      { id:'p2b',  type:'audit',  num:'A',  title:'workflow_audit_trail — INSERT', body:`action: <code>approved</code> · role: <code>line_manager</code> · step: <code>1</code>`,
+        stateFn: () => { DB_STATE.audit_trail.push({ action:'approved', actor:emp.lm_name, role:'line_manager', step:'1', comment:'Verified & approved', time:now, isNew:true }); }
+      },
+      { id:'p2c',  type:'normal', num:'2',  title:'approval_requests — UPDATE', body:`current_step_number: <code>1 → 2</code>`,
+        stateFn: () => { if(DB_STATE.approval_req){ DB_STATE.approval_req.step=2; DB_STATE.approval_req.updated=now; } }
+      },
+      { id:'p2d',  type:'normal', num:'3',  title:'approval_step_assignments — INSERT', body:`step 2 → <strong>Mr. Okafor</strong> (Finance Manager)`, stateFn: null },
+      { id:'p2e',  type:'normal', num:'4',  title:'notifications — INSERT', body:`recipient: <code>Mr. Okafor</code> · type: <code>approval_required</code>`, stateFn: null },
+      { id:'p2f',  type:'commit', num:'✓', title:'COMMIT — Phase 2 complete', body:`Step advanced 1 → 2 · Finance Manager notified`, stateFn: null },
+      { id:'p2g',  type:'email',  num:'✉', title:'Email → Finance Manager', body:`To: <code>Mr. Okafor</code> · "Step 2 of 3 — awaiting your review"`, stateFn: null },
+
+      // Phase 3
+      { id:'p3ph', type:'phase',  num:'③', title:'PHASE 3 — Finance Manager approves Step 2', body:`Mr. Okafor reviews the financials · clicks Approve`, stateFn: null },
+      { id:'p3a',  type:'normal', num:'1',  title:'approval_history — INSERT', body:`step: <code>2</code> · actor: <code>Mr. Okafor</code> · action: <code>approved</code>`,
+        stateFn: () => { DB_STATE.approval_history.push({ step:2, actor:'Mr. Okafor', action:'approved', comment:'Budget confirmed', time:now, isNew:true }); }
+      },
+      { id:'p3b',  type:'audit',  num:'A',  title:'workflow_audit_trail — INSERT', body:`action: <code>approved</code> · role: <code>finance_manager</code> · step: <code>2</code>`,
+        stateFn: () => { DB_STATE.audit_trail.push({ action:'approved', actor:'Mr. Okafor', role:'finance_manager', step:'2', comment:'Budget confirmed', time:now, isNew:true }); }
+      },
+      { id:'p3c',  type:'normal', num:'2',  title:'approval_requests — UPDATE', body:`current_step_number: <code>2 → 3</code>`,
+        stateFn: () => { if(DB_STATE.approval_req){ DB_STATE.approval_req.step=3; DB_STATE.approval_req.updated=now; } }
+      },
+      { id:'p3d',  type:'normal', num:'3',  title:'approval_step_assignments — INSERT', body:`step 3 → <strong>Adeola Ogunleye</strong> (MD) · assignee_type: <code>specific</code>`, stateFn: null },
+      { id:'p3e',  type:'normal', num:'4',  title:'notifications — INSERT', body:`recipient: <code>Adeola Ogunleye (MD)</code> · type: <code>approval_required</code>`, stateFn: null },
+      { id:'p3f',  type:'commit', num:'✓', title:'COMMIT — Phase 3 complete', body:`Step advanced 2 → 3 · MD notified`, stateFn: null },
+      { id:'p3g',  type:'email',  num:'✉', title:'Email → MD', body:`To: <code>Adeola Ogunleye</code> · "Final step — Step 3 of 3 awaiting your approval"`, stateFn: null },
+
+      // Phase 4
+      { id:'p4ph', type:'phase',  num:'④', title:'PHASE 4 — MD approves Step 3 · FINAL STEP', body:`nextStep? NO — last step reached · engine closes the workflow`, stateFn: null },
+      { id:'p4a',  type:'normal', num:'1',  title:'approval_history — INSERT', body:`step: <code>3</code> · actor: <code>Adeola Ogunleye (MD)</code> · action: <code>approved</code>`,
+        stateFn: () => { DB_STATE.approval_history.push({ step:3, actor:'Adeola Ogunleye (MD)', action:'approved', comment:'Approved at MD level', time:now, isNew:true }); }
+      },
+      { id:'p4b',  type:'audit',  num:'A',  title:'workflow_audit_trail — INSERT', body:`action: <code>approved</code> · role: <code>md</code> · step: <code>3</code>`,
+        stateFn: () => { DB_STATE.audit_trail.push({ action:'approved', actor:'Adeola Ogunleye (MD)', role:'md', step:'3', comment:'Approved at MD level', time:now, isNew:true }); }
+      },
+      { id:'p4c',  type:'approved',num:'✓',title:'approval_requests — UPDATE  ← WORKFLOW COMPLETE', body:`overall_status: <code>pending → APPROVED</code> · step: 3 (final)`,
+        stateFn: () => { if(DB_STATE.approval_req){ DB_STATE.approval_req.status='approved'; DB_STATE.approval_req.updated=now; } }
+      },
+      { id:'p4d',  type:'approved',num:'✓',title:'procurement_requests — UPDATE', body:`status: <code>pending → approved</code>`, stateFn: null },
+      { id:'p4e',  type:'approved',num:'✓',title:'all_requests — UPDATE', body:`status: <code>pending → approved</code>`,
+        stateFn: () => { if(DB_STATE.all_req){ DB_STATE.all_req.status='approved'; DB_STATE.all_req.updated=now; } }
+      },
+      { id:'p4f',  type:'normal', num:'2',  title:'notifications — INSERT  ← REQUESTER NOTIFIED', body:`recipient: <code>${emp.name}</code> · type: <code>approved</code> · message: "Your request has been approved!"`, stateFn: null },
+      { id:'p4g',  type:'commit', num:'✓', title:'COMMIT — Workflow closed', body:`All writes permanent. Request is APPROVED. 3 approvers across 3 steps.`, stateFn: null },
+      { id:'p4h',  type:'email',  num:'✉', title:`Email → Requester (${emp.name})`, body:`To: <code>${emp.name}</code> · "Your procurement request PR-2026-${reqCounter} has been approved by the MD!"`, stateFn: null },
     ],
   };
   return steps[tab];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SEQUENCES  [code_line_id, db_step_id, delay_ms]
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SEQUENCES = {
+  submit:  [
+    ['c2',null,300],['c3',null,400],['c6','s1',600],['c13','s2',500],
+    ['c20',null,400],['c40','s3',500],['c44','s4',600],
+    ['c50',null,400],['c51','s5',700],['c54','s6',600],
+    ['c59','s7',600],['c65','sa',700],['c28','s8',800],['c31','s9',700]
+  ],
+  approve: [
+    ['a2',null,300],['a6','s1',500],['a10','s2',400],
+    ['a13','s3',600],['a21','sa',700],
+    ['a31','s4',600],['a35','s5',500],['a37','s6',600],['a38','s7',500],
+    ['a45','s8',700],['a46','s9',700]
+  ],
+  return:  [
+    ['r2',null,300],['r5','s1',500],['r8','s2',600],['r16','sa',700],
+    ['r22','s3',600],['r23','s4',500],['r26','s5',600],
+    ['r28','s6',700],['r29','s7',700],['r31','s8',900]
+  ],
+  reject:  [
+    ['j2',null,300],['j5','s1',500],['j8','s2',600],['j16','sa',700],
+    ['j22','s3',500],['j23','s4',500],['j26','s5',600],
+    ['j28','s6',700],['j29','s7',700],['j31','s8',900]
+  ],
+  e2e: [
+    ['e1','p1ph',200],
+    ['e4','p1a', 500],['e5','p1b', 400],['e7','p1c', 500],
+    ['e8','p1d', 400],['e10','p1e',400],['e11','p1f',600],
+    ['e12','p1g',700],['e12','p1h',500],
+
+    ['e14','p2ph',1200],
+    ['e18','p2a', 600],['e20','p2b',600],['e22','p2c',500],
+    ['e24','p2d', 400],['e25','p2e',400],
+    ['e26','p2f',700],['e26','p2g',500],
+
+    ['e28','p3ph',1200],
+    ['e31','p3a', 600],['e33','p3b',600],['e35','p3c',500],
+    ['e37','p3d', 400],['e38','p3e',400],
+    ['e39','p3f',700],['e39','p3g',500],
+
+    ['e41','p4ph',1200],
+    ['e45','p4a', 600],['e47','p4b',600],['e48','p4c',500],
+    ['e49','p4d', 400],['e50','p4e',400],['e51','p4f',500],
+    ['e52','p4g',800],['e52','p4h',600],
+  ],
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ANIMATION HELPERS
@@ -623,62 +1184,148 @@ function renderCode(tab) {
 
 function renderDB(tab, emp) {
   const steps = getSteps(tab, emp);
-  const emailStep = steps.find(s => s.type === 'email');
-
-  const stepsHtml = steps.map(s => {
-    const cls = s.type === 'commit' ? 'commit' : s.type === 'email' ? 'email' : s.type === 'warning' ? 'warning' : '';
-    return `<div class="step-item ${cls}" id="${s.id}">
-      <div class="step-num">${s.num}</div>
-      <div class="step-content">
-        <h4>${s.title}</h4>
-        <p>${s.body}</p>
-      </div>
-    </div>`;
-  }).join('');
-
-  const txStart = `<div class="tx-boundary start">BEGIN TRANSACTION</div>`;
-  const commitIdx = steps.findIndex(s => s.type === 'commit');
-  const txEnd = `<div class="tx-boundary end">COMMIT ✓</div>`;
-
-  // Build with tx boundaries
-  const stepEls = steps.map((s, i) => {
-    const cls = s.type === 'commit' ? 'commit' : s.type === 'email' ? 'email' : s.type === 'warning' ? 'warning' : '';
-    return `<div class="step-item ${cls}" id="${s.id}">
-      <div class="step-num">${s.num}</div>
-      <div class="step-content"><h4>${s.title}</h4><p>${s.body}</p></div>
-    </div>`;
-  });
-
   let html = '<div class="tx-boundary start">BEGIN TRANSACTION</div>';
-  steps.forEach((s, i) => {
-    const cls = s.type === 'commit' ? 'commit' : s.type === 'email' ? 'email' : s.type === 'warning' ? 'warning' : '';
-    if (s.type === 'commit') {
-      html += `</div>`;  // won't work, build differently
+  steps.forEach(s => {
+    if (s.type === 'phase') {
+      html += `<div class="phase-header" id="${s.id}">
+        <div class="phase-num">${s.num}</div>
+        <div class="phase-content"><h4>${s.title}</h4><p>${s.body}</p></div>
+      </div>`;
+      return;
     }
-    html += `<div class="step-item ${cls}" id="${s.id}">
+    const cls = s.type === 'commit' ? 'commit'
+              : s.type === 'email' ? 'email'
+              : s.type === 'warning' ? 'warning'
+              : s.type === 'audit' ? 'audit'
+              : s.type === 'approved' ? 'approved'
+              : '';
+    html += `<div class="step-item ${cls}" id="${s.id}" data-step="${s.id}">
       <div class="step-num">${s.num}</div>
       <div class="step-content"><h4>${s.title}</h4><p>${s.body}</p></div>
     </div>`;
-    if (s.type === 'commit') {
-      html += `<div class="tx-boundary end">COMMIT ✓ — all writes permanent</div>`;
-    }
+    if (s.type === 'commit') html += `<div class="tx-boundary end">COMMIT ✓ — all writes permanent</div>`;
   });
-
-  document.getElementById('db-view').innerHTML =
-    `<div class="panel-title">🗄 Database Operations</div>
-     <div class="step-log">${html}</div>`;
+  document.getElementById('db-view').innerHTML = `<div class="step-log">${html}</div>`;
+  return steps; // return so we can attach stateFns to step ids
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  SCENARIO SEQUENCES  [code_line_id, db_step_id, delay_ms]
-// ─────────────────────────────────────────────────────────────────────────────
+function pill(action) {
+  const map = {
+    submitted: 'pill-submitted', approved: 'pill-approved',
+    returned: 'pill-returned', rejected: 'pill-rejected', pending: 'pill-pending'
+  };
+  return `<span class="lt-pill ${map[action] || ''}">${action}</span>`;
+}
 
-const SEQUENCES = {
-  submit:  [['c2',null,300],['c3',null,400],['c6','s1',600],['c13','s2',500],['c20',null,400],['c44','s3',500],['c49','s4',600],['c58',null,400],['c59','s5',700],['c62','s6',600],['c69','s7',600],['c28','s8',800],['c31','s9',700]],
-  approve: [['a2',null,300],['a6','s1',500],['a10','s2',400],['a13','s3',600],['a22','s4',600],['a26','s5',500],['a28','s6',600],['a29','s7',500],['a37','s8',700],['a38','s9',700]],
-  return:  [['r2',null,300],['r5','s1',500],['r8','s2',600],['r17','s3',600],['r18','s4',500],['r21','s5',600],['r27','s6',700],['r28','s7',700],['r30','s8',900]],
-  reject:  [['j2',null,300],['j5','s1',500],['j8','s2',600],['j17','s3',500],['j18','s4',500],['j21','s5',600],['j27','s6',700],['j28','s7',700],['j30','s8',900]],
-};
+function renderLiveTables() {
+  const { audit_trail, approval_history, approval_req, all_req } = DB_STATE;
+
+  // ── workflow_audit_trail ──────────────────────────────────────────────────
+  let auditHtml = '';
+  if (audit_trail.length === 0) {
+    auditHtml = `<div class="lt-empty">// no rows yet</div>`;
+  } else {
+    const rows = audit_trail.map((r, i) => `
+      <tr class="${r.isNew ? 'new-row' : ''}">
+        <td style="color:#4a3570">${i+1}</td>
+        <td>${pill(r.action)}</td>
+        <td style="color:#e2e8f0">${r.actor}</td>
+        <td style="color:#c4b5fd">${r.role}</td>
+        <td style="color:#f78c6c">${r.step}</td>
+        <td style="color:#94a3b8;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment}</td>
+        <td style="color:#2d3748">${r.time}</td>
+      </tr>`).join('');
+    auditHtml = `<table class="lt-table">
+      <thead><tr><th>#</th><th>action</th><th>actor</th><th>actor_role</th><th>step</th><th>comment</th><th>time</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // ── approval_history ──────────────────────────────────────────────────────
+  let histHtml = '';
+  if (approval_history.length === 0) {
+    histHtml = `<div class="lt-empty">// no approver actions yet — only approvers write here</div>`;
+  } else {
+    const rows = approval_history.map((r, i) => `
+      <tr class="${r.isNew ? 'new-row' : ''}">
+        <td style="color:#4a3570">${i+1}</td>
+        <td style="color:#f78c6c">Step ${r.step}</td>
+        <td style="color:#e2e8f0">${r.actor}</td>
+        <td>${pill(r.action)}</td>
+        <td style="color:#94a3b8;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment}</td>
+      </tr>`).join('');
+    histHtml = `<table class="lt-table">
+      <thead><tr><th>#</th><th>step</th><th>actor</th><th>action</th><th>comment</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // ── approval_requests (single row tracker) ────────────────────────────────
+  let arHtml = '';
+  if (!approval_req) {
+    arHtml = `<div class="lt-empty">// not yet created</div>`;
+  } else {
+    arHtml = `<div class="lt-state-row">
+      <div class="lt-state-field"><span class="lt-state-label">id</span><span class="lt-state-val">${approval_req.id}</span></div>
+      <div class="lt-state-field"><span class="lt-state-label">overall_status</span><span class="lt-state-val">${pill(approval_req.status)}</span></div>
+      <div class="lt-state-field"><span class="lt-state-label">current_step</span><span class="lt-state-val" style="color:#f78c6c">${approval_req.step}</span></div>
+      <div class="lt-state-field"><span class="lt-state-label">attempt</span><span class="lt-state-val">${approval_req.attempt}</span></div>
+      <div class="lt-state-field"><span class="lt-state-label">updated</span><span class="lt-state-val" style="color:#2d3748">${approval_req.updated}</span></div>
+    </div>`;
+  }
+
+  // ── all_requests (single row) ─────────────────────────────────────────────
+  let allHtml = '';
+  if (!all_req) {
+    allHtml = `<div class="lt-empty">// not yet created</div>`;
+  } else {
+    allHtml = `<div class="lt-state-row">
+      <div class="lt-state-field"><span class="lt-state-label">request_no</span><span class="lt-state-val">${all_req.no}</span></div>
+      <div class="lt-state-field"><span class="lt-state-label">request_type</span><span class="lt-state-val" style="color:#c4b5fd">${all_req.type}</span></div>
+      <div class="lt-state-field"><span class="lt-state-label">status</span><span class="lt-state-val">${pill(all_req.status)}</span></div>
+      <div class="lt-state-field"><span class="lt-state-label">updated</span><span class="lt-state-val" style="color:#2d3748">${all_req.updated}</span></div>
+    </div>`;
+  }
+
+  // ── Key difference callout ────────────────────────────────────────────────
+  const hasDiff = audit_trail.length > 0 || approval_history.length > 0;
+  const callout = hasDiff ? `<div class="lt-callout">
+    <strong>workflow_audit_trail</strong> captures <em>every</em> actor event — requester submissions + approver actions.<br>
+    <strong>approval_history</strong> captures <em>only</em> approver step actions (approved / rejected / returned).<br>
+    Note: "submitted" wrote to audit_trail but <em>not</em> to approval_history.
+  </div>` : `<div class="lt-callout">
+    Run a scenario to see how each table gets written — and which tables don't get written on each action.
+  </div>`;
+
+  document.getElementById('tables-view').innerHTML = `
+    ${callout}
+    <div class="lt-section">
+      <div class="lt-section-title"><span>workflow_audit_trail</span> <span class="lt-badge">${audit_trail.length} row${audit_trail.length !== 1 ? 's' : ''}</span></div>
+      ${auditHtml}
+    </div>
+    <hr class="lt-divider">
+    <div class="lt-section">
+      <div class="lt-section-title"><span>approval_history</span> <span class="lt-badge ${approval_history.length === 0 ? 'no-write' : ''}">${approval_history.length} row${approval_history.length !== 1 ? 's' : ''}</span></div>
+      ${histHtml}
+    </div>
+    <hr class="lt-divider">
+    <div class="lt-section">
+      <div class="lt-section-title"><span>approval_requests</span> <span class="lt-badge ${!approval_req ? 'no-write' : ''}">live tracker</span></div>
+      ${arHtml}
+    </div>
+    <hr class="lt-divider">
+    <div class="lt-section">
+      <div class="lt-section-title"><span>all_requests</span> <span class="lt-badge ${!all_req ? 'no-write' : ''}">dashboard row</span></div>
+      ${allHtml}
+    </div>
+  `;
+
+  // Clear isNew flags after render so animation only fires once
+  setTimeout(() => {
+    DB_STATE.audit_trail.forEach(r => r.isNew = false);
+    DB_STATE.approval_history.forEach(r => r.isNew = false);
+  }, 600);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  RUN
@@ -695,20 +1342,33 @@ async function runScenario() {
 
   btn.disabled = true;
 
-  // Status badge
-  const badgeMap = { submit:'pending', approve:'approved', return:'returned', reject:'returned' };
-  const badgeCls = { submit:'badge-pending', approve:'badge-approved', return:'badge-returned', reject:'badge-returned' };
+  const badgeMap = { submit:'pending', approve:'approved', return:'returned', reject:'returned', e2e:'approved' };
+  const badgeCls = { submit:'badge-pending', approve:'badge-approved', return:'badge-returned', reject:'badge-returned', e2e:'badge-approved' };
   badge.className = 'badge ' + badgeCls[currentTab];
   badge.textContent = badgeMap[currentTab].toUpperCase();
 
   renderCode(currentTab);
-  renderDB(currentTab, emp);
+  const steps = renderDB(currentTab, emp); // returns step objects with stateFns
+
+  // Build a map of stepId → stateFn
+  const stateFnMap = {};
+  steps.forEach(s => { if (s.stateFn) stateFnMap[s.id] = s.stateFn; });
+
+  // Initial render of live tables
+  renderLiveTables();
 
   const seq = SEQUENCES[currentTab];
   for (const [codeId, stepId, ms] of seq) {
     await delay(ms);
-    highlightLine(codeId);
-    if (stepId) showStep(stepId);
+    if (codeId) highlightLine(codeId);
+    if (stepId) {
+      showStep(stepId);
+      // Run state update if this step has one
+      if (stateFnMap[stepId]) {
+        stateFnMap[stepId]();
+        renderLiveTables();
+      }
+    }
   }
 
   animating = false;
@@ -723,6 +1383,7 @@ const BTN_LABELS = {
   approve: 'Approver Approves →',
   return:  'Approver Returns to Initiator →',
   reject:  'Approver Rejects →',
+  e2e:     'Run Full E2E Walkthrough →',
 };
 
 function switchTab(tab) {
@@ -730,16 +1391,26 @@ function switchTab(tab) {
   document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   document.getElementById('btn-action').textContent = BTN_LABELS[tab];
-  reset();
+  resetPanels();
+}
+
+function resetPanels() {
+  animating = false;
+  document.getElementById('btn-action').disabled = false;
+  document.getElementById('code-view').innerHTML = `<div class="idle-msg">// Click "${BTN_LABELS[currentTab]}" to run the simulation</div>`;
+  document.getElementById('db-view').innerHTML   = `<div class="idle-msg">// Waiting for action...</div>`;
 }
 
 function reset() {
-  animating = false;
-  document.getElementById('btn-action').disabled = false;
-  document.getElementById('badge-status').className = 'badge badge-draft';
+  // Full reset — clears DB state too
+  DB_STATE.audit_trail      = [];
+  DB_STATE.approval_history = [];
+  DB_STATE.approval_req     = null;
+  DB_STATE.all_req          = null;
+  document.getElementById('badge-status').className  = 'badge badge-draft';
   document.getElementById('badge-status').textContent = 'DRAFT';
-  document.getElementById('code-view').innerHTML = `<div class="idle-msg">// Click "${BTN_LABELS[currentTab]}" to run the simulation</div>`;
-  document.getElementById('db-view').innerHTML   = `<div class="panel-title">🗄 Database Operations</div><div class="idle-msg">// Waiting for action...</div>`;
+  resetPanels();
+  document.getElementById('tables-view').innerHTML = `<div class="idle-msg">// Tables update as each DB write runs</div>`;
 }
 
 // Init
