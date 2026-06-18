@@ -36,7 +36,9 @@ body {
 /* ── Page transitions ──────────────────────────────────────────────────────── */
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; }
+  /* NOTE: no transform in 'to' — translateY(0) would persist via fill-mode:both
+     and create a stacking context that breaks fixed-position modals/backdrops */
 }
 .animate-page-enter {
   animation: page-enter 0.22s ease-out both;

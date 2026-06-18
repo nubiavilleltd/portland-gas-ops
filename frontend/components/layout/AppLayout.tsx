@@ -30,7 +30,9 @@ export default function AppLayout({ children, pageTitle }: Props) {
           pageTitle={pageTitle}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="min-w-0 flex-1 p-4 md:p-6 animate-page-enter">
+        {/* No animate-page-enter here — that animation uses transform which changes the
+            containing block for fixed descendants (modals), breaking their positioning */}
+        <main className="min-w-0 flex-1 p-4 md:p-6">
           {children}
         </main>
       </div>

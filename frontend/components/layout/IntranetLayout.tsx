@@ -49,8 +49,17 @@ export default function IntranetLayout({ children }: Props) {
   const [mobileOpen,   setMobileOpen]   = useState(false);
   const [profileOpen,  setProfileOpen]  = useState(false);
   const [notifOpen,    setNotifOpen]    = useState(false);
+  const [scrolled,     setScrolled]     = useState(false);
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Blend with hero when at top; solidify on scroll
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 30);
+    window.addEventListener("scroll", handler, { passive: true });
+    handler(); // run once on mount
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
 
   const displayName = user?.name ?? DEMO_NAME;
   const firstName   = displayName.split(" ")[0];
@@ -71,7 +80,13 @@ export default function IntranetLayout({ children }: Props) {
     <div className="min-h-screen bg-[#F5F4F7]" style={{ fontFamily: "var(--font-mulish, var(--font-sans))" }}>
 
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 w-full bg-[#1C043B] border-b border-white/10">
+      {/* Transparent only on home page at top — all other pages always solid */}
+      <header className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        pathname === "/" && !scrolled
+          ? "bg-transparent border-b border-transparent"
+          : "bg-[#1C043B] border-b border-white/10 shadow-lg"
+      )}>
         <div className="max-w-[1400px] mx-auto px-4 lg:px-8 h-16 flex items-center gap-6">
 
           {/* Logo */}
@@ -255,7 +270,8 @@ export default function IntranetLayout({ children }: Props) {
         </div>
       </header>
 
-      <main className="animate-page-enter">{children}</main>
+      {/* pt-16 offsets the fixed header (h-16 = 64px) */}
+      <main className="animate-page-enter pt-16">{children}</main>
     </div>
   );
 }
