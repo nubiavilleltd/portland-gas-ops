@@ -69,6 +69,16 @@ function getMonthDays(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
+function getYearOptions(currentYear: number, minDate: Date | null, maxDate: Date | null) {
+  const minYear = minDate?.getFullYear() ?? Math.min(currentYear - 10, 1950);
+  const maxYear = maxDate?.getFullYear() ?? Math.max(currentYear + 10, new Date().getFullYear() + 10);
+
+  return Array.from(
+    { length: maxYear - minYear + 1 },
+    (_, index) => minYear + index
+  );
+}
+
 function setNativeInputValue(input: HTMLInputElement, nextValue: string) {
   const valueSetter = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
@@ -115,7 +125,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
     );
 
     const selectedValue = isControlled ? String(value ?? "") : internalValue;
-    const selectedDate = parseDate(selectedValue);
+    const selectedDate = useMemo(() => parseDate(selectedValue), [selectedValue]);
     const [viewDate, setViewDate] = useState<Date>(selectedDate ?? today);
 
     const minDate = parseDate(typeof min === "string" ? min : undefined);
@@ -125,7 +135,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       if (selectedDate) {
         setViewDate(selectedDate);
       }
-    }, [selectedValue]);
+    }, [selectedDate]);
 
     useEffect(() => {
       if (!open) return;
@@ -189,8 +199,17 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
     }
 
+    function updateViewMonth(nextMonth: number) {
+      setViewDate((current) => new Date(current.getFullYear(), nextMonth, 1));
+    }
+
+    function updateViewYear(nextYear: number) {
+      setViewDate((current) => new Date(nextYear, current.getMonth(), 1));
+    }
+
     const month = viewDate.getMonth();
     const year = viewDate.getFullYear();
+    const yearOptions = getYearOptions(year, minDate, maxDate);
     const daysInMonth = getMonthDays(year, month);
     const firstDayOfMonth = new Date(year, month, 1).getDay();
     const cells = [
@@ -263,9 +282,32 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
                 <ChevronLeft size={16} />
               </button>
 
-              <p className="text-sm font-semibold text-brand-text-primary">
-                {MONTHS[month]} {year}
-              </p>
+              <div className="flex items-center gap-2">
+                <select
+                  aria-label="Select month"
+                  value={month}
+                  onChange={(event) => updateViewMonth(Number(event.target.value))}
+                  className="h-8 rounded-md border border-brand-border bg-white px-2 text-sm font-semibold text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+                >
+                  {MONTHS.map((monthName, index) => (
+                    <option key={monthName} value={index}>
+                      {monthName}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Select year"
+                  value={year}
+                  onChange={(event) => updateViewYear(Number(event.target.value))}
+                  className="h-8 rounded-md border border-brand-border bg-white px-2 text-sm font-semibold text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+                >
+                  {yearOptions.map((yearOption) => (
+                    <option key={yearOption} value={yearOption}>
+                      {yearOption}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <button
                 type="button"
@@ -303,7 +345,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
                 const isToday =
                   dayNumber === today.getDate() &&
                   month === today.getMonth() &&
-                  year === today.getFullYear();
+                  year === today.getFullYear()
 
                 return (
                   <button
