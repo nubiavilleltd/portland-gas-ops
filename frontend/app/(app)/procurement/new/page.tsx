@@ -88,6 +88,8 @@ export default function NewProcurementPage() {
   const { data: vendors = [] } = useVendors();
 
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [qtyDisplays, setQtyDisplays] = useState<Record<number, string>>({});
+  const [costDisplays, setCostDisplays] = useState<Record<number, string>>({});
   const [vendorMode, setVendorMode] = useState<VendorMode>("existing");
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
@@ -123,6 +125,13 @@ export default function NewProcurementPage() {
   );
 
   const grandTotal = watchedItems.reduce((sum, item) => sum + (parseFloat(item.total_cost) || 0), 0);
+
+  function applyCommas(raw: string): string {
+    const clean = raw.replace(/[^0-9.]/g, "");
+    const [int, dec] = clean.split(".");
+    const formatted = (int || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return dec !== undefined ? `${formatted}.${dec}` : formatted;
+  }
 
   const filteredVendors = vendors.filter((v) =>
     v.name.toLowerCase().includes(vendorSearch.toLowerCase())
@@ -423,13 +432,17 @@ export default function NewProcurementPage() {
 
                   <div className="px-3 py-2 border-l border-brand-border/50">
                     <input
-                      {...register(`items.${i}.quantity`)}
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="1"
+                      value={qtyDisplays[i] ?? ""}
                       className={["w-full text-sm outline-none bg-transparent placeholder:text-gray-400", errors.items?.[i]?.quantity ? "text-red-500" : ""].join(" ")}
-                      onChange={(e) => { register(`items.${i}.quantity`).onChange(e); setTimeout(() => updateTotal(i), 0); }}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, "");
+                        setQtyDisplays((prev) => ({ ...prev, [i]: applyCommas(e.target.value) }));
+                        setValue(`items.${i}.quantity`, raw || "0");
+                        setTimeout(() => updateTotal(i), 0);
+                      }}
                     />
                   </div>
 
@@ -443,13 +456,17 @@ export default function NewProcurementPage() {
 
                   <div className="px-3 py-2 border-l border-brand-border/50">
                     <input
-                      {...register(`items.${i}.unit_cost`)}
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="0.00"
+                      value={costDisplays[i] ?? ""}
                       className={["w-full text-sm outline-none bg-transparent placeholder:text-gray-400", errors.items?.[i]?.unit_cost ? "text-red-500" : ""].join(" ")}
-                      onChange={(e) => { register(`items.${i}.unit_cost`).onChange(e); setTimeout(() => updateTotal(i), 0); }}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, "");
+                        setCostDisplays((prev) => ({ ...prev, [i]: applyCommas(e.target.value) }));
+                        setValue(`items.${i}.unit_cost`, raw || "0");
+                        setTimeout(() => updateTotal(i), 0);
+                      }}
                     />
                   </div>
 

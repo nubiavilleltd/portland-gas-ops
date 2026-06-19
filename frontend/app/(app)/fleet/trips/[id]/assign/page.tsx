@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, User, Truck, AlertCircle } from "lucide-react";
+import { User, Truck, AlertCircle } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import SelectInput from "@/components/forms/SelectInput";
 import FormSection from "@/components/ui/FormSection";
 
 import { formatDate } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
-import { TripsService } from "@/lib/modules/fleet/services/trips.service";
+import DriverPickerModal from "@/components/ui/DriverPickerModal";
+import VehiclePickerModal from "@/components/ui/VehiclePickerModal";
 
 // ✅ hooks (domain layer)
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
@@ -25,6 +25,8 @@ import { FLEET_ROUTES, ORDER_ROUTES } from "@/lib/routes";
 export default function AssignResourcesPage() {
   const params = useParams();
   const router = useRouter();
+  const [driverPickerOpen, setDriverPickerOpen] = useState(false);
+  const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
 
   const assignResources = useAssignResourcesWorkflow();
 
@@ -35,20 +37,9 @@ export default function AssignResourcesPage() {
   const { drivers: availableDrivers } = useAvailableDrivers();
   const { vehicles: availableVehicles } = useAvailableVehicles();
 
-  const driverOptions = availableDrivers.map((driver) => ({
-    label: `${driver.full_name} · ${driver.experience_years} yrs · ${driver.license_number}`,
-    value: driver.id,
-  }));
-
-  const vehicleOptions = availableVehicles.map((vehicle) => ({
-    label: `${vehicle.name} · ${vehicle.plate_number} · ${vehicle.capacity?.toLocaleString() ?? "—"} kg`,
-    value: vehicle.id,
-  }));
 
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (!trip) {
     return (
@@ -91,7 +82,6 @@ export default function AssignResourcesPage() {
 
   return (
     <AppLayout pageTitle="Assign Driver & Vehicle">
-
       <BackButton
         href={`${FLEET_ROUTES.tripDetail(tripId)}`}
         label="Back to Trip"
@@ -149,14 +139,28 @@ export default function AssignResourcesPage() {
               duty.
             </div>
           ) : (
-            <SelectInput
-              label="Driver"
-              placeholder="Select a driver"
-              options={driverOptions}
-              value={selectedDriverId}
-              onValueChange={setSelectedDriverId}
-              searchable
-            />
+            <button
+              type="button"
+              onClick={() => setDriverPickerOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-3 border border-brand-border rounded-xl hover:border-brand-purple transition-colors text-sm"
+            >
+              <span
+                className={
+                  selectedDriverId
+                    ? "text-brand-text-primary font-medium"
+                    : "text-brand-text-secondary"
+                }
+              >
+                {selectedDriverId
+                  ? (availableDrivers.find((d) => d.id === selectedDriverId)
+                      ?.full_name ?? "Driver selected")
+                  : "Click to select a driver"}
+              </span>
+              <User
+                size={16}
+                className="text-brand-text-secondary"
+              />
+            </button>
           )}
         </FormSection>
 
@@ -170,14 +174,28 @@ export default function AssignResourcesPage() {
               maintenance.
             </div>
           ) : (
-            <SelectInput
-              label="Vehicle"
-              placeholder="Select a vehicle"
-              options={vehicleOptions}
-              value={selectedVehicleId}
-              onValueChange={setSelectedVehicleId}
-              searchable
-            />
+            <button
+              type="button"
+              onClick={() => setVehiclePickerOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-3 border border-brand-border rounded-xl hover:border-brand-purple transition-colors text-sm"
+            >
+              <span
+                className={
+                  selectedVehicleId
+                    ? "text-brand-text-primary font-medium"
+                    : "text-brand-text-secondary"
+                }
+              >
+                {selectedVehicleId
+                  ? (availableVehicles.find((v) => v.id === selectedVehicleId)
+                      ?.name ?? "Vehicle selected")
+                  : "Click to select a vehicle"}
+              </span>
+              <Truck
+                size={16}
+                className="text-brand-text-secondary"
+              />
+            </button>
           )}
         </FormSection>
 
@@ -199,6 +217,22 @@ export default function AssignResourcesPage() {
             Confirm Assignment
           </Button>
         </div>
+
+        <DriverPickerModal
+          open={driverPickerOpen}
+          onClose={() => setDriverPickerOpen(false)}
+          onSelect={(driver) => setSelectedDriverId(driver.id)}
+          drivers={availableDrivers}
+          selectedDriverId={selectedDriverId}
+        />
+
+        <VehiclePickerModal
+          open={vehiclePickerOpen}
+          onClose={() => setVehiclePickerOpen(false)}
+          onSelect={(vehicle) => setSelectedVehicleId(vehicle.id)}
+          vehicles={availableVehicles}
+          selectedVehicleId={selectedVehicleId}
+        />
       </div>
     </AppLayout>
   );

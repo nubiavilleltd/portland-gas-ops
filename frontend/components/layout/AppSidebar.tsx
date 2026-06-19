@@ -55,23 +55,27 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
     <aside
       className={cn(
         // Base: fixed full-height sidebar
-        "fixed inset-y-0 left-0 z-30 w-64 bg-brand-dark flex flex-col overflow-y-auto transition-transform duration-300 ease-in-out",
+        "fixed inset-y-0 left-0 z-30 w-64 flex flex-col overflow-y-auto transition-transform duration-300 ease-in-out",
         // Mobile: slide in/out. Desktop: always visible
         isOpen ? "translate-x-0" : "-translate-x-full",
         "lg:translate-x-0"
       )}
+      style={{
+        backgroundImage: "linear-gradient(180deg, rgba(26,15,46,0.92) 0%, rgba(17,8,38,0.88) 45%, rgba(13,13,18,0.95) 100%), url('/portland-sidebar.png')",
+        backgroundSize: "auto, cover",
+        backgroundPosition: "center, center 30%",
+        backgroundRepeat: "no-repeat, no-repeat",
+      }}
     >
       {/* Logo + mobile close button */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shrink-0 p-1">
-            <Image src={logo} alt="Portland Gas" width={28} height={28} />
-          </div>
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <Image src={logo} alt="Portland Gas" width={32} height={32} className="brightness-0 invert shrink-0" />
           <div>
             <p className="text-white text-sm font-semibold leading-none">Portland Gas</p>
             <p className="text-purple-400 text-xs mt-0.5">Operations</p>
           </div>
-        </div>
+        </Link>
         {/* Close button — mobile only */}
         <button
           onClick={onClose}
@@ -95,7 +99,7 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                   active
-                    ? "bg-brand-purple/15 text-brand-purple border-l-2 border-brand-purple"
+                    ? "bg-brand-purple/15 text-white border-l-2 border-brand-purple"
                     : "text-gray-400 hover:text-white hover:bg-white/5"
                 )}
               >
@@ -121,7 +125,7 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                     active
-                      ? "bg-brand-purple/15 text-brand-purple border-l-2 border-brand-purple"
+                      ? "bg-brand-purple/15 text-white border-l-2 border-brand-purple"
                       : "text-gray-400 hover:bg-white/5 hover:text-white"
                   )}
                 >

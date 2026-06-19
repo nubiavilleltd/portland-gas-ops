@@ -10,6 +10,7 @@ export const orderLineItemSchema = z.object({
   unit_price: z
     .number({ message: "Enter a unit price" })
     .min(0.01, "Unit price must be greater than 0"),
+  inventory_item_ids: z.array(z.string()).optional(),
 });
 
 export type OrderLineItem = z.infer<typeof orderLineItemSchema>;

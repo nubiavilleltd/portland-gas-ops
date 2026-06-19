@@ -8,6 +8,7 @@
 import { trips } from "@/lib/modules/fleet/mock/trips.mock";
 // import { drivers } from "@/lib/modules/fleet/mock/drivers.mock";
 // import { vehicles } from "@/lib/modules/fleet/mock/vehicles.mock";
+import { products } from "../../products/mock/products.mock";
 import type { Trip, TripStatus } from "@/lib/modules/fleet/types/trip.types";
 import { OrdersService } from "../../orders/services/orders.service";
 import { DriversService } from "./drivers.service";
@@ -98,7 +99,22 @@ export class TripsService {
     // Commit
     trip.driver_id = driverId;
     trip.vehicle_id = vehicleId;
-    trip.status = "assigned";
+
+    // trip.status = "assigned";
+    const linkedOrders = await Promise.all(
+      trip.order_ids.map((id) => OrdersService.getOrderById(id)),
+    );
+
+    const hasTrackedItems =
+      trip.type === "order_delivery" &&
+      linkedOrders.some((order) =>
+        order?.order_items?.some((item) => {
+          const product = products.find((p) => p.id === item.product_id);
+          return product?.product_type === "tracked";
+        }),
+      );
+
+    trip.status = hasTrackedItems ? "awaiting_inventory" : "ready";
 
     await DriversService.assignDriverToTrip(driverId, tripId);
     await VehiclesService.assignVehicleToTrip(vehicleId, tripId);
@@ -117,8 +133,11 @@ export class TripsService {
   static async dispatchTrip(tripId: string): Promise<Trip> {
     const trip = trips.find((t) => t.id === tripId);
     if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "assigned") {
-      throw new Error("Trip must be assigned before dispatch");
+    // if (trip.status !== "assigned") {
+    //   throw new Error("Trip must be assigned before dispatch");
+    // }
+    if (trip.status !== "assigned" && trip.status !== "ready") {
+      throw new Error("Trip must be ready before dispatch");
     }
     if (!trip.driver_id || !trip.vehicle_id) {
       throw new Error("Trip must have a driver and vehicle before dispatch");
@@ -247,7 +266,9 @@ export class TripsService {
     const order = await OrdersService.getOrderById(orderId);
     if (!order) throw new Error("Order not found");
     if (!canLinkOrderToTrip(order)) {
-      throw new Error("Order cannot be assigned to a trip in its current state");
+      throw new Error(
+        "Order cannot be assigned to a trip in its current state",
+      );
     }
 
     if (!trip.order_ids.includes(orderId)) {
@@ -258,4 +279,14 @@ export class TripsService {
     return Promise.resolve(trip);
   }
 
+  // Add to trips.service.ts
+  static async setReady(tripId: string): Promise<Trip> {
+    const trip = trips.find((t) => t.id === tripId);
+    if (!trip) throw new Error("Trip not found");
+    if (trip.status !== "awaiting_inventory") {
+      throw new Error("Trip must be awaiting inventory before marking ready");
+    }
+    trip.status = "ready";
+    return Promise.resolve(trip);
+  }
 }

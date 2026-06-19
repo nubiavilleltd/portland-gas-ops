@@ -2,15 +2,23 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart2,
   BookOpen,
+  CalendarDays,
   CreditCard,
   DollarSign,
   FolderOpen,
+  HelpCircle,
+  MessageSquare,
+  Mic2,
+  Newspaper,
   Package,
+  Quote,
   ShieldCheck,
+  Star,
   Store,
   Truck,
   User,
   Users,
+  Warehouse,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -101,6 +109,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         icon: Package,
         href: "/admin/products",
       },
+      {
+        name: "Inventory",
+        description: "Stock levels, tracked assets, and movements",
+        icon: Warehouse,
+        href: "/admin/inventory",
+      },
     ],
   },
   {
@@ -109,9 +123,65 @@ export const moduleGroups: readonly ModuleGroup[] = [
     processes: [
       {
         name: "Safety Dashboard",
-        description: "Track HSE queue, close-outs, compliance, and hazard trends",
+        description:
+          "Track HSE queue, close-outs, compliance, and hazard trends",
         icon: ShieldCheck,
         href: "/admin/safety",
+      },
+     
+    ],
+  },
+  {
+    title: "Intranet CMS",
+    routePrefixes: ["/admin/intranet"],
+    processes: [
+      {
+        name: "News & Announcements",
+        description: "Manage news articles and company announcements",
+        icon: Newspaper,
+        href: "/admin/intranet/news",
+      },
+      {
+        name: "Events",
+        description: "Manage upcoming events and calendar entries",
+        icon: CalendarDays,
+        href: "/admin/intranet/events",
+      },
+      {
+        name: "FAQs",
+        description: "Manage FAQ categories and Q&A pairs",
+        icon: HelpCircle,
+        href: "/admin/intranet/faqs",
+      },
+      {
+        name: "Podcast",
+        description: "Manage the featured podcast episode",
+        icon: Mic2,
+        href: "/admin/intranet/podcast",
+      },
+      {
+        name: "Employee of the Month",
+        description: "Set the current employee of the month",
+        icon: Star,
+        href: "/admin/intranet/employee-of-month",
+      },
+      {
+        name: "Employee Spotlight",
+        description: "Manage the three employee spotlight cards",
+        icon: Users,
+        href: "/admin/intranet/spotlight",
+      },
+      {
+        name: "Leadership Messages",
+        description: "Manage the homepage leadership carousel",
+        icon: Quote,
+        href: "/admin/intranet/leadership",
+      },
+      {
+        name: "Feedback Inbox",
+        description: "View and review employee feedback submissions",
+        icon: MessageSquare,
+        href: "/admin/intranet/feedback",
       },
     ],
   },
@@ -140,7 +210,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
 export const homeModuleGroups = moduleGroups
   .map((group) => ({
     ...group,
-    processes: group.processes.filter((process) => process.showOnHome !== false).sort((a, b) => a.name.localeCompare(b.name)),
+    processes: group.processes
+      .filter((process) => process.showOnHome !== false)
+      .sort((a, b) => a.name.localeCompare(b.name)),
   }))
   .filter((group) => group.processes.length > 0);
 
@@ -148,7 +220,9 @@ function matchesPath(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-export function getModuleGroupForPathname(pathname: string): ModuleGroup | undefined {
+export function getModuleGroupForPathname(
+  pathname: string,
+): ModuleGroup | undefined {
   // Pass 1: exact process/routePrefix match (most specific)
   for (const group of moduleGroups) {
     const ownsProcessPath = group.processes.some((process) =>

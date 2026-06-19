@@ -54,7 +54,7 @@ const columns: Column<LeaveBalanceRow>[] = [
     sortable: true,
     render: (v, row) => (
       <Link
-        href={`/admin/employees/${row.id}`}
+        href={`/admin/leave-balances/${row.id}`}
         className="font-medium text-brand-purple hover:underline"
         onClick={(e) => e.stopPropagation()}
       >
@@ -136,7 +136,7 @@ export default function LeaveBalancesPage() {
         data={rows}
         hideStatusFilter
         newRequestLabel=""
-        rowHref={(row) => `/admin/employees/${row.id}`}
+        rowHref={(row) => `/admin/leave-balances/${row.id}`}
         emptyMessage="No employees found"
         emptyDescription="Add employees to track leave balances"
       />

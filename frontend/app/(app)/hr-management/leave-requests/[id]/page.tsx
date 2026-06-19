@@ -11,6 +11,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { formatDate } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
+import { useToast } from "@/hooks/useToast";
 import { LEAVE_STORE, type LeaveRequest } from "../../_components/_data";
 
 const CURRENT_USER = {
@@ -27,13 +28,13 @@ const STATUS_STEP: Record<string, number> = {
   denied:      1,
 };
 
-const ACTIONABLE = new Set(["pending", "in_progress"]);
-type ActionResult = "approved" | "denied" | "draft";
-type PageRole = "requester" | "approver" | "admin";
+type ActionResult = "approved" | "denied" | "draft" | "in_progress";
+type PageRole = "requester" | "reliever" | "approver" | "admin";
 
 const ROLE_OPTIONS: { value: PageRole; label: string }[] = [
   { value: "requester", label: "Requester" },
-  { value: "approver", label: "Approver" },
+  { value: "reliever",  label: "Reliever"  },
+  { value: "approver",  label: "Operations Manager/HR"  },
 ];
 
 export default function LeaveRequestDetailPage({
@@ -49,6 +50,7 @@ export default function LeaveRequestDetailPage({
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
+  const toast = useToast();
 
   const isOthers = record?.requestType === "others";
 
@@ -83,7 +85,7 @@ export default function LeaveRequestDetailPage({
             id={record.ref}
             currentRole={currentRole}
             onRoleChange={setCurrentRole}
-            roleLabel={currentRole === "approver" ? "Approver" : currentRole === "admin" ? "Admin" : "Requester"}
+            roleLabel={currentRole === "approver" ? "Operations Manager/HR" : currentRole === "admin" ? "Admin" : "Requester"}
             roles={ROLE_OPTIONS}
             status={<ApprovalBadge status={record.status} />}
             recordLabel="Leave Request"
@@ -160,10 +162,38 @@ export default function LeaveRequestDetailPage({
             </div>
           </ViewSection>
 
-          {/* Approval Action */}
-          {ACTIONABLE.has(record.status) && !actionDone && currentRole !== "requester" && (
+          {/* Gate notice: approver waiting for reliever */}
+          {currentRole === "approver" && record.status === "pending" && !actionDone && (
+            <div className="rounded-2xl p-4 flex items-start gap-3 border bg-amber-50 border-amber-200">
+              <RotateCcw size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Awaiting Reliever Confirmation</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {record.reliever} must accept the reliever role before this request can be approved.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Reliever action panel — acts when status is "pending" */}
+          {record.status === "pending" && !actionDone && currentRole === "reliever" && (
             <ApprovalPanel
-              reviewingAs={currentRole === "approver" ? "Approver" : "Requester"}
+              reviewingAs="Reliever"
+              showReturn={false}
+              showReject
+              showApprove
+              rejectLabel="Decline"
+              approveLabel="Accept"
+              requireCommentForRejectReturn
+              onReject={(comment) => { toast.error("Reliever declined the request"); handleApprovalAction("draft", comment); }}
+              onApprove={(comment) => { toast.success("Reliever accepted — awaiting manager approval"); handleApprovalAction("in_progress", comment); }}
+            />
+          )}
+
+          {/* Approver action panel — acts when reliever has accepted (status is "in_progress") */}
+          {record.status === "in_progress" && !actionDone && currentRole === "approver" && (
+            <ApprovalPanel
+              reviewingAs="Operations Manager/HR"
               showReturn
               showReject
               showApprove
@@ -171,40 +201,46 @@ export default function LeaveRequestDetailPage({
               rejectLabel="Deny"
               approveLabel="Approve"
               requireCommentForRejectReturn
-              onReturn={(comment) => handleApprovalAction("draft", comment)}
-              onReject={(comment) => handleApprovalAction("denied", comment)}
-              onApprove={(comment) => handleApprovalAction("approved", comment)}
+              onReturn={(comment) => { toast.info("Leave request returned to requester"); handleApprovalAction("draft", comment); }}
+              onReject={(comment) => { toast.error("Leave request denied"); handleApprovalAction("denied", comment); }}
+              onApprove={(comment) => { toast.success("Leave request approved successfully"); handleApprovalAction("approved", comment); }}
             />
           )}
 
           {/* Action confirmation banner */}
           {actionDone && (
             <div className={`rounded-2xl p-4 flex items-start gap-3 border ${
-              actionDone === "approved" ? "bg-green-50 border-green-200"
-              : actionDone === "denied" ? "bg-red-50 border-red-200"
+              actionDone === "approved"    ? "bg-green-50 border-green-200"
+              : actionDone === "denied"   ? "bg-red-50 border-red-200"
+              : actionDone === "in_progress" ? "bg-teal-50 border-teal-200"
               : "bg-amber-50 border-amber-200"
             }`}>
               {actionDone === "approved" ? (
                 <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" />
               ) : actionDone === "denied" ? (
                 <XCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+              ) : actionDone === "in_progress" ? (
+                <CheckCircle2 size={18} className="text-teal-600 shrink-0 mt-0.5" />
               ) : (
                 <RotateCcw size={18} className="text-amber-600 shrink-0 mt-0.5" />
               )}
               <div>
                 <p className={`text-sm font-semibold ${
-                  actionDone === "approved" ? "text-green-800"
-                  : actionDone === "denied" ? "text-red-800"
+                  actionDone === "approved"       ? "text-green-800"
+                  : actionDone === "denied"       ? "text-red-800"
+                  : actionDone === "in_progress"  ? "text-teal-800"
                   : "text-amber-800"
                 }`}>
-                  {actionDone === "approved" ? "Request Approved"
-                    : actionDone === "denied" ? "Request Denied"
-                    : "Returned"}
+                  {actionDone === "approved"      ? "Request Approved"
+                    : actionDone === "denied"     ? "Request Denied"
+                    : actionDone === "in_progress" ? "Reliever Accepted — Awaiting Approver"
+                    : "Returned to Requester"}
                 </p>
                 {actionComment.trim() && (
                   <p className={`text-xs mt-0.5 ${
-                    actionDone === "approved" ? "text-green-700"
-                    : actionDone === "denied" ? "text-red-700"
+                    actionDone === "approved"      ? "text-green-700"
+                    : actionDone === "denied"      ? "text-red-700"
+                    : actionDone === "in_progress" ? "text-teal-700"
                     : "text-amber-700"
                   }`}>
                     Comment: {actionComment}

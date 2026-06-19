@@ -14,6 +14,7 @@ import {
   Store,
   Truck,
   User,
+  UserCircle,
   Users,
 } from "lucide-react";
 
@@ -46,7 +47,7 @@ export const moduleGroups: readonly ModuleGroup[] = [
   // },
   {
     title: "Finance & HR Management",
-    routePrefixes: ["/finance", "/hr-management/leave-requests", "/hr-management/my-payslips"],
+    routePrefixes: ["/finance", "/hr-management/leave-requests", "/hr-management/my-payslips", "/hr-management/my-profile"],
     processes: [
       {
         name: "Cash Requisition",
@@ -71,6 +72,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "View and download your monthly pay slips",
         icon: CreditCard,
         href: "/hr-management/my-payslips",
+      },
+      {
+        name: "My Profile",
+        description: "View your employee profile and documents",
+        icon: UserCircle,
+        href: "/hr-management/my-profile",
       },
       {
         name: "Billing",

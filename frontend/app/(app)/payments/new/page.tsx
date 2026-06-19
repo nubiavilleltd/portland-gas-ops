@@ -1622,6 +1622,7 @@ import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { PAYMENT_METHOD_OPTIONS, PaymentMethod } from "@/lib/modules/payments/types/payments.types";
 import FormSelect from "@/components/forms/FormSelect";
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
+import { BackButton } from "@/components/ui/BackButton";
 
 /* ── INVOICE SELECTOR ─────────────────────────────────────── */
 function InvoiceSelector({
@@ -1789,6 +1790,8 @@ function CreatePaymentPageContent() {
 
   return (
     <AppLayout pageTitle="Record Payment">
+
+      <BackButton label="Back" />
       <PageHeader
         title="Record Payment"
         description="Select an invoice and record payment"

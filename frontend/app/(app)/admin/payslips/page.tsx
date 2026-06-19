@@ -10,6 +10,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import DataTable from "@/components/data-table/data-table";
 import { createPaySlipColumns } from "../_components/columns";
 import { SEED_PAYSLIPS, SEED_EMPLOYEES, PAYROLL_PERIODS, type PaySlip } from "../_components/_data";
+import { useToast } from "@/hooks/useToast";
 
 const fmt = (n: number) => `₦${n.toLocaleString("en-NG")}`;
 
@@ -345,6 +346,7 @@ function OverrideConfirmModal({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PaySlipsPage() {
+  const toast = useToast();
   const [slips,  setSlips]  = useState<PaySlip[]>(SEED_PAYSLIPS);
   const [filterPeriod, setFilterPeriod] = useState("April 2026");
   const [selected, setSelected] = useState<PaySlip | null>(null);
@@ -358,7 +360,10 @@ export default function PaySlipsPage() {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const filtered = slips.filter((s) => s.period === filterPeriod);
-  const columns  = useMemo(() => createPaySlipColumns(setSelected), []);
+  const columns  = useMemo(() => createPaySlipColumns(setSelected, async (slip) => {
+    await downloadSinglePdf(slip);
+    toast.success(`Payslip downloaded for ${slip.employee}`);
+  }), []);
 
   // Filter options — unique periods only
   const filterOptions = useMemo(() => {
@@ -431,12 +436,16 @@ export default function PaySlipsPage() {
     setPreview(null);
     setPreviewPeriod("");
     setCheckedIds(new Set());
+    toast.success(`${toAdd.length} payslip${toAdd.length !== 1 ? "s" : ""} generated for ${previewPeriod}`);
   }
 
   async function handleDownloadZip() {
     setZipping(true);
     try {
       await downloadSlipsAsZip(filtered, filterPeriod);
+      toast.success(`${filtered.length} payslips downloaded as ZIP`);
+    } catch {
+      toast.error("Failed to download payslips");
     } finally {
       setZipping(false);
     }
@@ -469,7 +478,7 @@ export default function PaySlipsPage() {
                 variant="outline"
                 leftIcon={<Download size={13} />}
                 className="text-xs shrink-0"
-                onClick={() => downloadSinglePdf(s)}
+                onClick={async () => { await downloadSinglePdf(s); toast.success(`Payslip downloaded for ${s.employee}`); }}
               >
                 Download PDF
               </Button>

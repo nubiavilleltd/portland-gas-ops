@@ -18,6 +18,13 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import DataTable from "@/components/data-table/data-table";
 import { invoiceColumns } from "@/components/data-table/columns";
 import { formatNumber } from "@/lib/utils/format-number";
+
+function applyCommas(raw: string): string {
+  const clean = raw.replace(/[^0-9.]/g, "");
+  const [int, dec] = clean.split(".");
+  const formatted = (int || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dec !== undefined ? `${formatted}.${dec}` : formatted;
+}
 import {
   CURRENCY_OPTIONS,
   VENDOR_OPTIONS,
@@ -68,11 +75,11 @@ export default function InvoicesPage() {
   const watchTax   = form.watch("tax_amount");
   const watchNet   = form.watch("net_amount");
   useEffect(() => {
-    const gross = parseFloat(watchGross ?? "");
+    const gross = parseFloat((watchGross ?? "").replace(/,/g, ""));
     if (isNaN(gross)) return;
-    const tax = parseFloat(watchTax ?? "");
+    const tax = parseFloat((watchTax ?? "").replace(/,/g, ""));
     const net = isNaN(tax) || watchTax === "" ? gross : gross - tax;
-    form.setValue("net_amount", net.toFixed(2), { shouldValidate: true });
+    form.setValue("net_amount", applyCommas(net.toFixed(2)), { shouldValidate: true });
   }, [watchGross, watchTax, form]);
 
   function onSubmit(data: FormData) {
@@ -83,7 +90,7 @@ export default function InvoicesPage() {
       title: data.title,
       description: data.description,
       department: CURRENT_USER.department,
-      amount: parseFloat(data.net_amount),
+      amount: parseFloat(data.net_amount.replace(/,/g, "")),
       vendor: data.vendor_name,
       invoiceId,
       invoiceNo: data.invoice_number,
@@ -93,8 +100,8 @@ export default function InvoicesPage() {
       status: "pending",
       poNumber: data.po_number,
       currency: data.currency,
-      grossAmount: parseFloat(data.gross_amount),
-      taxAmount: data.tax_amount ? parseFloat(data.tax_amount) : undefined,
+      grossAmount: parseFloat(data.gross_amount.replace(/,/g, "")),
+      taxAmount: data.tax_amount ? parseFloat(data.tax_amount.replace(/,/g, "")) : undefined,
       supportingDocuments: supportingFiles.length > 0
         ? supportingFiles.map((f) => f.name)
         : undefined,
@@ -235,10 +242,8 @@ export default function InvoicesPage() {
                       placeholder="0.00"
                       error={errors.gross_amount?.message}
                       {...form.register("gross_amount", {
-                        onBlur: (e) => {
-                          const rawValue = e.target.value.replace(/,/g, "");
-                          const numValue = parseFloat(rawValue) || 0;
-                          e.target.value = formatNumber(numValue);
+                        onChange: (e) => {
+                          e.target.value = applyCommas(e.target.value);
                         },
                       })}
                     />
@@ -246,10 +251,8 @@ export default function InvoicesPage() {
                       label="VAT / WHT Amount"
                       placeholder="0.00 (optional)"
                       {...form.register("tax_amount", {
-                        onBlur: (e) => {
-                          const rawValue = e.target.value.replace(/,/g, "");
-                          const numValue = parseFloat(rawValue) || 0;
-                          e.target.value = formatNumber(numValue);
+                        onChange: (e) => {
+                          e.target.value = applyCommas(e.target.value);
                         },
                       })}
                     />
@@ -259,10 +262,8 @@ export default function InvoicesPage() {
                       placeholder="0.00"
                       error={errors.net_amount?.message}
                       {...form.register("net_amount", {
-                        onBlur: (e) => {
-                          const rawValue = e.target.value.replace(/,/g, "");
-                          const numValue = parseFloat(rawValue) || 0;
-                          e.target.value = formatNumber(numValue);
+                        onChange: (e) => {
+                          e.target.value = applyCommas(e.target.value);
                         },
                       })}
                     />

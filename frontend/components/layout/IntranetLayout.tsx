@@ -1,0 +1,278 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import {
+  Bell,
+  Menu,
+  X,
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  User,
+  Megaphone,
+  Cake,
+  CheckSquare,
+  CalendarDays,
+  Info,
+} from "lucide-react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+
+const DEMO_NAME   = "Kemi Adeyemi";
+const DEMO_AVATAR = "https://i.pravatar.cc/150?img=21";
+
+const NAV_LINKS = [
+  { label: "Home",    href: "/" },
+  { label: "News",    href: "/news" },
+  { label: "Events",  href: "/events" },
+  { label: "Podcast", href: "/podcast" },
+  { label: "FAQ",     href: "/faq" },
+];
+
+const NOTIFICATIONS = [
+  { id: 1, icon: Megaphone,    color: "#7234BD", bg: "#F3EEFF", title: "New announcement posted", body: "Q2 All-Staff Town Hall — Thursday 12 June", time: "2 min ago",  read: false },
+  { id: 2, icon: Cake,         color: "#B45309", bg: "#FFFBEB", title: "Birthday today 🎂",        body: "Chinyere Okafor from Supply Chain",        time: "1 hr ago",  read: false },
+  { id: 3, icon: CheckSquare,  color: "#166534", bg: "#F0FDF4", title: "Approval needed",          body: "PR-2026-0042 is awaiting your review",     time: "3 hrs ago", read: true  },
+  { id: 4, icon: CalendarDays, color: "#1E40AF", bg: "#EFF6FF", title: "Event reminder",           body: "Family Fun Day registration closes in 10 days", time: "1 day ago", read: true },
+  { id: 5, icon: Info,         color: "#C2410C", bg: "#FFF7ED", title: "HSE alert",                body: "Mandatory refresher training by 30 Jun",  time: "1 day ago", read: true  },
+];
+
+interface Props { children: React.ReactNode }
+
+export default function IntranetLayout({ children }: Props) {
+  const pathname = usePathname();
+  const { user } = useCurrentUser();
+  const { logout } = useAuth();
+  const [mobileOpen,   setMobileOpen]   = useState(false);
+  const [profileOpen,  setProfileOpen]  = useState(false);
+  const [notifOpen,    setNotifOpen]    = useState(false);
+  const [scrolled,     setScrolled]     = useState(false);
+  const notifRef   = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  // Blend with hero when at top; solidify on scroll
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 30);
+    window.addEventListener("scroll", handler, { passive: true });
+    handler(); // run once on mount
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  const displayName = user?.name ?? DEMO_NAME;
+  const firstName   = displayName.split(" ")[0];
+
+  const unread = NOTIFICATIONS.filter((n) => !n.read).length;
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#F5F4F7]" style={{ fontFamily: "var(--font-mulish, var(--font-sans))" }}>
+
+      {/* ── Top Nav ──────────────────────────────────────────────────────── */}
+      {/* Transparent only on home page at top — all other pages always solid */}
+      <header className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        pathname === "/" && !scrolled
+          ? "bg-transparent border-b border-transparent"
+          : "bg-[#1C043B] border-b border-white/10 shadow-lg"
+      )}>
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 h-16 flex items-center gap-6">
+
+          {/* Logo */}
+          <Link href="/" className="shrink-0">
+            <Image
+              src="https://portlandgasltd.com/wp-content/uploads/2024/06/Portland-gas-42.png"
+              alt="Portland Gas"
+              width={130}
+              height={34}
+              className="h-7 w-auto object-contain brightness-0 invert"
+              priority
+            />
+          </Link>
+
+          {/* Desktop nav — centred */}
+          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
+            {NAV_LINKS.map((link) => {
+              const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "px-4 py-2 text-sm font-semibold transition-all duration-150 border-b-2",
+                    active
+                      ? "text-white border-[#FFBC00]"
+                      : "text-white/60 hover:text-white hover:bg-white/10 border-transparent rounded-lg"
+                  )}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-2 ml-auto">
+
+            {/* ── Workflow CTA — always visible ── */}
+            <Link
+              href="/home"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#7234BD] text-[#c084fc] text-xs font-semibold hover:bg-[#7234BD] hover:text-white transition-all duration-150 btn-press"
+            >
+              <LayoutDashboard size={13} />
+              Workflow
+            </Link>
+
+            {/* ── Notifications ── */}
+            <div ref={notifRef} className="relative">
+              <button
+                onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
+                className="relative h-9 w-9 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all btn-press"
+              >
+                <Bell size={17} />
+                {unread > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-[#FFBC00] flex items-center justify-center text-[9px] font-extrabold text-[#1C043B]">
+                    {unread}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-[68px] sm:top-full sm:mt-2 w-auto sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-fade-up">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-bold text-[#1C043B]">Notifications</p>
+                    <span className="text-[10px] text-[#7234BD] font-semibold bg-[#F3EEFF] px-2 py-0.5 rounded-full">
+                      {unread} new
+                    </span>
+                  </div>
+                  <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+                    {NOTIFICATIONS.map((n) => (
+                      <div
+                        key={n.id}
+                        className={cn(
+                          "flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer",
+                          !n.read && "bg-[#F3EEFF]/40"
+                        )}
+                      >
+                        <div
+                          className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                          style={{ backgroundColor: n.bg }}
+                        >
+                          <n.icon size={15} style={{ color: n.color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn("text-sm leading-snug", !n.read ? "font-semibold text-[#1C043B]" : "font-medium text-gray-700")}>
+                            {n.title}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{n.body}</p>
+                          <p className="text-[10px] text-gray-300 mt-1">{n.time}</p>
+                        </div>
+                        {!n.read && <span className="h-2 w-2 rounded-full bg-[#7234BD] shrink-0 mt-2" />}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-4 py-2.5 border-t border-gray-100 text-center">
+                    <button className="text-xs text-[#7234BD] font-semibold hover:underline">
+                      Mark all as read
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Profile ── */}
+            <div ref={profileRef} className="relative">
+              <button
+                onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-all btn-press"
+              >
+                <Image
+                  src={DEMO_AVATAR}
+                  alt={displayName}
+                  width={28}
+                  height={28}
+                  className="rounded-full object-cover ring-2 ring-white/20 shrink-0"
+                />
+                <span className="hidden sm:block text-sm text-white/80 font-medium max-w-[90px] truncate">
+                  {firstName}
+                </span>
+                <ChevronDown size={13} className={cn("text-white/40 hidden sm:block transition-transform duration-200", profileOpen && "rotate-180")} />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-50 animate-fade-up">
+                  <div className="px-4 py-2.5 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
+                    <p className="text-xs text-gray-400 truncate">{user?.email ?? "kemi.adeyemi@portlandgas.com"}</p>
+                  </div>
+                  <Link href="/hr-management/my-profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <User size={14} className="text-gray-400" /> My Profile
+                  </Link>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button
+                    onClick={() => { setProfileOpen(false); logout(); }}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 w-full text-left transition-colors"
+                  >
+                    <LogOut size={14} /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile toggle */}
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all btn-press"
+            >
+              {mobileOpen ? <X size={17} /> : <Menu size={17} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile nav — always rendered, slides open/shut */}
+        <div
+          className={cn(
+            "lg:hidden bg-[#1C043B] px-4 overflow-hidden transition-all duration-300 ease-in-out",
+            mobileOpen
+              ? "max-h-64 opacity-100 py-3 border-t border-white/10"
+              : "max-h-0 opacity-0 py-0 border-t-0"
+          )}
+        >
+          <div className="space-y-1">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "block px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors",
+                  pathname === link.href ? "bg-white/15 text-white" : "text-white/60 hover:text-white hover:bg-white/10"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link href="/home" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#c084fc] font-semibold">
+              <LayoutDashboard size={14} /> Workflow Portal
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* pt-16 offsets the fixed header (h-16 = 64px) */}
+      <main className="animate-page-enter pt-16">{children}</main>
+    </div>
+  );
+}

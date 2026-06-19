@@ -11,6 +11,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
+import { useToast } from "@/hooks/useToast";
 import { CASH_STORE, type CashRequest } from "../../_components/_data";
 
 const STATUS_STEP: Record<string, number> = {
@@ -28,7 +29,7 @@ type PageRole = "requester" | "approver" | "admin";
 
 const ROLE_OPTIONS: { value: PageRole; label: string }[] = [
   { value: "requester", label: "Requester" },
-  { value: "approver", label: "Approver" },
+  { value: "approver", label: "Operations Manager/Finance" },
 ];
 
 export default function CashRequisitionDetailPage({
@@ -45,11 +46,15 @@ export default function CashRequisitionDetailPage({
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
+  const toast = useToast();
 
   function handleApprovalAction(action: ActionResult, comment: string) {
     setRecord((prev) => (prev ? { ...prev, status: action } : prev));
     setActionDone(action);
     setActionComment(comment);
+    if (action === "approved") toast.success("Request approved successfully");
+    else if (action === "denied") toast.error("Request denied");
+    else toast.info("Request returned to requester");
   }
 
   return (
@@ -77,7 +82,7 @@ export default function CashRequisitionDetailPage({
             id={record.ref}
             currentRole={currentRole}
             onRoleChange={setCurrentRole}
-            roleLabel={currentRole === "approver" ? "Approver" : currentRole === "admin" ? "Admin" : "Requester"}
+            roleLabel={currentRole === "approver" ? "Operations Manager/Finance" : currentRole === "admin" ? "Admin" : "Requester"}
             roles={ROLE_OPTIONS}
             status={<ApprovalBadge status={record.status} />}
             recordLabel="Cash Requisition"
@@ -128,7 +133,7 @@ export default function CashRequisitionDetailPage({
           {/* Approval Action */}
           {ACTIONABLE.has(record.status) && !actionDone && currentRole !== "requester" && (
             <ApprovalPanel
-              reviewingAs={currentRole === "approver" ? "Approver" : "Requester"}
+              reviewingAs={currentRole === "approver" ? "Operations Manager/Finance" : "Requester"}
               showReturn
               showReject
               showApprove

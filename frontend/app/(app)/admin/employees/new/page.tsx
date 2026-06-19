@@ -11,6 +11,7 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormFileUpload from "@/components/forms/FormFileUpload";
 import Button from "@/components/ui/Button";
 import { formatNumber } from "@/lib/utils/format-number";
+import { useToast } from "@/hooks/useToast";
 import {
   EMPLOYEE_STORE,
   SEED_EMPLOYEE_RECORDS,
@@ -62,6 +63,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function NewEmployeePage() {
   const router = useRouter();
+  const toast = useToast();
   const [empForm, setEmpForm] = useState<EmployeeFormState>({});
 
   const ue = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v }));
@@ -117,6 +119,7 @@ export default function NewEmployeePage() {
       } as EmployeeRecord);
     });
 
+    toast.success(`Employee ${empName} created successfully`);
     router.push("/admin/employees");
   };
 
@@ -180,6 +183,7 @@ export default function NewEmployeePage() {
             />
             <FormSelect
               label="Grade Level" required options={GRADE_OPTIONS} placeholder="Select grade level"
+              sortOptions={false}
               value={empForm.grade ?? ""}
               onValueChange={(v) => ue("grade", v)}
             />
