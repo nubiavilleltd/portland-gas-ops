@@ -17,13 +17,6 @@ import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 
 
-
-
-
-
-
-
-
 export default function InvoicesPage() {
 
   const {invoices} = useInvoices()

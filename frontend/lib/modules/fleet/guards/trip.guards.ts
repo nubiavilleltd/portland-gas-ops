@@ -1,4 +1,4 @@
-import type { Trip } from "../types/trip.types";
+import type { Trip, TripStatus } from "../types/trip.types";
 import type { Driver } from "../types/driver.types";
 import type { Vehicle } from "../types/vehicle.types";
 import { Order } from "../../orders/types/orders.types";
@@ -125,6 +125,13 @@ export function canStartTrip(trip: Trip) {
 
 export function canCompleteTrip(trip: Trip): boolean {
   return trip.status === "in_transit" 
+}
+
+export function canCancelTrip(trip: Trip): boolean {
+  const cancellableStatuses: TripStatus[] = [
+    "pending", "assigned", "awaiting_inventory", "ready"
+  ];
+  return cancellableStatuses.includes(trip.status);
 }
 
 

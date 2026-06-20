@@ -14,6 +14,7 @@ import { OrdersService } from "../../orders/services/orders.service";
 import { DriversService } from "./drivers.service";
 import { VehiclesService } from "./vehicles.service";
 import { canLinkOrderToTrip } from "../guards/trip.guards";
+import { UpdateOrderInput } from "../../orders/types/orders.types";
 
 export class TripsService {
   // ── READ ────────────────────────────────────────────────
@@ -227,32 +228,37 @@ export class TripsService {
 
   // ── CANCEL ──────────────────────────────────────────────
 
-  static async cancelTrip(tripId: string): Promise<Trip> {
-    const trip = trips.find((t) => t.id === tripId);
-    if (!trip) throw new Error("Trip not found");
-    if (trip.status === "completed") {
-      throw new Error("Cannot cancel a completed trip");
-    }
-
-    trip.status = "cancelled";
-
-    if (trip.driver_id) {
-      await DriversService.releaseDriver(trip.driver_id);
-    }
-    if (trip.vehicle_id) {
-      await VehiclesService.releaseVehicle(trip.vehicle_id);
-    }
-
-    // Revert orders back to pending
-    for (const orderId of trip.order_ids) {
-      const order = await OrdersService.getOrderById(orderId);
-      if (order && order.fulfillment_status !== "delivered") {
-        await OrdersService.updateFulfillmentStatus(orderId, "pending");
-      }
-    }
-
-    return Promise.resolve(trip);
+static async cancelTrip(tripId: string, reason?: string): Promise<Trip> {
+  const trip = trips.find((t) => t.id === tripId);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.status === "completed") {
+    throw new Error("Cannot cancel a completed trip");
   }
+
+  trip.status = "cancelled";
+  trip.cancellation_reason = reason;
+  trip.cancelled_at = new Date().toISOString();
+
+  if (trip.driver_id) {
+    await DriversService.releaseDriver(trip.driver_id);
+  }
+  if (trip.vehicle_id) {
+    await VehiclesService.releaseVehicle(trip.vehicle_id);
+  }
+
+  // Revert orders back to pending and unlink from this trip — one call, not two
+  for (const orderId of trip.order_ids) {
+    const order = await OrdersService.getOrderById(orderId);
+    if (order && order.fulfillment_status !== "delivered") {
+      await OrdersService.updateOrder(orderId, {
+        fulfillment_status: "pending",
+        trip_id: null,
+      } as UpdateOrderInput);
+    }
+  }
+
+  return Promise.resolve(trip);
+}
 
   // ── ADD ORDER TO TRIP ────────────────────────────────────
 

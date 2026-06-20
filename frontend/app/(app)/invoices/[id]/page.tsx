@@ -9,7 +9,7 @@ import FormSection from "@/components/ui/FormSection";
 
 import { formatCurrency, formatDate, toTitleCase } from "@/lib/utils";
 
-import { OrderLineItem, PaymentStatus } from "@/lib/modules/orders/types/orders.types";
+import { Order, OrderLineItem, PaymentStatus } from "@/lib/modules/orders/types/orders.types";
 
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
@@ -30,6 +30,8 @@ import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { Payment } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
+import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
+import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -84,7 +86,7 @@ export default function InvoiceDetailPage() {
       ? "partially_paid"
       : "unpaid";
 
-
+const canPay = canMakePayment(invoice as Invoice, order as Order);
 
   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
@@ -286,7 +288,7 @@ export default function InvoiceDetailPage() {
         {/* PAYMENTS */}
         <FormSection title="Payments" description="Review payment history and invoice payment status.">
           <div className="mb-4 flex items-center justify-end">
-            {!isPaid && (
+            {!isPaid && canPay && (
               <Button
                 size="sm"
                 href={`/payments/new?invoiceId=${invoice.id}`}

@@ -24,6 +24,7 @@ import {
   canCompleteTrip,
   canDispatchTrip,
   canStartTrip,
+  canCancelTrip
 } from "@/lib/modules/fleet/guards/trip.guards";
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 
@@ -76,7 +77,6 @@ export default function TripDetailPage() {
     .map((id) => ordersMap.get(id))
     .filter(Boolean);
 
-  console.log("orderMap:", { ordersMap, linkedOrders });
 
   const orderColumns: SimpleTableColumn<Order>[] = [
     {
@@ -120,6 +120,7 @@ export default function TripDetailPage() {
   const canStart = canStartTrip(trip);
   const canComplete = canCompleteTrip(trip);
   const canAssignInventoryToTrip = canAssignInventory(trip);
+  const canCancel = canCancelTrip(trip);
 
   return (
     <AppLayout pageTitle={trip.trip_number}>
@@ -158,6 +159,11 @@ export default function TripDetailPage() {
                 Assign Inventory →
               </Button>
             )}
+            {canCancel && (
+              <Button variant="danger" href={`/fleet/trips/${tripId}/cancel`}>
+                Cancel Trip →
+              </Button>
+            )}
           </div>
         }
         className="mb-6"
@@ -194,9 +200,44 @@ export default function TripDetailPage() {
           title="Status Flow"
           description="Track the current stage of the trip lifecycle"
         >
-          {trip.status === "cancelled" ? (
+
+
+          {/* {trip.status === "cancelled" ? (
             <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 inline-block">
               Cancelled
+            </div>
+          ) : ( */}
+          {trip.status === "cancelled" ? (
+            <div className="space-y-3">
+              {/* Cancelled badge, prominent */}
+              <div className="flex items-center gap-2">
+                <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 inline-block">
+                  ✕ Cancelled
+                </div>
+                {trip.cancelled_at && (
+                  <span className="text-xs text-brand-text-secondary">
+                    on {formatDate(trip.cancelled_at)}
+                  </span>
+                )}
+              </div>
+
+              {/* Faded progress trail showing how far it got */}
+              <div className="flex gap-2 flex-wrap opacity-50">
+                {STATUS_ORDER.map((step) => (
+                  <div
+                    key={step}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400"
+                  >
+                    <span className="capitalize">{step.replace("_", " ")}</span>
+                  </div>
+                ))}
+              </div>
+
+              {trip.cancellation_reason && (
+                <p className="text-xs text-brand-text-secondary">
+                  Reason: {trip.cancellation_reason}
+                </p>
+              )}
             </div>
           ) : (
             <div className="flex gap-2 flex-wrap">
@@ -227,6 +268,7 @@ export default function TripDetailPage() {
               })}
             </div>
           )}
+
         </FormSection>
 
         {/* ASSIGNMENT */}
@@ -292,8 +334,8 @@ export default function TripDetailPage() {
         )}
 
         <FormSection title="Activity" description="Timeline of actions taken on this trip">
-  <AuditTimeline entries={entries} />
-</FormSection>
+          <AuditTimeline entries={entries} />
+        </FormSection>
       </div>
     </AppLayout>
   );

@@ -1,3 +1,4 @@
+import { Invoice } from "../../invoices/types/invoice.types";
 import type { Order } from "../types/orders.types";
 
 
@@ -70,14 +71,6 @@ export function canGenerateInvoice(order: Order): boolean {
   return order.order_status === "submitted" && !order.invoice_id;
 }
 
-// export function canConfirmDelivery(order: Order): boolean {
-//   return order.fulfillment_status === "dispatched" ||
-//     order.fulfillment_status === "in_transit";
-
-// }
-
-
-
 
 
 
@@ -85,13 +78,6 @@ export function canConfirmDelivery(order: Order): boolean {
   return (
     order.order_status === "confirmed" && order.fulfillment_status === "in_transit")
 }
-// export function canConfirmDelivery(order: Order): boolean {
-//   return (
-//     order.order_status === "confirmed" &&
-//     (order.fulfillment_status === "dispatched" ||
-//       order.fulfillment_status === "in_transit")
-//   );
-// }
 
 
 /**
@@ -104,4 +90,22 @@ export function canCloseOrder(order: Order): boolean {
   );
 }
 
+export function canCancelOrder(order: Order): boolean {
+  if (order.order_status === "completed" || order.order_status === "cancelled" || order.order_status === "draft") {
+    return false;
+  }
+  // Block if already moving through fulfillment
+  if (["dispatched", "in_transit", "delivered"].includes(order.fulfillment_status)) {
+    return false;
+  }
+  return true;
+}
+
+
+export function canMakePayment(invoice:Invoice, order: Order): boolean {
+  return (
+    invoice &&
+    order.payment_status !== "paid" && order.order_status !== "cancelled"
+  );
+}
 

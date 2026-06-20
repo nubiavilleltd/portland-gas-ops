@@ -42,6 +42,10 @@ export interface Trip {
   dispatch_date?: string;   // When the trip was formally dispatched
   started_at?: string;      // When the driver pressed "Start Trip"
   completed_at?: string;    // When all deliveries confirmed
+  cancelled_at?: string;    // When the trip was cancelled
+
+  // Cancellation
+  cancellation_reason?: string;
 
   // Status
   status: TripStatus;
