@@ -228,37 +228,37 @@ export class TripsService {
 
   // ── CANCEL ──────────────────────────────────────────────
 
-static async cancelTrip(tripId: string, reason?: string): Promise<Trip> {
-  const trip = trips.find((t) => t.id === tripId);
-  if (!trip) throw new Error("Trip not found");
-  if (trip.status === "completed") {
-    throw new Error("Cannot cancel a completed trip");
-  }
-
-  trip.status = "cancelled";
-  trip.cancellation_reason = reason;
-  trip.cancelled_at = new Date().toISOString();
-
-  if (trip.driver_id) {
-    await DriversService.releaseDriver(trip.driver_id);
-  }
-  if (trip.vehicle_id) {
-    await VehiclesService.releaseVehicle(trip.vehicle_id);
-  }
-
-  // Revert orders back to pending and unlink from this trip — one call, not two
-  for (const orderId of trip.order_ids) {
-    const order = await OrdersService.getOrderById(orderId);
-    if (order && order.fulfillment_status !== "delivered") {
-      await OrdersService.updateOrder(orderId, {
-        fulfillment_status: "pending",
-        trip_id: null,
-      } as UpdateOrderInput);
+  static async cancelTrip(tripId: string, reason?: string): Promise<Trip> {
+    const trip = trips.find((t) => t.id === tripId);
+    if (!trip) throw new Error("Trip not found");
+    if (trip.status === "completed") {
+      throw new Error("Cannot cancel a completed trip");
     }
-  }
 
-  return Promise.resolve(trip);
-}
+    trip.status = "cancelled";
+    trip.cancellation_reason = reason;
+    trip.cancelled_at = new Date().toISOString();
+
+    if (trip.driver_id) {
+      await DriversService.releaseDriver(trip.driver_id);
+    }
+    if (trip.vehicle_id) {
+      await VehiclesService.releaseVehicle(trip.vehicle_id);
+    }
+
+    // Revert orders back to pending and unlink from this trip — one call, not two
+    for (const orderId of trip.order_ids) {
+      const order = await OrdersService.getOrderById(orderId);
+      if (order && order.fulfillment_status !== "delivered") {
+        await OrdersService.updateOrder(orderId, {
+          fulfillment_status: "pending",
+          trip_id: null,
+        } as UpdateOrderInput);
+      }
+    }
+
+    return Promise.resolve(trip);
+  }
 
   // ── ADD ORDER TO TRIP ────────────────────────────────────
 
@@ -295,4 +295,14 @@ static async cancelTrip(tripId: string, reason?: string): Promise<Trip> {
     trip.status = "ready";
     return Promise.resolve(trip);
   }
+
+  static async removeOrderFromTrip(tripId: string, orderId: string): Promise<Trip> {
+    const trip = trips.find((t) => t.id === tripId);
+    if (!trip) return Promise.resolve(trip as any); // trip may already be gone/cancelled — don't throw
+    trip.order_ids = trip.order_ids.filter((id) => id !== orderId);
+    return Promise.resolve(trip);
+  }
 }
+
+
+

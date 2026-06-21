@@ -32,11 +32,13 @@ import { Payment } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { customers } = useCustomers()
+  const { products } = useProducts();
 
   const customerMap = Object.fromEntries(
     customers.map((cutomer) => [
@@ -44,6 +46,9 @@ export default function InvoiceDetailPage() {
       cutomer,
     ])
   );
+
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
 
   const id = params.id as string;
 
@@ -91,11 +96,21 @@ const canPay = canMakePayment(invoice as Invoice, order as Order);
   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
       label: "Product",
-      render: (item) => <span className="font-medium">{item.product_name}</span>,
+      render: (item) => (
+        <span className="font-medium">{item.product_name}</span>
+      ),
     },
     {
       label: "Quantity",
-      render: (item) => `${item.quantity.toLocaleString()} kg`,
+      render: (item) => {
+        const unit = productMap.get(item.product_id)?.unit ?? "unit";
+        // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
+        return `${item.quantity.toLocaleString()} ${unit}`;
+      },
+    },
+    {
+      label: "Unit Price",
+      render: (item) => formatCurrency(item.unit_price),
     },
     {
       label: "Total",
@@ -268,7 +283,7 @@ const canPay = canMakePayment(invoice as Invoice, order as Order);
                 keyExtractor={(_, index) => String(index)}
                 footer={
                   <tr>
-                    <td colSpan={2} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+                    <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
                       Grand Total
                     </td>
                     <td className="pt-3 text-right font-semibold">

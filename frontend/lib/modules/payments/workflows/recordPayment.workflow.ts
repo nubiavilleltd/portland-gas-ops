@@ -40,6 +40,7 @@ import type { PaymentMethod } from "../types/payments.types";
 import { OrdersService } from "../../orders/services/orders.service";
 import { AuditService } from "../../audit/services/audit.service";
 import { CURRENT_ACTOR, SYSTEM_ACTOR } from "../../audit/constants/current-actor";
+import { formatCurrency } from "@/lib/utils";
 
 export async function recordPaymentWorkflow(
   invoice: Invoice,
@@ -58,12 +59,14 @@ export async function recordPaymentWorkflow(
     recorded_by: "Admin User",
   });
 
+  
+
   // Audit: payment recorded against the invoice/order
   await AuditService.record({
     entity_type: "order",
     entity_id: invoice.order_id,
     action: "payment_recorded",
-    description: `Payment of ${data.amount} recorded against invoice ${invoice.invoice_number}`,
+    description: `Payment of ${formatCurrency(data.amount)} recorded against invoice ${invoice.invoice_number}`,
     actor: CURRENT_ACTOR,
   });
 

@@ -107,8 +107,8 @@ export default function OrderDetailPage() {
       label: "Quantity",
       render: (item) => {
         const unit = productMap.get(item.product_id)?.unit ?? "unit";
-        const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
-        return `${item.quantity.toLocaleString()} ${formattedUnit}`;
+        // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
+        return `${item.quantity.toLocaleString()} ${unit}`;
       },
     },
     {
