@@ -50,22 +50,6 @@ export function canAssignVehicle(
 
 
 
-
-// export function canAssignResourcesToTrip(trip: Trip | undefined) {
-//   if (!trip) return false;
-//   // return trip.status === "pending" || trip.status === "assigned";
-//   return trip.status === "pending"
-// }
-
-// export function canAssignResourcesToTrip(trip: Trip | undefined) {
-//   if (!trip) return false;
-//   return (
-//     trip.status === "pending" ||
-//     trip.status === "assigned" ||
-//     trip.status === "awaiting_inventory"
-//   );
-// }
-
 export function canAssignResourcesToTrip(trip: Trip | undefined) {
   if (!trip) return false;
   return trip.status === "pending";  // only show before first assignment
@@ -76,37 +60,10 @@ export function canAssignResourcesToTrip(trip: Trip | undefined) {
 // FULL RESOURCE ASSIGNMENT
 // ─────────────────────────────────────────────
 
-export function canAssignResources(params: {
-  trip: Trip | undefined;
-  driver: Driver | undefined;
-  vehicle: Vehicle | undefined;
-}) {
-  const {
-    trip,
-    driver,
-    vehicle,
-  } = params;
-
-  return (
-    canAssignResourcesToTrip(trip) &&
-    canAssignDriver(driver) &&
-    canAssignVehicle(vehicle)
-  );
-}
-
-
-
-// export function canDispatchTrip(trip: Trip) {
-//   return trip.status === "assigned";
-// }
-
 export function canDispatchTrip(trip: Trip): boolean {
   return trip.status === "assigned" || trip.status === "ready";
 }
 
-// export function canAssignInventory(trip: Trip): boolean {
-//   return trip.status === "awaiting_inventory";
-// }
 
 export function canAssignInventory(trip: Trip): boolean {
   return (
@@ -115,9 +72,7 @@ export function canAssignInventory(trip: Trip): boolean {
   );
 }
 
-export function canMarkReady(trip: Trip): boolean {
-  return trip.status === "awaiting_inventory";
-}
+
 
 export function canStartTrip(trip: Trip) {
   return trip.status === "dispatched"
