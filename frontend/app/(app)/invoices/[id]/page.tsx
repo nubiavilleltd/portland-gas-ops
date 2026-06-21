@@ -33,6 +33,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { needsPayment } from "@/lib/modules/payments/types/payments.types";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -41,9 +42,9 @@ export default function InvoiceDetailPage() {
   const { products } = useProducts();
 
   const customerMap = Object.fromEntries(
-    customers.map((cutomer) => [
-      cutomer.id,
-      cutomer,
+    customers.map((customer) => [
+      customer.id,
+      customer,
     ])
   );
 
@@ -80,18 +81,9 @@ export default function InvoiceDetailPage() {
   const balance =
     invoice.total_amount - amountPaid;
 
-  const isPaid = balance <= 0;
+  const badgeStatus: PaymentStatus = invoice.status;
 
-  const isPartial =
-    !isPaid && amountPaid > 0;
-
-  const badgeStatus: PaymentStatus = isPaid
-    ? "paid"
-    : isPartial
-      ? "partially_paid"
-      : "unpaid";
-
-const canPay = canMakePayment(invoice as Invoice, order as Order);
+  const canPay = canMakePayment(invoice as Invoice, order as Order);
 
   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
@@ -233,34 +225,6 @@ const canPay = canMakePayment(invoice as Invoice, order as Order);
         </FormSection>
 
         {/* RELATED ORDER */}
-        {/* {order && (
-          <FormSection
-            title="Related Order"
-            description="Linked order information for this invoice"
-          >
-            <div className="mb-4 grid grid-cols-2 gap-5 text-sm md:grid-cols-3">
-              <InfoRow
-                label="Order Number"
-                value={order.order_number}
-              />
-
-              <InfoRow
-                label="Customer"
-                value={customerMap[order.customer_id].name}
-              />
-
-    
-            </div>
-
-            <Button
-              variant="outline"
-              href={`/orders/${order.id}`}
-            >
-              View Order →
-            </Button>
-          </FormSection>
-        )} */}
-
 
         {order && (
           <FormSection
@@ -303,7 +267,7 @@ const canPay = canMakePayment(invoice as Invoice, order as Order);
         {/* PAYMENTS */}
         <FormSection title="Payments" description="Review payment history and invoice payment status.">
           <div className="mb-4 flex items-center justify-end">
-            {!isPaid && canPay && (
+            {needsPayment(invoice.status) && canPay && (
               <Button
                 size="sm"
                 href={`/payments/new?invoiceId=${invoice.id}`}
@@ -334,7 +298,7 @@ const canPay = canMakePayment(invoice as Invoice, order as Order);
             }
           />
 
-          {isPaid && (
+          {invoice.status === "paid" && (
             <div className="mt-4 flex gap-2">
               <Button
                 href={`/payments/${invoice.id}/receipt`}
