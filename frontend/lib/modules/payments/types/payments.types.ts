@@ -1,5 +1,12 @@
 export type PaymentMethod = "bank_transfer" | "cash" | "card" | "cheque";
 
+export type PaymentStatus =
+  | "unpaid"
+  | "partially_paid"
+  | "paid"
+  | "overdue"
+  | "void";
+
 export interface Payment {
   id: string;
 

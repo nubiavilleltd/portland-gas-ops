@@ -3,6 +3,8 @@
 //  All order-related types live here. Import from here, not from mock files.
 // ============================================================
 
+import { PaymentStatus } from "../../payments/types/payments.types";
+
 
 
 
@@ -50,14 +52,6 @@ export type FulfillmentStatus =
   | "in_transit"
   | "delivered"
   | "failed";
-
-// ── 3. PAYMENT STATUS ─────────────────────────────────────
-// Tracks the billing / cash-collection state.
-export type PaymentStatus =
-  | "unpaid"
-  | "partially_paid"
-  | "paid"
-  | "overdue";
 
 
 export interface OrderLineItem {

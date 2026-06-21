@@ -9,7 +9,7 @@ import FormSection from "@/components/ui/FormSection";
 
 import { formatCurrency, formatDate, toTitleCase } from "@/lib/utils";
 
-import { Order, OrderLineItem, PaymentStatus } from "@/lib/modules/orders/types/orders.types";
+import { Order, OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
@@ -28,7 +28,7 @@ import {
 } from "@/lib/modules/payments/hooks/usePayments";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
-import { Payment } from "@/lib/modules/payments/types/payments.types";
+import { Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";

@@ -7,13 +7,13 @@ import type {
   Order,
   OrderStatus,
   FulfillmentStatus,
-  PaymentStatus,
   CreateOrderInput,
   UpdateOrderInput,
   OrderKPIs,
 } from "@/lib/modules/orders/types/orders.types";
 import { generateOrderId, generateOrderNumber } from "../utils";
 import { ItemDisposition } from "../../inventory/types/inventory.types";
+import { PaymentStatus } from "../../payments/types/payments.types";
 
 // ============================================================
 // INTERNAL HELPERS

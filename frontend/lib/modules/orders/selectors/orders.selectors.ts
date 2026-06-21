@@ -4,12 +4,12 @@ import type {
   Order,
   OrderStatus,
   FulfillmentStatus,
-  PaymentStatus,
   OrderKPIs,
 } from "@/lib/modules/orders/types/orders.types";
 
 import type { Product } from "../../products/types/product.types";
 import type { CreateOrderFormValues } from "../schemas/create-order.schema";
+import { PaymentStatus } from "../../payments/types/payments.types";
 
 // ── LOOKUPS ─────────────────────────────────────────────
 

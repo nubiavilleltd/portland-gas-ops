@@ -6,9 +6,8 @@
 
 import { OrdersService } from "../../orders/services/orders.service";
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
-import { PaymentStatus } from "@/lib/modules/orders/types/orders.types";
 import { payments } from "@/lib/modules/payments/mocks/payments.mock";
-import { CreatePaymentInput, Payment } from "@/lib/modules/payments/types/payments.types";
+import { CreatePaymentInput, Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 
 
 
