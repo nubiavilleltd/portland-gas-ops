@@ -34,12 +34,16 @@ import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { needsPayment } from "@/lib/modules/payments/types/payments.types";
+import { Download } from "lucide-react";
+import { useState } from "react";
+import { generateInvoicePdf } from "@/lib/pdf/invoice.pdf";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { customers } = useCustomers()
   const { products } = useProducts();
+  const [downloading, setDownloading] = useState(false);
 
   const customerMap = Object.fromEntries(
     customers.map((customer) => [
@@ -64,6 +68,9 @@ export default function InvoiceDetailPage() {
 
   const { payments: invoicePayments } =
     usePaymentsByInvoice(invoice?.id as string);
+
+
+
 
   if (!invoice) {
     return (
@@ -135,6 +142,27 @@ export default function InvoiceDetailPage() {
     },
   ];
 
+
+  async function handleDownloadPdf() {
+    if (!invoice) return;
+    setDownloading(true);
+    try {
+      const productUnitMap = new Map(products.map((p) => [p.id, p.unit]));
+      await generateInvoicePdf({
+        invoice,
+        order,
+        customer: order ? customerMap[order.customer_id] : undefined,
+        payments: invoicePayments,
+        amountPaid,
+        productUnitMap,
+      });
+    } catch {
+      // could add a toast here
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <AppLayout pageTitle="Invoice Details">
 
@@ -152,8 +180,17 @@ export default function InvoiceDetailPage() {
               </Button>
             )} */}
 
-            <Button variant="outline">
+            {/* <Button variant="outline">
               View PDF
+            </Button> */}
+
+            <Button
+              variant="outline"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              leftIcon={<Download size={14} />}
+            >
+              {downloading ? "Generating…" : "Download Invoice"}
             </Button>
           </div>
         }
