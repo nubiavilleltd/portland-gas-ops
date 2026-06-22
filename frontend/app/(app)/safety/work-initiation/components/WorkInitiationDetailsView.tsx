@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
@@ -22,6 +21,10 @@ import {
 } from "@/lib/mock/work-initiation";
 import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
+import {
+  formatSafetyDisplayDate,
+  formatSafetyDisplayDateTime,
+} from "@/lib/safety-demo-dates";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -73,7 +76,7 @@ export default function WorkInitiationDetailsView({
     .map((report) => ({
       value: report.id,
       label: `${report.id} - ${report.title || report.reportType}`,
-      description: `${report.reporter.name} | ${report.reporter.reportDate}`,
+      description: `${report.reporter.name} | ${formatSafetyDisplayDate(report.reporter.reportDate)}`,
     }));
   const [currentRole, setCurrentRole] = useState<WorkInitiationRole>(
     initialRole ?? "requester",
@@ -294,7 +297,12 @@ export default function WorkInitiationDetailsView({
         <ReviewResult request={request} />
       ) : null}
 
-      {request.status !== "draft" ? <AuditTrail items={request.auditTrail} /> : null}
+      {request.status !== "draft" ? (
+        <AuditTrail
+          items={request.auditTrail}
+          formatDateTime={formatSafetyDisplayDateTime}
+        />
+      ) : null}
     </div>
   );
 }
@@ -306,7 +314,7 @@ function RequesterDetails({ request }: { request: WorkInitiationRequest }) {
         <FormInput label="Requester Name" value={request.requester.name} disabled />
         <FormInput label="Department" value={request.requester.department} disabled />
         <FormInput label="Job Title / Role" value={request.requester.role} disabled />
-        <FormDatePicker label="Request Date" value={request.requester.requestDate} disabled />
+        <FormInput label="Request Date" value={formatSafetyDisplayDate(request.requester.requestDate)} disabled />
       </div>
     </FormSection>
   );
@@ -388,9 +396,9 @@ function WorkDetails({
           options={locationOptions}
           placeholder="Select or add location"
         />
-        <FormTextarea label="Exact Work Area" defaultValue={request.exactWorkArea} disabled={!editable} />
-        <FormTextarea label="Work Description" defaultValue={request.workDescription} disabled={!editable} />
-        <FormTextarea label="Reason for Work" defaultValue={request.reasonForWork} disabled={!editable} />
+        <FormTextarea label="Exact Work Area" minLength={5} defaultValue={request.exactWorkArea} disabled={!editable} />
+        <FormTextarea label="Work Description" minLength={5} defaultValue={request.workDescription} disabled={!editable} />
+        <FormTextarea label="Reason for Work" minLength={5} defaultValue={request.reasonForWork} disabled={!editable} />
       </div>
       <div className="mt-4">
         <AttachmentList attachments={request.attachments} />
@@ -462,9 +470,9 @@ function AssignmentPlanning({
             />
           </>
         ) : null}
-        <FormInput label="Planned Start Date/Time" defaultValue={assignment.plannedStartDateTime} disabled={!editable} />
-        <FormInput label="Planned End Date/Time" defaultValue={assignment.plannedEndDateTime} disabled={!editable} />
-        <FormTextarea label="Materials / Parts Required" defaultValue={assignment.materialsRequired} disabled={!editable} className="md:col-span-2" />
+        <FormInput label="Planned Start Date/Time" defaultValue={formatSafetyDisplayDateTime(assignment.plannedStartDateTime)} disabled={!editable} />
+        <FormInput label="Planned End Date/Time" defaultValue={formatSafetyDisplayDateTime(assignment.plannedEndDateTime)} disabled={!editable} />
+        <FormTextarea label="Materials / Parts Required" minLength={5} defaultValue={assignment.materialsRequired} disabled={!editable} className="md:col-span-2" />
       </div>
     </FormSection>
   );
@@ -478,8 +486,8 @@ function ReviewResult({ request }: { request: WorkInitiationRequest }) {
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Reviewer" value={review.reviewer} disabled />
         <FormInput label="Review Decision" value={review.decision} disabled />
-        <FormInput label="Review Date/Time" value={review.dateTime} disabled />
-        <FormTextarea label="Review Comment" value={review.comment} disabled />
+        <FormInput label="Review Date/Time" value={formatSafetyDisplayDateTime(review.dateTime)} disabled />
+        <FormTextarea label="Review Comment" minLength={5} value={review.comment} disabled />
       </div>
     </FormSection>
   );
@@ -503,8 +511,8 @@ function ApprovalResult({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Approver" value={approver} disabled />
         <FormInput label="Decision" value={decision} disabled />
-        <FormInput label="Review Date/Time" value={dateTime} disabled />
-        <FormTextarea label="Comment" value={comment} disabled />
+        <FormInput label="Review Date/Time" value={formatSafetyDisplayDateTime(dateTime)} disabled />
+        <FormTextarea label="Comment" minLength={5} value={comment} disabled />
       </div>
     </FormSection>
   );

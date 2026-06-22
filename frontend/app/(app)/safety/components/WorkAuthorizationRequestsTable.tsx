@@ -9,6 +9,7 @@ import {
   getAdminWorkAuthorizationHref,
   sortByLatestSafetyActivity,
 } from "@/lib/safety-demo-routing";
+import { formatSafetyDisplayDateTime } from "@/lib/safety-demo-dates";
 import { fetchWorkAuthorizationRequests } from "@/lib/mock/work-authorization-api";
 import type { WorkAuthorizationRequest } from "@/types/safety";
 
@@ -45,7 +46,7 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "plannedStartDateTime",
     label: "Planned Start",
-    render: (_, row) => row.workInitiation.plannedStartDateTime,
+    render: (_, row) => formatSafetyDisplayDateTime(row.workInitiation.plannedStartDateTime),
   },
   {
     key: "status",

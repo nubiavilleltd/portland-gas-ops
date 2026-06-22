@@ -17,6 +17,10 @@ import { useToast } from "@/hooks/useToast";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
+import {
+  formatSafetyDisplayDate,
+  formatSafetyDisplayDateTime,
+} from "@/lib/safety-demo-dates";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -377,7 +381,10 @@ export default function WorkAuthorizationDetailsView({
       ) : null}
 
       {permissions.showAuditTrail ? (
-        <AuditTrail items={request.auditTrail} />
+        <AuditTrail
+          items={request.auditTrail}
+          formatDateTime={formatSafetyDisplayDateTime}
+        />
       ) : null}
     </div>
   );
@@ -408,7 +415,7 @@ function RequesterDetailsSection({
         />
         <FormInput
           label="Request Date"
-          value={request.requester.requestDate}
+          value={formatSafetyDisplayDate(request.requester.requestDate)}
           disabled
         />
       </div>
@@ -441,7 +448,7 @@ function AssignedWorkSummarySection({
           disabled
         />
         <FormInput label="Location" value={work.location} disabled />
-        <FormTextarea label="Exact Work Area" value={work.exactWorkArea} disabled />
+        <FormTextarea label="Exact Work Area" minLength={5} value={work.exactWorkArea} disabled />
         <FormInput label="Assigned Supervisor" value={work.assignedSupervisor} disabled />
         <FormInput
           label="Assigned Workers"
@@ -455,9 +462,9 @@ function AssignedWorkSummarySection({
             <FormInput label="Contractor Contact Email" type="email" value={work.contractorContactEmail} disabled />
           </>
         ) : null}
-        <FormInput label="Planned Start Date/Time" value={work.plannedStartDateTime} disabled />
-        <FormInput label="Planned End Date/Time" value={work.plannedEndDateTime} disabled />
-        <FormTextarea label="Work Description" value={work.workDescription} disabled className="md:col-span-2" />
+        <FormInput label="Planned Start Date/Time" value={formatSafetyDisplayDateTime(work.plannedStartDateTime)} disabled />
+        <FormInput label="Planned End Date/Time" value={formatSafetyDisplayDateTime(work.plannedEndDateTime)} disabled />
+        <FormTextarea label="Work Description" minLength={5} value={work.workDescription} disabled className="md:col-span-2" />
       </div>
     </FormSection>
   );
@@ -492,6 +499,7 @@ function RiskIndicatorsSection({
         />
         <FormTextarea
           label="Additional Safety Note"
+          minLength={5}
           defaultValue={request.riskIndicators.additionalSafetyNote}
           disabled={!editable}
         />
@@ -646,7 +654,7 @@ function HseInspectionActionSection({
         />
         <FormInput
           label="Inspection date/time"
-          defaultValue="2026-05-18 11:00 AM"
+          defaultValue={formatSafetyDisplayDateTime("2026-05-18 11:00 AM")}
         />
         <FormSelect
           label="Inspection result"
@@ -659,6 +667,7 @@ function HseInspectionActionSection({
         />
         <FormTextarea
           label="Inspection comments"
+          minLength={5}
           value={comment}
           onChange={(event) => onCommentChange(event.target.value)}
           placeholder="Add inspection comments"
@@ -728,8 +737,8 @@ function ApprovalResultSection({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Decision" value={result.decision} disabled />
         <FormInput label="Approver" value={result.approver} disabled />
-        <FormInput label="Date/time" value={result.dateTime} disabled />
-        <FormTextarea label="Comment" value={result.comment} disabled />
+        <FormInput label="Date/time" value={formatSafetyDisplayDateTime(result.dateTime)} disabled />
+        <FormTextarea label="Comment" minLength={5} value={result.comment} disabled />
       </div>
     </FormSection>
   );
@@ -770,7 +779,7 @@ function HseInspectionResultSection({
         />
         <FormInput
           label="Inspection date/time"
-          value={inspection.inspectionDateTime}
+          value={formatSafetyDisplayDateTime(inspection.inspectionDateTime)}
           disabled
         />
         <FormInput
@@ -780,6 +789,7 @@ function HseInspectionResultSection({
         />
         <FormTextarea
           label="Inspection comments"
+          minLength={5}
           value={inspection.comments}
           disabled
         />

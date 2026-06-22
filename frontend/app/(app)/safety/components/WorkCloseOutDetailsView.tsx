@@ -22,6 +22,10 @@ import {
   updateWorkCloseOut,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
+import {
+  formatSafetyDisplayDate,
+  formatSafetyDisplayDateTime,
+} from "@/lib/safety-demo-dates";
 import type {
   WorkAuthorizationAttachment,
   WorkAuthorizationAuditTrailItem,
@@ -483,6 +487,7 @@ export default function WorkCloseOutDetailsView({
       {permissions.showAuditTrail ? (
         <AuditTrail
           items={request.auditTrail}
+          formatDateTime={formatSafetyDisplayDateTime}
           description="Recorded workflow actions and comments for this close-out."
         />
       ) : null}
@@ -497,7 +502,7 @@ function RequesterDetails({ request }: { request: WorkCloseOutRequest }) {
         <FormInput label="Requester Name" value={request.requester.name} disabled />
         <FormInput label="Department" value={request.requester.department} disabled />
         <FormInput label="Job Title / Role" value={request.requester.role} disabled />
-        <FormInput label="Request Date" value={request.requester.requestDate} disabled />
+        <FormInput label="Request Date" value={formatSafetyDisplayDate(request.requester.requestDate)} disabled />
       </div>
     </FormSection>
   );
@@ -513,9 +518,9 @@ function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
         <FormInput label="Original Requester" value={work.requester} disabled />
         <FormInput label="Department" value={work.department} disabled />
         <FormInput label="Work Location" value={work.location} disabled />
-        <FormTextarea label="Exact Work Area" value={work.exactWorkArea} disabled />
-        <FormInput label="Approved Start Date/Time" value={work.approvedStartDateTime} disabled />
-        <FormInput label="Approved End Date/Time" value={work.approvedEndDateTime} disabled />
+        <FormTextarea label="Exact Work Area" minLength={5} value={work.exactWorkArea} disabled />
+        <FormInput label="Approved Start Date/Time" value={formatSafetyDisplayDateTime(work.approvedStartDateTime)} disabled />
+        <FormInput label="Approved End Date/Time" value={formatSafetyDisplayDateTime(work.approvedEndDateTime)} disabled />
         <FormInput label="Approved Work Type" value={work.workTypes.join(", ")} disabled />
         <FormInput label="Approved Supervisor" value={work.supervisor} disabled />
         <FormInput label="HSE Approver" value={work.hseApprover} disabled />
@@ -537,8 +542,8 @@ function CompletionDetails({
   return (
     <FormSection title="Completion Details" description="Recorded completion information and submitted evidence.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Actual Start Date/Time" value={details.actualStartDateTime} disabled={!editable} />
-        <FormInput label="Actual Completion Date/Time" value={details.actualCompletionDateTime} disabled={!editable} />
+        <FormInput label="Actual Start Date/Time" value={formatSafetyDisplayDateTime(details.actualStartDateTime)} disabled={!editable} />
+        <FormInput label="Actual Completion Date/Time" value={formatSafetyDisplayDateTime(details.actualCompletionDateTime)} disabled={!editable} />
         <div className="md:col-span-2">
           <SafetyChoiceTable
             options={yesNoOptions}
@@ -551,11 +556,11 @@ function CompletionDetails({
           />
         </div>
         {!details.completedAsApproved ? (
-          <FormTextarea label="Explanation for change/deviation" value={details.deviationExplanation} disabled={!editable} />
+          <FormTextarea label="Explanation for change/deviation" minLength={5} value={details.deviationExplanation} disabled={!editable} />
         ) : null}
-        <FormTextarea label="Completion Summary" value={details.completionSummary} disabled={!editable} className="md:col-span-2" />
+        <FormTextarea label="Completion Summary" minLength={5} value={details.completionSummary} disabled={!editable} className="md:col-span-2" />
         {details.incidentObserved ? (
-          <FormTextarea label="Incident/Hazard Note" value={details.incidentNote} disabled={!editable} />
+          <FormTextarea label="Incident/Hazard Note" minLength={5} value={details.incidentNote} disabled={!editable} />
         ) : null}
         {/* <FormTextarea label="Completion Notes" value={details.completionNotes} disabled={!editable} className="md:col-span-2" /> */}
       </div>
@@ -623,7 +628,7 @@ function AreaConditionSection({
           ]}
         />
         {area.remainingHazard ? (
-          <FormTextarea label="Remaining Hazard Details" value={area.remainingHazardDetails} disabled={!editable} className="md:col-span-2" />
+          <FormTextarea label="Remaining Hazard Details" minLength={5} value={area.remainingHazardDetails} disabled={!editable} className="md:col-span-2" />
         ) : null}
       </div>
     </FormSection>
@@ -646,8 +651,8 @@ function ApprovalResult({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Reviewer" value={result.approver} disabled />
         <FormInput label="Decision" value={result.decision} disabled />
-        <FormInput label="Review Date/Time" value={result.dateTime} disabled />
-        <FormTextarea label="Comment" value={result.comment} disabled />
+        <FormInput label="Review Date/Time" value={formatSafetyDisplayDateTime(result.dateTime)} disabled />
+        <FormTextarea label="Comment" minLength={5} value={result.comment} disabled />
       </div>
     </FormSection>
   );
@@ -670,11 +675,11 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
           />
         </div>
         {result.correctiveActionRequired ? (
-          <FormTextarea label="Corrective Action Details" value={result.correctiveActionDetails} disabled />
+          <FormTextarea label="Corrective Action Details" minLength={5} value={result.correctiveActionDetails} disabled />
         ) : null}
         <FormInput label="HSE Decision" value={result.decision} disabled />
-        <FormInput label="HSE Review Date/Time" value={result.dateTime} disabled />
-        <FormTextarea label="HSE Comment" value={result.comment} disabled />
+        <FormInput label="HSE Review Date/Time" value={formatSafetyDisplayDateTime(result.dateTime)} disabled />
+        <FormTextarea label="HSE Comment" minLength={5} value={result.comment} disabled />
       </div>
     </FormSection>
   );

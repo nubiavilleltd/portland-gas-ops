@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
@@ -14,7 +13,12 @@ import {
   createWorkCloseOut,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
-import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
+import {
+  formatLocalDate,
+  formatLocalDateTime,
+  formatSafetyDisplayDate,
+  formatSafetyDisplayDateTime,
+} from "@/lib/safety-demo-dates";
 import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
@@ -81,7 +85,7 @@ export default function WorkCompletionForm() {
   const workAuthorizationOptions = workAuthorizations.map((item) => ({
     value: item.id,
     label: `${item.id} - ${item.title}`,
-    description: `${item.requester} | ${item.requestDate}`,
+    description: `${item.requester} | ${formatSafetyDisplayDate(item.requestDate)}`,
   }));
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -148,7 +152,7 @@ export default function WorkCompletionForm() {
           <FormInput label="Requester Name" value={requester.name} disabled />
           <FormInput label="Department" value={requester.department} disabled />
           <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
+          <FormInput label="Request Date" value={formatSafetyDisplayDate(requester.requestDate)} disabled />
         </div>
       </FormSection>
 
@@ -201,6 +205,7 @@ export default function WorkCompletionForm() {
           <FormTextarea
             label="Completion Summary"
             required
+            minLength={5}
             placeholder="Briefly describe what was completed"
             className="md:col-span-2"
             value={completionSummary}
@@ -210,6 +215,7 @@ export default function WorkCompletionForm() {
             <FormTextarea
               label="Explanation for change/deviation"
               required
+              minLength={5}
               placeholder="Explain the deviation from approved scope"
               className="md:col-span-2"
               value={deviationExplanation}
@@ -220,6 +226,7 @@ export default function WorkCompletionForm() {
             <FormTextarea
               label="Incident/Hazard Note"
               required
+              minLength={5}
               placeholder="Describe the incident, hazard, or near miss"
               value={incidentNote}
               onChange={(event) => setIncidentNote(event.target.value)}
@@ -275,6 +282,7 @@ export default function WorkCompletionForm() {
             <FormTextarea
               label="Remaining Hazard Details"
               required
+              minLength={5}
               placeholder="Describe remaining hazard"
               className="md:col-span-2"
               value={remainingHazardDetails}
@@ -308,9 +316,9 @@ function ApprovedWorkSummary({
           <FormInput label="Original Requester" value={workAuthorization.requester} disabled />
           <FormInput label="Department" value={workAuthorization.department} disabled />
           <FormInput label="Work Location" value={workAuthorization.location} disabled />
-          <FormTextarea label="Exact Work Area" value={workAuthorization.exactWorkArea} disabled />
-          <FormInput label="Approved Start Date/Time" value={workAuthorization.approvedStartDateTime} disabled />
-          <FormInput label="Approved End Date/Time" value={workAuthorization.approvedEndDateTime} disabled />
+          <FormTextarea label="Exact Work Area" minLength={5} value={workAuthorization.exactWorkArea} disabled />
+          <FormInput label="Approved Start Date/Time" value={formatSafetyDisplayDateTime(workAuthorization.approvedStartDateTime)} disabled />
+          <FormInput label="Approved End Date/Time" value={formatSafetyDisplayDateTime(workAuthorization.approvedEndDateTime)} disabled />
           <FormInput label="Approved Work Type" value={workAuthorization.workTypes.join(", ")} disabled />
           <FormInput label="Approved Supervisor" value={workAuthorization.supervisor} disabled />
           <FormInput label="HSE Approver" value={workAuthorization.hseApprover} disabled />

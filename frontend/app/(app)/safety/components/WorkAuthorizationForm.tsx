@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
@@ -13,7 +12,12 @@ import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
 import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
-import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
+import {
+  formatLocalDate,
+  formatLocalDateTime,
+  formatSafetyDisplayDate,
+  formatSafetyDisplayDateTime,
+} from "@/lib/safety-demo-dates";
 import type { AssignedWorkInitiationSummary } from "@/types/safety";
 
 const optionFromStrings = (items: string[]): SelectOption[] =>
@@ -70,7 +74,7 @@ export default function WorkAuthorizationForm() {
   const workInitiationOptions = approvedWorkInitiations.map((item) => ({
     value: item.id,
     label: `${item.id} - ${item.title}`,
-    description: `${item.requester.name} | ${item.requester.requestDate}`,
+    description: `${item.requester.name} | ${formatSafetyDisplayDate(item.requester.requestDate)}`,
   }));
   const selectedWorkInitiation = workInitiations.find(
     (item) => item.id === selectedWorkInitiationId,
@@ -142,7 +146,7 @@ export default function WorkAuthorizationForm() {
           <FormInput label="Requester Name" value={requester.name} disabled />
           <FormInput label="Department" value={requester.department} disabled />
           <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
+          <FormInput label="Request Date" value={formatSafetyDisplayDate(requester.requestDate)} disabled />
         </div>
       </FormSection>
 
@@ -176,6 +180,7 @@ export default function WorkAuthorizationForm() {
           />
           <FormTextarea
             label="Additional Safety Note"
+            minLength={5}
             placeholder="Add any extra safety concern"
             value={safetyNote}
             onChange={(event) => setSafetyNote(event.target.value)}
@@ -195,6 +200,7 @@ export default function WorkAuthorizationForm() {
           />
           <FormTextarea
             label="Attachment Notes"
+            minLength={5}
             placeholder="Add notes about the selected files"
             value={attachmentNotes}
             onChange={(event) => setAttachmentNotes(event.target.value)}
@@ -229,7 +235,7 @@ function AssignedWorkSummary({
           ) : null}
           <FormInput label="Work Type" value={workInitiation.workType.join(", ")} disabled />
           <FormInput label="Location" value={workInitiation.location} disabled />
-          <FormTextarea label="Exact Work Area" value={workInitiation.exactWorkArea} disabled />
+          <FormTextarea label="Exact Work Area" minLength={5} value={workInitiation.exactWorkArea} disabled />
           <FormInput label="Assigned Supervisor" value={workInitiation.assignedSupervisor} disabled />
           <FormInput label="Assigned Workers" value={workInitiation.assignedWorkers.join(", ")} disabled />
           <FormInput label="Contractors Needed" value={workInitiation.contractorsNeeded ? "Yes" : "No"} disabled />
@@ -239,9 +245,9 @@ function AssignedWorkSummary({
               <FormInput label="Contractor Contact Email" type="email" value={workInitiation.contractorContactEmail} disabled />
             </>
           ) : null}
-          <FormInput label="Planned Start Date/Time" value={workInitiation.plannedStartDateTime} disabled />
-          <FormInput label="Planned End Date/Time" value={workInitiation.plannedEndDateTime} disabled />
-          <FormTextarea label="Work Description" value={workInitiation.workDescription} disabled className="md:col-span-2" />
+          <FormInput label="Planned Start Date/Time" value={formatSafetyDisplayDateTime(workInitiation.plannedStartDateTime)} disabled />
+          <FormInput label="Planned End Date/Time" value={formatSafetyDisplayDateTime(workInitiation.plannedEndDateTime)} disabled />
+          <FormTextarea label="Work Description" minLength={5} value={workInitiation.workDescription} disabled className="md:col-span-2" />
         </div>
       )}
     </FormSection>

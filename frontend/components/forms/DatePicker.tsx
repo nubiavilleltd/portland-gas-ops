@@ -38,6 +38,7 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   onValueChange?: (value: string) => void;
   triggerClassName?: string;
   dropdownClassName?: string;
+  formatDisplayValue?: (value: string) => string;
 }
 
 function parseDate(value?: string) {
@@ -103,6 +104,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       value,
       defaultValue,
       onValueChange,
+      formatDisplayValue,
       onBlur,
       placeholder = "Select date",
       disabled,
@@ -245,14 +247,16 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
             "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left transition-shadow",
             "flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
             error && "border-red-400 focus:ring-red-400",
-            disabled && "cursor-not-allowed bg-gray-50 text-brand-text-secondary opacity-70",
+            disabled && "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-900 opacity-80",
             triggerClassName
           )}
         >
           <div className="flex items-center gap-2">
             <Calendar size={15} className="text-brand-text-secondary" />
-            <span className={cn(selectedValue ? "text-brand-text-primary" : "text-brand-text-secondary")}>
-              {selectedValue ? formatDisplayDate(selectedValue) : placeholder}
+            <span className={cn(selectedValue ? "text-gray-900" : "text-brand-text-secondary")}>
+              {selectedValue
+                ? formatDisplayValue?.(selectedValue) ?? formatDisplayDate(selectedValue)
+                : placeholder}
             </span>
           </div>
           <ChevronDown

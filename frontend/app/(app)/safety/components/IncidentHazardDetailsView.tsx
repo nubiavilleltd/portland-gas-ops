@@ -27,6 +27,11 @@ import {
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
+import {
+  formatSafetyDisplayDate,
+  formatSafetyDisplayDateMaybeTime,
+  formatSafetyDisplayDateTime,
+} from "@/lib/safety-demo-dates";
 import type {
   IncidentHazardAttachment,
   IncidentHazardHseReview,
@@ -78,7 +83,8 @@ export default function IncidentHazardDetailsView({
       canActionOwnerResolve:
         currentRole === "action_owner" && isRecommended && Boolean(completedWork),
       canHseClose: currentRole === "hse" && isResolved,
-      showActionOwnerSection: Boolean(isRecommended || isResolved || isClosed),
+      showActionOwnerSection:
+        currentRole === "action_owner" && Boolean(isRecommended || isResolved || isClosed),
       showHseReview: Boolean(
         (currentRole === "hse" && isSubmitted) ||
         Boolean(report?.hseReview)
@@ -268,7 +274,7 @@ export default function IncidentHazardDetailsView({
             report={report}
             completedWorkReference={
               completedWork
-                ? `${completedWork.id} - ${completedWork.title} | ${completedWork.requester.name} | ${completedWork.requester.requestDate}`
+                ? `${completedWork.id} - ${completedWork.title} | ${completedWork.requester.name} | ${formatSafetyDisplayDate(completedWork.requester.requestDate)}`
                 : report.resolutionWorkCompletionId || ""
             }
             canResolve={permissions.canActionOwnerResolve}
@@ -284,6 +290,7 @@ export default function IncidentHazardDetailsView({
       {permissions.showAuditTrail ? (
         <AuditTrail
           items={report.auditTrail}
+          formatDateTime={formatSafetyDisplayDateTime}
           description="Recorded workflow actions and comments for this report."
         />
       ) : null}
@@ -298,7 +305,7 @@ function ReporterDetails({ report }: { report: IncidentHazardReport }) {
         <FormInput label="Reporter Name" value={report.reporter.name} disabled />
         <FormInput label="Department" value={report.reporter.department} disabled />
         <FormInput label="Job Title / Role" value={report.reporter.role} disabled />
-        <FormInput label="Report Date" value={report.reporter.reportDate} disabled />
+        <FormInput label="Report Date" value={formatSafetyDisplayDate(report.reporter.reportDate)} disabled />
       </div>
     </FormSection>
   );
@@ -312,7 +319,7 @@ function ReportDetails({ report, editable }: { report: IncidentHazardReport; edi
         <FormInput label="Report Title" defaultValue={report.title} disabled={!editable} />
         <FormInput label="Report Type" defaultValue={report.reportType} disabled={!editable} />
         <FormInput label="Location" defaultValue={report.location} disabled={!editable} />
-        <FormInput label="Date/Time Observed" defaultValue={report.dateTimeObserved} disabled={!editable} />
+        <FormInput label="Date/Time Observed" defaultValue={formatSafetyDisplayDateMaybeTime(report.dateTimeObserved)} disabled={!editable} />
         <FormInput label="Related Work Authorization" defaultValue={report.relatedWorkAuthorization} disabled={!editable} />
       </div>
     </FormSection>
@@ -323,7 +330,7 @@ function IncidentDetails({ report, editable }: { report: IncidentHazardReport; e
   return (
     <FormSection title="Incident / Hazard Details" description="Observed impact, risk level, and immediate actions recorded.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormTextarea label="Description" defaultValue={report.description} disabled={!editable} className="md:col-span-2" />
+        <FormTextarea label="Description" minLength={5} defaultValue={report.description} disabled={!editable} className="md:col-span-2" />
         <FormInput label="Severity Estimate" defaultValue={report.severityEstimate} disabled={!editable} />
         <div className="md:col-span-2">
           <SafetyChoiceTable
@@ -336,9 +343,9 @@ function IncidentDetails({ report, editable }: { report: IncidentHazardReport; e
             ]}
           />
         </div>
-        <FormTextarea label="Immediate Action Taken" defaultValue={report.immediateActionTaken} disabled={!editable} className="md:col-span-2" />
-        <FormTextarea label="People Involved / Witnesses" defaultValue={report.peopleInvolved} disabled={!editable} />
-        <FormTextarea label="Additional Notes" defaultValue={report.additionalNotes} disabled={!editable} />
+        <FormTextarea label="Immediate Action Taken" minLength={5} defaultValue={report.immediateActionTaken} disabled={!editable} className="md:col-span-2" />
+        <FormTextarea label="People Involved / Witnesses" minLength={5} defaultValue={report.peopleInvolved} disabled={!editable} />
+        <FormTextarea label="Additional Notes" minLength={5} defaultValue={report.additionalNotes} disabled={!editable} />
       </div>
     </FormSection>
   );
@@ -415,7 +422,7 @@ function HseReviewAction({
             <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
             <FormSelect label="Confirmed Report Type" required options={toOptions(reportTypeOptions)} placeholder="Select confirmed report type" />
             <FormSelect label="Confirmed Severity" required options={toOptions(incidentSeverityOptions)} placeholder="Select confirmed severity" />
-            <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
+            <FormTextarea label="HSE Findings" required minLength={5} placeholder="Add HSE findings" />
             {/* <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" /> */}
             <div className="md:col-span-2">
               <SafetyChoiceTable
@@ -432,7 +439,7 @@ function HseReviewAction({
             </div>
             {correctiveActionRequired === "Yes" ? (
               <>
-                <FormTextarea label="Corrective Action Details" required placeholder="Describe corrective action" />
+                <FormTextarea label="Corrective Action Details" required minLength={5} placeholder="Describe corrective action" />
                 <FormSelect
                   label="Assigned Department"
                   required
@@ -451,10 +458,14 @@ function HseReviewAction({
                   value={actionOwner}
                   onValueChange={onActionOwnerChange}
                 />
-                <FormDatePicker label="Target Completion Date" required />
+                <FormDatePicker
+                  label="Target Completion Date"
+                  required
+                  formatDisplayValue={formatSafetyDisplayDate}
+                />
               </>
             ) : null}
-            <FormInput label="HSE Review Date/Time" value="2026-05-18 10:00 AM" disabled />
+            <FormInput label="HSE Review Date/Time" value={formatSafetyDisplayDateTime("2026-05-18 10:00 AM")} disabled />
           </div>
           {correctiveActionRequired === "Yes" ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -479,7 +490,7 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
         <FormInput label="HSE Inspector" value={review.inspector} disabled />
         <FormInput label="Confirmed Report Type" value={review.confirmedReportType} disabled />
         <FormInput label="Confirmed Severity" value={review.confirmedSeverity} disabled />
-        <FormTextarea label="HSE Findings" value={review.findings} disabled />
+        <FormTextarea label="HSE Findings" minLength={5} value={review.findings} disabled />
         {/* <FormTextarea label="Root Cause / Likely Cause" value={review.rootCause} disabled /> */}
         <div className="md:col-span-2">
           <SafetyChoiceTable
@@ -495,10 +506,10 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
         </div>
         {review.correctiveActionRequired ? (
           <>
-            <FormTextarea label="Corrective Action Details" value={review.correctiveActionDetails} disabled />
+            <FormTextarea label="Corrective Action Details" minLength={5} value={review.correctiveActionDetails} disabled />
             <FormInput label="Assigned Department" value={review.assignedDepartment} disabled />
             <FormInput label="Action Owner" value={review.actionOwner} disabled />
-            <FormInput label="Target Completion Date" value={review.targetCompletionDate} disabled />
+            <FormInput label="Target Completion Date" value={formatSafetyDisplayDate(review.targetCompletionDate)} disabled />
           </>
         ) : null}
         <FormInput
@@ -506,8 +517,8 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
           value={review.decision || "Pending final HSE resolution"}
           disabled
         />
-        <FormTextarea label="HSE Comment" value={review.comment} disabled />
-        <FormInput label="HSE Review Date/Time" value={review.reviewDateTime} disabled />
+        <FormTextarea label="HSE Comment" minLength={5} value={review.comment} disabled />
+        <FormInput label="HSE Review Date/Time" value={formatSafetyDisplayDateTime(review.reviewDateTime)} disabled />
       </div>
     </FormSection>
   );
