@@ -17,7 +17,7 @@ def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return db.query(User).filter(User.is_active == True).offset(skip).limit(limit).all()
+    return db.query(User).offset(skip).limit(limit).all()
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -34,7 +34,6 @@ def create_user(
         email=user_data.email,
         hashed_password=hash_password(user_data.password),
         role=user_data.role,
-        department=user_data.department,
         phone=user_data.phone,
     )
     db.add(user)

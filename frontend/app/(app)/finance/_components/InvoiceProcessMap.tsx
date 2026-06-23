@@ -4,7 +4,7 @@ type Actor = "initiator" | "line-manager" | "finance" | "treasury" | "system";
 
 const ACTORS: Record<Actor, { label: string; bg: string }> = {
   initiator:      { label: "Initiator / AP",     bg: "bg-violet-500"  },
-  "line-manager": { label: "Line Manager",        bg: "bg-blue-500"    },
+  "line-manager": { label: "Operations Manager",  bg: "bg-blue-500"    },
   finance:        { label: "Finance Review",      bg: "bg-emerald-500" },
   treasury:       { label: "Treasury / Payments", bg: "bg-amber-500"   },
   system:         { label: "System",              bg: "bg-slate-500"   },
@@ -144,7 +144,7 @@ export default function InvoiceProcessMap() {
 
           <DecisionStep
             actor="line-manager"
-            title="Line Manager Review"
+            title="Operations Manager Review"
             subtitle="Confirm goods receipt, verify vendor and invoice amounts"
             approvedLabel="Forwarded to Finance Review"
             rejectedLabel="Returned to initiator with comments"

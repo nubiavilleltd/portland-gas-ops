@@ -10,8 +10,10 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import FormInput from "@/components/forms/FormInput";
-import FormTextarea from "@/components/forms/FormTextarea";
+import RichTextEditor from "@/components/forms/RichTextEditor";
 import FormSelect from "@/components/forms/FormSelect";
+import FormFileUpload from "@/components/forms/FormFileUpload";
+import SegmentedControl from "@/components/ui/SegmentedControl";
 import { BackButton } from "@/components/ui/BackButton";
 import { useIntranetNews } from "@/lib/modules/intranet/hooks/useIntranetNews";
 import { useToast } from "@/hooks/useToast";
@@ -74,14 +76,20 @@ const columns: Column<NewsRow>[] = [
   },
 ];
 
+const COVER_OPTIONS = [
+  { value: "url",    label: "Paste URL" },
+  { value: "upload", label: "Upload from device" },
+];
+
 const EMPTY_FORM = {
-  title:           "",
-  body:            "",
-  category:        "Company News" as NewsCategory,
-  cover_image_url: "",
-  author_name:     "",
-  is_published:    false,
-  published_at:    null as string | null,
+  title:            "",
+  body:             "",
+  category:         "Company News" as NewsCategory,
+  cover_image_url:  "",
+  cover_image_mode: "url" as "url" | "upload",
+  author_name:      "",
+  is_published:     false,
+  published_at:     null as string | null,
 };
 type FormState = typeof EMPTY_FORM;
 
@@ -112,6 +120,7 @@ export default function IntranetNewsPage() {
       body:            item.body,
       category:        item.category,
       cover_image_url: item.cover_image_url,
+      cover_image_mode: "url" as const,
       author_name:     item.author_name,
       is_published:    item.is_published,
       published_at:    item.published_at,
@@ -140,7 +149,7 @@ export default function IntranetNewsPage() {
     handleClose();
   }
 
-  function field(key: keyof FormState, value: string | boolean | null) {
+  function field<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -234,20 +243,42 @@ export default function IntranetNewsPage() {
             value={form.author_name}
             onChange={(e) => field("author_name", e.target.value)}
           />
-          <FormTextarea
+          <RichTextEditor
             label="Body"
             required
             placeholder="Article content or excerpt…"
             value={form.body}
-            onChange={(e) => field("body", e.target.value)}
-            rows={5}
+            onChange={(html) => field("body", html)}
           />
-          <FormInput
-            label="Cover Image URL"
-            placeholder="https://…"
-            value={form.cover_image_url}
-            onChange={(e) => field("cover_image_url", e.target.value)}
-          />
+          <div className="space-y-3">
+            <SegmentedControl
+              label="Cover Image"
+              options={COVER_OPTIONS}
+              value={form.cover_image_mode}
+              onChange={(v) => {
+                field("cover_image_mode", v as "url" | "upload");
+                field("cover_image_url", "");
+              }}
+            />
+            {form.cover_image_mode === "url" ? (
+              <FormInput
+                label=""
+                placeholder="https://…"
+                value={form.cover_image_url}
+                onChange={(e) => field("cover_image_url", e.target.value)}
+              />
+            ) : (
+              <FormFileUpload
+                label=""
+                accept="image/*"
+                hint="JPG, PNG or WebP — max 5 MB"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) field("cover_image_url", URL.createObjectURL(file));
+                }}
+              />
+            )}
+          </div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"

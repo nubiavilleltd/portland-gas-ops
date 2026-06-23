@@ -36,6 +36,7 @@ export interface IntranetEvent {
   description: string;       // DB: description TEXT
   event_type: EventType;     // DB: event_type VARCHAR(40)
   location: string;          // DB: location VARCHAR(200)
+  virtual_link: string;      // DB: virtual_link VARCHAR(500) — meeting URL for virtual events
   event_date: string;        // DB: event_date DATE — ISO "YYYY-MM-DD"
   color: string;             // DB: color VARCHAR(10) — hex e.g. "#7234BD"
   is_published: boolean;     // DB: is_published BOOLEAN
@@ -134,6 +135,8 @@ export interface FeedbackEntry {
 
 // ── Podcast  (no DB table yet — planned addition) ─────────────────────────────
 
+export type PodcastMediaType = "audio" | "video";
+
 export interface PodcastEpisode {
   id: number;
   episode_number: number;
@@ -141,7 +144,8 @@ export interface PodcastEpisode {
   guest_name: string;
   duration: string;          // e.g. "38 min"
   cover_image_url: string;
-  audio_url: string;
+  audio_url: string;         // URL for audio or video media
+  media_type: PodcastMediaType; // "audio" | "video"
   is_published: boolean;
   is_featured: boolean;      // Only one episode is featured on the intranet homepage
   created_at: string;

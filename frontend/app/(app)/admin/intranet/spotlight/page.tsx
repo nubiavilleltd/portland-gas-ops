@@ -99,7 +99,10 @@ export default function SpotlightPage() {
   const rows: SpotlightRow[] = cards.map((c) => ({ ...c, id: String(c.id), _numId: c.id }));
 
   function openCreate() {
-    if (cards.length >= 3) return;
+    if (cards.length >= 3) {
+      toast.info("Maximum 3 spotlight cards allowed. Remove one to add another.");
+      return;
+    }
     setEditTarget(null);
     setEmployee(null);
     setForm(EMPTY_FORM);
@@ -156,7 +159,7 @@ export default function SpotlightPage() {
       employee_name: employee!.name,
       employee_role: employee!.role,
       employee_dept: employee!.department,
-      avatar_url:    employee!.avatar_url,
+      avatar_url:    employee!.avatar_url ?? "",
       title:         `Spotlight — ${employee!.name}`,
       message:       form.message,
       tag:           form.tag,
@@ -209,7 +212,7 @@ export default function SpotlightPage() {
         description={`Manage spotlight cards shown on the intranet homepage (max 3). Currently ${cards.length}/3.`}
         className="mb-6"
         action={
-          <Button leftIcon={<Plus size={16} />} onClick={openCreate} disabled={cards.length >= 3}>
+          <Button leftIcon={<Plus size={16} />} onClick={openCreate}>
             Add Spotlight
           </Button>
         }
