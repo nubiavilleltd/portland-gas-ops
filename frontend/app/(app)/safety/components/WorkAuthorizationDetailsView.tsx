@@ -21,6 +21,10 @@ import {
   formatSafetyDisplayDate,
   formatSafetyDisplayDateTime,
 } from "@/lib/safety-demo-dates";
+import {
+  SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE,
+  shouldBlockReturnedSafetyResubmission,
+} from "@/lib/safety-return-guard";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -110,6 +114,7 @@ export default function WorkAuthorizationDetailsView({
   const [loading, setLoading] = useState(true);
   const [hseComment, setHseComment] = useState("");
   const [hseEvidence, setHseEvidence] = useState<File[]>([]);
+  const [hasRequesterChanges, setHasRequesterChanges] = useState(false);
   const [hseInspectionChecks, setHseInspectionChecks] = useState(
     initialHseInspectionChecks,
   );
@@ -158,6 +163,9 @@ export default function WorkAuthorizationDetailsView({
       showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
     };
   }, [currentRole, request?.status]);
+  const blockRequesterSubmit = request
+    ? shouldBlockReturnedSafetyResubmission(request.status, hasRequesterChanges)
+    : false;
 
   if (loading) {
     return (
@@ -192,6 +200,10 @@ export default function WorkAuthorizationDetailsView({
 
   function handleRequesterSubmit() {
     if (!request) return;
+    if (shouldBlockReturnedSafetyResubmission(request.status, hasRequesterChanges)) {
+      toast.error(SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE);
+      return;
+    }
 
     const audit: WorkAuthorizationAuditTrailItem = {
       action: "Submitted",
@@ -205,6 +217,7 @@ export default function WorkAuthorizationDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
+    setHasRequesterChanges(false);
     toast.success("Work authorization submitted.");
   }
 
@@ -328,16 +341,22 @@ export default function WorkAuthorizationDetailsView({
       <RiskIndicatorsSection
         request={request}
         editable={permissions.canEditDraft}
+        onRequesterChange={() => setHasRequesterChanges(true)}
       />
       <AttachmentsSection
         request={request}
         editable={permissions.canEditDraft}
+        onRequesterChange={() => setHasRequesterChanges(true)}
       />
 
       {currentRole === "requester" &&
       (request.status === "draft" || request.status === "returned") ? (
         <div className="flex justify-end">
-          <Button onClick={handleRequesterSubmit}>Submit Request</Button>
+          <span title={blockRequesterSubmit ? SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE : undefined}>
+            <Button onClick={handleRequesterSubmit} disabled={blockRequesterSubmit}>
+              Submit Request
+            </Button>
+          </span>
         </div>
       ) : null}
 
@@ -465,6 +484,7 @@ function AssignedWorkSummarySection({
         <FormInput label="Planned Start Date/Time" value={formatSafetyDisplayDateTime(work.plannedStartDateTime)} disabled />
         <FormInput label="Planned End Date/Time" value={formatSafetyDisplayDateTime(work.plannedEndDateTime)} disabled />
         <FormTextarea label="Work Description" minLength={5} value={work.workDescription} disabled className="md:col-span-2" />
+        <FormTextarea label="Additional Comments" minLength={5} value={work.additionalComments ?? ""} disabled className="md:col-span-2" />
       </div>
     </FormSection>
   );
@@ -473,9 +493,11 @@ function AssignedWorkSummarySection({
 function RiskIndicatorsSection({
   request,
   editable,
+  onRequesterChange,
 }: {
   request: WorkAuthorizationRequest;
   editable: boolean;
+  onRequesterChange: () => void;
 }) {
   const selectedRiskIndicators = [
     request.riskIndicators.gasInvolved ? "Gas/CNG/LNG involved" : "",
@@ -496,12 +518,14 @@ function RiskIndicatorsSection({
           disabled={!editable}
           searchable
           placeholder="Select all risk indicators that apply"
+          onValueChange={onRequesterChange}
         />
         <FormTextarea
           label="Additional Safety Note"
           minLength={5}
           defaultValue={request.riskIndicators.additionalSafetyNote}
           disabled={!editable}
+          onChange={onRequesterChange}
         />
       </div>
     </FormSection>
@@ -511,9 +535,11 @@ function RiskIndicatorsSection({
 function AttachmentsSection({
   request,
   editable,
+  onRequesterChange,
 }: {
   request: WorkAuthorizationRequest;
   editable: boolean;
+  onRequesterChange: () => void;
 }) {
   const [newAttachments, setNewAttachments] = useState<File[]>([]);
 
@@ -525,7 +551,10 @@ function AttachmentsSection({
           <FileDropzone
             label="Add Attachments"
             value={newAttachments}
-            onChange={setNewAttachments}
+            onChange={(files) => {
+              setNewAttachments(files);
+              onRequesterChange();
+            }}
             accept="image/*,.pdf,.doc,.docx"
             maxFiles={10}
             hint="Local selection only. No upload is performed."

@@ -248,6 +248,7 @@ function AssignedWorkSummary({
           <FormInput label="Planned Start Date/Time" value={formatSafetyDisplayDateTime(workInitiation.plannedStartDateTime)} disabled />
           <FormInput label="Planned End Date/Time" value={formatSafetyDisplayDateTime(workInitiation.plannedEndDateTime)} disabled />
           <FormTextarea label="Work Description" minLength={5} value={workInitiation.workDescription} disabled className="md:col-span-2" />
+          <FormTextarea label="Additional Comments" minLength={5} value={workInitiation.additionalComments ?? ""} disabled className="md:col-span-2" />
         </div>
       )}
     </FormSection>

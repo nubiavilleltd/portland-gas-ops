@@ -64,6 +64,7 @@ export default function WorkCompletionForm() {
   const [completionSummary, setCompletionSummary] = useState("");
   const [deviationExplanation, setDeviationExplanation] = useState("");
   const [incidentNote, setIncidentNote] = useState("");
+  const [completionNotes, setCompletionNotes] = useState("");
   const [monitoredDuringExecution, setMonitoredDuringExecution] = useState("");
   const [stayedWithinScope, setStayedWithinScope] = useState("");
   const [ppeAndControlsMaintained, setPpeAndControlsMaintained] = useState("");
@@ -112,7 +113,7 @@ export default function WorkCompletionForm() {
           name: file.name,
           type: file.type.startsWith("image/") ? "image" : "document",
         })),
-        completionNotes: "",
+        completionNotes,
       },
       monitoring: {
         monitoredDuringExecution: monitoredDuringExecution === "Yes",
@@ -242,11 +243,14 @@ export default function WorkCompletionForm() {
               hint="Local selection only. No upload is performed."
             />
           </div>
-          {/* <FormTextarea
+          <FormTextarea
             label="Completion Notes"
+            minLength={5}
             placeholder="Add optional completion notes"
             className="md:col-span-2"
-          /> */}
+            value={completionNotes}
+            onChange={(event) => setCompletionNotes(event.target.value)}
+          />
         </div>
       </FormSection>
 

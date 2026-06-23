@@ -25,6 +25,10 @@ import {
   formatSafetyDisplayDate,
   formatSafetyDisplayDateTime,
 } from "@/lib/safety-demo-dates";
+import {
+  SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE,
+  shouldBlockReturnedSafetyResubmission,
+} from "@/lib/safety-return-guard";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -84,11 +88,12 @@ export default function WorkInitiationDetailsView({
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHodComment, setOperationsHodComment] = useState("");
   const [assignedWorkers, setAssignedWorkers] = useState<string[]>(
-    initialRequest?.assignment.assignedWorkers ?? [],
+    request?.assignment.assignedWorkers ?? [],
   );
   const [selectedContractor, setSelectedContractor] = useState(
-    initialRequest?.assignment.selectedContractor ?? "",
+    request?.assignment.selectedContractor ?? "",
   );
+  const [hasRequesterChanges, setHasRequesterChanges] = useState(false);
 
   if (!request) {
     return (
@@ -104,6 +109,10 @@ export default function WorkInitiationDetailsView({
   const canSupervisorReview = currentRole === "supervisor" && request.status === "submitted";
   const canOperationsHodReview =
     currentRole === "operations_hod" && request.status === "pending";
+  const blockRequesterSubmit = shouldBlockReturnedSafetyResubmission(
+    request.status,
+    hasRequesterChanges,
+  );
 
   function persistUpdate(
     update: (current: WorkInitiationRequest) => WorkInitiationRequest,
@@ -113,6 +122,11 @@ export default function WorkInitiationDetailsView({
 
   function submitRequest() {
     if (!request) return;
+    if (shouldBlockReturnedSafetyResubmission(request.status, hasRequesterChanges)) {
+      toast.error(SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE);
+      return;
+    }
+
     const audit: WorkAuthorizationAuditTrailItem = {
       action: "Submitted",
       actor: request.requester.name,
@@ -125,6 +139,7 @@ export default function WorkInitiationDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
+    setHasRequesterChanges(false);
     toast.success("Work initiation submitted.");
   }
 
@@ -222,20 +237,32 @@ export default function WorkInitiationDetailsView({
         request={request}
         editable={canRequesterEdit}
         incidentHazardRequestOptions={incidentHazardRequestOptions}
+        onRequesterChange={() => setHasRequesterChanges(true)}
       />
       {/* <AssetDetails request={request} editable={canRequesterEdit} /> */}
       <AssignmentPlanning
         request={request}
         editable={canRequesterEdit}
         assignedWorkers={assignedWorkers}
-        onAssignedWorkersChange={setAssignedWorkers}
+        onAssignedWorkersChange={(value) => {
+          setAssignedWorkers(value);
+          setHasRequesterChanges(true);
+        }}
         selectedContractor={selectedContractor}
-        onSelectedContractorChange={setSelectedContractor}
+        onSelectedContractorChange={(value) => {
+          setSelectedContractor(value);
+          setHasRequesterChanges(true);
+        }}
+        onRequesterChange={() => setHasRequesterChanges(true)}
       />
 
       {currentRole === "requester" && (request.status === "draft" || request.status === "returned") ? (
         <div className="flex justify-end">
-          <Button type="button" onClick={submitRequest}>Submit Work Initiation</Button>
+          <span title={blockRequesterSubmit ? SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE : undefined}>
+            <Button type="button" onClick={submitRequest} disabled={blockRequesterSubmit}>
+              Submit Work Initiation
+            </Button>
+          </span>
         </div>
       ) : null}
 
@@ -324,10 +351,12 @@ function WorkDetails({
   request,
   editable,
   incidentHazardRequestOptions,
+  onRequesterChange,
 }: {
   request: WorkInitiationRequest;
   editable: boolean;
   incidentHazardRequestOptions: { value: string; label: string }[];
+  onRequesterChange: () => void;
 }) {
   const [workCategory, setWorkCategory] = useState(request.workCategory);
   const [workTypes, setWorkTypes] = useState<string[]>(request.workType);
@@ -338,12 +367,13 @@ function WorkDetails({
   function handleWorkCategoryChange(nextCategory: string) {
     setWorkCategory(nextCategory);
     setWorkTypes([]);
+    onRequesterChange();
   }
 
   return (
     <FormSection title="Work Details" description="Requested work scope, purpose, location, and supporting evidence.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work Title" defaultValue={request.title} disabled={!editable} />
+        <FormInput label="Work Title" defaultValue={request.title} disabled={!editable} onChange={onRequesterChange} />
         {editable ? (
           <FormSelect
             label="Work Category"
@@ -364,6 +394,7 @@ function WorkDetails({
               defaultValue={request.relatedIncidentHazardId}
               placeholder="Select related incident or hazard"
               dropdownClassName="md:min-w-[34rem]"
+              onValueChange={onRequesterChange}
             />
           ) : (
             <FormInput
@@ -380,7 +411,10 @@ function WorkDetails({
             creatable
             options={workTypeOptions}
             value={workTypes}
-            onValueChange={setWorkTypes}
+            onValueChange={(value) => {
+              setWorkTypes(value);
+              onRequesterChange();
+            }}
             placeholder={workCategory ? "Select or add work type" : "Select work category first"}
             disabled={!workCategory}
           />
@@ -395,10 +429,12 @@ function WorkDetails({
           creatable
           options={locationOptions}
           placeholder="Select or add location"
+          onValueChange={onRequesterChange}
         />
-        <FormTextarea label="Exact Work Area" minLength={5} defaultValue={request.exactWorkArea} disabled={!editable} />
-        <FormTextarea label="Work Description" minLength={5} defaultValue={request.workDescription} disabled={!editable} />
-        <FormTextarea label="Reason for Work" minLength={5} defaultValue={request.reasonForWork} disabled={!editable} />
+        <FormTextarea label="Exact Work Area" minLength={5} defaultValue={request.exactWorkArea} disabled={!editable} onChange={onRequesterChange} />
+        <FormTextarea label="Work Description" minLength={5} defaultValue={request.workDescription} disabled={!editable} onChange={onRequesterChange} />
+        <FormTextarea label="Reason for Work" minLength={5} defaultValue={request.reasonForWork} disabled={!editable} onChange={onRequesterChange} />
+        <FormTextarea label="Additional Comments" minLength={5} defaultValue={request.additionalComments ?? ""} disabled={!editable} onChange={onRequesterChange} />
       </div>
       <div className="mt-4">
         <AttachmentList attachments={request.attachments} />
@@ -434,6 +470,7 @@ function AssignmentPlanning({
   onAssignedWorkersChange,
   selectedContractor,
   onSelectedContractorChange,
+  onRequesterChange,
 }: {
   request: WorkInitiationRequest;
   editable: boolean;
@@ -441,13 +478,14 @@ function AssignmentPlanning({
   onAssignedWorkersChange: (value: string[]) => void;
   selectedContractor: string;
   onSelectedContractorChange: (value: string) => void;
+  onRequesterChange: () => void;
 }) {
   const assignment = request.assignment;
   return (
     <FormSection title="Assignment & Planning" description="Assigned team, workers, contractor, and planned schedule.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Assigned Department / Team" defaultValue={assignment.assignedDepartment} disabled={!editable} />
-        <FormInput label="Assigned Supervisor" defaultValue={assignment.assignedSupervisor} disabled={!editable} />
+        <FormInput label="Assigned Department / Team" defaultValue={assignment.assignedDepartment} disabled={!editable} onChange={onRequesterChange} />
+        <FormInput label="Assigned Supervisor" defaultValue={assignment.assignedSupervisor} disabled={!editable} onChange={onRequesterChange} />
         <FormMultiSelect label="Assigned Workers" options={employeeOptions} value={assignedWorkers} onValueChange={onAssignedWorkersChange} disabled={!editable} />
         <FormSelect label="Contractors Needed?" options={yesNoOptions} value={assignment.contractorsNeeded ? "Yes" : "No"} onValueChange={() => undefined} disabled={!editable} />
         {assignment.contractorsNeeded ? (
@@ -470,9 +508,9 @@ function AssignmentPlanning({
             />
           </>
         ) : null}
-        <FormInput label="Planned Start Date/Time" defaultValue={formatSafetyDisplayDateTime(assignment.plannedStartDateTime)} disabled={!editable} />
-        <FormInput label="Planned End Date/Time" defaultValue={formatSafetyDisplayDateTime(assignment.plannedEndDateTime)} disabled={!editable} />
-        <FormTextarea label="Materials / Parts Required" minLength={5} defaultValue={assignment.materialsRequired} disabled={!editable} className="md:col-span-2" />
+        <FormInput label="Planned Start Date/Time" defaultValue={formatSafetyDisplayDateTime(assignment.plannedStartDateTime)} disabled={!editable} onChange={onRequesterChange} />
+        <FormInput label="Planned End Date/Time" defaultValue={formatSafetyDisplayDateTime(assignment.plannedEndDateTime)} disabled={!editable} onChange={onRequesterChange} />
+        <FormTextarea label="Materials / Parts Required" minLength={5} defaultValue={assignment.materialsRequired} disabled={!editable} className="md:col-span-2" onChange={onRequesterChange} />
       </div>
     </FormSection>
   );

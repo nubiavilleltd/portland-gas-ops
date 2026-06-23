@@ -76,6 +76,7 @@ export interface AssignedWorkInitiationSummary {
   location: string;
   exactWorkArea: string;
   workDescription: string;
+  additionalComments?: string;
   assignedSupervisor: string;
   assignedWorkers: string[];
   contractorsNeeded: boolean;
@@ -99,6 +100,7 @@ export interface WorkInitiationRequest {
   title: string;
   workDescription: string;
   reasonForWork: string;
+  additionalComments?: string;
   workCategory: string;
   relatedIncidentHazardId: string;
   workType: string[];

@@ -1,0 +1,1 @@
+If an incident requires corrctive work, only the person the incident was recommended to or other people in his department can see the link that leads to the work initiation.

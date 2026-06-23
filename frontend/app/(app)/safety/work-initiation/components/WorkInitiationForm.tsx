@@ -69,6 +69,7 @@ export default function WorkInitiationForm() {
   const [exactWorkArea, setExactWorkArea] = useState("");
   const [workDescription, setWorkDescription] = useState("");
   const [reasonForWork, setReasonForWork] = useState("");
+  const [additionalComments, setAdditionalComments] = useState("");
   const [assignedDepartment, setAssignedDepartment] = useState("");
   const [assignedSupervisor, setAssignedSupervisor] = useState("");
   const [assignedWorkers, setAssignedWorkers] = useState<string[]>([]);
@@ -126,6 +127,7 @@ export default function WorkInitiationForm() {
       title,
       workDescription,
       reasonForWork,
+      additionalComments,
       workCategory,
       relatedIncidentHazardId: relatedIncidentId,
       workType: workTypes,
@@ -230,6 +232,7 @@ export default function WorkInitiationForm() {
           <FormTextarea label="Exact Work Area" minLength={5} placeholder="Enter exact work area" value={exactWorkArea} onChange={(event) => setExactWorkArea(event.target.value)} />
           <FormTextarea label="Work Description" required minLength={5} placeholder="Describe what needs to be done" className="md:col-span-2" value={workDescription} onChange={(event) => setWorkDescription(event.target.value)} />
           <FormTextarea label="Reason for Work" required minLength={5} placeholder="Explain why the work is needed" className="md:col-span-2" value={reasonForWork} onChange={(event) => setReasonForWork(event.target.value)} />
+          <FormTextarea label="Additional Comments" minLength={5} placeholder="Add any extra comments for reviewers" className="md:col-span-2" value={additionalComments} onChange={(event) => setAdditionalComments(event.target.value)} />
           <div className="md:col-span-2">
             <FileDropzone
               label="Supporting Images/Documents"

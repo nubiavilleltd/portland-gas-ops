@@ -92,6 +92,8 @@ const baseAssignment = {
   materialsRequired: "Standard PPE, approved parts, and work checklist.",
 };
 
+const baseAdditionalComments = "Coordinate access with the bay supervisor before mobilizing the team.";
+
 const submittedAudit: WorkAuthorizationAuditTrailItem[] = [
   {
     action: "Submitted",
@@ -117,6 +119,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     title: "Draft vehicle conversion preparation",
     workDescription: "Prepare vehicle and bay for CNG conversion work.",
     reasonForWork: "Vehicle is scheduled for conversion.",
+    additionalComments: baseAdditionalComments,
     workCategory: "Customer Work",
     relatedIncidentHazardId: "",
     workType: ["CNG Conversion"],
@@ -136,6 +139,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     title: "Gas pipe leak repair request",
     workDescription: "Repair damaged gas pipe section and verify line safety.",
     reasonForWork: "Leak concern found near storage valve A.",
+    additionalComments: "Prioritize this request because it is linked to an HSE recommendation.",
     workCategory: "Incident/Hazard",
     relatedIncidentHazardId: "IH-REC-001",
     workType: ["Gas System Repair", "Gas Leak Corrective Work"],
@@ -155,6 +159,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     title: "Vehicle inspection work request",
     workDescription: "Inspect vehicle before conversion readiness review.",
     reasonForWork: "Inspection scope needs more detail.",
+    additionalComments: "Requester will update the inspection checklist after supervisor feedback.",
     workCategory: "Routine Work",
     relatedIncidentHazardId: "",
     workType: ["Vehicle Inspection"],
@@ -188,6 +193,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     title: "Routine maintenance on conversion bay equipment",
     workDescription: "Service conversion bay equipment and verify readiness.",
     reasonForWork: "Scheduled preventive maintenance.",
+    additionalComments: baseAdditionalComments,
     workCategory: "Maintenance",
     relatedIncidentHazardId: "",
     workType: ["Preventive Maintenance", "Equipment Inspection"],
@@ -216,6 +222,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     title: "Workshop modification request",
     workDescription: "Modify workshop layout for convenience.",
     reasonForWork: "Preference request without operational need.",
+    additionalComments: "Requester asked for review during next planning window.",
     workCategory: "Project Work",
     relatedIncidentHazardId: "",
     workType: ["Workshop Modification"],
@@ -249,6 +256,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     title: "Hot work on cylinder mounting bracket",
     workDescription: "Weld reinforcement support on cylinder mounting bracket.",
     reasonForWork: "Bracket reinforcement required before final installation.",
+    additionalComments: "Hot work area must be cleared before contractor arrival.",
     workCategory: "Customer Work",
     relatedIncidentHazardId: "",
     workType: ["CNG Cylinder Work", "CNG Conversion"],
@@ -294,6 +302,7 @@ export const mockWorkInitiationRequests: WorkInitiationRequest[] = [
     title: "Gas pipe leak repair request",
     workDescription: "Repair damaged gas pipe section and verify line safety.",
     reasonForWork: "Leak concern found near storage valve A.",
+    additionalComments: "Linked corrective work for recommended incident IH-REC-001.",
     workCategory: "Incident/Hazard",
     relatedIncidentHazardId: "IH-REC-001",
     workType: ["Gas System Repair", "Urgent Gas System Response"],
@@ -354,6 +363,7 @@ export const assignedWorkInitiationOptions: AssignedWorkInitiationSummary[] =
       location: request.location,
       exactWorkArea: request.exactWorkArea,
       workDescription: request.workDescription,
+      additionalComments: request.additionalComments,
       assignedSupervisor: request.assignment.assignedSupervisor,
       assignedWorkers: request.assignment.assignedWorkers,
       contractorsNeeded: request.assignment.contractorsNeeded,
