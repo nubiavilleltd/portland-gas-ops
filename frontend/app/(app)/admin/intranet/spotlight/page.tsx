@@ -159,7 +159,7 @@ export default function SpotlightPage() {
       employee_name: employee!.name,
       employee_role: employee!.role,
       employee_dept: employee!.department,
-      avatar_url:    employee!.avatar_url,
+      avatar_url:    employee!.avatar_url ?? "",
       title:         `Spotlight — ${employee!.name}`,
       message:       form.message,
       tag:           form.tag,

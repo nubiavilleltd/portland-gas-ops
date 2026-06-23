@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Avatar from "@/components/ui/Avatar";
 
 export interface PickedEmployee {
   id: string;
   name: string;
   role: string;
   department: string;
-  avatar_url: string;
+  avatar_url?: string | null;
 }
 
 interface EmployeePickerProps {
@@ -21,6 +22,7 @@ interface EmployeePickerProps {
   error?: string;
   placeholder?: string;
 }
+
 
 export default function EmployeePicker({
   employees,
@@ -45,7 +47,6 @@ export default function EmployeePicker({
       )
     : employees;
 
-  // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -86,7 +87,6 @@ export default function EmployeePicker({
       {/* Trigger */}
       {!open ? (
         value ? (
-          // Selected state
           <div
             className={cn(
               "flex items-center gap-3 h-12 w-full rounded-lg border bg-white px-3 cursor-pointer hover:border-brand-purple/50 transition-colors",
@@ -94,11 +94,7 @@ export default function EmployeePicker({
             )}
             onClick={handleOpen}
           >
-            <img
-              src={value.avatar_url}
-              alt={value.name}
-              className="w-7 h-7 rounded-full object-cover shrink-0"
-            />
+            <Avatar name={value.name} src={value.avatar_url} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-brand-text-primary leading-tight truncate">{value.name}</p>
               <p className="text-xs text-brand-text-secondary truncate">{value.role} · {value.department}</p>
@@ -113,7 +109,6 @@ export default function EmployeePicker({
             </button>
           </div>
         ) : (
-          // Empty state
           <button
             type="button"
             onClick={handleOpen}
@@ -128,7 +123,6 @@ export default function EmployeePicker({
           </button>
         )
       ) : (
-        // Open / search state
         <div className="relative">
           <div className={cn(
             "flex items-center gap-2 h-10 w-full rounded-lg border bg-white px-3",
@@ -151,7 +145,6 @@ export default function EmployeePicker({
             )}
           </div>
 
-          {/* Dropdown */}
           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-brand-border rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto">
             {filtered.length === 0 ? (
               <div className="px-4 py-6 text-center">
@@ -165,11 +158,7 @@ export default function EmployeePicker({
                   onClick={() => handleSelect(emp)}
                   className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left first:rounded-t-xl last:rounded-b-xl"
                 >
-                  <img
-                    src={emp.avatar_url}
-                    alt={emp.name}
-                    className="w-8 h-8 rounded-full object-cover shrink-0"
-                  />
+                  <Avatar name={emp.name} src={emp.avatar_url} size="md" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-brand-text-primary truncate">{emp.name}</p>
                     <p className="text-xs text-brand-text-secondary truncate">{emp.role} · {emp.department}</p>

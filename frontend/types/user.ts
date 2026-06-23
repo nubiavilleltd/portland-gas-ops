@@ -23,11 +23,13 @@ export type Department =
 
 export interface User {
   id: string;
-  name: string;
+  first_name: string;
+  last_name: string;
+  name?: string;        // legacy — kept for backward compatibility
   email: string;
   role: UserRole;
-  department: Department | null;
-  phone: string | null;
-  is_active: boolean;
-  created_at: string;
+  account_status: "active" | "pending" | "deactivated";
+  phone?: string | null;
+  profile_picture_url?: string | null;
+  created_at?: string;
 }

@@ -221,7 +221,7 @@ export default function IntranetHomePage() {
     setCalMonth(now.getMonth());
   }, []);
 
-  const firstName = user?.name?.split(" ")[0] ?? "Kemi";
+  const firstName = user?.first_name ?? user?.name?.split(" ")[0] ?? "";
 
   // Carousel auto-advance
   const next = useCallback(() => setSlide((s) => (s + 1) % LEADERSHIP_MESSAGES.length), []);
@@ -898,7 +898,7 @@ export default function IntranetHomePage() {
               <p className="text-xs text-brand-text-secondary mt-0.5">
                 {feedbackAnonymous
                   ? "Your name and department will not be attached to this feedback."
-                  : `Submitting as ${user?.name ?? "yourself"}. Uncheck to submit anonymously.`}
+                  : `Submitting as ${user?.first_name ?? user?.name ?? "yourself"}. Uncheck to submit anonymously.`}
               </p>
             </div>
           </div>

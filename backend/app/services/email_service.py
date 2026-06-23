@@ -13,6 +13,11 @@ import httpx
 from pathlib import Path
 from app.config import settings
 
+# Force a basic logging config so email logs always appear in the terminal.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 TEMPLATE_DIR = Path(__file__).parent.parent / "templates" / "email"
@@ -57,11 +62,7 @@ def _send(to_email: str, subject: str, html: str) -> None:
     with no other code changes.
     """
     if not settings.BREVO_API_KEY:
-        logger.warning(
-            "BREVO_API_KEY not set — email not sent. Would have sent to: %s | Subject: %s",
-            to_email,
-            subject,
-        )
+        logger.warning("BREVO_API_KEY not set — email not sent. To: %s | Subject: %s", to_email, subject)
         return
 
     try:
@@ -82,7 +83,9 @@ def _send(to_email: str, subject: str, html: str) -> None:
             },
             timeout=10,
         )
-        response.raise_for_status()
+        if not response.is_success:
+            logger.error("Brevo rejected email to %s — %s: %s", to_email, response.status_code, response.text)
+            return
         logger.info("Email sent to %s — subject: %s", to_email, subject)
     except Exception as exc:
         logger.error("Failed to send email to %s: %s", to_email, exc)
@@ -117,5 +120,21 @@ def send_welcome(to_email: str, name: str, login_url: str) -> None:
         "subject": subject,
         "name": name,
         "login_url": login_url,
+    })
+    _send(to_email, subject, html)
+
+
+def send_account_setup(
+    to_email: str,
+    first_name: str,
+    setup_link: str,
+    employee_no: str,
+) -> None:
+    subject = "Set up your Portland Gas account"
+    html = _render("account_setup.html", {
+        "subject": subject,
+        "first_name": first_name,
+        "setup_link": setup_link,
+        "employee_no": employee_no,
     })
     _send(to_email, subject, html)

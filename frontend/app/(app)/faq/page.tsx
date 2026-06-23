@@ -14,7 +14,7 @@ const CATEGORIES: Category[] = [
     faqs: [
       { q: "How do I reset my work password?", a: "Visit the IT Self-Service Portal at it.portlandgas.com and click 'Reset Password'. You will need your staff ID and registered mobile number. If you are locked out, call the IT Help Desk on ext. 1001." },
       { q: "How do I connect to the VPN?", a: "Download the Cisco AnyConnect client from the IT portal. Use your email address as your username and your network password. Contact IT if you need the server address or encounter connection issues." },
-      { q: "How do I request a new device?", a: "Raise a request via the Workflow Portal under IT Requests > Device Request. Your line manager must approve the request before it is processed by IT. Allow 5–7 working days for fulfilment." },
+      { q: "How do I request a new device?", a: "Raise a request via the Workflow Portal under IT Requests > Device Request. Your operations manager must approve the request before it is processed by IT. Allow 5–7 working days for fulfilment." },
       { q: "What do I do if my laptop won't start?", a: "First, try a hard reset by holding the power button for 10 seconds. If it still won't start, log a ticket on the IT portal or call ext. 1001. Do not attempt to repair the device yourself." },
       { q: "How do I set up my work email on my phone?", a: "Go to your phone's email settings and add a new account using your Portland Gas email and password. Use Microsoft Exchange or Outlook as the account type. If it fails, contact IT for the server configuration details." },
     ],
@@ -22,11 +22,11 @@ const CATEGORIES: Category[] = [
   {
     icon: Users, label: "HR & Payroll", color: "#7234BD", bg: "#F3EEFF",
     faqs: [
-      { q: "How do I apply for leave?", a: "Log in to the Workflow Portal and navigate to HR Management > Leave Requests. Select your leave type, dates, and add a note if required. Your line manager will receive a notification to approve or decline." },
+      { q: "How do I apply for leave?", a: "Log in to the Workflow Portal and navigate to HR Management > Leave Requests. Select your leave type, dates, and add a note if required. Your operations manager will receive a notification to approve or decline." },
       { q: "When is payroll processed?", a: "Payroll is processed on the last working day of each month. Your payslip will be available on the HR portal within two working days of payment. Contact payroll@portlandgas.com for payslip queries." },
       { q: "How do I update my bank details?", a: "Submit a bank details change request via HR Management > My Profile in the Workflow Portal. You must attach a copy of your new bank statement or letter. Changes take effect from the following payroll cycle." },
       { q: "How do I check my leave balance?", a: "Your current leave balance is visible on your profile in the HR Management section of the Workflow Portal. It is updated in real time as leave requests are approved or declined." },
-      { q: "What is the process for a salary advance?", a: "Salary advance requests are submitted via the Workflow Portal under HR > Salary Advance. Requests must be submitted at least 10 working days before the required date and are subject to line manager and HR approval." },
+      { q: "What is the process for a salary advance?", a: "Salary advance requests are submitted via the Workflow Portal under HR > Salary Advance. Requests must be submitted at least 10 working days before the required date and are subject to operations manager and HR approval." },
     ],
   },
   {
@@ -42,10 +42,10 @@ const CATEGORIES: Category[] = [
   {
     icon: Briefcase, label: "Procurement", color: "#C2410C", bg: "#FFF7ED",
     faqs: [
-      { q: "How do I raise a purchase request?", a: "Go to the Workflow Portal and navigate to Procurement > New Request. Fill in the required details including category, items, vendor (if applicable), and justification. Your line manager will be notified to approve." },
+      { q: "How do I raise a purchase request?", a: "Go to the Workflow Portal and navigate to Procurement > New Request. Fill in the required details including category, items, vendor (if applicable), and justification. Your operations manager will be notified to approve." },
       { q: "What is the vendor approval process?", a: "New vendors must be registered by the Procurement team before they can be used in a purchase request. Email vendor details to procurement@portlandgas.com. Approval typically takes 3–5 working days." },
       { q: "How do I track my purchase request status?", a: "Log in to the Workflow Portal and go to Procurement > My Requests. You will see the current status of all your requests, including who the next approver is." },
-      { q: "What is the purchase limit that requires MD approval?", a: "Purchase requests above ₦5,000,000 require MD approval in addition to the standard line manager and procurement sign-off. This threshold applies per request, not per item." },
+      { q: "What is the purchase limit that requires MD approval?", a: "Purchase requests above ₦5,000,000 require MD approval in addition to the standard operations manager and procurement sign-off. This threshold applies per request, not per item." },
       { q: "How long does procurement approval take?", a: "Standard procurement requests are processed within 5–10 working days, depending on the approval chain. Urgent requests can be flagged at submission — please include a justification for the urgency." },
     ],
   },

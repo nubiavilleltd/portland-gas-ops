@@ -47,4 +47,3 @@ class Vendor(Base):
 
     # Relationships
     added_by_user = relationship("User", foreign_keys=[added_by])
-    procurement_requests = relationship("ProcurementRequest", back_populates="vendor")

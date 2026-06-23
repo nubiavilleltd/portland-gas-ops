@@ -12,16 +12,17 @@ export function useCurrentUser() {
   const { data, isLoading, error } = useQuery<User>({
     queryKey: ["current-user"],
     queryFn: () => get<User>("/api/auth/me"),
-    enabled: !user, // only fetch if not already in store
+    enabled: isAuthenticated || !!user,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Sync API response to the store whenever it changes (e.g. after profile picture upload)
   useEffect(() => {
-    if (data && !user) {
+    if (data) {
       setUser(data);
     }
-  }, [data, user, setUser]);
+  }, [data, setUser]);
 
   return {
     user: user ?? data ?? null,

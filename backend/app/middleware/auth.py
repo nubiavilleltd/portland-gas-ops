@@ -1,6 +1,6 @@
-from fastapi import Depends, HTTPException, status, Cookie
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from app.database import get_db
 from app.utils.security import decode_token
@@ -11,19 +11,15 @@ security = HTTPBearer(auto_error=False)
 
 def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    access_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> User:
-    token = None
-    if credentials:
-        token = credentials.credentials
-    elif access_token:
-        token = access_token
-
-    if not token:
+    # Access tokens are passed exclusively via the Authorization: Bearer header.
+    # The refresh token is stored in an HttpOnly cookie and is only used by /auth/refresh.
+    if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
         )
+    token = credentials.credentials
 
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
@@ -37,7 +33,12 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
         )
 
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = (
+        db.query(User)
+        .options(joinedload(User.profile_picture))
+        .filter(User.id == user_id)
+        .first()
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
@@ -48,7 +49,7 @@ def get_current_user(
 
 def require_roles(*roles: str):
     def role_checker(current_user: User = Depends(get_current_user)):
-        if current_user.role not in roles:
+        if current_user.role.value not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
             )

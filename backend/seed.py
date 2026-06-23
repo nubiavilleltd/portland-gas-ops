@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.database import SessionLocal
-from app.models.user import User, UserRole, Department
+from app.models.user import User, UserRole
 from app.utils.security import hash_password
 
 ADMIN_NAME = "Portland Gas Admin"
@@ -34,9 +34,6 @@ def seed():
             email=ADMIN_EMAIL,
             hashed_password=hash_password(ADMIN_PASSWORD),
             role=UserRole.super_admin,
-            department=Department.executive,
-            is_active=True,
-            is_verified=True,   # admin activated directly — no OTP needed
         )
         db.add(admin)
         db.commit()

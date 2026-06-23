@@ -4,7 +4,20 @@
 // Picsum photos seeded by ID so they're consistent across renders
 const PIC = (id: number) => `https://picsum.photos/seed/pg-pod-${id}/400/400`;
 
-export const PODCAST_EPISODES = [
+export type MediaType = "audio" | "video";
+
+export const PODCAST_EPISODES: Array<{
+  id: number;
+  episode_number: number;
+  title: string;
+  guest_name: string;
+  duration: string;
+  cover_image_url: string;
+  audio_url: string;
+  media_type: MediaType;
+  is_published: boolean;
+  is_featured: boolean;
+}> = [
   {
     id: 1,
     episode_number: 12,
@@ -13,7 +26,7 @@ export const PODCAST_EPISODES = [
     duration: "38 min",
     cover_image_url: PIC(12),
     audio_url: "",
-    media_type: "audio" as const,
+    media_type: "audio",
     is_published: true,
     is_featured: true,
   },
@@ -25,7 +38,7 @@ export const PODCAST_EPISODES = [
     duration: "44 min",
     cover_image_url: PIC(11),
     audio_url: "",
-    media_type: "audio" as const,
+    media_type: "audio",
     is_published: true,
     is_featured: false,
   },
@@ -37,7 +50,7 @@ export const PODCAST_EPISODES = [
     duration: "31 min",
     cover_image_url: PIC(10),
     audio_url: "",
-    media_type: "audio" as const,
+    media_type: "audio",
     is_published: true,
     is_featured: false,
   },
@@ -49,7 +62,7 @@ export const PODCAST_EPISODES = [
     duration: "27 min",
     cover_image_url: PIC(9),
     audio_url: "",
-    media_type: "audio" as const,
+    media_type: "audio",
     is_published: true,
     is_featured: false,
   },

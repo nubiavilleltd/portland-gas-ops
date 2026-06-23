@@ -153,7 +153,7 @@ export default function LeadershipPage() {
       author_name: employee!.name,
       author_role: employee!.role,
       author_dept: employee!.department,
-      avatar_url:  employee!.avatar_url,
+      avatar_url:  employee!.avatar_url ?? "",
       title:       form.title,
       body:        form.body,
       is_published: form.is_published,

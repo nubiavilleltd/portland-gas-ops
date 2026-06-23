@@ -72,7 +72,7 @@ export default function RichTextEditor({ label, required, value, onChange, place
     if (!editor) return;
     const current = editor.getHTML();
     if (value !== undefined && value !== current) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [value, editor]);
 
@@ -80,7 +80,7 @@ export default function RichTextEditor({ label, required, value, onChange, place
     if (!editor) return;
     const url = window.prompt("Enter URL:");
     if (!url) return;
-    editor.chain().focus().extendMarkToLink({ href: url }).setLink({ href: url }).run();
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }, [editor]);
 
   if (!editor) return null;
