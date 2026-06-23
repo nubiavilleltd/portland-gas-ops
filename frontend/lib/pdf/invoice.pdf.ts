@@ -144,19 +144,19 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
         header: "Reference",
         width: 50,
         align: "left",
-        render: (p) => p.payment_reference,
+        render: (p) => p.reference,
       },
       {
         header: "Date",
         width: 40,
         align: "center",
-        render: (p) => fmtDate(p.payment_date),
+        render: (p) => fmtDate(p.date),
       },
       {
         header: "Method",
         width: 44,
         align: "center",
-        render: (p) => toTitleCase(p.payment_method.replace("_", " ")),
+        render: (p) => toTitleCase(p.method.replace("_", " ")),
       },
       {
         header: "Amount (NGN)",

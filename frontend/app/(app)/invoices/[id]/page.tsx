@@ -122,16 +122,16 @@ export default function InvoiceDetailPage() {
     {
       label: "Reference",
       render: (payment) => (
-        <span className="font-mono text-xs">{payment.payment_reference}</span>
+        <span className="font-mono text-xs">{payment.reference}</span>
       ),
     },
     {
       label: "Date",
-      render: (payment) => formatDate(payment.payment_date),
+      render: (payment) => formatDate(payment.date),
     },
     {
       label: "Method",
-      render: (payment) => toTitleCase(payment.payment_method.replace("_", " ")),
+      render: (payment) => toTitleCase(payment.method.replace("_", " ")),
     },
     {
       label: "Amount",
@@ -140,6 +140,15 @@ export default function InvoiceDetailPage() {
         <span className="font-medium">{formatCurrency(payment.amount)}</span>
       ),
     },
+      {
+    label: "",
+    align: "right",
+    render: (payment) => (
+      <Button size="sm" variant="outline" href={`/payments/${payment.id}/receipt`}>
+        Receipt
+      </Button>
+    ),
+  },
   ];
 
 
@@ -335,7 +344,7 @@ export default function InvoiceDetailPage() {
             }
           />
 
-          {invoice.status === "paid" && (
+          {/* {invoice.status === "paid" && invoicePayments.length > 0 && (
             <div className="mt-4 flex gap-2">
               <Button
                 href={`/payments/${invoice.id}/receipt`}
@@ -344,7 +353,7 @@ export default function InvoiceDetailPage() {
                 View Receipt →
               </Button>
             </div>
-          )}
+          )} */}
         </FormSection>
       </div>
     </AppLayout>

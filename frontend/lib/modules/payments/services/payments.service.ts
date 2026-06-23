@@ -46,10 +46,10 @@ export class PaymentsService {
     const newPayment: Payment = {
       id: `pay-${Date.now()}`,
       invoice_id: input.invoice_id,
-      payment_reference: input.reference || `PAY-${Date.now()}`,
+      reference: input.reference || `PAY-${Date.now()}`,
       amount: input.amount,
-      payment_method: input.payment_method as any,
-      payment_date: input.payment_date,
+      method: input.payment_method as any,
+      date: input.payment_date,
       recorded_by: input.recorded_by || "System",
     };
 

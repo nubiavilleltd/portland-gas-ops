@@ -12,13 +12,13 @@ export interface Payment {
 
   invoice_id: string;
 
-  payment_reference: string;
+  reference: string;
 
   amount: number;
 
-  payment_method: PaymentMethod;
+  method: PaymentMethod;
 
-  payment_date: string;
+  date: string;
 
   recorded_by: string;
 }
