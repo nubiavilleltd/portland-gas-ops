@@ -6,9 +6,8 @@
 
 import { OrdersService } from "../../orders/services/orders.service";
 import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
-import { PaymentStatus } from "@/lib/modules/orders/types/orders.types";
 import { payments } from "@/lib/modules/payments/mocks/payments.mock";
-import { CreatePaymentInput, Payment } from "@/lib/modules/payments/types/payments.types";
+import { CreatePaymentInput, Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 
 
 
@@ -47,10 +46,10 @@ export class PaymentsService {
     const newPayment: Payment = {
       id: `pay-${Date.now()}`,
       invoice_id: input.invoice_id,
-      payment_reference: input.reference || `PAY-${Date.now()}`,
+      reference: input.reference || `PAY-${Date.now()}`,
       amount: input.amount,
-      payment_method: input.payment_method as any,
-      payment_date: input.payment_date,
+      method: input.payment_method as any,
+      date: input.payment_date,
       recorded_by: input.recorded_by || "System",
     };
 
@@ -71,17 +70,7 @@ export class PaymentsService {
         newInvoiceStatus === "paid" ? "paid" : "partially_paid";
       await OrdersService.updatePaymentStatus(linkedOrder.id, orderPaymentStatus);
 
-      // // ── CASCADE 3: Auto-close order if delivered + paid ──
-      // if (
-      //   orderPaymentStatus === "paid" &&
-      //   linkedOrder.fulfillment_status === "delivered"
-      // ) {
-      //   try {
-      //     await OrdersService.closeOrder(linkedOrder.id);
-      //   } catch {
-      //     // Auto-close is best-effort; do not throw
-      //   }
-      // }
+
     }
 
     return Promise.resolve(newPayment);

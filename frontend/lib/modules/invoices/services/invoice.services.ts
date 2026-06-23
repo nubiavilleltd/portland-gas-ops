@@ -21,9 +21,9 @@ export class InvoicesService {
   static async getInvoiceById(id: string): Promise<Invoice | undefined> {
     return Promise.resolve(invoices.find((inv) => inv.id === id));
   }
-//   static async getInvoiceById(id: string): Promise<Invoice | undefined> {
-//     return Promise.resolve(invoices.find((inv) => inv.id === id));
-//   }
+  //   static async getInvoiceById(id: string): Promise<Invoice | undefined> {
+  //     return Promise.resolve(invoices.find((inv) => inv.id === id));
+  //   }
 
   static async getInvoiceByOrderId(orderId: string): Promise<Invoice | undefined> {
     return Promise.resolve(invoices.find((inv) => inv.order_id === orderId));
@@ -75,4 +75,18 @@ export class InvoicesService {
 
     return Promise.resolve(invoices[idx]);
   }
+
+
+// invoices.service.ts — voidInvoice, corrected to also sync the order
+static async voidInvoice(orderId: string): Promise<Invoice | undefined> {
+  const idx = invoices.findIndex((i) => i.order_id === orderId);
+  if (idx === -1) return undefined;
+
+  if (invoices[idx].status === "unpaid" || invoices[idx].status === "partially_paid") {
+    invoices[idx].status = "void";
+    await OrdersService.updatePaymentStatus(orderId, "void");
+  }
+
+  return Promise.resolve(invoices[idx]);
+}
 }

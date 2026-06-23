@@ -4,12 +4,12 @@ import type {
   Order,
   OrderStatus,
   FulfillmentStatus,
-  PaymentStatus,
   OrderKPIs,
 } from "@/lib/modules/orders/types/orders.types";
 
 import type { Product } from "../../products/types/product.types";
 import type { CreateOrderFormValues } from "../schemas/create-order.schema";
+import { PaymentStatus } from "../../payments/types/payments.types";
 
 // ── LOOKUPS ─────────────────────────────────────────────
 
@@ -54,11 +54,13 @@ export function getConfirmedUnassignedOrders(orders: Order[]): Order[] {
 // ── KPIs (pure aggregation) ─────────────────────────────
 
 export function getOrderKPIs(orders: Order[]): OrderKPIs {
+  
+  const validOrders = orders.filter((o) => o.order_status !== "cancelled")
   return {
     totalOrders: orders.length,
     pendingDispatch: orders.filter(
       (o) =>
-        o.order_status === "confirmed" &&
+        o.order_status !== "cancelled" && o.order_status === "confirmed" &&
         o.fulfillment_status === "pending"
     ).length,
     inTransit: orders.filter(
@@ -73,7 +75,7 @@ export function getOrderKPIs(orders: Order[]): OrderKPIs {
         o.payment_status === "unpaid" ||
         o.payment_status === "partially_paid"
     ).length,
-    totalRevenue: orders.reduce((sum, o) => sum + o.total_amount, 0),
+    totalRevenue: validOrders.reduce((sum, o) => sum + o.total_amount, 0),
   };
 }
 
