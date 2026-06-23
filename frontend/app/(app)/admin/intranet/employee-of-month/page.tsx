@@ -89,7 +89,7 @@ export default function EmployeeOfMonthPage() {
       employee_name: employee!.name,
       employee_role: employee!.role,
       employee_dept: employee!.department,
-      avatar_url:    employee!.avatar_url,
+      avatar_url:    employee!.avatar_url ?? undefined,
       title,
       message,
       month:         Number(month),

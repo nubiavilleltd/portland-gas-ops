@@ -21,9 +21,9 @@ import {
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import Avatar from "@/components/ui/Avatar";
 
-const DEMO_NAME   = "Kemi Adeyemi";
-const DEMO_AVATAR = "https://i.pravatar.cc/150?img=21";
+const DEMO_NAME = "Portland Gas";
 
 const NAV_LINKS = [
   { label: "Home",    href: "/" },
@@ -62,8 +62,10 @@ export default function IntranetLayout({ children }: Props) {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  const displayName = user?.name ?? DEMO_NAME;
-  const firstName   = displayName.split(" ")[0];
+  const displayName = user
+    ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.name || DEMO_NAME
+    : DEMO_NAME;
+  const firstName = displayName.split(" ")[0];
 
   const unread = NOTIFICATIONS.filter((n) => !n.read).length;
 
@@ -98,6 +100,7 @@ export default function IntranetLayout({ children }: Props) {
               width={130}
               height={34}
               className="h-7 w-auto object-contain brightness-0 invert"
+              style={{ width: "auto" }}
               priority
             />
           </Link>
@@ -198,12 +201,11 @@ export default function IntranetLayout({ children }: Props) {
                 onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-all btn-press"
               >
-                <Image
-                  src={DEMO_AVATAR}
-                  alt={displayName}
-                  width={28}
-                  height={28}
-                  className="rounded-full object-cover ring-2 ring-white/20 shrink-0"
+                <Avatar
+                  name={displayName}
+                  src={user?.profile_picture_url}
+                  size="sm"
+                  className="ring-2 ring-white/20"
                 />
                 <span className="hidden sm:block text-sm text-white/80 font-medium max-w-[90px] truncate">
                   {firstName}
@@ -215,7 +217,7 @@ export default function IntranetLayout({ children }: Props) {
                 <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-50 animate-fade-up">
                   <div className="px-4 py-2.5 border-b border-gray-100">
                     <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
-                    <p className="text-xs text-gray-400 truncate">{user?.email ?? "kemi.adeyemi@portlandgas.com"}</p>
+                    <p className="text-xs text-gray-400 truncate">{user?.email ?? ""}</p>
                   </div>
                   <Link href="/hr-management/my-profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                     <User size={14} className="text-gray-400" /> My Profile

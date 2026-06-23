@@ -11,7 +11,6 @@ from app.schemas.user import UserResponse
 from app.services import auth_service
 from app.middleware.auth import get_current_user
 from app.models.user import User
-from app.models.otp import OTPPurpose
 from app.config import settings
 
 router = APIRouter()
@@ -41,24 +40,15 @@ class LoginRequest(BaseModel):
     remember_me: bool = False
 
 
-class RegisterRequest(BaseModel):
-    name: str
-    email: EmailStr
-    password: str
+class SetupAccountRequest(BaseModel):
+    user_id: str
+    token: str
+    new_password: str
 
-    @field_validator("password")
+    @field_validator("new_password")
     @classmethod
     def password_strength(cls, v: str) -> str:
         return _validate_password(v)
-
-
-class VerifyOTPRequest(BaseModel):
-    user_id: str
-    code: str
-
-
-class ResendOTPRequest(BaseModel):
-    user_id: str
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -67,7 +57,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     user_id: str
-    code: str
+    token: str
     new_password: str
 
     @field_validator("new_password")
@@ -88,59 +78,52 @@ class ChangePasswordRequest(BaseModel):
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
-@router.post("/register")
-@limiter.limit("10/minute")
-def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
-    return auth_service.register_user(body.name, body.email, body.password, db)
-
-
-@router.post("/verify-otp")
-@limiter.limit("10/minute")
-def verify_otp(request: Request, body: VerifyOTPRequest, db: Session = Depends(get_db)):
-    return auth_service.verify_otp(body.user_id, body.code, OTPPurpose.email_verification, db)
-
-
-@router.post("/resend-otp")
-@limiter.limit("5/minute")
-def resend_otp(request: Request, body: ResendOTPRequest, db: Session = Depends(get_db)):
-    return auth_service.resend_otp(body.user_id, OTPPurpose.email_verification, db)
-
-
 @router.post("/login")
 @limiter.limit("5/minute")
 def login(request: Request, body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     result = auth_service.login_user(body.email, body.password, body.remember_me, db)
 
     max_age = result["refresh_days"] * 86400
-    cookie_opts = dict(
+    # Only the refresh token lives in an HttpOnly cookie.
+    # The access token is returned in the response body and stored in memory on the client.
+    response.set_cookie(
+        "refresh_token", result["refresh_token"],
+        max_age=max_age,
         httponly=True,
         secure=settings.ENVIRONMENT == "production",
         samesite="lax",
     )
-    response.set_cookie("access_token", result["access_token"], max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, **cookie_opts)
-    response.set_cookie("refresh_token", result["refresh_token"], max_age=max_age, **cookie_opts)
 
     return {"access_token": result["access_token"], "token_type": "bearer", "user": result["user"]}
 
 
+@router.post("/setup-account")
+@limiter.limit("5/minute")
+def setup_account(request: Request, body: SetupAccountRequest, db: Session = Depends(get_db)):
+    """Called when an IT-created employee clicks their setup email link."""
+    return auth_service.setup_account(body.user_id, body.token, body.new_password, db)
+
+
 @router.post("/refresh")
 @limiter.limit("3/minute")
-def refresh(request: Request, response: Response, refresh_token: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+def refresh(
+    request: Request,
+    refresh_token: Optional[str] = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
     result = auth_service.refresh_access_token(refresh_token, db)
-    response.set_cookie(
-        "access_token", result["access_token"],
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=settings.ENVIRONMENT == "production",
-        samesite="lax",
-    )
+    # Return new access token in body only — client stores it in memory
     return result
 
 
 @router.post("/logout")
-def logout(response: Response, refresh_token: Optional[str] = Cookie(default=None), db: Session = Depends(get_db)):
+def logout(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(default=None),
+    db: Session = Depends(get_db),
+):
     if refresh_token:
         auth_service.logout_user(refresh_token, db)
     response.delete_cookie("access_token")
@@ -157,11 +140,15 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
 @router.post("/reset-password")
 @limiter.limit("5/minute")
 def reset_password(request: Request, body: ResetPasswordRequest, db: Session = Depends(get_db)):
-    return auth_service.reset_password(body.user_id, body.code, body.new_password, db)
+    return auth_service.reset_password(body.user_id, body.token, body.new_password, db)
 
 
 @router.post("/change-password")
-def change_password(body: ChangePasswordRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     return auth_service.change_password(current_user, body.current_password, body.new_password, db)
 
 

@@ -5,18 +5,19 @@ import {
   CalendarDays,
   CreditCard,
   DollarSign,
-  FolderOpen,
   HelpCircle,
   MessageSquare,
   Mic2,
   Newspaper,
   Package,
   Quote,
+  Settings,
   ShieldCheck,
   Star,
   Store,
   Truck,
   User,
+  UserPlus,
   Users,
   Warehouse,
 } from "lucide-react";
@@ -38,13 +39,22 @@ export type ModuleGroup = {
 
 export const moduleGroups: readonly ModuleGroup[] = [
   {
-    title: "Finance & HR Management",
+    title: "People & Administration",
+    routePrefixes: ["/admin/accounts", "/admin/employees"],
     processes: [
       {
-        name: "Employee Profile",
-        description: "Staff profiles and records",
+        name: "Account Management",
+        description: "Create employee accounts and manage system access",
+        icon: UserPlus,
+        href: "/admin/accounts",
+        routePrefixes: ["/admin/accounts"],
+      },
+      {
+        name: "Employee Profiles",
+        description: "Staff profiles, records and employment details",
         icon: Users,
         href: "/admin/employees",
+        routePrefixes: ["/admin/employees"],
       },
       {
         name: "Leave Balances",
@@ -59,10 +69,10 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/admin/payslips",
       },
       {
-        name: "Employee Records",
-        description: "Document vault",
-        icon: FolderOpen,
-        href: "/admin/employee-records",
+        name: "Payroll",
+        description: "Payroll runs and disbursements",
+        icon: DollarSign,
+        href: "/admin/payroll",
         showOnHome: false,
       },
       {
@@ -73,10 +83,10 @@ export const moduleGroups: readonly ModuleGroup[] = [
         showOnHome: false,
       },
       {
-        name: "Payroll",
-        description: "Payroll runs and disbursements",
-        icon: DollarSign,
-        href: "/admin/payroll",
+        name: "System Settings",
+        description: "Roles, permissions and system configuration",
+        icon: Settings,
+        href: "/admin/settings",
         showOnHome: false,
       },
     ],

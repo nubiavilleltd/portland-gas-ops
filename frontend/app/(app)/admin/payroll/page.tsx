@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/utils";
 import { payrollColumns } from "../_components/columns";
 import { SEED_PAYROLL, PAYROLL_PERIODS, genHRRef, type PayrollRun } from "../_components/_data";
 
-const PAYROLL_STEPS = ["Submitted", "Line Manager", "Finance Review", "Processed"];
+const PAYROLL_STEPS = ["Submitted", "Operations Manager", "Finance Review", "Processed"];
 
 const PERIOD_OPTIONS = PAYROLL_PERIODS.map((p) => ({ value: p, label: p }));
 
@@ -41,7 +41,7 @@ type FormState = {
   notes?: string;
 };
 
-const APPROVAL_ROUTE = ["Initiator (You)", "Line Manager", "Finance Review", "Processed"];
+const APPROVAL_ROUTE = ["Initiator (You)", "Operations Manager", "Finance Review", "Processed"];
 
 export default function PayrollPage() {
   const [list, setList] = useState<PayrollRun[]>(SEED_PAYROLL);
@@ -84,7 +84,7 @@ export default function PayrollPage() {
         </button>
         <SuccessAlert
           title="Payroll Run Submitted Successfully"
-          message="Routed to Line Manager for review."
+          message="Routed to Operations Manager for review."
           reference={submitted.ref}
         />
         <div className="space-y-4">

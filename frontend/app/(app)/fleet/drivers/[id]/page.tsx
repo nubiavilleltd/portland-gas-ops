@@ -166,7 +166,7 @@ const canAssign = canAssignDriver(driver);
               <Avatar
                 src={profileImage}
                 name={driver.full_name}
-                size={64}
+                size="lg"
               />
 
             </div>

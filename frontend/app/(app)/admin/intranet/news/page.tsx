@@ -120,6 +120,7 @@ export default function IntranetNewsPage() {
       body:            item.body,
       category:        item.category,
       cover_image_url: item.cover_image_url,
+      cover_image_mode: "url" as const,
       author_name:     item.author_name,
       is_published:    item.is_published,
       published_at:    item.published_at,

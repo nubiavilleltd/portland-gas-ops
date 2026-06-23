@@ -28,7 +28,7 @@ export default function PodcastPage() {
             <p className="text-sm text-gray-500 mt-1">Conversations with our people and leaders.</p>
           </div>
           <div className="w-full sm:w-72">
-            <IntranetSearchBar value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search episodes…" />
+            <IntranetSearchBar value={q} onChange={(val) => setQ(val)} placeholder="Search episodes…" />
           </div>
         </div>
 

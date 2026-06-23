@@ -8,13 +8,15 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
+
+# Import all models so SQLAlchemy can resolve relationship strings at startup
+from app.models import user, employee, document, token, vendor  # noqa: F401
+
 from app.routers import (
     auth,
     users,
-    approvals,
-    procurement,
+    employees,
     vendors,
-    fleet,
     assets,
     safety,
     finance,
@@ -79,10 +81,8 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
-app.include_router(approvals.router, prefix="/api/approvals", tags=["Approvals"])
-app.include_router(procurement.router, prefix="/api/procurement", tags=["Procurement"])
+app.include_router(employees.router, prefix="/api/employees", tags=["Employees"])
 app.include_router(vendors.router, prefix="/api/vendors", tags=["Vendors"])
-app.include_router(fleet.router, prefix="/api/fleet", tags=["Fleet"])
 app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(safety.router, prefix="/api/safety", tags=["Safety"])
 app.include_router(finance.router, prefix="/api/finance", tags=["Finance"])
