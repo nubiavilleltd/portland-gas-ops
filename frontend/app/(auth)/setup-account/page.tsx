@@ -41,6 +41,7 @@ function SetupAccountContent() {
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { detail?: string } } };
       toast.error(error?.response?.data?.detail ?? "Setup failed. Your link may have expired — contact IT.");
+      throw err;
     }
   }
 
