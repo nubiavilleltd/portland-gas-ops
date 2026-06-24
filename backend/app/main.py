@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,9 @@ from app.config import settings
 
 # Import all models so SQLAlchemy can resolve relationship strings at startup
 from app.models import user, employee, document, token, vendor  # noqa: F401
+from app.domains.customers.model import Customer
+
+from app.domains.customers.router import router as customers_router
 
 from app.routers import (
     auth,
@@ -48,6 +52,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Convert Pydantic's 422 validation errors into our standard error envelope.
+    This means the frontend always receives the same shape: {error_code, message, details}.
+    """
+    errors = exc.errors()
+    # Extract first error for the main message, include all in details
+    first = errors[0] if errors else {}
+    field  = " → ".join(str(loc) for loc in first.get("loc", []) if loc != "body")
+    msg    = first.get("msg", "Validation error")
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": {
+                "error_code": "VALIDATION_ERROR",
+                "message": f"{field}: {msg}" if field else msg,
+                "details": {"errors": errors},
+            }
+        },
+    )
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
@@ -87,9 +115,12 @@ app.include_router(assets.router, prefix="/api/assets", tags=["Assets"])
 app.include_router(safety.router, prefix="/api/safety", tags=["Safety"])
 app.include_router(finance.router, prefix="/api/finance", tags=["Finance"])
 app.include_router(hr.router, prefix="/api/hr", tags=["HR"])
-app.include_router(customers.router, prefix="/api/customers", tags=["Customers"])
+# app.include_router(customers.router, prefix="/api/customers", tags=["Customers"])
 app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+
+# Customers routes
+app.include_router(customers_router, prefix="/api/customers", tags=["Customers"])
 
 
 @app.get("/api/health")
