@@ -45,6 +45,7 @@ class VendorResponse(BaseModel):
     id: str
     name: str
     category: VendorCategory
+    vendor_code: Optional[str]
     contact_person: Optional[str]
     phone: Optional[str]
     email: Optional[str]
@@ -52,6 +53,8 @@ class VendorResponse(BaseModel):
     bank_name: Optional[str]
     account_name: Optional[str]
     account_number: Optional[str]
+    logo_url: Optional[str]          # derived from logo_document.file_path via model property
+    logo_document_id: Optional[int]
     status: VendorStatus
     added_by: Optional[str]
     is_active: bool
@@ -59,4 +62,4 @@ class VendorResponse(BaseModel):
     updated_at: Optional[datetime]
 
     class Config:
-        from_attributes = True  # Allows Pydantic to read SQLAlchemy ORM objects directly
+        from_attributes = True  # Allows Pydantic to read SQLAlchemy ORM objects and properties

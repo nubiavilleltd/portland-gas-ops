@@ -48,12 +48,14 @@ interface Props {
   description: string;
   initial: VendorFormValues;
   loading: boolean;
-  onSubmit: (values: VendorFormValues) => void;
+  onSubmit: (values: VendorFormValues, logoFile: File | null) => void;
 }
 
 export default function VendorForm({ title, description, initial, loading, onSubmit }: Props) {
   const [form, setForm] = useState<VendorFormValues>(initial);
   const [errors, setErrors] = useState<Partial<Record<keyof VendorFormValues, string>>>({});
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>(initial.logo_url || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function set(field: keyof VendorFormValues, value: string) {
@@ -64,9 +66,8 @@ export default function VendorForm({ title, description, initial, loading, onSub
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set("logo_url", reader.result as string);
-    reader.readAsDataURL(file);
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
   }
 
   function validate() {
@@ -81,7 +82,7 @@ export default function VendorForm({ title, description, initial, loading, onSub
     ev.preventDefault();
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
-    onSubmit(form);
+    onSubmit(form, logoFile);
   }
 
   return (
@@ -101,8 +102,8 @@ export default function VendorForm({ title, description, initial, loading, onSub
         <FormSection title="Vendor Logo" description="Upload a logo to display on the vendor profile and documents">
           <div className="flex items-center gap-5">
             <div className="h-20 w-20 rounded-xl border border-brand-border bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
-              {form.logo_url ? (
-                <Image src={form.logo_url} alt="Vendor logo" width={80} height={80} className="object-contain h-full w-full" />
+              {logoPreview ? (
+                <Image src={logoPreview} alt="Vendor logo" width={80} height={80} className="object-contain h-full w-full" />
               ) : (
                 <span className="text-2xl font-bold text-gray-300">
                   {form.name ? form.name.charAt(0).toUpperCase() : "?"}
@@ -124,15 +125,15 @@ export default function VendorForm({ title, description, initial, loading, onSub
                 leftIcon={<Upload size={14} />}
                 onClick={() => fileInputRef.current?.click()}
               >
-                {form.logo_url ? "Change Logo" : "Upload Logo"}
+                {logoPreview ? "Change Logo" : "Upload Logo"}
               </Button>
-              {form.logo_url && (
+              {logoPreview && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   leftIcon={<X size={13} />}
-                  onClick={() => { set("logo_url", ""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                  onClick={() => { setLogoPreview(""); setLogoFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
                 >
                   Remove logo
                 </Button>
