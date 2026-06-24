@@ -14,7 +14,7 @@ Why is vendor creation restricted to admin/manager?
   want unvetted suppliers appearing in the system.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
@@ -22,6 +22,7 @@ from app.middleware.auth import get_current_user
 from app.models.user import User, UserRole
 from app.schemas.vendor import VendorCreate, VendorUpdate, VendorResponse
 from app.services import vendor_service
+from app.services.employee_service import get_employee_by_user_id
 
 router = APIRouter()
 
@@ -87,3 +88,32 @@ def delete_vendor(
         from fastapi import HTTPException, status
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admins only")
     vendor_service.delete_vendor(db, vendor_id)
+
+
+@router.patch("/{vendor_id}/deactivate", response_model=VendorResponse)
+def deactivate_vendor(
+    vendor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_manager),
+):
+    return vendor_service.deactivate_vendor(db, vendor_id)
+
+
+@router.patch("/{vendor_id}/reactivate", response_model=VendorResponse)
+def reactivate_vendor(
+    vendor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_manager),
+):
+    return vendor_service.reactivate_vendor(db, vendor_id)
+
+
+@router.post("/{vendor_id}/logo", response_model=VendorResponse)
+def upload_vendor_logo(
+    vendor_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_manager),
+):
+    uploader_emp = get_employee_by_user_id(current_user.id, db)
+    return vendor_service.upload_vendor_logo_file(vendor_id, file, uploader_emp.id, db)

@@ -4,13 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2, PowerOff, Power } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { useVendor, useDeleteVendor } from "@/hooks/useVendors";
+import { useVendor, useDeleteVendor, useDeactivateVendor, useReactivateVendor } from "@/hooks/useVendors";
 import { useProcurementByVendor } from "@/hooks/useProcurement";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
@@ -82,9 +82,13 @@ export default function AdminVendorDetailPage() {
   const router = useRouter();
   const toast = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmReactivate, setConfirmReactivate] = useState(false);
   const { data: vendor, isLoading, isError } = useVendor(id);
   const { data: requests = [], isLoading: reqLoading } = useProcurementByVendor(id);
   const deleteVendor = useDeleteVendor();
+  const deactivateVendor = useDeactivateVendor();
+  const reactivateVendor = useReactivateVendor();
 
   if (isLoading) {
     return <AppLayout pageTitle="Admin — Vendors"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
@@ -101,6 +105,20 @@ export default function AdminVendorDetailPage() {
     deleteVendor.mutate(id, {
       onSuccess: () => { toast.success("Vendor removed"); router.push("/admin/vendors"); },
       onError: () => toast.error("Failed to delete vendor"),
+    });
+  }
+
+  function handleDeactivate() {
+    deactivateVendor.mutate(id, {
+      onSuccess: () => { toast.success("Vendor deactivated"); setConfirmDeactivate(false); },
+      onError: () => toast.error("Failed to deactivate vendor"),
+    });
+  }
+
+  function handleReactivate() {
+    reactivateVendor.mutate(id, {
+      onSuccess: () => { toast.success("Vendor reactivated"); setConfirmReactivate(false); },
+      onError: () => toast.error("Failed to reactivate vendor"),
     });
   }
 
@@ -131,6 +149,11 @@ export default function AdminVendorDetailPage() {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button href={`/admin/vendors/${id}/edit`} variant="ghost" size="sm" leftIcon={<Pencil size={14} />} />
+          {vendor.is_active ? (
+            <Button variant="ghost" size="sm" leftIcon={<PowerOff size={14} />} onClick={() => setConfirmDeactivate(true)} title="Deactivate vendor" />
+          ) : (
+            <Button variant="ghost" size="sm" leftIcon={<Power size={14} />} onClick={() => setConfirmReactivate(true)} title="Reactivate vendor" />
+          )}
           <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => setConfirmDelete(true)} />
         </div>
       </div>
@@ -143,6 +166,23 @@ export default function AdminVendorDetailPage() {
         destructive
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmDeactivate}
+        title="Deactivate Vendor"
+        message={`Deactivating "${vendor.name}" will hide them from procurement request forms. Existing requests are not affected.`}
+        confirmLabel="Deactivate"
+        destructive
+        onConfirm={handleDeactivate}
+        onCancel={() => setConfirmDeactivate(false)}
+      />
+      <ConfirmDialog
+        open={confirmReactivate}
+        title="Reactivate Vendor"
+        message={`Reactivating "${vendor.name}" will make them available again on procurement request forms.`}
+        confirmLabel="Reactivate"
+        onConfirm={handleReactivate}
+        onCancel={() => setConfirmReactivate(false)}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">

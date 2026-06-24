@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Enum as SAEnum, ForeignKey, Text
+from sqlalchemy import Column, String, Boolean, DateTime, Enum as SAEnum, ForeignKey, Text, Integer
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -39,6 +39,9 @@ class Vendor(Base):
     account_name = Column(String(255), nullable=True)
     account_number = Column(String(20), nullable=True)
 
+    vendor_code       = Column(String(20), nullable=True, unique=True, index=True)  # e.g. AT-K7M2
+    logo_document_id  = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+
     status = Column(SAEnum(VendorStatus), nullable=False, default=VendorStatus.active)
     added_by = Column(CHAR(36), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True)
@@ -46,4 +49,12 @@ class Vendor(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    added_by_user = relationship("User", foreign_keys=[added_by])
+    added_by_user  = relationship("User", foreign_keys=[added_by])
+    logo_document  = relationship("Document", foreign_keys=[logo_document_id])
+
+    @property
+    def logo_url(self) -> str | None:
+        """Derive logo URL from the linked document — consistent with User.profile_picture_url."""
+        if self.logo_document and self.logo_document.file_path:
+            return self.logo_document.file_path
+        return None

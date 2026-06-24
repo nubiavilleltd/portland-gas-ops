@@ -132,7 +132,7 @@ export default function AdminAssetsPage() {
         title="Asset Registry"
         description="Manage all company assets"
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Button href="/assets/history" variant="outline" size="sm">Asset History</Button>
             <Button href="/admin/assets/categories" variant="outline" size="sm">Categories</Button>
             <Button href="/admin/assets/new" leftIcon={<Plus size={15} />} size="sm">Register Asset</Button>

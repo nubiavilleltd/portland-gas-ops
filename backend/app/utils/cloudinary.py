@@ -37,6 +37,19 @@ def upload_image(file_bytes: bytes, public_id: str) -> str:
     return result["secure_url"]
 
 
+def upload_vendor_logo(file_bytes: bytes, public_id: str) -> str:
+    """Upload a vendor logo image to Cloudinary and return the secure URL."""
+    _configure()
+    result = cloudinary.uploader.upload(
+        file_bytes,
+        public_id=public_id,
+        overwrite=True,
+        resource_type="image",
+        folder="portland-gas/vendor-logos",
+    )
+    return result["secure_url"]
+
+
 def upload_document(file_bytes: bytes, public_id: str) -> str:
     """
     Upload a document (PDF, DOC, DOCX, image) to Cloudinary and return the secure URL.
