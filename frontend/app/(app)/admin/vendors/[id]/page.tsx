@@ -148,13 +148,13 @@ export default function AdminVendorDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button href={`/admin/vendors/${id}/edit`} variant="ghost" size="sm" leftIcon={<Pencil size={14} />} />
+          <Button href={`/admin/vendors/${id}/edit`} variant="ghost" size="sm" leftIcon={<Pencil size={14} />} title="Edit vendor" />
           {vendor.is_active ? (
             <Button variant="ghost" size="sm" leftIcon={<PowerOff size={14} />} onClick={() => setConfirmDeactivate(true)} title="Deactivate vendor" />
           ) : (
             <Button variant="ghost" size="sm" leftIcon={<Power size={14} />} onClick={() => setConfirmReactivate(true)} title="Reactivate vendor" />
           )}
-          <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => setConfirmDelete(true)} />
+          <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => setConfirmDelete(true)} title="Delete vendor" />
         </div>
       </div>
 

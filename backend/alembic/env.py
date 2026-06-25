@@ -7,11 +7,15 @@ import os
 # Add backend root to path so app imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.config import settings
-from app.database import Base
+from app.core.config import settings
+from app.core.database import Base
 
 # Import all models so Alembic can detect them
-from app.models import user, token, vendor, employee, document  # noqa: F401
+from app.shared.models import user, token, document, approval  # noqa: F401
+from app.employees import models as _employee_models  # noqa: F401
+from app.vendors import models as _vendor_models  # noqa: F401
+from app.assets import models as _asset_models  # noqa: F401
+from app.procurement import models as _procurement_models  # noqa: F401
 
 config = context.config
 

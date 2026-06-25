@@ -10,10 +10,13 @@ const KEYS = {
   detail: (id: string)      => ["vendors", "detail", id] as const,
 };
 
-export function useVendors(search?: string) {
+export function useVendors(search?: string, includeInactive?: boolean) {
   return useQuery<Vendor[]>({
-    queryKey: KEYS.list(search),
-    queryFn:  () => get<Vendor[]>("/api/vendors/", search ? { search } : undefined),
+    queryKey: [...KEYS.list(search), includeInactive ?? false],
+    queryFn:  () => get<Vendor[]>("/api/vendors/", {
+      ...(search ? { search } : {}),
+      ...(includeInactive ? { include_inactive: true } : {}),
+    }),
     staleTime: 5 * 60 * 1000,
   });
 }
