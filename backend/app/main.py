@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Convert Pydantic's 422 validation errors into our standard error envelope.
+    This means the frontend always receives the same shape: {error_code, message, details}.
+    """
+    errors = exc.errors()
+    first = errors[0] if errors else {}
+    field = " → ".join(str(loc) for loc in first.get("loc", []) if loc != "body")
+    msg   = first.get("msg", "Validation error")
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": {
+                "error_code": "VALIDATION_ERROR",
+                "message": f"{field}: {msg}" if field else msg,
+                "details": {"errors": errors},
+            }
+        },
+    )
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     origin = request.headers.get("origin", "")
@@ -61,6 +86,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         },
     )
 
+
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(employees_router, prefix="/api/employees", tags=["Employees"])
@@ -70,6 +96,7 @@ app.include_router(safety_router, prefix="/api/safety", tags=["Safety"])
 app.include_router(customers_router, prefix="/api/customers", tags=["Customers"])
 app.include_router(orders_router, prefix="/api/orders", tags=["Orders"])
 app.include_router(procurement_router, prefix="/api/procurement", tags=["Procurement"])
+
 
 @app.get("/api/health")
 def health_check():

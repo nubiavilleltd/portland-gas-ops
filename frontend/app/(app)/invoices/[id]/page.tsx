@@ -9,7 +9,7 @@ import FormSection from "@/components/ui/FormSection";
 
 import { formatCurrency, formatDate, toTitleCase } from "@/lib/utils";
 
-import { OrderLineItem, PaymentStatus } from "@/lib/modules/orders/types/orders.types";
+import { Order, OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
@@ -28,20 +28,32 @@ import {
 } from "@/lib/modules/payments/hooks/usePayments";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
-import { Payment } from "@/lib/modules/payments/types/payments.types";
+import { Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
+import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
+import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { needsPayment } from "@/lib/modules/payments/types/payments.types";
+import { Download } from "lucide-react";
+import { useState } from "react";
+import { generateInvoicePdf } from "@/lib/pdf/invoice.pdf";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { customers } = useCustomers()
+  const { products } = useProducts();
+  const [downloading, setDownloading] = useState(false);
 
   const customerMap = Object.fromEntries(
-    customers.map((cutomer) => [
-      cutomer.id,
-      cutomer,
+    customers.map((customer) => [
+      customer.id,
+      customer,
     ])
   );
+
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
 
   const id = params.id as string;
 
@@ -56,6 +68,9 @@ export default function InvoiceDetailPage() {
 
   const { payments: invoicePayments } =
     usePaymentsByInvoice(invoice?.id as string);
+
+
+
 
   if (!invoice) {
     return (
@@ -73,27 +88,28 @@ export default function InvoiceDetailPage() {
   const balance =
     invoice.total_amount - amountPaid;
 
-  const isPaid = balance <= 0;
+  const badgeStatus: PaymentStatus = invoice.status;
 
-  const isPartial =
-    !isPaid && amountPaid > 0;
-
-  const badgeStatus: PaymentStatus = isPaid
-    ? "paid"
-    : isPartial
-      ? "partially_paid"
-      : "unpaid";
-
-
+  const canPay = canMakePayment(invoice as Invoice, order as Order);
 
   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
       label: "Product",
-      render: (item) => <span className="font-medium">{item.product_name}</span>,
+      render: (item) => (
+        <span className="font-medium">{item.product_name}</span>
+      ),
     },
     {
       label: "Quantity",
-      render: (item) => `${item.quantity.toLocaleString()} kg`,
+      render: (item) => {
+        const unit = productMap.get(item.product_id)?.unit ?? "unit";
+        // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
+        return `${item.quantity.toLocaleString()} ${unit}`;
+      },
+    },
+    {
+      label: "Unit Price",
+      render: (item) => formatCurrency(item.unit_price),
     },
     {
       label: "Total",
@@ -106,16 +122,16 @@ export default function InvoiceDetailPage() {
     {
       label: "Reference",
       render: (payment) => (
-        <span className="font-mono text-xs">{payment.payment_reference}</span>
+        <span className="font-mono text-xs">{payment.reference}</span>
       ),
     },
     {
       label: "Date",
-      render: (payment) => formatDate(payment.payment_date),
+      render: (payment) => formatDate(payment.date),
     },
     {
       label: "Method",
-      render: (payment) => toTitleCase(payment.payment_method.replace("_", " ")),
+      render: (payment) => toTitleCase(payment.method.replace("_", " ")),
     },
     {
       label: "Amount",
@@ -124,7 +140,37 @@ export default function InvoiceDetailPage() {
         <span className="font-medium">{formatCurrency(payment.amount)}</span>
       ),
     },
+      {
+    label: "",
+    align: "right",
+    render: (payment) => (
+      <Button size="sm" variant="outline" href={`/payments/${payment.id}/receipt`}>
+        Receipt
+      </Button>
+    ),
+  },
   ];
+
+
+  async function handleDownloadPdf() {
+    if (!invoice) return;
+    setDownloading(true);
+    try {
+      const productUnitMap = new Map(products.map((p) => [p.id, p.unit]));
+      await generateInvoicePdf({
+        invoice,
+        order,
+        customer: order ? customerMap[order.customer_id] : undefined,
+        payments: invoicePayments,
+        amountPaid,
+        productUnitMap,
+      });
+    } catch {
+      // could add a toast here
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <AppLayout pageTitle="Invoice Details">
@@ -143,8 +189,17 @@ export default function InvoiceDetailPage() {
               </Button>
             )} */}
 
-            <Button variant="outline">
+            {/* <Button variant="outline">
               View PDF
+            </Button> */}
+
+            <Button
+              variant="outline"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              leftIcon={<Download size={14} />}
+            >
+              {downloading ? "Generating…" : "Download Invoice"}
             </Button>
           </div>
         }
@@ -216,34 +271,6 @@ export default function InvoiceDetailPage() {
         </FormSection>
 
         {/* RELATED ORDER */}
-        {/* {order && (
-          <FormSection
-            title="Related Order"
-            description="Linked order information for this invoice"
-          >
-            <div className="mb-4 grid grid-cols-2 gap-5 text-sm md:grid-cols-3">
-              <InfoRow
-                label="Order Number"
-                value={order.order_number}
-              />
-
-              <InfoRow
-                label="Customer"
-                value={customerMap[order.customer_id].name}
-              />
-
-    
-            </div>
-
-            <Button
-              variant="outline"
-              href={`/orders/${order.id}`}
-            >
-              View Order →
-            </Button>
-          </FormSection>
-        )} */}
-
 
         {order && (
           <FormSection
@@ -266,7 +293,7 @@ export default function InvoiceDetailPage() {
                 keyExtractor={(_, index) => String(index)}
                 footer={
                   <tr>
-                    <td colSpan={2} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
+                    <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
                       Grand Total
                     </td>
                     <td className="pt-3 text-right font-semibold">
@@ -286,7 +313,7 @@ export default function InvoiceDetailPage() {
         {/* PAYMENTS */}
         <FormSection title="Payments" description="Review payment history and invoice payment status.">
           <div className="mb-4 flex items-center justify-end">
-            {!isPaid && (
+            {needsPayment(invoice.status) && canPay && (
               <Button
                 size="sm"
                 href={`/payments/new?invoiceId=${invoice.id}`}
@@ -317,7 +344,7 @@ export default function InvoiceDetailPage() {
             }
           />
 
-          {isPaid && (
+          {/* {invoice.status === "paid" && invoicePayments.length > 0 && (
             <div className="mt-4 flex gap-2">
               <Button
                 href={`/payments/${invoice.id}/receipt`}
@@ -326,7 +353,7 @@ export default function InvoiceDetailPage() {
                 View Receipt →
               </Button>
             </div>
-          )}
+          )} */}
         </FormSection>
       </div>
     </AppLayout>

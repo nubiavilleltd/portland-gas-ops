@@ -7,13 +7,13 @@ import type {
   Order,
   OrderStatus,
   FulfillmentStatus,
-  PaymentStatus,
   CreateOrderInput,
   UpdateOrderInput,
   OrderKPIs,
 } from "@/lib/modules/orders/types/orders.types";
 import { generateOrderId, generateOrderNumber } from "../utils";
 import { ItemDisposition } from "../../inventory/types/inventory.types";
+import { PaymentStatus } from "../../payments/types/payments.types";
 
 // ============================================================
 // INTERNAL HELPERS
@@ -147,11 +147,11 @@ export const OrdersService = {
   },
 
   // Add this to the service alongside confirmOrder
-async submitOrder(id: string): Promise<Order> {
-  return OrdersService.updateOrder(id, {
-    order_status: "submitted",
-  });
-},
+  async submitOrder(id: string): Promise<Order> {
+    return OrdersService.updateOrder(id, {
+      order_status: "submitted",
+    });
+  },
 
 
   // ── UPDATE ──────────────────────────────────────────────
@@ -161,12 +161,13 @@ async submitOrder(id: string): Promise<Order> {
     const updated: Order = {
       ...order,
       ...mergeOrderPayload(input, order),
-      // Pass through any status fields from input directly
       ...(input.order_status && { order_status: input.order_status }),
       ...(input.fulfillment_status && { fulfillment_status: input.fulfillment_status }),
       ...(input.payment_status && { payment_status: input.payment_status }),
-      ...(input.trip_id && { trip_id: input.trip_id }),
+      ...(input.trip_id !== undefined && { trip_id: input.trip_id }),
       ...(input.invoice_id && { invoice_id: input.invoice_id }),
+      ...(input.cancellation_reason !== undefined && { cancellation_reason: input.cancellation_reason }),
+      ...(input.cancelled_at !== undefined && { cancelled_at: input.cancelled_at }),
     } as Order;
 
     orders[idx] = updated;
@@ -182,10 +183,15 @@ async submitOrder(id: string): Promise<Order> {
     } as UpdateOrderInput);
   },
 
-  async cancelOrder(id: string): Promise<Order> {
-    return OrdersService.updateOrder(id, { order_status: "cancelled" });
+  async cancelOrder(id: string, reason?: string): Promise<Order> {
+    return OrdersService.updateOrder(id, {
+      order_status: "cancelled",
+      fulfillment_status: "pending",
+      trip_id: null,
+      cancellation_reason: reason,
+      cancelled_at: new Date().toISOString(),
+    } as UpdateOrderInput);
   },
-
   async closeOrder(id: string): Promise<Order> {
     const { order } = getOrThrow(id);
 
@@ -199,81 +205,53 @@ async submitOrder(id: string): Promise<Order> {
     return OrdersService.updateOrder(id, { order_status: "completed" });
   },
 
-  // async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
-  //   const extra: Partial<Order> = { fulfillment_status: status };
-  //   if (status === "delivered") {
-  //     extra.delivered_at = new Date().toISOString().slice(0, 10);
-  //   }
-  //   return OrdersService.updateOrder(id, extra as UpdateOrderInput);
-  // },
 
-//   async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
-//   const extra: Partial<Order> = { fulfillment_status: status };
-//   if (status === "delivered") {
-//     extra.delivered_at = new Date().toISOString().slice(0, 10);
-//   }
 
-//   const updated = await OrdersService.updateOrder(id, extra as UpdateOrderInput);
+  async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
+    const extra: Partial<Order> = { fulfillment_status: status };
+    if (status === "delivered") {
+      extra.delivered_at = new Date().toISOString().slice(0, 10);
+    }
 
-//   // Auto-close when delivered — payment is guaranteed at this point
-//   if (status === "delivered") {
-//     try {
-//       await OrdersService.closeOrder(id);
-//     } catch {
-//       // best-effort
-//     }
-//   }
+    const updated = await OrdersService.updateOrder(id, extra as UpdateOrderInput);
 
-//   return updated;
-// },
+    // Auto-close when delivered — payment is guaranteed before delivery in this model
+    if (status === "delivered" && updated.payment_status === "paid") {
+      return OrdersService.updateOrder(id, { order_status: "completed" });
+    }
 
-async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
-  const extra: Partial<Order> = { fulfillment_status: status };
-  if (status === "delivered") {
-    extra.delivered_at = new Date().toISOString().slice(0, 10);
-  }
+    return updated;
+  },
 
-  const updated = await OrdersService.updateOrder(id, extra as UpdateOrderInput);
 
-  // Auto-close when delivered — payment is guaranteed before delivery in this model
-  if (status === "delivered" && updated.payment_status === "paid") {
-    return OrdersService.updateOrder(id, { order_status: "completed" });
-  }
-
-  return updated;
-},
-
-  // async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Order> {
-  //   return OrdersService.updateOrder(id, { payment_status: status });
-  // },
   async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Order> {
-  const extra: UpdateOrderInput = { payment_status: status };
+    const extra: UpdateOrderInput = { payment_status: status };
 
-  if (status === "paid") {
-    extra.order_status = "confirmed";
-  }
+    if (status === "paid") {
+      extra.order_status = "confirmed";
+    }
 
-  return OrdersService.updateOrder(id, extra);
-},
+    return OrdersService.updateOrder(id, extra);
+  },
 
-// Add to orders.service.ts
-async updateOrderLineItem(
-  orderId: string,
-  productId: string,
-  inventoryItemIds: string[],
-  disposition: ItemDisposition,
-): Promise<Order> {
-  const { order, idx } = getOrThrow(orderId);
+  // Add to orders.service.ts
+  async updateOrderLineItem(
+    orderId: string,
+    productId: string,
+    inventoryItemIds: string[],
+    disposition: ItemDisposition,
+  ): Promise<Order> {
+    const { order, idx } = getOrThrow(orderId);
 
-  const updatedItems = order.order_items?.map((item) =>
-    item.product_id === productId
-      ? { ...item, inventory_item_ids: inventoryItemIds, disposition }
-      : item
-  ) ?? [];
+    const updatedItems = order.order_items?.map((item) =>
+      item.product_id === productId
+        ? { ...item, inventory_item_ids: inventoryItemIds, disposition }
+        : item
+    ) ?? [];
 
-  orders[idx] = { ...order, order_items: updatedItems };
-  return Promise.resolve(orders[idx]);
-},
+    orders[idx] = { ...order, order_items: updatedItems };
+    return Promise.resolve(orders[idx]);
+  },
 
   async assignToTrip(orderId: string, tripId: string): Promise<Order> {
     return OrdersService.updateOrder(orderId, {
@@ -288,35 +266,40 @@ async updateOrderLineItem(
 
   // ── KPIs ────────────────────────────────────────────────
 
+  // async getKPIs(): Promise<OrderKPIs> {
+  //   const all = await OrdersService.getOrders();
+  //   return {
+  //     totalOrders: all.length,
+  //     pendingDispatch: all.filter(
+  //       (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
+  //     ).length,
+  //     inTransit: all.filter(
+  //       (o) => o.fulfillment_status === "in_transit"
+  //     ).length,
+  //     delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
+  //     unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
+  //     totalRevenue: all.reduce((sum, o) => sum + o.total_amount, 0),
+  //   };
+  // },
+
   async getKPIs(): Promise<OrderKPIs> {
     const all = await OrdersService.getOrders();
+    const active = all.filter((o) => o.order_status !== "cancelled");
+
     return {
-      totalOrders: all.length,
-      pendingDispatch: all.filter(
+      totalOrders: all.length,   // historical count — includes cancelled, intentionally
+      pendingDispatch: active.filter(
         (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
       ).length,
-      inTransit: all.filter(
+      inTransit: active.filter(
         (o) => o.fulfillment_status === "in_transit"
       ).length,
-      delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
-      unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
-      totalRevenue: all.reduce((sum, o) => sum + o.total_amount, 0),
+      delivered: active.filter((o) => o.fulfillment_status === "delivered").length,
+      unpaidOrders: active.filter(
+        (o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid"
+      ).length,
+      totalRevenue: active.reduce((sum, o) => sum + o.total_amount, 0),
     };
   },
 };
-//   async getKPIs(): Promise<OrderKPIs> {
-//     const all = await OrdersService.getOrders();
-//     return {
-//       totalOrders: all.length,
-//       pendingDispatch: all.filter(
-//         (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
-//       ).length,
-//       inTransit: all.filter(
-//         (o) => o.fulfillment_status === "dispatched" || o.fulfillment_status === "in_transit"
-//       ).length,
-//       delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
-//       unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
-//       totalRevenue: all.reduce((sum, o) => sum + o.total_amount, 0),
-//     };
-//   },
-// };
+

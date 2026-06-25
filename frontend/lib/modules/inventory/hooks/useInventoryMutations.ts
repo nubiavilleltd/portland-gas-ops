@@ -12,6 +12,7 @@ import type {
   CheckOutItemsInput,
   ReturnItemInput,
 } from "../types/inventory.types";
+import { releaseItemsWorkflow, type ReleaseItemsInput } from "../workflows/release.workflow";
 
 export function useCheckInTracked() {
   const queryClient = useQueryClient();
@@ -107,6 +108,26 @@ export function useReturnItem() {
 
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to return item");
+    },
+  });
+}
+
+
+export function useReleaseItems() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ReleaseItemsInput) =>
+      releaseItemsWorkflow(input),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.items() });
+      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.movements() });
+      toast.success("Items released back to available stock");
+    },
+
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to release items");
     },
   });
 }
