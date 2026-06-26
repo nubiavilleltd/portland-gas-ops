@@ -6,7 +6,7 @@ from typing import Optional, List, Tuple
 
 from app.products.model import Product
 from app.products.enums import ProductStatus
-from app.models.document import Document
+from app.shared.models.document import Document
 
 
 class ProductRepository:
