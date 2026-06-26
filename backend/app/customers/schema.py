@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 
-from app.domains.customers.enums import CustomerType, CustomerStatus
+from app.customers.enums import CustomerType, CustomerStatus
 
 
 # ── Request schemas ────────────────────────────────────────────────────────────

@@ -2,11 +2,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 
-from app.domains.customers.repository import CustomerRepository
-from app.domains.customers.model import Customer
-from app.domains.customers.schema import CustomerCreate, CustomerUpdate, CustomerFilters
-from app.domains.customers.enums import CustomerStatus
-from app.domains.customers import guards
+from app.customers.repository import CustomerRepository
+from app.customers.model import Customer
+from app.customers.schema import CustomerCreate, CustomerUpdate, CustomerFilters
+from app.customers.enums import CustomerStatus
+from app.customers import guards
 from app.core.exceptions import AppException, ErrorCode
 
 

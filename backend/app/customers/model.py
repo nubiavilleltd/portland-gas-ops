@@ -4,8 +4,8 @@ from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 import uuid
 
-from app.database import Base
-from app.domains.customers.enums import CustomerType, CustomerStatus
+from app.core.database import Base
+from app.customers.enums import CustomerType, CustomerStatus
 
 
 class Customer(Base):

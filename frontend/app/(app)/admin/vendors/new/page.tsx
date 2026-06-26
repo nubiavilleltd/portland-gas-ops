@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCreateVendor, useUploadVendorLogo } from "@/hooks/useVendors";
+import { useCreateVendor, useUploadVendorLogo, VENDOR_ERRORS } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
+import { getErrorMessage } from "@/lib/errors";
 import type { VendorCategory } from "@/types";
 import VendorForm, { EMPTY_VENDOR_FORM, type VendorFormValues } from "../_components/VendorForm";
 
@@ -29,7 +30,7 @@ export default function NewVendorPage() {
           toast.success("Vendor added");
           router.push("/admin/vendors");
         },
-        onError: () => toast.error("Failed to add vendor"),
+        onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
       }
     );
   }
