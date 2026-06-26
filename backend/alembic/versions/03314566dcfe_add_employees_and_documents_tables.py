@@ -89,17 +89,17 @@ def upgrade() -> None:
 
     # ── Drop safety tables (child tables first to satisfy FK constraints) ─────
     # Children of safety_work_initiations
-    op.drop_table('safety_work_initiation_workers')
-    op.drop_table('safety_work_closeouts')
-    op.drop_table('safety_work_authorizations')
-    op.drop_table('safety_work_initiations')
+    op.execute("DROP TABLE IF EXISTS safety_work_initiation_workers")
+    op.execute("DROP TABLE IF EXISTS safety_work_closeouts")
+    op.execute("DROP TABLE IF EXISTS safety_work_authorizations")
+    op.execute("DROP TABLE IF EXISTS safety_work_initiations")
     # Children of safety_incident_reports
-    op.drop_table('safety_incident_hse_reviews')
-    op.drop_table('safety_incident_reports')
+    op.execute("DROP TABLE IF EXISTS safety_incident_hse_reviews")
+    op.execute("DROP TABLE IF EXISTS safety_incident_reports")
     # Children of safety_checklist_templates
-    op.drop_table('safety_checklist_responses')
-    op.drop_table('safety_checklist_items')
-    op.drop_table('safety_checklist_templates')
+    op.execute("DROP TABLE IF EXISTS safety_checklist_responses")
+    op.execute("DROP TABLE IF EXISTS safety_checklist_items")
+    op.execute("DROP TABLE IF EXISTS safety_checklist_templates")
 
 
 def downgrade() -> None:
