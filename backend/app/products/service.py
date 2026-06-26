@@ -10,8 +10,7 @@ from app.products.model import Product
 from app.products.schema import ProductCreate, ProductUpdate, ProductFilters, ProductImageResponse
 from app.products.enums import ProductStatus
 from app.products import guards
-from app.shared2.storage.cloudinary_service import get_storage_service
-from app.shared2.storage.storage_interface import ResourceType
+from app.shared.services.cloudinary_service import get_storage_service, ResourceType
 from app.core.exceptions import AppException, ErrorCode
 from app.products.error_codes import ProductErrorCode
 from app.shared.models.document import Document

@@ -1,6 +1,0 @@
-from enum import Enum
-
-
-class StorageErrorCode(str, Enum):
-    STORAGE_NOT_CONFIGURED = "STORAGE_NOT_CONFIGURED"
-    STORAGE_UPLOAD_FAILED  = "STORAGE_UPLOAD_FAILED"

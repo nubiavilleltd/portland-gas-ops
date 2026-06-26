@@ -13,9 +13,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.database import SessionLocal
-from app.models.user import User, UserRole
-from app.utils.security import hash_password
+from app.core.database import SessionLocal
+from app.shared.models.user import User, UserRole
+from app.core.security import hash_password
 
 ADMIN_NAME = "Portland Gas Admin"
 ADMIN_EMAIL = "admin@portlandgas.com"

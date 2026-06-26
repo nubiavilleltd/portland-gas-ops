@@ -10,11 +10,12 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { useVendor, useDeleteVendor, useDeactivateVendor, useReactivateVendor } from "@/hooks/useVendors";
-import { useProcurementByVendor } from "@/hooks/useProcurement";
+import { useVendor, useDeleteVendor, useDeactivateVendor, useReactivateVendor, VENDOR_ERRORS } from "@/lib/modules/vendors";
+import { useProcurementByVendor } from "@/lib/modules/procurement";
 import { useToast } from "@/hooks/useToast";
+import { getErrorMessage } from "@/lib/errors";
 import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
-import type { VendorCategory, ProcurementRequest, PaymentStatus } from "@/types";
+import type { VendorCategory, ProcurementListItem } from "@/types";
 
 const CATEGORY_COLOURS: Record<VendorCategory, string> = {
   equipment:     "bg-blue-100 text-blue-700",
@@ -38,16 +39,6 @@ const AVATAR_COLOURS: Record<VendorCategory, string> = {
   logistics:     "bg-teal-500",
 };
 
-const PAYMENT_BADGE: Record<PaymentStatus, string> = {
-  unpaid:    "bg-red-50 text-red-700 border border-red-200",
-  part_paid: "bg-amber-50 text-amber-700 border border-amber-200",
-  paid:      "bg-green-50 text-green-700 border border-green-200",
-};
-
-const PAYMENT_LABELS: Record<PaymentStatus, string> = {
-  unpaid: "Unpaid", part_paid: "Part Paid", paid: "Paid",
-};
-
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-4 py-3 border-b border-brand-border last:border-0">
@@ -69,12 +60,21 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
   );
 }
 
-const REQUEST_COLUMNS: Column<ProcurementRequest>[] = [
+const STATUS_BADGE: Record<string, string> = {
+  draft:     "bg-gray-100 text-gray-600",
+  pending:   "bg-amber-50 text-amber-700 border border-amber-200",
+  approved:  "bg-green-50 text-green-700 border border-green-200",
+  rejected:  "bg-red-50 text-red-700 border border-red-200",
+  returned:  "bg-orange-50 text-orange-700 border border-orange-200",
+  po_issued: "bg-blue-50 text-blue-700 border border-blue-200",
+};
+
+const REQUEST_COLUMNS: Column<ProcurementListItem>[] = [
   { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
-  { key: "category", label: "Category", render: (v) => <span className="capitalize text-sm">{String(v).replace(/_/g, " ")}</span> },
+  { key: "title", label: "Title", render: (v) => <span className="text-sm">{String(v)}</span> },
   { key: "created_at", label: "Date", render: (v) => <span className="text-brand-text-secondary text-xs">{formatDate(v as string)}</span> },
-  { key: "items", label: "Total Value", render: (_, row) => { const total = row.items.reduce((sum, item) => sum + item.total_cost, 0); return <span className="text-sm font-medium">{formatCurrency(total)}</span>; } },
-  { key: "payment_status", label: "Payment", render: (v) => { const ps = v as PaymentStatus; return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PAYMENT_BADGE[ps] ?? ""}`}>{PAYMENT_LABELS[ps] ?? String(v)}</span>; } },
+  { key: "estimated_amount", label: "Est. Value", render: (v) => v ? <span className="text-sm font-medium">{formatCurrency(Number(v))}</span> : <span className="text-brand-text-secondary">—</span> },
+  { key: "status", label: "Status", render: (v) => <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[String(v)] ?? "bg-gray-100 text-gray-600"}`}>{capitalize(String(v).replace(/_/g, " "))}</span> },
 ];
 
 export default function AdminVendorDetailPage() {
@@ -86,6 +86,7 @@ export default function AdminVendorDetailPage() {
   const [confirmReactivate, setConfirmReactivate] = useState(false);
   const { data: vendor, isLoading, isError } = useVendor(id);
   const { data: requests = [], isLoading: reqLoading } = useProcurementByVendor(id);
+
   const deleteVendor = useDeleteVendor();
   const deactivateVendor = useDeactivateVendor();
   const reactivateVendor = useReactivateVendor();
@@ -104,21 +105,21 @@ export default function AdminVendorDetailPage() {
   function handleDelete() {
     deleteVendor.mutate(id, {
       onSuccess: () => { toast.success("Vendor removed"); router.push("/admin/vendors"); },
-      onError: () => toast.error("Failed to delete vendor"),
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
     });
   }
 
   function handleDeactivate() {
     deactivateVendor.mutate(id, {
       onSuccess: () => { toast.success("Vendor deactivated"); setConfirmDeactivate(false); },
-      onError: () => toast.error("Failed to deactivate vendor"),
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
     });
   }
 
   function handleReactivate() {
     reactivateVendor.mutate(id, {
       onSuccess: () => { toast.success("Vendor reactivated"); setConfirmReactivate(false); },
-      onError: () => toast.error("Failed to reactivate vendor"),
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
     });
   }
 

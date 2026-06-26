@@ -2,119 +2,63 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Download } from "lucide-react";
-import { procurementStore } from "@/lib/mockStore";
-import { generatePO } from "@/lib/generatePO";
+import { Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import SelectInput from "@/components/forms/SelectInput";
-import { formatDate, capitalize } from "@/lib/utils";
-import { useProcurementList } from "@/hooks/useProcurement";
+import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
+import { useProcurementList } from "@/lib/modules/procurement";
 import type { ProcurementListItem, ProcurementStatus } from "@/types";
 
 const STATUS_OPTIONS = [
-  { value: "pending_line_manager",  label: "Pending — Operations Manager" },
-  { value: "pending_procurement",   label: "Pending — Procurement Officer" },
-  { value: "awaiting_payment",      label: "Awaiting Payment" },
-  { value: "awaiting_confirmation", label: "Awaiting Confirmation" },
-  { value: "completed",             label: "Completed" },
-  { value: "rejected",              label: "Rejected" },
-  { value: "returned",              label: "Returned" },
+  { value: "draft",     label: "Draft" },
+  { value: "pending",   label: "Pending Approval" },
+  { value: "approved",  label: "Approved" },
+  { value: "po_issued", label: "PO Issued" },
+  { value: "rejected",  label: "Rejected" },
+  { value: "returned",  label: "Returned" },
 ];
 
-const NEXT_APPROVER: Partial<Record<string, string>> = {
-  pending_line_manager:  "Operations Manager",
-  pending_procurement:   "Procurement Officer",
-  awaiting_payment:      "Finance",
-  awaiting_confirmation: "Procurement Officer",
-};
-
-function StatusCell({ status }: { status: string }) {
-  if (status === "rejected")              return <ApprovalBadge status="rejected" />;
-  if (status === "returned")              return <ApprovalBadge status="returned" />;
-  if (status === "completed")             return <ApprovalBadge status="completed" />;
-  if (status === "awaiting_payment")      return <ApprovalBadge status="awaiting_payment" />;
-  if (status === "awaiting_confirmation") return <ApprovalBadge status="awaiting_confirmation" />;
-  return <ApprovalBadge status="pending" />;
-}
-
 const columns: Column<ProcurementListItem>[] = [
-  { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
   {
-    key: "category",
-    label: "Category",
-    render: (v) => <span className="capitalize">{String(v).replace(/_/g, " ")}</span>,
+    key: "reference",
+    label: "Reference",
+    render: (v) => <span className="font-mono text-xs">{String(v)}</span>,
+  },
+  {
+    key: "title",
+    label: "Title",
+    render: (v) => <span className="text-sm text-brand-text-primary">{String(v)}</span>,
   },
   {
     key: "vendor",
     label: "Vendor",
-    render: (v) => (v as ProcurementListItem["vendor"])?.name ?? <span className="text-brand-text-secondary">—</span>,
+    render: (_, row) =>
+      row.vendor?.name
+        ? <span className="text-sm">{row.vendor.name}</span>
+        : <span className="text-brand-text-secondary">—</span>,
   },
   {
-    key: "required_by",
-    label: "Required By",
-    render: (v) => formatDate(v as string | null),
+    key: "estimated_amount",
+    label: "Est. Amount",
+    render: (v) =>
+      v != null
+        ? <span className="text-sm font-medium">{formatCurrency(Number(v))}</span>
+        : <span className="text-brand-text-secondary">—</span>,
+  },
+  {
+    key: "created_at",
+    label: "Date",
+    render: (v) => <span className="text-xs text-brand-text-secondary">{formatDate(v as string)}</span>,
   },
   {
     key: "status",
     label: "Status",
-    render: (v) => <StatusCell status={String(v)} />,
-  },
-  {
-    key: "payment_status",
-    label: "Next Actor",
-    render: (_, row) => {
-      if (row.status === "returned") {
-        return <span className="text-xs text-orange-600 font-medium">Requester to revise</span>;
-      }
-      const approver = NEXT_APPROVER[row.status];
-      return approver
-        ? <span className="text-sm text-brand-text-primary">{approver}</span>
-        : <span className="text-brand-text-secondary">—</span>;
-    },
-  },
-  {
-    key: "po_url",
-    label: "PO",
-    render: (v, row) =>
-      v ? (
-        <PODownloadCell requestId={row.id} />
-      ) : (
-        <span className="text-brand-text-secondary text-xs">—</span>
-      ),
+    render: (v) => <ApprovalBadge status={String(v)} />,
   },
 ];
-
-function PODownloadCell({ requestId }: { requestId: string }) {
-  const [loading, setLoading] = useState(false);
-
-  async function handleDownload(e: React.MouseEvent) {
-    e.stopPropagation();
-    setLoading(true);
-    try {
-      const req = procurementStore.getById(requestId);
-      if (!req) throw new Error("Not found");
-      await generatePO(req);
-    } catch {
-      alert("Could not generate the PDF. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <button
-      onClick={handleDownload}
-      disabled={loading}
-      className="inline-flex items-center gap-1 text-xs text-brand-purple hover:underline disabled:opacity-50"
-    >
-      <Download size={12} />
-      {loading ? "…" : "Download"}
-    </button>
-  );
-}
 
 export default function ProcurementPage() {
   const [activeStatus, setActiveStatus] = useState<ProcurementStatus | undefined>(undefined);
@@ -146,7 +90,7 @@ export default function ProcurementPage() {
           isError
             ? "Check your connection and try again."
             : activeStatus
-              ? `No requests with status "${activeStatus}".`
+              ? `No requests with status "${capitalize(activeStatus)}".`
               : "Raise your first request to get started."
         }
         toolbarActions={

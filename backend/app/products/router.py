@@ -6,7 +6,7 @@ from typing import Optional, List
 import json
 
 from app.core.dependencies import get_db, get_current_user
-from app.middleware.auth import require_roles
+from app.shared.dependencies import require_roles
 from app.products.service import ProductService
 from app.products.schema import (
     ProductCreate, ProductUpdate, ProductFilters,

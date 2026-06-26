@@ -26,9 +26,9 @@ class CustomerService:
         if not customer:
             raise AppException(
                 status_code=404,
-                error_code=CustomerErrorCode.CUSTOMER_NOT_FOUND
-                message=f"Customer {customer_id} not found",
-            )
+                error_code=CustomerErrorCode.CUSTOMER_NOT_FOUND,
+                message=f"Customer {customer_id} not found"
+                )
         return customer
 
     def create(self, db: Session, data: CustomerCreate) -> Customer:

@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.core.dependencies import get_db, get_current_user
-from app.middleware.auth import require_roles
+from app.core.database import get_db
+from app.shared.dependencies import get_current_user, require_roles
 from app.customers.service import CustomerService
 from app.customers.schema import (
     CustomerCreate, CustomerUpdate, CustomerFilters,

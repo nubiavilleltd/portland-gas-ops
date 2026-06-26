@@ -13,9 +13,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.database import SessionLocal
-from app.models import user, procurement  # noqa: F401 — register all mappers before use
-from app.models.vendor import Vendor, VendorCategory, VendorStatus
+from app.core.database import SessionLocal
+from app.shared.models import user  # noqa: F401 — register all mappers before use
+from app.procurement import models as _procurement_models  # noqa: F401
+from app.vendors.models import Vendor, VendorCategory, VendorStatus
 
 VENDORS = [
     {

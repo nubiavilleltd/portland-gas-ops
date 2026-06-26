@@ -3,8 +3,9 @@
 import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { useVendor, useUpdateVendor, useUploadVendorLogo } from "@/hooks/useVendors";
+import { useVendor, useUpdateVendor, useUploadVendorLogo, VENDOR_ERRORS } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
+import { getErrorMessage } from "@/lib/errors";
 import type { VendorCategory } from "@/types";
 import VendorForm, { type VendorFormValues } from "../../_components/VendorForm";
 
@@ -62,7 +63,7 @@ export default function EditVendorPage() {
           toast.success("Vendor updated");
           router.push("/admin/vendors");
         },
-        onError: () => toast.error("Failed to update vendor"),
+        onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
       }
     );
   }
