@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: Optional[str] = None
     CLOUDINARY_API_KEY: Optional[str] = None
     CLOUDINARY_API_SECRET: Optional[str] = None
+    CLOUDINARY_ROOT_FOLDER: str = "portland-gas"
 
     # Publicly accessible URL for the logo used in email templates
     # In production set this to your Vercel URL e.g. https://yourapp.vercel.app

@@ -1,5 +1,5 @@
-from app.domains.customers.model import Customer
-from app.domains.customers.enums import CustomerStatus
+from app.customers.model import Customer
+from app.customers.enums import CustomerStatus
 
 
 def can_deactivate(customer: Customer) -> bool:

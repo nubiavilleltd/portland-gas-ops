@@ -33,14 +33,25 @@ export default function NewProductPage() {
 
 
 
-async function handleSubmit(data: CreateProductFormOutput, images: File[], _keptImages: ProductImage[]) {
-  const productImages: ProductImage[] = images.map((file, i) => ({
-    id:   `img-local-${Date.now()}-${i}`,
-    url:  URL.createObjectURL(file),
-    name: file.name,
-  }));
+// async function handleSubmit(data: CreateProductFormOutput, images: File[], _keptImages: ProductImage[]) {
+//   const productImages: ProductImage[] = images.map((file, i) => ({
+//     id:   `img-local-${Date.now()}-${i}`,
+//     url:  URL.createObjectURL(file),
+//     name: file.name,
+//   }));
 
-  await createProduct({ ...data, images: productImages });
+//   await createProduct({ ...data, images: productImages });
+// }
+
+// REPLACE the existing handleSubmit function:
+async function handleSubmit(data: CreateProductFormOutput, images: File[], _keptImages: ProductImage[]) {
+  // Pass File objects directly to the service via a private convention
+  // The service will forward them to productsApi.create()
+  await createProduct({
+    ...data,
+    // Signal to service: here are the real File objects
+    _imageFiles: images,
+  } as any);
 }
 
   return (

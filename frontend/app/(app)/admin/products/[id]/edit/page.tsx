@@ -69,21 +69,37 @@ export default function EditProductPage() {
 //   await updateProduct(data);
 // }
 
+// async function handleSubmit(
+//   data: UpdateProductFormOutput,
+//   newImages: File[],
+//   keptImages: ProductImage[]
+// ) {
+//   const addedImages: ProductImage[] = newImages.map((file, i) => ({
+//     id:   `img-local-${Date.now()}-${i}`,
+//     url:  URL.createObjectURL(file),
+//     name: file.name,
+//   }));
+
+//   // Merge kept existing images + newly added images
+//   const mergedImages: ProductImage[] = [...keptImages, ...addedImages];
+
+//   await updateProduct({ ...data, images: mergedImages });
+// }
+
+
+
+// REPLACE the existing handleSubmit function:
 async function handleSubmit(
   data: UpdateProductFormOutput,
   newImages: File[],
   keptImages: ProductImage[]
 ) {
-  const addedImages: ProductImage[] = newImages.map((file, i) => ({
-    id:   `img-local-${Date.now()}-${i}`,
-    url:  URL.createObjectURL(file),
-    name: file.name,
-  }));
-
-  // Merge kept existing images + newly added images
-  const mergedImages: ProductImage[] = [...keptImages, ...addedImages];
-
-  await updateProduct({ ...data, images: mergedImages });
+  await updateProduct({
+    ...data,
+    // Signal to service: new File objects + IDs of existing images to keep
+    _newImageFiles: newImages,
+    _keptImageIds:  keptImages.map((img) => img.id),
+  } as any);
 }
 
   return (

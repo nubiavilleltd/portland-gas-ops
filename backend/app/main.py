@@ -27,6 +27,7 @@ from app.customers.router import router as customers_router
 from app.orders.router import router as orders_router
 from app.procurement.router import router as procurement_router
 
+
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
@@ -96,6 +97,9 @@ app.include_router(safety_router, prefix="/api/safety", tags=["Safety"])
 app.include_router(customers_router, prefix="/api/customers", tags=["Customers"])
 app.include_router(orders_router, prefix="/api/orders", tags=["Orders"])
 app.include_router(procurement_router, prefix="/api/procurement", tags=["Procurement"])
+
+# Products routes
+app.include_router(products_router, prefix="/api/products", tags=["Products"])
 
 
 @app.get("/api/health")

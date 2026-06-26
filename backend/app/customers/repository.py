@@ -3,8 +3,8 @@ from sqlalchemy import func, or_
 from typing import Optional
 import datetime
 
-from app.domains.customers.model import Customer
-from app.domains.customers.enums import CustomerStatus
+from app.customers.model import Customer
+from app.customers.enums import CustomerStatus
 
 
 class CustomerRepository:

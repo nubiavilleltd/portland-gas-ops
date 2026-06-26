@@ -1,34 +1,97 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.shared.dependencies import get_current_user
+from typing import Optional
+
+from app.core.dependencies import get_db, get_current_user
+from app.middleware.auth import require_roles
+from app.customers.service import CustomerService
+from app.customers.schema import (
+    CustomerCreate, CustomerUpdate, CustomerFilters,
+    CustomerResponse, CustomerListResponse,
+)
+from app.customers.enums import CustomerType, CustomerStatus
 from app.shared.models.user import User
 
-# TODO: Create CustomerAccount model/schema
-
 router = APIRouter()
+service = CustomerService()
 
 
-@router.get("/")
-def list_customers(skip: int = 0, limit: int = 20, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return {"items": [], "total": 0}
+@router.get("/", response_model=CustomerListResponse)
+def list_customers(
+    search:    Optional[str] = Query(None),
+    type:      Optional[CustomerType] = Query(None),
+    status:    Optional[CustomerStatus] = Query(None),
+    page:      int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db:            Session = Depends(get_db),
+    current_user:  User    = Depends(get_current_user),
+):
+    filters = CustomerFilters(
+        search=search, type=type, status=status, page=page, page_size=page_size
+    )
+    items, total = service.list(db, filters)
+    return CustomerListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_next=(page * page_size) < total,
+    )
 
 
-@router.post("/")
-def create_customer(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return {"message": "Customer created (stub)"}
+@router.post("/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
+def create_customer(
+    data:         CustomerCreate,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(require_roles("super_admin", "admin")),
+):
+    customer = service.create(db, data)
+    db.commit()
+    db.refresh(customer)
+    return customer
 
 
-@router.get("/{item_id}")
-def get_customer(item_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return {"id": item_id, "message": "Customer detail (stub)"}
+@router.get("/{customer_id}", response_model=CustomerResponse)
+def get_customer(
+    customer_id:  str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+):
+    return service.get_or_raise(db, customer_id)
 
 
-@router.put("/{item_id}")
-def update_customer(item_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return {"id": item_id, "message": "Customer updated (stub)"}
+@router.put("/{customer_id}", response_model=CustomerResponse)
+def update_customer(
+    customer_id:  str,
+    data:         CustomerUpdate,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(require_roles("super_admin", "admin")),
+):
+    customer = service.update(db, customer_id, data)
+    db.commit()
+    db.refresh(customer)
+    return customer
 
 
-@router.delete("/{item_id}")
-def delete_customer(item_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return {"message": "Customer deactivated (stub)"}
+@router.post("/{customer_id}/deactivate", response_model=CustomerResponse)
+def deactivate_customer(
+    customer_id:  str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(require_roles("super_admin", "admin")),
+):
+    customer = service.deactivate(db, customer_id)
+    db.commit()
+    db.refresh(customer)
+    return customer
+
+
+@router.post("/{customer_id}/activate", response_model=CustomerResponse)
+def activate_customer(
+    customer_id:  str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(require_roles("super_admin", "admin")),
+):
+    customer = service.activate(db, customer_id)
+    db.commit()
+    db.refresh(customer)
+    return customer
