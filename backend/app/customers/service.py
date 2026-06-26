@@ -8,6 +8,7 @@ from app.customers.schema import CustomerCreate, CustomerUpdate, CustomerFilters
 from app.customers.enums import CustomerStatus
 from app.customers import guards
 from app.core.exceptions import AppException, ErrorCode
+from app.customers.error_codes import CustomerErrorCode
 
 
 class CustomerService:
@@ -25,9 +26,9 @@ class CustomerService:
         if not customer:
             raise AppException(
                 status_code=404,
-                error_code=ErrorCode.CUSTOMER_NOT_FOUND,
-                message=f"Customer {customer_id} not found",
-            )
+                error_code=CustomerErrorCode.CUSTOMER_NOT_FOUND,
+                message=f"Customer {customer_id} not found"
+                )
         return customer
 
     def create(self, db: Session, data: CustomerCreate) -> Customer:
