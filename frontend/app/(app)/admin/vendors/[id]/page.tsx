@@ -10,8 +10,13 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column } from "@/components/ui/DataTable";
+<<<<<<< HEAD
 import { useVendor, useDeleteVendor, useDeactivateVendor, useReactivateVendor, VENDOR_ERRORS } from "@/lib/modules/vendors";
 import { useProcurementByVendor } from "@/lib/modules/procurement";
+=======
+import { useVendor, useDeleteVendor, useDeactivateVendor, useReactivateVendor } from "@/hooks/useVendors";
+import { useProcurementByVendor } from "@/hooks/useProcurement";
+>>>>>>> c7b4c06 (merging)
 import { useToast } from "@/hooks/useToast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
@@ -120,6 +125,20 @@ export default function AdminVendorDetailPage() {
     reactivateVendor.mutate(id, {
       onSuccess: () => { toast.success("Vendor reactivated"); setConfirmReactivate(false); },
       onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
+    });
+  }
+
+  function handleDeactivate() {
+    deactivateVendor.mutate(id, {
+      onSuccess: () => { toast.success("Vendor deactivated"); setConfirmDeactivate(false); },
+      onError: () => toast.error("Failed to deactivate vendor"),
+    });
+  }
+
+  function handleReactivate() {
+    reactivateVendor.mutate(id, {
+      onSuccess: () => { toast.success("Vendor reactivated"); setConfirmReactivate(false); },
+      onError: () => toast.error("Failed to reactivate vendor"),
     });
   }
 

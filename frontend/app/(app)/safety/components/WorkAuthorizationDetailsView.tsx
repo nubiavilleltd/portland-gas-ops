@@ -15,8 +15,11 @@ import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
 import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
+import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
+import type { SafetyChecklistItem, SafetyChecklistTemplate } from "@/lib/modules/safety/checklists";
 import { updateWorkAuthorization } from "@/lib/safety-demo-store";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
+<<<<<<< HEAD
 import {
   formatSafetyDisplayDate,
   formatSafetyDisplayDateTime,
@@ -25,6 +28,9 @@ import {
   SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE,
   shouldBlockReturnedSafetyResubmission,
 } from "@/lib/safety-return-guard";
+=======
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+>>>>>>> safety-backend-init
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -77,7 +83,11 @@ type HseInspectionCheckState = Pick<
 >;
 type InspectionCheckValue =
   HseInspectionCheckState[keyof HseInspectionCheckState];
-type EditableInspectionCheckValue = InspectionCheckValue | "";
+type BackendInspectionCheckValue = "pass" | "fail" | "not_applicable";
+type EditableInspectionCheckValue =
+  | InspectionCheckValue
+  | BackendInspectionCheckValue
+  | "";
 type HseInspectionResult = WorkAuthorizationHseInspection["result"];
 type EditableHseInspectionResult = HseInspectionResult | "";
 type EditableHseInspectionCheckState = Record<
@@ -96,8 +106,28 @@ const initialHseInspectionChecks: EditableHseInspectionCheckState = {
 function toInspectionCheckValue(
   value: EditableInspectionCheckValue,
 ): InspectionCheckValue {
+  if (value === "pass") return "Pass";
+  if (value === "fail") return "Fail";
+  if (value === "not_applicable") return "N/A";
   return value || "N/A";
 }
+
+function toChecklistOptions(item: SafetyChecklistItem) {
+  if (!Array.isArray(item.options_json)) return inspectionCheckOptions;
+  return item.options_json.map((option) =>
+    typeof option === "string"
+      ? { value: option, label: option }
+      : { value: option.value, label: option.label },
+  );
+}
+
+const hseInspectionItemKeyMap: Partial<
+  Record<string, keyof EditableHseInspectionCheckState>
+> = {
+  work_area_safe: "workAreaSafe",
+  emergency_equipment_available: "emergencyEquipmentAvailable",
+  gas_pressure_check_completed: "gasPressureCheckCompleted",
+};
 
 export default function WorkAuthorizationDetailsView({
   requestId,
@@ -120,9 +150,13 @@ export default function WorkAuthorizationDetailsView({
   );
   const [hseInspectionResult, setHseInspectionResult] =
     useState<EditableHseInspectionResult>("");
+  const hseInspectionChecklist = useActiveSafetyChecklist(
+    "work_authorization",
+    "inspection",
+  );
 
   const hasFailedHseInspectionCheck = Object.values(hseInspectionChecks).some(
-    (value) => value === "Fail",
+    (value) => value === "Fail" || value === "fail",
   );
   const hasFailedHseInspectionResult = hseInspectionResult === "Failed";
   const shouldDisableHseApproval =
@@ -168,16 +202,7 @@ export default function WorkAuthorizationDetailsView({
     : false;
 
   if (loading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((item) => (
-          <div
-            key={item}
-            className="h-20 animate-pulse rounded-2xl border border-brand-border bg-white"
-          />
-        ))}
-      </div>
-    );
+    return <SafetyProcessFormSkeleton sections={5} />;
   }
 
   if (!request) {
@@ -188,6 +213,9 @@ export default function WorkAuthorizationDetailsView({
         </p>
       </div>
     );
+  }
+  if (permissions.canHseInspect && hseInspectionChecklist.isLoading) {
+    return <SafetyProcessFormSkeleton sections={5} />;
   }
   const persistedRequestId = request.id;
 
@@ -377,6 +405,8 @@ export default function WorkAuthorizationDetailsView({
               onInspectionResultChange={setHseInspectionResult}
               evidence={hseEvidence}
               onEvidenceChange={setHseEvidence}
+              checklist={hseInspectionChecklist.data}
+              checklistError={hseInspectionChecklist.isError}
             />
             <HseFinalActionSection
               onDecision={handleHseDecision}
@@ -611,6 +641,8 @@ function HseInspectionActionSection({
   onInspectionResultChange,
   evidence,
   onEvidenceChange,
+  checklist,
+  checklistError,
 }: {
   comment: string;
   onCommentChange: (comment: string) => void;
@@ -623,64 +655,54 @@ function HseInspectionActionSection({
   onInspectionResultChange: (value: EditableHseInspectionResult) => void;
   evidence: File[];
   onEvidenceChange: (files: File[]) => void;
+  checklist?: SafetyChecklistTemplate;
+  checklistError: boolean;
 }) {
+  function renderChecklistItem(item: SafetyChecklistItem) {
+    const mappedKey = hseInspectionItemKeyMap[item.item_key];
+    if (item.input_type === "text" && item.item_key === "inspection_comments") {
+      return (
+        <FormTextarea
+          key={item.id}
+          label={item.label}
+          value={comment}
+          onChange={(event) => onCommentChange(event.target.value)}
+          placeholder="Add inspection comments"
+        />
+      );
+    }
+    if (item.input_type === "enum" && mappedKey) {
+      return (
+        <FormSelect
+          key={item.id}
+          label={item.label}
+          options={toChecklistOptions(item)}
+          placeholder="Select inspection result"
+          value={checks[mappedKey]}
+          onValueChange={(value) =>
+            onCheckChange(mappedKey, value as EditableInspectionCheckValue)
+          }
+        />
+      );
+    }
+    return (
+      <FormInput
+        key={item.id}
+        label={item.label}
+        defaultValue={item.default_value ?? ""}
+      />
+    );
+  }
+
   return (
     <FormSection title="HSE Inspection Acknowledgement" description="Complete the safety checks required before making an HSE decision.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormSelect
-          label="Work area is safe, clean, and accessible"
-          options={inspectionCheckOptions}
-          placeholder="Select inspection result"
-          value={checks.workAreaSafe}
-          onValueChange={(value) =>
-            onCheckChange("workAreaSafe", value as EditableInspectionCheckValue)
-          }
-        />
-        <FormSelect
-          label="Fire extinguisher/emergency equipment is available"
-          options={inspectionCheckOptions}
-          placeholder="Select inspection result"
-          value={checks.emergencyEquipmentAvailable}
-          onValueChange={(value) =>
-            onCheckChange(
-              "emergencyEquipmentAvailable",
-              value as EditableInspectionCheckValue,
-            )
-          }
-        />
-        <FormSelect
-          label="Gas leak/pressure/abnormal condition check completed"
-          options={inspectionCheckOptions}
-          placeholder="Select inspection result"
-          value={checks.gasPressureCheckCompleted}
-          onValueChange={(value) =>
-            onCheckChange(
-              "gasPressureCheckCompleted",
-              value as EditableInspectionCheckValue,
-            )
-          }
-        />
-        <FormSelect
-          label="Required PPE and safety kits are available"
-          options={inspectionCheckOptions}
-          placeholder="Select inspection result"
-          value={checks.ppeAndSafetyKitsAvailable}
-          onValueChange={(value) =>
-            onCheckChange(
-              "ppeAndSafetyKitsAvailable",
-              value as EditableInspectionCheckValue,
-            )
-          }
-        />
-        <FormSelect
-          label="Required safety controls are in place"
-          options={inspectionCheckOptions}
-          placeholder="Select inspection result"
-          value={checks.safetyControlsInPlace}
-          onValueChange={(value) =>
-            onCheckChange("safetyControlsInPlace", value as EditableInspectionCheckValue)
-          }
-        />
+        {checklistError ? (
+          <div className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            HSE inspection checklist template is not available.
+          </div>
+        ) : null}
+        {checklist?.items.map(renderChecklistItem)}
         <FormInput
           label="Inspection date/time"
           defaultValue={formatSafetyDisplayDateTime("2026-05-18 11:00 AM")}
@@ -694,6 +716,7 @@ function HseInspectionActionSection({
             onInspectionResultChange(value as EditableHseInspectionResult)
           }
         />
+<<<<<<< HEAD
         <FormTextarea
           label="Inspection comments"
           minLength={5}
@@ -701,6 +724,8 @@ function HseInspectionActionSection({
           onChange={(event) => onCommentChange(event.target.value)}
           placeholder="Add inspection comments"
         />
+=======
+>>>>>>> safety-backend-init
         <div className="md:col-span-2">
           <FileDropzone
             label="Inspection evidence/images"

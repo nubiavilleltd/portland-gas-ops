@@ -25,7 +25,14 @@ export const queryClient = new QueryClient({
 function AuthRestore() {
   useEffect(() => {
     // Skip if already authenticated (e.g., right after login — token already in memory)
+<<<<<<< HEAD
     if (useAuthStore.getState().isAuthenticated) return;
+=======
+    if (useAuthStore.getState().isAuthenticated) {
+      useAuthStore.getState().setAuthReady(true);
+      return;
+    }
+>>>>>>> c7b4c06 (merging)
 
     axios
       .post(`${API_URL}/api/auth/refresh`, {}, { withCredentials: true })
@@ -35,6 +42,12 @@ function AuthRestore() {
       })
       .catch(() => {
         // No valid refresh token — user is not authenticated, middleware will redirect
+<<<<<<< HEAD
+=======
+      })
+      .finally(() => {
+        useAuthStore.getState().setAuthReady(true);
+>>>>>>> c7b4c06 (merging)
       });
   }, []);
 

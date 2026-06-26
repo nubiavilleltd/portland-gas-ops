@@ -10,9 +10,14 @@ Rules:
 
 import secrets
 import string
+<<<<<<< HEAD
 from typing import cast
 from fastapi import HTTPException, status, UploadFile
 from app.vendors.models import Vendor, VendorStatus
+=======
+from fastapi import HTTPException, status, UploadFile
+from app.vendors.models import Vendor
+>>>>>>> c7b4c06 (merging)
 from app.shared.models.document import Document
 from app.vendors.schemas import VendorCreate, VendorUpdate
 from app.vendors.repository import VendorRepository
@@ -79,26 +84,44 @@ class VendorService:
         """
         vendor = self.get_vendor(vendor_id)
         vendor.is_active = False
+<<<<<<< HEAD
         vendor.status = VendorStatus.inactive
+=======
+        vendor.status = "inactive"
+>>>>>>> c7b4c06 (merging)
         self.repo.flush()
 
     def deactivate_vendor(self, vendor_id: str) -> Vendor:
         """Hide vendor from procurement dropdowns without deleting history."""
         vendor = self.get_vendor(vendor_id)
+<<<<<<< HEAD
         if vendor.is_active == False:  # noqa: E712
             raise HTTPException(status_code=400, detail="Vendor is already inactive")
         vendor.is_active = False
         vendor.status = VendorStatus.inactive
+=======
+        if not vendor.is_active:
+            raise HTTPException(status_code=400, detail="Vendor is already inactive")
+        vendor.is_active = False
+        vendor.status = "inactive"
+>>>>>>> c7b4c06 (merging)
         self.repo.flush()
         return vendor
 
     def reactivate_vendor(self, vendor_id: str) -> Vendor:
         """Restore a deactivated vendor."""
         vendor = self.get_vendor(vendor_id)
+<<<<<<< HEAD
         if vendor.is_active == True:  # noqa: E712
             raise HTTPException(status_code=400, detail="Vendor is already active")
         vendor.is_active = True
         vendor.status = VendorStatus.active
+=======
+        if vendor.is_active:
+            raise HTTPException(status_code=400, detail="Vendor is already active")
+        vendor.is_active = True
+        vendor.status = "active"
+>>>>>>> c7b4c06 (merging)
         self.repo.flush()
         return vendor
 
@@ -128,6 +151,7 @@ class VendorService:
         folder = self.repo.get_vendors_folder()
 
         # Replace existing logo document if one exists
+<<<<<<< HEAD
         if vendor.logo_document_id is not None:
             existing = self.repo.get_document_by_id(cast(int, vendor.logo_document_id))
             if existing:
@@ -135,6 +159,15 @@ class VendorService:
                 existing.file_size = len(file_bytes)  # type: ignore[assignment]
                 existing.mime_type = file.content_type  # type: ignore[assignment]
                 existing.name = file.filename or f"{vendor.name} logo"  # type: ignore[assignment]
+=======
+        if vendor.logo_document_id:
+            existing = self.repo.get_document_by_id(vendor.logo_document_id)
+            if existing:
+                existing.file_path = url
+                existing.file_size = len(file_bytes)
+                existing.mime_type = file.content_type
+                existing.name = file.filename or f"{vendor.name} logo"
+>>>>>>> c7b4c06 (merging)
                 self.repo.flush()
                 return vendor
 

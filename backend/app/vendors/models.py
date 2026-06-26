@@ -47,7 +47,10 @@ class Vendor(Base):
     vendor_code       = Column(String(20), nullable=True, unique=True, index=True)  # e.g. AT-K7M2
     logo_document_id  = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
 
+<<<<<<< HEAD
     vendor_type = Column(SAEnum(VendorType), nullable=False, default=VendorType.permanent)
+=======
+>>>>>>> c7b4c06 (merging)
     status = Column(SAEnum(VendorStatus), nullable=False, default=VendorStatus.active)
     added_by = Column(CHAR(36), ForeignKey("users.id"), nullable=True)
     is_active = Column(Boolean, default=True)

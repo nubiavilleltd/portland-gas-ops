@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 """
 Unified Cloudinary storage service.
@@ -30,12 +31,28 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+=======
+"""
+Unified Cloudinary upload service.
+
+Single entry point for all file uploads across the system.
+Every domain uses this one function — just pass the appropriate folder and resource_type.
+
+resource_type guide:
+  "image" → photos, logos (served as images)
+  "raw"   → PDFs, Word docs (served with correct Content-Type for browser download)
+  "auto"  → let Cloudinary detect (fine for mixed uploads)
+"""
+
+import logging
+>>>>>>> c7b4c06 (merging)
 from fastapi import HTTPException
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
+<<<<<<< HEAD
 # ── Resource type enum (used by structured interface) ─────────────────────────
 
 class ResourceType(str, Enum):
@@ -131,6 +148,46 @@ def upload(
 
     Returns:
         HTTPS URL of the uploaded file.
+=======
+def _configure() -> None:
+    if not all([settings.CLOUDINARY_CLOUD_NAME, settings.CLOUDINARY_API_KEY, settings.CLOUDINARY_API_SECRET]):
+        raise HTTPException(
+            status_code=503,
+            detail="File storage is not configured. Contact your administrator.",
+        )
+    import cloudinary
+    cloudinary.config(
+        cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+        api_key=settings.CLOUDINARY_API_KEY,
+        api_secret=settings.CLOUDINARY_API_SECRET,
+        secure=True,
+    )
+
+
+def upload(
+    file_bytes: bytes,
+    public_id: str,
+    folder: str,
+    resource_type: str = "auto",
+    overwrite: bool = True,
+) -> str:
+    """
+    Upload a file to Cloudinary and return the secure URL.
+
+    Args:
+        file_bytes:    Raw file content.
+        public_id:     Cloudinary asset identifier (without folder prefix).
+        folder:        Cloudinary folder, e.g. "portland-gas/vendor-logos".
+        resource_type: "image" | "raw" | "auto"
+        overwrite:     Replace existing asset with same public_id. Default True.
+
+    Returns:
+        HTTPS URL of the uploaded file.
+
+    Raises:
+        HTTPException 503 — Cloudinary not configured.
+        HTTPException 500 — upload failed.
+>>>>>>> c7b4c06 (merging)
     """
     _configure()
     try:
@@ -150,7 +207,13 @@ def upload(
         raise HTTPException(status_code=500, detail="File upload failed. Please try again.")
 
 
+<<<<<<< HEAD
 def upload_file(file_bytes: bytes, filename: str, folder: str = "portland-gas") -> Optional[str]:
+=======
+# ── Convenience wrappers used by routers ──────────────────────────────────────
+
+def upload_file(file_bytes: bytes, filename: str, folder: str = "portland-gas") -> str | None:
+>>>>>>> c7b4c06 (merging)
     """Generic file upload. Returns URL or None on failure."""
     try:
         public_id = filename.rsplit(".", 1)[0]
@@ -160,7 +223,11 @@ def upload_file(file_bytes: bytes, filename: str, folder: str = "portland-gas") 
         return None
 
 
+<<<<<<< HEAD
 def upload_pdf(pdf_bytes: bytes, filename: str) -> Optional[str]:
+=======
+def upload_pdf(pdf_bytes: bytes, filename: str) -> str | None:
+>>>>>>> c7b4c06 (merging)
     """PDF upload as raw resource for correct Content-Type delivery."""
     try:
         return upload(
@@ -171,6 +238,7 @@ def upload_pdf(pdf_bytes: bytes, filename: str) -> Optional[str]:
     except Exception as exc:
         logger.error("Cloudinary PDF upload failed for %s: %s", filename, exc)
         return None
+<<<<<<< HEAD
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -259,3 +327,5 @@ def get_storage_service() -> StorageInterface:
     if _storage_instance is None:
         _storage_instance = CloudinaryStorageService()
     return _storage_instance
+=======
+>>>>>>> c7b4c06 (merging)

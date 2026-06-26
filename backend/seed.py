@@ -13,9 +13,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+<<<<<<< HEAD
 from app.core.database import SessionLocal
 from app.shared.models.user import User, UserRole
 from app.core.security import hash_password
+=======
+from app.database import SessionLocal
+from app.models.user import User, UserRole
+from app.utils.security import hash_password
+>>>>>>> c7b4c06 (merging)
 
 ADMIN_NAME = "Portland Gas Admin"
 ADMIN_EMAIL = "admin@portlandgas.com"

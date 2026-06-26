@@ -15,6 +15,7 @@ import getpass
 # Add backend root to sys.path so app imports work
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+<<<<<<< HEAD
 from app.core.database import SessionLocal
 # Import all models so SQLAlchemy can resolve relationship strings
 from app.shared.models import user, document, token, approval  # noqa: F401
@@ -23,6 +24,14 @@ from app.vendors import models as _vendor_models  # noqa: F401
 from app.shared.models.user import User, UserRole, AccountStatus
 from app.employees.models import Employee
 from app.core.security import hash_password
+=======
+from app.database import SessionLocal
+# Import all models so SQLAlchemy can resolve relationship strings
+from app.models import user, employee, document, token, vendor  # noqa: F401
+from app.models.user import User, UserRole, AccountStatus
+from app.models.employee import Employee
+from app.utils.security import hash_password
+>>>>>>> c7b4c06 (merging)
 
 
 def _next_employee_no(db) -> str:

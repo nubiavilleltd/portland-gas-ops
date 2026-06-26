@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Procurement router — /api/procurement
 
@@ -187,3 +188,7 @@ def issue_po(
     db.commit()
     db.refresh(po)
     return po
+=======
+from fastapi import APIRouter
+router = APIRouter()
+>>>>>>> c7b4c06 (merging)

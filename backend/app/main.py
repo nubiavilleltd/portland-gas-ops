@@ -16,18 +16,29 @@ from app.employees import models as _employee_models  # noqa: F401
 from app.vendors import models as _vendor_models  # noqa: F401
 from app.assets import models as _asset_models  # noqa: F401
 from app.procurement import models as _procurement_models  # noqa: F401
+<<<<<<< HEAD
 from app.customers import model as _customer_models  # noqa: F401
 from app.products import model as _product_models
+=======
+from app.safety.checklists import models as _safety_checklist_models  # noqa: F401
+>>>>>>> c7b4c06 (merging)
 
 from app.auth.router import router as auth_router
 from app.users.router import router as users_router
 from app.employees.router import router as employees_router
 from app.vendors.router import router as vendors_router
 from app.assets.router import router as assets_router
+<<<<<<< HEAD
 from app.customers.router import router as customers_router
 from app.procurement.router import router as procurement_router
 from app.products.router import router as products_router
 
+=======
+from app.safety.router import router as safety_router
+from app.customers.router import router as customers_router
+from app.orders.router import router as orders_router
+from app.procurement.router import router as procurement_router
+>>>>>>> c7b4c06 (merging)
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -94,11 +105,18 @@ app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(employees_router, prefix="/api/employees", tags=["Employees"])
 app.include_router(vendors_router, prefix="/api/vendors", tags=["Vendors"])
 app.include_router(assets_router, prefix="/api/assets", tags=["Assets"])
+<<<<<<< HEAD
 app.include_router(customers_router, prefix="/api/customers", tags=["Customers"])
 app.include_router(procurement_router, prefix="/api/procurement", tags=["Procurement"])
 
 # Products routes
 app.include_router(products_router, prefix="/api/products", tags=["Products"])
+=======
+app.include_router(safety_router, prefix="/api/safety", tags=["Safety"])
+app.include_router(customers_router, prefix="/api/customers", tags=["Customers"])
+app.include_router(orders_router, prefix="/api/orders", tags=["Orders"])
+app.include_router(procurement_router, prefix="/api/procurement", tags=["Procurement"])
+>>>>>>> c7b4c06 (merging)
 
 
 @app.get("/api/health")
