@@ -13,6 +13,9 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
+import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
+import type { SafetyChecklistTemplate } from "@/lib/modules/safety/checklists";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   getMockIncidentHazardReport,
@@ -65,6 +68,10 @@ export default function IncidentHazardDetailsView({
   const [correctiveActionRequired, setCorrectiveActionRequired] = useState("");
   const [assignedDepartment, setAssignedDepartment] = useState("");
   const [actionOwner, setActionOwner] = useState("");
+  const hseReviewChecklist = useActiveSafetyChecklist(
+    "incident_hse_review",
+    "hse_review",
+  );
 
   const permissions = useMemo(() => {
     const isDraft = report?.status === "draft";
@@ -93,6 +100,9 @@ export default function IncidentHazardDetailsView({
         <p className="text-sm text-brand-text-secondary">Incident/hazard report not found.</p>
       </div>
     );
+  }
+  if (permissions.canHseReview && hseReviewChecklist.isLoading) {
+    return <SafetyProcessFormSkeleton sections={6} />;
   }
   const persistedReportId = report.id;
 
@@ -256,6 +266,8 @@ export default function IncidentHazardDetailsView({
             onActionOwnerChange={setActionOwner}
             onForward={recommendToDepartment}
             onDecision={hseFinalDecision}
+            checklist={hseReviewChecklist.data}
+            checklistError={hseReviewChecklist.isError}
           />
         ) : report.hseReview ? (
           <HseReviewResult review={report.hseReview} />
@@ -363,6 +375,8 @@ function HseReviewAction({
   onActionOwnerChange,
   onForward,
   onDecision,
+  checklist,
+  checklistError,
 }: {
   comment: string;
   onCommentChange: (comment: string) => void;
@@ -374,7 +388,10 @@ function HseReviewAction({
   onActionOwnerChange: (value: string) => void;
   onForward: () => void;
   onDecision: (decision: "Resolved" | "Not Resolved") => void;
+  checklist?: SafetyChecklistTemplate;
+  checklistError: boolean;
 }) {
+  const [checklistAnswers, setChecklistAnswers] = useState<Record<string, string>>({});
   const requiresCorrectiveWork = correctiveActionRequired === "Yes";
   const canRecommendCorrectiveWork = requiresCorrectiveWork && Boolean(assignedDepartment && actionOwner);
   const canResolveWithoutCorrectiveWork = correctiveActionRequired === "No";
@@ -418,17 +435,34 @@ function HseReviewAction({
             <FormTextarea label="HSE Findings" required placeholder="Add HSE findings" />
             {/* <FormTextarea label="Root Cause / Likely Cause" placeholder="Optional" /> */}
             <div className="md:col-span-2">
-              <SafetyChoiceTable
-                options={yesNoOptions}
-                rows={[
-                  {
-                    label: "Corrective Action Required?",
-                    required: true,
-                    value: correctiveActionRequired,
-                    onValueChange: onCorrectiveActionRequiredChange,
-                  },
-                ]}
-              />
+              {checklistError ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  HSE review checklist template is not available.
+                </p>
+              ) : null}
+              {checklist ? (
+                <SafetyChoiceTable
+                  options={yesNoOptions}
+                  rows={checklist.items
+                    .filter((item) => item.input_type === "boolean")
+                    .map((item) => ({
+                      label: item.label,
+                      required: item.is_required,
+                      value:
+                        item.item_key === "corrective_action_required"
+                          ? correctiveActionRequired
+                          : checklistAnswers[item.item_key] ?? "",
+                      onValueChange:
+                        item.item_key === "corrective_action_required"
+                          ? onCorrectiveActionRequiredChange
+                          : (value) =>
+                              setChecklistAnswers((current) => ({
+                                ...current,
+                                [item.item_key]: value,
+                              })),
+                    }))}
+                />
+              ) : null}
             </div>
             {correctiveActionRequired === "Yes" ? (
               <>
@@ -454,6 +488,16 @@ function HseReviewAction({
                 <FormDatePicker label="Target Completion Date" required />
               </>
             ) : null}
+            {checklist?.items
+              .filter((item) => item.input_type === "text")
+              .map((item) => (
+                <FormTextarea
+                  key={item.id}
+                  label={item.label}
+                  required={item.is_required}
+                  placeholder="Add review note"
+                />
+              ))}
             <FormInput label="HSE Review Date/Time" value="2026-05-18 10:00 AM" disabled />
           </div>
           {correctiveActionRequired === "Yes" ? (
