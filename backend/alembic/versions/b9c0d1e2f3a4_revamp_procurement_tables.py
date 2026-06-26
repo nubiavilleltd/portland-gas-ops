@@ -23,9 +23,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Drop old tables (child first to respect FK constraints)
-    op.drop_table("procurement_items")
-    op.drop_table("procurement_requests")
+    # Drop old tables if they exist (child first to respect FK constraints)
+    op.execute("DROP TABLE IF EXISTS procurement_items")
+    op.execute("DROP TABLE IF EXISTS procurement_requests")
 
     # procurement_requests
     op.create_table(
