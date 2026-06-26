@@ -13,12 +13,13 @@ The schema owns the API surface — what is accepted and what is exposed.
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
-from app.vendors.models import VendorCategory, VendorStatus
+from app.vendors.models import VendorCategory, VendorStatus, VendorType
 
 
 class VendorCreate(BaseModel):
     name: str
     category: VendorCategory
+    vendor_type: VendorType = VendorType.permanent
     contact_person: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -55,6 +56,7 @@ class VendorResponse(BaseModel):
     account_number: Optional[str]
     logo_url: Optional[str]          # derived from logo_document.file_path via model property
     logo_document_id: Optional[int]
+    vendor_type: VendorType
     status: VendorStatus
     added_by: Optional[str]
     is_active: bool
