@@ -7,7 +7,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import SelectInput from "@/components/forms/SelectInput";
-import { useProcurementList } from "@/hooks/useProcurement";
+import { useProcurementList } from "@/lib/modules/procurement";
 import { useAssetRequests } from "@/hooks/useAssets";
 import { formatDate } from "@/lib/utils";
 import { Search } from "lucide-react";
@@ -154,7 +154,7 @@ export default function MyRequestsPage() {
     id:           p.id,
     reference:    p.reference,
     process:      "procurement" as ProcessType,
-    title:        `${p.category.charAt(0).toUpperCase()}${p.category.slice(1).replace(/_/g, " ")} Request`,
+    title:        p.title,
     status:       p.status,
     submitted_at: p.created_at,
     href:         `/procurement/${p.id}`,

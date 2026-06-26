@@ -1,10 +1,55 @@
 // ============================================================
 //  ERROR HANDLING INFRASTRUCTURE
-//  - AppError: typed application error
-//  - ERROR_MESSAGES: centralised user-facing messages
-//  - parseError: converts unknown errors into readable strings
-//  - throwAppError: typed helper that preserves TS narrowing
+//
+//  extractApiError  — pull structured error out of an Axios response
+//  getErrorMessage  — translate error_code → user-facing copy
+//  AppError         — typed application error class
+//  ERROR_MESSAGES   — base error registry (domain errors live in
+//                     lib/modules/{domain}/errors.ts)
+//  parseError       — converts unknown errors into readable strings
 // ============================================================
+
+import type { AxiosError } from "axios";
+
+// ── 0. Structured API error shape ─────────────────────────────────────────────
+//  Matches the envelope the backend sends for all errors:
+//  {"detail": {"error_code": "...", "message": "...", "details": {...}}}
+
+export interface ApiErrorDetail {
+  error_code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export function extractApiError(err: unknown): ApiErrorDetail | null {
+  const axiosErr = err as AxiosError<{ detail: ApiErrorDetail | string }>;
+  const detail = axiosErr?.response?.data?.detail;
+  if (!detail) return null;
+  if (typeof detail === "string") {
+    return { error_code: "UNKNOWN_ERROR", message: detail };
+  }
+  return detail as ApiErrorDetail;
+}
+
+/**
+ * Get a user-facing error message.
+ *
+ * Pass domain-specific error maps as the second argument so each module
+ * can override or extend the base registry:
+ *
+ *   import { PROCUREMENT_ERRORS } from "@/lib/modules/procurement/errors";
+ *   getErrorMessage(err, PROCUREMENT_ERRORS)
+ */
+export function getErrorMessage(
+  err: unknown,
+  domainErrors: Record<string, string> = {},
+  fallback = "Something went wrong. Please try again.",
+): string {
+  const detail = extractApiError(err);
+  if (!detail) return fallback;
+  const merged = { ...ERROR_MESSAGES, ...domainErrors };
+  return merged[detail.error_code] ?? detail.message ?? fallback;
+}
 
 // ── 1. Error message registry ──────────────────────────────
 
