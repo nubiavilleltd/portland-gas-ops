@@ -25,7 +25,6 @@ export default function EditProductPage() {
 
   const { product, isLoading, error } = useProductById(id);
 
-  console.log("product", {product})
     const { mutateAsync: updateProduct } = useUpdateProduct(id);
 
   if (isLoading) {
