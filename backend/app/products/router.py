@@ -122,7 +122,7 @@ def get_product(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    product         = service.get_or_raise(db, product_no)
+    product         = service.get_by_no_or_raise(db, product_no)
     images_response = service.get_images(db, product)
     response        = ProductResponse.model_validate(product)
     response.images = images_response

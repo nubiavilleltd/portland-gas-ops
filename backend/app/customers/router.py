@@ -51,47 +51,47 @@ def create_customer(
     return customer
 
 
-@router.get("/{customer_id}", response_model=CustomerResponse)
+@router.get("/{customer_no}", response_model=CustomerResponse)
 def get_customer(
-    customer_id:  str,
+    customer_no:  str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    return service.get_or_raise(db, customer_id)
+    return service.get_by_no_or_raise(db, customer_no)
 
 
-@router.put("/{customer_id}", response_model=CustomerResponse)
+@router.put("/{customer_no}", response_model=CustomerResponse)
 def update_customer(
-    customer_id:  str,
+    customer_no:  str,
     data:         CustomerUpdate,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    customer = service.update(db, customer_id, data)
+    customer = service.update(db, customer_no, data)
     db.commit()
     db.refresh(customer)
     return customer
 
 
-@router.post("/{customer_id}/deactivate", response_model=CustomerResponse)
+@router.post("/{customer_no}/deactivate", response_model=CustomerResponse)
 def deactivate_customer(
-    customer_id:  str,
+    customer_no:  str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    customer = service.deactivate(db, customer_id)
+    customer = service.deactivate(db, customer_no)
     db.commit()
     db.refresh(customer)
     return customer
 
 
-@router.post("/{customer_id}/activate", response_model=CustomerResponse)
+@router.post("/{customer_no}/activate", response_model=CustomerResponse)
 def activate_customer(
-    customer_id:  str,
+    customer_no:  str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    customer = service.activate(db, customer_id)
+    customer = service.activate(db, customer_no)
     db.commit()
     db.refresh(customer)
     return customer

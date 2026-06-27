@@ -30,6 +30,15 @@ class CustomerService:
                 message=f"Customer {customer_id} not found"
                 )
         return customer
+    def get_by_no_or_raise(self, db: Session, customer_no: str) -> Customer:
+        customer = self.repo.get_by_no(db, customer_no)
+        if not customer:
+            raise AppException(
+                status_code=404,
+                error_code=CustomerErrorCode.CUSTOMER_NOT_FOUND,
+                message=f"Customer {customer_no} not found",
+            )
+        return customer
 
     def create(self, db: Session, data: CustomerCreate) -> Customer:
         # Check email uniqueness
@@ -74,8 +83,8 @@ class CustomerService:
             page_size=filters.page_size,
         )
 
-    def update(self, db: Session, customer_id: str, data: CustomerUpdate) -> Customer:
-        customer = self.get_or_raise(db, customer_id)
+    def update(self, db: Session, customer_no: str, data: CustomerUpdate) -> Customer:
+        customer = self.get_by_no_or_raise(db, customer_no)
 
         # Email uniqueness check on update
         if data.email and data.email != customer.email:
@@ -91,8 +100,8 @@ class CustomerService:
         updates = data.model_dump(exclude_unset=True)
         return self.repo.update(db, customer, **updates)
 
-    def deactivate(self, db: Session, customer_id: str) -> Customer:
-        customer = self.get_or_raise(db, customer_id)
+    def deactivate(self, db: Session, customer_no: str) -> Customer:
+        customer = self.get_by_no_or_raise(db, customer_no)
         if not guards.can_deactivate(customer):
             raise AppException(
                 status_code=400,
@@ -101,8 +110,8 @@ class CustomerService:
             )
         return self.repo.update(db, customer, status=CustomerStatus.inactive)
 
-    def activate(self, db: Session, customer_id: str) -> Customer:  # was: reactivate
-        customer = self.get_or_raise(db, customer_id)
+    def activate(self, db: Session, customer_no: str) -> Customer:  # was: reactivate
+        customer = self.get_by_no_or_raise(db, customer_no)
         if not guards.can_activate(customer):
             raise AppException(
                 status_code=400,
