@@ -8,7 +8,6 @@ from app.customers.validators import (
     validate_email,
     validate_name,
     validate_phone,
-    validate_type,
 )
 
 
@@ -25,11 +24,6 @@ class CustomerCreate(BaseModel):
     @classmethod
     def name_validator(cls, v: str) -> str:
         return validate_name(v)
-
-    @field_validator("type")
-    @classmethod
-    def type_validator(cls, v: CustomerType) -> CustomerType:
-        return validate_type(v)
 
     @field_validator("phone")
     @classmethod
@@ -58,27 +52,27 @@ class CustomerUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def name_validator(cls, v: str | None) -> str | None:
-        return validate_name(v) if v is not None else None
+        return validate_name(v, required=False)
 
     @field_validator("type")
     @classmethod
     def type_validator(cls, v: CustomerType | None) -> CustomerType | None:
-        return validate_type(v) if v is not None else None
+        return validate_type(v, required=False)
 
     @field_validator("phone")
     @classmethod
     def phone_validator(cls, v: str | None) -> str | None:
-        return validate_phone(v) if v is not None else None
+        return validate_phone(v, required=False)
 
     @field_validator("email")
     @classmethod
     def email_validator(cls, v: EmailStr | None) -> str | None:
-        return validate_email(v) if v is not None else None
+        return validate_email(v, required=False)
 
     @field_validator("address")
     @classmethod
     def address_validator(cls, v: str | None) -> str | None:
-        return validate_address(v) if v is not None else None
+        return validate_address(v, required=False)
 
 
 class CustomerFilters(BaseModel):
