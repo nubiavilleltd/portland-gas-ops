@@ -140,7 +140,6 @@ async def update_product(
     current_user:   User             = Depends(require_roles("super_admin", "admin")),
 ):
     try:
-        print(json.loads(data))
         payload  = ProductUpdate.model_validate(json.loads(data))
         kept_ids = json.loads(kept_image_ids)
     except ValidationError as exc:
