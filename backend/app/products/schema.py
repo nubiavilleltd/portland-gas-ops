@@ -98,6 +98,7 @@ class ProductFilters(BaseModel):
 
 class ProductResponse(BaseModel):
     id:                 str
+    product_no: Optional[str]
     name:               str
     code:               Optional[str]
     description:        Optional[str]

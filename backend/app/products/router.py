@@ -116,22 +116,22 @@ async def create_product(
     return response
 
 
-@router.get("/{product_id}", response_model=ProductResponse)
+@router.get("/{product_no}", response_model=ProductResponse)
 def get_product(
-    product_id:   str,
+    product_no:   str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    product         = service.get_or_raise(db, product_id)
+    product         = service.get_or_raise(db, product_no)
     images_response = service.get_images(db, product)
     response        = ProductResponse.model_validate(product)
     response.images = images_response
     return response
 
 
-@router.put("/{product_id}", response_model=ProductResponse)
+@router.put("/{product_no}", response_model=ProductResponse)
 async def update_product(
-    product_id:     str,
+    product_no:     str,
     data:           str              = Form(...),
     images:         List[UploadFile] = File(default=[]),
     kept_image_ids: str              = Form(default="[]"),
@@ -155,7 +155,7 @@ async def update_product(
         uploaded_by = current_user.employee.id
 
     product = service.update(
-        db, product_id, payload,
+        db, product_no, payload,
         new_images     = image_files,
         kept_image_ids = kept_ids,
         uploaded_by    = uploaded_by,
@@ -169,13 +169,13 @@ async def update_product(
     return response
 
 
-@router.post("/{product_id}/deactivate", response_model=ProductResponse)
+@router.post("/{product_no}/deactivate", response_model=ProductResponse)
 def deactivate_product(
-    product_id:   str,
+    product_no:   str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    product         = service.deactivate(db, product_id)
+    product         = service.deactivate(db, product_no)
     db.commit()
     db.refresh(product)
     images_response = service.get_images(db, product)
@@ -184,13 +184,13 @@ def deactivate_product(
     return response
 
 
-@router.post("/{product_id}/activate", response_model=ProductResponse)
+@router.post("/{product_no}/activate", response_model=ProductResponse)
 def activate_product(
-    product_id:   str,
+    product_no:   str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    product         = service.activate(db, product_id)
+    product         = service.activate(db, product_no)
     db.commit()
     db.refresh(product)
     images_response = service.get_images(db, product)
