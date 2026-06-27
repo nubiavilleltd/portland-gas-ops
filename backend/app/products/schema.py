@@ -12,8 +12,6 @@ from app.products.validators import (
     validate_name,
     validate_optional_code,
     validate_optional_description,
-    validate_product_type,
-    validate_unit,
 )
 
 
@@ -41,16 +39,6 @@ class ProductCreate(BaseModel):
     @classmethod
     def name_validator(cls, v: str) -> str:
         return validate_name(v)
-
-    @field_validator("product_type")
-    @classmethod
-    def product_type_validator(cls, v: ProductType) -> ProductType:
-        return validate_product_type(v)
-
-    @field_validator("unit")
-    @classmethod
-    def unit_validator(cls, v: ProductUnit) -> ProductUnit:
-        return validate_unit(v)
 
     @field_validator("default_unit_price")
     @classmethod
@@ -97,16 +85,6 @@ class ProductUpdate(BaseModel):
     @classmethod
     def name_validator(cls, v: str | None) -> str | None:
         return validate_name(v) if v is not None else None
-
-    @field_validator("product_type")
-    @classmethod
-    def product_type_validator(cls, v: ProductType | None) -> ProductType | None:
-        return validate_product_type(v) if v is not None else None
-
-    @field_validator("unit")
-    @classmethod
-    def unit_validator(cls, v: ProductUnit | None) -> ProductUnit | None:
-        return validate_unit(v) if v is not None else None
 
     @field_validator("default_unit_price")
     @classmethod

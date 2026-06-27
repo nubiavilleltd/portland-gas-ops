@@ -15,14 +15,6 @@ def validate_name(value: str) -> str:
     return cleaned
 
 
-def validate_product_type(value: ProductType) -> ProductType:
-    return value
-
-
-def validate_unit(value: ProductUnit) -> ProductUnit:
-    return value
-
-
 def validate_default_unit_price(value: Decimal) -> Decimal:
     if value <= 0:
         raise ValueError("Price must be greater than zero")
