@@ -54,11 +54,6 @@ class CustomerUpdate(BaseModel):
     def name_validator(cls, v: str | None) -> str | None:
         return validate_name(v, required=False)
 
-    @field_validator("type")
-    @classmethod
-    def type_validator(cls, v: CustomerType | None) -> CustomerType | None:
-        return validate_type(v, required=False)
-
     @field_validator("phone")
     @classmethod
     def phone_validator(cls, v: str | None) -> str | None:
