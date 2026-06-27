@@ -4,28 +4,29 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
+import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
+import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
-import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
-import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
 import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
-import {
-  formatLocalDate,
-  formatLocalDateTime,
-  formatSafetyDisplayDate,
-  formatSafetyDisplayDateTime,
-} from "@/lib/safety-demo-dates";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { AssignedWorkInitiationSummary } from "@/types/safety";
-import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
-import SafetyChoiceTable from "./SafetyChoiceTable";
 
-const yesNoOptions = [
-  { value: "Yes", label: "Yes" },
-  { value: "No", label: "No" },
-];
+const optionFromStrings = (items: string[]): SelectOption[] =>
+  items.map((item) => ({ value: item, label: item }));
+
+const riskIndicatorOptions = optionFromStrings([
+  "Gas/CNG/LNG involved",
+  "Pressurized system involved",
+  "Heat, sparks, welding, cutting, or grinding",
+  "Electrical isolation required",
+  "Lifting/heavy equipment involved",
+  "All required PPE available",
+]);
 
 export default function WorkAuthorizationForm() {
   const router = useRouter();
@@ -35,10 +36,6 @@ export default function WorkAuthorizationForm() {
     ...getSafetyCurrentUser(),
     requestDate: formatLocalDate(),
   };
-  const riskChecklist = useActiveSafetyChecklist(
-    "work_authorization",
-    "risk_assessment",
-  );
   const approvedWorkInitiations = storedWorkInitiations
     .filter(
       (request) =>
@@ -66,14 +63,14 @@ export default function WorkAuthorizationForm() {
       plannedEndDateTime: request.assignment.plannedEndDateTime,
     }));
   const [selectedWorkInitiationId, setSelectedWorkInitiationId] = useState("");
-  const [riskAnswers, setRiskAnswers] = useState<Record<string, string>>({});
+  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
   const [safetyNote, setSafetyNote] = useState("");
   const [attachmentNotes, setAttachmentNotes] = useState("");
   const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
   const workInitiationOptions = approvedWorkInitiations.map((item) => ({
     value: item.id,
     label: `${item.id} - ${item.title}`,
-    description: `${item.requester.name} | ${formatSafetyDisplayDate(item.requester.requestDate)}`,
+    description: `${item.requester.name} | ${item.requester.requestDate}`,
   }));
   const selectedWorkInitiation = workInitiations.find(
     (item) => item.id === selectedWorkInitiationId,
@@ -109,12 +106,12 @@ export default function WorkAuthorizationForm() {
         specialInstructions: "",
       },
       riskIndicators: {
-        gasInvolved: riskAnswers.gas_involved === "Yes",
-        pressurizedSystem: false,
-        heatOrSparks: riskAnswers.hot_work === "Yes",
-        electricalIsolation: riskAnswers.gas_isolation_confirmed !== "Yes",
-        liftingEquipment: false,
-        ppeAvailable: true,
+        gasInvolved: riskIndicators.includes("Gas/CNG/LNG involved"),
+        pressurizedSystem: riskIndicators.includes("Pressurized system involved"),
+        heatOrSparks: riskIndicators.includes("Heat, sparks, welding, cutting, or grinding"),
+        electricalIsolation: riskIndicators.includes("Electrical isolation required"),
+        liftingEquipment: riskIndicators.includes("Lifting/heavy equipment involved"),
+        ppeAvailable: riskIndicators.includes("All required PPE available"),
         additionalSafetyNote: safetyNote,
       },
       attachments: safetyFiles.map((file) => ({
@@ -138,10 +135,6 @@ export default function WorkAuthorizationForm() {
     }, 700);
   }
 
-  if (riskChecklist.isLoading) {
-    return <SafetyProcessFormSkeleton sections={5} />;
-  }
-
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
       <FormSection title="Requester Details" description="Your employee information for this work authorization request.">
@@ -149,7 +142,7 @@ export default function WorkAuthorizationForm() {
           <FormInput label="Requester Name" value={requester.name} disabled />
           <FormInput label="Department" value={requester.department} disabled />
           <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormInput label="Request Date" value={formatSafetyDisplayDate(requester.requestDate)} disabled />
+          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
         </div>
       </FormSection>
 
@@ -171,7 +164,6 @@ export default function WorkAuthorizationForm() {
       <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
 
       <FormSection title="Safety / Risk Indicators" description="Identify safety considerations that apply before the work begins.">
-<<<<<<< HEAD
         <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
           <FormMultiSelect
             label="Risk Indicators"
@@ -184,47 +176,10 @@ export default function WorkAuthorizationForm() {
           />
           <FormTextarea
             label="Additional Safety Note"
-            minLength={5}
             placeholder="Add any extra safety concern"
             value={safetyNote}
             onChange={(event) => setSafetyNote(event.target.value)}
           />
-=======
-        {riskChecklist.isError ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            Risk assessment checklist template is not available.
-          </p>
-        ) : null}
-        <div className="space-y-4">
-          {riskChecklist.data ? (
-            <SafetyChoiceTable
-              options={yesNoOptions}
-              rows={riskChecklist.data.items
-                .filter((item) => item.input_type === "boolean")
-                .map((item) => ({
-                  label: item.label,
-                  required: item.is_required,
-                  value: riskAnswers[item.item_key] ?? "",
-                  onValueChange: (value) =>
-                    setRiskAnswers((current) => ({
-                      ...current,
-                      [item.item_key]: value,
-                    })),
-                }))}
-            />
-          ) : null}
-          {riskChecklist.data?.items
-            .filter((item) => item.input_type === "text")
-            .map((item: SafetyChecklistItem) => (
-              <FormTextarea
-                key={item.id}
-                label={item.label}
-                placeholder="Add any extra safety concern"
-                value={safetyNote}
-                onChange={(event) => setSafetyNote(event.target.value)}
-              />
-            ))}
->>>>>>> safety-backend-init
         </div>
       </FormSection>
 
@@ -240,7 +195,6 @@ export default function WorkAuthorizationForm() {
           />
           <FormTextarea
             label="Attachment Notes"
-            minLength={5}
             placeholder="Add notes about the selected files"
             value={attachmentNotes}
             onChange={(event) => setAttachmentNotes(event.target.value)}
@@ -275,7 +229,7 @@ function AssignedWorkSummary({
           ) : null}
           <FormInput label="Work Type" value={workInitiation.workType.join(", ")} disabled />
           <FormInput label="Location" value={workInitiation.location} disabled />
-          <FormTextarea label="Exact Work Area" minLength={5} value={workInitiation.exactWorkArea} disabled />
+          <FormTextarea label="Exact Work Area" value={workInitiation.exactWorkArea} disabled />
           <FormInput label="Assigned Supervisor" value={workInitiation.assignedSupervisor} disabled />
           <FormInput label="Assigned Workers" value={workInitiation.assignedWorkers.join(", ")} disabled />
           <FormInput label="Contractors Needed" value={workInitiation.contractorsNeeded ? "Yes" : "No"} disabled />
@@ -285,10 +239,9 @@ function AssignedWorkSummary({
               <FormInput label="Contractor Contact Email" type="email" value={workInitiation.contractorContactEmail} disabled />
             </>
           ) : null}
-          <FormInput label="Planned Start Date/Time" value={formatSafetyDisplayDateTime(workInitiation.plannedStartDateTime)} disabled />
-          <FormInput label="Planned End Date/Time" value={formatSafetyDisplayDateTime(workInitiation.plannedEndDateTime)} disabled />
-          <FormTextarea label="Work Description" minLength={5} value={workInitiation.workDescription} disabled className="md:col-span-2" />
-          <FormTextarea label="Additional Comments" minLength={5} value={workInitiation.additionalComments ?? ""} disabled className="md:col-span-2" />
+          <FormInput label="Planned Start Date/Time" value={workInitiation.plannedStartDateTime} disabled />
+          <FormInput label="Planned End Date/Time" value={workInitiation.plannedEndDateTime} disabled />
+          <FormTextarea label="Work Description" value={workInitiation.workDescription} disabled className="md:col-span-2" />
         </div>
       )}
     </FormSection>

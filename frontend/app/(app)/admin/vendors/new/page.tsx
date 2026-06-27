@@ -1,11 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-<<<<<<< HEAD
 import { useCreateVendor, useUploadVendorLogo, VENDOR_ERRORS } from "@/lib/modules/vendors";
-=======
-import { useCreateVendor, useUploadVendorLogo } from "@/hooks/useVendors";
->>>>>>> c7b4c06 (merging)
 import { useToast } from "@/hooks/useToast";
 import { getErrorMessage } from "@/lib/errors";
 import type { VendorCategory } from "@/types";

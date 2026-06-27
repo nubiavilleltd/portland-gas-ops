@@ -3,11 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-<<<<<<< HEAD
 import { useVendor, useUpdateVendor, useUploadVendorLogo, VENDOR_ERRORS } from "@/lib/modules/vendors";
-=======
-import { useVendor, useUpdateVendor, useUploadVendorLogo } from "@/hooks/useVendors";
->>>>>>> c7b4c06 (merging)
 import { useToast } from "@/hooks/useToast";
 import { getErrorMessage } from "@/lib/errors";
 import type { VendorCategory } from "@/types";

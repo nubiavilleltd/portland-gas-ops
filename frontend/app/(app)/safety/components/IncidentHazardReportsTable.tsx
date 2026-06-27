@@ -5,7 +5,6 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
-import { formatSafetyDisplayDateMaybeTime } from "@/lib/safety-demo-dates";
 import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
 
@@ -60,7 +59,7 @@ const columns: Column<IncidentHazardReport>[] = [
   {
     key: "dateTimeObserved",
     label: "Date Reported",
-    render: (value, row) => formatSafetyDisplayDateMaybeTime(String(value || row.reporter.reportDate)),
+    render: (value, row) => String(value || row.reporter.reportDate),
   },
 ];
 

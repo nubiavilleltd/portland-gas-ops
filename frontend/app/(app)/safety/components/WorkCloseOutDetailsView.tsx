@@ -22,14 +22,6 @@ import {
   updateWorkCloseOut,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
-import {
-  formatSafetyDisplayDate,
-  formatSafetyDisplayDateTime,
-} from "@/lib/safety-demo-dates";
-import {
-  SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE,
-  shouldBlockReturnedSafetyResubmission,
-} from "@/lib/safety-return-guard";
 import type {
   WorkAuthorizationAttachment,
   WorkAuthorizationAuditTrailItem,
@@ -82,7 +74,6 @@ export default function WorkCloseOutDetailsView({
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHeadComment, setOperationsHeadComment] = useState("");
   const [hseComment, setHseComment] = useState("");
-  const [hasRequesterChanges, setHasRequesterChanges] = useState(false);
   const [hseVerifiedCloseOut, setHseVerifiedCloseOut] = useState("");
   const [hseAreaSafe, setHseAreaSafe] = useState("");
   const [hseCorrectiveActionRequired, setHseCorrectiveActionRequired] = useState("");
@@ -133,9 +124,6 @@ export default function WorkCloseOutDetailsView({
     request?.operationsHeadApproval,
     request?.hseApproval,
   ]);
-  const blockRequesterSubmit = request
-    ? shouldBlockReturnedSafetyResubmission(request.status, hasRequesterChanges)
-    : false;
 
   if (!request) {
     return (
@@ -155,10 +143,6 @@ export default function WorkCloseOutDetailsView({
 
   function submitCloseOut() {
     if (!request) return;
-    if (shouldBlockReturnedSafetyResubmission(request.status, hasRequesterChanges)) {
-      toast.error(SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE);
-      return;
-    }
 
     const audit: WorkAuthorizationAuditTrailItem = {
       action: "Submitted",
@@ -172,7 +156,6 @@ export default function WorkCloseOutDetailsView({
       status: "submitted",
       auditTrail: [...current.auditTrail, audit],
     }));
-    setHasRequesterChanges(false);
     toast.success("Close-out submitted.");
   }
 
@@ -346,17 +329,15 @@ export default function WorkCloseOutDetailsView({
       <StatusNote request={request} currentRole={currentRole} />
       <RequesterDetails request={request} />
       <ApprovedWorkSummary request={request} />
-      <CompletionDetails request={request} editable={permissions.canRequesterEdit} onRequesterChange={() => setHasRequesterChanges(true)} />
-      <MonitoringSection request={request} editable={permissions.canRequesterEdit} onRequesterChange={() => setHasRequesterChanges(true)} />
-      <AreaConditionSection request={request} editable={permissions.canRequesterEdit} onRequesterChange={() => setHasRequesterChanges(true)} />
+      <CompletionDetails request={request} editable={permissions.canRequesterEdit} />
+      <MonitoringSection request={request} editable={permissions.canRequesterEdit} />
+      <AreaConditionSection request={request} editable={permissions.canRequesterEdit} />
 
       {permissions.canRequesterEdit ? (
         <div className="flex justify-end">
-          <span title={blockRequesterSubmit ? SAFETY_RETURNED_CHANGE_REQUIRED_MESSAGE : undefined}>
-            <Button type="button" onClick={submitCloseOut} disabled={blockRequesterSubmit}>
-              Submit Close-Out
-            </Button>
-          </span>
+          <Button type="button" onClick={submitCloseOut}>
+            Submit Close-Out
+          </Button>
         </div>
       ) : null}
 
@@ -502,7 +483,6 @@ export default function WorkCloseOutDetailsView({
       {permissions.showAuditTrail ? (
         <AuditTrail
           items={request.auditTrail}
-          formatDateTime={formatSafetyDisplayDateTime}
           description="Recorded workflow actions and comments for this close-out."
         />
       ) : null}
@@ -517,7 +497,7 @@ function RequesterDetails({ request }: { request: WorkCloseOutRequest }) {
         <FormInput label="Requester Name" value={request.requester.name} disabled />
         <FormInput label="Department" value={request.requester.department} disabled />
         <FormInput label="Job Title / Role" value={request.requester.role} disabled />
-        <FormInput label="Request Date" value={formatSafetyDisplayDate(request.requester.requestDate)} disabled />
+        <FormInput label="Request Date" value={request.requester.requestDate} disabled />
       </div>
     </FormSection>
   );
@@ -533,9 +513,9 @@ function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
         <FormInput label="Original Requester" value={work.requester} disabled />
         <FormInput label="Department" value={work.department} disabled />
         <FormInput label="Work Location" value={work.location} disabled />
-        <FormTextarea label="Exact Work Area" minLength={5} value={work.exactWorkArea} disabled />
-        <FormInput label="Approved Start Date/Time" value={formatSafetyDisplayDateTime(work.approvedStartDateTime)} disabled />
-        <FormInput label="Approved End Date/Time" value={formatSafetyDisplayDateTime(work.approvedEndDateTime)} disabled />
+        <FormTextarea label="Exact Work Area" value={work.exactWorkArea} disabled />
+        <FormInput label="Approved Start Date/Time" value={work.approvedStartDateTime} disabled />
+        <FormInput label="Approved End Date/Time" value={work.approvedEndDateTime} disabled />
         <FormInput label="Approved Work Type" value={work.workTypes.join(", ")} disabled />
         <FormInput label="Approved Supervisor" value={work.supervisor} disabled />
         <FormInput label="HSE Approver" value={work.hseApprover} disabled />
@@ -547,11 +527,9 @@ function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
 function CompletionDetails({
   request,
   editable,
-  onRequesterChange,
 }: {
   request: WorkCloseOutRequest;
   editable: boolean;
-  onRequesterChange: () => void;
 }) {
   const details = request.completionDetails;
   const [completionEvidence, setCompletionEvidence] = useState<File[]>([]);
@@ -559,27 +537,27 @@ function CompletionDetails({
   return (
     <FormSection title="Completion Details" description="Recorded completion information and submitted evidence.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Actual Start Date/Time" defaultValue={formatSafetyDisplayDateTime(details.actualStartDateTime)} disabled={!editable} onChange={onRequesterChange} />
-        <FormInput label="Actual Completion Date/Time" defaultValue={formatSafetyDisplayDateTime(details.actualCompletionDateTime)} disabled={!editable} onChange={onRequesterChange} />
+        <FormInput label="Actual Start Date/Time" value={details.actualStartDateTime} disabled={!editable} />
+        <FormInput label="Actual Completion Date/Time" value={details.actualCompletionDateTime} disabled={!editable} />
         <div className="md:col-span-2">
           <SafetyChoiceTable
             options={yesNoOptions}
             disabled={!editable}
             rows={[
-              requesterChoiceRow("Was work completed?", booleanToYesNo(details.workCompleted), editable, onRequesterChange),
-              requesterChoiceRow("Was work completed as approved?", booleanToYesNo(details.completedAsApproved), editable, onRequesterChange),
-              requesterChoiceRow("Any incident, hazard, or near miss observed?", booleanToYesNo(details.incidentObserved), editable, onRequesterChange),
+              { label: "Was work completed?", value: booleanToYesNo(details.workCompleted) },
+              { label: "Was work completed as approved?", value: booleanToYesNo(details.completedAsApproved) },
+              { label: "Any incident, hazard, or near miss observed?", value: booleanToYesNo(details.incidentObserved) },
             ]}
           />
         </div>
         {!details.completedAsApproved ? (
-          <FormTextarea label="Explanation for change/deviation" minLength={5} defaultValue={details.deviationExplanation} disabled={!editable} onChange={onRequesterChange} />
+          <FormTextarea label="Explanation for change/deviation" value={details.deviationExplanation} disabled={!editable} />
         ) : null}
-        <FormTextarea label="Completion Summary" minLength={5} defaultValue={details.completionSummary} disabled={!editable} className="md:col-span-2" onChange={onRequesterChange} />
+        <FormTextarea label="Completion Summary" value={details.completionSummary} disabled={!editable} className="md:col-span-2" />
         {details.incidentObserved ? (
-          <FormTextarea label="Incident/Hazard Note" minLength={5} defaultValue={details.incidentNote} disabled={!editable} onChange={onRequesterChange} />
+          <FormTextarea label="Incident/Hazard Note" value={details.incidentNote} disabled={!editable} />
         ) : null}
-        <FormTextarea label="Completion Notes" minLength={5} defaultValue={details.completionNotes} disabled={!editable} className="md:col-span-2" onChange={onRequesterChange} />
+        {/* <FormTextarea label="Completion Notes" value={details.completionNotes} disabled={!editable} className="md:col-span-2" /> */}
       </div>
       <div className="mt-4">
         <AttachmentList attachments={details.completionEvidence} />
@@ -588,10 +566,7 @@ function CompletionDetails({
             <FileDropzone
               label="Completion Evidence"
               value={completionEvidence}
-              onChange={(files) => {
-                setCompletionEvidence(files);
-                onRequesterChange();
-              }}
+              onChange={setCompletionEvidence}
               accept="image/*,.pdf,.doc,.docx"
               maxFiles={10}
             />
@@ -605,11 +580,9 @@ function CompletionDetails({
 function MonitoringSection({
   request,
   editable,
-  onRequesterChange,
 }: {
   request: WorkCloseOutRequest;
   editable: boolean;
-  onRequesterChange: () => void;
 }) {
   const monitoring = request.monitoring;
   return (
@@ -618,10 +591,10 @@ function MonitoringSection({
         options={yesNoNaOptions}
         disabled={!editable}
         rows={[
-          requesterChoiceRow("Work was monitored during execution", booleanToYesNo(monitoring.monitoredDuringExecution), editable, onRequesterChange),
-          requesterChoiceRow("Work stayed within approved scope", booleanToYesNo(monitoring.stayedWithinScope), editable, onRequesterChange),
-          requesterChoiceRow("Required PPE and safety controls were maintained", booleanToYesNo(monitoring.ppeAndControlsMaintained), editable, onRequesterChange),
-          requesterChoiceRow("Unsafe condition was reported/addressed if noticed", monitoring.unsafeConditionAddressed, editable, onRequesterChange),
+          { label: "Work was monitored during execution", value: booleanToYesNo(monitoring.monitoredDuringExecution) },
+          { label: "Work stayed within approved scope", value: booleanToYesNo(monitoring.stayedWithinScope) },
+          { label: "Required PPE and safety controls were maintained", value: booleanToYesNo(monitoring.ppeAndControlsMaintained) },
+          { label: "Unsafe condition was reported/addressed if noticed", value: monitoring.unsafeConditionAddressed },
         ]}
       />
     </FormSection>
@@ -631,11 +604,9 @@ function MonitoringSection({
 function AreaConditionSection({
   request,
   editable,
-  onRequesterChange,
 }: {
   request: WorkCloseOutRequest;
   editable: boolean;
-  onRequesterChange: () => void;
 }) {
   const area = request.areaCondition;
   return (
@@ -645,14 +616,14 @@ function AreaConditionSection({
           options={yesNoOptions}
           disabled={!editable}
           rows={[
-            requesterChoiceRow("Work area cleaned after completion", booleanToYesNo(area.workAreaCleaned), editable, onRequesterChange),
-            requesterChoiceRow("Tools/equipment removed from work area", booleanToYesNo(area.toolsRemoved), editable, onRequesterChange),
-            requesterChoiceRow("Vehicle/equipment/system left in safe condition", booleanToYesNo(area.systemSafe), editable, onRequesterChange),
-            requesterChoiceRow("Any remaining hazard?", booleanToYesNo(area.remainingHazard), editable, onRequesterChange),
+            { label: "Work area cleaned after completion", value: booleanToYesNo(area.workAreaCleaned) },
+            { label: "Tools/equipment removed from work area", value: booleanToYesNo(area.toolsRemoved) },
+            { label: "Vehicle/equipment/system left in safe condition", value: booleanToYesNo(area.systemSafe) },
+            { label: "Any remaining hazard?", value: booleanToYesNo(area.remainingHazard) },
           ]}
         />
         {area.remainingHazard ? (
-          <FormTextarea label="Remaining Hazard Details" minLength={5} defaultValue={area.remainingHazardDetails} disabled={!editable} className="md:col-span-2" onChange={onRequesterChange} />
+          <FormTextarea label="Remaining Hazard Details" value={area.remainingHazardDetails} disabled={!editable} className="md:col-span-2" />
         ) : null}
       </div>
     </FormSection>
@@ -661,17 +632,6 @@ function AreaConditionSection({
 
 function booleanToYesNo(value: boolean) {
   return value ? "Yes" : "No";
-}
-
-function requesterChoiceRow(
-  label: string,
-  currentValue: string,
-  editable: boolean,
-  onRequesterChange: () => void,
-) {
-  return editable
-    ? { label, defaultValue: currentValue, onValueChange: onRequesterChange }
-    : { label, value: currentValue };
 }
 
 function ApprovalResult({
@@ -686,8 +646,8 @@ function ApprovalResult({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Reviewer" value={result.approver} disabled />
         <FormInput label="Decision" value={result.decision} disabled />
-        <FormInput label="Review Date/Time" value={formatSafetyDisplayDateTime(result.dateTime)} disabled />
-        <FormTextarea label="Comment" minLength={5} value={result.comment} disabled />
+        <FormInput label="Review Date/Time" value={result.dateTime} disabled />
+        <FormTextarea label="Comment" value={result.comment} disabled />
       </div>
     </FormSection>
   );
@@ -710,11 +670,11 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
           />
         </div>
         {result.correctiveActionRequired ? (
-          <FormTextarea label="Corrective Action Details" minLength={5} value={result.correctiveActionDetails} disabled />
+          <FormTextarea label="Corrective Action Details" value={result.correctiveActionDetails} disabled />
         ) : null}
         <FormInput label="HSE Decision" value={result.decision} disabled />
-        <FormInput label="HSE Review Date/Time" value={formatSafetyDisplayDateTime(result.dateTime)} disabled />
-        <FormTextarea label="HSE Comment" minLength={5} value={result.comment} disabled />
+        <FormInput label="HSE Review Date/Time" value={result.dateTime} disabled />
+        <FormTextarea label="HSE Comment" value={result.comment} disabled />
       </div>
     </FormSection>
   );

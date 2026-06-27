@@ -245,7 +245,6 @@ function toAssignedSummary(request: WorkInitiationRequest): AssignedWorkInitiati
     location: request.location,
     exactWorkArea: request.exactWorkArea,
     workDescription: request.workDescription,
-    additionalComments: request.additionalComments,
     assignedSupervisor: request.assignment.assignedSupervisor,
     assignedWorkers: request.assignment.assignedWorkers,
     contractorsNeeded: request.assignment.contractorsNeeded,

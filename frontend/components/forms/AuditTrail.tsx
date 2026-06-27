@@ -13,7 +13,6 @@ type Props = {
   title?: string;
   description?: string;
   emptyMessage?: string;
-  formatDateTime?: (value: string) => string;
 };
 
 export default function AuditTrail({
@@ -21,7 +20,6 @@ export default function AuditTrail({
   title = "Audit Trail",
   description = "Recorded workflow actions and comments for this request.",
   emptyMessage = "No audit actions yet.",
-  formatDateTime,
 }: Props) {
   return (
     <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
@@ -44,10 +42,7 @@ export default function AuditTrail({
                 <AuditCell label="Action" value={item.action} />
                 <AuditCell label="Actor" value={item.actor} />
                 <AuditCell label="Role" value={item.role} />
-                <AuditCell
-                  label="Date/Time"
-                  value={formatDateTime ? formatDateTime(item.dateTime) : item.dateTime}
-                />
+                <AuditCell label="Date/Time" value={item.dateTime} />
                 <AuditCell label="Comment" value={item.comment} />
               </div>
             ))}

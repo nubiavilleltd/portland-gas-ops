@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
+import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
@@ -18,14 +19,8 @@ import {
   createIncidentHazardReport,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
-import {
-  formatLocalDate,
-  formatLocalDateTime,
-  formatSafetyDisplayDate,
-} from "@/lib/safety-demo-dates";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
-import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
-import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
@@ -45,14 +40,10 @@ export default function IncidentHazardForm() {
     ...getSafetyCurrentUser(),
     reportDate: formatLocalDate(),
   };
-  const impactChecklist = useActiveSafetyChecklist(
-    "incident_report",
-    "risk_assessment",
-  );
   const relatedAuthorizationOptions = workAuthorizations.map((request) => ({
     value: request.id,
     label: `${request.id} - ${request.workInitiation.title}`,
-    description: `${request.requester.name} | ${formatSafetyDisplayDate(request.requester.requestDate)}`,
+    description: `${request.requester.name} | ${request.requester.requestDate}`,
   }));
   const [description, setDescription] = useState("");
   // const [severity, setSeverity] = useState("");
@@ -107,10 +98,6 @@ export default function IncidentHazardForm() {
     }, 700);
   }
 
-  if (impactChecklist.isLoading) {
-    return <SafetyProcessFormSkeleton sections={4} />;
-  }
-
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
       <FormSection title="Reporter Details" description="Your employee information for this incident or hazard report.">
@@ -118,7 +105,7 @@ export default function IncidentHazardForm() {
           <FormInput label="Reporter Name" value={reporter.name} disabled />
           <FormInput label="Department" value={reporter.department} disabled />
           <FormInput label="Job Title / Role" value={reporter.role} disabled />
-          <FormInput label="Report Date" value={formatSafetyDisplayDate(reporter.reportDate)} disabled />
+          <FormDatePicker label="Report Date" value={reporter.reportDate} disabled />
         </div>
       </FormSection>
 
@@ -134,41 +121,21 @@ export default function IncidentHazardForm() {
 
       <FormSection title="Incident / Hazard Details" description="Describe what happened, its impact, and immediate actions taken.">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormTextarea label="Description" required minLength={5} placeholder="Describe what happened or what was observed" className="md:col-span-2" value={description} onChange={(event) => setDescription(event.target.value)} />
+          <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" value={description} onChange={(event) => setDescription(event.target.value)} />
           {/* <FormSelect label="Severity Estimate" required options={toOptions(incidentSeverityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} /> */}
           <div className="md:col-span-2">
-            {impactChecklist.isError ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                Incident report impact checklist template is not available.
-              </p>
-            ) : null}
-            {impactChecklist.data ? (
-              <SafetyChoiceTable
-                options={yesNoOptions}
-                rows={impactChecklist.data.items
-                  .filter((item) => item.input_type === "boolean")
-                  .map((item) => ({
-                    label: item.label,
-                    required: item.is_required,
-                    value:
-                      item.item_key === "anyone_injured"
-                        ? anyoneInjured
-                        : item.item_key === "property_damaged"
-                          ? propertyDamaged
-                          : gasConcern,
-                    onValueChange:
-                      item.item_key === "anyone_injured"
-                        ? setAnyoneInjured
-                        : item.item_key === "property_damaged"
-                          ? setPropertyDamaged
-                          : setGasConcern,
-                  }))}
-              />
-            ) : null}
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={[
+                { label: "Was anyone injured?", required: true, value: anyoneInjured, onValueChange: setAnyoneInjured },
+                { label: "Was equipment/property damaged?", required: true, value: propertyDamaged, onValueChange: setPropertyDamaged },
+                { label: "Is there gas/fire/environmental concern?", required: true, value: gasConcern, onValueChange: setGasConcern },
+              ]}
+            />
           </div>
-          <FormTextarea label="Immediate Action Taken" required minLength={5} placeholder="Describe immediate action taken" className="md:col-span-2" value={immediateAction} onChange={(event) => setImmediateAction(event.target.value)} />
-          <FormTextarea label="People Involved / Witnesses" minLength={5} placeholder="Optional" value={peopleInvolved} onChange={(event) => setPeopleInvolved(event.target.value)} />
-          <FormTextarea label="Additional Notes" minLength={5} placeholder="Optional" value={additionalNotes} onChange={(event) => setAdditionalNotes(event.target.value)} />
+          <FormTextarea label="Immediate Action Taken" required placeholder="Describe immediate action taken" className="md:col-span-2" value={immediateAction} onChange={(event) => setImmediateAction(event.target.value)} />
+          <FormTextarea label="People Involved / Witnesses" placeholder="Optional" value={peopleInvolved} onChange={(event) => setPeopleInvolved(event.target.value)} />
+          <FormTextarea label="Additional Notes" placeholder="Optional" value={additionalNotes} onChange={(event) => setAdditionalNotes(event.target.value)} />
         </div>
       </FormSection>
 
@@ -182,7 +149,7 @@ export default function IncidentHazardForm() {
             maxFiles={10}
             hint="Local selection only. No upload is performed."
           />
-          <FormTextarea label="Evidence Notes" minLength={5} placeholder="Optional notes about attachments" />
+          <FormTextarea label="Evidence Notes" placeholder="Optional notes about attachments" />
         </div>
       </FormSection>
 

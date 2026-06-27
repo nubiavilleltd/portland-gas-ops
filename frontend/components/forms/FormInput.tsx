@@ -54,7 +54,7 @@ const FormInput = forwardRef<HTMLInputElement, Props>(
             className={cn(
               "h-10 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary placeholder:text-brand-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
               (disabled || shouldBeReadOnly) &&
-                "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-900 opacity-80 shadow-none placeholder:text-brand-text-secondary focus:ring-0 focus:border-gray-200",
+                "cursor-not-allowed border-gray-200 bg-black opacity-50 shadow-none focus:ring-0 focus:border-gray-200",
               isPassword && "pr-10",
               error && "border-red-400 focus:ring-red-400",
               className

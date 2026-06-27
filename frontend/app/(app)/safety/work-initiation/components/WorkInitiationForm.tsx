@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
+import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
@@ -19,12 +20,7 @@ import {
   createWorkInitiation,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
-import {
-  formatLocalDate,
-  formatLocalDateTime,
-  formatSafetyDisplayDate,
-  formatSafetyDisplayDateMaybeTime,
-} from "@/lib/safety-demo-dates";
+import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { WorkAuthorizationAttachment } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
 
@@ -69,7 +65,6 @@ export default function WorkInitiationForm() {
   const [exactWorkArea, setExactWorkArea] = useState("");
   const [workDescription, setWorkDescription] = useState("");
   const [reasonForWork, setReasonForWork] = useState("");
-  const [additionalComments, setAdditionalComments] = useState("");
   const [assignedDepartment, setAssignedDepartment] = useState("");
   const [assignedSupervisor, setAssignedSupervisor] = useState("");
   const [assignedWorkers, setAssignedWorkers] = useState<string[]>([]);
@@ -88,7 +83,7 @@ export default function WorkInitiationForm() {
     .map((report) => ({
       value: report.id,
       label: `${report.id} - ${report.title || report.reportType}`,
-      description: `${report.reporter.name} | ${formatSafetyDisplayDate(report.reporter.reportDate)}`,
+      description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
   const selectedIncident = incidentHazards.find((report) => report.id === relatedIncidentId);
   const workTypeOptions = toOptions(
@@ -127,7 +122,6 @@ export default function WorkInitiationForm() {
       title,
       workDescription,
       reasonForWork,
-      additionalComments,
       workCategory,
       relatedIncidentHazardId: relatedIncidentId,
       workType: workTypes,
@@ -177,7 +171,7 @@ export default function WorkInitiationForm() {
           <FormInput label="Requester Name" value={requester.name} disabled />
           <FormInput label="Department" value={requester.department} disabled />
           <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormInput label="Request Date" value={formatSafetyDisplayDate(requester.requestDate)} disabled />
+          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
         </div>
       </FormSection>
 
@@ -208,7 +202,7 @@ export default function WorkInitiationForm() {
                 <div className="rounded-lg border border-brand-border bg-gray-50 p-3 text-sm">
                   <p className="font-medium text-brand-text-primary">{selectedIncident.title}</p>
                   <p className="mt-1 text-brand-text-secondary">
-                    {selectedIncident.id} | {selectedIncident.reporter.name} | {formatSafetyDisplayDateMaybeTime(selectedIncident.reporter.reportDate)}
+                    {selectedIncident.id} | {selectedIncident.reporter.name} | {selectedIncident.reporter.reportDate}
                   </p>
                   <p className="mt-1 text-brand-text-secondary">
                     Recommended to {selectedIncident.hseReview?.assignedDepartment} | Action Owner: {selectedIncident.hseReview?.actionOwner}
@@ -229,10 +223,9 @@ export default function WorkInitiationForm() {
             disabled={!workCategory}
           />
           <FormMultiSelect label="Location" required searchable creatable options={locationOptions} placeholder="Select or add location" value={locations} onValueChange={setLocations} />
-          <FormTextarea label="Exact Work Area" minLength={5} placeholder="Enter exact work area" value={exactWorkArea} onChange={(event) => setExactWorkArea(event.target.value)} />
-          <FormTextarea label="Work Description" required minLength={5} placeholder="Describe what needs to be done" className="md:col-span-2" value={workDescription} onChange={(event) => setWorkDescription(event.target.value)} />
-          <FormTextarea label="Reason for Work" required minLength={5} placeholder="Explain why the work is needed" className="md:col-span-2" value={reasonForWork} onChange={(event) => setReasonForWork(event.target.value)} />
-          <FormTextarea label="Additional Comments" minLength={5} placeholder="Add any extra comments for reviewers" className="md:col-span-2" value={additionalComments} onChange={(event) => setAdditionalComments(event.target.value)} />
+          <FormTextarea label="Exact Work Area" placeholder="Enter exact work area" value={exactWorkArea} onChange={(event) => setExactWorkArea(event.target.value)} />
+          <FormTextarea label="Work Description" required placeholder="Describe what needs to be done" className="md:col-span-2" value={workDescription} onChange={(event) => setWorkDescription(event.target.value)} />
+          <FormTextarea label="Reason for Work" required placeholder="Explain why the work is needed" className="md:col-span-2" value={reasonForWork} onChange={(event) => setReasonForWork(event.target.value)} />
           <div className="md:col-span-2">
             <FileDropzone
               label="Supporting Images/Documents"
@@ -273,7 +266,7 @@ export default function WorkInitiationForm() {
           ) : null}
           <FormDateTimeInput label="Planned Start Date/Time" value={plannedStartDateTime} onValueChange={setPlannedStartDateTime} />
           <FormDateTimeInput label="Planned End Date/Time" value={plannedEndDateTime} onValueChange={setPlannedEndDateTime} />
-          <FormTextarea label="Materials / Parts Required" minLength={5} placeholder="Optional" className="md:col-span-2" value={materialsRequired} onChange={(event) => setMaterialsRequired(event.target.value)} />
+          <FormTextarea label="Materials / Parts Required" placeholder="Optional" className="md:col-span-2" value={materialsRequired} onChange={(event) => setMaterialsRequired(event.target.value)} />
         </div>
       </FormSection>
 
