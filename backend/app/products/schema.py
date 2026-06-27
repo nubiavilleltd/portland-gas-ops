@@ -1,92 +1,140 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, field_validator, model_validator
-from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
 
-from app.products.enums import ProductType, ProductUnit, ProductStatus
+from pydantic import BaseModel, field_validator, model_validator
+
+from app.products.enums import ProductStatus, ProductType, ProductUnit
+from app.products.validators import (
+    validate_default_unit_price,
+    validate_minimum_stock,
+    validate_name,
+    validate_optional_code,
+    validate_optional_description,
+    validate_product_type,
+    validate_unit,
+)
 
 
 class ProductImageResponse(BaseModel):
-    id:   str
-    url:  str
+    id: str
+    url: str
     name: str
 
     class Config:
         from_attributes = True
 
 
+# ── Request schemas ────────────────────────────────────────────────────────────
+
 class ProductCreate(BaseModel):
-    name:               str
-    product_type:       ProductType = ProductType.consumable
-    unit:               ProductUnit = ProductUnit.kg
+    name: str
+    product_type: ProductType = ProductType.consumable
+    unit: ProductUnit = ProductUnit.kg
     default_unit_price: Decimal
-    code:               Optional[str]     = None
-    description:        Optional[str]     = None
-    minimum_stock:      Optional[Decimal] = None
+    code: str | None = None
+    description: str | None = None
+    minimum_stock: Decimal | None = None
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Product name cannot be empty")
-        return v.strip()
+    def name_validator(cls, v: str) -> str:
+        return validate_name(v)
+
+    @field_validator("product_type")
+    @classmethod
+    def product_type_validator(cls, v: ProductType) -> ProductType:
+        return validate_product_type(v)
+
+    @field_validator("unit")
+    @classmethod
+    def unit_validator(cls, v: ProductUnit) -> ProductUnit:
+        return validate_unit(v)
 
     @field_validator("default_unit_price")
     @classmethod
-    def price_positive(cls, v: Decimal) -> Decimal:
-        if v <= 0:
-            raise ValueError("Price must be greater than zero")
-        return v
+    def price_validator(cls, v: Decimal) -> Decimal:
+        return validate_default_unit_price(v)
 
     @field_validator("minimum_stock")
     @classmethod
-    def stock_positive(cls, v: Optional[Decimal]) -> Optional[Decimal]:
-        if v is not None and v < 0:
-            raise ValueError("Minimum stock cannot be negative")
-        return v
-
-    @model_validator(mode="after")
-    def tracked_requires_code(self) -> ProductCreate:
-        if self.product_type == ProductType.tracked and not self.code:
-            raise ValueError("Product code is required for tracked assets")
-        if self.product_type == ProductType.tracked:
-            self.unit = ProductUnit.unit
-        return self
+    def minimum_stock_validator(cls, v: Decimal | None) -> Decimal | None:
+        return validate_minimum_stock(v)
 
     @field_validator("code")
     @classmethod
-    def code_uppercase(cls, v: Optional[str]) -> Optional[str]:
-        if v:
-            return v.strip().upper()
-        return v
+    def code_validator(cls, v: str | None) -> str | None:
+        return validate_optional_code(v)
+
+    @field_validator("description")
+    @classmethod
+    def description_validator(cls, v: str | None) -> str | None:
+        return validate_optional_description(v)
+
+    @model_validator(mode="after")
+    def tracked_requires_code(self) -> "ProductCreate":
+        if self.product_type == ProductType.tracked and not self.code:
+            raise ValueError("Product code is required for tracked assets")
+
+        if self.product_type == ProductType.tracked:
+            self.unit = ProductUnit.unit
+
+        return self
 
 
 class ProductUpdate(BaseModel):
-    name:               Optional[str]         = None
-    product_type:       Optional[ProductType] = None
-    unit:               Optional[ProductUnit] = None
-    default_unit_price: Optional[Decimal]     = None
-    code:               Optional[str]         = None
-    description:        Optional[str]         = None
-    minimum_stock:      Optional[Decimal]     = None
-    status:             Optional[ProductStatus] = None
+    name: str | None = None
+    product_type: ProductType | None = None
+    unit: ProductUnit | None = None
+    default_unit_price: Decimal | None = None
+    code: str | None = None
+    description: str | None = None
+    minimum_stock: Decimal | None = None
+    status: ProductStatus | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_validator(cls, v: str | None) -> str | None:
+        return validate_name(v) if v is not None else None
+
+    @field_validator("product_type")
+    @classmethod
+    def product_type_validator(cls, v: ProductType | None) -> ProductType | None:
+        return validate_product_type(v) if v is not None else None
+
+    @field_validator("unit")
+    @classmethod
+    def unit_validator(cls, v: ProductUnit | None) -> ProductUnit | None:
+        return validate_unit(v) if v is not None else None
 
     @field_validator("default_unit_price")
     @classmethod
-    def price_positive(cls, v: Optional[Decimal]) -> Optional[Decimal]:
-        if v is not None and v <= 0:
-            raise ValueError("Price must be greater than zero")
-        return v
+    def price_validator(cls, v: Decimal | None) -> Decimal | None:
+        return validate_default_unit_price(v) if v is not None else None
+
+    @field_validator("minimum_stock")
+    @classmethod
+    def minimum_stock_validator(cls, v: Decimal | None) -> Decimal | None:
+        return validate_minimum_stock(v)
+
+    @field_validator("code")
+    @classmethod
+    def code_validator(cls, v: str | None) -> str | None:
+        return validate_optional_code(v)
+
+    @field_validator("description")
+    @classmethod
+    def description_validator(cls, v: str | None) -> str | None:
+        return validate_optional_description(v)
 
 
 class ProductFilters(BaseModel):
-    search:       Optional[str]           = None
-    product_type: Optional[ProductType]   = None
-    status:       Optional[ProductStatus] = None
-    page:         int = 1
-    page_size:    int = 50
+    search: str | None = None
+    product_type: ProductType | None = None
+    status: ProductStatus | None = None
+    page: int = 1
+    page_size: int = 50
 
     @field_validator("page_size")
     @classmethod
@@ -96,28 +144,30 @@ class ProductFilters(BaseModel):
         return v
 
 
+# ── Response schemas ───────────────────────────────────────────────────────────
+
 class ProductResponse(BaseModel):
-    id:                 str
-    product_no: Optional[str]
-    name:               str
-    code:               Optional[str]
-    description:        Optional[str]
-    product_type:       ProductType
-    unit:               ProductUnit
+    id: str
+    product_no: str | None
+    name: str
+    code: str | None
+    description: str | None
+    product_type: ProductType
+    unit: ProductUnit
     default_unit_price: Decimal
-    minimum_stock:      Optional[Decimal]
-    status:             ProductStatus
-    images:             List[ProductImageResponse] = []
-    created_at:         datetime
-    updated_at:         datetime
+    minimum_stock: Decimal | None
+    status: ProductStatus
+    images: list[ProductImageResponse] = []
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
 
 
 class ProductListResponse(BaseModel):
-    items:     List[ProductResponse]
-    total:     int
-    page:      int
+    items: list[ProductResponse]
+    total: int
+    page: int
     page_size: int
-    has_next:  bool
+    has_next: bool
