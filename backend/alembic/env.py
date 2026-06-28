@@ -19,6 +19,10 @@ from app.procurement import models as _procurement_models  # noqa: F401
 from app.products.model import Product    # noqa: F401
 from app.customers.model import Customer 
 
+from app.payments.model import Payment   # noqa: F401
+from app.orders.model import Order, OrderItem  # noqa: F401
+from app.invoices.model import Invoice   # noqa: F401
+
 config = context.config
 
 # Override sqlalchemy.url from settings (reads .env)

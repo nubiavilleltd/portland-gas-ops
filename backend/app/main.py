@@ -18,6 +18,9 @@ from app.assets import models as _asset_models  # noqa: F401
 from app.procurement import models as _procurement_models  # noqa: F401
 from app.customers import model as _customer_models  # noqa: F401
 from app.products import model as _product_models
+from app.orders.model import Order, OrderItem    # noqa: F401
+from app.invoices.model import Invoice           # noqa: F401
+from app.payments.model import Payment           # noqa: F401
 
 from app.auth.router import router as auth_router
 from app.users.router import router as users_router
@@ -27,6 +30,9 @@ from app.assets.router import router as assets_router
 from app.customers.router import router as customers_router
 from app.procurement.router import router as procurement_router
 from app.products.router import router as products_router
+from app.orders.router import router as orders_router
+from app.invoices.router import router as invoices_router
+from app.payments.router import router as payments_router
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -99,6 +105,10 @@ app.include_router(procurement_router, prefix="/api/procurement", tags=["Procure
 
 # Products routes
 app.include_router(products_router, prefix="/api/products", tags=["Products"])
+
+app.include_router(orders_router,   prefix="/api/orders",   tags=["Orders"])
+app.include_router(invoices_router, prefix="/api/invoices", tags=["Invoices"])
+app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
 
 
 @app.get("/api/health")
