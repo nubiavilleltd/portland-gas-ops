@@ -23,11 +23,11 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   canAssignToTrip,
-  canCloseOrder,
-  canConfirmOrder,
+  canCancelOrder,
   canEditOrder,
   canGenerateInvoice,
   canConfirmDelivery,
+  canMakePayment,
 } from "@/lib/modules/orders/guards/orders.guards";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
@@ -41,6 +41,7 @@ import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { pluralizeNumber } from "@/lib/utils/format-number";
 import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
 import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
+import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -87,8 +88,9 @@ export default function OrderDetailPage() {
   // const canConfirm = canConfirmOrder(order);
   const canAssign = canAssignToTrip(order);
   const canInvoice = canGenerateInvoice(order);
-  // const canClose = canCloseOrder(order);
+  const canPay = canMakePayment(invoice as Invoice, order);
   const canDeliver = canConfirmDelivery(order);
+  const canCancel = canCancelOrder(order);
 
   const balance = invoice
     ? invoice.total_amount - paymentSummary.amountPaid
@@ -105,8 +107,8 @@ export default function OrderDetailPage() {
       label: "Quantity",
       render: (item) => {
         const unit = productMap.get(item.product_id)?.unit ?? "unit";
-        const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
-        return `${item.quantity.toLocaleString()} ${formattedUnit}`;
+        // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
+        return `${item.quantity.toLocaleString()} ${unit}`;
       },
     },
     {
@@ -167,6 +169,12 @@ export default function OrderDetailPage() {
               </Button>
             )}
 
+            {canCancel && (
+              <Button variant="danger" href={`/orders/${id}/cancel`}>
+                Cancel Order →
+              </Button>
+            )}
+
             {/* {canInvoice && (
               <Button href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
                 Generate Invoice
@@ -197,10 +205,7 @@ export default function OrderDetailPage() {
               <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
                 {customerMap[order.customer_id]?.name ?? "—"}
               </h2>
-              {/* 
-      <p className="text-sm text-brand-text-secondary mt-1">
-        {order.order_type}
-      </p> */}
+      
             </div>
 
             {/* Three status badges side by side */}
@@ -351,11 +356,11 @@ export default function OrderDetailPage() {
           title="Payments"
           description="Track invoice payments, amounts received, and outstanding balance"
         >
-          {invoice && order.payment_status !== "paid" ? (
+          {canPay ? (
             <div className="flex justify-end">
               <Button
                 size="sm"
-                href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice.id}`}
+                href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice?.id || ""}`}
               >
                 Make Payment →
               </Button>

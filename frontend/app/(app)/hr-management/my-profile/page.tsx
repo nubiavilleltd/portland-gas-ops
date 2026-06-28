@@ -1,17 +1,15 @@
 "use client";
 
-import { Eye, Download, FileText } from "lucide-react";
+import { useRef } from "react";
+import { Camera, FileText, Loader2 } from "lucide-react";
+import Avatar from "@/components/ui/Avatar";
 import AppLayout from "@/components/layout/AppLayout";
 import FormInput from "@/components/forms/FormInput";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import { formatNumber } from "@/lib/utils/format-number";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import {
-  EMPLOYEE_STORE,
-  SEED_EMPLOYEE_RECORDS,
-  fmtDate,
-  type EmployeeRecord,
-} from "../_components/_data";
+import { useMyEmployee, useUploadProfilePicture } from "@/lib/modules/employees/hooks";
+import { useToast } from "@/hooks/useToast";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -24,72 +22,58 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function fmt(n: string | null | undefined) {
+  if (!n) return "—";
+  const num = parseFloat(n);
+  return isNaN(num) || num === 0 ? "—" : formatNumber(num);
+}
+
 export default function MyProfilePage() {
   const { user } = useCurrentUser();
-  const currentUserName = user?.name || "Joseph Chika";
+  const { data: emp, isLoading, error } = useMyEmployee();
+  const upload = useUploadProfilePicture();
+  const toast  = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const emp = EMPLOYEE_STORE.find(
-    (e) => `${e.firstName} ${e.lastName}` === currentUserName
-  );
+  const fullName = emp
+    ? `${emp.user?.first_name ?? ""} ${emp.user?.last_name ?? ""}`.trim()
+    : user
+    ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim()
+    : "";
 
-  const docs: EmployeeRecord[] = emp
-    ? SEED_EMPLOYEE_RECORDS.filter((r) => r.employee === currentUserName)
-    : [];
+  const managerName = emp?.operating_manager?.user
+    ? `${emp.operating_manager.user.first_name ?? ""} ${emp.operating_manager.user.last_name ?? ""}`.trim()
+    : "—";
 
-  const fmt = (n: number | undefined) =>
-    n !== undefined && n > 0 ? formatNumber(n) : "—";
-
-  const mockViewDoc = async (doc: EmployeeRecord) => {
-    const { default: jsPDF } = await import("jspdf");
-    const pdf = new jsPDF({ unit: "mm", format: "a4" });
-    pdf.setFillColor(88, 28, 135);
-    pdf.rect(0, 0, 210, 18, "F");
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(13);
-    pdf.setTextColor(255, 255, 255);
-    pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
-    pdf.setTextColor(30, 30, 30);
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(doc.docType, 20, 34);
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`Employee: ${doc.employee}`, 20, 44);
-    pdf.text(`File: ${doc.fileName}`, 20, 51);
-    pdf.text(`Uploaded: ${doc.uploadDate}  ·  By: ${doc.uploadedBy}`, 20, 58);
-    window.open(pdf.output("bloburl"), "_blank");
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await upload.mutateAsync(file);
+      toast.success("Profile picture updated");
+    } catch {
+      toast.error("Failed to upload picture. Max 5 MB, JPEG/PNG/WebP only.");
+    }
+    e.target.value = "";
   };
 
-  const mockDownloadDoc = async (doc: EmployeeRecord) => {
-    const { default: jsPDF } = await import("jspdf");
-    const pdf = new jsPDF({ unit: "mm", format: "a4" });
-    pdf.setFillColor(88, 28, 135);
-    pdf.rect(0, 0, 210, 18, "F");
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(13);
-    pdf.setTextColor(255, 255, 255);
-    pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
-    pdf.setTextColor(30, 30, 30);
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(doc.docType, 20, 34);
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`Employee: ${doc.employee}`, 20, 44);
-    pdf.text(`File: ${doc.fileName}`, 20, 51);
-    pdf.text(`Uploaded: ${doc.uploadDate}  ·  By: ${doc.uploadedBy}`, 20, 58);
-    pdf.save(doc.fileName);
-  };
+  if (isLoading) {
+    return (
+      <AppLayout pageTitle="My Profile">
+        <div className="flex items-center justify-center py-24">
+          <Loader2 size={24} className="animate-spin text-brand-purple" />
+        </div>
+      </AppLayout>
+    );
+  }
 
-  if (!emp) {
+  if (error || !emp) {
     return (
       <AppLayout pageTitle="My Profile">
         <div className="bg-brand-card border border-brand-border rounded-2xl p-8 text-center max-w-lg">
           <p className="text-brand-text-primary font-semibold">Profile not found</p>
           <p className="text-brand-text-secondary text-sm mt-1">
-            No employee record found for <span className="font-medium">{currentUserName}</span>.
+            No employee record found for your account. Contact IT to get set up.
           </p>
         </div>
       </AppLayout>
@@ -100,22 +84,49 @@ export default function MyProfilePage() {
     <AppLayout pageTitle="My Profile">
       <div className="space-y-5">
 
-        {/* Header */}
+        {/* Header card with avatar */}
         <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">
           <div className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-              <div>
-                <p className="font-mono text-xs text-brand-text-secondary">PG-{emp.id.padStart(3, "0")}</p>
-                <h1 className="text-lg font-semibold text-brand-text-primary mt-1">
-                  {emp.firstName} {emp.lastName}
-                </h1>
-                <p className="text-sm text-brand-text-secondary mt-0.5">
-                  {emp.title} · {emp.department}
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                {/* Avatar + upload */}
+                <div className="relative shrink-0">
+                  <Avatar
+                    name={fullName || "?"}
+                    src={emp?.user?.profile_picture_url}
+                    size="lg"
+                    className="ring-2 ring-brand-border"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={upload.isPending}
+                    className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-brand-purple text-white flex items-center justify-center shadow hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
+                    title="Change profile picture"
+                  >
+                    {upload.isPending ? <Loader2 size={10} className="animate-spin" /> : <Camera size={10} />}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </div>
+
+                <div>
+                  <p className="font-mono text-xs text-brand-text-secondary">{emp.employee_no}</p>
+                  <h1 className="text-lg font-semibold text-brand-text-primary mt-0.5">{fullName}</h1>
+                  <p className="text-sm text-brand-text-secondary">
+                    {emp.job_title ?? "—"}{emp.department ? ` · ${emp.department}` : ""}
+                  </p>
+                </div>
               </div>
-              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 self-start">
-                {emp.category}
-              </span>
+              {emp.employment_type && (
+                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 self-start">
+                  {emp.employment_type}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -123,9 +134,9 @@ export default function MyProfilePage() {
         {/* Personal Details */}
         <Section title="Personal Details">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="First Name" value={emp.firstName} disabled />
-            <FormInput label="Last Name"  value={emp.lastName}  disabled />
-            <FormInput label="Email"      value={emp.email}     disabled />
+            <FormInput label="First Name" value={emp.user?.first_name ?? "—"} disabled />
+            <FormInput label="Last Name"  value={emp.user?.last_name  ?? "—"} disabled />
+            <FormInput label="Email"      value={emp.user?.email      ?? "—"} disabled />
             <FormDatePicker label="Birthday" value={emp.birthday ?? ""} disabled />
           </div>
         </Section>
@@ -133,75 +144,35 @@ export default function MyProfilePage() {
         {/* Employment Details */}
         <Section title="Employment Details">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Job Title / Role"         value={emp.title}                   disabled />
-            <FormInput label="Department"               value={emp.department}               disabled />
-            <FormInput label="Category"                 value={emp.category}                 disabled />
-            <FormInput label="Grade Level"              value={`Grade ${emp.grade}`}         disabled />
-            <FormInput label="Operations Manager"       value={emp.lineManager ?? "—"}       disabled />
-            <FormInput label="Operations Manager Email" value={emp.lineManagerEmail ?? "—"}  disabled />
+            <FormInput label="Job Title"          value={emp.job_title       ?? "—"} disabled />
+            <FormInput label="Department"         value={emp.department      ?? "—"} disabled />
+            <FormInput label="Employment Type"    value={emp.employment_type ?? "—"} disabled />
+            <FormInput label="Operations Manager" value={managerName}                disabled />
           </div>
         </Section>
 
         {/* Compensation */}
         <Section title="Compensation">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Basic Salary"        value={fmt(emp.basicSalary)}        disabled />
-            <FormInput label="Housing Allowance"   value={fmt(emp.housingAllowance)}   disabled />
-            <FormInput label="Transport Allowance" value={fmt(emp.transportAllowance)} disabled />
-            <FormInput label="Meal Allowance"      value={fmt(emp.mealAllowance)}      disabled />
-            <FormInput label="PAYE Tax"    value={fmt(emp.paye)}    disabled hint="[Annual gross − Pension − NHF − CRA] × 7/11/15/19/21/24% bands ÷ 12 · CRA = max(₦200k, 1% gross) + 20% gross" />
+            <FormInput label="Basic Salary"        value={fmt(emp.basic_salary)}        disabled />
+            <FormInput label="Housing Allowance"   value={fmt(emp.housing_allowance)}   disabled />
+            <FormInput label="Transport Allowance" value={fmt(emp.transport_allowance)} disabled />
+            <FormInput label="Meal Allowance"      value={fmt(emp.meal_allowance)}      disabled />
+            <FormInput label="PAYE Tax"    value={fmt(emp.paye)}    disabled hint="Auto-computed (PITA bands)" />
             <FormInput label="Pension"     value={fmt(emp.pension)} disabled hint="8% × (Basic + Housing + Transport)" />
             <FormInput label="NHF"         value={fmt(emp.nhf)}     disabled hint="2.5% × Basic Salary" />
-            <FormInput label="Loan Repayment" value={fmt(emp.loanRepayment)} disabled />
+            <FormInput label="Loan Repayment" value={fmt(emp.loan_repayment)} disabled />
           </div>
         </Section>
 
-        {/* Documents */}
+        {/* Documents placeholder */}
         <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">
           <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
             <h2 className="text-base font-semibold text-brand-text-primary">Documents</h2>
           </div>
-          <div className="px-6 pt-5 pb-6">
-            {docs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <FileText size={32} className="text-brand-text-secondary mb-2 opacity-40" />
-                <p className="text-sm text-brand-text-secondary">No documents uploaded yet.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-brand-border">
-                {docs.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between py-3 gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <FileText size={16} className="text-brand-text-secondary shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-brand-text-primary truncate">{doc.docType}</p>
-                        <p className="text-xs font-mono text-brand-text-secondary truncate">{doc.fileName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 shrink-0">
-                      <span className="text-xs text-brand-text-secondary hidden sm:block">{doc.uploadDate}</span>
-                      <span className="text-xs text-brand-text-secondary hidden md:block">{doc.uploadedBy}</span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-gray-100 text-brand-text-secondary transition"
-                          title="View"
-                          onClick={() => mockViewDoc(doc)}
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition"
-                          title="Download"
-                          onClick={() => mockDownloadDoc(doc)}
-                        >
-                          <Download size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="px-6 py-10 flex flex-col items-center text-center">
+            <FileText size={32} className="text-brand-text-secondary mb-2 opacity-40" />
+            <p className="text-sm text-brand-text-secondary">No documents uploaded yet.</p>
           </div>
         </div>
 

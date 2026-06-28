@@ -1,3 +1,5 @@
+import { PaymentStatus } from "../../payments/types/payments.types";
+
 export interface Invoice {
   id: string;
 
@@ -7,10 +9,7 @@ export interface Invoice {
 
   total_amount: number;
 
-  status:
-    | "unpaid"
-    | "partially_paid"
-    | "paid";
+  status: PaymentStatus
 
   issued_date: string;
 

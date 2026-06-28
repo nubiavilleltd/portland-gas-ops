@@ -14,11 +14,11 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import { useCreateProcurement } from "@/hooks/useProcurement";
-import { useVendors } from "@/hooks/useVendors";
+import { useCreateProcurement, PROCUREMENT_ERRORS } from "@/lib/modules/procurement";
+import { useVendors, useCreateVendor } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
+import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency, capitalize } from "@/lib/utils";
-import type { ProcurementCategory, ItemUnit } from "@/types";
 
 // ── Zod schema ─────────────────────────────────────────────────────────────────
 
@@ -85,6 +85,7 @@ export default function NewProcurementPage() {
   const router = useRouter();
   const toast = useToast();
   const createMutation = useCreateProcurement();
+  const createVendor   = useCreateVendor();
   const { data: vendors = [] } = useVendors();
 
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -117,7 +118,7 @@ export default function NewProcurementPage() {
 
   const updateTotal = useCallback(
     (index: number) => {
-      const qty = parseFloat(watchedItems[index]?.quantity ?? "0") || 0;
+      const qty  = parseFloat(watchedItems[index]?.quantity ?? "0") || 0;
       const cost = parseFloat(watchedItems[index]?.unit_cost ?? "0") || 0;
       setValue(`items.${index}.total_cost`, String(qty * cost));
     },
@@ -156,45 +157,53 @@ export default function NewProcurementPage() {
   }
 
   async function onSubmit(formData: FormData) {
-    // Validate: if mode is "new", name is required
+    // Validate: if mode is "new", vendor name is required
     if (vendorMode === "new" && !formData.new_vendor_name?.trim()) {
       toast.error("Vendor name is required when entering a new vendor");
       return;
     }
 
-    const oneTimeVendor = vendorMode === "new" && formData.new_vendor_name?.trim() ? {
-      name: formData.new_vendor_name.trim(),
-      contact_person: formData.new_vendor_contact_person || null,
-      address: formData.new_vendor_address || null,
-      phone: formData.new_vendor_phone || null,
-      email: formData.new_vendor_email || null,
-      bank_name: formData.new_vendor_bank_name || null,
-      account_name: formData.new_vendor_account_name || null,
-      account_number: formData.new_vendor_account_number || null,
-    } : undefined;
-
     try {
+      let vendorId = vendorMode === "existing" ? formData.vendor_id || undefined : undefined;
+
+      // For new vendor mode: create the vendor first, then use its ID
+      if (vendorMode === "new" && formData.new_vendor_name?.trim()) {
+        const newVendor = await createVendor.mutateAsync({
+          name:           formData.new_vendor_name.trim(),
+          category:       formData.category,
+          vendor_type:    "temporary",
+          contact_person: formData.new_vendor_contact_person || undefined,
+          phone:          formData.new_vendor_phone          || undefined,
+          email:          formData.new_vendor_email          || undefined,
+          address:        formData.new_vendor_address        || undefined,
+          bank_name:      formData.new_vendor_bank_name      || undefined,
+          account_name:   formData.new_vendor_account_name   || undefined,
+          account_number: formData.new_vendor_account_number || undefined,
+        } as Parameters<typeof createVendor.mutateAsync>[0]);
+        vendorId = newVendor.id;
+      }
+
+      // Map form fields to backend schema:
+      //   category + "Request" → title
+      //   justification        → description
+      //   unit_cost            → unit_price
+      //   total_cost           → total_price
       await createMutation.mutateAsync({
-        data: {
-          category: formData.category as ProcurementCategory,
-          justification: formData.justification,
-          required_by: formData.required_by || undefined,
-          vendor_id: vendorMode === "existing" ? formData.vendor_id || undefined : undefined,
-          one_time_vendor: oneTimeVendor,
-          items: formData.items.map((item) => ({
-            description: item.description,
-            quantity: parseFloat(item.quantity) || 0,
-            unit: item.unit as ItemUnit,
-            unit_cost: parseFloat(item.unit_cost) || 0,
-            total_cost: parseFloat(item.total_cost) || 0,
-          })),
-        },
-        file: attachedFiles[0] ?? null,
+        title:       `${capitalize(formData.category.replace(/_/g, " "))} Request`,
+        description: formData.justification || undefined,
+        vendor_id:   vendorId,
+        items: formData.items.map((item) => ({
+          description: item.description,
+          quantity:    parseFloat(item.quantity) || 1,
+          unit_price:  parseFloat(item.unit_cost) || null,
+          total_price: parseFloat(item.total_cost) || null,
+        })),
       });
+
       toast.success("Purchase request submitted successfully");
       router.push("/procurement");
-    } catch {
-      toast.error("Failed to submit request. Please try again.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
     }
   }
 
@@ -526,10 +535,10 @@ export default function NewProcurementPage() {
         <div className="py-2">
           <button
             type="submit"
-            disabled={isSubmitting || createMutation.isPending}
+            disabled={isSubmitting || createMutation.isPending || createVendor.isPending}
             className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
           >
-            {createMutation.isPending ? (
+            {(createMutation.isPending || createVendor.isPending) ? (
               <>
                 <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Submitting…

@@ -21,15 +21,16 @@ import {
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import Avatar from "@/components/ui/Avatar";
 
-const DEMO_NAME   = "Kemi Adeyemi";
-const DEMO_AVATAR = "https://i.pravatar.cc/150?img=21";
+const DEMO_NAME = "Portland Gas";
 
 const NAV_LINKS = [
-  { label: "Home",   href: "/" },
-  { label: "News",   href: "/news" },
-  { label: "Events", href: "/events" },
-  { label: "FAQ",    href: "/faq" },
+  { label: "Home",    href: "/" },
+  { label: "News",    href: "/news" },
+  { label: "Events",  href: "/events" },
+  { label: "Podcast", href: "/podcast" },
+  { label: "FAQ",     href: "/faq" },
 ];
 
 const NOTIFICATIONS = [
@@ -49,11 +50,22 @@ export default function IntranetLayout({ children }: Props) {
   const [mobileOpen,   setMobileOpen]   = useState(false);
   const [profileOpen,  setProfileOpen]  = useState(false);
   const [notifOpen,    setNotifOpen]    = useState(false);
+  const [scrolled,     setScrolled]     = useState(false);
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const displayName = user?.name ?? DEMO_NAME;
-  const firstName   = displayName.split(" ")[0];
+  // Blend with hero when at top; solidify on scroll
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 30);
+    window.addEventListener("scroll", handler, { passive: true });
+    handler(); // run once on mount
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  const displayName = user
+    ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.name || DEMO_NAME
+    : DEMO_NAME;
+  const firstName = displayName.split(" ")[0];
 
   const unread = NOTIFICATIONS.filter((n) => !n.read).length;
 
@@ -71,7 +83,13 @@ export default function IntranetLayout({ children }: Props) {
     <div className="min-h-screen bg-[#F5F4F7]" style={{ fontFamily: "var(--font-mulish, var(--font-sans))" }}>
 
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 w-full bg-[#1C043B] border-b border-white/10">
+      {/* Transparent only on home page at top — all other pages always solid */}
+      <header className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        pathname === "/" && !scrolled
+          ? "bg-transparent border-b border-transparent"
+          : "bg-[#1C043B] border-b border-white/10 shadow-lg"
+      )}>
         <div className="max-w-[1400px] mx-auto px-4 lg:px-8 h-16 flex items-center gap-6">
 
           {/* Logo */}
@@ -82,6 +100,7 @@ export default function IntranetLayout({ children }: Props) {
               width={130}
               height={34}
               className="h-7 w-auto object-contain brightness-0 invert"
+              style={{ width: "auto" }}
               priority
             />
           </Link>
@@ -182,12 +201,11 @@ export default function IntranetLayout({ children }: Props) {
                 onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-all btn-press"
               >
-                <Image
-                  src={DEMO_AVATAR}
-                  alt={displayName}
-                  width={28}
-                  height={28}
-                  className="rounded-full object-cover ring-2 ring-white/20 shrink-0"
+                <Avatar
+                  name={displayName}
+                  src={user?.profile_picture_url}
+                  size="sm"
+                  className="ring-2 ring-white/20"
                 />
                 <span className="hidden sm:block text-sm text-white/80 font-medium max-w-[90px] truncate">
                   {firstName}
@@ -199,7 +217,7 @@ export default function IntranetLayout({ children }: Props) {
                 <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-50 animate-fade-up">
                   <div className="px-4 py-2.5 border-b border-gray-100">
                     <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
-                    <p className="text-xs text-gray-400 truncate">{user?.email ?? "kemi.adeyemi@portlandgas.com"}</p>
+                    <p className="text-xs text-gray-400 truncate">{user?.email ?? ""}</p>
                   </div>
                   <Link href="/hr-management/my-profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                     <User size={14} className="text-gray-400" /> My Profile
@@ -255,7 +273,8 @@ export default function IntranetLayout({ children }: Props) {
         </div>
       </header>
 
-      <main className="animate-page-enter">{children}</main>
+      {/* pt-16 offsets the fixed header (h-16 = 64px) */}
+      <main className="animate-page-enter pt-16">{children}</main>
     </div>
   );
 }

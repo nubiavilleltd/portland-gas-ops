@@ -26,7 +26,7 @@ type FormData = z.infer<typeof schema>;
 function ResetPasswordContent() {
   const params = useSearchParams();
   const userId = params.get("user_id") ?? "";
-  const code = params.get("code") ?? "";
+  const token = params.get("token") ?? "";
   const toast = useToast();
   const [showChecklist, setShowChecklist] = useState(false);
 
@@ -35,7 +35,7 @@ function ResetPasswordContent() {
 
   async function onSubmit(data: FormData) {
     try {
-      await post("/api/auth/reset-password", { user_id: userId, code, new_password: data.new_password });
+      await post("/api/auth/reset-password", { user_id: userId, token, new_password: data.new_password });
       toast.success("Password reset successfully!");
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { detail?: string } } };

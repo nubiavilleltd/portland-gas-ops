@@ -3,6 +3,8 @@
 //  All order-related types live here. Import from here, not from mock files.
 // ============================================================
 
+import { PaymentStatus } from "../../payments/types/payments.types";
+
 
 
 
@@ -51,14 +53,6 @@ export type FulfillmentStatus =
   | "delivered"
   | "failed";
 
-// ── 3. PAYMENT STATUS ─────────────────────────────────────
-// Tracks the billing / cash-collection state.
-export type PaymentStatus =
-  | "unpaid"
-  | "partially_paid"
-  | "paid"
-  | "overdue";
-
 
 export interface OrderLineItem {
   product_id: string;
@@ -88,6 +82,8 @@ export interface Order {
   delivery_date: string | null;
   notes?: string;
 
+  cancellation_reason?: string;
+
   // Three independent status dimensions
   order_status: OrderStatus;
   fulfillment_status: FulfillmentStatus;
@@ -108,6 +104,8 @@ export interface Order {
   created_at: string;
   confirmed_at?: string;
   delivered_at?: string;
+  cancelled_at?: string;
+
 }
 
 // ── 5. INPUT / FORM TYPES ─────────────────────────────────
@@ -129,8 +127,10 @@ export interface UpdateOrderInput extends Partial<CreateOrderInput> {
   order_status?: OrderStatus;
   fulfillment_status?: FulfillmentStatus;
   payment_status?: PaymentStatus;
-  trip_id?: string;
+  trip_id?: string | null;
   invoice_id?: string;
+  cancellation_reason?: string;
+  cancelled_at?: string;
 }
 
 // ── 6. DERIVED / COMPUTED TYPES ───────────────────────────

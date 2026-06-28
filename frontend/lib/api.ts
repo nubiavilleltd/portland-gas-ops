@@ -40,8 +40,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    const isAuthEndpoint = originalRequest.url?.includes("/api/auth/");
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+    // Only skip the refresh flow for endpoints that must NOT trigger a refresh
+    // (login/refresh/logout). Other /api/auth/ endpoints like /api/auth/me CAN trigger it.
+    const skipRefresh = ["/api/auth/login", "/api/auth/refresh", "/api/auth/logout"].some(
+      (path) => originalRequest.url?.includes(path)
+    );
+    if (error.response?.status === 401 && !originalRequest._retry && !skipRefresh) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

@@ -24,6 +24,7 @@ export default function EditCustomerPage() {
   const id = params.id as string;
 
   const { customer, isLoading, error } = useCustomerById(id);
+  const { mutateAsync: updateCustomer } = useUpdateCustomer(id);
 
   if (isLoading) {
     return (
@@ -57,14 +58,8 @@ export default function EditCustomerPage() {
     );
   }
 
-  // async function handleSubmit(data: CreateCustomerFormData) {
-  //   await CustomersService.updateCustomer(id, data);
-  //   toast.success("Customer successfully updated")
-  //   router.push(`/admin${CUSTOMER_ROUTES.detail(id)}`);
-  // }
 
 
-  const { mutateAsync: updateCustomer } = useUpdateCustomer(id);
 
 async function handleSubmit(data: CreateCustomerFormData) {
   await updateCustomer(data);

@@ -1,6 +1,6 @@
 // lib/modules/audit/components/AuditTimeline.tsx
 "use client";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import { getActorLabel } from "../types/audit.types";
 import type { AuditLogEntry } from "../types/audit.types";
 
@@ -27,7 +27,7 @@ export default function AuditTimeline({ entries }: { entries: AuditLogEntry[] })
           <div className="flex-1 pb-2">
             <p className="text-sm text-brand-text-primary">{entry.description}</p>
             <p className="text-xs text-brand-text-secondary mt-0.5">
-              {getActorLabel(entry.actor)} · {formatDate(entry.created_at)}
+              {getActorLabel(entry.actor)} · {formatDateTime(entry.created_at)}
             </p>
           </div>
         </div>

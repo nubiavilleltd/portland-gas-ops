@@ -437,4 +437,34 @@ export class InventoryService {
 
     return Promise.resolve(inventoryItems[idx]);
   }
+
+
+  // inventory.service.ts — add
+static async releaseReservedItems(itemIds: string[], recordedBy: string): Promise<void> {
+  for (const itemId of itemIds) {
+    const { item, idx } = getItemOrThrow(itemId);
+    if (item.status !== "reserved") continue;
+
+    inventoryItems[idx] = {
+      ...item,
+      status: "available",
+      order_id: undefined,
+    };
+  }
+
+  if (itemIds.length > 0) {
+    recordMovement({
+      product_id: inventoryItems.find(i => itemIds.includes(i.id))?.product_id ?? "",
+      movement_type: "adjustment",
+      quantity: itemIds.length,
+      item_ids: itemIds,
+      reference_type: "manual",
+      location_id: "loc-1",
+      notes: "Released due to trip cancellation",
+      recorded_by: recordedBy,
+    });
+  }
 }
+}
+
+

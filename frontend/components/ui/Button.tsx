@@ -60,7 +60,7 @@ export default function Button({
   const body = loadingText && loading ? loadingText : (content ?? children);
 
   const classes = cn(
-    "inline-flex items-center justify-center gap-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-purple focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60",
+    "inline-flex items-center justify-center gap-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-purple focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 cursor-pointer",
     variantStyles[variant],
     sizeStyles[size],
     fullWidth && "w-full",
@@ -84,6 +84,7 @@ export default function Button({
     return (
       <Link
         href={href}
+        title={props.title}
         onClick={(event) => {
           if (isDisabled) {
             event.preventDefault();

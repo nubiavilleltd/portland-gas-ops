@@ -4,7 +4,7 @@ type Actor = "initiator" | "line-manager" | "finance" | "accounts" | "system";
 
 const ACTORS: Record<Actor, { label: string; bg: string }> = {
   initiator:      { label: "Initiator",         bg: "bg-violet-500"  },
-  "line-manager": { label: "Line Manager",       bg: "bg-blue-500"    },
+  "line-manager": { label: "Operations Manager", bg: "bg-blue-500"    },
   finance:        { label: "Finance Review",     bg: "bg-emerald-500" },
   accounts:       { label: "Accounts / Finance", bg: "bg-amber-500"   },
   system:         { label: "System",             bg: "bg-slate-500"   },
@@ -137,7 +137,7 @@ export default function CashRequisitionProcessMap() {
 
           <DecisionStep
             actor="line-manager"
-            title="Line Manager Review"
+            title="Operations Manager Review"
             subtitle="Verify justification, budget alignment, and priority level"
             approvedLabel="Forwarded to Finance Review"
             rejectedLabel="Returned to initiator with comments"
@@ -192,7 +192,7 @@ export default function CashRequisitionProcessMap() {
             <div>
               <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">SLA & Escalation</p>
               <p className="text-xs text-amber-700 mt-1">
-                Line Managers must review within 2 business days. Finance Review within 3 business days.
+                Operations Managers must review within 2 business days. Finance Review within 3 business days.
                 Urgent requests are escalated after 1 business day of inaction.
               </p>
             </div>

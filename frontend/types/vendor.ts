@@ -10,6 +10,8 @@ export type VendorCategory =
 
 export type VendorStatus = "active" | "inactive";
 
+export type VendorType = "permanent" | "temporary";
+
 export interface Vendor {
   id: string;
   name: string;
@@ -22,6 +24,7 @@ export interface Vendor {
   account_name: string | null;
   account_number: string | null;
   vendor_code: string | null;  // e.g. "AT-K7M2"
+  vendor_type: VendorType;
   logo_url: string | null;
   status: VendorStatus;
   added_by: string | null;

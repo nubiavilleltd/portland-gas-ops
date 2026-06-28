@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { TOKEN_COOKIE_NAME } from "@/lib/constants";
 
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", "/reset-password"];
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", "/reset-password", "/setup-account"];
 
 export function middleware(request: NextRequest) {
   // Dev bypass: uncomment the line below to skip auth checks during development
@@ -13,7 +12,10 @@ export function middleware(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(p + "/")
   );
 
-  const token = request.cookies.get(TOKEN_COOKIE_NAME)?.value;
+  // Check the HTTP-only refresh_token cookie set by the backend.
+  // We use refresh_token (not access_token) so the middleware doesn't
+  // gate on the 30-minute window — the API layer handles access token renewal.
+  const token = request.cookies.get("refresh_token")?.value;
 
   // Already authenticated — redirect away from login
   if (isPublicPath && token) {

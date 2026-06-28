@@ -14,6 +14,33 @@ import { OrdersService } from "../../orders/services/orders.service";
 import { DriversService } from "./drivers.service";
 import { VehiclesService } from "./vehicles.service";
 import { canLinkOrderToTrip } from "../guards/trip.guards";
+import { UpdateOrderInput } from "../../orders/types/orders.types";
+
+
+
+
+
+// ── INTERNAL HELPER ──────────────────────────────────────
+// Determines whether any order currently linked to a trip contains
+// at least one tracked-product line item. Used both when first deciding
+// a trip's post-assignment status, and when re-checking after an order
+// is added to an already-assigned trip.
+async function tripHasTrackedItems(trip: Trip): Promise<boolean> {
+  if (trip.type !== "order_delivery") return false;
+
+  const linkedOrders = await Promise.all(
+    trip.order_ids.map((id) => OrdersService.getOrderById(id))
+  );
+
+  return linkedOrders.some((order) =>
+    order?.order_items?.some((item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      return product?.product_type === "tracked";
+    })
+  );
+}
+
+
 
 export class TripsService {
   // ── READ ────────────────────────────────────────────────
@@ -65,6 +92,69 @@ export class TripsService {
   // // ── ASSIGN DRIVER + VEHICLE ──────────────────────────────
   // // Validates availability before committing.
 
+  // static async assignDriverAndVehicle(
+  //   tripId: string,
+  //   driverId: string,
+  //   vehicleId: string,
+  // ): Promise<Trip> {
+  //   const trip = trips.find((t) => t.id === tripId);
+  //   if (!trip) throw new Error("Trip not found");
+  //   if (trip.status !== "pending" && trip.status !== "assigned") {
+  //     throw new Error(
+  //       "Only pending or assigned trips can have resources assigned",
+  //     );
+  //   }
+
+  //   // Validate driver availability
+  //   const driver = await DriversService.getDriverById(driverId);
+  //   if (!driver) throw new Error("Driver not found");
+  //   if (driver.status !== "available") {
+  //     throw new Error(
+  //       `Driver "${driver.full_name}" is not available (status: ${driver.status})`,
+  //     );
+  //   }
+
+  //   // Validate vehicle availability
+  //   const vehicle = await VehiclesService.getVehicleById(vehicleId);
+  //   if (!vehicle) throw new Error("Vehicle not found");
+  //   if (vehicle.status !== "available") {
+  //     throw new Error(
+  //       `Vehicle "${vehicle.name}" is not available (status: ${vehicle.status})`,
+  //     );
+  //   }
+
+  //   // Commit
+  //   trip.driver_id = driverId;
+  //   trip.vehicle_id = vehicleId;
+
+  //   // trip.status = "assigned";
+  //   const linkedOrders = await Promise.all(
+  //     trip.order_ids.map((id) => OrdersService.getOrderById(id)),
+  //   );
+
+  //   const hasTrackedItems =
+  //     trip.type === "order_delivery" &&
+  //     linkedOrders.some((order) =>
+  //       order?.order_items?.some((item) => {
+  //         const product = products.find((p) => p.id === item.product_id);
+  //         return product?.product_type === "tracked";
+  //       }),
+  //     );
+
+  //   trip.status = hasTrackedItems ? "awaiting_inventory" : "ready";
+
+  //   await DriversService.assignDriverToTrip(driverId, tripId);
+  //   await VehiclesService.assignVehicleToTrip(vehicleId, tripId);
+
+  //   // Cascade to orders
+  //   for (const orderId of trip.order_ids) {
+  //     await OrdersService.updateFulfillmentStatus(orderId, "assigned");
+  //   }
+
+  //   return Promise.resolve(trip);
+  // }
+
+
   static async assignDriverAndVehicle(
     tripId: string,
     driverId: string,
@@ -73,53 +163,30 @@ export class TripsService {
     const trip = trips.find((t) => t.id === tripId);
     if (!trip) throw new Error("Trip not found");
     if (trip.status !== "pending" && trip.status !== "assigned") {
-      throw new Error(
-        "Only pending or assigned trips can have resources assigned",
-      );
+      throw new Error("Only pending or assigned trips can have resources assigned");
     }
 
-    // Validate driver availability
     const driver = await DriversService.getDriverById(driverId);
     if (!driver) throw new Error("Driver not found");
     if (driver.status !== "available") {
-      throw new Error(
-        `Driver "${driver.full_name}" is not available (status: ${driver.status})`,
-      );
+      throw new Error(`Driver "${driver.full_name}" is not available (status: ${driver.status})`);
     }
 
-    // Validate vehicle availability
     const vehicle = await VehiclesService.getVehicleById(vehicleId);
     if (!vehicle) throw new Error("Vehicle not found");
     if (vehicle.status !== "available") {
-      throw new Error(
-        `Vehicle "${vehicle.name}" is not available (status: ${vehicle.status})`,
-      );
+      throw new Error(`Vehicle "${vehicle.name}" is not available (status: ${vehicle.status})`);
     }
 
-    // Commit
     trip.driver_id = driverId;
     trip.vehicle_id = vehicleId;
 
-    // trip.status = "assigned";
-    const linkedOrders = await Promise.all(
-      trip.order_ids.map((id) => OrdersService.getOrderById(id)),
-    );
-
-    const hasTrackedItems =
-      trip.type === "order_delivery" &&
-      linkedOrders.some((order) =>
-        order?.order_items?.some((item) => {
-          const product = products.find((p) => p.id === item.product_id);
-          return product?.product_type === "tracked";
-        }),
-      );
-
+    const hasTrackedItems = await tripHasTrackedItems(trip);
     trip.status = hasTrackedItems ? "awaiting_inventory" : "ready";
 
     await DriversService.assignDriverToTrip(driverId, tripId);
     await VehiclesService.assignVehicleToTrip(vehicleId, tripId);
 
-    // Cascade to orders
     for (const orderId of trip.order_ids) {
       await OrdersService.updateFulfillmentStatus(orderId, "assigned");
     }
@@ -227,7 +294,7 @@ export class TripsService {
 
   // ── CANCEL ──────────────────────────────────────────────
 
-  static async cancelTrip(tripId: string): Promise<Trip> {
+  static async cancelTrip(tripId: string, reason?: string): Promise<Trip> {
     const trip = trips.find((t) => t.id === tripId);
     if (!trip) throw new Error("Trip not found");
     if (trip.status === "completed") {
@@ -235,6 +302,8 @@ export class TripsService {
     }
 
     trip.status = "cancelled";
+    trip.cancellation_reason = reason;
+    trip.cancelled_at = new Date().toISOString();
 
     if (trip.driver_id) {
       await DriversService.releaseDriver(trip.driver_id);
@@ -243,11 +312,12 @@ export class TripsService {
       await VehiclesService.releaseVehicle(trip.vehicle_id);
     }
 
-    // Revert orders back to pending
+    // Revert orders back to pending and unlink from this trip — one call, not two
     for (const orderId of trip.order_ids) {
       const order = await OrdersService.getOrderById(orderId);
       if (order && order.fulfillment_status !== "delivered") {
-        await OrdersService.updateFulfillmentStatus(orderId, "pending");
+       await OrdersService.updateFulfillmentStatus(orderId, "pending");
+await OrdersService.setTrip(orderId, null);   // null removes trip assignment
       }
     }
 
@@ -256,28 +326,60 @@ export class TripsService {
 
   // ── ADD ORDER TO TRIP ────────────────────────────────────
 
+  // static async addOrderToTrip(tripId: string, orderId: string): Promise<Trip> {
+  //   const trip = trips.find((t) => t.id === tripId);
+  //   if (!trip) throw new Error("Trip not found");
+  //   if (trip.status !== "pending" && trip.status !== "assigned") {
+  //     throw new Error("Cannot add orders to a trip that is already dispatched");
+  //   }
+
+  //   const order = await OrdersService.getOrderById(orderId);
+  //   if (!order) throw new Error("Order not found");
+  //   if (!canLinkOrderToTrip(order)) {
+  //     throw new Error(
+  //       "Order cannot be assigned to a trip in its current state",
+  //     );
+  //   }
+
+  //   if (!trip.order_ids.includes(orderId)) {
+  //     trip.order_ids.push(orderId);
+  //     await OrdersService.assignToTrip(orderId, tripId);
+  //   }
+
+  //   return Promise.resolve(trip);
+  // }
+
+
   static async addOrderToTrip(tripId: string, orderId: string): Promise<Trip> {
-    const trip = trips.find((t) => t.id === tripId);
-    if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "pending" && trip.status !== "assigned") {
-      throw new Error("Cannot add orders to a trip that is already dispatched");
-    }
+  const trip = trips.find((t) => t.id === tripId);
+  if (!trip) throw new Error("Trip not found");
 
-    const order = await OrdersService.getOrderById(orderId);
-    if (!order) throw new Error("Order not found");
-    if (!canLinkOrderToTrip(order)) {
-      throw new Error(
-        "Order cannot be assigned to a trip in its current state",
-      );
-    }
-
-    if (!trip.order_ids.includes(orderId)) {
-      trip.order_ids.push(orderId);
-      await OrdersService.assignToTrip(orderId, tripId);
-    }
-
-    return Promise.resolve(trip);
+  if (!["pending", "assigned", "awaiting_inventory", "ready"].includes(trip.status)) {
+    throw new Error("Cannot add orders to a trip that is already dispatched");
   }
+
+  const order = await OrdersService.getOrderById(orderId);
+  if (!order) throw new Error("Order not found");
+  if (!canLinkOrderToTrip(order)) {
+    throw new Error("Order cannot be assigned to a trip in its current state");
+  }
+
+  if (!trip.order_ids.includes(orderId)) {
+    trip.order_ids.push(orderId);
+    await OrdersService.assignToTrip(orderId, tripId);
+
+    // Driver/vehicle already committed — re-check whether the trip
+    // now needs inventory assignment because of this newly added order
+    if (trip.status === "assigned" || trip.status === "ready") {
+      const hasTrackedItems = await tripHasTrackedItems(trip);
+      if (hasTrackedItems) {
+        trip.status = "awaiting_inventory";
+      }
+    }
+  }
+
+  return Promise.resolve(trip);
+}
 
   // Add to trips.service.ts
   static async setReady(tripId: string): Promise<Trip> {
@@ -289,4 +391,14 @@ export class TripsService {
     trip.status = "ready";
     return Promise.resolve(trip);
   }
+
+  static async removeOrderFromTrip(tripId: string, orderId: string): Promise<Trip> {
+    const trip = trips.find((t) => t.id === tripId);
+    if (!trip) return Promise.resolve(trip as any); // trip may already be gone/cancelled — don't throw
+    trip.order_ids = trip.order_ids.filter((id) => id !== orderId);
+    return Promise.resolve(trip);
+  }
 }
+
+
+
