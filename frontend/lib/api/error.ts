@@ -54,4 +54,11 @@ export const ERROR_MESSAGES: Partial<Record<string, string>> = {
     INVOICE_ALREADY_PAID: "This invoice has already been fully paid",
     INTERNAL_ERROR: "An unexpected error occurred — please try again",
     TRANSACTION_FAILED: "The operation failed — please try again",
+    ORDER_NOT_INVOICEABLE: "Invoice can only be generated for submitted orders",
+    INVOICE_ALREADY_EXISTS: "An invoice already exists for this order",
+    INVOICE_CANNOT_BE_VOIDED: "This invoice cannot be voided",
+    ORDER_CANNOT_BE_SUBMITTED: "This order cannot be submitted in its current state",
+    ORDER_CANNOT_BE_CLOSED: "This order cannot be closed yet",
+    ORDER_NOT_EDITABLE: "Only draft orders can be edited",
+    ORDER_ITEMS_REQUIRED: "Order must have at least one item",
 };

@@ -1,58 +1,80 @@
-from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional
 from datetime import datetime
 
-from app.customers.enums import CustomerType, CustomerStatus
+from pydantic import BaseModel, EmailStr, field_validator
+
+from app.customers.enums import CustomerStatus, CustomerType
+from app.customers.validators import (
+    validate_address,
+    validate_email,
+    validate_name,
+    validate_phone,
+)
 
 
 # ── Request schemas ────────────────────────────────────────────────────────────
 
 class CustomerCreate(BaseModel):
-    name:    str
-    type:    CustomerType = CustomerType.corporate
-    email:   Optional[EmailStr] = None
-    phone:   Optional[str] = None
-    address: Optional[str] = None
+    name: str
+    type: CustomerType = CustomerType.corporate
+    email: EmailStr
+    phone: str
+    address: str
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Name cannot be empty")
-        return v.strip()
+    def name_validator(cls, v: str) -> str:
+        return validate_name(v)
 
     @field_validator("phone")
     @classmethod
-    def phone_format(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return v
-        cleaned = v.strip()
-        if cleaned and len(cleaned) < 7:
-            raise ValueError("Phone number too short")
-        return cleaned
+    def phone_validator(cls, v: str) -> str:
+        return validate_phone(v)
+
+    @field_validator("email")
+    @classmethod
+    def email_validator(cls, v: EmailStr) -> str:
+        return validate_email(v)
+
+    @field_validator("address")
+    @classmethod
+    def address_validator(cls, v: str) -> str:
+        return validate_address(v)
 
 
 class CustomerUpdate(BaseModel):
-    name:    Optional[str] = None
-    type:    Optional[CustomerType] = None
-    email:   Optional[EmailStr] = None
-    phone:   Optional[str] = None
-    address: Optional[str] = None
-    status:  Optional[CustomerStatus] = None
+    name: str | None = None
+    type: CustomerType | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    address: str | None = None
+    status: CustomerStatus | None = None
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not v.strip():
-            raise ValueError("Name cannot be empty")
-        return v.strip() if v else v
+    def name_validator(cls, v: str | None) -> str | None:
+        return validate_name(v, required=False)
+
+    @field_validator("phone")
+    @classmethod
+    def phone_validator(cls, v: str | None) -> str | None:
+        return validate_phone(v, required=False)
+
+    @field_validator("email")
+    @classmethod
+    def email_validator(cls, v: EmailStr | None) -> str | None:
+        return validate_email(v, required=False)
+
+    @field_validator("address")
+    @classmethod
+    def address_validator(cls, v: str | None) -> str | None:
+        return validate_address(v, required=False)
 
 
 class CustomerFilters(BaseModel):
-    search:  Optional[str] = None
-    type:    Optional[CustomerType] = None
-    status:  Optional[CustomerStatus] = None
-    page:    int = 1
+    search: str | None = None
+    type: CustomerType | None = None
+    status: CustomerStatus | None = None
+    page: int = 1
     page_size: int = 20
 
     @field_validator("page")
@@ -73,24 +95,24 @@ class CustomerFilters(BaseModel):
 # ── Response schemas ───────────────────────────────────────────────────────────
 
 class CustomerResponse(BaseModel):
-    id:          str
+    id: str
     customer_no: str
-    name:        str
-    type:        CustomerType
-    email:       Optional[str]
-    phone:       Optional[str]
-    address:     Optional[str]
-    status:      CustomerStatus
-    created_at:  datetime
-    updated_at:  datetime
+    name: str
+    type: CustomerType
+    email: str | None
+    phone: str | None
+    address: str | None
+    status: CustomerStatus
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
 
 
 class CustomerListResponse(BaseModel):
-    items:     list[CustomerResponse]
-    total:     int
-    page:      int
+    items: list[CustomerResponse]
+    total: int
+    page: int
     page_size: int
-    has_next:  bool
+    has_next: bool

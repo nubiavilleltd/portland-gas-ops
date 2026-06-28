@@ -15,6 +15,7 @@ from app.products.schema import (
 from app.products.enums import ProductType, ProductStatus
 from app.shared.models.user import User
 from app.core.exceptions import AppException, ErrorCode
+from pydantic import ValidationError
 
 router  = APIRouter()
 service = ProductService()
@@ -92,7 +93,7 @@ async def create_product(
 ):
     try:
         payload = ProductCreate.model_validate(json.loads(data))
-    except Exception as exc:
+    except ValidationError as exc:
         raise AppException(
             status_code=422,
             error_code=ErrorCode.VALIDATION_ERROR,
@@ -122,7 +123,7 @@ def get_product(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    product         = service.get_or_raise(db, product_no)
+    product         = service.get_by_no_or_raise(db, product_no)
     images_response = service.get_images(db, product)
     response        = ProductResponse.model_validate(product)
     response.images = images_response
@@ -141,11 +142,12 @@ async def update_product(
     try:
         payload  = ProductUpdate.model_validate(json.loads(data))
         kept_ids = json.loads(kept_image_ids)
-    except Exception:
+    except ValidationError as exc:
         raise AppException(
             status_code=422,
             error_code=ErrorCode.VALIDATION_ERROR,
             message="Invalid product data",
+            details={"error": str(exc)},
         )
 
     image_files = _validate_images(images)

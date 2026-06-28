@@ -15,7 +15,6 @@ from app.core.exceptions import AppException, ErrorCode
 from app.products.error_codes import ProductErrorCode
 from app.shared.models.document import Document
 from app.shared.utils.number_generator import generate_entity_no
-from app.products.model import Product
 
 
 class ProductService:
@@ -142,13 +141,13 @@ class ProductService:
     def update(
         self,
         db:          Session,
-        product_id:  str,
+        product_no:  str,
         data:        ProductUpdate,
         new_images:  list[tuple[bytes, str, str, int]] = None,
         kept_image_ids: list[str] = None,
         uploaded_by: Optional[str] = None,
     ) -> Product:
-        product = self.get_by_no_or_raise(db, product_id)
+        product = self.get_by_no_or_raise(db, product_no)
 
         # Name uniqueness on update
         if data.name and data.name.strip().lower() != product.name.lower():
@@ -176,7 +175,7 @@ class ProductService:
 
         # Handle image changes
         if new_images is not None or kept_image_ids is not None:
-            existing_docs = self.repo.get_product_images(db, product_id)
+            existing_docs = self.repo.get_product_images(db, product.id)
             kept_ids_set  = set(kept_image_ids or [])
 
             # Delete images that were removed
@@ -218,8 +217,8 @@ class ProductService:
 
         return product
 
-    def activate(self, db: Session, product_id: str) -> Product:
-        product = self.get_by_no_or_raise(db, product_id)
+    def activate(self, db: Session, product_no: str) -> Product:
+        product = self.get_by_no_or_raise(db, product_no)
         if not guards.can_activate(product):
             raise AppException(
                 status_code=400,
@@ -228,8 +227,8 @@ class ProductService:
             )
         return self.repo.update(db, product, status=ProductStatus.active)
 
-    def deactivate(self, db: Session, product_id: str) -> Product:
-        product = self.get_by_no_or_raise(db, product_id)
+    def deactivate(self, db: Session, product_no: str) -> Product:
+        product = self.get_by_no_or_raise(db, product_no)
         if not guards.can_deactivate(product):
             raise AppException(
                 status_code=400,
