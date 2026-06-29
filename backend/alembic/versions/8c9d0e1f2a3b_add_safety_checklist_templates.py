@@ -48,6 +48,16 @@ input_type_enum = sa.Enum(
 
 
 def upgrade() -> None:
+    inspector = sa.inspect(op.get_bind())
+    existing_tables = set(inspector.get_table_names())
+    checklist_tables = {
+        "safety_checklist_templates",
+        "safety_checklist_items",
+        "safety_checklist_responses",
+    }
+    if checklist_tables.issubset(existing_tables):
+        return
+
     op.create_table(
         "safety_checklist_templates",
         sa.Column("id", mysql.CHAR(length=36), nullable=False),

@@ -14,6 +14,7 @@ class Product(Base):
     __tablename__ = "products"
 
     id                  = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    product_no          = Column(String(50), unique=True, nullable=True, index=True)
     name                = Column(String(255), nullable=False, index=True)
     code                = Column(String(50), nullable=True, unique=True, index=True)
     description         = Column(Text, nullable=True)
