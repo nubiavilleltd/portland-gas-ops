@@ -16,12 +16,14 @@ import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
 import {
   contractorContactEmailByName,
-  getMockWorkInitiationRequest,
   workCategoryOptions,
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
-import { updateWorkInitiation, useSafetyDemoData } from "@/lib/safety-demo-store";
+import { updateWorkInitiation } from "@/lib/safety-demo-store";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
+import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
+import { useWorkInitiation } from "@/lib/modules/safety/workInitiation";
+import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -65,14 +67,14 @@ export default function WorkInitiationDetailsView({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const initialRequest = getMockWorkInitiationRequest(requestId);
-  const { incidentHazards, workInitiations } = useSafetyDemoData();
-  const request = workInitiations.find((item) => item.id === requestId) ?? initialRequest;
-  const incidentHazardRequestOptions = incidentHazards
+  const requestQuery = useWorkInitiation(requestId);
+  const request = requestQuery.data;
+  const recommendedIncidentsQuery = useIncidentReports({ status: "recommended" });
+  const incidentHazardRequestOptions = (recommendedIncidentsQuery.data ?? [])
     .filter((report) => report.status === "recommended")
     .map((report) => ({
       value: report.id,
-      label: `${report.id} - ${report.title || report.reportType}`,
+      label: `${report.reference ?? report.id} - ${report.title || report.reportType}`,
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
   const [currentRole, setCurrentRole] = useState<WorkInitiationRole>(
@@ -80,14 +82,14 @@ export default function WorkInitiationDetailsView({
   );
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHodComment, setOperationsHodComment] = useState("");
-  const [assignedWorkers, setAssignedWorkers] = useState<string[]>(
-    initialRequest?.assignment.assignedWorkers ?? [],
-  );
-  const [selectedContractor, setSelectedContractor] = useState(
-    initialRequest?.assignment.selectedContractor ?? "",
-  );
+  const [assignedWorkers, setAssignedWorkers] = useState<string[]>([]);
+  const [selectedContractor, setSelectedContractor] = useState("");
 
-  if (!request) {
+  if (requestQuery.isLoading) {
+    return <SafetyProcessFormSkeleton sections={4} />;
+  }
+
+  if (!request || requestQuery.isError) {
     return (
       <div className="rounded-2xl border border-brand-border bg-white p-6">
         <p className="text-sm text-brand-text-secondary">Work initiation request not found.</p>
@@ -201,7 +203,7 @@ export default function WorkInitiationDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={request.id}
+        id={request.reference ?? request.id}
         currentRole={currentRole}
         onRoleChange={setCurrentRole}
         roleLabel={getWorkInitiationRoleLabel(currentRole)}
@@ -224,9 +226,9 @@ export default function WorkInitiationDetailsView({
       <AssignmentPlanning
         request={request}
         editable={canRequesterEdit}
-        assignedWorkers={assignedWorkers}
+        assignedWorkers={assignedWorkers.length > 0 ? assignedWorkers : request.assignment.assignedWorkers}
         onAssignedWorkersChange={setAssignedWorkers}
-        selectedContractor={selectedContractor}
+        selectedContractor={selectedContractor || request.assignment.selectedContractor}
         onSelectedContractorChange={setSelectedContractor}
       />
 

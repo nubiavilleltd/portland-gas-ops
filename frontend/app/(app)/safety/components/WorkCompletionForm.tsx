@@ -17,6 +17,9 @@ import {
 import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
+import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
+import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 
 const yesNoOptions = [
@@ -35,6 +38,7 @@ export default function WorkCompletionForm() {
     ...getSafetyCurrentUser(),
     requestDate: formatLocalDate(),
   };
+  const closeoutChecklist = useActiveSafetyChecklist("work_closeout", "monitoring");
   const workAuthorizations: ApprovedWorkAuthorizationOption[] = storedWorkAuthorizations
     .filter((request) => request.status === "approved" && isSafetyCurrentUser(request.requester.name))
     .map((request) => ({
@@ -141,6 +145,10 @@ export default function WorkCompletionForm() {
     }, 700);
   }
 
+  if (closeoutChecklist.isLoading) {
+    return <SafetyProcessFormSkeleton sections={5} />;
+  }
+
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
       <FormSection title="Requester Details" description="Your employee information for this work completion request.">
@@ -171,18 +179,36 @@ export default function WorkCompletionForm() {
         <div className="grid gap-4 md:grid-cols-2">
           <FormDateTimeInput label="Actual Start Date/Time" required value={actualStartDateTime} onValueChange={setActualStartDateTime} />
           <FormDateTimeInput label="Actual Completion Date/Time" required value={actualCompletionDateTime} onValueChange={setActualCompletionDateTime} />
+          {closeoutChecklist.isError ? (
+            <p className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Closeout monitoring checklist template is not available.
+            </p>
+          ) : null}
           <div className="md:col-span-2">
             <SafetyChoiceTable
               options={yesNoOptions}
-              rows={[
-                { label: "Was work completed?", required: true, value: workCompleted, onValueChange: setWorkCompleted },
-                {
-                  label: "Was work completed as approved?",
-                  required: true,
-                  value: completedAsApproved,
-                  onValueChange: setCompletedAsApproved,
-                },
-              ]}
+              rows={(closeoutChecklist.data?.items ?? [])
+                .filter((item) =>
+                  ["work_completed", "completed_as_approved", "remaining_hazard"].includes(
+                    item.item_key,
+                  ),
+                )
+                .map((item) => ({
+                  label: item.label,
+                  required: item.is_required,
+                  value:
+                    item.item_key === "work_completed"
+                      ? workCompleted
+                      : item.item_key === "completed_as_approved"
+                        ? completedAsApproved
+                        : remainingHazard,
+                  onValueChange:
+                    item.item_key === "work_completed"
+                      ? setWorkCompleted
+                      : item.item_key === "completed_as_approved"
+                        ? setCompletedAsApproved
+                        : setRemainingHazard,
+                }))}
             />
           </div>
           <div className="md:col-span-2">
@@ -198,14 +224,19 @@ export default function WorkCompletionForm() {
               ]}
             />
           </div>
-          <FormTextarea
-            label="Completion Summary"
-            required
-            placeholder="Briefly describe what was completed"
-            className="md:col-span-2"
-            value={completionSummary}
-            onChange={(event) => setCompletionSummary(event.target.value)}
-          />
+          {closeoutChecklist.data?.items
+            .filter((item) => item.input_type === "text")
+            .map((item: SafetyChecklistItem) => (
+              <FormTextarea
+                key={item.id}
+                label={item.label}
+                required={item.is_required}
+                placeholder="Briefly describe what was completed"
+                className="md:col-span-2"
+                value={completionSummary}
+                onChange={(event) => setCompletionSummary(event.target.value)}
+              />
+            ))}
           {completedAsApproved === "No" ? (
             <FormTextarea
               label="Explanation for change/deviation"
@@ -263,12 +294,6 @@ export default function WorkCompletionForm() {
               { label: "Work area cleaned after completion", required: true, value: workAreaCleaned, onValueChange: setWorkAreaCleaned },
               { label: "Tools/equipment removed from work area", required: true, value: toolsRemoved, onValueChange: setToolsRemoved },
               { label: "Vehicle/equipment/system left in safe condition", required: true, value: systemSafe, onValueChange: setSystemSafe },
-              {
-                label: "Any remaining hazard?",
-                required: true,
-                value: remainingHazard,
-                onValueChange: setRemainingHazard,
-              },
             ]}
           />
           {remainingHazard === "Yes" ? (

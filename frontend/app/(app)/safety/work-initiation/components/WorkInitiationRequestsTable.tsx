@@ -2,17 +2,16 @@
 
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkInitiationHref,
   sortByLatestSafetyActivity,
 } from "@/lib/safety-demo-routing";
-import { useSafetyDemoData } from "@/lib/safety-demo-store";
+import { useWorkInitiations } from "@/lib/modules/safety/workInitiation";
 import type { WorkInitiationRequest } from "@/types/safety";
 
 const columns: Column<WorkInitiationRequest>[] = [
-  { key: "id", label: "Reference" },
+  { key: "reference", label: "Reference", render: (_, row) => row.reference ?? row.id },
   { key: "title", label: "Work Title" },
   { key: "requester", label: "Requester", render: (_, row) => row.requester.name },
   { key: "workCategory", label: "Work Category" },
@@ -40,11 +39,10 @@ export default function WorkInitiationRequestsTable({
 }: {
   scope?: "user" | "admin";
 }) {
-  const { workInitiations: requests } = useSafetyDemoData();
+  const requestsQuery = useWorkInitiations();
+  const requests = requestsQuery.data ?? [];
   const scopedRequests = sortByLatestSafetyActivity(
-    requests.filter(
-      (request) => scope === "admin" || isSafetyCurrentUser(request.requester.name),
-    ),
+    requests,
     (request) => request.requester.requestDate,
   );
 
@@ -57,6 +55,7 @@ export default function WorkInitiationRequestsTable({
           ? getAdminWorkInitiationHref(request)
           : `/safety/work-initiation/${request.id}`
       }
+      isLoading={requestsQuery.isLoading}
       emptyMessage="No work initiation requests found."
     />
   );
