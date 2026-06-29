@@ -4,11 +4,13 @@ import uuid
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     Enum as SAEnum,
     String,
     Text,
     ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
@@ -20,7 +22,7 @@ from app.core.database import Base
 class IncidentReportStatus(str, enum.Enum):
     draft = "draft"
     submitted = "submitted"
-    action_recommended = "action_recommended"
+    recommended = "recommended"
     resolved = "resolved"
     not_resolved = "not_resolved"
     closed = "closed"
@@ -41,6 +43,12 @@ class IncidentSeverityEstimate(str, enum.Enum):
     medium = "medium"
     high = "high"
     critical = "critical"
+
+
+class IncidentHseDecision(str, enum.Enum):
+    recommended = "recommended"
+    resolved = "resolved"
+    not_resolved = "not_resolved"
 
 
 class SafetyIncidentReport(Base):
@@ -131,3 +139,57 @@ class SafetyIncidentReport(Base):
     )
 
     reporter = relationship("Employee", foreign_keys=[reported_by])
+    hse_review = relationship(
+        "SafetyIncidentHseReview",
+        back_populates="incident_report",
+        uselist=False,
+    )
+
+
+class SafetyIncidentHseReview(Base):
+    __tablename__ = "safety_incident_hse_reviews"
+    __table_args__ = (
+        UniqueConstraint("incident_report_id", name="uq_safety_incident_hse_reviews_incident_report_id"),
+    )
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    incident_report_id = Column(
+        CHAR(36),
+        ForeignKey("safety_incident_reports.id"),
+        nullable=False,
+        index=True,
+    )
+    inspector_id = Column(
+        CHAR(36),
+        ForeignKey("employees.id"),
+        nullable=False,
+        index=True,
+    )
+    confirmed_report_type = Column(SAEnum(IncidentReportType), nullable=False)
+    confirmed_severity = Column(SAEnum(IncidentSeverityEstimate), nullable=False, index=True)
+    findings = Column(Text, nullable=False)
+    root_cause = Column(Text, nullable=True)
+    corrective_action_required = Column(Boolean, nullable=False, default=False, index=True)
+    corrective_action_details = Column(Text, nullable=True)
+    action_owner_id = Column(CHAR(36), ForeignKey("employees.id"), nullable=True, index=True)
+    assigned_department = Column(String(100), nullable=True, index=True)
+    target_completion_date = Column(Date, nullable=True, index=True)
+    decision = Column(
+        SAEnum(IncidentHseDecision),
+        nullable=False,
+        default=IncidentHseDecision.recommended,
+        index=True,
+    )
+    comment = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    incident_report = relationship("SafetyIncidentReport", back_populates="hse_review")
+    inspector = relationship("Employee", foreign_keys=[inspector_id])
+    action_owner = relationship("Employee", foreign_keys=[action_owner_id])

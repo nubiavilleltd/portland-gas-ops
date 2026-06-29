@@ -15,22 +15,38 @@ import {
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
 import { getSafetyCurrentUser } from "@/lib/safety-demo-identity";
-import {
-  createIncidentHazardReport,
-  useSafetyDemoData,
-} from "@/lib/safety-demo-store";
-import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
+import { useSafetyDemoData } from "@/lib/safety-demo-store";
+import { formatLocalDate } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
-import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
+import {
+  safetyChecklistsApi,
+  useActiveSafetyChecklist,
+  type SafetyChecklistAnswerCreate,
+  type SafetyChecklistTemplate,
+} from "@/lib/modules/safety/checklists";
+import {
+  incidentReportsApi,
+  type IncidentReportCreate,
+  type IncidentReportType,
+} from "@/lib/modules/safety/incidentReport";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
+const reportTypeByLabel: Record<string, IncidentReportType> = {
+  Incident: "incident",
+  Hazard: "hazard",
+  "Near Miss": "near_miss",
+  "Unsafe Act": "unsafe_act",
+  "Unsafe Condition": "unsafe_condition",
+  "Environmental Concern": "environmental_concern",
+};
 
 export default function IncidentHazardForm() {
   const router = useRouter();
   const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState("");
   const [reportType, setReportType] = useState("");
@@ -60,48 +76,87 @@ export default function IncidentHazardForm() {
   const [peopleInvolved, setPeopleInvolved] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const submittedAt = formatLocalDateTime();
+    if (isSubmitting) return;
 
-    createIncidentHazardReport((id) => ({
-      id,
-      status: "submitted",
-      reporter,
+    const validationMessage = validateIncidentReportForm({
       title,
       reportType,
-      location: locations.join(", "),
-      dateTimeObserved: observedAt,
-      relatedWorkAuthorization: relatedAuthorization,
+      locations,
+      observedAt,
       description,
-      severityEstimate: "",
-      anyoneInjured: anyoneInjured === "Yes",
-      propertyDamaged: propertyDamaged === "Yes",
-      gasFireEnvironmentalConcern: gasConcern === "Yes",
-      immediateActionTaken: immediateAction,
-      peopleInvolved,
-      additionalNotes,
-      attachments: files.map((file) => ({
-        name: file.name,
-        type: file.type.startsWith("image/")
-          ? "image"
-          : file.type.startsWith("video/")
-            ? "video"
-            : "document",
-      })),
-      hseReview: null,
-      auditTrail: [{
-        action: "Submitted",
-        actor: reporter.name,
-        role: "Reporter",
-        dateTime: submittedAt,
-        comment: "Incident/hazard report submitted for HSE review.",
-      }],
-    }));
-    toast.success("Incident/hazard report submitted successfully.");
-    window.setTimeout(() => {
-      router.push("/safety/incidents");
-    }, 700);
+      immediateAction,
+    });
+    if (validationMessage) {
+      toast.error(validationMessage);
+      return;
+    }
+
+    const impactChecklistValues = {
+      anyoneInjured,
+      propertyDamaged,
+      gasConcern,
+    };
+
+    if (
+      impactChecklist.data &&
+      hasMissingRequiredChecklistAnswer(impactChecklist.data, impactChecklistValues)
+    ) {
+      toast.error("Complete the required incident impact checks.");
+      return;
+    }
+
+    const location = locations.join(", ");
+    const payload: IncidentReportCreate = {
+      title,
+      report_type: toIncidentReportType(reportType),
+      location,
+      exact_location: null,
+      observed_at: observedAt,
+      related_work_authorization_id: emptyToNull(relatedAuthorization),
+      description,
+      severity_estimate: null,
+      anyone_injured: anyoneInjured === "Yes",
+      property_damaged: propertyDamaged === "Yes",
+      gas_fire_environmental_concern: gasConcern === "Yes",
+      immediate_action_taken: emptyToNull(immediateAction),
+      people_involved: emptyToNull(peopleInvolved),
+      additional_notes: emptyToNull(additionalNotes),
+    };
+
+    let reportWasSaved = false;
+    try {
+      setIsSubmitting(true);
+      const savedReport = await incidentReportsApi.create(payload);
+      reportWasSaved = true;
+      const checklistAnswers = impactChecklist.data
+        ? buildImpactChecklistAnswers(impactChecklist.data, impactChecklistValues)
+        : [];
+
+      if (checklistAnswers.length > 0) {
+        await safetyChecklistsApi.createResponses({
+          parent_type: "incident_report",
+          parent_id: savedReport.id,
+          answers: checklistAnswers,
+        });
+      }
+
+      toast.success("Incident/hazard report submitted successfully.");
+      window.setTimeout(() => {
+        router.push("/safety/incidents");
+      }, 700);
+    } catch (error) {
+      console.error("Failed to submit incident/hazard report", error);
+      console.error("Incident/hazard report error detail", getApiErrorDetail(error));
+      toast.error(
+        reportWasSaved
+          ? "Incident report was saved, but checklist answers could not be saved."
+          : getApiErrorMessage(error),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (impactChecklist.isLoading) {
@@ -184,10 +239,114 @@ export default function IncidentHazardForm() {
       </FormSection>
 
       <div className="flex gap-3 pt-1">
-        <Button type="submit">Submit Report</Button>
+        <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+          Submit Report
+        </Button>
       </div>
     </form>
   );
+}
+
+function emptyToNull(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function validateIncidentReportForm({
+  title,
+  reportType,
+  locations,
+  observedAt,
+  description,
+  immediateAction,
+}: {
+  title: string;
+  reportType: string;
+  locations: string[];
+  observedAt: string;
+  description: string;
+  immediateAction: string;
+}) {
+  if (title.trim().length < 3) return "Enter a report title with at least 3 characters.";
+  if (!reportType) return "Select a report type.";
+  if (locations.length === 0) return "Select at least one location.";
+  if (!observedAt) return "Select the date and time observed.";
+  if (description.trim().length < 5) return "Enter a description with at least 5 characters.";
+  if (!immediateAction.trim()) return "Describe the immediate action taken.";
+  return "";
+}
+
+function toIncidentReportType(value: string): IncidentReportType {
+  return reportTypeByLabel[value] ?? "other";
+}
+
+function getImpactChecklistValue(itemKey: string, values: {
+  anyoneInjured: string;
+  propertyDamaged: string;
+  gasConcern: string;
+}) {
+  if (itemKey === "anyone_injured") return values.anyoneInjured;
+  if (itemKey === "property_damaged") return values.propertyDamaged;
+  if (itemKey === "gas_fire_environmental_concern") return values.gasConcern;
+  return "";
+}
+
+function hasMissingRequiredChecklistAnswer(
+  template: SafetyChecklistTemplate,
+  values: {
+    anyoneInjured: string;
+    propertyDamaged: string;
+    gasConcern: string;
+  },
+) {
+  return template.items.some((item) => (
+    item.is_required &&
+    item.input_type === "boolean" &&
+    !getImpactChecklistValue(item.item_key, values)
+  ));
+}
+
+function buildImpactChecklistAnswers(
+  template: SafetyChecklistTemplate,
+  values: {
+    anyoneInjured: string;
+    propertyDamaged: string;
+    gasConcern: string;
+  },
+): SafetyChecklistAnswerCreate[] {
+  return template.items
+    .filter((item) => item.input_type === "boolean")
+    .reduce<SafetyChecklistAnswerCreate[]>((answers, item) => {
+      const value = getImpactChecklistValue(item.item_key, values);
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_boolean: value === "Yes",
+        });
+      }
+      return answers;
+    }, []);
+}
+
+function getApiErrorDetail(error: unknown) {
+  return (error as { response?: { data?: unknown } }).response?.data;
+}
+
+function getApiErrorMessage(error: unknown) {
+  const data = getApiErrorDetail(error);
+  const detail = (data as { detail?: unknown } | undefined)?.detail;
+
+  if (typeof detail === "string") return detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    "message" in detail &&
+    typeof detail.message === "string"
+  ) {
+    return detail.message;
+  }
+
+  return "Incident/hazard report could not be submitted.";
 }
 
 function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {

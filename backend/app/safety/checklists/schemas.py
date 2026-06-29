@@ -27,6 +27,18 @@ class ChecklistAnswerCreate(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 
+class ChecklistResponsesCreate(BaseModel):
+    parent_type: SafetyChecklistParentType
+    parent_id: str = Field(..., min_length=1, max_length=36)
+    response_group_id: Optional[str] = Field(None, max_length=36)
+    answers: list[ChecklistAnswerCreate] = Field(..., min_length=1)
+
+    @field_validator("parent_id", "response_group_id", mode="before")
+    @classmethod
+    def strip_text(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
 class ChecklistItemResponse(BaseModel):
     id: str
     item_key: str

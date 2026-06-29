@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.safety.incidents.models import IncidentReportStatus, IncidentReportType, IncidentSeverityEstimate
+from app.safety.incidents.models import (
+    IncidentHseDecision,
+    IncidentReportStatus,
+    IncidentReportType,
+    IncidentSeverityEstimate,
+)
 
 
 
@@ -71,6 +76,66 @@ class IncidentReportUpdate(BaseModel):
     additional_notes: Optional[str] = Field(None, max_length=5000)
 
 
+class IncidentHseReviewCreate(BaseModel):
+    confirmed_report_type: IncidentReportType
+    confirmed_severity: IncidentSeverityEstimate
+    findings: str = Field(..., min_length=3, max_length=5000)
+    root_cause: Optional[str] = Field(None, max_length=5000)
+    corrective_action_required: bool = False
+    corrective_action_details: Optional[str] = Field(None, max_length=5000)
+    action_owner_id: Optional[str] = None
+    assigned_department: Optional[str] = Field(None, max_length=100)
+    target_completion_date: Optional[date] = None
+    decision: IncidentHseDecision
+    comment: Optional[str] = Field(None, max_length=5000)
+
+    @field_validator(
+        "findings",
+        "root_cause",
+        "corrective_action_details",
+        "assigned_department",
+        "comment",
+        mode="before",
+    )
+    @classmethod
+    def strip_text(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+class IncidentHseReviewResponse(BaseModel):
+    id: str
+    incident_report_id: str
+    inspector_id: str
+    inspector_name: Optional[str] = None
+    confirmed_report_type: IncidentReportType
+    confirmed_severity: IncidentSeverityEstimate
+    findings: str
+    root_cause: Optional[str]
+    corrective_action_required: bool
+    corrective_action_details: Optional[str]
+    action_owner_id: Optional[str]
+    action_owner_name: Optional[str] = None
+    assigned_department: Optional[str]
+    target_completion_date: Optional[date]
+    decision: IncidentHseDecision
+    comment: Optional[str]
+    reviewed_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_model(cls, review):
+        data = cls.model_validate(review)
+        if review.inspector and review.inspector.user:
+            data.inspector_name = review.inspector.user.full_name or review.inspector.user.email
+        if review.action_owner and review.action_owner.user:
+            data.action_owner_name = review.action_owner.user.full_name or review.action_owner.user.email
+        return data
+
+
 class IncidentReportListItem(BaseModel):
     id: str
     reference: str
@@ -92,6 +157,8 @@ class IncidentReportListItem(BaseModel):
 
     reported_by: str
     reporter_name: Optional[str] = None
+    reporter_department: Optional[str] = None
+    reporter_role: Optional[str] = None
     reported_at: datetime
 
     created_at: datetime
@@ -105,6 +172,13 @@ class IncidentReportListItem(BaseModel):
 
         if report.reporter and report.reporter.user:
             data.reporter_name = report.reporter.user.full_name or report.reporter.user.email
+        if report.reporter:
+            data.reporter_department = (
+                report.reporter.department.value
+                if report.reporter.department
+                else None
+            )
+            data.reporter_role = report.reporter.job_title
 
         return data
 
@@ -122,6 +196,7 @@ class IncidentReportResponse(IncidentReportListItem):
 
     is_active: bool
     updated_at: datetime
+    hse_review: Optional[IncidentHseReviewResponse] = None
 
     class Config:
         from_attributes = True
@@ -132,5 +207,14 @@ class IncidentReportResponse(IncidentReportListItem):
 
         if report.reporter and report.reporter.user:
             data.reporter_name = report.reporter.user.full_name or report.reporter.user.email
+        if report.reporter:
+            data.reporter_department = (
+                report.reporter.department.value
+                if report.reporter.department
+                else None
+            )
+            data.reporter_role = report.reporter.job_title
+        if report.hse_review:
+            data.hse_review = IncidentHseReviewResponse.from_model(report.hse_review)
 
         return data

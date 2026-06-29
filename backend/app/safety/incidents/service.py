@@ -1,45 +1,76 @@
-import uuid
 from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.employees.models import Employee
+from app.safety.dependencies import get_employee_for_user
+from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
 from app.safety.incidents.models import (
+    IncidentHseDecision,
     IncidentReportStatus,
     IncidentReportType,
+    SafetyIncidentHseReview,
     SafetyIncidentReport,
 )
 from app.safety.incidents.schemas import (
+    IncidentHseReviewCreate,
     IncidentReportCreate,
     IncidentReportUpdate,
 )
 
-def generate_incident_reference() -> str:
-    today = datetime.utcnow().strftime("%Y%m%d")
-    suffix = uuid.uuid4().hex[:6].upper()
-
-    # Excel example says IH-2026-0001 style.
-    # This is still readable and unique enough for now.
-    return f"IH-{today}-{suffix}"
+INCIDENT_REFERENCE_ENTITY = "incident_report"
+INCIDENT_REFERENCE_PREFIX = "IH"
 
 
-def get_current_employee(db: Session, current_user: User) -> Employee:
-    employee = (
-        db.query(Employee)
-        .filter(Employee.user_id == current_user.id)
+def reserve_incident_reference(db: Session) -> str:
+    year = datetime.utcnow().year
+    counter = (
+        db.query(ReferenceCounter)
+        .filter(
+            ReferenceCounter.entity_type == INCIDENT_REFERENCE_ENTITY,
+            ReferenceCounter.year == year,
+        )
+        .with_for_update()
         .first()
     )
 
-    if not employee:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current user is not linked to an employee profile.",
+    if counter is None:
+        counter = ReferenceCounter(
+            entity_type=INCIDENT_REFERENCE_ENTITY,
+            year=year,
+            next_number=next_incident_number_from_existing_reports(db, year),
         )
+        db.add(counter)
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            return reserve_incident_reference(db)
 
-    return employee
+    number = counter.next_number
+    counter.next_number += 1
+    db.flush()
+
+    return f"{INCIDENT_REFERENCE_PREFIX}-{year}-{number:04d}"
+
+
+def next_incident_number_from_existing_reports(db: Session, year: int) -> int:
+    prefix = f"{INCIDENT_REFERENCE_PREFIX}-{year}-"
+    references = (
+        db.query(SafetyIncidentReport.reference)
+        .filter(SafetyIncidentReport.reference.like(f"{prefix}%"))
+        .all()
+    )
+    highest = 0
+    for (reference,) in references:
+        suffix = reference.removeprefix(prefix)
+        if suffix.isdigit():
+            highest = max(highest, int(suffix))
+    return highest + 1
 
 
 def create_incident_report(
@@ -47,10 +78,10 @@ def create_incident_report(
     data: IncidentReportCreate,
     current_user: User,
 ) -> SafetyIncidentReport:
-    employee = get_current_employee(db, current_user)
+    employee = get_employee_for_user(db, current_user)
 
     report = SafetyIncidentReport(
-        reference=generate_incident_reference(),
+        reference=reserve_incident_reference(db),
         status=IncidentReportStatus.submitted,
         title=data.title,
         report_type=data.report_type,
@@ -74,6 +105,102 @@ def create_incident_report(
     db.refresh(report)
 
     return get_incident_report(db, report.id)
+
+
+def create_hse_review(
+    db: Session,
+    incident_id: str,
+    data: IncidentHseReviewCreate,
+    inspector: Employee,
+) -> SafetyIncidentHseReview:
+    report = get_incident_report(db, incident_id)
+
+    if report.status != IncidentReportStatus.submitted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only submitted incident reports can be reviewed by HSE.",
+        )
+
+    if report.hse_review:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="HSE review already exists for this incident report.",
+        )
+
+    if data.corrective_action_required and data.decision != IncidentHseDecision.recommended:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Corrective action reviews must use recommended decision.",
+        )
+
+    if not data.corrective_action_required and data.decision == IncidentHseDecision.recommended:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Action recommended requires corrective action.",
+        )
+
+    if data.action_owner_id:
+        action_owner = (
+            db.query(Employee)
+            .filter(Employee.id == data.action_owner_id)
+            .first()
+        )
+        if not action_owner:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Action owner not found.",
+            )
+
+    review = SafetyIncidentHseReview(
+        incident_report_id=report.id,
+        inspector_id=inspector.id,
+        confirmed_report_type=data.confirmed_report_type,
+        confirmed_severity=data.confirmed_severity,
+        findings=data.findings,
+        root_cause=data.root_cause,
+        corrective_action_required=data.corrective_action_required,
+        corrective_action_details=data.corrective_action_details,
+        action_owner_id=data.action_owner_id,
+        assigned_department=data.assigned_department,
+        target_completion_date=data.target_completion_date,
+        decision=data.decision,
+        comment=data.comment,
+    )
+
+    report.status = incident_status_for_hse_decision(data.decision)
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+
+    return get_hse_review(db, review.id)
+
+
+def incident_status_for_hse_decision(
+    decision: IncidentHseDecision,
+) -> IncidentReportStatus:
+    if decision == IncidentHseDecision.recommended:
+        return IncidentReportStatus.recommended
+    if decision == IncidentHseDecision.resolved:
+        return IncidentReportStatus.resolved
+    return IncidentReportStatus.not_resolved
+
+
+def get_hse_review(db: Session, review_id: str) -> SafetyIncidentHseReview:
+    review = (
+        db.query(SafetyIncidentHseReview)
+        .options(
+            joinedload(SafetyIncidentHseReview.inspector).joinedload(Employee.user),
+            joinedload(SafetyIncidentHseReview.action_owner).joinedload(Employee.user),
+        )
+        .filter(SafetyIncidentHseReview.id == review_id)
+        .first()
+    )
+    if not review:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="HSE review not found.",
+        )
+    return review
 
 
 def list_incident_reports(
@@ -122,7 +249,13 @@ def get_incident_report(
     report = (
         db.query(SafetyIncidentReport)
         .options(
-            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user)
+            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.inspector)
+            .joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.action_owner)
+            .joinedload(Employee.user),
         )
         .filter(
             SafetyIncidentReport.id == incident_id,

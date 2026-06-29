@@ -6,8 +6,17 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
+from app.employees.models import Employee
+from app.safety.dependencies import require_hse_reviewer
 from app.safety.incidents.models import IncidentReportStatus, IncidentReportType
-from app.safety.incidents.schemas import IncidentReportCreate, IncidentReportListItem, IncidentReportResponse, IncidentReportUpdate
+from app.safety.incidents.schemas import (
+    IncidentHseReviewCreate,
+    IncidentHseReviewResponse,
+    IncidentReportCreate,
+    IncidentReportListItem,
+    IncidentReportResponse,
+    IncidentReportUpdate,
+)
 from app.safety.incidents import service as incident_service
 
 
@@ -68,6 +77,28 @@ def get_incident_report(
     )
 
     return IncidentReportResponse.from_model(report)
+
+
+@router.post(
+    "/{incident_id}/hse-review",
+    response_model=IncidentHseReviewResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_incident_hse_review(
+    incident_id: str,
+    data: IncidentHseReviewCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    inspector: Employee = Depends(require_hse_reviewer),
+):
+    review = incident_service.create_hse_review(
+        db=db,
+        incident_id=incident_id,
+        data=data,
+        inspector=inspector,
+    )
+
+    return IncidentHseReviewResponse.from_model(review)
 
 
 @router.patch("/{incident_id}", response_model=IncidentReportResponse)

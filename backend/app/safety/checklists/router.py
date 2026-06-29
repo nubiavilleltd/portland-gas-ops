@@ -1,12 +1,16 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.safety.checklists import service as checklist_service
 from app.safety.checklists.models import SafetyChecklistParentType, SafetyChecklistStage
-from app.safety.checklists.schemas import ChecklistResponseRead, ChecklistTemplateResponse
+from app.safety.checklists.schemas import (
+    ChecklistResponseRead,
+    ChecklistResponsesCreate,
+    ChecklistTemplateResponse,
+)
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 
@@ -40,4 +44,21 @@ def list_checklist_responses(
         db=db,
         parent_type=parent_type,
         parent_id=parent_id,
+    )
+
+
+@router.post(
+    "/responses",
+    response_model=List[ChecklistResponseRead],
+    status_code=status.HTTP_201_CREATED,
+)
+def create_checklist_responses(
+    data: ChecklistResponsesCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return checklist_service.create_parent_responses(
+        db=db,
+        data=data,
+        current_user=current_user,
     )

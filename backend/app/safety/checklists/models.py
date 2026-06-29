@@ -111,11 +111,11 @@ class SafetyChecklistResponse(Base):
     value_datetime = Column(DateTime(timezone=True), nullable=True)
     selected_option = Column(String(100), nullable=True)
     comment = Column(Text, nullable=True)
-    answered_by = Column(CHAR(36), ForeignKey("users.id"), nullable=False, index=True)
+    answered_by = Column(CHAR(36), ForeignKey("employees.id"), nullable=False, index=True)
     answered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     template = relationship("SafetyChecklistTemplate")
     item = relationship("SafetyChecklistItem", back_populates="responses")
-    answered_user = relationship("User", foreign_keys=[answered_by])
+    answered_employee = relationship("Employee", foreign_keys=[answered_by])

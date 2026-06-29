@@ -49,3 +49,49 @@ export interface SafetyChecklistTemplate {
   description?: string | null;
   items: SafetyChecklistItem[];
 }
+
+export interface SafetyChecklistAnswerCreate {
+  item_id: string;
+  value_boolean?: boolean | null;
+  value_text?: string | null;
+  value_number?: number | string | null;
+  value_date?: string | null;
+  value_datetime?: string | null;
+  selected_option?: string | null;
+  comment?: string | null;
+}
+
+export interface SafetyChecklistResponsesCreate {
+  parent_type: SafetyChecklistParentType;
+  parent_id: string;
+  response_group_id?: string | null;
+  answers: SafetyChecklistAnswerCreate[];
+}
+
+export interface SafetyChecklistResponse {
+  id: string;
+  template_id: string;
+  template_code_snapshot: string;
+  template_name_snapshot: string;
+  template_version: number;
+  stage_snapshot: string;
+  item_id: string;
+  item_key_snapshot: string;
+  label_snapshot: string;
+  input_type_snapshot: string;
+  options_json_snapshot?: SafetyChecklistOption[] | string[] | null;
+  is_required_snapshot: boolean;
+  sort_order_snapshot: number;
+  parent_type: SafetyChecklistParentType;
+  parent_id: string;
+  response_group_id?: string | null;
+  value_boolean?: boolean | null;
+  value_text?: string | null;
+  value_number?: string | null;
+  value_date?: string | null;
+  value_datetime?: string | null;
+  selected_option?: string | null;
+  comment?: string | null;
+  answered_by: string;
+  answered_at: string;
+}

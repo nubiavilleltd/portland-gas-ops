@@ -21,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 incident_status_enum = sa.Enum(
     "draft",
     "submitted",
-    "action_recommended",
+    "recommended",
     "resolved",
     "not_resolved",
     "closed",

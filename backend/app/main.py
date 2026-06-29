@@ -11,13 +11,14 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 
 # Import all models so SQLAlchemy can resolve relationships at startup
-from app.shared.models import user, document, token, approval  # noqa: F401
+from app.shared.models import approval, document, reference_counter, token, user  # noqa: F401
 from app.employees import models as _employee_models  # noqa: F401
 from app.vendors import models as _vendor_models  # noqa: F401
 from app.assets import models as _asset_models  # noqa: F401
 from app.procurement import models as _procurement_models  # noqa: F401
 from app.safety.checklists import models as _safety_checklist_models  # noqa: F401
 from app.safety.incidents import models as _safety_incident_models  # noqa: F401
+from app.safety.work_initiations import models as _safety_work_initiation_models  # noqa: F401
 
 from app.auth.router import router as auth_router
 from app.users.router import router as users_router
