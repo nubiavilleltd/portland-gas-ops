@@ -34,29 +34,29 @@ export class CustomersService {
   // ── UPDATE ──────────────────────────────────────────────
 
   static async updateCustomer(
-    id: string,
+    customerNo: string,
     input: UpdateCustomerInput
   ): Promise<Customer> {
     try {
-      const raw = await customersApi.update(id, input);
+      const raw = await customersApi.update(customerNo, input);
       return adaptCustomer(raw);;
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to update customer"));
     }
   }
 
-  static async deactivateCustomer(id: string): Promise<Customer> {
+  static async deactivateCustomer(customerNo: string): Promise<Customer> {
     try {
-      const raw = await customersApi.deactivate(id);
+      const raw = await customersApi.deactivate(customerNo);
       return adaptCustomer(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to deactivate customer"));
     }
   }
 
-  static async activateCustomer(id: string): Promise<Customer> {
+  static async activateCustomer(customerNo: string): Promise<Customer> {
     try {
-      const raw = await customersApi.activate(id);
+      const raw = await customersApi.activate(customerNo);
       return adaptCustomer(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to activate customer"));

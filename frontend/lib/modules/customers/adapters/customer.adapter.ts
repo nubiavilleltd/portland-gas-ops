@@ -56,8 +56,8 @@ function mapType(backendType: string): CustomerType {
 // ── Single customer mapping ────────────────────────────────────────────────────
 export function adaptCustomer(raw: BackendCustomer): Customer {
     return {
-        // id: raw.id,
-        id: raw.customer_no,
+        id: raw.id,
+        customerNo: raw.customer_no,
         name: raw.name,
         type: mapType(raw.type),
         phone: raw.phone ?? "",

@@ -8,11 +8,11 @@
 
 import type { Customer, CustomerType } from "../types/customer.types";
 
-export function getCustomerById(
+export function getCustomerByNo(
   customers: Customer[],
-  id: string
+  customerNo: string
 ): Customer | undefined {
-  return customers.find((c) => c.id === id);
+  return customers.find((c) => c.customerNo === customerNo);
 }
 
 export function getCustomersByType(

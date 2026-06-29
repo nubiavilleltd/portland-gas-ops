@@ -1,13 +1,17 @@
 from __future__ import annotations
+from app.shared.utils.number_generator import generate_entity_no
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Mapping
 from app.orders.model import Order, OrderItem
 from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.payments.enums import PaymentStatus
 
 
 class OrderRepository:
+
+    def generate_order_no(self, db: Session) -> str:
+        return generate_entity_no(db, Order, "order_no", "ORD")
 
     def get_by_id(self, db: Session, order_id: str) -> Optional[Order]:
         return (
@@ -70,7 +74,7 @@ class OrderRepository:
         db.flush()
         return order
 
-    def create_items(self, db: Session, order_id: str, items: list) -> List[OrderItem]:
+    def create_items(self, db: Session, order_id: str, items: list[Mapping[str, object]]) -> List[OrderItem]:
         created = []
         for item in items:
             oi = OrderItem(
@@ -86,7 +90,7 @@ class OrderRepository:
         db.flush()
         return created
 
-    def replace_items(self, db: Session, order_id: str, items: list) -> None:
+    def replace_items(self, db: Session, order_id: str, items: list[Mapping[str, object]]) -> None:
         db.query(OrderItem).filter(OrderItem.order_id == order_id).delete()
         db.flush()
         self.create_items(db, order_id, items)

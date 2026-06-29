@@ -1,4 +1,6 @@
 from __future__ import annotations
+from backend.app.customers.error_codes import CustomerErrorCode
+from backend.app.customers.repository import CustomerRepository
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional, List
@@ -13,13 +15,13 @@ from app.orders.error_codes import OrderErrorCode
 from app.orders import guards
 from app.payments.enums import PaymentStatus
 from app.core.exceptions import AppException, ErrorCode
-from app.shared.utils.number_generator import generate_entity_no
 
 
 class OrderService:
 
     def __init__(self):
         self.repo = OrderRepository()
+        self.customer_repo = CustomerRepository()
 
     def get_or_raise(self, db: Session, order_id: str) -> Order:
         order = self.repo.get_by_id(db, order_id)
@@ -32,17 +34,11 @@ class OrderService:
         if not order:
             raise AppException(404, OrderErrorCode.ORDER_NOT_FOUND, f"Order {order_no} not found")
         return order
-    def get_by_id_or_raise_by_id(self, db: Session, order_id: str) -> Order:
+    def get_by_id_or_raise(self, db: Session, order_id: str) -> Order:
         order = self.repo.get_by_id(db, order_id)
         if not order:
             raise AppException(404, OrderErrorCode.ORDER_NOT_FOUND, f"Order {order_id} not found")
         return order
-
-    def _build_response_fields(self, order: Order) -> dict:
-        """Extract customer_name for denormalised response."""
-        return {
-            "customer_name": order.customer.name if order.customer else "",
-        }
 
     def list(self, db: Session, filters: OrderFilters):
         return self.repo.list(
@@ -58,8 +54,15 @@ class OrderService:
 
     def create_draft(self, db: Session, data: OrderCreate, created_by: str) -> Order:
         """Create an order in draft status."""
+        customer = self.customer_repo.get_by_id(db, data.customer_id)
+        if not customer:
+            raise AppException(
+                404,
+                CustomerErrorCode.CUSTOMER_NOT_FOUND,
+                "Customer not found",
+            )
         total = sum(Decimal(str(i.total)) for i in data.order_items)
-        order_no = generate_entity_no(db, Order, "order_no", "ORD")
+        order_no = self.repo.generate_order_no(db)
 
         order = self.repo.create(
             db,
@@ -98,6 +101,13 @@ class OrderService:
 
         updates = {}
         if data.customer_id is not None:
+            customer = self.customer_repo.get_by_id(db, data.customer_id)
+            if not customer:
+                raise AppException(
+                    404,
+                    CustomerErrorCode.CUSTOMER_NOT_FOUND,
+                    "Customer not found",
+                )
             updates["customer_id"] = data.customer_id
         if data.delivery_address is not None:
             updates["delivery_address"] = data.delivery_address.strip()

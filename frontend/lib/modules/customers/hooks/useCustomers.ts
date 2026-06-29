@@ -6,7 +6,7 @@ import { CustomersService } from "../services/customers.service";
 import { CUSTOMER_KEYS } from "../constants/query-keys";
 import { parseError } from "@/lib/errors";
 import {
-  getCustomerById,
+  getCustomerByNo,
   getCustomerSelectOptions,
 } from "../selectors/customers.selectors";
 
@@ -25,10 +25,10 @@ export function useCustomers() {
   };
 }
 
-export function useCustomerById(id: string) {
+export function useCustomerByNo(customerNo: string) {
   const { customers, isLoading, error, refetch } = useCustomers();
   return {
-    customer: getCustomerById(customers, id),
+    customer: getCustomerByNo(customers, customerNo),
     isLoading,
     error,
     refetch,

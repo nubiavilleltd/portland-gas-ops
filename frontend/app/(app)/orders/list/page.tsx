@@ -33,15 +33,10 @@ export default function OrdersListPage() {
 
   const customerMap = Object.fromEntries(
     customers.map((customer) => [
-      customer.id,
+      customer.customerNo,
       customer,
     ])
   );
-
-
-  console.log("cutomers", {customers, customerMap})
-
-
 
 
   const columns: Column<Order>[] = [

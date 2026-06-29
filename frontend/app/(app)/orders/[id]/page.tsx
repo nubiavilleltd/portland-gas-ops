@@ -58,7 +58,7 @@ export default function OrderDetailPage() {
   const { trip } = useTripById(order?.trip_id as string);
 
   const customerMap = Object.fromEntries(
-    customers.map((customer) => [customer.id, customer]),
+    customers.map((customer) => [customer.customerNo, customer]),
   );
 
   const productMap = new Map(products.map((p) => [p.id, p]));

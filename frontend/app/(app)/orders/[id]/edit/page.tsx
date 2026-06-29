@@ -31,7 +31,6 @@ export default function EditOrderPage() {
 
   const { order, isLoading, error } = useOrderById(id);
 
-  console.log("order id", { order })
   const { products } = useProducts();
   const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
   const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
@@ -95,20 +94,7 @@ export default function EditOrderPage() {
   //   (p) => p.name === order.product_name
   // );
 
-  // const defaultValues: Partial<CreateOrderFormValues> = {
-  //   customer_id: order.customer_id,
-  //   order_type: order.order_type as CreateOrderFormValues["order_type"],
-  //   order_items: [
-  //     {
-  //       product_id: matchedProduct?.id ?? "",
-  //       quantity: order.quantity,
-  //       unit_price: order.unit_price,
-  //     },
-  //   ],
-  //   delivery_address: order.delivery_address,
-  //   delivery_date: order.delivery_date ?? "",
-  //   notes: order.notes ?? "",
-  // };
+
 
 
   const defaultValues: Partial<CreateOrderFormValues> = {
@@ -123,25 +109,6 @@ export default function EditOrderPage() {
     notes: order.notes ?? "",
   };
 
-  // ── Submit ────────────────────────────────────────────
-  // async function handleSubmit(data: CreateOrderFormValues) {
-  //   const primaryItem = data.order_items[0];
-  //   const product = getProductById(products, primaryItem.product_id);
-
-  //   await OrdersService.updateOrder(id, {
-  //     customer_id: data.customer_id,
-  //     order_type: data.order_type,
-  //     product_name: product?.name ?? primaryItem.product_id,
-  //     quantity: String(primaryItem.quantity),
-  //     unit_price: String(primaryItem.unit_price),
-  //     delivery_address: data.delivery_address,
-  //     delivery_date: data.delivery_date,
-  //     notes: data.notes,
-  //   });
-
-  //   toast.success("Order updated successfully");
-  //   router.push(ORDER_ROUTES.detail(id));
-  // }
 
   async function handleSubmit(data: CreateOrderFormValues) {
     await submitOrder({ input: buildOrderPayload(data, products), existingDraftId: id });

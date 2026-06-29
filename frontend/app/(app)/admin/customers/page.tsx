@@ -60,7 +60,7 @@ export default function CustomersPage() {
         columns={columns}
         data={customers}
         isLoading={isLoading}
-        rowHref={(row) => CUSTOMER_ROUTES.detail(row.id)}
+        rowHref={(row) => CUSTOMER_ROUTES.detail(row.customerNo)}
         emptyMessage="No customers found."
         emptyDescription="Add your first customer to get started."
       />

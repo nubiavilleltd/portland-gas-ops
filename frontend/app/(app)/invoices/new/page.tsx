@@ -57,7 +57,7 @@ function CreateInvoicePageContent() {
 
   const customerMap = Object.fromEntries(
     customers.map((customer) => [
-      customer.id,
+      customer.customerNo,
       customer,
     ])
   );

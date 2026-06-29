@@ -34,7 +34,7 @@ export default function ConfirmOrderPage() {
   const id = params.id as string;
   const { order } = useOrderById(id);
   const { customers } = useCustomers();
-  const customerMap = new Map(customers.map((c) => [c.id, c]));
+  const customerMap = new Map(customers.map((c) => [c.customerNo, c]));
 
   // const [isSubmitting, setIsSubmitting] = useState(false);
   // const [error, setError] = useState<string | null>(null);
@@ -119,45 +119,7 @@ export default function ConfirmOrderPage() {
       <div className="space-y-6">
 
         {/* ORDER SUMMARY REVIEW */}
-        {/* <FormSection
-  title="Order Review"
-  description="Review all order details before confirmation"
->
-  <div className="grid grid-cols-2 gap-4 text-sm">
-    <InfoRow label="Order Number" value={order.order_number} />
-    <InfoRow label="Customer" value={order.customer_name} />
-    <InfoRow label="Order Type" value={order.order_type} />
-    <InfoRow label="Product" value={order.product_name ?? "—"} />
-    <InfoRow
-      label="Quantity"
-      value={`${order.quantity.toLocaleString()} kg`}
-    />
-    <InfoRow
-      label="Unit Price"
-      value={formatCurrency(order.unit_price)}
-    />
-    <InfoRow
-      label="Total Amount"
-      value={formatCurrency(order.total_amount)}
-    />
 
-    <InfoRow
-      label="Delivery Date"
-      value={
-        order.delivery_date
-          ? formatDate(order.delivery_date)
-          : "Not set"
-      }
-    />
-
-    <div className="col-span-2">
-      <InfoRow
-        label="Delivery Address"
-        value={order.delivery_address}
-      />
-    </div>
-  </div>
-</FormSection> */}
         <FormSection
           title="Order Review"
           description="Review all order details before confirmation"
