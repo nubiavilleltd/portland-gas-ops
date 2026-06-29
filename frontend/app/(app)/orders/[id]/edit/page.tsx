@@ -94,7 +94,7 @@ export default function EditOrderPage() {
   //   (p) => p.name === order.product_name
   // );
 
-
+console.log(order.delivery_date);
 
 
   const defaultValues: Partial<CreateOrderFormValues> = {

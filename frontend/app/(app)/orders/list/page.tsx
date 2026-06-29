@@ -33,7 +33,7 @@ export default function OrdersListPage() {
 
   const customerMap = Object.fromEntries(
     customers.map((customer) => [
-      customer.customerNo,
+      customer.id,
       customer,
     ])
   );
@@ -166,7 +166,7 @@ export default function OrdersListPage() {
       <DataTable<Order>
         columns={columns}
         data={orders}
-        rowHref={(order) => ORDER_ROUTES.detail(order.id)}
+        rowHref={(order) => ORDER_ROUTES.detail(order.order_number)}
         emptyMessage="No orders found."
       />
     </AppLayout>

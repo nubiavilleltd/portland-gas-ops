@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from django import db
-
-from backend.app.products.model import Product
+from app.products.model import Product
 from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, status
 from sqlalchemy.orm import Session
 from typing import Optional, List

@@ -12,27 +12,24 @@ export function useCloseOrderWorkflow() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (order: Order) =>
-      closeOrderWorkflow(order),
+    mutationFn: (order: Order) => closeOrderWorkflow(order),
 
     onSuccess: (updatedOrder) => {
       // ✅ update single order
       queryClient.setQueryData(
         ORDER_KEYS.detail(updatedOrder.id),
-        updatedOrder
+        updatedOrder,
       );
 
       // ✅ sync order list
-       queryClient.setQueriesData(
-  { queryKey: ORDER_KEYS.lists() },
-  (old: Order[] | undefined) => {
-    if (!Array.isArray(old)) return old;
+      queryClient.setQueriesData(
+        { queryKey: ORDER_KEYS.lists() },
+        (old: Order[] | undefined) => {
+          if (!Array.isArray(old)) return old;
 
-    return old.map((o) =>
-      o.id === updatedOrder.id ? updatedOrder : o
-    );
-  }
-);
+          return old.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+        },
+      );
 
       toast.success("Order closed successfully");
     },

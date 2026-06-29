@@ -55,7 +55,7 @@ function adaptItem(raw: BackendOrderItem): OrderLineItem {
 
 export function adaptOrder(raw: BackendOrder): Order {
     return {
-        id: raw.order_no ?? raw.id,   // order_no in URLs, same trick as products/customers
+        id: raw.id,
         order_number: raw.order_no ?? raw.id,
         customer_id: raw.customer_id,
         customer_name: raw.customer_name,

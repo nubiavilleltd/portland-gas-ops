@@ -99,7 +99,7 @@ class OrderResponse(BaseModel):
     id:                  str
     order_no:            Optional[str]
     customer_id:         str
-    customer_name:       str          # denormalised from customer join
+    customer_name: str = ""         # denormalised from customer join
     order_status:        OrderStatus
     fulfillment_status:  FulfillmentStatus
     payment_status:      PaymentStatus

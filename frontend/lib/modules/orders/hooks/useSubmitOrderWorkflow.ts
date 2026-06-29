@@ -33,7 +33,6 @@ export function useSubmitOrderWorkflow() {
         }
       );
       toast.success("Order submitted successfully");
-    //   router.push(ORDER_ROUTES.detail(order.id));
      router.push(
           ORDER_ROUTES.list()
         );

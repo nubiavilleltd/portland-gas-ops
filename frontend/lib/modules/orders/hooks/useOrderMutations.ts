@@ -4,22 +4,6 @@ import { OrdersService } from "../services/orders.service";
 import { ORDER_KEYS } from "../constants/query-keys";
 import { Order } from "../types/orders.types";
 
-// export function useConfirmOrder() {
-//   const queryClient = useQueryClient();
-
-//   return useMutation({
-//     mutationFn: OrdersService.confirmOrder,
-
-//     onSuccess: () => {
-//       queryClient.invalidateQueries({
-//         queryKey: ORDER_KEYS.orders,
-//       });
-//     },
-//   });
-// }
-
-
-
 export function useConfirmOrder() {
   const queryClient = useQueryClient();
 

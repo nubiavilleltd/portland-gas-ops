@@ -34,7 +34,7 @@ export default function OrderDeliveryPage() {
 
   const { customers } = useCustomers();
   const confirmDelivery = useConfirmDeliveryWorkflow()
-  const customerMap = new Map(customers.map((c) => [c.customerNo, c]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
 
   const [proofNotes, setProofNotes] = useState("");

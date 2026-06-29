@@ -19,50 +19,25 @@ export function useConfirmOrderWorkflow(order?: Order) {
       return confirmOrderWorkflow(order);
     },
 
-    // onSuccess: (updatedOrder) => {
-    //   // ✅ SINGLE ORDER CACHE (NO FLICKER)
-    //   queryClient.setQueryData(
-    //     ORDER_KEYS.detail(updatedOrder.id),
-    //     updatedOrder
-    //   );
-
-    //   // ✅ LIST CACHE SYNC
-    //   queryClient.setQueryData(
-    //     ORDER_KEYS.lists(),
-    //     (old?: Order[]) =>
-    //       old?.map((o) =>
-    //         o.id === updatedOrder.id ? updatedOrder : o
-    //       )
-    //   );
-
-    //   toast.success("Order confirmed successfully");
-
-    // //   router.push(`/orders/${updatedOrder.id}`);
-    //   router.push(ORDER_ROUTES.detail(updatedOrder.id));
-    // },
 
     onSuccess: (updatedOrder) => {
-  // ✅ SINGLE ORDER CACHE
-  queryClient.setQueryData(
-    ORDER_KEYS.detail(updatedOrder.id),
-    updatedOrder
-  );
+      // ✅ SINGLE ORDER CACHE
+      queryClient.setQueryData(
+        ORDER_KEYS.detail(updatedOrder.id),
+        updatedOrder,
+      );
 
-  // ✅ UPDATE ALL ORDER LISTS
-  queryClient.setQueriesData(
-    { queryKey: ORDER_KEYS.lists() },
-    (old?: Order[]) =>
-      old?.map((o) =>
-        o.id === updatedOrder.id ? updatedOrder : o
-      )
-  );
+      // ✅ UPDATE ALL ORDER LISTS
+      queryClient.setQueriesData(
+        { queryKey: ORDER_KEYS.lists() },
+        (old?: Order[]) =>
+          old?.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)),
+      );
 
-  toast.success("Order confirmed successfully");
+      toast.success("Order confirmed successfully");
 
-  router.push(
-    ORDER_ROUTES.detail(updatedOrder.id)
-  );
-},
+      router.push(ORDER_ROUTES.detail(updatedOrder.order_number));
+    },
 
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to confirm order");

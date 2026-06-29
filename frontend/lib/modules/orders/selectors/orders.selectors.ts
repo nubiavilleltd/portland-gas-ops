@@ -17,7 +17,7 @@ export function getOrderById(
   orders: Order[],
   id: string
 ): Order | undefined {
-  return orders.find((o) => o.id === id);
+  return orders.find((o) => o.order_number === id);
 }
 
 // ── FILTERS ─────────────────────────────────────────────

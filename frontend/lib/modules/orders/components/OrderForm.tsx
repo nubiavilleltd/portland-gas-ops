@@ -29,6 +29,7 @@ import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import {
   getProductByNo,
   getActiveProducts,
+  getProductById,
 } from "@/lib/modules/products/selectors/products.selectors";
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
@@ -141,116 +142,34 @@ export default function OrderForm({
 
   // ── Columns ──────────────────────────────────────────────
   const columns: LineItemColumn<OrderLineItem>[] = [
-    // {
-    //   key: "product_id",
-    //   label: "Product",
-    //   width: "2fr",
-    //   // renderCell: (row, index, onChange) => (
-    //   //   <select
-    //   //     value={row.product_id}
-    //   //     disabled={productsLoading}
-    //   //     onChange={(e) => {
-    //   //       const productId = e.target.value;
-
-    //   //       // Check if product is already in another row
-    //   //       const isDuplicate = orderItems.some(
-    //   //         (item, i) => i !== index && item.product_id === productId,
-    //   //       );
-
-    //   //       if (isDuplicate) {
-    //   //         toast.error(
-    //   //           "This product is already in the order. Update the quantity instead.",
-    //   //         );
-    //   //         return;
-    //   //       }
-
-    //   //       onChange({ product_id: productId });
-    //   //       const product = getProductById(products, productId);
-    //   //       if (product) {
-    //   //         setValue(
-    //   //           `order_items.${index}.unit_price`,
-    //   //           product.default_unit_price,
-    //   //         );
-    //   //       }
-    //   //     }}
-    //   //     className="w-full text-sm outline-none bg-transparent"
-    //   //   >
-    //   //     <option value="">Select product</option>
-    //   //     {productOptions.map((opt) => (
-    //   //       <option
-    //   //         key={opt.value}
-    //   //         value={opt.value}
-    //   //       >
-    //   //         {opt.label}
-    //   //       </option>
-    //   //     ))}
-    //   //   </select>
-    //   // ),
-
-    //   renderCell: (row, index, onChange) => (
-    //     <SelectInput
-    //       value={row.product_id}
-    //       options={productOptions}
-    //       placeholder={productsLoading ? "Loading…" : "Select product"}
-    //       disabled={productsLoading}
-    //       searchable
-    //       sortOptions={false}
-    //       onValueChange={(productId) => {
-    //         if (!productId) return;
-
-    //         const isDuplicate = orderItems.some(
-    //           (item, i) => i !== index && item.product_id === productId,
-    //         );
-
-    //         if (isDuplicate) {
-    //           toast.error(
-    //             "This product is already in the order. Update the quantity instead.",
-    //           );
-    //           return;
-    //         }
-
-    //         onChange({ product_id: productId });
-    //         const product = getProductById(products, productId);
-    //         if (product) {
-    //           setValue(
-    //             `order_items.${index}.unit_price`,
-    //             product.default_unit_price,
-    //           );
-    //         }
-    //       }}
-    //       triggerClassName="border-0 focus:ring-0 px-0 h-auto shadow-none"
-    //     />
-    //   ),
-    // },
-
     {
-  key: "product_id",
-  label: "Product",
-  width: "2fr",
-  renderCell: (row, index) => {
-    const selected = getProductByNo(products, row.product_id);
-    return (
-      <button
-        type="button"
-        onClick={() => setPickerIndex(index)}
-        className={cn(
-          "w-full text-left text-sm py-0.5 transition-colors",
-          selected
-            ? "text-brand-text-primary font-medium"
-            : "text-brand-text-secondary"
-        )}
-      >
-        {selected ? (
-          <span>{selected.name}</span>
-        ) : (
-          <span className="text-brand-text-secondary">
-            {productsLoading ? "Loading…" : "Click to select product"}
-          </span>
-        )}
-      </button>
-    );
-  },
-},
+      key: "product_id",
+      label: "Product",
+      width: "2fr",
+      renderCell: (row, index) => {
+        const selected = getProductById(products, row.product_id);
+        return (
+          <button
+            type="button"
+            onClick={() => setPickerIndex(index)}
+            className={cn(
+              "w-full text-left text-sm py-0.5 transition-colors",
+              selected
+                ? "text-brand-text-primary font-medium"
+                : "text-brand-text-secondary",
+            )}
+          >
+            {selected ? (
+              <span>{selected.name}</span>
+            ) : (
+              <span className="text-brand-text-secondary">
+                {productsLoading ? "Loading…" : "Click to select product"}
+              </span>
+            )}
+          </button>
+        );
+      },
+    },
 
     {
       key: "quantity",
@@ -258,7 +177,7 @@ export default function OrderForm({
       width: "130px",
 
       renderCell: (row, index, onChange) => {
-        const product = getProductByNo(products, row.product_id);
+        const product = getProductById(products, row.product_id);
         const unitLabel = product ? getUnitLabel(product) : "";
         return (
           <div className="flex items-center gap-1">
@@ -395,10 +314,26 @@ export default function OrderForm({
       >
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <FormDatePicker
+            {/* <FormDatePicker
               label="Scheduled Date"
               required
               {...register("delivery_date")}
+            /> */}
+
+            <Controller
+              control={control}
+              name="delivery_date"
+              render={({ field }) => (
+                <FormDatePicker
+                  label="Delivery Date"
+                  required
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  error={errors.delivery_date?.message}
+                />
+              )}
             />
             <FormInput
               label="Delivery Address"
@@ -453,6 +388,8 @@ export default function OrderForm({
             type="button"
             variant="outline"
             disabled={isSubmitting}
+            loading={isSubmitting}
+            loadingText={submitLoadingLabel}
             onClick={() => onSaveDraft?.(form.getValues())}
           >
             Save Draft
@@ -460,6 +397,7 @@ export default function OrderForm({
         )}
         <Button
           type="submit"
+          disabled={isSubmitting}
           loading={isSubmitting}
           loadingText={submitLoadingLabel}
         >
@@ -468,32 +406,39 @@ export default function OrderForm({
       </div>
 
       <ProductPickerModal
-  open={pickerIndex !== null}
-  onClose={() => setPickerIndex(null)}
-  onSelect={(product) => {
-    if (pickerIndex === null) return;
+        open={pickerIndex !== null}
+        onClose={() => setPickerIndex(null)}
+        onSelect={(product) => {
+          if (pickerIndex === null) return;
 
-    // Uniqueness check
-    const isDuplicate = orderItems.some(
-      (item, i) => i !== pickerIndex && item.product_id === product.id
-    );
-    if (isDuplicate) {
-      toast.error("This product is already in the order. Update the quantity instead.");
-      return;
-    }
+          // Uniqueness check
+          const isDuplicate = orderItems.some(
+            (item, i) => i !== pickerIndex && item.product_id === product.id,
+          );
+          if (isDuplicate) {
+            toast.error(
+              "This product is already in the order. Update the quantity instead.",
+            );
+            return;
+          }
 
-    // Set product and auto-fill price
-    setValue(`order_items.${pickerIndex}.product_id`, product.id, { shouldValidate: true });
-    setValue(`order_items.${pickerIndex}.unit_price`, product.default_unit_price);
-    setPickerIndex(null);
-  }}
-  products={activeProducts}
-  inventoryItems={inventoryItems}
-  consumableStock={consumableStock}
-  selectedProductIds={orderItems
-    .map((item) => item.product_id)
-    .filter(Boolean)}
-/>
+          // Set product and auto-fill price
+          setValue(`order_items.${pickerIndex}.product_id`, product.id, {
+            shouldValidate: true,
+          });
+          setValue(
+            `order_items.${pickerIndex}.unit_price`,
+            product.default_unit_price,
+          );
+          setPickerIndex(null);
+        }}
+        products={activeProducts}
+        inventoryItems={inventoryItems}
+        consumableStock={consumableStock}
+        selectedProductIds={orderItems
+          .map((item) => item.product_id)
+          .filter(Boolean)}
+      />
     </form>
   );
 }

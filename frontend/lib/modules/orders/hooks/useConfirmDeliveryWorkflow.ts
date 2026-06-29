@@ -15,32 +15,27 @@ export function useConfirmDeliveryWorkflow() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (order: Order) =>
-      confirmDeliveryWorkflow(order),
+    mutationFn: (order: Order) => confirmDeliveryWorkflow(order),
 
     onSuccess: (updatedOrder) => {
       // ✅ single order cache
       queryClient.setQueryData(
         ORDER_KEYS.detail(updatedOrder.id),
-        updatedOrder
+        updatedOrder,
       );
 
       // ✅ sync list
-   queryClient.setQueriesData(
-  { queryKey: ORDER_KEYS.lists() },
-  (old: Order[] | undefined) => {
-    if (!Array.isArray(old)) return old;
+      queryClient.setQueriesData(
+        { queryKey: ORDER_KEYS.lists() },
+        (old: Order[] | undefined) => {
+          if (!Array.isArray(old)) return old;
 
-    return old.map((o) =>
-      o.id === updatedOrder.id ? updatedOrder : o
-    );
-  }
-);
+          return old.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+        },
+      );
 
       toast.success("Delivery confirmed");
-       router.push(
-          ORDER_ROUTES.detail(updatedOrder.id)
-        );
+      router.push(ORDER_ROUTES.detail(updatedOrder.order_number));
     },
 
     onError: (err: any) => {

@@ -34,7 +34,7 @@ export default function ConfirmOrderPage() {
   const id = params.id as string;
   const { order } = useOrderById(id);
   const { customers } = useCustomers();
-  const customerMap = new Map(customers.map((c) => [c.customerNo, c]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   // const [isSubmitting, setIsSubmitting] = useState(false);
   // const [error, setError] = useState<string | null>(null);

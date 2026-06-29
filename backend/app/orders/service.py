@@ -1,6 +1,6 @@
 from __future__ import annotations
-from backend.app.customers.error_codes import CustomerErrorCode
-from backend.app.customers.repository import CustomerRepository
+from app.customers.error_codes import CustomerErrorCode
+from app.customers.repository import CustomerRepository
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional, List

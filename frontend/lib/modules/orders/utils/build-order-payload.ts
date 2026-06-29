@@ -16,7 +16,8 @@ export function buildOrderPayload(
     order_items: data.order_items.map((item) => {
       const product = getProductById(products, item.product_id);
       return {
-        product_id: item.product_id,
+        // product_id: item.product_id,
+        product_id: product?.id ?? item.product_id,
         product_name: product?.name ?? item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,

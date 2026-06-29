@@ -37,8 +37,6 @@ export default function CloseOrderPage() {
   const { customers } = useCustomers();
   const customerMap = new Map(customers.map((c) => [c.customerNo, c]));
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (!order) {
     return (

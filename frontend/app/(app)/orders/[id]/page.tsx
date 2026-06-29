@@ -50,15 +50,15 @@ export default function OrderDetailPage() {
   const { customers } = useCustomers();
   const { products } = useProducts();
   const { order, isLoading, error } = useOrderById(id);
-  const { entries } = useAuditByEntity("order", id);
+  const { entries } = useAuditByEntity("order", order?.id as string);
 
-  const { invoice } = useInvoiceByOrderId(id);
+  const { invoice } = useInvoiceByOrderId(order?.id as string);
   const { summary: paymentSummary } = usePaymentSummary(invoice?.id);
 
   const { trip } = useTripById(order?.trip_id as string);
 
   const customerMap = Object.fromEntries(
-    customers.map((customer) => [customer.customerNo, customer]),
+    customers.map((customer) => [customer.id, customer]),
   );
 
   const productMap = new Map(products.map((p) => [p.id, p]));

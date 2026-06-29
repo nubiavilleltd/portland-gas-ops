@@ -32,7 +32,7 @@ export function getProductSelectOptions(
   products: Product[]
 ): Array<{ value: string; label: string }> {
   return getActiveProducts(products).map((p) => ({
-    value: p.product_no,
+    value: p.id,
     label: p.name,
   }));
 }
