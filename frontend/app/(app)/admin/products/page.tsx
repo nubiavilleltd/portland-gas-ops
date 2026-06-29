@@ -69,7 +69,7 @@ export default function ProductsPage() {
         data={products}
         isLoading={isLoading}
         // error={error}
-        rowHref={(product) => PRODUCT_ROUTES.detail(product.id)}
+        rowHref={(product) => PRODUCT_ROUTES.detail(product.product_no)}
         emptyMessage="No products found. Add your first product to get started."
       />
     </AppLayout>

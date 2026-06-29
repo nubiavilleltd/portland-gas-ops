@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.shared.utils.number_generator import generate_entity_no
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import Optional, List, Tuple
@@ -11,6 +12,8 @@ from app.shared.models.document import Document
 
 class ProductRepository:
 
+    def generate_product_no(self, db: Session) -> str:
+        return generate_entity_no(db, Product, "product_no", "PRO")
     def get_by_id(self, db: Session, product_id: str) -> Optional[Product]:
         return db.query(Product).filter(Product.id == product_id).first()
     def get_by_no(self, db: Session, product_no: str) -> Optional[Product]:
@@ -40,6 +43,7 @@ class ProductRepository:
             term = f"%{search.strip()}%"
             q = q.filter(
                 or_(
+                    Product.product_no.ilike(term),
                     Product.name.ilike(term),
                     Product.description.ilike(term),
                     Product.code.ilike(term),
@@ -59,8 +63,8 @@ class ProductRepository:
         )
         return items, total
 
-    def create(self, db: Session, **fields) -> Product:
-        product = Product(**fields)
+    def create(self, db: Session, product_no: str, **fields) -> Product:
+        product = Product(product_no=product_no, **fields)
         db.add(product)
         db.flush()
         return product

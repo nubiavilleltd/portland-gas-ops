@@ -79,19 +79,19 @@ class ProductService:
             )
 
         try:
-            product_no = generate_entity_no(db, Product, "product_no", "PRD")
-            product = self.repo.create(
-                db,
-                name               = data.name,
-                code               = data.code,
-                product_no=product_no,
-                description        = data.description,
-                product_type       = data.product_type,
-                unit               = data.unit,
-                default_unit_price = data.default_unit_price,
-                minimum_stock      = data.minimum_stock,
-            )
-
+            with db.begin_nested():
+                product_no = self.repo.generate_product_no(db)
+                product = self.repo.create(
+                    db,
+                    name               = data.name,
+                    code               = data.code,
+                    product_no=product_no,
+                    description        = data.description,
+                    product_type       = data.product_type,
+                    unit               = data.unit,
+                    default_unit_price = data.default_unit_price,
+                    minimum_stock      = data.minimum_stock,
+                )
             # Upload images and create document records
             first_doc_id: Optional[int] = None
             for (file_bytes, filename, mime_type, file_size) in image_files:
@@ -171,7 +171,7 @@ class ProductService:
 
         # Apply scalar field updates
         updates = data.model_dump(exclude_unset=True)
-        self.repo.update(db, product, **updates)
+        product = self.repo.update(db, product, **updates)
 
         # Handle image changes
         if new_images is not None or kept_image_ids is not None:

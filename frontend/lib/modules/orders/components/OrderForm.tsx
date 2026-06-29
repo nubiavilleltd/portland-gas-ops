@@ -27,7 +27,7 @@ import type {
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import {
-  getProductById,
+  getProductByNo,
   getActiveProducts,
 } from "@/lib/modules/products/selectors/products.selectors";
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
@@ -228,7 +228,7 @@ export default function OrderForm({
   label: "Product",
   width: "2fr",
   renderCell: (row, index) => {
-    const selected = getProductById(products, row.product_id);
+    const selected = getProductByNo(products, row.product_id);
     return (
       <button
         type="button"
@@ -258,7 +258,7 @@ export default function OrderForm({
       width: "130px",
 
       renderCell: (row, index, onChange) => {
-        const product = getProductById(products, row.product_id);
+        const product = getProductByNo(products, row.product_id);
         const unitLabel = product ? getUnitLabel(product) : "";
         return (
           <div className="flex items-center gap-1">

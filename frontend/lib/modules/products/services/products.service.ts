@@ -19,9 +19,9 @@ export class ProductsService {
     return adaptProductList(raw);
   }
 
-  static async getProductById(id: string): Promise<Product | undefined> {
+  static async getProductByNo(productNo: string): Promise<Product | undefined> {
     try {
-      const raw = await productsApi.get(id);
+      const raw = await productsApi.get(productNo);
       return adaptProduct(raw);
     } catch {
       return undefined;
@@ -56,30 +56,30 @@ export class ProductsService {
 
   // ── UPDATE ──────────────────────────────────────────────
 
-  static async updateProduct(id: string, input: UpdateProductInput): Promise<Product> {
+  static async updateProduct(productNo: string, input: UpdateProductInput): Promise<Product> {
     try {
       const newImageFiles = (input as any)._newImageFiles as File[] ?? [];
       const keptImageIds = (input as any)._keptImageIds as string[] ?? [];
 
-      const raw = await productsApi.update(id, input, newImageFiles, keptImageIds);
+      const raw = await productsApi.update(productNo, input, newImageFiles, keptImageIds);
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to update product"));
     }
   }
 
-  static async deactivateProduct(id: string): Promise<Product> {
+  static async deactivateProduct(productNo: string): Promise<Product> {
     try {
-      const raw = await productsApi.deactivate(id);
+      const raw = await productsApi.deactivate(productNo);
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to deactivate product"));
     }
   }
 
-  static async activateProduct(id: string): Promise<Product> {
+  static async activateProduct(productNo: string): Promise<Product> {
     try {
-      const raw = await productsApi.activate(id);
+      const raw = await productsApi.activate(productNo);
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to activate product"));

@@ -58,11 +58,10 @@ function mapImage(raw: BackendProductImage): ProductImage {
 
 export function adaptProduct(raw: BackendProduct): Product {
     return {
-        // id: raw.id,
-        id: raw.product_no,
+        id: raw.id,
         name: raw.name,
         code: raw.code ?? undefined,
-        // product_no: raw.product_no ?? undefined,
+        product_no: raw.product_no ?? undefined,
         description: raw.description ?? undefined,
         product_type: raw.product_type as ProductType,
         unit: raw.unit as ProductUnit,

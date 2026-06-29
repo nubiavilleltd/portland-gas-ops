@@ -28,19 +28,19 @@ export function useCreateProduct() {
   });
 }
 
-export function useUpdateProduct(id: string) {
+export function useUpdateProduct(productNo: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
     mutationFn: (input: UpdateProductInput) =>
-      ProductsService.updateProduct(id, input),
+      ProductsService.updateProduct(productNo, input),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(id) });
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(productNo) });
       toast.success("Product updated successfully");
-      router.push(PRODUCT_ROUTES.detail(id));
+      router.push(PRODUCT_ROUTES.detail(productNo));
     },
 
     onError: (err: any) => {
@@ -49,19 +49,19 @@ export function useUpdateProduct(id: string) {
   });
 }
 
-export function useToggleProductStatus(id: string) {
+export function useToggleProductStatus(productNo: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
     mutationFn: (isActive: boolean) =>
       isActive
-        ? ProductsService.deactivateProduct(id)
-        : ProductsService.activateProduct(id),
+        ? ProductsService.deactivateProduct(productNo)
+        : ProductsService.activateProduct(productNo),
 
     onSuccess: (_, isActive) => {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(id) });
+      queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(productNo) });
       toast.success(isActive ? "Product deactivated" : "Product activated");
       router.push(PRODUCT_ROUTES.list());
     },

@@ -10,6 +10,13 @@
 
 import type { Product } from "@/lib/modules/products/types/product.types";
 
+export function getProductByNo(
+  products: Product[],
+  productNo: string
+): Product | undefined {
+  return products.find((p) => p.product_no === productNo);
+}
+
 export function getProductById(
   products: Product[],
   id: string
@@ -25,7 +32,7 @@ export function getProductSelectOptions(
   products: Product[]
 ): Array<{ value: string; label: string }> {
   return getActiveProducts(products).map((p) => ({
-    value: p.id,
+    value: p.product_no,
     label: p.name,
   }));
 }

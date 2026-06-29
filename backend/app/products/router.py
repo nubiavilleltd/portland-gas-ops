@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from django import db
+
+from backend.app.products.model import Product
 from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, status
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -16,14 +19,25 @@ from app.products.enums import ProductType, ProductStatus
 from app.shared.models.user import User
 from app.core.exceptions import AppException, ErrorCode
 from pydantic import ValidationError
+from app.products.constants import (
+    ALLOWED_IMAGE_TYPES,
+    MAX_IMAGE_SIZE_MB,
+    MAX_IMAGES,
+)
 
 router  = APIRouter()
 service = ProductService()
 
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-MAX_IMAGE_SIZE_MB   = 5
-MAX_IMAGES          = 3
-
+def _to_response(db: Session, product: Product) -> ProductResponse:
+    response = ProductResponse.model_validate(product)
+    response.images = service.get_images(db, product)
+    return response
+def _uploaded_by(user: User) -> str | None:
+    return (
+        user.employee.id
+        if getattr(user, "employee", None)
+        else None
+    )
 
 def _validate_images(files: List[UploadFile]) -> List[tuple]:
     if len(files) > MAX_IMAGES:
@@ -103,18 +117,12 @@ async def create_product(
 
     image_files = _validate_images(images)
 
-    uploaded_by = None
-    if hasattr(current_user, "employee") and current_user.employee:
-        uploaded_by = current_user.employee.id
+    uploaded_by = _uploaded_by(current_user)
 
     product = service.create(db, payload, image_files, uploaded_by)
     db.commit()
     db.refresh(product)
-
-    images_response = service.get_images(db, product)
-    response        = ProductResponse.model_validate(product)
-    response.images = images_response
-    return response
+    return _to_response(db, product)
 
 
 @router.get("/{product_no}", response_model=ProductResponse)
@@ -123,11 +131,8 @@ def get_product(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    product         = service.get_by_no_or_raise(db, product_no)
-    images_response = service.get_images(db, product)
-    response        = ProductResponse.model_validate(product)
-    response.images = images_response
-    return response
+    product = service.get_by_no_or_raise(db, product_no)
+    return _to_response(db, product)
 
 
 @router.put("/{product_no}", response_model=ProductResponse)
@@ -151,11 +156,7 @@ async def update_product(
         )
 
     image_files = _validate_images(images)
-
-    uploaded_by = None
-    if hasattr(current_user, "employee") and current_user.employee:
-        uploaded_by = current_user.employee.id
-
+    uploaded_by = _uploaded_by(current_user)
     product = service.update(
         db, product_no, payload,
         new_images     = image_files,
@@ -164,11 +165,7 @@ async def update_product(
     )
     db.commit()
     db.refresh(product)
-
-    images_response = service.get_images(db, product)
-    response        = ProductResponse.model_validate(product)
-    response.images = images_response
-    return response
+    return _to_response(db, product)
 
 
 @router.post("/{product_no}/deactivate", response_model=ProductResponse)
@@ -180,10 +177,7 @@ def deactivate_product(
     product         = service.deactivate(db, product_no)
     db.commit()
     db.refresh(product)
-    images_response = service.get_images(db, product)
-    response        = ProductResponse.model_validate(product)
-    response.images = images_response
-    return response
+    return _to_response(db, product)
 
 
 @router.post("/{product_no}/activate", response_model=ProductResponse)
@@ -195,7 +189,4 @@ def activate_product(
     product         = service.activate(db, product_no)
     db.commit()
     db.refresh(product)
-    images_response = service.get_images(db, product)
-    response        = ProductResponse.model_validate(product)
-    response.images = images_response
-    return response
+    return _to_response(db, product)

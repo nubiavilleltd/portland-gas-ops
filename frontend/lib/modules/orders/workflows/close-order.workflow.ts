@@ -4,21 +4,6 @@ import { canCloseOrder } from "../guards/orders.guards";
 import { AuditService } from "../../audit/services/audit.service";
 import { CURRENT_ACTOR } from "../../audit/constants/current-actor";
 
-// export async function closeOrderWorkflow(order: Order) {
-//   if (!order) {
-//     throw new Error("Order not loaded");
-//   }
-
-//   if (!canCloseOrder(order)) {
-//     throw new Error("Only delivered orders can be closed");
-//   }
-
-
-//   return OrdersService.closeOrder(order.id);
-// }
-
-
-
 
 export async function closeOrderWorkflow(order: Order) {
   if (!order) {

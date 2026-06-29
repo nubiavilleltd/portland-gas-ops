@@ -8,7 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useProductById } from "@/lib/modules/products/hooks/useProducts";
+import { useProductByNo } from "@/lib/modules/products/hooks/useProducts";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { parseError } from "@/lib/errors";
@@ -28,20 +28,18 @@ import { isConsumable } from "@/lib/modules/products/types/product.types";
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const productNo = params.id as string;
 
-  const { product, isLoading, error } = useProductById(id);
-  const { stock, quantity } = useConsumableStockByProduct(
-    product?.id as string,
-  );
-  const { movements } = useStockMovementsByProduct(product?.id as string);
+  const { product, isLoading, error } = useProductByNo(productNo);
+  const { stock, quantity } = useConsumableStockByProduct(productNo);
+  const { movements } = useStockMovementsByProduct(productNo);
   const isLow =
     product?.minimum_stock != null && quantity <= product?.minimum_stock;
   // const [actionError, setActionError] = useState<string | null>(null);
 
   const isActive = product?.status == "active";
   const { mutate: toggleStatus, isPending: isToggling } =
-    useToggleProductStatus(id);
+    useToggleProductStatus(productNo);
 
   if (isLoading) {
     return (
@@ -69,26 +67,6 @@ export default function ProductDetailPage() {
     );
   }
 
-  // async function handleToggleStatus() {
-  //     if (!product) return;
-  //     setIsToggling(true);
-  //     setActionError(null);
-  //     try {
-  //         const updated = product.status === "active"
-  //             ? await ProductsService.deactivateProduct(product.id)
-  //             : await ProductsService.activateProduct(product.id);
-  //         toast.success(`${updated.name} is now ${updated.status}`);
-  //         // Refresh by navigating back to list — refetch will pick up the change
-  //         // router.push(PRODUCT_ROUTES.list());
-  //         router.push(`/admin${PRODUCT_ROUTES.list()}`)
-  //     } catch (err) {
-  //         setActionError(parseError(err));
-  //     } finally {
-  //         setIsToggling(false);
-  //     }
-  // }
-
-  //   const unitLabel = getUnitLabel(product);
 
   return (
     <AppLayout pageTitle={product.name}>
@@ -115,8 +93,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            // href={PRODUCT_ROUTES.edit(product.id)}
-            href={PRODUCT_ROUTES.edit(product.id)}
+            href={PRODUCT_ROUTES.edit(productNo)}
             leftIcon={<Pencil size={14} />}
           >
             Edit

@@ -19,8 +19,8 @@ export const productsApi = {
         return data;  // BackendProductList — adapter handles in service
     },
 
-    get: async (id: string) => {
-        const { data } = await api.get(`/api/products/${id}`);
+    get: async (productNo: string) => {
+        const { data } = await api.get(`/api/products/${productNo}`);
         return data;  // BackendProduct
     },
 
@@ -49,7 +49,7 @@ export const productsApi = {
     },
 
     update: async (
-        id: string,
+        productNo: string,
         input: UpdateProductInput,
         newImageFiles: File[],
         keptImageIds: string[],
@@ -68,19 +68,19 @@ export const productsApi = {
         form.append("kept_image_ids", JSON.stringify(keptImageIds));
         newImageFiles.forEach((file) => form.append("images", file));
 
-        const { data } = await api.put(`/api/products/${id}`, form, {
+        const { data } = await api.put(`/api/products/${productNo}`, form, {
             headers: { "Content-Type": "multipart/form-data" },
         });
         return data;
     },
 
-    activate: async (id: string) => {
-        const { data } = await api.post(`/api/products/${id}/activate`);
+    activate: async (productNo: string) => {
+        const { data } = await api.post(`/api/products/${productNo}/activate`);
         return data;
     },
 
-    deactivate: async (id: string) => {
-        const { data } = await api.post(`/api/products/${id}/deactivate`);
+    deactivate: async (productNo: string) => {
+        const { data } = await api.post(`/api/products/${productNo}/deactivate`);
         return data;
     },
 };

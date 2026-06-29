@@ -18,30 +18,7 @@ import { ProductImage } from "@/lib/modules/products/types/product.types";
 export default function NewProductPage() {
   const router = useRouter();
 
-  // async function handleSubmit(data: CreateProductFormOutput) {
-
-  //   await ProductsService.createProduct(data);
-  //   toast.success("Product Created successfully")
-  //   router.push(PRODUCT_ROUTES.list());
-  // }
-
   const { mutateAsync: createProduct, isPending } = useCreateProduct();
-
-// async function handleSubmit(data: CreateProductFormOutput) {
-//   await createProduct(data);
-// }
-
-
-
-// async function handleSubmit(data: CreateProductFormOutput, images: File[], _keptImages: ProductImage[]) {
-//   const productImages: ProductImage[] = images.map((file, i) => ({
-//     id:   `img-local-${Date.now()}-${i}`,
-//     url:  URL.createObjectURL(file),
-//     name: file.name,
-//   }));
-
-//   await createProduct({ ...data, images: productImages });
-// }
 
 // REPLACE the existing handleSubmit function:
 async function handleSubmit(data: CreateProductFormOutput, images: File[], _keptImages: ProductImage[]) {

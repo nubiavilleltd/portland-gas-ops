@@ -23,7 +23,7 @@ export interface Product {
   id: string;
   name: string;
   code?: string;
-  // product_no?: string;
+  product_no: string;
   description?: string;
   default_unit_price: number;
   unit: ProductUnit;
