@@ -433,9 +433,23 @@ def upsert_template(db, seed: ChecklistTemplateSeed) -> None:
     )
 
     if template is None:
-        template = SafetyChecklistTemplate(id=seed.id, code=seed.code, version=seed.version)
+        template = (
+            db.query(SafetyChecklistTemplate)
+            .filter(
+                SafetyChecklistTemplate.parent_type == seed.parent_type,
+                SafetyChecklistTemplate.stage == seed.stage,
+                SafetyChecklistTemplate.is_active == True,
+            )
+            .order_by(SafetyChecklistTemplate.version.desc())
+            .first()
+        )
+
+    if template is None:
+        template = SafetyChecklistTemplate(id=seed.id)
         db.add(template)
 
+    template.code = seed.code
+    template.version = seed.version
     template.name = seed.name
     template.parent_type = seed.parent_type
     template.stage = seed.stage
@@ -478,6 +492,16 @@ def upsert_template(db, seed: ChecklistTemplateSeed) -> None:
             SafetyChecklistItem.item_key.notin_(active_keys),
         )
         .update({SafetyChecklistItem.is_active: False}, synchronize_session=False)
+    )
+    (
+        db.query(SafetyChecklistTemplate)
+        .filter(
+            SafetyChecklistTemplate.parent_type == seed.parent_type,
+            SafetyChecklistTemplate.stage == seed.stage,
+            SafetyChecklistTemplate.id != template.id,
+            SafetyChecklistTemplate.is_active == True,
+        )
+        .update({SafetyChecklistTemplate.is_active: False}, synchronize_session=False)
     )
 
 

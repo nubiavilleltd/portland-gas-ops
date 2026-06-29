@@ -106,11 +106,11 @@ export default function WorkAuthorizationForm() {
       },
       riskIndicators: {
         gasInvolved: riskAnswers.gas_involved === "Yes",
-        pressurizedSystem: false,
-        heatOrSparks: riskAnswers.hot_work === "Yes",
-        electricalIsolation: riskAnswers.gas_isolation_confirmed !== "Yes",
-        liftingEquipment: false,
-        ppeAvailable: true,
+        pressurizedSystem: riskAnswers.pressurized_system === "Yes",
+        heatOrSparks: riskAnswers.heat_or_sparks === "Yes",
+        electricalIsolation: riskAnswers.electrical_isolation === "Yes",
+        liftingEquipment: riskAnswers.lifting_equipment === "Yes",
+        ppeAvailable: riskAnswers.ppe_available === "Yes",
         additionalSafetyNote: safetyNote,
       },
       attachments: safetyFiles.map((file) => ({
