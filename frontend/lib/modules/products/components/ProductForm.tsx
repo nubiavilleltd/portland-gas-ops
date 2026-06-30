@@ -19,24 +19,12 @@ import type {
   ProductImage,
   ProductUnit,
 } from "@/lib/modules/products/types/product.types";
-import { Currency } from "lucide-react";
-import CurrencyInput from "@/components/forms/CurrencyInput";
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { useState } from "react";
+import { PRODUCT_TYPE_OPTIONS, PRODUCT_UNIT_OPTIONS, UNIT_OPTIONS } from "../constants/product.constants";
 
-// ── Unit options ───────────────────────────────────────────
-const UNIT_OPTIONS: Array<{ value: ProductUnit; label: string }> = [
-  { value: "kg", label: "Kilograms (kg)" },
-  { value: "litre", label: "Litres (L)" },
-  { value: "m3", label: "Cubic Metres (m³)" },
-  { value: "tonne", label: "Metric Tonnes (t)" },
-];
 
-const PRODUCT_TYPE_OPTIONS = [
-  { value: "consumable", label: "Consumable (CNG, LNG, LPG)" },
-  { value: "tracked", label: "Tracked Asset (Cylinder, Generator)" },
-];
 
 // ── Props ──────────────────────────────────────────────────
 interface ProductFormProps {
@@ -81,23 +69,25 @@ export default function ProductForm({
           name: initial.name,
           unit: initial.unit,
           code: initial.code,
-          default_unit_price: String(initial.default_unit_price),
+          defaultUnitPrice: String(initial.defaultUnitPrice),
           description: initial.description ?? "",
-          product_type: initial.product_type,
-          minimum_stock: initial.minimum_stock ? String(initial.minimum_stock) : "",
+          productType: initial.productType,
+          minimumStock: initial.minimumStock
+            ? String(initial.minimumStock)
+            : "",
         }
       : {
           name: "",
           unit: "kg",
           code: "",
-          default_unit_price: "",
+          defaultUnitPrice: "",
           description: "",
-          product_type: "consumable",
-          minimum_stock: "",
+          productType: "consumable",
+          minimumStock: "",
         },
   });
 
-  const productType = watch("product_type");
+  const productType = watch("productType");
 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
 
@@ -140,7 +130,7 @@ export default function ProductForm({
 
         <Controller
           control={control}
-          name="product_type"
+          name="productType"
           render={({ field }) => (
             <FormSelect
               label="Product Type"
@@ -156,7 +146,7 @@ export default function ProductForm({
                   setValue("unit", "kg"); // ← reset to default when switching back
                 }
               }}
-              error={errors.product_type?.message}
+              error={errors.productType?.message}
               hint="Consumables are quantity-based. Tracked assets are individually tagged."
             />
           )}
@@ -217,16 +207,16 @@ export default function ProductForm({
             inputMode="numeric"
             placeholder="e.g. 10,000"
             hint="Alert when stock falls at or below this level. Leave blank for no alert."
-            error={errors.minimum_stock?.message}
-            {...register("minimum_stock")}
+            error={errors.minimumStock?.message}
+            {...register("minimumStock")}
           />
         )}
 
         <FormCurrencyInput
           control={control}
-          name="default_unit_price"
+          name="defaultUnitPrice"
           label="Default Unit Price (₦)"
-          error={errors.default_unit_price?.message}
+          error={errors.defaultUnitPrice?.message}
           required
         />
         {/* 
@@ -237,8 +227,8 @@ export default function ProductForm({
                     required
                     placeholder="e.g. 1,500,000"
                     // hint="Suggested price per unit. Can be overridden on each order."
-                    error={errors.default_unit_price?.message}
-                    {...register("default_unit_price")}
+                    error={errors.defaultUnitPrice?.message}
+                    {...register("defaultUnitPrice")}
                 /> */}
       </div>
 

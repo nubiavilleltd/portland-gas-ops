@@ -1,5 +1,3 @@
-
-
 // ============================================================
 //  PRODUCTS SELECTORS
 //  Pure functions. No imports from mock files. No side effects.
@@ -14,7 +12,7 @@ export function getProductByNo(
   products: Product[],
   productNo: string
 ): Product | undefined {
-  return products.find((p) => p.product_no === productNo);
+  return products.find((p) => p.productNo === productNo);
 }
 
 export function getProductById(
@@ -35,4 +33,9 @@ export function getProductSelectOptions(
     value: p.id,
     label: p.name,
   }));
+}
+
+export function getStockStatus(product: Product, quantity: number) {
+  return product?.minimumStock != null &&
+    quantity <= product?.minimumStock;
 }

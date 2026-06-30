@@ -6,10 +6,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 
 import type { CreateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
-import { ProductsService } from "@/lib/modules/products/services/products.service";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import ProductForm from "@/lib/modules/products/components/ProductForm";
-import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
 import { useCreateProduct } from "@/lib/modules/products/hooks/useProductMutations";
@@ -18,7 +16,7 @@ import { ProductImage } from "@/lib/modules/products/types/product.types";
 export default function NewProductPage() {
   const router = useRouter();
 
-  const { mutateAsync: createProduct, isPending } = useCreateProduct();
+  const { mutateAsync: createProduct } = useCreateProduct();
 
 // REPLACE the existing handleSubmit function:
 async function handleSubmit(data: CreateProductFormOutput, images: File[], _keptImages: ProductImage[]) {

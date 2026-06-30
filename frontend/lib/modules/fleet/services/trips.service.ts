@@ -31,7 +31,7 @@ async function tripHasTrackedItems(trip: Trip): Promise<boolean> {
   return linkedOrders.some((order) =>
     order?.order_items?.some((item) => {
       const product = products.find((p) => p.id === item.product_id);
-      return product?.product_type === "tracked";
+      return product?.productType === "tracked";
     }),
   );
 }

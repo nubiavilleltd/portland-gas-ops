@@ -63,7 +63,7 @@ export function useToggleProductStatus(productNo: string) {
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.lists() });
       queryClient.invalidateQueries({ queryKey: PRODUCT_KEYS.detail(productNo) });
       toast.success(isActive ? "Product deactivated" : "Product activated");
-      router.push(PRODUCT_ROUTES.list());
+      // router.push(PRODUCT_ROUTES.list());
     },
 
     onError: (err: any) => {

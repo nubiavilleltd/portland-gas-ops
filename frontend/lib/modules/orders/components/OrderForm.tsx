@@ -116,7 +116,7 @@ export default function OrderForm({
 
   const productOptions = activeProducts.map((p) => {
     const stockInfo =
-      p.product_type === "tracked"
+      p.productType === "tracked"
         ? `${getAvailableCount(inventoryItems, p.id)} unit(s) available`
         : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
 
@@ -428,7 +428,7 @@ export default function OrderForm({
           });
           setValue(
             `order_items.${pickerIndex}.unit_price`,
-            product.default_unit_price,
+            product.defaultUnitPrice || 0,
           );
           setPickerIndex(null);
         }}

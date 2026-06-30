@@ -30,11 +30,11 @@ export default function ProductsPage() {
       render: (_value, product) => product.unit,
     },
     {
-      key:   "default_unit_price",
+      key:   "defaultUnitPrice",
       label: "Default Unit Price",
     //   render: (value, product) =>
     //     `${formatCurrency(value as number)} / ${getUnitLabel(product) || product.unit}`,
-      render: (_value, product:Product) => formatCurrency(product.default_unit_price),
+      render: (_value, product:Product) => formatCurrency(product.defaultUnitPrice),
     },
     {
       key:   "description",
@@ -69,7 +69,7 @@ export default function ProductsPage() {
         data={products}
         isLoading={isLoading}
         // error={error}
-        rowHref={(product) => PRODUCT_ROUTES.detail(product.product_no)}
+        rowHref={(product) => PRODUCT_ROUTES.detail(product.productNo)}
         emptyMessage="No products found. Add your first product to get started."
       />
     </AppLayout>
