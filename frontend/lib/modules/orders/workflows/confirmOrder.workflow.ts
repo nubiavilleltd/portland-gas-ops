@@ -20,19 +20,29 @@ import { CURRENT_ACTOR } from "../../audit/constants/current-actor";
 
 
 
-export async function confirmOrderWorkflow(order: Order) {
+// export async function confirmOrderWorkflow(order: Order) {
+//   if (!canConfirmOrder(order)) {
+//     throw new Error("Order cannot be confirmed");
+//   }
+//   const updated = await OrdersService.confirmOrder(order.id);
+
+//   await AuditService.record({
+//     entity_type: "order",
+//     entity_id: order.id,
+//     action: "confirmed",
+//     description: "Order manually confirmed",
+//     actor: CURRENT_ACTOR,
+//   });
+
+//   return updated;
+// }
+
+
+
+
+export async function confirmOrderWorkflow(order: Order): Promise<Order> {
   if (!canConfirmOrder(order)) {
     throw new Error("Order cannot be confirmed");
   }
-  const updated = await OrdersService.confirmOrder(order.id);
-
-  await AuditService.record({
-    entity_type: "order",
-    entity_id: order.id,
-    action: "confirmed",
-    description: "Order manually confirmed",
-    actor: CURRENT_ACTOR,
-  });
-
-  return updated;
+  return OrdersService.confirmOrder(order.id);
 }

@@ -14,6 +14,7 @@ from app.shared.services.cloudinary_service import get_storage_service, Resource
 from app.core.exceptions import AppException, ErrorCode
 from app.products.error_codes import ProductErrorCode
 from app.shared.models.document import Document
+from app.shared.utils.number_generator import generate_entity_no
 
 
 class ProductService:
@@ -29,6 +30,15 @@ class ProductService:
                 status_code=404,
                 error_code=ProductErrorCode.PRODUCT_NOT_FOUND,
                 message=f"Product {product_id} not found",
+            )
+        return product
+    def get_by_no_or_raise(self, db: Session, product_no: str) -> Product:
+        product = self.repo.get_by_no(db, product_no)
+        if not product:
+            raise AppException(
+                status_code=404,
+                error_code=ProductErrorCode.PRODUCT_NOT_FOUND,
+                message=f"Product {product_no} not found",
             )
         return product
 
@@ -69,10 +79,12 @@ class ProductService:
             )
 
         try:
+            product_no = generate_entity_no(db, Product, "product_no", "PRD")
             product = self.repo.create(
                 db,
                 name               = data.name,
                 code               = data.code,
+                product_no=product_no,
                 description        = data.description,
                 product_type       = data.product_type,
                 unit               = data.unit,
@@ -129,13 +141,13 @@ class ProductService:
     def update(
         self,
         db:          Session,
-        product_id:  str,
+        product_no:  str,
         data:        ProductUpdate,
         new_images:  list[tuple[bytes, str, str, int]] = None,
         kept_image_ids: list[str] = None,
         uploaded_by: Optional[str] = None,
     ) -> Product:
-        product = self.get_or_raise(db, product_id)
+        product = self.get_by_no_or_raise(db, product_no)
 
         # Name uniqueness on update
         if data.name and data.name.strip().lower() != product.name.lower():
@@ -163,7 +175,7 @@ class ProductService:
 
         # Handle image changes
         if new_images is not None or kept_image_ids is not None:
-            existing_docs = self.repo.get_product_images(db, product_id)
+            existing_docs = self.repo.get_product_images(db, product.id)
             kept_ids_set  = set(kept_image_ids or [])
 
             # Delete images that were removed
@@ -205,8 +217,8 @@ class ProductService:
 
         return product
 
-    def activate(self, db: Session, product_id: str) -> Product:
-        product = self.get_or_raise(db, product_id)
+    def activate(self, db: Session, product_no: str) -> Product:
+        product = self.get_by_no_or_raise(db, product_no)
         if not guards.can_activate(product):
             raise AppException(
                 status_code=400,
@@ -215,8 +227,8 @@ class ProductService:
             )
         return self.repo.update(db, product, status=ProductStatus.active)
 
-    def deactivate(self, db: Session, product_id: str) -> Product:
-        product = self.get_or_raise(db, product_id)
+    def deactivate(self, db: Session, product_no: str) -> Product:
+        product = self.get_by_no_or_raise(db, product_no)
         if not guards.can_deactivate(product):
             raise AppException(
                 status_code=400,

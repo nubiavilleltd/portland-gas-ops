@@ -316,10 +316,8 @@ export class TripsService {
     for (const orderId of trip.order_ids) {
       const order = await OrdersService.getOrderById(orderId);
       if (order && order.fulfillment_status !== "delivered") {
-        await OrdersService.updateOrder(orderId, {
-          fulfillment_status: "pending",
-          trip_id: null,
-        } as UpdateOrderInput);
+       await OrdersService.updateFulfillmentStatus(orderId, "pending");
+await OrdersService.setTrip(orderId, null);   // null removes trip assignment
       }
     }
 

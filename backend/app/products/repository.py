@@ -13,7 +13,8 @@ class ProductRepository:
 
     def get_by_id(self, db: Session, product_id: str) -> Optional[Product]:
         return db.query(Product).filter(Product.id == product_id).first()
-
+    def get_by_no(self, db: Session, product_no: str) -> Optional[Product]:
+        return db.query(Product).filter(Product.product_no == product_no).first()
     def get_by_name(self, db: Session, name: str) -> Optional[Product]:
         return db.query(Product).filter(
             func.lower(Product.name) == name.lower().strip()

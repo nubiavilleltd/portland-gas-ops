@@ -29,14 +29,20 @@ export function useAuth() {
 
   async function logout(): Promise<void> {
     try {
-      await post("/api/auth/logout");
+      // Must await — the backend clears the HttpOnly refresh_token cookie.
+      // Without waiting, router.push("/login") fires before the cookie is gone,
+      // and middleware sees the cookie and redirects back to "/".
+      // 3-second timeout prevents a hanging UI if the backend is unreachable.
+      await Promise.race([
+        post("/api/auth/logout"),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+      ]);
     } catch {
-      // clear locally regardless
-    } finally {
-      await clearTokens();
-      queryClient.clear(); // Wipe all cached data so next user starts fresh
-      router.push("/login");
+      // Proceed with local cleanup regardless
     }
+    await clearTokens();
+    queryClient.clear();
+    router.push("/login");
   }
 
   async function refreshToken(): Promise<string | null> {

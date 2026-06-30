@@ -5,6 +5,7 @@ import datetime
 
 from app.customers.model import Customer
 from app.customers.enums import CustomerStatus
+from app.shared.utils.number_generator import generate_entity_no
 
 
 class CustomerRepository:
@@ -15,23 +16,12 @@ class CustomerRepository:
     """
 
     def generate_customer_no(self, db: Session) -> str:
-        """
-        Atomic customer number generation.
-        Format: CUS-YYYYMMDD-NNN
-        Uses COUNT to derive next sequence within the day — not a race condition
-        because the UNIQUE constraint on customer_no is the true atomicity guard.
-        If two concurrent inserts try to generate the same number, one will get
-        a unique constraint violation, which the service layer catches and retries.
-        """
-        today = datetime.date.today().strftime("%Y%m%d")
-        prefix = f"CUS-{today}-"
-        count = db.query(func.count(Customer.id)).filter(
-            Customer.customer_no.like(f"{prefix}%")
-        ).scalar() or 0
-        return f"{prefix}{str(count + 1).zfill(3)}"
+        return generate_entity_no(db, Customer, "customer_no", "CUS")
 
     def get_by_id(self, db: Session, customer_id: str) -> Optional[Customer]:
         return db.query(Customer).filter(Customer.id == customer_id).first()
+    def get_by_no(self, db: Session, customer_no: str) -> Optional[Customer]:
+        return db.query(Customer).filter(Customer.customer_no == customer_no).first()
 
     def get_by_email(self, db: Session, email: str) -> Optional[Customer]:
         return db.query(Customer).filter(Customer.email == email).first()

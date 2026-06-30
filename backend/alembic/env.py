@@ -23,6 +23,10 @@ from app.safety.incidents import models as _safety_incident_models  # noqa: F401
 from app.safety.work_initiations import models as _safety_work_initiation_models  # noqa: F401
 from app.safety.work_authorizations import models as _safety_work_authorization_models  # noqa: F401
 
+from app.payments.model import Payment   # noqa: F401
+from app.orders.model import Order, OrderItem  # noqa: F401
+from app.invoices.model import Invoice   # noqa: F401
+
 config = context.config
 
 # Override sqlalchemy.url from settings (reads .env)
