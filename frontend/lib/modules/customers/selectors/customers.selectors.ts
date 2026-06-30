@@ -15,6 +15,13 @@ export function getCustomerByNo(
   return customers.find((c) => c.customerNo === customerNo);
 }
 
+export function getCustomerById(
+  customers: Customer[],
+  id: string
+): Customer | undefined {
+  return customers.find((c) => c.id === id);
+}
+
 export function getCustomersByType(
   customers: Customer[],
   type: CustomerType

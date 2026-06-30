@@ -7,5 +7,5 @@ export async function cancelOrderWorkflow(order: Order, reason?: string): Promis
     throw new Error("This order cannot be cancelled in its current state");
   }
   // Backend handles: cancel + void invoice + update payment_status — all in one transaction
-  return OrdersService.cancelOrder(order.id, reason);
+  return OrdersService.cancelOrder(order.order_number, reason);
 }

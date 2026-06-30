@@ -8,7 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useCustomerById } from "@/lib/modules/customers/hooks/useCustomers";
+import { useCustomerByNo } from "@/lib/modules/customers/hooks/useCustomers";
 import type { CreateCustomerFormData } from "@/lib/modules/customers/schemas/customer.schema";
 import { CustomersService } from "@/lib/modules/customers/services/customers.service";
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
@@ -18,9 +18,9 @@ import FormSection from "@/components/ui/FormSection";
 export default function EditCustomerPage() {
   const params = useParams();
   const router = useRouter();
-  const id     = params.id as string;
+  const id = params.id as string;
 
-  const { customer, isLoading, error } = useCustomerById(id);
+  const { customer, isLoading, error } = useCustomerByNo(id);
 
   if (isLoading) {
     return (
@@ -69,21 +69,21 @@ export default function EditCustomerPage() {
         className="mb-6"
       />
 
-    
 
 
-<FormSection
-  title="Customer Information"
-  description="Edit customer details and contact information"
->
-  <CustomerForm
+
+      <FormSection
+        title="Customer Information"
+        description="Edit customer details and contact information"
+      >
+        <CustomerForm
           initial={customer}
           onSubmit={handleSubmit}
           onCancel={() => router.push(CUSTOMER_ROUTES.detail(id))}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />
-</FormSection>
+      </FormSection>
 
 
     </AppLayout>
