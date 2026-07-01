@@ -2,10 +2,9 @@
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
-import { useSafetyDemoData } from "@/lib/safety-demo-store";
+import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
@@ -18,7 +17,11 @@ const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
 };
 
 const columns: Column<IncidentHazardReport>[] = [
-  { key: "id", label: "Reference" },
+  {
+    key: "reference",
+    label: "Reference",
+    render: (value, row) => String(value || row.id),
+  },
   {
     key: "title",
     label: "Title",
@@ -70,13 +73,9 @@ export default function IncidentHazardReportsTable({
 }: {
   scope?: "user" | "admin";
 }) {
-  const { incidentHazards } = useSafetyDemoData();
+  const reportsQuery = useIncidentReports();
   const reports = sortByLatestSafetyActivity(
-    incidentHazards.filter(
-      (report) =>
-        report.status !== "draft" &&
-        (scope === "admin" || isSafetyCurrentUser(report.reporter.name)),
-    ),
+    (reportsQuery.data ?? []).filter((report) => report.status !== "draft"),
     (report) => report.dateTimeObserved || report.reporter.reportDate,
   );
 
@@ -84,10 +83,15 @@ export default function IncidentHazardReportsTable({
     <DataTable
       columns={columns}
       data={reports}
+      isLoading={reportsQuery.isLoading}
       rowHref={(report) =>
         scope === "admin" ? getAdminIncidentHref(report) : `/safety/incidents/${report.id}`
       }
-      emptyMessage="No incident or hazard reports found."
+      emptyMessage={
+        reportsQuery.isError
+          ? "Incident or hazard reports could not be loaded."
+          : "No incident or hazard reports found."
+      }
     />
   );
 }

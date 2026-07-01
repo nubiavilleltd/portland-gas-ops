@@ -94,6 +94,7 @@ export interface WorkInitiationReview {
 
 export interface WorkInitiationRequest {
   id: string;
+  reference?: string;
   status: WorkInitiationStatus;
   requester: WorkAuthorizationRequester;
   title: string;
@@ -312,6 +313,7 @@ export interface IncidentHazardHseReview {
   rootCause: string;
   correctiveActionRequired: boolean;
   correctiveActionDetails: string;
+  actionOwnerId?: string;
   actionOwner: string;
   assignedDepartment: string;
   targetCompletionDate: string;
@@ -322,6 +324,7 @@ export interface IncidentHazardHseReview {
 
 export interface IncidentHazardReport {
   id: string;
+  reference?: string;
   status: IncidentHazardStatus;
   reporter: IncidentHazardReporter;
   title: string;

@@ -17,6 +17,9 @@ import {
 import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
+import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
+import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 
 const yesNoOptions = [
@@ -35,6 +38,12 @@ export default function WorkCompletionForm() {
     ...getSafetyCurrentUser(),
     requestDate: formatLocalDate(),
   };
+  const completionChecklist = useActiveSafetyChecklist("work_closeout", "completion");
+  const monitoringChecklist = useActiveSafetyChecklist("work_closeout", "monitoring");
+  const areaConditionChecklist = useActiveSafetyChecklist(
+    "work_closeout",
+    "closeout_review",
+  );
   const workAuthorizations: ApprovedWorkAuthorizationOption[] = storedWorkAuthorizations
     .filter((request) => request.status === "approved" && isSafetyCurrentUser(request.requester.name))
     .map((request) => ({
@@ -141,6 +150,14 @@ export default function WorkCompletionForm() {
     }, 700);
   }
 
+  if (
+    completionChecklist.isLoading ||
+    monitoringChecklist.isLoading ||
+    areaConditionChecklist.isLoading
+  ) {
+    return <SafetyProcessFormSkeleton sections={5} />;
+  }
+
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
       <FormSection title="Requester Details" description="Your employee information for this work completion request.">
@@ -171,41 +188,51 @@ export default function WorkCompletionForm() {
         <div className="grid gap-4 md:grid-cols-2">
           <FormDateTimeInput label="Actual Start Date/Time" required value={actualStartDateTime} onValueChange={setActualStartDateTime} />
           <FormDateTimeInput label="Actual Completion Date/Time" required value={actualCompletionDateTime} onValueChange={setActualCompletionDateTime} />
+          {completionChecklist.isError ? (
+            <p className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Closeout completion checklist template is not available.
+            </p>
+          ) : null}
           <div className="md:col-span-2">
             <SafetyChoiceTable
               options={yesNoOptions}
-              rows={[
-                { label: "Was work completed?", required: true, value: workCompleted, onValueChange: setWorkCompleted },
-                {
-                  label: "Was work completed as approved?",
-                  required: true,
-                  value: completedAsApproved,
-                  onValueChange: setCompletedAsApproved,
-                },
-              ]}
+              rows={(completionChecklist.data?.items ?? [])
+                .filter((item) =>
+                  ["work_completed", "completed_as_approved", "incident_observed"].includes(
+                    item.item_key,
+                  ),
+                )
+                .map((item) => ({
+                  label: item.label,
+                  required: item.is_required,
+                  value:
+                    item.item_key === "work_completed"
+                      ? workCompleted
+                      : item.item_key === "completed_as_approved"
+                        ? completedAsApproved
+                        : incidentObserved,
+                  onValueChange:
+                    item.item_key === "work_completed"
+                      ? setWorkCompleted
+                      : item.item_key === "completed_as_approved"
+                        ? setCompletedAsApproved
+                        : setIncidentObserved,
+                }))}
             />
           </div>
-          <div className="md:col-span-2">
-            <SafetyChoiceTable
-              options={yesNoOptions}
-              rows={[
-                {
-                  label: "Any incident, hazard, or near miss observed?",
-                  required: true,
-                  value: incidentObserved,
-                  onValueChange: setIncidentObserved,
-                },
-              ]}
-            />
-          </div>
-          <FormTextarea
-            label="Completion Summary"
-            required
-            placeholder="Briefly describe what was completed"
-            className="md:col-span-2"
-            value={completionSummary}
-            onChange={(event) => setCompletionSummary(event.target.value)}
-          />
+          {completionChecklist.data?.items
+            .filter((item) => item.input_type === "text")
+            .map((item: SafetyChecklistItem) => (
+              <FormTextarea
+                key={item.id}
+                label={item.label}
+                required={item.is_required}
+                placeholder="Briefly describe what was completed"
+                className="md:col-span-2"
+                value={completionSummary}
+                onChange={(event) => setCompletionSummary(event.target.value)}
+              />
+            ))}
           {completedAsApproved === "No" ? (
             <FormTextarea
               label="Explanation for change/deviation"
@@ -244,32 +271,69 @@ export default function WorkCompletionForm() {
       </FormSection>
 
       <FormSection title="Monitoring Attestation" description="Confirm the work was monitored and remained within its approved scope.">
+        {monitoringChecklist.isError ? (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Closeout monitoring checklist template is not available.
+          </p>
+        ) : null}
         <SafetyChoiceTable
           options={yesNoNaOptions}
-          rows={[
-            { label: "Work was monitored during execution", required: true, value: monitoredDuringExecution, onValueChange: setMonitoredDuringExecution },
-            { label: "Work stayed within approved scope", required: true, value: stayedWithinScope, onValueChange: setStayedWithinScope },
-            { label: "Required PPE and safety controls were maintained", required: true, value: ppeAndControlsMaintained, onValueChange: setPpeAndControlsMaintained },
-            { label: "Unsafe condition was reported/addressed if noticed", required: true, value: unsafeConditionAddressed, onValueChange: setUnsafeConditionAddressed },
-          ]}
+          rows={(monitoringChecklist.data?.items ?? [])
+            .filter((item) => item.input_type === "boolean" || item.input_type === "enum")
+            .map((item) => ({
+              label: item.label,
+              required: item.is_required,
+              value:
+                item.item_key === "monitored_during_execution"
+                  ? monitoredDuringExecution
+                  : item.item_key === "stayed_within_scope"
+                    ? stayedWithinScope
+                    : item.item_key === "ppe_and_controls_maintained"
+                      ? ppeAndControlsMaintained
+                      : unsafeConditionAddressed,
+              onValueChange:
+                item.item_key === "monitored_during_execution"
+                  ? setMonitoredDuringExecution
+                  : item.item_key === "stayed_within_scope"
+                    ? setStayedWithinScope
+                    : item.item_key === "ppe_and_controls_maintained"
+                      ? setPpeAndControlsMaintained
+                      : setUnsafeConditionAddressed,
+            }))}
         />
       </FormSection>
 
       <FormSection title="Area / Equipment Condition" description="Confirm the work area and equipment were left in a safe condition.">
         <div className="space-y-4">
+          {areaConditionChecklist.isError ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Closeout area condition checklist template is not available.
+            </p>
+          ) : null}
           <SafetyChoiceTable
             options={yesNoOptions}
-            rows={[
-              { label: "Work area cleaned after completion", required: true, value: workAreaCleaned, onValueChange: setWorkAreaCleaned },
-              { label: "Tools/equipment removed from work area", required: true, value: toolsRemoved, onValueChange: setToolsRemoved },
-              { label: "Vehicle/equipment/system left in safe condition", required: true, value: systemSafe, onValueChange: setSystemSafe },
-              {
-                label: "Any remaining hazard?",
-                required: true,
-                value: remainingHazard,
-                onValueChange: setRemainingHazard,
-              },
-            ]}
+            rows={(areaConditionChecklist.data?.items ?? [])
+              .filter((item) => item.input_type === "boolean")
+              .map((item) => ({
+                label: item.label,
+                required: item.is_required,
+                value:
+                  item.item_key === "work_area_cleaned"
+                    ? workAreaCleaned
+                    : item.item_key === "tools_removed"
+                      ? toolsRemoved
+                      : item.item_key === "system_safe"
+                        ? systemSafe
+                        : remainingHazard,
+                onValueChange:
+                  item.item_key === "work_area_cleaned"
+                    ? setWorkAreaCleaned
+                    : item.item_key === "tools_removed"
+                      ? setToolsRemoved
+                      : item.item_key === "system_safe"
+                        ? setSystemSafe
+                        : setRemainingHazard,
+              }))}
           />
           {remainingHazard === "Yes" ? (
             <FormTextarea

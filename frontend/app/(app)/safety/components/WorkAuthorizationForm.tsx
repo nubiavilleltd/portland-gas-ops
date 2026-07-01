@@ -6,27 +6,22 @@ import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
-import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
+import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
+import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
 import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
 import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { AssignedWorkInitiationSummary } from "@/types/safety";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+import SafetyChoiceTable from "./SafetyChoiceTable";
 
-const optionFromStrings = (items: string[]): SelectOption[] =>
-  items.map((item) => ({ value: item, label: item }));
-
-const riskIndicatorOptions = optionFromStrings([
-  "Gas/CNG/LNG involved",
-  "Pressurized system involved",
-  "Heat, sparks, welding, cutting, or grinding",
-  "Electrical isolation required",
-  "Lifting/heavy equipment involved",
-  "All required PPE available",
-]);
+const yesNoOptions = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+];
 
 export default function WorkAuthorizationForm() {
   const router = useRouter();
@@ -36,6 +31,10 @@ export default function WorkAuthorizationForm() {
     ...getSafetyCurrentUser(),
     requestDate: formatLocalDate(),
   };
+  const riskChecklist = useActiveSafetyChecklist(
+    "work_authorization",
+    "risk_assessment",
+  );
   const approvedWorkInitiations = storedWorkInitiations
     .filter(
       (request) =>
@@ -63,7 +62,7 @@ export default function WorkAuthorizationForm() {
       plannedEndDateTime: request.assignment.plannedEndDateTime,
     }));
   const [selectedWorkInitiationId, setSelectedWorkInitiationId] = useState("");
-  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
+  const [riskAnswers, setRiskAnswers] = useState<Record<string, string>>({});
   const [safetyNote, setSafetyNote] = useState("");
   const [attachmentNotes, setAttachmentNotes] = useState("");
   const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
@@ -106,12 +105,12 @@ export default function WorkAuthorizationForm() {
         specialInstructions: "",
       },
       riskIndicators: {
-        gasInvolved: riskIndicators.includes("Gas/CNG/LNG involved"),
-        pressurizedSystem: riskIndicators.includes("Pressurized system involved"),
-        heatOrSparks: riskIndicators.includes("Heat, sparks, welding, cutting, or grinding"),
-        electricalIsolation: riskIndicators.includes("Electrical isolation required"),
-        liftingEquipment: riskIndicators.includes("Lifting/heavy equipment involved"),
-        ppeAvailable: riskIndicators.includes("All required PPE available"),
+        gasInvolved: riskAnswers.gas_involved === "Yes",
+        pressurizedSystem: riskAnswers.pressurized_system === "Yes",
+        heatOrSparks: riskAnswers.heat_or_sparks === "Yes",
+        electricalIsolation: riskAnswers.electrical_isolation === "Yes",
+        liftingEquipment: riskAnswers.lifting_equipment === "Yes",
+        ppeAvailable: riskAnswers.ppe_available === "Yes",
         additionalSafetyNote: safetyNote,
       },
       attachments: safetyFiles.map((file) => ({
@@ -133,6 +132,10 @@ export default function WorkAuthorizationForm() {
     window.setTimeout(() => {
       router.push("/safety/work-authorization");
     }, 700);
+  }
+
+  if (riskChecklist.isLoading) {
+    return <SafetyProcessFormSkeleton sections={5} />;
   }
 
   return (
@@ -164,22 +167,40 @@ export default function WorkAuthorizationForm() {
       <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
 
       <FormSection title="Safety / Risk Indicators" description="Identify safety considerations that apply before the work begins.">
-        <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
-          <FormMultiSelect
-            label="Risk Indicators"
-            required
-            searchable
-            options={riskIndicatorOptions}
-            placeholder="Select all risk indicators that apply"
-            value={riskIndicators}
-            onValueChange={setRiskIndicators}
-          />
-          <FormTextarea
-            label="Additional Safety Note"
-            placeholder="Add any extra safety concern"
-            value={safetyNote}
-            onChange={(event) => setSafetyNote(event.target.value)}
-          />
+        {riskChecklist.isError ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Risk assessment checklist template is not available.
+          </p>
+        ) : null}
+        <div className="space-y-4">
+          {riskChecklist.data ? (
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={riskChecklist.data.items
+                .filter((item) => item.input_type === "boolean")
+                .map((item) => ({
+                  label: item.label,
+                  required: item.is_required,
+                  value: riskAnswers[item.item_key] ?? "",
+                  onValueChange: (value) =>
+                    setRiskAnswers((current) => ({
+                      ...current,
+                      [item.item_key]: value,
+                    })),
+                }))}
+            />
+          ) : null}
+          {riskChecklist.data?.items
+            .filter((item) => item.input_type === "text")
+            .map((item: SafetyChecklistItem) => (
+              <FormTextarea
+                key={item.id}
+                label={item.label}
+                placeholder="Add any extra safety concern"
+                value={safetyNote}
+                onChange={(event) => setSafetyNote(event.target.value)}
+              />
+            ))}
         </div>
       </FormSection>
 

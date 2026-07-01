@@ -11,13 +11,17 @@ from app.core.config import settings
 from app.core.database import Base
 
 # Import all models so Alembic can detect them
-from app.shared.models import user, token, document, approval  # noqa: F401
+from app.shared.models import approval, document, reference_counter, token, user  # noqa: F401
 from app.employees import models as _employee_models  # noqa: F401
 from app.vendors import models as _vendor_models  # noqa: F401
 from app.assets import models as _asset_models  # noqa: F401
 from app.procurement import models as _procurement_models  # noqa: F401
 from app.products.model import Product    # noqa: F401
 from app.customers.model import Customer 
+from app.safety.checklists import models as _safety_checklist_models  # noqa: F401
+from app.safety.incidents import models as _safety_incident_models  # noqa: F401
+from app.safety.work_initiations import models as _safety_work_initiation_models  # noqa: F401
+from app.safety.work_authorizations import models as _safety_work_authorization_models  # noqa: F401
 
 from app.payments.model import Payment   # noqa: F401
 from app.orders.model import Order, OrderItem  # noqa: F401
