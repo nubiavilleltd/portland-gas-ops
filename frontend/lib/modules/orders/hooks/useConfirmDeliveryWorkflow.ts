@@ -35,7 +35,7 @@ export function useConfirmDeliveryWorkflow() {
       );
 
       toast.success("Delivery confirmed");
-      router.push(ORDER_ROUTES.detail(updatedOrder.order_number));
+      router.push(ORDER_ROUTES.detail(updatedOrder.orderNumber));
     },
 
     onError: (err: any) => {

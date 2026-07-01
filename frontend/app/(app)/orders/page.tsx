@@ -8,8 +8,6 @@ import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-// import { getOrderActions } from "@/lib/modules/orders/actions/getOrderActions";
-
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
@@ -41,22 +39,22 @@ export default function OrdersListPage() {
 
 
   const columns: Column<Order>[] = [
-    { key: "order_number", label: "ORDER NO." },
+    { key: "orderNumber", label: "ORDER NO." },
 
     {
-      key: "customer_id", label: "CUSTOMER", render: (value) =>
+      key: "cutstomerId", label: "CUSTOMER", render: (value) =>
         customerMap[value as string]
           ?.name ?? "—"
     },
     {
-      key: "total_amount",
+      key: "totalAmount",
       label: "AMOUNT",
       render: (value) =>
         formatCurrency(Number(value)),
     },
 
     {
-      key: "delivery_date",
+      key: "deliveryDate",
       label: "DELIVERY DATE",
       render: (value) =>
         value
@@ -65,12 +63,12 @@ export default function OrdersListPage() {
     },
 
     {
-      key: "order_status",
+      key: "orderStatus",
       label: "ORDER STATUS",
       render: (value) => (
         <OrderStatusBadge
           status={
-            value as Order["order_status"]
+            value as Order["orderStatus"]
           }
         />
       ),
@@ -82,7 +80,7 @@ export default function OrdersListPage() {
       render: (value) => (
         <FulfillmentStatusBadge
           status={
-            value as Order["fulfillment_status"]
+            value as Order["fulfillmentStatus"]
           }
         />
       ),
@@ -94,39 +92,11 @@ export default function OrdersListPage() {
       render: (value) => (
         <PaymentStatusBadge
           status={
-            value as Order["payment_status"]
+            value as Order["paymentStatus"]
           }
         />
       ),
     },
-
-    // {
-    //   key: "actions",
-    //   label: "Actions",
-    //   render: (_, order) => {
-    //     const actions =
-    //       getOrderActions(order);
-
-    //     return (
-    //       <div className="flex gap-2">
-    //         {actions.map((action, idx) => (
-    //           <Button
-    //             key={idx}
-    //             size="sm"
-    //             variant={
-    //               action.variant === "outline"
-    //                 ? "outline"
-    //                 : "primary"
-    //             }
-    //             href={action.href}
-    //           >
-    //             {action.label}
-    //           </Button>
-    //         ))}
-    //       </div>
-    //     );
-    //   },
-    // },
   ];
 
   return (
@@ -164,7 +134,7 @@ export default function OrdersListPage() {
       <DataTable<Order>
         columns={columns}
         data={orders}
-        rowHref={(order) => ORDER_ROUTES.detail(order.order_number)}
+        rowHref={(order) => ORDER_ROUTES.detail(order.orderNumber)}
         emptyMessage="No orders found."
       />
     </AppLayout>

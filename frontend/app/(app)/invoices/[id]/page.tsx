@@ -16,6 +16,7 @@ import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBad
 
 import {
   useInvoiceById,
+  useInvoiceByNo,
 } from "@/lib/modules/invoices/hooks/useInvoices";
 
 import {
@@ -41,6 +42,7 @@ import { generateInvoicePdf } from "@/lib/pdf/invoice.pdf";
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const invoiceNo = params.id as string;
   const { customers } = useCustomers()
   const { products } = useProducts();
   const [downloading, setDownloading] = useState(false);
@@ -55,9 +57,8 @@ export default function InvoiceDetailPage() {
   const productMap = new Map(products.map((p) => [p.id, p]));
 
 
-  const id = params.id as string;
 
-  const { invoice } = useInvoiceById(id);
+  const { invoice } = useInvoiceByNo(invoiceNo);
 
   const { order } = useOrderById(
     invoice?.order_id ?? ""
@@ -96,20 +97,20 @@ export default function InvoiceDetailPage() {
     {
       label: "Product",
       render: (item) => (
-        <span className="font-medium">{item.product_name}</span>
+        <span className="font-medium">{item.productName}</span>
       ),
     },
     {
       label: "Quantity",
       render: (item) => {
-        const unit = productMap.get(item.product_id)?.unit ?? "unit";
+        const unit = productMap.get(item.productId)?.unit ?? "unit";
         // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
         return `${item.quantity.toLocaleString()} ${unit}`;
       },
     },
     {
       label: "Unit Price",
-      render: (item) => formatCurrency(item.unit_price),
+      render: (item) => formatCurrency(item.unitPrice),
     },
     {
       label: "Total",
@@ -144,7 +145,7 @@ export default function InvoiceDetailPage() {
     label: "",
     align: "right",
     render: (payment) => (
-      <Button size="sm" variant="outline" href={`/payments/${payment.id}/receipt`}>
+      <Button size="sm" variant="outline" href={`/payments/${payment.paymentNo}/receipt`}>
         Receipt
       </Button>
     ),
@@ -160,7 +161,7 @@ export default function InvoiceDetailPage() {
       await generateInvoicePdf({
         invoice,
         order,
-        customer: order ? customerMap[order.customer_id] : undefined,
+        customer: order ? customerMap[order.customerId] : undefined,
         payments: invoicePayments,
         amountPaid,
         productUnitMap,
@@ -278,10 +279,10 @@ export default function InvoiceDetailPage() {
             description="Linked order information for this invoice"
           >
             <div className="mb-4 grid grid-cols-2 gap-5 text-sm md:grid-cols-3">
-              <InfoRow label="Order Number" value={order.order_number} />
+              <InfoRow label="Order Number" value={order.orderNumber} />
               <InfoRow
                 label="Customer"
-                value={customerMap[order.customer_id]?.name ?? "—"}
+                value={customerMap[order.customerId]?.name ?? "—"}
               />
             </div>
 
@@ -289,7 +290,7 @@ export default function InvoiceDetailPage() {
               <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
               <SimpleTable
                 columns={itemColumns}
-                rows={order.order_items}
+                rows={order.orderItems}
                 keyExtractor={(_, index) => String(index)}
                 footer={
                   <tr>
@@ -297,14 +298,14 @@ export default function InvoiceDetailPage() {
                       Grand Total
                     </td>
                     <td className="pt-3 text-right font-semibold">
-                      {formatCurrency(order.total_amount)}
+                      {formatCurrency(order.totalAmount)}
                     </td>
                   </tr>
                 }
               />
             </div>
 
-            <Button variant="outline" href={`/orders/${order.id}`}>
+            <Button variant="outline" href={`/orders/${order.orderNumber}`}>
               View Order →
             </Button>
           </FormSection>
@@ -316,7 +317,7 @@ export default function InvoiceDetailPage() {
             {needsPayment(invoice.status) && canPay && (
               <Button
                 size="sm"
-                href={`/payments/new?invoiceId=${invoice.id}`}
+                href={`/payments/new?invoiceId=${invoice.invoice_number}`}
               >
                 Make Payment →
               </Button>

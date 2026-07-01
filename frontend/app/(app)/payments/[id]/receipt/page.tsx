@@ -29,7 +29,7 @@ export default function PaymentReceiptPage() {
   const { payments: allInvoicePayments } = usePaymentsByInvoice(payment?.invoice_id ?? "");
   const { customers } = useCustomers();
 
-  const customer = order ? customers.find((c) => c.id === order.customer_id) : undefined;
+  const customer = order ? customers.find((c) => c.id === order.customerId) : undefined;
 
   const isLoading = paymentLoading || invoiceLoading;
 

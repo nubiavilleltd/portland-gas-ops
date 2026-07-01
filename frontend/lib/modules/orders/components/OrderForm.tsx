@@ -98,21 +98,7 @@ export default function OrderForm({
   const { stock: consumableStock } = useConsumableStock();
   const activeProducts = getActiveProducts(products);
 
-  // const productOptions = activeProducts.map((p) => ({
-  //   value: p.id,
-  //   label: p.name,
-  // }));
 
-  //   const productOptions = activeProducts.map((p) => {
-  //   const stockInfo = p.product_type === "tracked"
-  //     ? `${getAvailableCount(inventoryItems, p.id)} available`
-  //     : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
-
-  //   return {
-  //     value: p.id,
-  //     label: `${p.name} — ${stockInfo}`,
-  //   };
-  // });
 
   const productOptions = activeProducts.map((p) => {
     const stockInfo =
@@ -130,24 +116,24 @@ export default function OrderForm({
   // ── Field array ─────────────────────────────────────────
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "order_items",
+    name: "orderItems",
   });
 
-  const orderItems = watch("order_items") ?? [];
+  const orderItems = watch("orderItems") ?? [];
 
   // ── Subtotal ─────────────────────────────────────────────
   const subtotal = orderItems.reduce((sum, item) => {
-    return sum + (item.quantity || 0) * (item.unit_price || 0);
+    return sum + (item.quantity || 0) * (item.unitPrice || 0);
   }, 0);
 
   // ── Columns ──────────────────────────────────────────────
   const columns: LineItemColumn<OrderLineItem>[] = [
     {
-      key: "product_id",
+      key: "productId",
       label: "Product",
       width: "2fr",
       renderCell: (row, index) => {
-        const selected = getProductById(products, row.product_id);
+        const selected = getProductById(products, row.productId);
         return (
           <button
             type="button"
@@ -177,7 +163,7 @@ export default function OrderForm({
       width: "130px",
 
       renderCell: (row, index, onChange) => {
-        const product = getProductById(products, row.product_id);
+        const product = getProductById(products, row.productId);
         const unitLabel = product ? getUnitLabel(product) : "";
         return (
           <div className="flex items-center gap-1">
@@ -204,15 +190,15 @@ export default function OrderForm({
     },
 
     {
-      key: "unit_price",
+      key: "unitPrice",
       label: "Unit Price (₦)",
       width: "140px",
       renderCell: (row, index, onChange) => (
         <CurrencyInput
-          value={row.unit_price || ""}
+          value={row.unitPrice || ""}
           placeholder="0.00"
           onValueChange={(raw) =>
-            onChange({ unit_price: parseFloat(raw) || 0 })
+            onChange({ unitPrice: parseFloat(raw) || 0 })
           }
           inputClassName="border-0 focus:ring-0 px-0 h-auto"
         />
@@ -223,7 +209,7 @@ export default function OrderForm({
       label: "Total",
       width: "120px",
       renderCell: (row) => {
-        const itemTotal = (row.quantity || 0) * (row.unit_price || 0);
+        const itemTotal = (row.quantity || 0) * (row.unitPrice || 0);
         return (
           <span className="text-sm font-medium text-brand-text-primary">
             {itemTotal > 0 ? formatCurrency(itemTotal) : "—"}
@@ -264,7 +250,7 @@ export default function OrderForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Controller
             control={control}
-            name="customer_id"
+            name="customerId"
             render={({ field }) => (
               <FormSelect
                 label="Customer"
@@ -273,7 +259,7 @@ export default function OrderForm({
                   customersLoading ? "Loading customers…" : "Select customer"
                 }
                 options={customerOptions}
-                error={errors.customer_id?.message}
+                error={errors.customerId?.message}
                 value={field.value}
                 onValueChange={field.onChange}
               />
@@ -295,7 +281,7 @@ export default function OrderForm({
           onChange={(index, patch) => {
             const current = orderItems[index];
             setValue(
-              `order_items.${index}`,
+              `orderItems.${index}`,
               { ...current, ...patch } as OrderLineItem,
               { shouldValidate: true },
             );
@@ -303,7 +289,7 @@ export default function OrderForm({
           addLabel="Add Product"
           totals={totals}
           minRows={1}
-          error={errors.order_items?.message}
+          error={errors.orderItems?.message}
         />
       </FormSection>
 
@@ -317,12 +303,12 @@ export default function OrderForm({
             {/* <FormDatePicker
               label="Scheduled Date"
               required
-              {...register("delivery_date")}
+              {...register("deliveryDate")}
             /> */}
 
             <Controller
               control={control}
-              name="delivery_date"
+              name="deliveryDate"
               render={({ field }) => (
                 <FormDatePicker
                   label="Delivery Date"
@@ -331,7 +317,7 @@ export default function OrderForm({
                   onValueChange={field.onChange}
                   onBlur={field.onBlur}
                   name={field.name}
-                  error={errors.delivery_date?.message}
+                  error={errors.deliveryDate?.message}
                 />
               )}
             />
@@ -339,8 +325,8 @@ export default function OrderForm({
               label="Delivery Address"
               required
               placeholder="Street, City, State"
-              error={errors.delivery_address?.message}
-              {...register("delivery_address")}
+              error={errors.deliveryAddress?.message}
+              {...register("deliveryAddress")}
             />
           </div>
 
@@ -413,7 +399,7 @@ export default function OrderForm({
 
           // Uniqueness check
           const isDuplicate = orderItems.some(
-            (item, i) => i !== pickerIndex && item.product_id === product.id,
+            (item, i) => i !== pickerIndex && item.productId === product.id,
           );
           if (isDuplicate) {
             toast.error(
@@ -423,11 +409,11 @@ export default function OrderForm({
           }
 
           // Set product and auto-fill price
-          setValue(`order_items.${pickerIndex}.product_id`, product.id, {
+          setValue(`orderItems.${pickerIndex}.productId`, product.id, {
             shouldValidate: true,
           });
           setValue(
-            `order_items.${pickerIndex}.unit_price`,
+            `orderItems.${pickerIndex}.unitPrice`,
             product.defaultUnitPrice || 0,
           );
           setPickerIndex(null);
@@ -436,7 +422,7 @@ export default function OrderForm({
         inventoryItems={inventoryItems}
         consumableStock={consumableStock}
         selectedProductIds={orderItems
-          .map((item) => item.product_id)
+          .map((item) => item.productId)
           .filter(Boolean)}
       />
     </form>

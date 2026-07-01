@@ -5,10 +5,10 @@ import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import type { Order, OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
   getOrderById,
+  getOrderByNumber,
   getOrderKPIs,
 } from "@/lib/modules/orders/selectors/orders.selectors";
 import { parseError } from "@/lib/errors";
-import { useProducts } from "../../products/hooks/useProducts";
 import { ORDER_KEYS } from "@/lib/query-keys";
 
 // ── Base hook ─────────────────────────────────────────────
@@ -32,6 +32,19 @@ export function useOrderById(id: string) {
   const { orders, isLoading, error, refetch } = useOrders();
 
   const order = getOrderById(orders, id);
+
+  return {
+    order,
+    isLoading,
+    error,
+    refetch,
+  };
+}
+
+export function useOrderByNumber(orderNo: string) {
+  const { orders, isLoading, error, refetch } = useOrders();
+
+  const order = getOrderByNumber(orders, orderNo);
 
   return {
     order,

@@ -10,7 +10,7 @@ import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
-import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
 import type { CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { ORDER_ROUTES } from "@/lib/routes";
@@ -26,10 +26,9 @@ import { BackButton } from "@/components/ui/BackButton";
 export default function EditOrderPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const orderNo = params.id as string;
 
-
-  const { order, isLoading, error } = useOrderById(id);
+  const { order, isLoading, error } = useOrderByNumber(orderNo);
 
   const { products } = useProducts();
   const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
@@ -65,18 +64,18 @@ export default function EditOrderPage() {
   }
 
   // ── Guard — only draft orders are editable ────────────
-  if (order.order_status !== "draft") {
+  if (order.orderStatus !== "draft") {
     return (
       <AppLayout pageTitle="Cannot Edit Order">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
           <h2 className="font-semibold mb-2">This order cannot be edited</h2>
           <p className="text-sm text-brand-text-secondary mb-5">
             Only <strong>draft</strong> orders can be edited. This order is
-            currently <strong>{order.order_status}</strong>.
+            currently <strong>{order.orderStatus}</strong>.
           </p>
           <Button
             variant="outline"
-            onClick={() => router.push(ORDER_ROUTES.detail(id))}
+            onClick={() => router.push(ORDER_ROUTES.detail(orderNo))}
           >
             Back to Order
           </Button>
@@ -94,27 +93,27 @@ export default function EditOrderPage() {
   //   (p) => p.name === order.product_name
   // );
 
-console.log(order.delivery_date);
+
 
 
   const defaultValues: Partial<CreateOrderFormValues> = {
-    customer_id: order.customer_id,
-    order_items: order.order_items.map((item) => ({
-      product_id: item.product_id,
+    customerId: order.customerId,
+    orderItems: order.orderItems.map((item) => ({
+      productId: item.productId,
       quantity: item.quantity,
-      unit_price: item.unit_price,
+      unitPrice: item.unitPrice,
     })),
-    delivery_address: order.delivery_address,
-    delivery_date: order.delivery_date ?? "",
+    deliveryAddress: order.deliveryAddress,
+    deliveryDate: order.deliveryDate ?? "",
     notes: order.notes ?? "",
   };
 
 
   async function handleSubmit(data: CreateOrderFormValues) {
-    await submitOrder({ input: buildOrderPayload(data, products), existingDraftId: id });
+    await submitOrder({ input: buildOrderPayload(data, products), existingDraftNo: orderNo });
   }
   async function handleSaveDraft(data: CreateOrderFormValues) {
-    await saveDraft({ input: buildOrderPayload(data, products), existingDraftId: id });
+    await saveDraft({ input: buildOrderPayload(data, products), existingDraftNo: orderNo });
   }
 
   return (
@@ -128,12 +127,12 @@ console.log(order.delivery_date);
       </button> */}
 
       <BackButton
-        href={`${ORDER_ROUTES.detail(id)}`}
+        href={`${ORDER_ROUTES.detail(orderNo)}`}
         label="Back to Order"
       />
 
       <PageHeader
-        title={`Edit — ${order.order_number}`}
+        title={`Edit — ${order.orderNumber}`}
         description="Only draft orders can be edited. Changes take effect immediately."
         className="mb-6"
       />

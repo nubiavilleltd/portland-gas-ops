@@ -40,7 +40,7 @@ export default function OrdersListPage() {
 
 
   const columns: Column<Order>[] = [
-    { key: "order_number", label: "ORDER NO." },
+    { key: "orderNumber", label: "ORDER NO." },
 
     {
       key: "customer_id", label: "CUSTOMER", render: (value) =>
@@ -48,17 +48,17 @@ export default function OrdersListPage() {
           ?.name ?? "—"
     },
 
-    { key: "order_type", label: "TYPE" },
+    { key: "orderType", label: "TYPE" },
 
     {
-      key: "total_amount",
+      key: "totalAmount",
       label: "AMOUNT",
       render: (value) =>
         formatCurrency(Number(value)),
     },
 
     {
-      key: "delivery_date",
+      key: "deliveryDate",
       label: "DELIVERY DATE",
       render: (value) =>
         value
@@ -67,68 +67,42 @@ export default function OrdersListPage() {
     },
 
     {
-      key: "order_status",
+      key: "orderStatus",
       label: "ORDER STATUS",
       render: (value) => (
         <OrderStatusBadge
           status={
-            value as Order["order_status"]
+            value as Order["orderStatus"]
           }
         />
       ),
     },
 
     {
-      key: "fulfillment_status",
+      key: "fulfillmentStatus",
       label: "DELIVERY STATUS",
       render: (value) => (
         <FulfillmentStatusBadge
           status={
-            value as Order["fulfillment_status"]
+            value as Order["fulfillmentStatus"]
           }
         />
       ),
     },
 
     {
-      key: "payment_status",
+      key: "paymentStatus",
       label: "PAYMENT STATUS",
       render: (value) => (
         <PaymentStatusBadge
           status={
-            value as Order["payment_status"]
+            value as Order["paymentStatus"]
           }
         />
       ),
     },
 
-    // {
-    //   key: "actions",
-    //   label: "Actions",
-    //   render: (_, order) => {
-    //     const actions =
-    //       getOrderActions(order);
 
-    //     return (
-    //       <div className="flex gap-2">
-    //         {actions.map((action, idx) => (
-    //           <Button
-    //             key={idx}
-    //             size="sm"
-    //             variant={
-    //               action.variant === "outline"
-    //                 ? "outline"
-    //                 : "primary"
-    //             }
-    //             href={action.href}
-    //           >
-    //             {action.label}
-    //           </Button>
-    //         ))}
-    //       </div>
-    //     );
-    //   },
-    // },
   ];
 
   return (
@@ -166,7 +140,7 @@ export default function OrdersListPage() {
       <DataTable<Order>
         columns={columns}
         data={orders}
-        rowHref={(order) => ORDER_ROUTES.detail(order.order_number)}
+        rowHref={(order) => ORDER_ROUTES.detail(order.orderNumber)}
         emptyMessage="No orders found."
       />
     </AppLayout>

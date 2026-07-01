@@ -29,8 +29,8 @@ async function tripHasTrackedItems(trip: Trip): Promise<boolean> {
   );
 
   return linkedOrders.some((order) =>
-    order?.order_items?.some((item) => {
-      const product = products.find((p) => p.id === item.product_id);
+    order?.orderItems?.some((item) => {
+      const product = products.find((p) => p.id === item.productId);
       return product?.productType === "tracked";
     }),
   );
@@ -214,7 +214,7 @@ export class TripsService {
 
     for (const orderId of trip.order_ids) {
       const order = await OrdersService.getOrderById(orderId);
-      if (order && order.fulfillment_status !== "delivered") {
+      if (order && order.fulfillmentStatus !== "delivered") {
         await OrdersService.updateFulfillmentStatus(orderId, "dispatched");
       }
     }
@@ -237,7 +237,7 @@ export class TripsService {
 
     for (const orderId of trip.order_ids) {
       const order = await OrdersService.getOrderById(orderId);
-      if (order && order.fulfillment_status !== "delivered") {
+      if (order && order.fulfillmentStatus !== "delivered") {
         await OrdersService.updateFulfillmentStatus(orderId, "in_transit");
       }
     }
@@ -262,13 +262,13 @@ export class TripsService {
     if (trip.order_ids.length > 0) {
       for (const orderId of trip.order_ids) {
         const order = await OrdersService.getOrderById(orderId);
-        // if (!order || order.fulfillment_status !== "delivered") {
+        // if (!order || order.fulfillmentStaus !== "delivered") {
         //   throw new Error(
         //     "All orders must be delivered before completing the trip",
         //   );
         // }
 
-        if (!order || order.order_status !== "completed") {
+        if (!order || order.orderStatus !== "completed") {
           throw new Error(
             "All orders must be completed before completing the trip",
           );
@@ -314,7 +314,7 @@ export class TripsService {
     // Revert orders back to pending and unlink from this trip — one call, not two
     for (const orderId of trip.order_ids) {
       const order = await OrdersService.getOrderById(orderId);
-      if (order && order.fulfillment_status !== "delivered") {
+      if (order && order.fulfillmentStatus !== "delivered") {
         await OrdersService.updateFulfillmentStatus(orderId, "pending");
         await OrdersService.setTrip(orderId, null); // null removes trip assignment
       }

@@ -12,7 +12,7 @@ import { formatDate, formatCurrency, toTitleCase } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
@@ -48,12 +48,12 @@ const STATUS_ORDER = [
 export default function TripDetailPage() {
   const params = useParams();
 
-  const tripId = params.id as string;
+  const tripNo = params.id as string;
 
 
   // ── React Query hooks (single sources of truth) ─────────
-  const { trip } = useTripById(tripId);
-  const { entries } = useAuditByEntity("trip", tripId);
+  const { trip } = useTripByNo(tripNo);
+  const { entries } = useAuditByEntity("trip", trip?.id as string);
 
   const { orders } = useOrders();
   const { customers } = useCustomers();
@@ -82,29 +82,29 @@ export default function TripDetailPage() {
     {
       label: "Order",
       render: (order) => (
-        <span className="font-mono text-xs">{order.order_number}</span>
+        <span className="font-mono text-xs">{order.orderNumber}</span>
       ),
     },
     {
       label: "Customer",
       render: (order) =>
-        customerMap.get(order.customer_id)?.name ?? "Unknown Customer",
+        customerMap.get(order.customerId)?.name ?? "Unknown Customer",
     },
     {
       label: "Amount",
-      render: (order) => formatCurrency(order.total_amount),
+      render: (order) => formatCurrency(order.totalAmount),
     },
     {
       label: "Status",
       render: (order) => (
-        <FulfillmentStatusBadge status={order.fulfillment_status} />
+        <FulfillmentStatusBadge status={order.fulfillmentStatus} />
       ),
     },
     {
       label: "",
       align: "right",
       render: (order) => (
-        <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
+        <Button size="sm" variant="outline" href={`/orders/${order.orderNumber}`}>
           View
         </Button>
       ),
@@ -137,30 +137,30 @@ export default function TripDetailPage() {
 
 
             {canDispatch && (
-              <Button href={`/fleet/trips/${tripId}/dispatch`}>
+              <Button href={`/fleet/trips/${tripNo}/dispatch`}>
                 Dispatch Trip →
               </Button>
             )}
 
             {canStart && (
-              <Button href={`/fleet/trips/${tripId}/start`}>
+              <Button href={`/fleet/trips/${tripNo}/start`}>
                 Start Transit →
               </Button>
             )}
 
             {canComplete && (
-              <Button href={`/fleet/trips/${tripId}/complete`}>
+              <Button href={`/fleet/trips/${tripNo}/complete`}>
                 Complete Trip →
               </Button>
             )}
 
             {canAssignInventoryToTrip && (
-              <Button href={`/fleet/trips/${tripId}/assign-inventory`}>
+              <Button href={`/fleet/trips/${tripNo}/assign-inventory`}>
                 Assign Inventory →
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" href={`/fleet/trips/${tripId}/cancel`}>
+              <Button variant="danger" href={`/fleet/trips/${tripNo}/cancel`}>
                 Cancel Trip →
               </Button>
             )}
@@ -279,7 +279,7 @@ export default function TripDetailPage() {
 
           {canAssign && (
             <div className="flex justify-end">
-              <Button href={`/fleet/trips/${tripId}/assign`}>
+              <Button href={`/fleet/trips/${tripNo}/assign`}>
                 Assign Driver & Vehicle →
               </Button>
             </div>

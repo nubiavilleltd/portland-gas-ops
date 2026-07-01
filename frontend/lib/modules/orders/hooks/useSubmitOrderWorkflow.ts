@@ -14,11 +14,11 @@ export function useSubmitOrderWorkflow() {
   return useMutation({
     mutationFn: ({
       input,
-      existingDraftId,
+      existingDraftNo,
     }: {
       input: CreateOrderInput;
-      existingDraftId?: string;
-    }) => submitOrderWorkflow(input, existingDraftId),
+      existingDraftNo?: string;
+    }) => submitOrderWorkflow(input, existingDraftNo),
 
     onSuccess: (order) => {
       queryClient.setQueryData(ORDER_KEYS.detail(order.id), order);

@@ -32,7 +32,7 @@ export function useAssignInventoryWorkflow() {
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
 
       toast.success("Inventory assigned — trip is ready to dispatch");
-      router.push(FLEET_ROUTES.tripDetail(updatedTrip.id));
+      router.push(FLEET_ROUTES.tripDetail(updatedTrip.trip_number));
     },
 
     onError: (err: any) => {

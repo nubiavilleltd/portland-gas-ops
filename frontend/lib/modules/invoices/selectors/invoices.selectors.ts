@@ -24,6 +24,12 @@ export function getInvoiceById(
 ): Invoice | undefined {
   return invoices.find((inv) => inv.id === id);
 }
+export function getInvoiceByNo(
+  invoices: Invoice[],
+  invoiceNo: string
+): Invoice | undefined {
+  return invoices.find((inv) => inv.invoice_number === invoiceNo);
+}
 
 export function getInvoiceByOrderId(
   invoices: Invoice[],

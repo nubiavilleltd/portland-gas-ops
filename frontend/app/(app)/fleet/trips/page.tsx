@@ -97,7 +97,7 @@ export default function TripsPage() {
       <DataTable<Trip>
         columns={columns}
         data={trips}
-        rowHref={(trip) => `/fleet/trips/${trip.id}`}
+        rowHref={(trip) => `/fleet/trips/${trip.trip_number}`}
         emptyMessage="No trips available."
       />
     </AppLayout>
