@@ -36,9 +36,19 @@ export class ProductsService {
   //   }
   // }
 
+
   static async getProductByNo(productNo: string): Promise<Product> {
     try {
       const raw = await productsApi.get(productNo);
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to fetch product"));
+    }
+  }
+
+  static async getProductById(id: string): Promise<Product> {
+    try {
+      const raw = await productsApi.get(id);
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to fetch product"));

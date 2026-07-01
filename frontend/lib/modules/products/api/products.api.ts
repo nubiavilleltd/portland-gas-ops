@@ -24,8 +24,8 @@ export const productsApi = {
     return data;
   },
 
-  get: async (productNo: string) => {
-    const { data } = await api.get(`/api/products/${productNo}`);
+  get: async (id: string) => {
+    const { data } = await api.get(`/api/products/${id}`);
     return data;
   },
 
