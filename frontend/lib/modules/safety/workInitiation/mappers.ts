@@ -3,6 +3,7 @@ import type {
   WorkInitiationRequest,
   WorkInitiationReview,
 } from "@/types/safety";
+import { formatFriendlyDateTime } from "@/lib/safety-demo-dates";
 import type {
   WorkInitiationCategory,
   WorkInitiationDecision,
@@ -32,7 +33,7 @@ export function mapWorkInitiationToRequest(
     ? {
         decision: decisionLabels[item.supervisor_review.decision],
         approver: item.supervisor_review.reviewer_name || "Supervisor",
-        dateTime: item.supervisor_review.decided_at || "",
+        dateTime: formatFriendlyDateTime(item.supervisor_review.decided_at),
         comment: item.supervisor_review.comment || "",
       }
     : null;
@@ -48,7 +49,7 @@ export function mapWorkInitiationToRequest(
       name: item.requester_name || "Requester",
       department: item.requester_department || "",
       role: item.requester_role || "",
-      requestDate: item.created_at,
+      requestDate: formatFriendlyDateTime(item.created_at),
     },
     title: item.title,
     workDescription: item.work_description,
@@ -74,8 +75,8 @@ export function mapWorkInitiationToRequest(
       contractorsNeeded: item.contractors_needed,
       selectedContractor: item.selected_contractor_name || "",
       contractorContactEmail: item.contractor_contact_email || "",
-      plannedStartDateTime: item.planned_start_at,
-      plannedEndDateTime: item.planned_end_at,
+      plannedStartDateTime: formatFriendlyDateTime(item.planned_start_at),
+      plannedEndDateTime: formatFriendlyDateTime(item.planned_end_at),
       materialsRequired: item.materials_required || "",
     },
     supervisorApproval,
@@ -93,7 +94,7 @@ function mapReview(review: {
   return {
     decision: decisionLabels[review.decision],
     reviewer: review.reviewer_name || "Reviewer",
-    dateTime: review.decided_at || "",
+    dateTime: formatFriendlyDateTime(review.decided_at),
     comment: review.comment || "",
   };
 }
@@ -108,7 +109,7 @@ function buildAuditTrail(
       action: "Submitted",
       actor: item.requester_name || "Requester",
       role: "Requester",
-      dateTime: item.created_at,
+      dateTime: formatFriendlyDateTime(item.created_at),
       comment: "Work initiation request submitted.",
     },
   ];

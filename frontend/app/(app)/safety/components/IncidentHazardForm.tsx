@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
@@ -16,7 +16,7 @@ import {
 } from "@/lib/mock/incident-hazard";
 import { getSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { useSafetyDemoData } from "@/lib/safety-demo-store";
-import { formatLocalDate } from "@/lib/safety-demo-dates";
+import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import {
   safetyChecklistsApi,
@@ -43,10 +43,22 @@ const reportTypeByLabel: Record<string, IncidentReportType> = {
   "Environmental Concern": "environmental_concern",
 };
 
+type IncidentValidationField =
+  | "title"
+  | "reportType"
+  | "locations"
+  | "observedAt"
+  | "description"
+  | "impactChecklist"
+  | "immediateAction";
+
+type IncidentValidationErrors = Partial<Record<IncidentValidationField, string>>;
+
 export default function IncidentHazardForm() {
   const router = useRouter();
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<IncidentValidationErrors>({});
   const [files, setFiles] = useState<File[]>([]);
   const [title, setTitle] = useState("");
   const [reportType, setReportType] = useState("");
@@ -75,12 +87,19 @@ export default function IncidentHazardForm() {
   const [immediateAction, setImmediateAction] = useState("");
   const [peopleInvolved, setPeopleInvolved] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const reportTypeRef = useRef<HTMLInputElement | null>(null);
+  const locationsRef = useRef<HTMLInputElement | null>(null);
+  const observedAtRef = useRef<HTMLInputElement | null>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const impactChecklistRef = useRef<HTMLDivElement | null>(null);
+  const immediateActionRef = useRef<HTMLTextAreaElement | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
 
-    const validationMessage = validateIncidentReportForm({
+    const nextValidationErrors = validateIncidentReportForm({
       title,
       reportType,
       locations,
@@ -88,11 +107,6 @@ export default function IncidentHazardForm() {
       description,
       immediateAction,
     });
-    if (validationMessage) {
-      toast.error(validationMessage);
-      return;
-    }
-
     const impactChecklistValues = {
       anyoneInjured,
       propertyDamaged,
@@ -103,7 +117,25 @@ export default function IncidentHazardForm() {
       impactChecklist.data &&
       hasMissingRequiredChecklistAnswer(impactChecklist.data, impactChecklistValues)
     ) {
-      toast.error("Complete the required incident impact checks.");
+      nextValidationErrors.impactChecklist = "Complete the required incident impact checks.";
+    }
+
+    setValidationErrors(nextValidationErrors);
+    const firstInvalidField = getFirstInvalidIncidentField(nextValidationErrors);
+    if (firstInvalidField) {
+      const message = nextValidationErrors[firstInvalidField] ?? "Complete the required field.";
+      toast.error(message);
+      scrollToIncidentField(
+        getIncidentFieldRef(firstInvalidField, {
+          titleRef,
+          reportTypeRef,
+          locationsRef,
+          observedAtRef,
+          descriptionRef,
+          impactChecklistRef,
+          immediateActionRef,
+        }),
+      );
       return;
     }
 
@@ -113,7 +145,7 @@ export default function IncidentHazardForm() {
       report_type: toIncidentReportType(reportType),
       location,
       exact_location: null,
-      observed_at: observedAt,
+      observed_at: toApiDateTime(observedAt),
       related_work_authorization_id: emptyToNull(relatedAuthorization),
       description,
       severity_estimate: null,
@@ -128,7 +160,19 @@ export default function IncidentHazardForm() {
     let reportWasSaved = false;
     try {
       setIsSubmitting(true);
-      const savedReport = await incidentReportsApi.create(payload);
+      let savedReport;
+      try {
+        savedReport = await incidentReportsApi.create(payload, files);
+      } catch (error) {
+        if (files.length === 0 || !isStorageNotConfiguredError(error)) {
+          throw error;
+        }
+
+        savedReport = await incidentReportsApi.create(payload);
+        toast.info(
+          "Incident report was saved without attachments because file storage is not configured.",
+        );
+      }
       reportWasSaved = true;
       const checklistAnswers = impactChecklist.data
         ? buildImpactChecklistAnswers(impactChecklist.data, impactChecklistValues)
@@ -176,19 +220,87 @@ export default function IncidentHazardForm() {
 
       <FormSection title="Report Details" description="Basic information about the incident or hazard being reported.">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Report Title" required placeholder="Enter a short report title" value={title} onChange={(event) => setTitle(event.target.value)} />
-          <FormSelect label="Report Type" required searchable creatable options={toOptions(reportTypeOptions)} placeholder="Select or add report type" value={reportType} onValueChange={setReportType} />
-          <FormMultiSelect label="Location" required searchable creatable options={toOptions(incidentLocationOptions)} placeholder="Select or add location" value={locations} onValueChange={setLocations} />
-          <FormDateTimeInput label="Date/Time Observed" required value={observedAt} onValueChange={setObservedAt} />
+          <FormInput
+            ref={titleRef}
+            label="Report Title"
+            required
+            placeholder="Enter a short report title"
+            value={title}
+            error={validationErrors.title}
+            onChange={(event) => {
+              setTitle(event.target.value);
+              clearIncidentValidationError("title", setValidationErrors);
+            }}
+          />
+          <FormSelect
+            ref={reportTypeRef}
+            label="Report Type"
+            required
+            searchable
+            creatable
+            options={toOptions(reportTypeOptions)}
+            placeholder="Select or add report type"
+            value={reportType}
+            error={validationErrors.reportType}
+            onValueChange={(value) => {
+              setReportType(value);
+              clearIncidentValidationError("reportType", setValidationErrors);
+            }}
+          />
+          <FormMultiSelect
+            ref={locationsRef}
+            label="Location"
+            required
+            searchable
+            creatable
+            options={toOptions(incidentLocationOptions)}
+            placeholder="Select or add location"
+            value={locations}
+            error={validationErrors.locations}
+            onValueChange={(value) => {
+              setLocations(value);
+              clearIncidentValidationError("locations", setValidationErrors);
+            }}
+          />
+          <FormDateTimeInput
+            ref={observedAtRef}
+            label="Date/Time Observed"
+            required
+            value={observedAt}
+            error={validationErrors.observedAt}
+            onValueChange={(value) => {
+              setObservedAt(value);
+              clearIncidentValidationError("observedAt", setValidationErrors);
+            }}
+          />
           <FormSelect label="Related Work Authorization" searchable options={relatedAuthorizationOptions} placeholder="Select related work authorization" dropdownClassName="md:min-w-[34rem]" value={relatedAuthorization} onValueChange={setRelatedAuthorization} />
         </div>
       </FormSection>
 
       <FormSection title="Incident / Hazard Details" description="Describe what happened, its impact, and immediate actions taken.">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormTextarea label="Description" required placeholder="Describe what happened or what was observed" className="md:col-span-2" value={description} onChange={(event) => setDescription(event.target.value)} />
+          <FormTextarea
+            ref={descriptionRef}
+            label="Description"
+            required
+            placeholder="Describe what happened or what was observed"
+            className="md:col-span-2"
+            value={description}
+            error={validationErrors.description}
+            onChange={(event) => {
+              setDescription(event.target.value);
+              clearIncidentValidationError("description", setValidationErrors);
+            }}
+          />
           {/* <FormSelect label="Severity Estimate" required options={toOptions(incidentSeverityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} /> */}
-          <div className="md:col-span-2">
+          <div
+            ref={impactChecklistRef}
+            className={
+              validationErrors.impactChecklist
+                ? "rounded-xl border border-red-400 p-2 md:col-span-2"
+                : "md:col-span-2"
+            }
+          >
             {impactChecklist.isError ? (
               <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 Incident report impact checklist template is not available.
@@ -210,15 +322,41 @@ export default function IncidentHazardForm() {
                           : gasConcern,
                     onValueChange:
                       item.item_key === "anyone_injured"
-                        ? setAnyoneInjured
+                        ? (value) => {
+                            setAnyoneInjured(value);
+                            clearIncidentValidationError("impactChecklist", setValidationErrors);
+                          }
                         : item.item_key === "property_damaged"
-                          ? setPropertyDamaged
-                          : setGasConcern,
+                          ? (value) => {
+                              setPropertyDamaged(value);
+                              clearIncidentValidationError("impactChecklist", setValidationErrors);
+                            }
+                          : (value) => {
+                              setGasConcern(value);
+                              clearIncidentValidationError("impactChecklist", setValidationErrors);
+                            },
                   }))}
               />
             ) : null}
+            {validationErrors.impactChecklist ? (
+              <p className="mt-2 text-xs text-red-600">
+                {validationErrors.impactChecklist}
+              </p>
+            ) : null}
           </div>
-          <FormTextarea label="Immediate Action Taken" required placeholder="Describe immediate action taken" className="md:col-span-2" value={immediateAction} onChange={(event) => setImmediateAction(event.target.value)} />
+          <FormTextarea
+            ref={immediateActionRef}
+            label="Immediate Action Taken"
+            required
+            placeholder="Describe immediate action taken"
+            className="md:col-span-2"
+            value={immediateAction}
+            error={validationErrors.immediateAction}
+            onChange={(event) => {
+              setImmediateAction(event.target.value);
+              clearIncidentValidationError("immediateAction", setValidationErrors);
+            }}
+          />
           <FormTextarea label="People Involved / Witnesses" placeholder="Optional" value={peopleInvolved} onChange={(event) => setPeopleInvolved(event.target.value)} />
           <FormTextarea label="Additional Notes" placeholder="Optional" value={additionalNotes} onChange={(event) => setAdditionalNotes(event.target.value)} />
         </div>
@@ -232,7 +370,8 @@ export default function IncidentHazardForm() {
             onChange={setFiles}
             accept="image/*,video/*,.pdf,.doc,.docx"
             maxFiles={10}
-            hint="Local selection only. No upload is performed."
+            maxSizeMB={10}
+            hint="Uploaded securely with the incident report. Up to 10 files, max 10 MB each."
           />
           <FormTextarea label="Evidence Notes" placeholder="Optional notes about attachments" />
         </div>
@@ -266,14 +405,101 @@ function validateIncidentReportForm({
   observedAt: string;
   description: string;
   immediateAction: string;
-}) {
-  if (title.trim().length < 3) return "Enter a report title with at least 3 characters.";
-  if (!reportType) return "Select a report type.";
-  if (locations.length === 0) return "Select at least one location.";
-  if (!observedAt) return "Select the date and time observed.";
-  if (description.trim().length < 5) return "Enter a description with at least 5 characters.";
-  if (!immediateAction.trim()) return "Describe the immediate action taken.";
-  return "";
+}): IncidentValidationErrors {
+  const errors: IncidentValidationErrors = {};
+
+  if (title.trim().length < 3) {
+    errors.title = "Enter a report title with at least 3 characters.";
+  }
+  if (!reportType) {
+    errors.reportType = "Select a report type.";
+  }
+  if (locations.length === 0) {
+    errors.locations = "Select at least one location.";
+  }
+  if (!observedAt) {
+    errors.observedAt = "Select the date and time observed.";
+  } else {
+    const observedDate = new Date(observedAt);
+    const now = new Date();
+    if (observedDate > now) {
+      errors.observedAt = "Observed date/time cannot be in the future.";
+    }
+  }
+  if (description.trim().length < 5) {
+    errors.description = "Enter a description with at least 5 characters.";
+  }
+  if (!immediateAction.trim()) {
+    errors.immediateAction = "Describe the immediate action taken.";
+  }
+
+  return errors;
+}
+
+function getFirstInvalidIncidentField(errors: IncidentValidationErrors) {
+  const fieldOrder: IncidentValidationField[] = [
+    "title",
+    "reportType",
+    "locations",
+    "observedAt",
+    "description",
+    "impactChecklist",
+    "immediateAction",
+  ];
+
+  return fieldOrder.find((field) => Boolean(errors[field]));
+}
+
+function clearIncidentValidationError(
+  field: IncidentValidationField,
+  setValidationErrors: React.Dispatch<React.SetStateAction<IncidentValidationErrors>>,
+) {
+  setValidationErrors((current) => {
+    if (!current[field]) return current;
+    const next = { ...current };
+    delete next[field];
+    return next;
+  });
+}
+
+function getIncidentFieldRef(
+  field: IncidentValidationField,
+  refs: {
+    titleRef: React.RefObject<HTMLInputElement | null>;
+    reportTypeRef: React.RefObject<HTMLInputElement | null>;
+    locationsRef: React.RefObject<HTMLInputElement | null>;
+    observedAtRef: React.RefObject<HTMLInputElement | null>;
+    descriptionRef: React.RefObject<HTMLTextAreaElement | null>;
+    impactChecklistRef: React.RefObject<HTMLDivElement | null>;
+    immediateActionRef: React.RefObject<HTMLTextAreaElement | null>;
+  },
+): React.RefObject<HTMLElement | null> {
+  const refByField: Record<IncidentValidationField, React.RefObject<HTMLElement | null>> = {
+    title: refs.titleRef,
+    reportType: refs.reportTypeRef,
+    locations: refs.locationsRef,
+    observedAt: refs.observedAtRef,
+    description: refs.descriptionRef,
+    impactChecklist: refs.impactChecklistRef,
+    immediateAction: refs.immediateActionRef,
+  };
+
+  return refByField[field];
+}
+
+function scrollToIncidentField(
+  ref: React.RefObject<HTMLElement | null>,
+) {
+  window.requestAnimationFrame(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    element.focus?.({ preventScroll: true });
+  });
 }
 
 function toIncidentReportType(value: string): IncidentReportType {
@@ -347,6 +573,18 @@ function getApiErrorMessage(error: unknown) {
   }
 
   return "Incident/hazard report could not be submitted.";
+}
+
+function isStorageNotConfiguredError(error: unknown) {
+  const data = getApiErrorDetail(error);
+  const detail = (data as { detail?: unknown } | undefined)?.detail;
+
+  return Boolean(
+    detail &&
+      typeof detail === "object" &&
+      "error_code" in detail &&
+      detail.error_code === "STORAGE_NOT_CONFIGURED",
+  );
 }
 
 function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {

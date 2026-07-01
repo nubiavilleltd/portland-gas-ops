@@ -1,7 +1,7 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.safety.incidents.models import (
     IncidentHseDecision,
@@ -10,6 +10,12 @@ from app.safety.incidents.models import (
     IncidentSeverityEstimate,
 )
 
+
+def to_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(timezone.utc)
 
 
 class IncidentReportCreate(BaseModel):
@@ -49,6 +55,14 @@ class IncidentReportCreate(BaseModel):
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def validate_observed_at(self):
+        now = datetime.now(timezone.utc)
+
+        if to_utc(self.observed_at) > now:
+            raise ValueError("Observed at cannot be in the future.")
+        return self
 
 
 class IncidentReportUpdate(BaseModel):
@@ -136,6 +150,15 @@ class IncidentHseReviewResponse(BaseModel):
         return data
 
 
+class IncidentAttachmentResponse(BaseModel):
+    id: str
+    name: str
+    url: str
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    type: str
+
+
 class IncidentReportListItem(BaseModel):
     id: str
     reference: str
@@ -197,12 +220,15 @@ class IncidentReportResponse(IncidentReportListItem):
     is_active: bool
     updated_at: datetime
     hse_review: Optional[IncidentHseReviewResponse] = None
+    attachments: list[IncidentAttachmentResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
 
     @classmethod
     def from_model(cls, report):
+        attachments = list(getattr(report, "attachments", []) or [])
+        report.attachments = []
         data = cls.model_validate(report)
 
         if report.reporter and report.reporter.user:
@@ -216,5 +242,26 @@ class IncidentReportResponse(IncidentReportListItem):
             data.reporter_role = report.reporter.job_title
         if report.hse_review:
             data.hse_review = IncidentHseReviewResponse.from_model(report.hse_review)
+        data.attachments = [
+            IncidentAttachmentResponse(
+                id=str(document.id),
+                name=document.name,
+                url=document.file_path or "",
+                mime_type=document.mime_type,
+                file_size=document.file_size,
+                type=attachment_type_for_mime_type(document.mime_type),
+            )
+            for document in attachments
+        ]
 
         return data
+
+
+def attachment_type_for_mime_type(mime_type: Optional[str]) -> str:
+    if not mime_type:
+        return "document"
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("video/"):
+        return "video"
+    return "document"

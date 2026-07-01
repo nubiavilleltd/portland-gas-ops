@@ -26,8 +26,15 @@ export const incidentReportsApi = {
 
   create: async (
     payload: IncidentReportCreate,
+    attachments: File[] = [],
   ): Promise<IncidentReportResponse> => {
-    const { data } = await api.post("/api/safety/incidents", payload);
+    const form = new FormData();
+    form.append("data", JSON.stringify(payload));
+    attachments.forEach((file) => form.append("attachments", file));
+
+    const { data } = await api.post("/api/safety/incidents", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return data;
   },
 

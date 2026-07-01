@@ -68,6 +68,7 @@ export interface WorkInitiationAssignment {
 
 export interface AssignedWorkInitiationSummary {
   id: string;
+  reference?: string;
   title: string;
   status: "approved";
   workCategory: string;
@@ -178,6 +179,8 @@ export interface WorkAuthorizationAuditTrailItem {
 
 export interface WorkAuthorizationRequest {
   id: string;
+  reference?: string;
+  requestedAtRaw?: string;
   status: WorkAuthorizationStatus;
   requester: WorkAuthorizationRequester;
   workInitiation: AssignedWorkInitiationSummary;
@@ -301,8 +304,12 @@ export interface IncidentHazardReporter {
 }
 
 export interface IncidentHazardAttachment {
+  id?: string;
   name: string;
   type: "image" | "document" | "video";
+  url?: string;
+  mimeType?: string;
+  fileSize?: number;
 }
 
 export interface IncidentHazardHseReview {
@@ -325,6 +332,8 @@ export interface IncidentHazardHseReview {
 export interface IncidentHazardReport {
   id: string;
   reference?: string;
+  reportedAtRaw?: string;
+  dateTimeObservedRaw?: string;
   status: IncidentHazardStatus;
   reporter: IncidentHazardReporter;
   title: string;

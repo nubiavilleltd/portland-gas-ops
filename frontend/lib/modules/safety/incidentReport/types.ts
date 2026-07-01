@@ -73,6 +73,15 @@ export interface IncidentHseReviewResponse {
   updated_at: string;
 }
 
+export interface IncidentAttachmentResponse {
+  id: string;
+  name: string;
+  url: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  type: "image" | "document" | "video";
+}
+
 export interface IncidentReportListItem {
   id: string;
   reference: string;
@@ -104,6 +113,7 @@ export interface IncidentReportResponse extends IncidentReportListItem {
   is_active: boolean;
   updated_at: string;
   hse_review?: IncidentHseReviewResponse | null;
+  attachments: IncidentAttachmentResponse[];
 }
 
 export interface IncidentReportListParams {

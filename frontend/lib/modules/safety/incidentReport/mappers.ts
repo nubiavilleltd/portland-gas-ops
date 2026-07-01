@@ -4,6 +4,10 @@ import type {
   IncidentHazardSeverity,
   IncidentHazardStatus,
 } from "@/types/safety";
+import {
+  formatFriendlyDate,
+  formatFriendlyDateTime,
+} from "@/lib/safety-demo-dates";
 import type {
   IncidentHseDecision,
   IncidentHseReviewResponse,
@@ -51,17 +55,19 @@ export function mapIncidentReportToHazardReport(
   return {
     id: report.id,
     reference: report.reference,
+    reportedAtRaw: report.reported_at,
+    dateTimeObservedRaw: report.observed_at,
     status: statusMap[report.status],
     reporter: {
       name: report.reporter_name || "Reporter",
       department: report.reporter_department ?? "",
       role: report.reporter_role ?? "",
-      reportDate: report.reported_at,
+      reportDate: formatFriendlyDateTime(report.reported_at),
     },
     title: report.title,
     reportType: reportTypeLabels[report.report_type],
     location: report.location,
-    dateTimeObserved: report.observed_at,
+    dateTimeObserved: formatFriendlyDateTime(report.observed_at),
     relatedWorkAuthorization: report.related_work_authorization_id ?? "",
     description: report.description,
     severityEstimate: report.severity_estimate
@@ -73,7 +79,14 @@ export function mapIncidentReportToHazardReport(
     immediateActionTaken: report.immediate_action_taken ?? "",
     peopleInvolved: report.people_involved ?? "",
     additionalNotes: report.additional_notes ?? "",
-    attachments: [],
+    attachments: (report.attachments ?? []).map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      type: attachment.type,
+      url: attachment.url,
+      mimeType: attachment.mime_type ?? undefined,
+      fileSize: attachment.file_size ?? undefined,
+    })),
     hseReview: report.hse_review ? mapHseReviewToIncidentHazardReview(report.hse_review) : null,
     resolutionWorkCompletionId: report.resolution_work_closeout_id ?? undefined,
     auditTrail: [
@@ -81,7 +94,7 @@ export function mapIncidentReportToHazardReport(
         action: "Submitted",
         actor: report.reporter_name || "Reporter",
         role: "Reporter",
-        dateTime: report.reported_at,
+        dateTime: formatFriendlyDateTime(report.reported_at),
         comment: "Incident/hazard report submitted for HSE review.",
       },
     ],
@@ -102,9 +115,9 @@ function mapHseReviewToIncidentHazardReview(
     actionOwnerId: review.action_owner_id ?? undefined,
     actionOwner: review.action_owner_name ?? "",
     assignedDepartment: review.assigned_department ?? "",
-    targetCompletionDate: review.target_completion_date ?? "",
+    targetCompletionDate: formatFriendlyDate(review.target_completion_date),
     decision: hseDecisionLabels[review.decision],
     comment: review.comment ?? "",
-    reviewDateTime: review.reviewed_at,
+    reviewDateTime: formatFriendlyDateTime(review.reviewed_at),
   };
 }

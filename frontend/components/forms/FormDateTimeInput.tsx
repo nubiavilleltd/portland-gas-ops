@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Clock,
 } from "lucide-react";
+import { formatFriendlyDateTime } from "@/lib/safety-demo-dates";
 import { cn } from "@/lib/utils";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -66,16 +67,7 @@ function toTimeValue(date: Date) {
 }
 
 function formatDisplayDateTime(value?: string) {
-  const parsed = parseDateTime(value);
-  if (!parsed) return "";
-
-  return parsed.toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatFriendlyDateTime(value);
 }
 
 function getMonthDays(year: number, month: number) {

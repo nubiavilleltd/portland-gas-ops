@@ -137,6 +137,8 @@ export default function IncidentHazardDetailsView({
     myEmployeeQuery.data?.id &&
     report.hseReview.actionOwnerId === myEmployeeQuery.data.id,
   );
+  const canActAsActionOwner =
+    currentRole === "action_owner" && isAssignedActionOwner;
 
   const permissions = useMemo(() => {
     const isDraft = report?.status === "draft";
@@ -1125,37 +1127,63 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 function AttachmentList({
   attachments,
 }: {
-  attachments: IncidentHazardAttachment[];
+  attachments?: IncidentHazardAttachment[];
 }) {
-  if (attachments.length === 0) {
+  const safeAttachments = attachments ?? [];
+
+  if (safeAttachments.length === 0) {
     return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
   }
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <div
-          key={attachment.name}
-          className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? (
-              <ImageIcon size={18} />
-            ) : (
-              <FileText size={18} />
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">
-              {attachment.name}
-            </p>
-            <p className="text-xs capitalize text-brand-text-secondary">
-              {attachment.type}
-            </p>
-          </div>
-        </div>
+      {safeAttachments.map((attachment) => (
+        <AttachmentItem key={attachment.id ?? attachment.name} attachment={attachment} />
       ))}
     </div>
+  );
+}
+
+function AttachmentItem({
+  attachment,
+}: {
+  attachment: IncidentHazardAttachment;
+}) {
+  const content = (
+    <>
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
+        {attachment.type === "image" ? (
+          <ImageIcon size={18} />
+        ) : (
+          <FileText size={18} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-brand-text-primary">
+          {attachment.name}
+        </p>
+        <p className="text-xs capitalize text-brand-text-secondary">
+          {attachment.type}
+        </p>
+      </div>
+    </>
+  );
+
+  const className = "flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3";
+
+  if (!attachment.url) {
+    return <div className={className}>{content}</div>;
+  }
+
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noreferrer"
+      className={`${className} transition-colors hover:border-brand-purple/40 hover:bg-white`}
+    >
+      {content}
+    </a>
   );
 }
 
