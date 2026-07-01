@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, Text, Numeric, DateTime, Date, Enum as SA
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy import UniqueConstraint
 from app.core.database import Base
 from app.orders.enums import OrderStatus, FulfillmentStatus, DispositionStatus
 from app.payments.enums import PaymentStatus
@@ -55,3 +56,4 @@ class OrderItem(Base):
     # Relationships
     order   = relationship("Order", back_populates="order_items")
     product = relationship("Product", foreign_keys=[product_id])
+    inventory_assignments = relationship("OrderItemInventory", cascade="all, delete-orphan")

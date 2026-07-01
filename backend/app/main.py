@@ -25,6 +25,13 @@ from app.safety.work_authorizations import models as _safety_work_authorization_
 from app.orders.model import Order, OrderItem    # noqa: F401
 from app.invoices.model import Invoice           # noqa: F401
 from app.payments.model import Payment           # noqa: F401
+from backend.app.audit.model import AuditLog                          # noqa: F401
+from backend.app.inventory.model import (                             # noqa: F401
+    WarehouseLocation, InventoryItem, ConsumableStock,
+    StockMovement, StockMovementItem, OrderItemInventory,
+)
+
+
 
 from app.auth.router import router as auth_router
 from app.users.router import router as users_router
@@ -38,6 +45,8 @@ from app.products.router import router as products_router
 from app.orders.router import router as orders_router
 from app.invoices.router import router as invoices_router
 from app.payments.router import router as payments_router
+from app.audit.router import router as audit_router
+from app.inventory.router import router as inventory_router
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -115,6 +124,8 @@ app.include_router(products_router, prefix="/api/products", tags=["Products"])
 app.include_router(orders_router,   prefix="/api/orders",   tags=["Orders"])
 app.include_router(invoices_router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
+app.include_router(audit_router,     prefix="/api/audit",     tags=["Audit"])
+app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
 
 
 @app.get("/api/health")

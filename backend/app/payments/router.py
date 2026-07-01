@@ -8,6 +8,9 @@ from app.shared.dependencies import require_roles
 from app.shared.models.user import User
 from app.payments.service import PaymentService
 from app.payments.schema import PaymentCreate, PaymentResponse, PaymentListResponse
+from app.audit.service import AuditService
+from app.audit.schema import AuditEntityType, AuditActorType
+
 
 router  = APIRouter()
 service = PaymentService()
@@ -49,6 +52,35 @@ def record_payment(
 
     payment = service.record(db, data, recorded_by=current_user.id,
                              idempotency_key=idempotency_key)
+    
+
+    # Get the invoice to find the order
+    from app.invoices.repository import InvoiceRepository
+    invoice = InvoiceRepository().get_by_id(db, payment.invoice_id)
+    if invoice:
+        AuditService.record(
+            db, AuditEntityType.order, invoice.order_id,
+            "payment_recorded",
+            f"Payment of ₦{payment.amount:,.2f} recorded via {payment.method.value}",
+            AuditActorType.employee, current_user.id,
+        )
+        # If order was auto-confirmed by this payment, record that too
+        from app.orders.repository import OrderRepository
+        order = OrderRepository().get_by_id(db, invoice.order_id)
+        if order and order.order_status.value == "confirmed":
+            AuditService.record(
+                db, AuditEntityType.order, invoice.order_id,
+                "confirmed",
+                "Order automatically confirmed after full payment received",
+                AuditActorType.system,
+            )
+
+    AuditService.record(
+        db, AuditEntityType.invoice, invoice.id if invoice else payment.invoice_id,
+        "payment_recorded",
+        f"Payment PAY reference recorded — amount: ₦{payment.amount:,.2f}",
+        AuditActorType.employee, current_user.id,
+    )
     db.commit()
     db.refresh(payment)
     return _to_response(payment)
