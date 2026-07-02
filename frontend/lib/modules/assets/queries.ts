@@ -18,7 +18,7 @@ export const assetKeys = {
   request:          (id: string) => ["asset-requests", id] as const,
 };
 
-export function useAssets(params?: { category_id?: string; status?: string; search?: string; mine?: boolean }) {
+export function useAssets(params?: { category_id?: string; asset_type_id?: string; status?: string; search?: string; mine?: boolean }) {
   return useQuery<Asset[]>({
     queryKey: assetKeys.list(params),
     queryFn: async () => {

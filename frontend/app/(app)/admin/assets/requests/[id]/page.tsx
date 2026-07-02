@@ -201,7 +201,7 @@ export default function AdminAssetRequestDetailPage() {
               </div>
             </div>
             <Link
-              href={`/admin/assets/allocations/new?requestId=${id}`}
+              href={`/assets/allocations/new?requestId=${id}`}
               className="shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-colors"
             >
               Allocate Assets

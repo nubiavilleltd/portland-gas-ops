@@ -203,11 +203,25 @@ export function useUpdateAssetRequestStatus(id: string) {
   });
 }
 
-/** Stub — allocation flow not yet wired to backend. */
 export function useAllocateAssetRequest() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (_data: { requestId: string; allocations: { itemId: string; assetIds: string[] }[]; allocatedByName: string }) => {
-      throw new Error("Asset allocation via admin is not yet implemented.");
+    mutationFn: async (data: {
+      requestId: string;
+      allocations: { itemId: string; assetIds: string[] }[];
+    }) => {
+      const { data: res } = await api.post(`/api/assets/requests/${data.requestId}/allocate`, {
+        allocations: data.allocations.map((a) => ({
+          item_id: a.itemId,
+          asset_ids: a.assetIds,
+        })),
+      });
+      return res;
+    },
+    onSuccess: (_r, { requestId }) => {
+      qc.invalidateQueries({ queryKey: assetKeys.requests() });
+      qc.invalidateQueries({ queryKey: assetKeys.request(requestId) });
+      qc.invalidateQueries({ queryKey: assetKeys.all });
     },
   });
 }
