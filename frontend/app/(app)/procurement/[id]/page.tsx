@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle, FileText, Download, ChevronDown, X } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
@@ -58,9 +59,6 @@ export default function ProcurementDetailPage() {
   const [poDropdownOpen, setPoDropdownOpen] = useState(false);
   const [poVendorName,   setPoVendorName]   = useState("");
 
-  // Approval / rejection state
-  const [actionModal,   setActionModal]   = useState<"approve" | "reject" | "return" | null>(null);
-  const [actionComment, setActionComment] = useState("");
 
   function raiserName() {
     if (!req?.raiser?.user) return "—";
@@ -73,22 +71,19 @@ export default function ProcurementDetailPage() {
     0
   ) ?? 0;
 
-  async function handleAction(action: "approve" | "reject" | "return") {
+  async function handleAction(action: "approve" | "reject" | "return", comment: string) {
     if (!req) return;
-    const comment = actionComment || undefined;
     try {
       if (action === "approve") {
-        await approveRequest.mutateAsync({ id, comment });
+        await approveRequest.mutateAsync({ id, comment: comment || undefined });
         toast.success("Request approved");
       } else if (action === "reject") {
-        await rejectRequest.mutateAsync({ id, comment });
+        await rejectRequest.mutateAsync({ id, comment: comment || undefined });
         toast.success("Request rejected");
       } else {
-        await returnRequest.mutateAsync({ id, comment });
+        await returnRequest.mutateAsync({ id, comment: comment || undefined });
         toast.success("Returned to requester for revision");
       }
-      setActionModal(null);
-      setActionComment("");
     } catch (err) {
       toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
     }
@@ -393,34 +388,21 @@ export default function ProcurementDetailPage() {
 
         {/* ── Pending → Approve / Reject / Return ──────────────────────────── */}
         {req.status === "pending" && (
-          <FormSection title="Approval Decision">
-            <p className="text-sm text-brand-text-secondary mb-4">
-              Review the request details above and make your decision.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setActionModal("approve")}
-                disabled={isBusy}
-                className="px-5 py-2.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => setActionModal("return")}
-                disabled={isBusy}
-                className="px-5 py-2.5 text-sm font-medium border border-amber-300 text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-60"
-              >
-                Return for Revision
-              </button>
-              <button
-                onClick={() => setActionModal("reject")}
-                disabled={isBusy}
-                className="px-5 py-2.5 text-sm font-medium border border-red-300 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-60"
-              >
-                Reject
-              </button>
-            </div>
-          </FormSection>
+          <ApprovalPanel
+            title="Approval Decision"
+            description="Review the request details above and make your decision."
+            showReturn
+            showReject
+            showApprove
+            returnLabel="Return for Revision"
+            onReturn={(comment)  => handleAction("return",  comment)}
+            onReject={(comment)  => handleAction("reject",  comment)}
+            onApprove={(comment) => handleAction("approve", comment)}
+            returnLoading={returnRequest.isPending}
+            rejectLoading={rejectRequest.isPending}
+            approveLoading={approveRequest.isPending}
+            disabled={isBusy}
+          />
         )}
 
         {/* ── Approved → Issue PO ───────────────────────────────────────────── */}
@@ -517,53 +499,6 @@ export default function ProcurementDetailPage() {
 
       </div>
 
-      {/* ── Approval action modal ─────────────────────────────────────────────── */}
-      {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setActionModal(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-base font-semibold text-brand-text-primary mb-2">
-              {actionModal === "approve" && "Approve Request"}
-              {actionModal === "reject"  && "Reject Request"}
-              {actionModal === "return"  && "Return for Revision"}
-            </h3>
-            <p className="text-sm text-brand-text-secondary mb-4">
-              {actionModal === "approve" && "Confirm that you are approving this procurement request."}
-              {actionModal === "reject"  && "This will reject the request. The requester will be notified."}
-              {actionModal === "return"  && "The request will be sent back to the requester for revision."}
-            </p>
-            <textarea
-              value={actionComment}
-              onChange={(e) => setActionComment(e.target.value)}
-              placeholder="Comment (optional)"
-              rows={3}
-              className="w-full px-3 py-2 text-sm border border-brand-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-purple/30 resize-none mb-4"
-            />
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => { setActionModal(null); setActionComment(""); }}
-                className="px-4 py-2 text-sm font-medium text-brand-text-secondary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleAction(actionModal)}
-                disabled={isBusy}
-                className={
-                  actionModal === "reject"
-                    ? "px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60"
-                    : "px-4 py-2 text-sm font-medium text-white bg-brand-purple rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
-                }
-              >
-                {isBusy ? "Processing…" : (
-                  actionModal === "approve" ? "Approve" :
-                  actionModal === "reject"  ? "Reject"  : "Return"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </AppLayout>
   );

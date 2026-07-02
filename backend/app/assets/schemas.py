@@ -316,3 +316,11 @@ class AssetRequestListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AssetAllocationItem(BaseModel):
+    item_id: str
+    asset_ids: List[str] = Field(min_length=1)
+
+class AssetAllocationInput(BaseModel):
+    allocations: List[AssetAllocationItem] = Field(min_length=1)

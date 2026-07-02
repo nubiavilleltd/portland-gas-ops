@@ -47,6 +47,7 @@ from app.assets.schemas import (
     AssetTransferCreate,
     AssignmentLogResponse,
     AssetRequestCreate, AssetRequestStatusUpdate, AssetRequestResponse, AssetRequestListItem,
+    AssetAllocationInput,
     MaintenanceLogCreate, MaintenanceLogResponse,
 )
 from app.assets import service as asset_service
@@ -179,6 +180,7 @@ def list_assets(
     skip: int = Query(0, ge=0),
     limit: int = Query(40, ge=1, le=100),
     category_id: Optional[str] = Query(None),
+    asset_type_id: Optional[str] = Query(None),
     status_filter: Optional[AssetStatus] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     mine: bool = Query(False),
@@ -192,7 +194,8 @@ def list_assets(
 
     assets = asset_service.list_assets(
         db, skip=skip, limit=limit, category_id=category_id,
-        status_filter=status_filter, search=search, employee_id=employee_id,
+        asset_type_id=asset_type_id, status_filter=status_filter,
+        search=search, employee_id=employee_id,
     )
     name_map = _resolve_assignee_names(db, assets)
     return [_build_asset_response(a, name_map) for a in assets]
@@ -286,6 +289,17 @@ def update_request_status(
     current_user: User = Depends(get_current_user),
 ):
     req = asset_service.update_request_status(db, request_id, data, current_user)
+    return AssetRequestResponse.from_orm_with_names(req)
+
+
+@router.post("/requests/{request_id}/allocate", response_model=AssetRequestResponse)
+def allocate_request(
+    request_id: str,
+    data: AssetAllocationInput,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    req = asset_service.allocate_request(db, request_id, data, current_user)
     return AssetRequestResponse.from_orm_with_names(req)
 
 

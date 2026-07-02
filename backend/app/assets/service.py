@@ -156,6 +156,7 @@ def list_assets(
     skip: int = 0,
     limit: int = 40,
     category_id: str | None = None,
+    asset_type_id: str | None = None,
     status_filter: AssetStatus | None = None,
     search: str | None = None,
     employee_id: str | None = None,  # when set: return available OR assigned to this employee
@@ -170,6 +171,8 @@ def list_assets(
         query = query.filter(Asset.status == status_filter)
     if category_id:
         query = query.filter(Asset.category_id == category_id)
+    if asset_type_id:
+        query = query.filter(Asset.asset_type_id == asset_type_id)
     if search:
         query = query.filter(Asset.name.ilike(f"%{search}%"))
     return query.order_by(Asset.created_at.desc()).offset(skip).limit(limit).all()
@@ -535,6 +538,54 @@ def update_request_status(
         req.allocated_by = current_user.id
         req.allocated_at = datetime.utcnow()
 
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+def allocate_request(db: Session, request_id: str, data, current_user: User) -> AssetRequest:
+    from datetime import datetime
+    req = db.query(AssetRequest).filter(AssetRequest.id == request_id, AssetRequest.is_active == True).first()
+    if not req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    if req.status != AssetRequestStatus.approved:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only approved requests can be allocated")
+
+    from app.employees.models import Employee
+    requester_emp = db.query(Employee).filter(Employee.user_id == req.requested_by).first()
+
+    for alloc in data.allocations:
+        item = db.query(AssetRequestItem).filter(
+            AssetRequestItem.id == alloc.item_id,
+            AssetRequestItem.request_id == request_id,
+        ).first()
+        if not item:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Request item {alloc.item_id} not found")
+        if len(alloc.asset_ids) != item.quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Expected {item.quantity} asset(s) for item {alloc.item_id}, got {len(alloc.asset_ids)}",
+            )
+        for asset_id in alloc.asset_ids:
+            asset = db.query(Asset).filter(Asset.id == asset_id, Asset.is_active == True).first()
+            if not asset:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset {asset_id} not found")
+            if asset.status != AssetStatus.available:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Asset {asset.asset_tag or asset_id} is not available")
+            asset.status = AssetStatus.assigned
+            if requester_emp:
+                asset.assigned_to = requester_emp.id
+            _log_assignment_event(
+                db, asset,
+                event_type=AssetAssignmentEventType.assigned,
+                performed_by_id=current_user.id,
+                to_employee_id=requester_emp.id if requester_emp else None,
+                to_employee_name=req.requester.full_name if req.requester else None,
+            )
+
+    req.status = AssetRequestStatus.allocated
+    req.allocated_by = current_user.id
+    req.allocated_at = datetime.utcnow()
     db.commit()
     db.refresh(req)
     return req
