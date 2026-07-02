@@ -38,7 +38,7 @@ export const inventoryApi = {
 
   checkInTracked: async (input: {
     product_id:  string;
-    location_id: number;
+    location_id: string;
     quantity:    number;
     condition:   string;
     notes?:      string;
@@ -49,7 +49,7 @@ export const inventoryApi = {
 
   checkInConsumable: async (input: {
     product_id:  string;
-    location_id: number;
+    location_id: string;
     quantity:    number;
     notes?:      string;
   }) => {

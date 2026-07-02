@@ -159,7 +159,7 @@ export function useCheckInTracked() {
 
   return useMutation({
     mutationFn: (input: {
-      product_id: string; location_id: number; quantity: number;
+      product_id: string; location_id: string; quantity: number;
       condition: string; notes?: string; product_code?: string; recorded_by?: string;
     }) => inventoryApi.checkInTracked(input).then((r: any[]) => r.map(adaptInventoryItem)),
 
@@ -181,7 +181,7 @@ export function useCheckInConsumable() {
 
   return useMutation({
     mutationFn: (input: {
-      product_id: string; location_id: number; quantity: number;
+      product_id: string; location_id: string; quantity: number;
       notes?: string; recorded_by?: string;
     }) => inventoryApi.checkInConsumable(input).then(adaptConsumableStock),
 
