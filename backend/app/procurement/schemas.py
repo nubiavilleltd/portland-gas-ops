@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
+
+from app.shared.utils.helpers import sanitize_str
 
 
 # ── Nested ─────────────────────────────────────────────────────────────────────
@@ -29,6 +31,7 @@ class EmployeeInProcurement(BaseModel):
 class VendorInProcurement(BaseModel):
     id: str
     name: str
+    contact_person: Optional[str]
     phone: Optional[str]
     email: Optional[str]
     address: Optional[str]
@@ -45,21 +48,36 @@ class VendorInProcurement(BaseModel):
 class ProcurementItemCreate(BaseModel):
     description: str = Field(..., min_length=1, max_length=255)
     quantity: int = Field(..., gt=0)
+    unit: Optional[str] = None
     unit_price: Optional[Decimal] = None
     total_price: Optional[Decimal] = None
 
     @field_validator("description")
     @classmethod
     def strip_description(cls, v: str) -> str:
-        return v.strip()
+        return sanitize_str(v)
 
 
 class ProcurementItemResponse(BaseModel):
     id: str
     description: str
     quantity: int
+    unit: Optional[str]
     unit_price: Optional[Decimal]
     total_price: Optional[Decimal]
+
+    class Config:
+        from_attributes = True
+
+
+# ── Attachment ────────────────────────────────────────────────────────────────
+
+class AttachmentResponse(BaseModel):
+    id: int
+    name: str
+    file_path: str
+    mime_type: Optional[str]
+    file_size: Optional[int]
 
     class Config:
         from_attributes = True
@@ -68,25 +86,40 @@ class ProcurementItemResponse(BaseModel):
 # ── Procurement request ────────────────────────────────────────────────────────
 
 class ProcurementCreate(BaseModel):
-    title: str = Field(..., min_length=3, max_length=200)
+    category: Optional[str] = None
     description: Optional[str] = Field(None, max_length=2000)
     estimated_amount: Optional[Decimal] = None
     currency: str = "NGN"
-    vendor_id: Optional[str] = None
+    required_by: Optional[str] = None
+    vendor_id: str = Field(..., min_length=1, description="Vendor is required")
     items: List[ProcurementItemCreate] = Field(..., min_length=1)
 
-    @field_validator("title", "description")
+    @field_validator("description")
     @classmethod
-    def strip_text(cls, v: Optional[str]) -> Optional[str]:
-        return v.strip() if v else v
+    def sanitize_text(cls, v: Optional[str]) -> Optional[str]:
+        return sanitize_str(v) if v else v
+
+    @field_validator("vendor_id")
+    @classmethod
+    def validate_vendor_id(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("A vendor must be selected or created before submitting a request")
+        return v
 
 
 class ProcurementUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=3, max_length=200)
+    category: Optional[str] = None
     description: Optional[str] = None
     estimated_amount: Optional[Decimal] = None
+    required_by: Optional[str] = None
     vendor_id: Optional[str] = None
     items: Optional[List[ProcurementItemCreate]] = None
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_text(cls, v: Optional[str]) -> Optional[str]:
+        return sanitize_str(v) if v else v
 
 
 class ActionRequest(BaseModel):
@@ -97,13 +130,16 @@ class ActionRequest(BaseModel):
 class ProcurementResponse(BaseModel):
     id: str
     reference: str
-    title: str
+    category: Optional[str]
     description: Optional[str]
     estimated_amount: Optional[Decimal]
     currency: str
     status: str
     raised_by: str
+    required_by: Optional[date]
     vendor_id: Optional[str]
+    attachment_id: Optional[int] = None
+    attachment: Optional[AttachmentResponse] = None
     created_at: datetime
     updated_at: Optional[datetime]
 
@@ -119,12 +155,14 @@ class ProcurementResponse(BaseModel):
 class ProcurementListItem(BaseModel):
     id: str
     reference: str
-    title: str
+    category: Optional[str]
     status: str
     estimated_amount: Optional[Decimal]
     currency: str
     raised_by: str
+    required_by: Optional[date]
     vendor_id: Optional[str]
+    attachment_id: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime]
 

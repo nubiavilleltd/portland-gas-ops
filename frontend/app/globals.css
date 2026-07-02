@@ -33,6 +33,10 @@ body {
   font-family: var(--font-sans);
 }
 
+button, [role="button"], a {
+  cursor: pointer;
+}
+
 /* ── Page transitions ──────────────────────────────────────────────────────── */
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(8px); }

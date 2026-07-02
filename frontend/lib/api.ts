@@ -139,4 +139,11 @@ export async function postForm<T>(url: string, formData: FormData): Promise<T> {
   return res.data;
 }
 
+export async function patchForm<T>(url: string, formData: FormData): Promise<T> {
+  const res = await api.patch<T>(url, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
 export default api;

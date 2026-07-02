@@ -11,9 +11,8 @@ import FormInput from "@/components/forms/FormInput";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
-import AuditTrail from "@/components/forms/AuditTrail";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { useAssetRequest, useUpdateAssetRequestStatus } from "@/hooks/useAssets";
+import { useAssetRequest, useUpdateAssetRequestStatus } from "@/lib/modules/assets";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestStatus } from "@/types";
@@ -212,9 +211,9 @@ export default function AssetRequestDetailPage() {
         {/* ── Requester Details ─────────────────────────────────────────────── */}
         <FormSection title="Requester Details">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <FormInput label="Requester Name" value={req.requester?.name ?? req.requester_name ?? "—"} disabled />
-            <FormInput label="Department"     value={req.requester?.department ?? "—"} disabled />
-            <FormInput label="Job Title"      value={req.requester?.job_title ?? "—"} disabled />
+            <FormInput label="Requester Name" value={req.requester_name ?? "—"} disabled />
+            <FormInput label="Department"     value={req.requester_department ?? "—"} disabled />
+            <FormInput label="Job Title"      value={req.requester_job_title ?? "—"} disabled />
             <FormDatePicker label="Request Date" value={req.created_at.slice(0, 10)} disabled />
           </div>
         </FormSection>
@@ -254,9 +253,13 @@ export default function AssetRequestDetailPage() {
                           <Package size={14} className="text-gray-400" />
                         </div>
                         <div>
-                          <p className="font-medium text-brand-text-primary">{item.asset_type?.name ?? "Unknown type"}</p>
-                          {item.asset_type?.prefix && (
-                            <p className="text-xs text-brand-text-secondary font-mono">{item.asset_type.prefix}</p>
+                          <p className="font-medium text-brand-text-primary">
+                            {item.asset_type?.name ?? item.asset?.name ?? "—"}
+                          </p>
+                          {(item.asset_type?.prefix ?? item.asset?.asset_tag) && (
+                            <p className="text-xs text-brand-text-secondary font-mono">
+                              {item.asset_type?.prefix ?? item.asset?.asset_tag}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -324,7 +327,8 @@ export default function AssetRequestDetailPage() {
             <div>
               <p className="text-sm font-semibold text-teal-800">Assets allocated</p>
               <p className="text-xs text-teal-700 mt-0.5">
-                Allocated by {req.allocated_by_name ?? "Asset Admin"}{req.allocated_at ? ` on ${formatDate(req.allocated_at)}` : ""}.
+                {req.allocated_by_name ? `Allocated by ${req.allocated_by_name}` : "Assets have been allocated"}
+                {req.allocated_at ? ` on ${formatDate(req.allocated_at)}` : ""}.
               </p>
             </div>
           </div>
@@ -350,8 +354,6 @@ export default function AssetRequestDetailPage() {
           />
         )}
 
-        {/* ── Audit Trail ───────────────────────────────────────────────────── */}
-        <AuditTrail items={req.auditTrail ?? []} />
 
       </div>
     </AppLayout>
