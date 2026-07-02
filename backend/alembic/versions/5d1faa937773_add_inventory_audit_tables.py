@@ -1,7 +1,7 @@
 """add inventory and audit tables
 
 Revision ID: 5d1faa937773
-Revises: 7f8a9b0c1d2e
+Revises: e3f4a5b6c7d8
 Create Date: 2026-06-29 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import mysql
 
 revision: str = '5d1faa937773'
-down_revision: Union[str, None] = '7f8a9b0c1d2e'
+down_revision: Union[str, None] = 'e3f4a5b6c7d8'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

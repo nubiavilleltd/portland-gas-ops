@@ -235,7 +235,7 @@ def set_invoice(
     db.refresh(updated)
     return _to_response(updated)
 
-@router.get("/{order_no}/audit", response_model=List[AuditLogResponse])
+@router.get("/{order_no}/audit", response_model=list[AuditLogResponse])
 def get_order_audit(
     order_no:     str,
     db:           Session = Depends(get_db),
