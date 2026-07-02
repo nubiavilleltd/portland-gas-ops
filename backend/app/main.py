@@ -31,6 +31,8 @@ from app.inventory.model import (                             # noqa: F401
     StockMovement, StockMovementItem, OrderItemInventory,
 )
 
+from app.fleet.model import Driver, Vehicle, Trip, TripOrder  # noqa: F401
+
 
 
 from app.auth.router import router as auth_router
@@ -47,6 +49,8 @@ from app.invoices.router import router as invoices_router
 from app.payments.router import router as payments_router
 from app.audit.router import router as audit_router
 from app.inventory.router import router as inventory_router
+from app.fleet.router import router as fleet_router
+
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -126,6 +130,7 @@ app.include_router(invoices_router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
 app.include_router(audit_router,     prefix="/api/audit",     tags=["Audit"])
 app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
+app.include_router(fleet_router, prefix="/api/fleet", tags=["Fleet"])
 
 
 @app.get("/api/health")

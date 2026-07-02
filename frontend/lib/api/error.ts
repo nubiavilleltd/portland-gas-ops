@@ -61,4 +61,11 @@ export const ERROR_MESSAGES: Partial<Record<string, string>> = {
     ORDER_CANNOT_BE_CLOSED: "This order cannot be closed yet",
     ORDER_NOT_EDITABLE: "Only draft orders can be edited",
     ORDER_ITEMS_REQUIRED: "Order must have at least one item",
+    CANNOT_RETURN_ITEM: "This item cannot be returned in its current state",
+    LICENSE_NUMBER_IN_USE: "This license number is already registered",
+    PLATE_NUMBER_IN_USE: "This plate number is already registered",
+    TRIP_CANNOT_BE_ASSIGNED: "Resources cannot be assigned to this trip",
+    TRIP_CANNOT_BE_STARTED: "This trip cannot be started",
+    TRIP_CANNOT_BE_COMPLETED: "This trip cannot be completed",
+    ORDER_CANNOT_BE_LINKED: "This order cannot be assigned to a trip",
 };
