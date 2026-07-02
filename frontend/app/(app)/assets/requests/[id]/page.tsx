@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, AlertCircle, Package, Boxes, CheckCircle, RotateCcw } from "lucide-react";
@@ -8,36 +7,14 @@ import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
+import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
-import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useAssetRequest, useUpdateAssetRequestStatus } from "@/lib/modules/assets";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestStatus } from "@/types";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type AssetRole = "requester" | "asset_admin";
-
-// ── Role options ───────────────────────────────────────────────────────────────
-
-const ROLES: { value: AssetRole; label: string }[] = [
-  { value: "requester",  label: "Requester" },
-  { value: "asset_admin", label: "Asset Admin" },
-];
-
-function getRoleLabel(role: AssetRole) {
-  return ROLES.find((r) => r.value === role)?.label ?? role;
-}
-
-// ── Status → default role ──────────────────────────────────────────────────────
-
-function getDefaultRole(status: AssetRequestStatus): AssetRole {
-  if (status === "pending" || status === "approved") return "asset_admin";
-  return "requester";
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -51,29 +28,6 @@ function nowStr() {
   });
 }
 
-// ── Status gate notice ─────────────────────────────────────────────────────────
-
-function StatusGateNotice({ role, status }: { role: AssetRole; status: AssetRequestStatus }) {
-  let message: string | null = null;
-
-  if (role === "asset_admin") {
-    if (status === "allocated") message = "Assets have already been allocated for this request.";
-    if (status === "returned")  message = "This loan has been returned and closed.";
-    if (status === "rejected")  message = "This request was rejected.";
-  }
-
-  if (role === "requester") {
-    if (status === "pending") message = "Your request is awaiting review by the Asset Admin.";
-  }
-
-  if (!message) return null;
-  return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      {message}
-    </div>
-  );
-}
-
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function AssetRequestDetailPage() {
@@ -83,17 +37,6 @@ export default function AssetRequestDetailPage() {
 
   const { data: req, isLoading, isError } = useAssetRequest(id);
   const updateStatus = useUpdateAssetRequestStatus(id);
-
-  const [currentRole, setCurrentRole] = useState<AssetRole>(() =>
-    req ? getDefaultRole(req.status) : "asset_admin"
-  );
-
-  // Sync default role once data loads
-  const [roleSynced, setRoleSynced] = useState(false);
-  if (req && !roleSynced) {
-    setCurrentRole(getDefaultRole(req.status));
-    setRoleSynced(true);
-  }
 
   async function handleAdminAction(status: AssetRequestStatus, comment: string) {
     const actionLabel =
@@ -118,8 +61,6 @@ export default function AssetRequestDetailPage() {
         status === "rejected" ? "Request rejected" :
         "Returned to requester"
       );
-      if (status === "approved") setCurrentRole("asset_admin"); // stay on admin tab to allocate
-      if (status === "rejected") setCurrentRole("requester");
     } catch {
       toast.error("Failed to update request");
     }
@@ -163,10 +104,9 @@ export default function AssetRequestDetailPage() {
     );
   }
 
-  const showApprovalPanel = currentRole === "asset_admin" && req.status === "pending";
-  const showAllocateBanner = currentRole === "asset_admin" && req.status === "approved";
+  const showApprovalPanel  = req.status === "pending";
+  const showAllocateBanner = req.status === "approved";
   const canMarkReturn =
-    currentRole === "requester" &&
     (req.status === "approved" || req.status === "allocated") &&
     req.request_type === "loan";
 
@@ -176,11 +116,10 @@ export default function AssetRequestDetailPage() {
     req.status === "allocated" && req.request_type === "loan" ? "Requester" :
     undefined;
 
-  const statusBadge = <ApprovalBadge status={req.status} />;
-
   return (
     <AppLayout pageTitle="Assets">
-      <div className="flex items-center justify-between mb-6">
+      {/* ── Back ─────────────────────────────────────────────────────────────── */}
+      <div className="mb-4">
         <Link
           href="/assets/requests"
           className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
@@ -189,24 +128,29 @@ export default function AssetRequestDetailPage() {
         </Link>
       </div>
 
+      {/* ── Header card ───────────────────────────────────────────────────────── */}
+      <div className="bg-white border border-brand-border rounded-2xl px-6 py-5 mb-5 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-text-secondary mb-1">
+            Asset Request
+          </p>
+          <h1 className="text-2xl font-bold text-brand-text-primary">{req.reference}</h1>
+          <p className="text-sm text-brand-text-secondary mt-0.5">
+            {capitalize(req.request_type)}
+          </p>
+          <p className="text-xs text-brand-text-secondary mt-1">
+            {capitalize(req.status)} · Submitted {formatDate(req.created_at)}
+            {nextActor && (
+              <> · Next actor <span className="font-medium text-brand-text-primary">{nextActor}</span></>
+            )}
+          </p>
+        </div>
+        <div className="shrink-0 pt-1">
+          <ApprovalBadge status={req.status} />
+        </div>
+      </div>
+
       <div className="space-y-5">
-
-        {/* ── Role switcher + record header ─────────────────────────────────── */}
-        <RoleBasedRecordHeader
-          id={req.reference}
-          currentRole={currentRole}
-          onRoleChange={setCurrentRole}
-          roleLabel={getRoleLabel(currentRole)}
-          roles={ROLES}
-          status={statusBadge}
-          recordLabel="Asset Request"
-          title={capitalize(req.request_type)}
-          nextActor={nextActor}
-          switcherDescription="Switch roles to preview how the requester and Asset Admin see this request."
-        />
-
-        {/* ── Status gate notice ────────────────────────────────────────────── */}
-        <StatusGateNotice role={currentRole} status={req.status} />
 
         {/* ── Requester Details ─────────────────────────────────────────────── */}
         <FormSection title="Requester Details">
@@ -226,12 +170,7 @@ export default function AssetRequestDetailPage() {
               <FormInput label="Return By" value={formatDate(req.return_date)} disabled />
             )}
           </div>
-          <div>
-            <p className="text-sm font-medium text-brand-text-primary mb-1">Purpose</p>
-            <p className="text-sm text-brand-text-primary leading-relaxed bg-gray-50 border border-brand-border rounded-lg px-3 py-2.5">
-              {req.purpose}
-            </p>
-          </div>
+          <FormTextarea label="Purpose" value={req.purpose} rows={3} disabled />
         </FormSection>
 
         {/* ── Requested Items ───────────────────────────────────────────────── */}
@@ -285,12 +224,11 @@ export default function AssetRequestDetailPage() {
           <ApprovalPanel
             title="Approval Decision"
             reviewingAs={ASSET_ADMIN_ACTOR_ROLE}
-            showReturn
+            showReturn={false}
             showReject
             showApprove
             rejectLabel="Deny"
             approveLabel="Approve"
-            onReturn={(comment)  => handleAdminAction("pending",  comment)}
             onReject={(comment)  => handleAdminAction("rejected", comment)}
             onApprove={(comment) => handleAdminAction("approved", comment)}
             disabled={updateStatus.isPending}
@@ -310,7 +248,7 @@ export default function AssetRequestDetailPage() {
               </div>
             </div>
             <Link
-              href={`/admin/assets/allocations/new?requestId=${id}`}
+              href={`/assets/allocations/new?requestId=${id}`}
               className="shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-colors"
             >
               Allocate Assets

@@ -130,7 +130,6 @@ function AllocateAssetsContent() {
       await allocate.mutateAsync({
         requestId: request.id,
         allocations,
-        allocatedByName: user?.name ?? "Asset Admin",
       });
       toast.success("Assets allocated successfully");
       router.push(`/assets/requests/${request.id}`);
@@ -192,10 +191,10 @@ function AllocateAssetsContent() {
     <AppLayout pageTitle="Assets">
 
       <Link
-        href="/assets/allocations"
+        href={`/assets/requests/${request.id}`}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5"
       >
-        <ArrowLeft size={14} /> Back to Allocations Queue
+        <ArrowLeft size={14} /> Back to Request
       </Link>
 
       <PageHeader
