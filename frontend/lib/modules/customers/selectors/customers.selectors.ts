@@ -8,6 +8,13 @@
 
 import type { Customer, CustomerType } from "../types/customer.types";
 
+export function getCustomerByNo(
+  customers: Customer[],
+  customerNo: string
+): Customer | undefined {
+  return customers.find((c) => c.customerNo === customerNo);
+}
+
 export function getCustomerById(
   customers: Customer[],
   id: string

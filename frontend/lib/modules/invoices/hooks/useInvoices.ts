@@ -113,6 +113,10 @@ export function useInvoiceById(id: string) {
   const { invoices, isLoading, error, refetch } = useInvoices();
   return { invoice: getInvoiceById(invoices, id), isLoading, error, refetch };
 }
+export function useInvoiceByNo(invoiceNo: string) {
+  const { invoices, isLoading, error, refetch } = useInvoices();
+  return { invoice: getInvoiceById(invoices, invoiceNo), isLoading, error, refetch };
+}
 
 export function useInvoiceByOrderId(orderId: string) {
   const { invoices, isLoading, error, refetch } = useInvoices();

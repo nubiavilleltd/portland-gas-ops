@@ -91,6 +91,12 @@ export function getTripById(
 ): Trip | undefined {
   return trips.find((t) => t.id === id);
 }
+export function getTripByNo(
+  trips: Trip[],
+  tripNo: string
+): Trip | undefined {
+  return trips.find((t) => t.trip_number === tripNo);
+}
 
 export function getTripsByStatus(
   trips: Trip[],

@@ -8,7 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useProductById } from "@/lib/modules/products/hooks/useProducts";
+import { useProductByNo } from "@/lib/modules/products/hooks/useProducts";
 import type { CreateProductFormOutput, UpdateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
@@ -21,11 +21,11 @@ import { ProductImage } from "@/lib/modules/products/types/product.types";
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const productNo = params.id as string;
 
-  const { product, isLoading, error } = useProductById(id);
+  const { product, isLoading, error } = useProductByNo(productNo);
 
-    const { mutateAsync: updateProduct } = useUpdateProduct(id);
+    const { mutateAsync: updateProduct } = useUpdateProduct(productNo);
 
   if (isLoading) {
     return (
@@ -53,41 +53,6 @@ export default function EditProductPage() {
     );
   }
 
-  // async function handleSubmit(data: UpdateProductFormOutput) {
-  //   await ProductsService.updateProduct(id, data);
-  //   toast.success("Product successfully updated")
-  //   // router.push(PRODUCT_ROUTES.detail(id));
-  //   router.push(PRODUCT_ROUTES.detail(id));
-
-
-  // }
-
-
-
-// async function handleSubmit(data: UpdateProductFormOutput) {
-//   await updateProduct(data);
-// }
-
-// async function handleSubmit(
-//   data: UpdateProductFormOutput,
-//   newImages: File[],
-//   keptImages: ProductImage[]
-// ) {
-//   const addedImages: ProductImage[] = newImages.map((file, i) => ({
-//     id:   `img-local-${Date.now()}-${i}`,
-//     url:  URL.createObjectURL(file),
-//     name: file.name,
-//   }));
-
-//   // Merge kept existing images + newly added images
-//   const mergedImages: ProductImage[] = [...keptImages, ...addedImages];
-
-//   await updateProduct({ ...data, images: mergedImages });
-// }
-
-
-
-// REPLACE the existing handleSubmit function:
 async function handleSubmit(
   data: UpdateProductFormOutput,
   newImages: File[],
@@ -104,7 +69,7 @@ async function handleSubmit(
   return (
     <AppLayout pageTitle={`Edit — ${product.name}`}>
       <button
-        onClick={() => router.push(PRODUCT_ROUTES.detail(id))}
+        onClick={() => router.push(PRODUCT_ROUTES.detail(productNo))}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
@@ -126,7 +91,7 @@ async function handleSubmit(
         <ProductForm
           initial={product}
           onSubmit={handleSubmit}
-          onCancel={() => router.push(PRODUCT_ROUTES.detail(id))}
+          onCancel={() => router.push(PRODUCT_ROUTES.detail(productNo))}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />

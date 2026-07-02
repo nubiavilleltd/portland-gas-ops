@@ -29,6 +29,7 @@ import {
   getPendingTrips,
   getTripsByDriver,
   getTripsByVehicle,
+  getTripByNo,
 } from "@/lib/modules/fleet/selectors/trips.selectors";
 import { parseError } from "@/lib/errors";
 
@@ -75,6 +76,11 @@ interface UseTripByIdResult {
 export function useTripById(id: string): UseTripByIdResult {
   const { trips, isLoading, error, refetch } = useTrips();
   const trip = getTripById(trips, id);   // selector
+  return { trip, isLoading, error, refetch };
+}
+export function useTripByNo(tripNo: string): UseTripByIdResult {
+  const { trips, isLoading, error, refetch } = useTrips();
+  const trip = getTripByNo(trips, tripNo);   // selector
   return { trip, isLoading, error, refetch };
 }
 

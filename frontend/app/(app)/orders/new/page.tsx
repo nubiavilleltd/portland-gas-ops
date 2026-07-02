@@ -29,12 +29,12 @@ const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
 
   async function handleSubmit(data: CreateOrderFormValues) {
-  await submitOrder({ input: buildOrderPayload(data, products), existingDraftId: draftId ?? undefined });
+  await submitOrder({ input: buildOrderPayload(data, products), existingDraftNo: draftId ?? undefined });
 }
 
 
   async function handleSaveDraft(data: CreateOrderFormValues) {
-  const saved = await saveDraft({ input: buildOrderPayload(data, products), existingDraftId: draftId ?? undefined });
+  const saved = await saveDraft({ input: buildOrderPayload(data, products), existingDraftNo: draftId ?? undefined });
   setDraftId(saved.id);
 }
 

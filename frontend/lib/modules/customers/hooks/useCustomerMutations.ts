@@ -28,19 +28,19 @@ export function useCreateCustomer() {
   });
 }
 
-export function useUpdateCustomer(id: string) {
+export function useUpdateCustomer(customerNo: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
     mutationFn: (input: UpdateCustomerInput) =>
-      CustomersService.updateCustomer(id, input),
+      CustomersService.updateCustomer(customerNo, input),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CUSTOMER_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CUSTOMER_KEYS.detail(id) });
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_KEYS.detail(customerNo) });
       toast.success("Customer updated successfully");
-      router.push(CUSTOMER_ROUTES.detail(id));
+      router.push(CUSTOMER_ROUTES.detail(customerNo));
     },
 
     onError: (err: any) => {
@@ -49,19 +49,19 @@ export function useUpdateCustomer(id: string) {
   });
 }
 
-export function useToggleCustomerStatus(id: string) {
+export function useToggleCustomerStatus(customerNo: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
     mutationFn: (isActive: boolean) =>
       isActive
-        ? CustomersService.deactivateCustomer(id)
-        : CustomersService.activateCustomer(id),
+        ? CustomersService.deactivateCustomer(customerNo)
+        : CustomersService.activateCustomer(customerNo),
 
     onSuccess: (_, isActive) => {
       queryClient.invalidateQueries({ queryKey: CUSTOMER_KEYS.lists() });
-      queryClient.invalidateQueries({ queryKey: CUSTOMER_KEYS.detail(id) });
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_KEYS.detail(customerNo) });
       toast.success(isActive ? "Customer deactivated" : "Customer activated");
       router.push(CUSTOMER_ROUTES.list());
     },

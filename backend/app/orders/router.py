@@ -14,6 +14,8 @@ from app.orders.schema import (
 )
 from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.payments.enums import PaymentStatus
+from app.audit.service import AuditService
+from app.audit.schema import AuditEntityType, AuditActorType, AuditLogResponse
 
 router  = APIRouter()
 service = OrderService()
@@ -60,6 +62,12 @@ def create_draft(
     current_user: User    = Depends(get_current_user),
 ):
     order = service.create_draft(db, data, created_by=current_user.id)
+
+    AuditService.record(
+    db, AuditEntityType.order, order.id,
+    "created", "Order created as draft",
+    AuditActorType.employee, current_user.id)
+
     db.commit()
     db.refresh(order)
     return _to_response(order)
@@ -95,6 +103,11 @@ def submit_order(
     current_user: User    = Depends(get_current_user),
 ):
     order = service.submit(db, order_no)
+    AuditService.record(
+    db, AuditEntityType.order, order.id,
+    "submitted", "Order submitted for processing",
+    AuditActorType.employee, current_user.id)
+
     db.commit()
     db.refresh(order)
     return _to_response(order)
@@ -108,6 +121,12 @@ def confirm_order(
 ):
     """Manual confirmation — submitted → confirmed."""
     order = service.confirm(db, order_no, confirmed_by=current_user.id)
+
+    AuditService.record(
+    db, AuditEntityType.order, order.id,
+    "confirmed", "Order manually confirmed by admin",
+    AuditActorType.employee, current_user.id)
+    
     db.commit()
     db.refresh(order)
     return _to_response(order)
@@ -134,6 +153,12 @@ def cancel_order(
         invoice = invoice_service.get_by_id_or_none(db, order.invoice_id)
         if invoice:
             invoice_service.void(db, invoice)
+    
+    AuditService.record(
+    db, AuditEntityType.order, order.id,
+    "cancelled",
+    f"Order cancelled: {body.reason}" if body.reason else "Order cancelled",
+    AuditActorType.employee, current_user.id)
 
     db.commit()
     db.refresh(order)
@@ -152,6 +177,19 @@ def confirm_delivery(
     Mirrors confirmDeliveryWorkflow exactly.
     """
     order = service.confirm_delivery(db, order_no)
+
+    AuditService.record(
+    db, AuditEntityType.order, order.id,
+    "delivered", "Delivery confirmed",
+    AuditActorType.employee, current_user.id)
+
+    if order.order_status.value == "completed":
+        AuditService.record(
+            db, AuditEntityType.order, order.id,
+            "completed", "Order auto-completed after delivery confirmed",
+            AuditActorType.system,
+        )
+    
     db.commit()
     db.refresh(order)
     return _to_response(order)
@@ -196,3 +234,12 @@ def set_invoice(
     db.commit()
     db.refresh(updated)
     return _to_response(updated)
+
+@router.get("/{order_no}/audit", response_model=list[AuditLogResponse])
+def get_order_audit(
+    order_no:     str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+):
+    order = service.get_by_no_or_raise(db, order_no)
+    return AuditService.get_by_entity(db, AuditEntityType.order, order.id)

@@ -19,7 +19,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useCustomerById } from "@/lib/modules/customers/hooks/useCustomers";
+import { useCustomerByNo } from "@/lib/modules/customers/hooks/useCustomers";
 import { CustomersService } from "@/lib/modules/customers/services/customers.service";
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 import { parseError } from "@/lib/errors";
@@ -28,40 +28,19 @@ import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
 import { useToggleCustomerStatus } from "@/lib/modules/customers/hooks/useCustomerMutations";
 
-// ── Detail row ────────────────────────────────────────────
-function DetailRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 py-4 border-b border-brand-border last:border-0">
-      <div className="mt-0.5 text-brand-text-secondary shrink-0">{icon}</div>
-      <div>
-        <p className="text-xs font-medium text-brand-text-secondary uppercase tracking-wide">
-          {label}
-        </p>
-        <p className="text-sm text-brand-text-primary mt-0.5">{value}</p>
-      </div>
-    </div>
-  );
-}
+
 
 // ── Page ──────────────────────────────────────────────────
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const customerNo = params.id as string;
 
-  const { customer, isLoading, error } = useCustomerById(id);
+  const { customer, isLoading, error } = useCustomerByNo(customerNo);
   // const [isToggling, setIsToggling] = useState(false);
 
   const isActive = customer?.status === "active"
-  const { mutate: toggleStatus, isPending: isToggling } = useToggleCustomerStatus(id);
+  const { mutate: toggleStatus, isPending: isToggling } = useToggleCustomerStatus(customerNo);
 
   // ── Loading skeleton ──────────────────────────────────
   if (isLoading) {
@@ -91,25 +70,7 @@ export default function CustomerDetailPage() {
     );
   }
 
-  // ── Handlers — defined after guards so customer is guaranteed ──
-  // async function handleToggleStatus() {
-  //   setIsToggling(true);
-  //   try {
-  //     isActive
-  //       ? await CustomersService.deactivateCustomer(id)
-  //       : await CustomersService.activateCustomer(id);
-  //     toast.success(
-  //       isActive
-  //         ? "Customer deactivated"
-  //         : "Customer activated"
-  //     );
-  //     router.push(CUSTOMER_ROUTES.list());
-  //   } catch (err) {
-  //     toast.error(parseError(err));
-  //   } finally {
-  //     setIsToggling(false);
-  //   }
-  // }
+
 
  
 
@@ -148,7 +109,7 @@ export default function CustomerDetailPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            href={CUSTOMER_ROUTES.edit(customer.id)}
+            href={CUSTOMER_ROUTES.edit(customer.customerNo)}
             leftIcon={<Pencil size={14} />}
           >
             Edit

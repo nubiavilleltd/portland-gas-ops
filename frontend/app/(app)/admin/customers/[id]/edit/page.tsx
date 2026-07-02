@@ -8,7 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useCustomerById } from "@/lib/modules/customers/hooks/useCustomers";
+import { useCustomerByNo } from "@/lib/modules/customers/hooks/useCustomers";
 import type { CreateCustomerFormData } from "@/lib/modules/customers/schemas/customer.schema";
 import { CustomersService } from "@/lib/modules/customers/services/customers.service";
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
@@ -21,10 +21,10 @@ import { useUpdateCustomer } from "@/lib/modules/customers/hooks/useCustomerMuta
 export default function EditCustomerPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const customerNo = params.id as string;
 
-  const { customer, isLoading, error } = useCustomerById(id);
-  const { mutateAsync: updateCustomer } = useUpdateCustomer(id);
+  const { customer, isLoading, error } = useCustomerByNo(customerNo);
+  const { mutateAsync: updateCustomer } = useUpdateCustomer(customerNo);
 
   if (isLoading) {
     return (
@@ -76,7 +76,7 @@ async function handleSubmit(data: CreateCustomerFormData) {
       </button> */}
 
        <BackButton
-          href={CUSTOMER_ROUTES.detail(id)}
+          href={CUSTOMER_ROUTES.detail(customer.customerNo)}
           label="Back to Customer"
         />
 
@@ -94,7 +94,7 @@ async function handleSubmit(data: CreateCustomerFormData) {
         <CustomerForm
           initial={customer}
           onSubmit={handleSubmit}
-          onCancel={() => router.push(CUSTOMER_ROUTES.detail(id))}
+          onCancel={() => router.push(CUSTOMER_ROUTES.detail(customerNo))}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />

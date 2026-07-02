@@ -9,6 +9,8 @@ from app.shared.models.user import User
 from app.invoices.service import InvoiceService
 from app.invoices.schema import InvoiceCreate, InvoiceResponse, InvoiceListResponse, InvoiceFilters
 from app.payments.enums import PaymentStatus
+from app.audit.service import AuditService
+from app.audit.schema import AuditEntityType, AuditActorType
 
 router  = APIRouter()
 service = InvoiceService()
@@ -46,6 +48,20 @@ def create_invoice(
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
     invoice = service.create(db, data, created_by=current_user.id)
+
+    AuditService.record(
+        db, AuditEntityType.invoice, invoice.id,
+        "created",
+        f"Invoice {invoice.invoice_no} generated for order",
+        AuditActorType.employee, current_user.id,
+    )
+    AuditService.record(
+        db, AuditEntityType.order, invoice.order_id,
+        "invoice_generated",
+        f"Invoice {invoice.invoice_no} generated",
+        AuditActorType.employee, current_user.id,
+    )
+ 
     db.commit()
     db.refresh(invoice)
     return _to_response(invoice)
@@ -85,6 +101,11 @@ def void_invoice(
 ):
     invoice = service.get_by_no_or_raise(db, invoice_no)
     voided  = service.void(db, invoice)
+    AuditService.record(
+        db, AuditEntityType.invoice, voided.id,
+        "voided", f"Invoice {voided.invoice_no} voided",
+        AuditActorType.employee, current_user.id,
+    )
     db.commit()
     db.refresh(voided)
     return _to_response(voided)

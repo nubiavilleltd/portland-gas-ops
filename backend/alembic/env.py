@@ -26,6 +26,11 @@ from app.safety.work_authorizations import models as _safety_work_authorization_
 from app.payments.model import Payment   # noqa: F401
 from app.orders.model import Order, OrderItem  # noqa: F401
 from app.invoices.model import Invoice   # noqa: F401
+from app.audit.model import AuditLog                          # noqa: F401
+from app.inventory.model import (                             # noqa: F401
+    WarehouseLocation, InventoryItem, ConsumableStock,
+    StockMovement, StockMovementItem, OrderItemInventory,
+)
 
 config = context.config
 

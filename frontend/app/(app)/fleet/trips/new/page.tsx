@@ -87,7 +87,7 @@ function CreateTripForm() {
     )
     .map((o) => ({
       value: o.id,
-      label: `${o.order_number} — ${customerMap.get(o.customer_id)?.name ?? o.customer_name}`,
+      label: `${o.orderNumber} — ${customerMap.get(o.customerId)?.name ?? o.customerName}`,
     }));
 
   const {
@@ -104,8 +104,8 @@ function CreateTripForm() {
       type: "order_delivery",
       linked_order_id: orderId ?? "",
       start_location: "",
-      end_location: preloadedOrder?.delivery_address ?? "",
-      scheduled_date: preloadedOrder?.delivery_date ?? "",
+      end_location: preloadedOrder?.deliveryAddress ?? "",
+      scheduled_date: preloadedOrder?.deliveryDate ?? "",
       notes: "",
     },
   });
@@ -154,8 +154,8 @@ function CreateTripForm() {
                 <Package size={14} />
 
                 <span>
-                  Order <strong>{preloadedOrder.order_number}</strong> —{" "}
-                  {customerMap.get(preloadedOrder.customer_id)?.name ?? preloadedOrder.customer_name}
+                  Order <strong>{preloadedOrder.orderNumber}</strong> —{" "}
+                  {customerMap.get(preloadedOrder.customerId)?.name ?? preloadedOrder.customerName}
                 </span>
               </div>
             )}
@@ -219,10 +219,10 @@ function CreateTripForm() {
                       const linked = orderMap.get(v);
 
                       if (linked) {
-                        setValue("end_location", linked.delivery_address);
+                        setValue("end_location", linked.deliveryAddress);
 
-                        if (linked.delivery_date) {
-                          setValue("scheduled_date", linked.delivery_date);
+                        if (linked.deliveryDate) {
+                          setValue("scheduled_date", linked.deliveryDate);
                         }
                       }
                     }}

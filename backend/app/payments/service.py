@@ -93,7 +93,7 @@ class PaymentService:
         # ── CASCADE 2: Update order payment_status → auto-confirm if paid ─────
         from app.orders.service import OrderService
         order_service = OrderService()
-        order = order_service.get_by_id_or_raise_by_id(db, invoice.order_id)
+        order = order_service.get_by_id_or_raise(db, invoice.order_id)
         order_service.update_payment_status(db, order, new_invoice_status)
         # Note: update_payment_status handles:
         #   if paid → order_status = confirmed (mirrors frontend updatePaymentStatus exactly)

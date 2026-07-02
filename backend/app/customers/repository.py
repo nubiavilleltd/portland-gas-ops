@@ -22,12 +22,9 @@ class CustomerRepository:
         return db.query(Customer).filter(Customer.id == customer_id).first()
     def get_by_no(self, db: Session, customer_no: str) -> Optional[Customer]:
         return db.query(Customer).filter(Customer.customer_no == customer_no).first()
-
     def get_by_email(self, db: Session, email: str) -> Optional[Customer]:
         return db.query(Customer).filter(Customer.email == email).first()
 
-    def get_by_customer_no(self, db: Session, customer_no: str) -> Optional[Customer]:
-        return db.query(Customer).filter(Customer.customer_no == customer_no).first()
 
     def list(
         self,

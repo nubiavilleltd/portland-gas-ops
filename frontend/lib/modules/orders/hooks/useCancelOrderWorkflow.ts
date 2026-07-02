@@ -19,7 +19,7 @@ export function useCancelOrderWorkflow() {
       queryClient.setQueryData(ORDER_KEYS.detail(updatedOrder.id), updatedOrder);
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
       toast.success("Order cancelled");
-      router.push(ORDER_ROUTES.detail(updatedOrder.id));
+      router.push(ORDER_ROUTES.detail(updatedOrder.orderNumber));
     },
 
     onError: (err: any) => {

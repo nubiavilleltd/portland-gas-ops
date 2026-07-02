@@ -24,8 +24,8 @@ interface BackendInvoiceList {
 
 export function adaptInvoice(raw: BackendInvoice): Invoice {
     return {
-        id: raw.invoice_no ?? raw.id,   // same pattern — invoice_no in URLs
-        order_id: raw.order_no ?? raw.order_id,  // use order_no so frontend can navigate
+        id: raw.id,   
+        order_id: raw.order_id,  // use order_no so frontend can navigate
         invoice_number: raw.invoice_no ?? raw.id,
         total_amount: Number(raw.total_amount),
         status: raw.status as PaymentStatus,

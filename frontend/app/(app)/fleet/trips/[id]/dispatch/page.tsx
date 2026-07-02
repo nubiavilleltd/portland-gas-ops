@@ -12,7 +12,7 @@ import { formatDate } from "@/lib/utils";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useDispatchTripWorkflow } from "@/lib/modules/fleet/hooks/useDispatchTripWorkflow";
@@ -24,10 +24,10 @@ export default function DispatchTripPage() {
   const params = useParams();
   const dispatchTrip = useDispatchTripWorkflow();
 
-  const tripId = params.id as string;
+  const tripNo = params.id as string;
 
   // ── React Query sources ───────────────────────────────
-  const { trip } = useTripById(tripId);
+  const { trip } = useTripByNo(tripNo);
 
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
@@ -57,7 +57,7 @@ export default function DispatchTripPage() {
 
           {trip.status === "pending" && (
             <Button
-              href={`/fleet/trips/${tripId}/assign`}
+              href={`/fleet/trips/${tripNo}/assign`}
               className="mr-2"
             >
               Assign Driver & Vehicle First →
@@ -65,7 +65,7 @@ export default function DispatchTripPage() {
           )}
 
           <Button
-            href={`/fleet/trips/${tripId}`}
+            href={`/fleet/trips/${tripNo}`}
             variant="outline"
           >
             Back to Trip
@@ -83,7 +83,7 @@ export default function DispatchTripPage() {
     <AppLayout pageTitle="Dispatch Trip">
 
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
         label="Back to Trip"
       />
       <PageHeader

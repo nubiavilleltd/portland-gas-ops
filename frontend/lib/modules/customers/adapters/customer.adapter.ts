@@ -18,15 +18,25 @@ import type { Customer, CustomerStatus, CustomerType } from "../types/customer.t
 // ── Backend response shape (what the API actually returns) ────────────────────
 // This does NOT go in customer.types.ts — it's an implementation detail of the adapter.
 
+type BackendCustomerStatus =
+    | "active"
+    | "inactive"
+    | "suspended";
+
+type BackendCustomerType =
+    | "corporate"
+    | "individual"
+    | "government";
+
 interface BackendCustomer {
     id: string;
     customer_no: string;
+    type: BackendCustomerType;
     name: string;
-    type: string;  // may include "government" which frontend doesn't use
     email: string | null;
     phone: string | null;
     address: string | null;
-    status: string;  // may include "suspended" which frontend maps to "inactive"
+    status: BackendCustomerStatus;
     created_at: string;
     updated_at: string;
 }
@@ -56,8 +66,8 @@ function mapType(backendType: string): CustomerType {
 // ── Single customer mapping ────────────────────────────────────────────────────
 export function adaptCustomer(raw: BackendCustomer): Customer {
     return {
-        // id: raw.id,
-        id: raw.customer_no,
+        id: raw.id,
+        customerNo: raw.customer_no,
         name: raw.name,
         type: mapType(raw.type),
         phone: raw.phone ?? "",
