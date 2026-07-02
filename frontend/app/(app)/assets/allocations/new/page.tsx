@@ -10,7 +10,7 @@ import FormSection from "@/components/ui/FormSection";
 import SelectInput from "@/components/forms/SelectInput";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { useAssetRequest, useAllocateAssetRequest, useAssets } from "@/hooks/useAssets";
+import { useAssetRequest, useAllocateAssetRequest, useAssets } from "@/lib/modules/assets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { capitalize } from "@/lib/utils";

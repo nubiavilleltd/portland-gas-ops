@@ -6,7 +6,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { useAssetRequests } from "@/hooks/useAssets";
+import { useAssetRequests } from "@/lib/modules/assets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestListItem } from "@/types";

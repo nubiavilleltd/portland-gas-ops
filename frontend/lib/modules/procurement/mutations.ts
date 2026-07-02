@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { post, patch } from "@/lib/api";
+import { post, patch, postForm, del } from "@/lib/api";
 import type {
   ProcurementRequest,
   ProcurementCreateInput,
@@ -14,8 +14,8 @@ import { procurementKeys } from "./queries";
 export function useCreateProcurement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: ProcurementCreateInput) =>
-      post<ProcurementRequest>("/api/procurement/", data),
+    mutationFn: (formData: FormData) =>
+      postForm<ProcurementRequest>("/api/procurement/", formData),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -70,6 +70,27 @@ export function useIssuePO() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data?: IssuePOInput }) =>
       post<PurchaseOrder>(`/api/procurement/${id}/issue-po`, data ?? {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
+  });
+}
+
+export function useRemoveProcurementAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      del<ProcurementRequest>(`/api/procurement/${id}/attachment`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
+  });
+}
+
+export function useUploadProcurementAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("attachment", file);
+      return postForm<ProcurementRequest>(`/api/procurement/${id}/attachment`, fd);
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }

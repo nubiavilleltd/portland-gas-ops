@@ -8,7 +8,7 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import SelectInput from "@/components/forms/SelectInput";
 import { useProcurementList } from "@/lib/modules/procurement";
-import { useAssetRequests } from "@/hooks/useAssets";
+import { useAssetRequests } from "@/lib/modules/assets";
 import { formatDate } from "@/lib/utils";
 import { Search } from "lucide-react";
 
