@@ -75,6 +75,7 @@ class ProcurementService:
                 procurement_request_id=request_id,
                 description=item_data.description,
                 quantity=item_data.quantity,
+                unit=item_data.unit,
                 unit_price=unit_price,
                 total_price=total_price,
             ))
@@ -100,30 +101,98 @@ class ProcurementService:
             forbidden()
         return req
 
-    def create_request(self, data: ProcurementCreate, employee: Employee) -> ProcurementRequest:
+    def create_request(self, data: ProcurementCreate, employee: Employee, file_bytes: bytes | None = None, filename: str | None = None) -> ProcurementRequest:
+        if not data.vendor_id or not data.vendor_id.strip():
+            bad_request("PROCUREMENT_VENDOR_REQUIRED", "A vendor must be selected or created before submitting a request")
         reference = self.repo.next_request_reference()
+        # Compute estimated amount from line item totals if not explicitly provided
+        computed_amount = data.estimated_amount
+        if computed_amount is None and data.items:
+            computed_amount = sum(
+                (item.total_price or Decimal("0")) for item in data.items
+            ) or None
         req = ProcurementRequest(
             reference=reference,
             raised_by=employee.id,
-            title=data.title,
+            category=data.category,
             description=data.description,
-            estimated_amount=data.estimated_amount,
+            estimated_amount=computed_amount,
             currency=data.currency,
+            required_by=data.required_by,
             vendor_id=data.vendor_id,
-            status="draft",
+            status="pending",
         )
         self.repo.add(req)
         for item in self._build_items(req.id, data.items):
             self.repo.add_item(item)
+        if file_bytes and filename:
+            self._attach_supporting_doc(req, file_bytes, filename, employee)
         self.repo.db.flush()
+        return req
+
+    def _attach_supporting_doc(
+        self,
+        req: ProcurementRequest,
+        file_bytes: bytes,
+        filename: str,
+        uploader: Employee,
+    ) -> None:
+        """Upload supporting document to Cloudinary and save to document library."""
+        try:
+            import mimetypes
+            mime_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+            resource_type = "raw" if mime_type == "application/pdf" else "auto"
+
+            url = cloudinary_service.upload(
+                file_bytes,
+                public_id=filename,
+                folder="portland-gas/procurement-attachments",
+                resource_type=resource_type,
+                overwrite=False,
+            )
+
+            folder = self.repo.get_purchase_requests_folder()
+            doc = Document(
+                type="file",
+                name=filename,
+                category="procurement",
+                file_path=url,
+                file_size=len(file_bytes),
+                mime_type=mime_type,
+                uploaded_by=uploader.id,
+                parent_id=folder.id,
+            )
+            saved_doc = self.repo.add_document(doc)
+            req.attachment_id = saved_doc.id
+        except Exception:
+            logger.exception("Supporting doc upload failed for request %s", req.reference)
+
+    def remove_attachment(self, request_id: str, employee: Employee) -> ProcurementRequest:
+        req = self._get_or_404(request_id)
+        if req.raised_by != employee.id:
+            forbidden("PROCUREMENT_ACCESS_DENIED", "You can only edit your own requests")
+        if req.attachment_id:
+            self.repo.delete_document(req.attachment_id)
+            req.attachment_id = None
+        return req
+
+    def upload_attachment(self, request_id: str, file_bytes: bytes, filename: str, employee: Employee) -> ProcurementRequest:
+        req = self._get_or_404(request_id)
+        if req.raised_by != employee.id:
+            forbidden("PROCUREMENT_ACCESS_DENIED", "You can only edit your own requests")
+        # Delete old attachment if it exists
+        if req.attachment_id:
+            self.repo.delete_document(req.attachment_id)
+            req.attachment_id = None
+        self._attach_supporting_doc(req, file_bytes, filename, employee)
         return req
 
     def update_request(self, request_id: str, data: ProcurementUpdate, employee: Employee) -> ProcurementRequest:
         req = self._get_or_404(request_id)
         if req.raised_by != employee.id:
             forbidden("PROCUREMENT_ACCESS_DENIED", "You can only edit your own requests")
-        if req.status != "draft":
-            bad_request("PROCUREMENT_NOT_EDITABLE", "Only draft requests can be edited")
+        if req.status not in ("draft", "returned"):
+            bad_request("PROCUREMENT_NOT_EDITABLE", "Only draft or returned requests can be edited")
 
         for field, value in data.model_dump(exclude_unset=True, exclude={"items"}).items():
             setattr(req, field, value)
@@ -137,7 +206,7 @@ class ProcurementService:
         req = self._get_or_404(request_id)
         if req.raised_by != employee.id:
             forbidden("PROCUREMENT_ACCESS_DENIED", "You can only submit your own requests")
-        if req.status != "draft":
+        if req.status not in ("draft", "returned"):
             bad_request("INVALID_STATUS_TRANSITION", f"Cannot submit a request with status '{req.status}'")
         if not req.items:
             bad_request("PROCUREMENT_NO_ITEMS", "Add at least one line item before submitting")
@@ -240,7 +309,7 @@ class ProcurementService:
             import datetime as _dt
             pdf_bytes = pdf_service.generate_purchase_order(
                 reference=po.po_number,
-                title=req.title,
+                title=f"{req.category} Request" if req.category else "Procurement Request",
                 category="",
                 priority="",
                 justification=req.description,

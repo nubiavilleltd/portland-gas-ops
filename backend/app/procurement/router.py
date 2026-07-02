@@ -16,7 +16,7 @@ Endpoints:
   PATCH  /purchase-orders/{po_id}/status  update PO delivery status (admin)
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Form, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -86,14 +86,56 @@ def list_requests(
     return _svc(db).list_requests(current_user, employee, skip=skip, limit=limit, status_filter=status)
 
 
+_ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/jpeg",
+    "image/png",
+}
+_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
 @router.post("/", response_model=ProcurementResponse, status_code=201)
-def create_request(
-    data: ProcurementCreate,
+async def create_request(
+    data: str = Form(..., description="JSON-encoded ProcurementCreate payload"),
+    attachment: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    file_bytes: Optional[bytes] = None
+    filename:   Optional[str]   = None
+
+    if attachment and attachment.filename:
+        file_bytes = await attachment.read()
+
+        # Validate file size
+        if len(file_bytes) > _MAX_FILE_SIZE:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=422,
+                detail={"error_code": "FILE_TOO_LARGE", "message": "Attachment must be 10 MB or smaller"},
+            )
+
+        # Validate MIME type
+        content_type = attachment.content_type or ""
+        if content_type not in _ALLOWED_MIME_TYPES:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error_code": "INVALID_FILE_TYPE",
+                    "message": "Only PDF, Word, Excel, JPEG, and PNG files are allowed",
+                },
+            )
+
+        filename = attachment.filename
+
+    parsed = ProcurementCreate.model_validate_json(data)
     employee = get_employee_by_user_id(current_user.id, db)
-    req = _svc(db).create_request(data, employee)
+    req = _svc(db).create_request(parsed, employee, file_bytes=file_bytes, filename=filename)
     db.commit()
     db.refresh(req)
     return req
@@ -118,6 +160,50 @@ def update_request(
 ):
     employee = get_employee_by_user_id(current_user.id, db)
     req = _svc(db).update_request(request_id, data, employee)
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+@router.delete("/{request_id}/attachment", response_model=ProcurementResponse)
+def remove_attachment(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    employee = get_employee_by_user_id(current_user.id, db)
+    req = _svc(db).remove_attachment(request_id, employee)
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+@router.post("/{request_id}/attachment", response_model=ProcurementResponse)
+async def upload_attachment(
+    request_id: str,
+    attachment: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    file_bytes = await attachment.read()
+
+    if len(file_bytes) > _MAX_FILE_SIZE:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=422,
+            detail={"error_code": "FILE_TOO_LARGE", "message": "Attachment must be 10 MB or smaller"},
+        )
+
+    content_type = attachment.content_type or ""
+    if content_type not in _ALLOWED_MIME_TYPES:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=422,
+            detail={"error_code": "INVALID_FILE_TYPE", "message": "Only PDF, Word, Excel, JPEG, and PNG files are allowed"},
+        )
+
+    employee = get_employee_by_user_id(current_user.id, db)
+    req = _svc(db).upload_attachment(request_id, file_bytes, attachment.filename or "attachment", employee)
     db.commit()
     db.refresh(req)
     return req

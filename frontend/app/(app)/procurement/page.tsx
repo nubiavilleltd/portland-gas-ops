@@ -28,9 +28,9 @@ const columns: Column<ProcurementListItem>[] = [
     render: (v) => <span className="font-mono text-xs">{String(v)}</span>,
   },
   {
-    key: "title",
-    label: "Title",
-    render: (v) => <span className="text-sm text-brand-text-primary">{String(v)}</span>,
+    key: "category",
+    label: "Category",
+    render: (v) => <span className="text-sm text-brand-text-primary capitalize">{v ? String(v).replace(/_/g, " ") : "—"}</span>,
   },
   {
     key: "vendor",

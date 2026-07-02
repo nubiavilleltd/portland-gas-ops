@@ -8,7 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import SelectInput from "@/components/forms/SelectInput";
-import { useAssetRequests } from "@/hooks/useAssets";
+import { useAssetRequests } from "@/lib/modules/assets";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestListItem, AssetRequestStatus } from "@/types";
 
