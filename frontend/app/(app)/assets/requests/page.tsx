@@ -43,6 +43,11 @@ const columns: Column<AssetRequestListItem>[] = [
     render: (v) => <span className="font-mono text-xs">{String(v)}</span>,
   },
   {
+    key: "requester_name",
+    label: "Requested By",
+    render: (v) => <span className="text-brand-text-primary">{v ? String(v) : "—"}</span>,
+  },
+  {
     key: "request_type",
     label: "Type",
     render: (v) => <TypeBadge type={String(v)} />,

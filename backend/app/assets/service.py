@@ -490,9 +490,6 @@ def update_request_status(
     data: AssetRequestStatusUpdate,
     current_user: User,
 ) -> AssetRequest:
-    if current_user.role not in ("admin", "super_admin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
-
     req = db.query(AssetRequest).filter(
         AssetRequest.id == request_id,
         AssetRequest.is_active == True,
@@ -500,6 +497,18 @@ def update_request_status(
 
     if not req:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+
+    is_admin = current_user.role in ("admin", "super_admin")
+    is_requester = req.requested_by == current_user.id
+
+    # Admin actions: approve, reject, allocate
+    # Requester action: return (their own loan)
+    if data.status == AssetRequestStatus.returned:
+        if not is_requester and not is_admin:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the requester can mark a loan as returned")
+    else:
+        if not is_admin:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     VALID_TRANSITIONS = {
         AssetRequestStatus.pending:   [AssetRequestStatus.approved, AssetRequestStatus.rejected],
@@ -515,18 +524,23 @@ def update_request_status(
             detail=f"Cannot transition from '{req.status.value}' to '{data.status.value}'",
         )
 
-    # Quantity/status changes happen at allocation time, not approval time
+    # On return: find assets assigned to this requester via this request and free them
     if data.status == AssetRequestStatus.returned:
-        for item in req.items:
-            if item.asset_id:
-                asset = db.query(Asset).filter(Asset.id == item.asset_id).first()
-                if asset:
-                    asset.available_quantity = min(
-                        asset.total_quantity,
-                        asset.available_quantity + item.quantity,
-                    )
-                    if asset.available_quantity > 0 and asset.status == AssetStatus.assigned:
-                        asset.status = AssetStatus.available
+        from app.employees.models import Employee
+        requester_emp = db.query(Employee).filter(Employee.user_id == req.requested_by).first()
+        if requester_emp:
+            for item in req.items:
+                type_id = item.asset_type_id or (item.asset.asset_type_id if item.asset else None)
+                if not type_id:
+                    continue
+                assigned_assets = db.query(Asset).filter(
+                    Asset.asset_type_id == type_id,
+                    Asset.assigned_to == requester_emp.id,
+                    Asset.status == AssetStatus.assigned,
+                ).limit(item.quantity).all()
+                for asset in assigned_assets:
+                    asset.status = AssetStatus.available
+                    asset.assigned_to = None
 
     req.status = data.status
     if data.rejection_reason:
