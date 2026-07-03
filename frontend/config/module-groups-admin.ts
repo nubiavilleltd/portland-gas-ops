@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CreditCard,
   DollarSign,
+  GitBranch,
   HelpCircle,
   MessageSquare,
   Mic2,
@@ -19,6 +20,7 @@ import {
   User,
   UserPlus,
   Users,
+  Users2,
   Warehouse,
 } from "lucide-react";
 
@@ -192,6 +194,33 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "View and review employee feedback submissions",
         icon: MessageSquare,
         href: "/admin/intranet/feedback",
+      },
+    ],
+  },
+  {
+    title: "Workflow & Approvals",
+    routePrefixes: ["/admin/workflows"],
+    processes: [
+      {
+        name: "Workflows",
+        description: "Create and manage multi-step approval chains",
+        icon: GitBranch,
+        href: "/admin/workflows",
+        routePrefixes: ["/admin/workflows"],
+      },
+      {
+        name: "Approver Groups",
+        description: "Named lists of approvers for picker steps",
+        icon: Users2,
+        href: "/admin/workflows/groups",
+        routePrefixes: ["/admin/workflows/groups"],
+      },
+      {
+        name: "Workflow Assignments",
+        description: "Map each request type to its active workflow",
+        icon: Settings,
+        href: "/admin/workflows/assignments",
+        routePrefixes: ["/admin/workflows/assignments"],
       },
     ],
   },

@@ -61,6 +61,9 @@ export default function AssetRequestDetailPage() {
         status === "rejected" ? "Request rejected" :
         "Returned to requester"
       );
+      if (status === "approved") {
+        router.push(`/assets/allocations/new?requestId=${id}`);
+      }
     } catch {
       toast.error("Failed to update request");
     }

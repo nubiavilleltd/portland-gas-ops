@@ -12,6 +12,8 @@ from app.core.config import settings
 
 # Import all models so SQLAlchemy can resolve relationships at startup
 from app.shared.models import approval, document, reference_counter, token, user  # noqa: F401
+# approval.py now contains all workflow engine models (ApprovalWorkflow, WorkflowStep,
+# ApprovalRequest, ApprovalHistory, WorkflowAuditTrail, AllRequest, Notification, etc.)
 from app.employees import models as _employee_models  # noqa: F401
 from app.vendors import models as _vendor_models  # noqa: F401
 from app.assets import models as _asset_models  # noqa: F401
@@ -35,6 +37,7 @@ from app.fleet.model import Driver, Vehicle, Trip, TripOrder  # noqa: F401
 
 
 
+from app.shared.workflow.router import router as workflow_router
 from app.auth.router import router as auth_router
 from app.users.router import router as users_router
 from app.employees.router import router as employees_router
@@ -113,6 +116,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
+app.include_router(workflow_router, prefix="/api/workflow", tags=["Workflow Engine"])
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(employees_router, prefix="/api/employees", tags=["Employees"])
