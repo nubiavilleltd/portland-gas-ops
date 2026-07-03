@@ -3,7 +3,11 @@ from app.invoices.model import Invoice
 from app.payments.enums import PaymentStatus
 
 def can_void(invoice: Invoice) -> bool:
-    return invoice.status in (PaymentStatus.unpaid, PaymentStatus.partially_paid)
+    return invoice.status in (
+    PaymentStatus.unpaid,
+    PaymentStatus.partially_paid,
+    PaymentStatus.overdue,
+)
 
 def can_record_payment(invoice: Invoice) -> bool:
     return invoice.status not in (PaymentStatus.paid, PaymentStatus.void)

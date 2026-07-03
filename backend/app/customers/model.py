@@ -24,4 +24,4 @@ class Customer(Base):
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships (added as domain tables are created)
-    # orders = relationship("Order", back_populates="customer")
+    orders = relationship("Order", back_populates="customer")

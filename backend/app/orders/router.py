@@ -22,10 +22,7 @@ service = OrderService()
 
 
 def _to_response(order) -> OrderResponse:
-    """Build OrderResponse including denormalised customer_name."""
-    data = OrderResponse.model_validate(order)
-    data.customer_name = order.customer.name if order.customer else ""
-    return data
+    return OrderResponse.model_validate(order)
 
 
 @router.get("/", response_model=OrderListResponse)
@@ -111,26 +108,6 @@ def submit_order(
     db.commit()
     db.refresh(order)
     return _to_response(order)
-
-
-@router.post("/{order_no}/confirm", response_model=OrderResponse)
-def confirm_order(
-    order_no:     str,
-    db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
-):
-    """Manual confirmation — submitted → confirmed."""
-    order = service.confirm(db, order_no, confirmed_by=current_user.id)
-
-    AuditService.record(
-    db, AuditEntityType.order, order.id,
-    "confirmed", "Order manually confirmed by admin",
-    AuditActorType.employee, current_user.id)
-    
-    db.commit()
-    db.refresh(order)
-    return _to_response(order)
-
 
 @router.post("/{order_no}/cancel", response_model=OrderResponse)
 def cancel_order(

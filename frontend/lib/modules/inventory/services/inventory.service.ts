@@ -502,10 +502,10 @@ export class InventoryService {
     return locations.find((l: WarehouseLocation) => l.is_default);
   }
 
-  static async getItems(params: { product_id?: string; status?: string } = {}): Promise<InventoryItem[]> {
-    const raw = await inventoryApi.listItems(params);
-    return raw.map(adaptInventoryItem);
-  }
+ static async getItems(): Promise<InventoryItem[]> {
+  const raw = await inventoryApi.listItems();
+  return raw.map(adaptInventoryItem);
+}
 
   static async getItemById(id: string): Promise<InventoryItem | undefined> {
     try {
@@ -514,22 +514,22 @@ export class InventoryService {
     } catch { return undefined; }
   }
 
-  static async getItemsByProduct(productId: string): Promise<InventoryItem[]> {
-    return InventoryService.getItems({ product_id: productId });
-  }
+  // static async getItemsByProduct(productId: string): Promise<InventoryItem[]> {
+  //   return InventoryService.getItems({ product_id: productId });
+  // }
 
-  static async getAvailableItems(productId: string): Promise<InventoryItem[]> {
-    return InventoryService.getItems({ product_id: productId, status: "available" });
-  }
+  // static async getAvailableItems(productId: string): Promise<InventoryItem[]> {
+  //   return InventoryService.getItems({ product_id: productId, status: "available" });
+  // }
 
-  static async getAvailableCount(productId: string): Promise<number> {
-    const items = await InventoryService.getAvailableItems(productId);
-    return items.length;
-  }
+  // static async getAvailableCount(productId: string): Promise<number> {
+  //   const items = await InventoryService.getAvailableItems(productId);
+  //   return items.length;
+  // }
 
-  static async getItemsByStatus(status: InventoryItemStatus): Promise<InventoryItem[]> {
-    return InventoryService.getItems({ status });
-  }
+  // static async getItemsByStatus(status: InventoryItemStatus): Promise<InventoryItem[]> {
+  //   return InventoryService.getItems({ status });
+  // }
 
   static async getConsumableStock(): Promise<ConsumableStock[]> {
     const raw = await inventoryApi.listStock();
