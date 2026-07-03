@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/store/authStore";
 import { mapWorkInitiationToRequest } from "./mappers";
 import { workInitiationsApi } from "./api";
-import type { WorkInitiationListParams } from "./types";
+import type { WorkInitiationListParams, WorkInitiationUpdate } from "./types";
 
 export const workInitiationKeys = {
   all: ["safety", "work-initiations"] as const,
@@ -26,10 +26,7 @@ export function useWorkInitiations(params?: WorkInitiationListParams) {
     queryKey: workInitiationKeys.list(params),
     queryFn: async () => {
       const items = await workInitiationsApi.list(params);
-      const details = await Promise.all(
-        items.map((item) => workInitiationsApi.getById(item.id)),
-      );
-      return details.map(mapWorkInitiationToRequest);
+      return items.map(mapWorkInitiationToRequest);
     },
     enabled: isAuthenticated,
     staleTime: 60 * 1000,
@@ -49,5 +46,20 @@ export function useWorkInitiation(id: string) {
     enabled: isAuthenticated && Boolean(id),
     staleTime: 60 * 1000,
     retry: shouldRetry,
+  });
+}
+
+export function useUpdateWorkInitiation(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: WorkInitiationUpdate) =>
+      workInitiationsApi.update(id, payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workInitiationKeys.detail(id) }),
+        queryClient.invalidateQueries({ queryKey: workInitiationKeys.lists() }),
+      ]);
+    },
   });
 }

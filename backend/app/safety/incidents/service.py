@@ -2,13 +2,16 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.employees.models import Employee
 from app.safety.dependencies import get_employee_for_user
+from app.shared.models.document import Document
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
+from app.shared.services.cloudinary_service import ResourceType, get_storage_service
 from app.safety.incidents.models import (
     IncidentHseDecision,
     IncidentReportStatus,
@@ -24,6 +27,11 @@ from app.safety.incidents.schemas import (
 
 INCIDENT_REFERENCE_ENTITY = "incident_report"
 INCIDENT_REFERENCE_PREFIX = "IH"
+INCIDENT_DOCUMENT_CATEGORY_PREFIX = "safety_incident"
+
+
+def incident_document_category(incident_id: str) -> str:
+    return f"{INCIDENT_DOCUMENT_CATEGORY_PREFIX}:{incident_id}"
 
 
 def reserve_incident_reference(db: Session) -> str:
@@ -77,8 +85,10 @@ def create_incident_report(
     db: Session,
     data: IncidentReportCreate,
     current_user: User,
+    attachments: Optional[list[tuple[bytes, str, str, int]]] = None,
 ) -> SafetyIncidentReport:
     employee = get_employee_for_user(db, current_user)
+    attachments = attachments or []
 
     report = SafetyIncidentReport(
         reference=reserve_incident_reference(db),
@@ -101,6 +111,15 @@ def create_incident_report(
     )
 
     db.add(report)
+    db.flush()
+
+    create_incident_documents(
+        db=db,
+        incident_id=report.id,
+        files=attachments,
+        uploaded_by=employee.id,
+    )
+
     db.commit()
     db.refresh(report)
 
@@ -207,6 +226,8 @@ def list_incident_reports(
     db: Session,
     skip: int = 0,
     limit: int = 20,
+    cursor_reported_at: Optional[datetime] = None,
+    cursor_id: Optional[str] = None,
     status_filter: Optional[IncidentReportStatus] = None,
     report_type: Optional[IncidentReportType] = None,
     search: Optional[str] = None,
@@ -214,7 +235,13 @@ def list_incident_reports(
     query = (
         db.query(SafetyIncidentReport)
         .options(
-            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user)
+            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.inspector)
+            .joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.action_owner)
+            .joinedload(Employee.user),
         )
         .filter(SafetyIncidentReport.is_active == True)
     )
@@ -234,12 +261,26 @@ def list_incident_reports(
             | SafetyIncidentReport.description.ilike(search_value)
         )
 
-    return (
-        query.order_by(SafetyIncidentReport.reported_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
+    if cursor_reported_at and cursor_id:
+        query = query.filter(
+            or_(
+                SafetyIncidentReport.reported_at < cursor_reported_at,
+                and_(
+                    SafetyIncidentReport.reported_at == cursor_reported_at,
+                    SafetyIncidentReport.id < cursor_id,
+                ),
+            )
+        )
+
+    query = query.order_by(
+        SafetyIncidentReport.reported_at.desc(),
+        SafetyIncidentReport.id.desc(),
     )
+
+    if skip > 0:
+        query = query.offset(skip)
+
+    return query.limit(limit).all()
 
 
 def get_incident_report(
@@ -270,7 +311,59 @@ def get_incident_report(
             detail="Incident report not found",
         )
 
+    report.attachments = list_incident_documents(db, report.id)
+
     return report
+
+
+def list_incident_documents(db: Session, incident_id: str) -> list[Document]:
+    return (
+        db.query(Document)
+        .filter(
+            Document.category == incident_document_category(incident_id),
+            Document.type == "file",
+        )
+        .order_by(Document.created_at)
+        .all()
+    )
+
+
+def create_incident_documents(
+    db: Session,
+    incident_id: str,
+    files: list[tuple[bytes, str, str, int]],
+    uploaded_by: Optional[str],
+) -> list[Document]:
+    if not files:
+        return []
+
+    storage = get_storage_service()
+    documents: list[Document] = []
+    category = incident_document_category(incident_id)
+
+    for file_bytes, filename, mime_type, file_size in files:
+        result = storage.upload(
+            file_bytes=file_bytes,
+            filename=filename,
+            folder=f"safety/incidents/{incident_id}",
+            resource_type=ResourceType.AUTO,
+            overwrite=False,
+        )
+        document = Document(
+            type="file",
+            name=filename,
+            category=category,
+            file_path=result.url,
+            file_size=result.file_size or file_size,
+            mime_type=mime_type,
+            uploaded_by=uploaded_by,
+            parent_id=None,
+        )
+        db.add(document)
+        documents.append(document)
+
+    db.flush()
+    return documents
 
 
 def update_incident_report(

@@ -1,5 +1,6 @@
 export { workInitiationsApi } from "./api";
 export {
+  useUpdateWorkInitiation,
   useWorkInitiation,
   useWorkInitiations,
   workInitiationKeys,
@@ -15,4 +16,5 @@ export type {
   WorkInitiationResponse,
   WorkInitiationReviewResponse,
   WorkInitiationStatus,
+  WorkInitiationUpdate,
 } from "./types";

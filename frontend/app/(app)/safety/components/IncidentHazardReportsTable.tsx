@@ -60,9 +60,12 @@ const columns: Column<IncidentHazardReport>[] = [
     render: (_, row) => getIncidentHazardNextActor(row),
   },
   {
-    key: "dateTimeObserved",
+    key: "reportedAtRaw",
     label: "Date Reported",
-    render: (value, row) => String(value || row.reporter.reportDate),
+    getSearchValue: (row) => row.reporter.reportDate,
+    getSortValue: (row) => row.reportedAtRaw ?? row.reporter.reportDate,
+    className: "whitespace-nowrap",
+    render: (_, row) => row.reporter.reportDate || "-",
   },
 ];
 
@@ -76,7 +79,7 @@ export default function IncidentHazardReportsTable({
   const reportsQuery = useIncidentReports();
   const reports = sortByLatestSafetyActivity(
     (reportsQuery.data ?? []).filter((report) => report.status !== "draft"),
-    (report) => report.dateTimeObserved || report.reporter.reportDate,
+    (report) => report.reportedAtRaw ?? report.reporter.reportDate,
   );
 
   return (

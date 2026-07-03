@@ -26,12 +26,16 @@ import type {
 import {
   incidentReportsApi,
   useIncidentReport,
-  useSafetyActors,
   type IncidentHseDecision,
   type IncidentHseReviewCreate,
   type IncidentReportType,
   type IncidentSeverityEstimate,
 } from "@/lib/modules/safety/incidentReport";
+import { getTodayDateInputValue } from "@/lib/modules/safety/date-rules";
+import {
+  useSafetyActors,
+  useSafetyDepartments,
+} from "@/lib/modules/safety/people";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
@@ -55,14 +59,6 @@ import type {
 const toOptions = (items: string[]) =>
   items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
-const departmentOptions = toOptions([
-  "Engineering",
-  "Maintenance",
-  "Operations",
-  "Logistics",
-  "HSE",
-  "Admin",
-]);
 const reportTypeByLabel: Record<string, IncidentReportType> = {
   Incident: "incident",
   Hazard: "hazard",
@@ -85,7 +81,6 @@ const incidentHazardRoles: { value: IncidentHazardRole; label: string }[] = [
 
 export default function IncidentHazardDetailsView({
   reportId,
-  initialRole,
 }: {
   reportId: string;
   initialRole?: IncidentHazardRole;
@@ -102,9 +97,6 @@ export default function IncidentHazardDetailsView({
   const completedWork = report
     ? getApprovedCloseOutForIncident(report.id)
     : null;
-  const [currentRole, setCurrentRole] = useState<IncidentHazardRole>(
-    initialRole ?? "reporter",
-  );
   const [hseComment, setHseComment] = useState("");
   const [confirmedReportType, setConfirmedReportType] = useState("");
   const [confirmedSeverity, setConfirmedSeverity] = useState("");
@@ -123,7 +115,19 @@ export default function IncidentHazardDetailsView({
     "incident_hse_review",
     "hse_review",
   );
-  const actionOwnerQuery = useSafetyActors();
+  const departmentsQuery = useSafetyDepartments();
+  const departmentOptions = useMemo(
+    () =>
+      (departmentsQuery.data ?? []).map((department) => ({
+        value: department.value,
+        label: department.label,
+      })),
+    [departmentsQuery.data],
+  );
+  const actionOwnerQuery = useSafetyActors(
+    assignedDepartment ? { department: assignedDepartment } : undefined,
+    { enabled: Boolean(assignedDepartment) },
+  );
   const actionOwnerOptions = useMemo(
     () =>
       (actionOwnerQuery.data ?? []).map((actor) => ({
@@ -137,6 +141,21 @@ export default function IncidentHazardDetailsView({
     myEmployeeQuery.data?.id &&
     report.hseReview.actionOwnerId === myEmployeeQuery.data.id,
   );
+  const isHseEmployee = isHseDepartment(myEmployeeQuery.data?.department);
+  const isActionOwnerContext =
+    isAssignedActionOwner &&
+    Boolean(
+      report?.status === "recommended" ||
+        report?.status === "resolved" ||
+        report?.status === "closed",
+    );
+  const currentRole: IncidentHazardRole = isHseEmployee
+    ? "hse"
+    : isActionOwnerContext
+      ? "action_owner"
+      : "reporter";
+  const canActAsActionOwner =
+    isAssignedActionOwner && report?.status === "recommended";
 
   const permissions = useMemo(() => {
     const isDraft = report?.status === "draft";
@@ -145,29 +164,29 @@ export default function IncidentHazardDetailsView({
     const isResolved = report?.status === "resolved";
     const isClosed = report?.status === "closed";
     return {
-      canReporterEdit: currentRole === "reporter" && isDraft,
-      canHseReview: currentRole === "hse" && isSubmitted,
+      canReporterEdit: false,
+      canHseReview: isHseEmployee && isSubmitted,
       canActionOwnerResolve:
-        currentRole === "action_owner" &&
-        isRecommended &&
-        isAssignedActionOwner &&
-        Boolean(completedWork),
-      canHseClose: currentRole === "hse" && isResolved,
-      showActionOwnerSection: Boolean(isRecommended || isResolved || isClosed),
+        isRecommended && isAssignedActionOwner && Boolean(completedWork),
+      canHseClose: isHseEmployee && isResolved,
+      showActionOwnerSection:
+        Boolean(isRecommended || isResolved || isClosed) &&
+        Boolean(isHseEmployee || isAssignedActionOwner),
       showHseReview: Boolean(
-        (currentRole === "hse" && isSubmitted) || Boolean(report?.hseReview),
+        (isHseEmployee && (isSubmitted || Boolean(report?.hseReview))) ||
+          (isAssignedActionOwner && Boolean(report?.hseReview)),
       ),
       showAuditTrail: Boolean(!isDraft),
     };
   }, [
     completedWork,
-    currentRole,
+    isHseEmployee,
     isAssignedActionOwner,
     report?.hseReview,
     report?.status,
   ]);
 
-  if (reportQuery.isLoading) {
+  if (reportQuery.isLoading || myEmployeeQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={4} />;
   }
 
@@ -201,6 +220,11 @@ export default function IncidentHazardDetailsView({
 
   async function hseFinalDecision(decision: "Resolved" | "Not Resolved") {
     await saveHseReview(decision === "Resolved" ? "resolved" : "not_resolved");
+  }
+
+  function handleAssignedDepartmentChange(nextDepartment: string) {
+    setAssignedDepartment(nextDepartment);
+    setActionOwner("");
   }
 
   async function saveHseReview(decision: IncidentHseDecision) {
@@ -340,12 +364,13 @@ export default function IncidentHazardDetailsView({
       <RoleBasedRecordHeader
         id={report.reference ?? report.id}
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
+        onRoleChange={() => undefined}
         roleLabel={getIncidentHazardRoleLabel(currentRole)}
         roles={incidentHazardRoles}
         status={<ApprovalBadge status={report.status} />}
         nextActor={getIncidentHazardNextActor(report)}
         switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
+        showRoleSwitcher={false}
       />
 
       <StatusNote report={report} currentRole={currentRole} />
@@ -376,11 +401,13 @@ export default function IncidentHazardDetailsView({
             correctiveActionDetails={correctiveActionDetails}
             onCorrectiveActionDetailsChange={setCorrectiveActionDetails}
             assignedDepartment={assignedDepartment}
-            onAssignedDepartmentChange={setAssignedDepartment}
+            onAssignedDepartmentChange={handleAssignedDepartmentChange}
+            departmentOptions={departmentOptions}
+            departmentLoading={departmentsQuery.isLoading}
             actionOwner={actionOwner}
             onActionOwnerChange={setActionOwner}
             actionOwnerOptions={actionOwnerOptions}
-            actionOwnerLoading={actionOwnerQuery.isLoading}
+            actionOwnerLoading={Boolean(assignedDepartment) && actionOwnerQuery.isLoading}
             targetCompletionDate={targetCompletionDate}
             onTargetCompletionDateChange={setTargetCompletionDate}
             checklistAnswers={hseChecklistAnswers}
@@ -590,6 +617,8 @@ function HseReviewAction({
   onCorrectiveActionDetailsChange,
   assignedDepartment,
   onAssignedDepartmentChange,
+  departmentOptions,
+  departmentLoading,
   actionOwner,
   onActionOwnerChange,
   actionOwnerOptions,
@@ -620,6 +649,8 @@ function HseReviewAction({
   onCorrectiveActionDetailsChange: (value: string) => void;
   assignedDepartment: string;
   onAssignedDepartmentChange: (value: string) => void;
+  departmentOptions: { value: string; label: string }[];
+  departmentLoading: boolean;
   actionOwner: string;
   onActionOwnerChange: (value: string) => void;
   actionOwnerOptions: { value: string; label: string }[];
@@ -752,7 +783,11 @@ function HseReviewAction({
                   required
                   searchable
                   options={departmentOptions}
-                  placeholder="Select department"
+                  placeholder={
+                    departmentLoading
+                      ? "Loading departments..."
+                      : "Select department"
+                  }
                   value={assignedDepartment}
                   onValueChange={onAssignedDepartmentChange}
                 />
@@ -762,16 +797,20 @@ function HseReviewAction({
                   searchable
                   options={actionOwnerOptions}
                   placeholder={
-                    actionOwnerLoading
+                    !assignedDepartment
+                      ? "Select a department first"
+                      : actionOwnerLoading
                       ? "Loading action owners..."
                       : "Select action owner"
                   }
                   value={actionOwner}
                   onValueChange={onActionOwnerChange}
+                  disabled={!assignedDepartment || actionOwnerLoading}
                 />
                 <FormDatePicker
                   label="Target Completion Date"
                   required
+                  min={getTodayDateInputValue()}
                   value={targetCompletionDate}
                   onValueChange={onTargetCompletionDateChange}
                 />
@@ -1125,37 +1164,63 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 function AttachmentList({
   attachments,
 }: {
-  attachments: IncidentHazardAttachment[];
+  attachments?: IncidentHazardAttachment[];
 }) {
-  if (attachments.length === 0) {
+  const safeAttachments = attachments ?? [];
+
+  if (safeAttachments.length === 0) {
     return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
   }
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <div
-          key={attachment.name}
-          className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? (
-              <ImageIcon size={18} />
-            ) : (
-              <FileText size={18} />
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">
-              {attachment.name}
-            </p>
-            <p className="text-xs capitalize text-brand-text-secondary">
-              {attachment.type}
-            </p>
-          </div>
-        </div>
+      {safeAttachments.map((attachment) => (
+        <AttachmentItem key={attachment.id ?? attachment.name} attachment={attachment} />
       ))}
     </div>
+  );
+}
+
+function AttachmentItem({
+  attachment,
+}: {
+  attachment: IncidentHazardAttachment;
+}) {
+  const content = (
+    <>
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
+        {attachment.type === "image" ? (
+          <ImageIcon size={18} />
+        ) : (
+          <FileText size={18} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-brand-text-primary">
+          {attachment.name}
+        </p>
+        <p className="text-xs capitalize text-brand-text-secondary">
+          {attachment.type}
+        </p>
+      </div>
+    </>
+  );
+
+  const className = "flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3";
+
+  if (!attachment.url) {
+    return <div className={className}>{content}</div>;
+  }
+
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noreferrer"
+      className={`${className} transition-colors hover:border-brand-purple/40 hover:bg-white`}
+    >
+      {content}
+    </a>
   );
 }
 
@@ -1205,6 +1270,11 @@ function getIncidentHazardRoleLabel(role: IncidentHazardRole) {
   };
 
   return labelByRole[role];
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalizedDepartment = department?.trim().toLowerCase();
+  return normalizedDepartment === "hse" || normalizedDepartment === "safety";
 }
 
 function FormSection({

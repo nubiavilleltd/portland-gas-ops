@@ -1,15 +1,15 @@
 import api from "@/lib/api";
 import type {
   WorkInitiationCreate,
-  WorkInitiationListItem,
   WorkInitiationListParams,
   WorkInitiationResponse,
+  WorkInitiationUpdate,
 } from "./types";
 
 export const workInitiationsApi = {
   list: async (
     params?: WorkInitiationListParams,
-  ): Promise<WorkInitiationListItem[]> => {
+  ): Promise<WorkInitiationResponse[]> => {
     const { data } = await api.get("/api/safety/work-initiations", { params });
     return data;
   },
@@ -23,6 +23,14 @@ export const workInitiationsApi = {
     payload: WorkInitiationCreate,
   ): Promise<WorkInitiationResponse> => {
     const { data } = await api.post("/api/safety/work-initiations", payload);
+    return data;
+  },
+
+  update: async (
+    id: string,
+    payload: WorkInitiationUpdate,
+  ): Promise<WorkInitiationResponse> => {
+    const { data } = await api.put(`/api/safety/work-initiations/${id}`, payload);
     return data;
   },
 };

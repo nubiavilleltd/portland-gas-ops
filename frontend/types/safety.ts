@@ -56,7 +56,9 @@ export interface WorkInitiationAssetDetails {
 
 export interface WorkInitiationAssignment {
   assignedDepartment: string;
+  assignedSupervisorId?: string;
   assignedSupervisor: string;
+  assignedWorkerIds?: string[];
   assignedWorkers: string[];
   contractorsNeeded: boolean;
   selectedContractor: string;
@@ -68,6 +70,7 @@ export interface WorkInitiationAssignment {
 
 export interface AssignedWorkInitiationSummary {
   id: string;
+  reference?: string;
   title: string;
   status: "approved";
   workCategory: string;
@@ -76,7 +79,9 @@ export interface AssignedWorkInitiationSummary {
   location: string;
   exactWorkArea: string;
   workDescription: string;
+  assignedSupervisorId?: string;
   assignedSupervisor: string;
+  assignedWorkerIds?: string[];
   assignedWorkers: string[];
   contractorsNeeded: boolean;
   selectedContractor: string;
@@ -96,6 +101,7 @@ export interface WorkInitiationRequest {
   id: string;
   reference?: string;
   status: WorkInitiationStatus;
+  requesterId?: string;
   requester: WorkAuthorizationRequester;
   title: string;
   workDescription: string;
@@ -145,8 +151,12 @@ export interface WorkAuthorizationRiskIndicators {
 }
 
 export interface WorkAuthorizationAttachment {
+  id?: string;
   name: string;
-  type: "image" | "document";
+  type: "image" | "document" | "video";
+  url?: string;
+  mimeType?: string;
+  fileSize?: number;
 }
 
 export interface WorkAuthorizationApprovalResult {
@@ -178,7 +188,10 @@ export interface WorkAuthorizationAuditTrailItem {
 
 export interface WorkAuthorizationRequest {
   id: string;
+  reference?: string;
+  requestedAtRaw?: string;
   status: WorkAuthorizationStatus;
+  requesterId?: string;
   requester: WorkAuthorizationRequester;
   workInitiation: AssignedWorkInitiationSummary;
   requestDetails: WorkAuthorizationRequestDetails;
@@ -301,8 +314,12 @@ export interface IncidentHazardReporter {
 }
 
 export interface IncidentHazardAttachment {
+  id?: string;
   name: string;
   type: "image" | "document" | "video";
+  url?: string;
+  mimeType?: string;
+  fileSize?: number;
 }
 
 export interface IncidentHazardHseReview {
@@ -325,6 +342,8 @@ export interface IncidentHazardHseReview {
 export interface IncidentHazardReport {
   id: string;
   reference?: string;
+  reportedAtRaw?: string;
+  dateTimeObservedRaw?: string;
   status: IncidentHazardStatus;
   reporter: IncidentHazardReporter;
   title: string;

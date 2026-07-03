@@ -1,21 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import {
+  getSafetyEmployeeDisplayName,
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkAuthorizationHref,
   sortByLatestSafetyActivity,
 } from "@/lib/safety-demo-routing";
-import { fetchWorkAuthorizationRequests } from "@/lib/mock/work-authorization-api";
+import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
 import type { WorkAuthorizationRequest } from "@/types/safety";
 
 const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "id",
     label: "Reference",
+    render: (_, row) => row.reference || row.id,
   },
   {
     key: "title",
@@ -45,6 +48,7 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "plannedStartDateTime",
     label: "Planned Start",
+    className: "whitespace-nowrap",
     render: (_, row) => row.workInitiation.plannedStartDateTime,
   },
   {
@@ -65,64 +69,38 @@ export default function WorkAuthorizationRequestsTable({
 }: {
   scope?: "user" | "admin";
 }) {
-  const [requests, setRequests] = useState<WorkAuthorizationRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    fetchWorkAuthorizationRequests()
-      .then((items) => {
-        if (mounted) {
-          // Draft rows are hidden for now. Keep the mock draft records intact so
-          // draft workflows can return later without rebuilding the data.
-          setRequests(
-            sortByLatestSafetyActivity(
-              items.filter(
-                (item) =>
-                  item.status !== "draft" &&
-                  (scope === "admin" || isSafetyCurrentUser(item.requester.name)),
-              ),
-              (item) => item.requester.requestDate,
-            ),
-          );
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [scope]);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3, 4].map((item) => (
-          <div
-            key={item}
-            className="h-16 animate-pulse rounded-2xl border border-brand-border bg-white"
-          />
-        ))}
-      </div>
-    );
-  }
+  const requestsQuery = useWorkAuthorizations();
+  const currentEmployee = useSafetyCurrentEmployee();
+  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
+  const isCurrentEmployeeName = (name: string) =>
+    Boolean(currentEmployeeName) &&
+    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
+  const requests = sortByLatestSafetyActivity(
+    (requestsQuery.data ?? []).filter(
+      (item) =>
+        item.status !== "draft" &&
+        (scope === "admin" || isCurrentEmployeeName(item.requester.name)),
+    ),
+    (item) => item.requestedAtRaw ?? item.requester.requestDate,
+  );
 
   return (
     <DataTable
       columns={columns}
       data={requests}
+      isLoading={requestsQuery.isLoading || currentEmployee.isLoading}
       rowHref={(request) =>
         scope === "admin"
           ? getAdminWorkAuthorizationHref(request)
           : `/safety/work-authorization/${request.id}`
       }
-      emptyMessage="No work authorization requests found."
+      emptyMessage={
+        requestsQuery.isError
+          ? "Work authorization requests could not be loaded."
+          : "No work authorization requests found."
+      }
       getSearchValues={(request) => [
+        request.reference,
         request.workInitiation.title,
         request.workInitiation.assignedSupervisor,
         request.workInitiation.location,

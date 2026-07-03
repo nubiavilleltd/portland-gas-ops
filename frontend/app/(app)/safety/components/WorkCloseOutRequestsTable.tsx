@@ -2,7 +2,10 @@
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import {
+  getSafetyEmployeeDisplayName,
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
 import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkCloseOutHref,
@@ -53,11 +56,16 @@ export default function WorkCloseOutRequestsTable({
   scope?: "user" | "admin";
 }) {
   const { workCloseOuts } = useSafetyDemoData();
+  const currentEmployee = useSafetyCurrentEmployee();
+  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
+  const isCurrentEmployeeName = (name: string) =>
+    Boolean(currentEmployeeName) &&
+    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
   const requests = sortByLatestSafetyActivity(
     workCloseOuts.filter(
       (request) =>
         request.status !== "draft" &&
-        (scope === "admin" || isSafetyCurrentUser(request.requester.name)),
+        (scope === "admin" || isCurrentEmployeeName(request.requester.name)),
     ),
     (request) => request.requester.requestDate,
   );
@@ -66,6 +74,7 @@ export default function WorkCloseOutRequestsTable({
     <DataTable
       columns={columns}
       data={requests}
+      isLoading={currentEmployee.isLoading}
       rowHref={(request) =>
         scope === "admin"
           ? getAdminWorkCloseOutHref(request)

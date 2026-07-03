@@ -3,18 +3,15 @@ import type {
   IncidentHseReviewCreate,
   IncidentHseReviewResponse,
   IncidentReportCreate,
-  IncidentReportListItem,
   IncidentReportListParams,
   IncidentReportResponse,
   IncidentReportUpdate,
-  SafetyActor,
-  SafetyActorListParams,
 } from "./types";
 
 export const incidentReportsApi = {
   list: async (
     params?: IncidentReportListParams,
-  ): Promise<IncidentReportListItem[]> => {
+  ): Promise<IncidentReportResponse[]> => {
     const { data } = await api.get("/api/safety/incidents", { params });
     return data;
   },
@@ -26,8 +23,15 @@ export const incidentReportsApi = {
 
   create: async (
     payload: IncidentReportCreate,
+    attachments: File[] = [],
   ): Promise<IncidentReportResponse> => {
-    const { data } = await api.post("/api/safety/incidents", payload);
+    const form = new FormData();
+    form.append("data", JSON.stringify(payload));
+    attachments.forEach((file) => form.append("attachments", file));
+
+    const { data } = await api.post("/api/safety/incidents", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return data;
   },
 
@@ -51,10 +55,4 @@ export const incidentReportsApi = {
     await api.delete(`/api/safety/incidents/${id}`);
   },
 
-  listActors: async (
-    params?: SafetyActorListParams,
-  ): Promise<SafetyActor[]> => {
-    const { data } = await api.get("/api/safety/actors", { params });
-    return data;
-  },
 };

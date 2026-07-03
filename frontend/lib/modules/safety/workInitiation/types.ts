@@ -37,6 +37,8 @@ export interface WorkInitiationCreate {
   materials_required?: string | null;
 }
 
+export type WorkInitiationUpdate = WorkInitiationCreate;
+
 export interface WorkInitiationEmployeeSummary {
   id: string;
   name?: string | null;
@@ -92,6 +94,8 @@ export interface WorkInitiationResponse extends WorkInitiationListItem {
 export interface WorkInitiationListParams {
   skip?: number;
   limit?: number;
+  cursor_created_at?: string;
+  cursor_id?: string;
   status?: WorkInitiationStatus;
   work_category?: WorkInitiationCategory;
   search?: string;

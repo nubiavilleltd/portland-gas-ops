@@ -33,8 +33,14 @@ body {
   font-family: var(--font-sans);
 }
 
-button, [role="button"], a {
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 /* ── Page transitions ──────────────────────────────────────────────────────── */

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { incidentReportsApi } from "./api";
 import { mapIncidentReportToHazardReport } from "./mappers";
-import type { IncidentReportListParams, SafetyActorListParams } from "./types";
+import type { IncidentReportListParams } from "./types";
 
 export const incidentReportKeys = {
   all: ["safety", "incident-reports"] as const,
@@ -11,8 +11,6 @@ export const incidentReportKeys = {
   list: (params?: IncidentReportListParams) =>
     [...incidentReportKeys.lists(), params ?? {}] as const,
   detail: (id: string) => [...incidentReportKeys.all, "detail", id] as const,
-  actors: (params?: SafetyActorListParams) =>
-    ["safety", "actors", params ?? {}] as const,
 };
 
 function shouldRetry(failureCount: number, error: unknown) {
@@ -28,10 +26,7 @@ export function useIncidentReports(params?: IncidentReportListParams) {
     queryKey: incidentReportKeys.list(params),
     queryFn: async () => {
       const reports = await incidentReportsApi.list(params);
-      const details = await Promise.all(
-        reports.map((report) => incidentReportsApi.getById(report.id)),
-      );
-      return details.map(mapIncidentReportToHazardReport);
+      return reports.map(mapIncidentReportToHazardReport);
     },
     enabled: isAuthenticated,
     staleTime: 60 * 1000,
@@ -49,18 +44,6 @@ export function useIncidentReport(id: string) {
       return mapIncidentReportToHazardReport(report);
     },
     enabled: isAuthenticated && Boolean(id),
-    staleTime: 60 * 1000,
-    retry: shouldRetry,
-  });
-}
-
-export function useSafetyActors(params?: SafetyActorListParams) {
-  const { isAuthenticated } = useAuthStore();
-
-  return useQuery({
-    queryKey: incidentReportKeys.actors(params),
-    queryFn: () => incidentReportsApi.listActors(params),
-    enabled: isAuthenticated,
     staleTime: 60 * 1000,
     retry: shouldRetry,
   });

@@ -1,6 +1,9 @@
+import json
+from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -11,7 +14,6 @@ from app.safety.work_authorizations.models import WorkAuthorizationStatus
 from app.safety.work_authorizations.schemas import (
     WorkAuthorizationCreate,
     WorkAuthorizationHseReviewCreate,
-    WorkAuthorizationListItem,
     WorkAuthorizationResponse,
 )
 from app.shared.dependencies import get_current_user
@@ -23,11 +25,76 @@ router = APIRouter(
     tags=["Safety Work Authorizations"],
 )
 
+ALLOWED_ATTACHMENT_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "video/mp4",
+    "video/quicktime",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+MAX_ATTACHMENT_SIZE_MB = 10
+MAX_ATTACHMENTS = 10
 
-@router.get("", response_model=List[WorkAuthorizationListItem])
+
+async def validate_attachments(files: List[UploadFile]) -> list[tuple[bytes, str, str, int]]:
+    if len(files) > MAX_ATTACHMENTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {MAX_ATTACHMENTS} attachments allowed.",
+        )
+
+    validated: list[tuple[bytes, str, str, int]] = []
+    max_bytes = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024
+
+    for file in files:
+        if not file.filename:
+            continue
+        if file.content_type not in ALLOWED_ATTACHMENT_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid attachment type '{file.content_type}'.",
+            )
+        file_bytes = await file.read()
+        if len(file_bytes) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Attachment '{file.filename}' exceeds {MAX_ATTACHMENT_SIZE_MB} MB.",
+            )
+        validated.append((
+            file_bytes,
+            file.filename,
+            file.content_type or "application/octet-stream",
+            len(file_bytes),
+        ))
+
+    return validated
+
+
+def parse_form_payload(data: str, schema):
+    try:
+        return schema.model_validate(json.loads(data))
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid JSON in 'data' field.",
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.errors(include_url=False),
+        )
+
+
+@router.get("", response_model=List[WorkAuthorizationResponse])
 def list_work_authorizations(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    cursor_created_at: Optional[datetime] = Query(None),
+    cursor_id: Optional[str] = Query(None),
     status_filter: Optional[WorkAuthorizationStatus] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
@@ -37,10 +104,12 @@ def list_work_authorizations(
         db=db,
         skip=skip,
         limit=limit,
+        cursor_created_at=cursor_created_at,
+        cursor_id=cursor_id,
         status_filter=status_filter,
         search=search,
     )
-    return [WorkAuthorizationListItem.from_model(record) for record in records]
+    return [WorkAuthorizationResponse.from_model(record) for record in records]
 
 
 @router.post(
@@ -48,15 +117,20 @@ def list_work_authorizations(
     response_model=WorkAuthorizationResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_work_authorization(
-    data: WorkAuthorizationCreate,
+async def create_work_authorization(
+    data: str = Form(...),
+    attachments: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    payload = parse_form_payload(data, WorkAuthorizationCreate)
+    attachment_files = await validate_attachments(attachments)
+
     record = work_authorization_service.create_work_authorization(
         db=db,
-        data=data,
+        data=payload,
         current_user=current_user,
+        attachments=attachment_files,
     )
     return WorkAuthorizationResponse.from_model(record)
 
@@ -78,16 +152,21 @@ def get_work_authorization(
     "/{work_authorization_id}/hse-review",
     response_model=WorkAuthorizationResponse,
 )
-def create_hse_review(
+async def create_hse_review(
     work_authorization_id: str,
-    data: WorkAuthorizationHseReviewCreate,
+    data: str = Form(...),
+    hse_evidence: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     inspector: Employee = Depends(require_hse_reviewer),
 ):
+    payload = parse_form_payload(data, WorkAuthorizationHseReviewCreate)
+    evidence_files = await validate_attachments(hse_evidence)
+
     record = work_authorization_service.create_hse_review(
         db=db,
         work_authorization_id=work_authorization_id,
-        data=data,
+        data=payload,
         inspector=inspector,
+        hse_evidence=evidence_files,
     )
     return WorkAuthorizationResponse.from_model(record)

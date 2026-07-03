@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -22,6 +22,11 @@ import {
   updateWorkCloseOut,
   useSafetyDemoData,
 } from "@/lib/safety-demo-store";
+import {
+  useSafetyCurrentEmployee,
+  type SafetyEmployeeProfile,
+} from "@/lib/modules/safety/people";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import type {
   WorkAuthorizationAttachment,
   WorkAuthorizationAuditTrailItem,
@@ -57,20 +62,32 @@ function isReturnOrDeny(decision: WorkCloseOutDecision) {
 
 export default function WorkCloseOutDetailsView({
   requestId,
-  initialRole,
 }: {
   requestId: string;
-  initialRole?: WorkCloseOutRole;
 }) {
   const router = useRouter();
   const toast = useToast();
+  const currentEmployeeQuery = useSafetyCurrentEmployee();
+  const currentEmployee = currentEmployeeQuery.data;
   const initialRequest = getMockWorkCloseOutRequest(requestId);
   const { workCloseOuts } = useSafetyDemoData();
   const request = workCloseOuts.find((item) => item.id === requestId) ?? initialRequest;
   const isExceptionCloseOut = request ? isExceptionWorkCloseOut(request) : false;
-  const [currentRole, setCurrentRole] = useState<WorkCloseOutRole>(
-    initialRole ?? "requester",
+  const isRequester = employeeMatchesName(currentEmployee, request?.requester.name);
+  const isAssignedSupervisor = employeeMatchesName(
+    currentEmployee,
+    request?.workAuthorization.supervisor,
   );
+  const isOperationsHead = isOperationsHeadEmployee(currentEmployee);
+  const isHseEmployee = isHseDepartment(currentEmployee?.department);
+  const hasDirectCloseOutAccess =
+    isRequester || isAssignedSupervisor || isOperationsHead || isHseEmployee;
+  const currentRole = getWorkCloseOutAccessRole({
+    isRequester,
+    isAssignedSupervisor,
+    isOperationsHead,
+    isHseEmployee,
+  });
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHeadComment, setOperationsHeadComment] = useState("");
   const [hseComment, setHseComment] = useState("");
@@ -85,45 +102,40 @@ export default function WorkCloseOutDetailsView({
       hseAreaSafe !== "Yes" ||
       hseCorrectiveActionRequired === "Yes");
 
-  const permissions = useMemo(() => {
-    const isDraft = request?.status === "draft";
-    const isSubmitted = request?.status === "submitted";
-    const isPending = request?.status === "pending";
-    const isApproved = request?.status === "approved";
-    const isAcknowledged = request?.status === "acknowledged";
-    const isReturned = request?.status === "returned";
-    const isDenied = request?.status === "denied";
+  const isDraft = request?.status === "draft";
+  const isSubmitted = request?.status === "submitted";
+  const isPending = request?.status === "pending";
+  const isApproved = request?.status === "approved";
+  const isAcknowledged = request?.status === "acknowledged";
+  const isReturned = request?.status === "returned";
+  const isDenied = request?.status === "denied";
+  const permissions = {
+    canRequesterEdit: isRequester && (isDraft || isReturned),
+    canSupervisorApprove: isAssignedSupervisor && isSubmitted,
+    canOperationsHeadApprove:
+      isOperationsHead &&
+      isPending &&
+      Boolean(request?.supervisorApproval) &&
+      !request?.operationsHeadApproval,
+    canHseApprove:
+      isHseEmployee &&
+      isPending &&
+      Boolean(request?.operationsHeadApproval),
+    showSupervisorApproval: Boolean(
+      isPending || isApproved || isAcknowledged || isReturned || isDenied,
+    ),
+    showOperationsHeadApproval: Boolean(
+      request?.operationsHeadApproval || isApproved || isAcknowledged || isReturned || isDenied,
+    ),
+    showHseApproval: Boolean(
+      request?.hseApproval || isApproved || isAcknowledged || isReturned || isDenied,
+    ),
+    showAuditTrail: Boolean(!isDraft || isApproved || isAcknowledged || isReturned || isDenied),
+  };
 
-    return {
-      canRequesterEdit: currentRole === "requester" && (isDraft || isReturned),
-      canSupervisorApprove: currentRole === "supervisor" && isSubmitted,
-      canOperationsHeadApprove:
-        currentRole === "operations_head" &&
-        isPending &&
-        Boolean(request?.supervisorApproval) &&
-        !request?.operationsHeadApproval,
-      canHseApprove:
-        currentRole === "hse" &&
-        isPending &&
-        Boolean(request?.operationsHeadApproval),
-      showSupervisorApproval: Boolean(
-        isPending || isApproved || isAcknowledged || isReturned || isDenied,
-      ),
-      showOperationsHeadApproval: Boolean(
-        request?.operationsHeadApproval || isApproved || isAcknowledged || isReturned || isDenied,
-      ),
-      showHseApproval: Boolean(
-        request?.hseApproval || isApproved || isAcknowledged || isReturned || isDenied,
-      ),
-      showAuditTrail: Boolean(!isDraft || isApproved || isAcknowledged || isReturned || isDenied),
-    };
-  }, [
-    currentRole,
-    request?.status,
-    request?.supervisorApproval,
-    request?.operationsHeadApproval,
-    request?.hseApproval,
-  ]);
+  if (currentEmployeeQuery.isLoading) {
+    return <SafetyProcessFormSkeleton sections={5} />;
+  }
 
   if (!request) {
     return (
@@ -202,6 +214,7 @@ export default function WorkCloseOutDetailsView({
       auditTrail: [...current.auditTrail, audit],
     }));
     showCloseOutDecisionToast(toast, decision, "Supervisor");
+    routeBackToWorkCloseOutRequests(router);
   }
 
   function hseDecision(decision: WorkCloseOutDecision) {
@@ -255,6 +268,7 @@ export default function WorkCloseOutDetailsView({
       auditTrail: [...current.auditTrail, audit],
     }));
     showCloseOutDecisionToast(toast, decision, "HSE");
+    routeBackToWorkCloseOutRequests(router);
   }
 
   function operationsHeadDecision(decision: WorkCloseOutDecision) {
@@ -300,6 +314,7 @@ export default function WorkCloseOutDetailsView({
       auditTrail: [...current.auditTrail, audit],
     }));
     showCloseOutDecisionToast(toast, decision, "Operations Head");
+    routeBackToWorkCloseOutRequests(router);
   }
 
   return (
@@ -316,14 +331,16 @@ export default function WorkCloseOutDetailsView({
       <RoleBasedRecordHeader
         id={request.id}
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
-        roleLabel={getWorkCloseOutRoleLabel(currentRole)}
+        onRoleChange={() => undefined}
+        roleLabel={
+          hasDirectCloseOutAccess ? getWorkCloseOutRoleLabel(currentRole) : "Viewer"
+        }
         roles={workCloseOutRoles}
         recordLabel="Work Completion & Close-Out"
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
         nextActor={getWorkCloseOutNextActor(request)}
-        switcherDescription="Switch roles to preview requester, supervisor, Operations Head, and HSE close-out reviews."
+        showRoleSwitcher={false}
       />
 
       <StatusNote request={request} currentRole={currentRole} />
@@ -779,6 +796,64 @@ function getWorkCloseOutRoleLabel(role: WorkCloseOutRole) {
   return "Requester";
 }
 
+function getWorkCloseOutAccessRole({
+  isRequester,
+  isAssignedSupervisor,
+  isOperationsHead,
+  isHseEmployee,
+}: {
+  isRequester: boolean;
+  isAssignedSupervisor: boolean;
+  isOperationsHead: boolean;
+  isHseEmployee: boolean;
+}): WorkCloseOutRole {
+  if (isHseEmployee) return "hse";
+  if (isOperationsHead) return "operations_head";
+  if (isAssignedSupervisor) return "supervisor";
+  if (isRequester) return "requester";
+
+  return "requester";
+}
+
+function employeeMatchesName(
+  employee: SafetyEmployeeProfile | undefined,
+  name?: string | null,
+) {
+  const expectedName = normalizeComparableText(name);
+  if (!employee || !expectedName) return false;
+
+  return (
+    normalizeComparableText(employee.user?.email) === expectedName ||
+    normalizeComparableText(employee.user?.first_name) === expectedName ||
+    normalizeComparableText(employee.user?.last_name) === expectedName ||
+    normalizeComparableText(
+      `${employee.user?.first_name ?? ""} ${employee.user?.last_name ?? ""}`,
+    ) === expectedName
+  );
+}
+
+function normalizeComparableText(value?: string | null) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function isOperationsHeadEmployee(employee?: SafetyEmployeeProfile | null) {
+  const userRole = employee?.user?.role?.trim().toLowerCase();
+  if (userRole === "admin" || userRole === "super_admin") return true;
+
+  const department = employee?.department?.trim().toLowerCase();
+  const jobTitle = employee?.job_title?.trim().toLowerCase() ?? "";
+
+  return (
+    department === "operations" &&
+    /\b(hod|head|manager|lead)\b/.test(jobTitle)
+  );
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalizedDepartment = department?.trim().toLowerCase();
+  return normalizedDepartment === "hse" || normalizedDepartment === "safety";
+}
+
 function showCloseOutDecisionToast(
   toast: ReturnType<typeof useToast>,
   decision: WorkCloseOutDecision,
@@ -793,4 +868,10 @@ function showCloseOutDecisionToast(
   } else {
     toast.error(`Close-out denied by ${actorLabel}.`);
   }
+}
+
+function routeBackToWorkCloseOutRequests(router: ReturnType<typeof useRouter>) {
+  window.setTimeout(() => {
+    router.push("/safety/work-close-out");
+  }, 700);
 }

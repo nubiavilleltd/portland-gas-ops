@@ -73,6 +73,15 @@ export interface IncidentHseReviewResponse {
   updated_at: string;
 }
 
+export interface IncidentAttachmentResponse {
+  id: string;
+  name: string;
+  url: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  type: "image" | "document" | "video";
+}
+
 export interface IncidentReportListItem {
   id: string;
   reference: string;
@@ -104,25 +113,15 @@ export interface IncidentReportResponse extends IncidentReportListItem {
   is_active: boolean;
   updated_at: string;
   hse_review?: IncidentHseReviewResponse | null;
+  attachments: IncidentAttachmentResponse[];
 }
 
 export interface IncidentReportListParams {
   skip?: number;
   limit?: number;
+  cursor_reported_at?: string;
+  cursor_id?: string;
   status?: IncidentReportStatus;
   report_type?: IncidentReportType;
-  search?: string;
-}
-
-export interface SafetyActor {
-  id: string;
-  name: string;
-  email: string;
-  department?: string | null;
-  job_title?: string | null;
-}
-
-export interface SafetyActorListParams {
-  department?: string;
   search?: string;
 }

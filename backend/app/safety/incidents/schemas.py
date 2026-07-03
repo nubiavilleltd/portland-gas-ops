@@ -1,7 +1,7 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.safety.incidents.models import (
     IncidentHseDecision,
@@ -10,6 +10,12 @@ from app.safety.incidents.models import (
     IncidentSeverityEstimate,
 )
 
+
+def to_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(timezone.utc)
 
 
 class IncidentReportCreate(BaseModel):
@@ -50,6 +56,15 @@ class IncidentReportCreate(BaseModel):
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
 
+    @model_validator(mode="after")
+    def validate_observed_at(self):
+        now = datetime.now(timezone.utc)
+        latest_allowed_observed_at = now - timedelta(minutes=5)
+
+        if to_utc(self.observed_at) > latest_allowed_observed_at:
+            raise ValueError("Observed at must be at least 5 minutes in the past.")
+        return self
+
 
 class IncidentReportUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=3, max_length=255)
@@ -74,6 +89,16 @@ class IncidentReportUpdate(BaseModel):
     immediate_action_taken: Optional[str] = Field(None, max_length=5000)
     people_involved: Optional[str] = Field(None, max_length=5000)
     additional_notes: Optional[str] = Field(None, max_length=5000)
+
+    @model_validator(mode="after")
+    def validate_observed_at(self):
+        if self.observed_at is None:
+            return self
+
+        latest_allowed_observed_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        if to_utc(self.observed_at) > latest_allowed_observed_at:
+            raise ValueError("Observed at must be at least 5 minutes in the past.")
+        return self
 
 
 class IncidentHseReviewCreate(BaseModel):
@@ -100,6 +125,15 @@ class IncidentHseReviewCreate(BaseModel):
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def validate_target_completion_date(self):
+        if self.target_completion_date is None:
+            return self
+
+        if self.target_completion_date < datetime.now(timezone.utc).date():
+            raise ValueError("Target completion date cannot be in the past.")
+        return self
 
 
 class IncidentHseReviewResponse(BaseModel):
@@ -134,6 +168,15 @@ class IncidentHseReviewResponse(BaseModel):
         if review.action_owner and review.action_owner.user:
             data.action_owner_name = review.action_owner.user.full_name or review.action_owner.user.email
         return data
+
+
+class IncidentAttachmentResponse(BaseModel):
+    id: str
+    name: str
+    url: str
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    type: str
 
 
 class IncidentReportListItem(BaseModel):
@@ -197,12 +240,15 @@ class IncidentReportResponse(IncidentReportListItem):
     is_active: bool
     updated_at: datetime
     hse_review: Optional[IncidentHseReviewResponse] = None
+    attachments: list[IncidentAttachmentResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
 
     @classmethod
     def from_model(cls, report):
+        attachments = list(getattr(report, "attachments", []) or [])
+        report.attachments = []
         data = cls.model_validate(report)
 
         if report.reporter and report.reporter.user:
@@ -216,5 +262,26 @@ class IncidentReportResponse(IncidentReportListItem):
             data.reporter_role = report.reporter.job_title
         if report.hse_review:
             data.hse_review = IncidentHseReviewResponse.from_model(report.hse_review)
+        data.attachments = [
+            IncidentAttachmentResponse(
+                id=str(document.id),
+                name=document.name,
+                url=document.file_path or "",
+                mime_type=document.mime_type,
+                file_size=document.file_size,
+                type=attachment_type_for_mime_type(document.mime_type),
+            )
+            for document in attachments
+        ]
 
         return data
+
+
+def attachment_type_for_mime_type(mime_type: Optional[str]) -> str:
+    if not mime_type:
+        return "document"
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("video/"):
+        return "video"
+    return "document"

@@ -3,7 +3,6 @@ export {
   incidentReportKeys,
   useIncidentReport,
   useIncidentReports,
-  useSafetyActors,
 } from "./hooks";
 export { mapIncidentReportToHazardReport } from "./mappers";
 export type {
@@ -18,6 +17,4 @@ export type {
   IncidentReportType,
   IncidentReportUpdate,
   IncidentSeverityEstimate,
-  SafetyActor,
-  SafetyActorListParams,
 } from "./types";
