@@ -3,18 +3,15 @@ import type {
   IncidentHseReviewCreate,
   IncidentHseReviewResponse,
   IncidentReportCreate,
-  IncidentReportListItem,
   IncidentReportListParams,
   IncidentReportResponse,
   IncidentReportUpdate,
-  SafetyActor,
-  SafetyActorListParams,
 } from "./types";
 
 export const incidentReportsApi = {
   list: async (
     params?: IncidentReportListParams,
-  ): Promise<IncidentReportListItem[]> => {
+  ): Promise<IncidentReportResponse[]> => {
     const { data } = await api.get("/api/safety/incidents", { params });
     return data;
   },
@@ -58,10 +55,4 @@ export const incidentReportsApi = {
     await api.delete(`/api/safety/incidents/${id}`);
   },
 
-  listActors: async (
-    params?: SafetyActorListParams,
-  ): Promise<SafetyActor[]> => {
-    const { data } = await api.get("/api/safety/actors", { params });
-    return data;
-  },
 };

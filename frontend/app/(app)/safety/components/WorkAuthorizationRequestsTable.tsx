@@ -2,7 +2,10 @@
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import {
+  getSafetyEmployeeDisplayName,
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkAuthorizationHref,
@@ -67,11 +70,16 @@ export default function WorkAuthorizationRequestsTable({
   scope?: "user" | "admin";
 }) {
   const requestsQuery = useWorkAuthorizations();
+  const currentEmployee = useSafetyCurrentEmployee();
+  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
+  const isCurrentEmployeeName = (name: string) =>
+    Boolean(currentEmployeeName) &&
+    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
   const requests = sortByLatestSafetyActivity(
     (requestsQuery.data ?? []).filter(
       (item) =>
         item.status !== "draft" &&
-        (scope === "admin" || isSafetyCurrentUser(item.requester.name)),
+        (scope === "admin" || isCurrentEmployeeName(item.requester.name)),
     ),
     (item) => item.requestedAtRaw ?? item.requester.requestDate,
   );
@@ -80,7 +88,7 @@ export default function WorkAuthorizationRequestsTable({
     <DataTable
       columns={columns}
       data={requests}
-      isLoading={requestsQuery.isLoading}
+      isLoading={requestsQuery.isLoading || currentEmployee.isLoading}
       rowHref={(request) =>
         scope === "admin"
           ? getAdminWorkAuthorizationHref(request)

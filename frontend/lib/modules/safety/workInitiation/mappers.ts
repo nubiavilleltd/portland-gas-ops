@@ -45,6 +45,7 @@ export function mapWorkInitiationToRequest(
     id: item.id,
     reference: item.reference,
     status: item.status,
+    requesterId: item.requester_id,
     requester: {
       name: item.requester_name || "Requester",
       department: item.requester_department || "",
@@ -70,7 +71,9 @@ export function mapWorkInitiationToRequest(
     },
     assignment: {
       assignedDepartment: item.assigned_department,
+      assignedSupervisorId: item.assigned_supervisor_id,
       assignedSupervisor: item.assigned_supervisor_name || "",
+      assignedWorkerIds: item.assigned_workers.map((worker) => worker.id),
       assignedWorkers: item.assigned_workers.map((worker) => worker.name || worker.email || "Worker"),
       contractorsNeeded: item.contractors_needed,
       selectedContractor: item.selected_contractor_name || "",

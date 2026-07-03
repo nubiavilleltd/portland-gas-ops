@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -225,6 +226,8 @@ def list_incident_reports(
     db: Session,
     skip: int = 0,
     limit: int = 20,
+    cursor_reported_at: Optional[datetime] = None,
+    cursor_id: Optional[str] = None,
     status_filter: Optional[IncidentReportStatus] = None,
     report_type: Optional[IncidentReportType] = None,
     search: Optional[str] = None,
@@ -232,7 +235,13 @@ def list_incident_reports(
     query = (
         db.query(SafetyIncidentReport)
         .options(
-            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user)
+            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.inspector)
+            .joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.action_owner)
+            .joinedload(Employee.user),
         )
         .filter(SafetyIncidentReport.is_active == True)
     )
@@ -252,12 +261,26 @@ def list_incident_reports(
             | SafetyIncidentReport.description.ilike(search_value)
         )
 
-    return (
-        query.order_by(SafetyIncidentReport.reported_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
+    if cursor_reported_at and cursor_id:
+        query = query.filter(
+            or_(
+                SafetyIncidentReport.reported_at < cursor_reported_at,
+                and_(
+                    SafetyIncidentReport.reported_at == cursor_reported_at,
+                    SafetyIncidentReport.id < cursor_id,
+                ),
+            )
+        )
+
+    query = query.order_by(
+        SafetyIncidentReport.reported_at.desc(),
+        SafetyIncidentReport.id.desc(),
     )
+
+    if skip > 0:
+        query = query.offset(skip)
+
+    return query.limit(limit).all()
 
 
 def get_incident_report(

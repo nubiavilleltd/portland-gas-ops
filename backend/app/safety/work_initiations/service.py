@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,7 +16,7 @@ from app.safety.work_initiations.models import (
     WorkInitiationCategory,
     WorkInitiationStatus,
 )
-from app.safety.work_initiations.schemas import WorkInitiationCreate
+from app.safety.work_initiations.schemas import WorkInitiationCreate, WorkInitiationUpdate
 from app.shared.models.user import User
 
 
@@ -132,10 +133,91 @@ def create_work_initiation(
     return get_work_initiation(db, record.id)
 
 
+def update_work_initiation(
+    db: Session,
+    work_initiation_id: str,
+    data: WorkInitiationUpdate,
+    current_user: User,
+) -> SafetyWorkInitiation:
+    record = get_work_initiation(db, work_initiation_id)
+    requester = get_employee_for_user(db, current_user)
+
+    if record.requester_id != requester.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the requester can update this work initiation.",
+        )
+
+    if record.status not in (WorkInitiationStatus.draft, WorkInitiationStatus.returned):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only draft or returned work initiations can be updated.",
+        )
+
+    validate_incident_work_initiation_rules(
+        db,
+        data,
+        requester,
+        exclude_work_initiation_id=record.id,
+    )
+
+    assigned_supervisor = get_employee(
+        db,
+        data.assigned_supervisor_id,
+        "Assigned supervisor not found.",
+    )
+    workers = get_employees(db, data.assigned_worker_ids)
+
+    record.status = WorkInitiationStatus.submitted
+    record.title = data.title
+    record.work_category = data.work_category
+    record.related_incident_report_id = data.related_incident_report_id
+    record.work_type = ", ".join(data.work_type)
+    record.location = data.location
+    record.exact_work_area = data.exact_work_area
+    record.work_description = data.work_description
+    record.reason_for_work = data.reason_for_work
+    record.assigned_department = data.assigned_department
+    record.assigned_supervisor_id = assigned_supervisor.id
+    record.contractors_needed = data.contractors_needed
+    record.selected_contractor_name = (
+        data.selected_contractor_name if data.contractors_needed else None
+    )
+    record.contractor_contact_email = (
+        data.contractor_contact_email if data.contractors_needed else None
+    )
+    record.planned_start_at = data.planned_start_at
+    record.planned_end_at = data.planned_end_at
+    record.materials_required = data.materials_required
+    record.supervisor_decision = None
+    record.supervisor_id = None
+    record.supervisor_comment = None
+    record.supervisor_decided_at = None
+    record.operations_hod_decision = None
+    record.operations_hod_id = None
+    record.operations_hod_comment = None
+    record.operations_hod_decided_at = None
+
+    record.workers.clear()
+    db.flush()
+
+    for worker in workers:
+        db.add(
+            SafetyWorkInitiationWorker(
+                work_initiation_id=record.id,
+                worker_id=worker.id,
+            )
+        )
+
+    db.commit()
+    return get_work_initiation(db, record.id)
+
+
 def validate_incident_work_initiation_rules(
     db: Session,
     data: WorkInitiationCreate,
     requester: Employee,
+    exclude_work_initiation_id: Optional[str] = None,
 ) -> None:
     if data.work_category != WorkInitiationCategory.incident_hazard:
         if data.related_incident_report_id:
@@ -179,6 +261,7 @@ def validate_incident_work_initiation_rules(
     existing_record = get_existing_active_work_initiation_for_incident(
         db,
         data.related_incident_report_id,
+        exclude_work_initiation_id=exclude_work_initiation_id,
     )
     if existing_record:
         raise HTTPException(
@@ -186,7 +269,6 @@ def validate_incident_work_initiation_rules(
             detail={
                 "message": (
                     "A work initiation already exists for this incident. "
-                    "Update and resubmit the existing request instead."
                 ),
                 "existing_work_initiation_id": existing_record.id,
                 "existing_work_initiation_reference": existing_record.reference,
@@ -215,17 +297,21 @@ def get_related_incident(db: Session, incident_id: str) -> SafetyIncidentReport:
 def get_existing_active_work_initiation_for_incident(
     db: Session,
     incident_id: str,
+    exclude_work_initiation_id: Optional[str] = None,
 ) -> Optional[SafetyWorkInitiation]:
-    return (
+    query = (
         db.query(SafetyWorkInitiation)
         .filter(
             SafetyWorkInitiation.related_incident_report_id == incident_id,
             SafetyWorkInitiation.is_active == True,
             SafetyWorkInitiation.status.in_(ACTIVE_RELATED_INCIDENT_WORK_STATUSES),
         )
-        .order_by(SafetyWorkInitiation.created_at.desc())
-        .first()
     )
+
+    if exclude_work_initiation_id:
+        query = query.filter(SafetyWorkInitiation.id != exclude_work_initiation_id)
+
+    return query.order_by(SafetyWorkInitiation.created_at.desc()).first()
 
 
 def is_incident_work_requester_allowed(
@@ -271,6 +357,8 @@ def list_work_initiations(
     db: Session,
     skip: int = 0,
     limit: int = 20,
+    cursor_created_at: Optional[datetime] = None,
+    cursor_id: Optional[str] = None,
     status_filter: Optional[WorkInitiationStatus] = None,
     work_category: Optional[WorkInitiationCategory] = None,
     search: Optional[str] = None,
@@ -280,6 +368,11 @@ def list_work_initiations(
         .options(
             joinedload(SafetyWorkInitiation.requester).joinedload(Employee.user),
             joinedload(SafetyWorkInitiation.assigned_supervisor).joinedload(Employee.user),
+            joinedload(SafetyWorkInitiation.supervisor).joinedload(Employee.user),
+            joinedload(SafetyWorkInitiation.operations_hod).joinedload(Employee.user),
+            joinedload(SafetyWorkInitiation.workers)
+            .joinedload(SafetyWorkInitiationWorker.worker)
+            .joinedload(Employee.user),
         )
         .filter(SafetyWorkInitiation.is_active == True)
     )
@@ -299,12 +392,26 @@ def list_work_initiations(
             | SafetyWorkInitiation.work_description.ilike(search_value)
         )
 
-    return (
-        query.order_by(SafetyWorkInitiation.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
+    if cursor_created_at and cursor_id:
+        query = query.filter(
+            or_(
+                SafetyWorkInitiation.created_at < cursor_created_at,
+                and_(
+                    SafetyWorkInitiation.created_at == cursor_created_at,
+                    SafetyWorkInitiation.id < cursor_id,
+                ),
+            )
+        )
+
+    query = query.order_by(
+        SafetyWorkInitiation.created_at.desc(),
+        SafetyWorkInitiation.id.desc(),
     )
+
+    if skip > 0:
+        query = query.offset(skip)
+
+    return query.limit(limit).all()
 
 
 def get_work_initiation(db: Session, work_initiation_id: str) -> SafetyWorkInitiation:

@@ -20,6 +20,15 @@ export interface WorkAuthorizationAttachmentCreate {
   type: string;
 }
 
+export interface WorkAuthorizationAttachmentResponse {
+  id: string;
+  name: string;
+  url: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  type: "image" | "document" | "video" | string;
+}
+
 export interface WorkAuthorizationCreate {
   work_initiation_id: string;
   gas_involved: boolean;
@@ -30,7 +39,7 @@ export interface WorkAuthorizationCreate {
   ppe_available: boolean;
   additional_safety_note?: string | null;
   attachment_notes?: string | null;
-  attachments: WorkAuthorizationAttachmentCreate[];
+  attachments?: WorkAuthorizationAttachmentCreate[];
 }
 
 export interface WorkAuthorizationHseReviewCreate {
@@ -41,7 +50,7 @@ export interface WorkAuthorizationHseReviewCreate {
   safety_controls_in_place: WorkAuthorizationInspectionCheck;
   hse_inspection_result: WorkAuthorizationInspectionResult;
   hse_inspection_comment?: string | null;
-  hse_evidence: WorkAuthorizationAttachmentCreate[];
+  hse_evidence?: WorkAuthorizationAttachmentCreate[];
   decision: WorkAuthorizationDecision;
   decision_comment?: string | null;
 }
@@ -87,7 +96,7 @@ export interface WorkAuthorizationHseReviewResponse {
   safety_controls_in_place?: WorkAuthorizationInspectionCheck | null;
   hse_inspection_result?: WorkAuthorizationInspectionResult | null;
   hse_inspection_comment?: string | null;
-  hse_evidence: WorkAuthorizationAttachmentCreate[];
+  hse_evidence: WorkAuthorizationAttachmentResponse[];
   decision?: WorkAuthorizationDecision | null;
   decision_comment?: string | null;
   decided_at?: string | null;
@@ -122,7 +131,7 @@ export interface WorkAuthorizationResponse extends WorkAuthorizationListItem {
   ppe_available: boolean;
   additional_safety_note?: string | null;
   attachment_notes?: string | null;
-  attachments: WorkAuthorizationAttachmentCreate[];
+  attachments: WorkAuthorizationAttachmentResponse[];
   hse_review?: WorkAuthorizationHseReviewResponse | null;
   is_active: boolean;
 }
@@ -130,6 +139,8 @@ export interface WorkAuthorizationResponse extends WorkAuthorizationListItem {
 export interface WorkAuthorizationListParams {
   skip?: number;
   limit?: number;
+  cursor_created_at?: string;
+  cursor_id?: string;
   status?: WorkAuthorizationStatus;
   search?: string;
 }

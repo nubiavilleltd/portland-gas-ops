@@ -73,8 +73,12 @@ export function mapWorkAuthorizationToRequest(
           ? inspectionResultLabels[item.hse_review.hse_inspection_result]
           : "Returned",
         evidence: (item.hse_review.hse_evidence ?? []).map((attachment) => ({
+          id: attachment.id,
           name: attachment.name,
-          type: attachment.type.startsWith("image") ? "image" : "document",
+          type: attachmentType(attachment.type),
+          url: attachment.url,
+          mimeType: attachment.mime_type ?? undefined,
+          fileSize: attachment.file_size ?? undefined,
         })),
       }
     : null;
@@ -93,6 +97,7 @@ export function mapWorkAuthorizationToRequest(
     reference: item.reference,
     requestedAtRaw: item.requested_at,
     status: item.status as UiWorkAuthorizationStatus,
+    requesterId: item.requester_id,
     requester: {
       name: item.requester_name || "Requester",
       department: item.requester_department || "",
@@ -129,14 +134,24 @@ export function mapWorkAuthorizationToRequest(
       additionalSafetyNote: item.additional_safety_note ?? "",
     },
     attachments: (item.attachments ?? []).map((attachment) => ({
+      id: attachment.id,
       name: attachment.name,
-      type: attachment.type.startsWith("image") ? "image" : "document",
+      type: attachmentType(attachment.type),
+      url: attachment.url,
+      mimeType: attachment.mime_type ?? undefined,
+      fileSize: attachment.file_size ?? undefined,
     })),
     supervisorApproval: null,
     hseInspection,
     hseApproval,
     auditTrail: buildAuditTrail(item, hseApproval),
   };
+}
+
+function attachmentType(type: string) {
+  if (type.startsWith("image")) return "image" as const;
+  if (type.startsWith("video")) return "video" as const;
+  return "document" as const;
 }
 
 function mapWorkInitiationSummary(
@@ -153,10 +168,12 @@ function mapWorkInitiationSummary(
     location: item.location,
     exactWorkArea: item.exact_work_area ?? "",
     workDescription: item.work_description,
+    assignedSupervisorId: item.assigned_supervisor.id,
     assignedSupervisor:
       item.assigned_supervisor.name ||
       item.assigned_supervisor.email ||
       "Supervisor",
+    assignedWorkerIds: item.assigned_workers.map((worker) => worker.id),
     assignedWorkers: item.assigned_workers.map(
       (worker) => worker.name || worker.email || "Worker",
     ),
@@ -180,7 +197,9 @@ function emptyWorkInitiationSummary(item: WorkAuthorizationResponse) {
     location: item.location ?? "",
     exactWorkArea: "",
     workDescription: "",
+    assignedSupervisorId: undefined,
     assignedSupervisor: "",
+    assignedWorkerIds: [],
     assignedWorkers: [],
     contractorsNeeded: false,
     selectedContractor: "",

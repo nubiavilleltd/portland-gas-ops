@@ -25,13 +25,31 @@ export function getFirstInvalidField<Field extends string>(
 
 export function scrollToValidationField(ref: ValidationRef) {
   window.requestAnimationFrame(() => {
-    const element = ref.current;
-    if (!element) return;
+    const target = getValidationScrollTarget(ref.current);
+    if (!target) return;
 
-    element.scrollIntoView({
+    target.scrollIntoView({
       behavior: "smooth",
       block: "center",
     });
-    element.focus?.({ preventScroll: true });
+    target.focus?.({ preventScroll: true });
   });
+}
+
+export function getValidationScrollTarget(element: HTMLElement | null) {
+  if (!element) return null;
+
+  if (element instanceof HTMLInputElement && element.type === "hidden") {
+    const visibleTriggerId = element.id.replace(/-value$/, "");
+    const visibleTrigger = document.getElementById(visibleTriggerId);
+
+    if (visibleTrigger instanceof HTMLElement) {
+      return visibleTrigger;
+    }
+
+    const visibleParent = element.closest<HTMLElement>(".flex, .relative");
+    if (visibleParent) return visibleParent;
+  }
+
+  return element;
 }

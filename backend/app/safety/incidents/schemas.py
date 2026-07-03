@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -59,9 +59,10 @@ class IncidentReportCreate(BaseModel):
     @model_validator(mode="after")
     def validate_observed_at(self):
         now = datetime.now(timezone.utc)
+        latest_allowed_observed_at = now - timedelta(minutes=5)
 
-        if to_utc(self.observed_at) > now:
-            raise ValueError("Observed at cannot be in the future.")
+        if to_utc(self.observed_at) > latest_allowed_observed_at:
+            raise ValueError("Observed at must be at least 5 minutes in the past.")
         return self
 
 
@@ -89,6 +90,16 @@ class IncidentReportUpdate(BaseModel):
     people_involved: Optional[str] = Field(None, max_length=5000)
     additional_notes: Optional[str] = Field(None, max_length=5000)
 
+    @model_validator(mode="after")
+    def validate_observed_at(self):
+        if self.observed_at is None:
+            return self
+
+        latest_allowed_observed_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        if to_utc(self.observed_at) > latest_allowed_observed_at:
+            raise ValueError("Observed at must be at least 5 minutes in the past.")
+        return self
+
 
 class IncidentHseReviewCreate(BaseModel):
     confirmed_report_type: IncidentReportType
@@ -114,6 +125,15 @@ class IncidentHseReviewCreate(BaseModel):
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def validate_target_completion_date(self):
+        if self.target_completion_date is None:
+            return self
+
+        if self.target_completion_date < datetime.now(timezone.utc).date():
+            raise ValueError("Target completion date cannot be in the past.")
+        return self
 
 
 class IncidentHseReviewResponse(BaseModel):

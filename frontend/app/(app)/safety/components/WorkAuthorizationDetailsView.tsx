@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -14,8 +14,15 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
-import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
-import type { SafetyChecklistItem, SafetyChecklistTemplate } from "@/lib/modules/safety/checklists";
+import {
+  safetyChecklistsApi,
+  useActiveSafetyChecklist,
+} from "@/lib/modules/safety/checklists";
+import type {
+  SafetyChecklistAnswerCreate,
+  SafetyChecklistItem,
+  SafetyChecklistTemplate,
+} from "@/lib/modules/safety/checklists";
 import {
   mapWorkAuthorizationToRequest,
   useWorkAuthorization,
@@ -25,6 +32,9 @@ import {
   type WorkAuthorizationInspectionCheck,
   type WorkAuthorizationInspectionResult,
 } from "@/lib/modules/safety/workAuthorization";
+import {
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import type {
@@ -141,17 +151,54 @@ const hseInspectionItemKeyMap: Partial<
   safety_controls_in_place: "safetyControlsInPlace",
 };
 
+function buildHseInspectionChecklistAnswers(
+  checklist: SafetyChecklistTemplate | undefined,
+  checks: EditableHseInspectionCheckState,
+  result: EditableHseInspectionResult,
+  comment: string,
+): SafetyChecklistAnswerCreate[] {
+  if (!checklist) return [];
+
+  return checklist.items.reduce<SafetyChecklistAnswerCreate[]>((answers, item) => {
+    const mappedKey = hseInspectionItemKeyMap[item.item_key];
+
+    if (item.input_type === "enum" && mappedKey) {
+      answers.push({
+        item_id: item.id,
+        selected_option: toApiInspectionCheck(checks[mappedKey]),
+      });
+      return answers;
+    }
+
+    if (item.input_type === "enum" && item.item_key === "hse_inspection_result") {
+      answers.push({
+        item_id: item.id,
+        selected_option: toApiInspectionResult(result),
+      });
+      return answers;
+    }
+
+    if (item.input_type === "text" && item.item_key === "inspection_comments") {
+      const value = comment.trim();
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_text: value,
+        });
+      }
+    }
+
+    return answers;
+  }, []);
+}
+
 export default function WorkAuthorizationDetailsView({
   requestId,
-  initialRole,
 }: {
   requestId: string;
-  initialRole?: WorkAuthorizationRole;
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [currentRole, setCurrentRole] =
-    useState<WorkAuthorizationRole>(initialRole ?? "requester");
   const [updatedRequest, setUpdatedRequest] =
     useState<WorkAuthorizationRequest | null>(null);
   const [hseComment, setHseComment] = useState("");
@@ -166,8 +213,28 @@ export default function WorkAuthorizationDetailsView({
     "inspection",
   );
   const requestQuery = useWorkAuthorization(requestId);
+  const currentEmployeeQuery = useSafetyCurrentEmployee();
+  const currentEmployee = currentEmployeeQuery.data;
   const request =
     updatedRequest?.id === requestId ? updatedRequest : requestQuery.data ?? null;
+  const isRequester = Boolean(
+    request?.requesterId &&
+      currentEmployee?.id &&
+      request.requesterId === currentEmployee.id,
+  );
+  const isAssignedSupervisor = Boolean(
+    request?.workInitiation.assignedSupervisorId &&
+      currentEmployee?.id &&
+      request.workInitiation.assignedSupervisorId === currentEmployee.id,
+  );
+  const isHseEmployee = isHseDepartment(currentEmployee?.department);
+  const hasDirectWorkAuthorizationAccess =
+    isRequester || isAssignedSupervisor || isHseEmployee;
+  const currentRole = getWorkAuthorizationAccessRole({
+    isRequester,
+    isAssignedSupervisor,
+    isHseEmployee,
+  });
 
   const hasFailedHseInspectionCheck = Object.values(hseInspectionChecks).some(
     (value) => value === "Fail" || value === "fail",
@@ -176,27 +243,24 @@ export default function WorkAuthorizationDetailsView({
   const shouldDisableHseApproval =
     hasFailedHseInspectionCheck || hasFailedHseInspectionResult;
 
-  const permissions = useMemo(() => {
-    const isDraft = request?.status === "draft";
-    const isSubmitted = request?.status === "submitted";
-    const isApproved = request?.status === "approved";
-    const isReturned = request?.status === "returned";
-    const isDenied = request?.status === "denied";
+  const isDraft = request?.status === "draft";
+  const isSubmitted = request?.status === "submitted";
+  const isApproved = request?.status === "approved";
+  const isReturned = request?.status === "returned";
+  const isDenied = request?.status === "denied";
+  const permissions = {
+    canEditDraft: isRequester && (isDraft || isReturned),
+    canHseInspect: isHseEmployee && isSubmitted,
+    showHseSection: Boolean(
+      (isHseEmployee && isSubmitted) ||
+        isApproved ||
+        isReturned ||
+        isDenied,
+    ),
+    showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
+  };
 
-    return {
-      canEditDraft: currentRole === "requester" && (isDraft || isReturned),
-      canHseInspect: currentRole === "hse" && isSubmitted,
-      showHseSection: Boolean(
-        (currentRole === "hse" && isSubmitted) ||
-          isApproved ||
-          isReturned ||
-          isDenied,
-      ),
-      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
-    };
-  }, [currentRole, request?.status]);
-
-  if (requestQuery.isLoading) {
+  if (requestQuery.isLoading || currentEmployeeQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
@@ -249,10 +313,6 @@ export default function WorkAuthorizationDetailsView({
       ),
       hse_inspection_result: toApiInspectionResult(result),
       hse_inspection_comment: hseComment || "Area inspected and cleared for work.",
-      hse_evidence: hseEvidence.map((file) => ({
-        name: file.name,
-        type: file.type.startsWith("image/") ? "image" : "document",
-      })),
       decision: toApiDecision(decision),
       decision_comment:
         hseComment ||
@@ -265,8 +325,42 @@ export default function WorkAuthorizationDetailsView({
       const updated = await workAuthorizationsApi.createHseReview(
         persistedRequestId,
         payload,
+        hseEvidence,
       );
       setUpdatedRequest(mapWorkAuthorizationToRequest(updated));
+
+      const checklistAnswers = buildHseInspectionChecklistAnswers(
+        hseInspectionChecklist.data,
+        hseInspectionChecks,
+        result,
+        payload.hse_inspection_comment ?? "",
+      );
+      let checklistHistoryWasSaved = true;
+
+      if (checklistAnswers.length > 0) {
+        try {
+          await safetyChecklistsApi.createResponses({
+            parent_type: "work_authorization",
+            parent_id: persistedRequestId,
+            answers: checklistAnswers,
+          });
+        } catch (checklistError) {
+          checklistHistoryWasSaved = false;
+          console.error(
+            "Failed to save work authorization HSE inspection checklist responses",
+            checklistError,
+          );
+        }
+      }
+
+      if (!checklistHistoryWasSaved) {
+        toast.info(
+          "HSE decision saved, but the inspection checklist history could not be saved.",
+        );
+        routeBackToWorkAuthorizationRequests(router);
+        return;
+      }
+
       if (decision === "Approve") {
         toast.success("Work authorization approved by HSE.");
       } else if (decision === "Return") {
@@ -274,6 +368,7 @@ export default function WorkAuthorizationDetailsView({
       } else {
         toast.error("Work authorization denied by HSE.");
       }
+      routeBackToWorkAuthorizationRequests(router);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "HSE decision could not be saved."));
     }
@@ -293,12 +388,15 @@ export default function WorkAuthorizationDetailsView({
       <RoleBasedRecordHeader
         id={request.id}
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
-        roleLabel={roleLabel(currentRole)}
+        onRoleChange={() => undefined}
+        roleLabel={
+          hasDirectWorkAuthorizationAccess ? roleLabel(currentRole) : "Viewer"
+        }
         roles={workAuthorizationRoles}
         recordLabel="Work Authorization Details"
         status={<ApprovalBadge status={request.status} />}
         nextActor={getWorkAuthorizationNextActor(request)}
+        showRoleSwitcher={false}
       />
 
       <StatusNote request={request} currentRole={currentRole} />
@@ -526,27 +624,58 @@ function AttachmentList({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {attachments.map((attachment) => (
-        <div
-          key={attachment.name}
-          className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? (
-              <ImageIcon size={18} />
-            ) : (
-              <FileText size={18} />
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">
-              {attachment.name}
-            </p>
-            <p className="text-xs capitalize text-brand-text-secondary">
-              {attachment.type}
-            </p>
-          </div>
-        </div>
+        <AttachmentItem
+          key={attachment.id ?? attachment.name}
+          attachment={attachment}
+        />
       ))}
+    </div>
+  );
+}
+
+function AttachmentItem({
+  attachment,
+}: {
+  attachment: WorkAuthorizationAttachment;
+}) {
+  const content = (
+    <>
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
+        {attachment.type === "image" ? (
+          <ImageIcon size={18} />
+        ) : (
+          <FileText size={18} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-brand-text-primary">
+          {attachment.name}
+        </p>
+        <p className="text-xs capitalize text-brand-text-secondary">
+          {attachment.type}
+        </p>
+      </div>
+    </>
+  );
+
+  if (attachment.url) {
+    return (
+      <a
+        href={attachment.url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3 transition-colors hover:border-brand-purple hover:bg-brand-purple-faint"
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
+    >
+      {content}
     </div>
   );
 }
@@ -604,6 +733,20 @@ function HseInspectionActionSection({
         />
       );
     }
+    if (item.input_type === "enum" && item.item_key === "hse_inspection_result") {
+      return (
+        <FormSelect
+          key={item.id}
+          label={item.label}
+          options={inspectionResultOptions}
+          placeholder="Select inspection result"
+          value={inspectionResult}
+          onValueChange={(value) =>
+            onInspectionResultChange(value as EditableHseInspectionResult)
+          }
+        />
+      );
+    }
     return (
       <FormInput
         key={item.id}
@@ -626,15 +769,17 @@ function HseInspectionActionSection({
           label="Inspection date/time"
           defaultValue="2026-05-18 11:00 AM"
         />
-        <FormSelect
-          label="Inspection result"
-          options={inspectionResultOptions}
-          placeholder="Select inspection result"
-          value={inspectionResult}
-          onValueChange={(value) =>
-            onInspectionResultChange(value as EditableHseInspectionResult)
-          }
-        />
+        {checklist?.items.some((item) => item.item_key === "hse_inspection_result") ? null : (
+          <FormSelect
+            label="Inspection result"
+            options={inspectionResultOptions}
+            placeholder="Select inspection result"
+            value={inspectionResult}
+            onValueChange={(value) =>
+              onInspectionResultChange(value as EditableHseInspectionResult)
+            }
+          />
+        )}
         <div className="md:col-span-2">
           <FileDropzone
             label="Inspection evidence/images"
@@ -827,6 +972,27 @@ function roleLabel(role: WorkAuthorizationRole) {
   return "Requester";
 }
 
+function getWorkAuthorizationAccessRole({
+  isRequester,
+  isAssignedSupervisor,
+  isHseEmployee,
+}: {
+  isRequester: boolean;
+  isAssignedSupervisor: boolean;
+  isHseEmployee: boolean;
+}): WorkAuthorizationRole {
+  if (isHseEmployee) return "hse";
+  if (isAssignedSupervisor) return "supervisor";
+  if (isRequester) return "requester";
+
+  return "requester";
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalizedDepartment = department?.trim().toLowerCase();
+  return normalizedDepartment === "hse" || normalizedDepartment === "safety";
+}
+
 function getApiErrorMessage(error: unknown, fallback: string) {
   const detail = (error as { response?: { data?: { detail?: unknown } } }).response
     ?.data?.detail;
@@ -842,4 +1008,10 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function routeBackToWorkAuthorizationRequests(router: ReturnType<typeof useRouter>) {
+  window.setTimeout(() => {
+    router.push("/safety/work-authorization");
+  }, 700);
 }

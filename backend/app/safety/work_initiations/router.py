@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, status
@@ -13,18 +14,20 @@ from app.safety.work_initiations.models import (
 )
 from app.safety.work_initiations.schemas import (
     WorkInitiationCreate,
-    WorkInitiationListItem,
     WorkInitiationResponse,
+    WorkInitiationUpdate,
 )
 
 
 router = APIRouter(prefix="/work-initiations", tags=["Safety Work Initiations"])
 
 
-@router.get("", response_model=List[WorkInitiationListItem])
+@router.get("", response_model=List[WorkInitiationResponse])
 def list_work_initiations(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    cursor_created_at: Optional[datetime] = Query(None),
+    cursor_id: Optional[str] = Query(None),
     status_filter: Optional[WorkInitiationStatus] = Query(None, alias="status"),
     work_category: Optional[WorkInitiationCategory] = Query(None),
     search: Optional[str] = Query(None),
@@ -35,11 +38,13 @@ def list_work_initiations(
         db=db,
         skip=skip,
         limit=limit,
+        cursor_created_at=cursor_created_at,
+        cursor_id=cursor_id,
         status_filter=status_filter,
         work_category=work_category,
         search=search,
     )
-    return [WorkInitiationListItem.from_model(record) for record in records]
+    return [WorkInitiationResponse.from_model(record) for record in records]
 
 
 @router.post(
@@ -69,5 +74,21 @@ def get_work_initiation(
     record = work_initiation_service.get_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
+    )
+    return WorkInitiationResponse.from_model(record)
+
+
+@router.put("/{work_initiation_id}", response_model=WorkInitiationResponse)
+def update_work_initiation(
+    work_initiation_id: str,
+    data: WorkInitiationUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    record = work_initiation_service.update_work_initiation(
+        db=db,
+        work_initiation_id=work_initiation_id,
+        data=data,
+        current_user=current_user,
     )
     return WorkInitiationResponse.from_model(record)

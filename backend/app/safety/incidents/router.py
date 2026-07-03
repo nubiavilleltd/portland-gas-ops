@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -15,7 +16,6 @@ from app.safety.incidents.schemas import (
     IncidentHseReviewCreate,
     IncidentHseReviewResponse,
     IncidentReportCreate,
-    IncidentReportListItem,
     IncidentReportResponse,
     IncidentReportUpdate,
 )
@@ -74,10 +74,12 @@ async def validate_attachments(files: List[UploadFile]) -> list[tuple[bytes, str
     return validated
 
 
-@router.get("", response_model=List[IncidentReportListItem])
+@router.get("", response_model=List[IncidentReportResponse])
 def list_incident_reports(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    cursor_reported_at: Optional[datetime] = Query(None),
+    cursor_id: Optional[str] = Query(None),
     status_filter: Optional[IncidentReportStatus] = Query(None, alias="status"),
     report_type: Optional[IncidentReportType] = Query(None),
     search: Optional[str] = Query(None),
@@ -88,12 +90,14 @@ def list_incident_reports(
         db=db,
         skip=skip,
         limit=limit,
+        cursor_reported_at=cursor_reported_at,
+        cursor_id=cursor_id,
         status_filter=status_filter,
         report_type=report_type,
         search=search,
     )
 
-    return [IncidentReportListItem.from_model(report) for report in reports]
+    return [IncidentReportResponse.from_model(report) for report in reports]
 
 
 @router.post(

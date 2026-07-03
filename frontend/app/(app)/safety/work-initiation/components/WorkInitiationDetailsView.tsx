@@ -23,7 +23,9 @@ import { updateWorkInitiation } from "@/lib/safety-demo-store";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
 import { useWorkInitiation } from "@/lib/modules/safety/workInitiation";
+import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
+import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type {
   WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
@@ -60,15 +62,15 @@ const workInitiationRoles: { value: WorkInitiationRole; label: string }[] = [
 
 export default function WorkInitiationDetailsView({
   requestId,
-  initialRole,
 }: {
   requestId: string;
-  initialRole?: WorkInitiationRole;
 }) {
   const router = useRouter();
   const toast = useToast();
   const requestQuery = useWorkInitiation(requestId);
   const request = requestQuery.data;
+  const currentEmployeeQuery = useSafetyCurrentEmployee();
+  const currentEmployee = currentEmployeeQuery.data;
   const recommendedIncidentsQuery = useIncidentReports({ status: "recommended" });
   const incidentHazardRequestOptions = (recommendedIncidentsQuery.data ?? [])
     .filter((report) => report.status === "recommended")
@@ -77,15 +79,12 @@ export default function WorkInitiationDetailsView({
       label: `${report.reference ?? report.id} - ${report.title || report.reportType}`,
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
-  const [currentRole, setCurrentRole] = useState<WorkInitiationRole>(
-    initialRole ?? "requester",
-  );
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHodComment, setOperationsHodComment] = useState("");
   const [assignedWorkers, setAssignedWorkers] = useState<string[]>([]);
   const [selectedContractor, setSelectedContractor] = useState("");
 
-  if (requestQuery.isLoading) {
+  if (requestQuery.isLoading || currentEmployeeQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={4} />;
   }
 
@@ -97,12 +96,30 @@ export default function WorkInitiationDetailsView({
     );
   }
   const persistedRequestId = request.id;
+  const isRequester = Boolean(
+    request.requesterId &&
+      currentEmployee?.id &&
+      request.requesterId === currentEmployee.id,
+  );
+  const isAssignedSupervisor = Boolean(
+    request.assignment.assignedSupervisorId &&
+      currentEmployee?.id &&
+      request.assignment.assignedSupervisorId === currentEmployee.id,
+  );
+  const isOperationsHod = isOperationsHodEmployee(currentEmployee);
+  const hasDirectWorkInitiationAccess =
+    isRequester || isAssignedSupervisor || isOperationsHod;
+  const currentRole = getWorkInitiationAccessRole({
+    isRequester,
+    isAssignedSupervisor,
+    isOperationsHod,
+  });
 
   const canRequesterEdit =
-    currentRole === "requester" && (request.status === "draft" || request.status === "returned");
-  const canSupervisorReview = currentRole === "supervisor" && request.status === "submitted";
+    isRequester && (request.status === "draft" || request.status === "returned");
+  const canSupervisorReview = isAssignedSupervisor && request.status === "submitted";
   const canOperationsHodReview =
-    currentRole === "operations_hod" && request.status === "pending";
+    isOperationsHod && request.status === "pending";
 
   function persistUpdate(
     update: (current: WorkInitiationRequest) => WorkInitiationRequest,
@@ -156,6 +173,7 @@ export default function WorkInitiationDetailsView({
       auditTrail: [...current.auditTrail, audit],
     }));
     showDecisionToast(toast, "Work initiation", decision, "Supervisor");
+    routeBackToWorkInitiationRequests(router);
   }
 
   function operationsHodReview(decision: WorkAuthorizationDecision) {
@@ -189,6 +207,7 @@ export default function WorkInitiationDetailsView({
       auditTrail: [...current.auditTrail, audit],
     }));
     showDecisionToast(toast, "Work initiation", decision, "Operations HOD");
+    routeBackToWorkInitiationRequests(router);
   }
 
   return (
@@ -205,14 +224,18 @@ export default function WorkInitiationDetailsView({
       <RoleBasedRecordHeader
         id={request.reference ?? request.id}
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
-        roleLabel={getWorkInitiationRoleLabel(currentRole)}
+        onRoleChange={() => undefined}
+        roleLabel={
+          hasDirectWorkInitiationAccess
+            ? getWorkInitiationRoleLabel(currentRole)
+            : "Viewer"
+        }
         roles={workInitiationRoles}
         recordLabel="Work Initiation"
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
         nextActor={getWorkInitiationNextActor(request)}
-        switcherDescription="Switch roles to preview requester, supervisor, and Operations HOD views."
+        showRoleSwitcher={false}
       />
 
       <StatusNote request={request} currentRole={currentRole} />
@@ -232,7 +255,7 @@ export default function WorkInitiationDetailsView({
         onSelectedContractorChange={setSelectedContractor}
       />
 
-      {currentRole === "requester" && (request.status === "draft" || request.status === "returned") ? (
+      {canRequesterEdit ? (
         <div className="flex justify-end">
           <Button type="button" onClick={submitRequest}>Submit Work Initiation</Button>
         </div>
@@ -554,6 +577,35 @@ function FormSection({ title, description, children }: { title: string; descript
   );
 }
 
+function getWorkInitiationAccessRole({
+  isRequester,
+  isAssignedSupervisor,
+  isOperationsHod,
+}: {
+  isRequester: boolean;
+  isAssignedSupervisor: boolean;
+  isOperationsHod: boolean;
+}): WorkInitiationRole {
+  if (isAssignedSupervisor) return "supervisor";
+  if (isOperationsHod) return "operations_hod";
+  if (isRequester) return "requester";
+
+  return "requester";
+}
+
+function isOperationsHodEmployee(employee?: SafetyEmployeeProfile | null) {
+  const userRole = employee?.user?.role?.trim().toLowerCase();
+  if (userRole === "admin" || userRole === "super_admin") return true;
+
+  const department = employee?.department?.trim().toLowerCase();
+  const jobTitle = employee?.job_title?.trim().toLowerCase() ?? "";
+
+  return (
+    department === "operations" &&
+    /\b(hod|head|manager|lead)\b/.test(jobTitle)
+  );
+}
+
 function getWorkInitiationRoleLabel(role: WorkInitiationRole) {
   if (role === "operations_hod") return "Operations HOD";
   if (role === "supervisor") return "Supervisor";
@@ -573,4 +625,10 @@ function showDecisionToast(
   } else {
     toast.error(`${recordLabel} denied by ${actorLabel}.`);
   }
+}
+
+function routeBackToWorkInitiationRequests(router: ReturnType<typeof useRouter>) {
+  window.setTimeout(() => {
+    router.push("/safety/work-initiation");
+  }, 700);
 }

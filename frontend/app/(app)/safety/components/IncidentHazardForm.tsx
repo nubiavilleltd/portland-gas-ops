@@ -14,7 +14,6 @@ import {
   incidentLocationOptions,
   reportTypeOptions,
 } from "@/lib/mock/incident-hazard";
-import { getSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
@@ -29,7 +28,14 @@ import {
   type IncidentReportCreate,
   type IncidentReportType,
 } from "@/lib/modules/safety/incidentReport";
+import { getLatestIncidentObservedDateTime } from "@/lib/modules/safety/date-rules";
+import {
+  getSafetyEmployeeRequester,
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
+import { getValidationScrollTarget } from "@/lib/modules/safety/form-validation";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+import SafetyValidationSummary from "./SafetyValidationSummary";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
@@ -54,6 +60,16 @@ type IncidentValidationField =
 
 type IncidentValidationErrors = Partial<Record<IncidentValidationField, string>>;
 
+const incidentFieldOrder: IncidentValidationField[] = [
+  "title",
+  "reportType",
+  "locations",
+  "observedAt",
+  "description",
+  "impactChecklist",
+  "immediateAction",
+];
+
 export default function IncidentHazardForm() {
   const router = useRouter();
   const toast = useToast();
@@ -66,10 +82,11 @@ export default function IncidentHazardForm() {
   const [observedAt, setObservedAt] = useState("");
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
   const { workAuthorizations } = useSafetyDemoData();
-  const reporter = {
-    ...getSafetyCurrentUser(),
-    reportDate: formatLocalDate(),
-  };
+  const currentEmployee = useSafetyCurrentEmployee();
+  const reporter = getSafetyEmployeeRequester(
+    currentEmployee.data,
+    formatLocalDate(),
+  );
   const impactChecklist = useActiveSafetyChecklist(
     "incident_report",
     "risk_assessment",
@@ -123,8 +140,6 @@ export default function IncidentHazardForm() {
     setValidationErrors(nextValidationErrors);
     const firstInvalidField = getFirstInvalidIncidentField(nextValidationErrors);
     if (firstInvalidField) {
-      const message = nextValidationErrors[firstInvalidField] ?? "Complete the required field.";
-      toast.error(message);
       scrollToIncidentField(
         getIncidentFieldRef(firstInvalidField, {
           titleRef,
@@ -203,12 +218,17 @@ export default function IncidentHazardForm() {
     }
   }
 
-  if (impactChecklist.isLoading) {
+  if (impactChecklist.isLoading || currentEmployee.isLoading) {
     return <SafetyProcessFormSkeleton sections={4} />;
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
+      <SafetyValidationSummary
+        errors={validationErrors}
+        fieldOrder={incidentFieldOrder}
+      />
+
       <FormSection title="Reporter Details" description="Your employee information for this incident or hazard report.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Reporter Name" value={reporter.name} disabled />
@@ -266,6 +286,7 @@ export default function IncidentHazardForm() {
             ref={observedAtRef}
             label="Date/Time Observed"
             required
+            max={getLatestIncidentObservedDateTime()}
             value={observedAt}
             error={validationErrors.observedAt}
             onValueChange={(value) => {
@@ -421,9 +442,9 @@ function validateIncidentReportForm({
     errors.observedAt = "Select the date and time observed.";
   } else {
     const observedDate = new Date(observedAt);
-    const now = new Date();
-    if (observedDate > now) {
-      errors.observedAt = "Observed date/time cannot be in the future.";
+    const latestAllowedObservedAt = new Date(Date.now() - 5 * 60 * 1000);
+    if (observedDate > latestAllowedObservedAt) {
+      errors.observedAt = "Observed date/time must be at least 5 minutes in the past.";
     }
   }
   if (description.trim().length < 5) {
@@ -437,17 +458,7 @@ function validateIncidentReportForm({
 }
 
 function getFirstInvalidIncidentField(errors: IncidentValidationErrors) {
-  const fieldOrder: IncidentValidationField[] = [
-    "title",
-    "reportType",
-    "locations",
-    "observedAt",
-    "description",
-    "impactChecklist",
-    "immediateAction",
-  ];
-
-  return fieldOrder.find((field) => Boolean(errors[field]));
+  return incidentFieldOrder.find((field) => Boolean(errors[field]));
 }
 
 function clearIncidentValidationError(
@@ -491,14 +502,14 @@ function scrollToIncidentField(
   ref: React.RefObject<HTMLElement | null>,
 ) {
   window.requestAnimationFrame(() => {
-    const element = ref.current;
-    if (!element) return;
+    const target = getValidationScrollTarget(ref.current);
+    if (!target) return;
 
-    element.scrollIntoView({
+    target.scrollIntoView({
       behavior: "smooth",
       block: "center",
     });
-    element.focus?.({ preventScroll: true });
+    target.focus?.({ preventScroll: true });
   });
 }
 

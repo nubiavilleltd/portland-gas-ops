@@ -83,6 +83,10 @@ class WorkInitiationCreate(BaseModel):
         return self
 
 
+class WorkInitiationUpdate(WorkInitiationCreate):
+    pass
+
+
 class WorkInitiationEmployeeSummary(BaseModel):
     id: str
     name: Optional[str] = None

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,6 +19,15 @@ class WorkAuthorizationAttachment(BaseModel):
     @classmethod
     def strip_text(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+
+class WorkAuthorizationAttachmentResponse(BaseModel):
+    id: str
+    name: str
+    url: str
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    type: str
 
 
 class WorkAuthorizationCreate(BaseModel):
@@ -98,7 +107,7 @@ class WorkAuthorizationHseReviewResponse(BaseModel):
     safety_controls_in_place: Optional[WorkAuthorizationInspectionCheck]
     hse_inspection_result: Optional[WorkAuthorizationInspectionResult]
     hse_inspection_comment: Optional[str]
-    hse_evidence: list[dict[str, Any]]
+    hse_evidence: list[WorkAuthorizationAttachmentResponse]
     decision: Optional[WorkAuthorizationDecision]
     decision_comment: Optional[str]
     decided_at: Optional[datetime]
@@ -155,7 +164,7 @@ class WorkAuthorizationResponse(WorkAuthorizationListItem):
     ppe_available: bool
     additional_safety_note: Optional[str]
     attachment_notes: Optional[str]
-    attachments: list[dict[str, Any]]
+    attachments: list[WorkAuthorizationAttachmentResponse]
     hse_review: Optional[WorkAuthorizationHseReviewResponse]
     is_active: bool
 
@@ -173,7 +182,9 @@ class WorkAuthorizationResponse(WorkAuthorizationListItem):
             ppe_available=authorization.ppe_available,
             additional_safety_note=authorization.additional_safety_note,
             attachment_notes=authorization.attachment_notes,
-            attachments=authorization.attachments_json or [],
+            attachments=attachment_responses(
+                getattr(authorization, "attachments", []) or []
+            ) or metadata_attachment_responses(authorization.attachments_json or []),
             hse_review=hse_review_response(authorization),
             is_active=authorization.is_active,
         )
@@ -259,8 +270,56 @@ def hse_review_response(authorization) -> Optional[WorkAuthorizationHseReviewRes
         safety_controls_in_place=authorization.safety_controls_in_place,
         hse_inspection_result=authorization.hse_inspection_result,
         hse_inspection_comment=authorization.hse_inspection_comment,
-        hse_evidence=authorization.hse_evidence_json or [],
+        hse_evidence=attachment_responses(
+            getattr(authorization, "hse_evidence", []) or []
+        ) or metadata_attachment_responses(authorization.hse_evidence_json or []),
         decision=authorization.hse_decision,
         decision_comment=authorization.hse_decision_comment,
         decided_at=authorization.hse_decided_at,
     )
+
+
+def attachment_responses(documents) -> list[WorkAuthorizationAttachmentResponse]:
+    return [
+        WorkAuthorizationAttachmentResponse(
+            id=str(document.id),
+            name=document.name,
+            url=document.file_path or "",
+            mime_type=document.mime_type,
+            file_size=document.file_size,
+            type=attachment_type_for_mime_type(document.mime_type),
+        )
+        for document in documents
+    ]
+
+
+def metadata_attachment_responses(items) -> list[WorkAuthorizationAttachmentResponse]:
+    responses: list[WorkAuthorizationAttachmentResponse] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or f"Attachment {index + 1}")
+        attachment_type = str(item.get("type") or "document")
+        responses.append(
+            WorkAuthorizationAttachmentResponse(
+                id=f"metadata-{index}",
+                name=name,
+                url=str(item.get("url") or ""),
+                mime_type=item.get("mime_type"),
+                file_size=item.get("file_size"),
+                type=attachment_type_for_mime_type(item.get("mime_type"))
+                if item.get("mime_type")
+                else attachment_type,
+            )
+        )
+    return responses
+
+
+def attachment_type_for_mime_type(mime_type: Optional[str]) -> str:
+    if not mime_type:
+        return "document"
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("video/"):
+        return "video"
+    return "document"

@@ -9,7 +9,6 @@ import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import {
   createWorkCloseOut,
   useSafetyDemoData,
@@ -17,6 +16,15 @@ import {
 import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
 import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
+import {
+  getSafetyEmployeeDisplayName,
+  getSafetyEmployeeRequester,
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
+import {
+  getDateTimeAfter,
+  getLatestActualWorkDateTime,
+} from "@/lib/modules/safety/date-rules";
 import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
 import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
 import {
@@ -27,6 +35,7 @@ import {
 } from "@/lib/modules/safety/form-validation";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
+import SafetyValidationSummary from "./SafetyValidationSummary";
 
 const yesNoOptions = [
   { value: "Yes", label: "Yes" },
@@ -68,10 +77,15 @@ export default function WorkCompletionForm() {
     ValidationErrors<WorkCompletionValidationField>
   >({});
   const { workAuthorizations: storedWorkAuthorizations } = useSafetyDemoData();
-  const requester = {
-    ...getSafetyCurrentUser(),
-    requestDate: formatLocalDate(),
-  };
+  const currentEmployee = useSafetyCurrentEmployee();
+  const requester = getSafetyEmployeeRequester(
+    currentEmployee.data,
+    formatLocalDate(),
+  );
+  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
+  const isCurrentEmployeeName = (name: string) =>
+    Boolean(currentEmployeeName) &&
+    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
   const completionChecklist = useActiveSafetyChecklist("work_closeout", "completion");
   const monitoringChecklist = useActiveSafetyChecklist("work_closeout", "monitoring");
   const areaConditionChecklist = useActiveSafetyChecklist(
@@ -79,7 +93,7 @@ export default function WorkCompletionForm() {
     "closeout_review",
   );
   const workAuthorizations: ApprovedWorkAuthorizationOption[] = storedWorkAuthorizations
-    .filter((request) => request.status === "approved" && isSafetyCurrentUser(request.requester.name))
+    .filter((request) => request.status === "approved" && isCurrentEmployeeName(request.requester.name))
     .map((request) => ({
       id: request.id,
       title: request.workInitiation.title,
@@ -166,7 +180,6 @@ export default function WorkCompletionForm() {
       workCompletionFieldOrder,
     );
     if (firstInvalidField) {
-      toast.error(nextValidationErrors[firstInvalidField] ?? "Complete the required field.");
       scrollToValidationField(
         getWorkCompletionFieldRef(firstInvalidField, {
           selectedWorkAuthorizationRef,
@@ -241,13 +254,19 @@ export default function WorkCompletionForm() {
   if (
     completionChecklist.isLoading ||
     monitoringChecklist.isLoading ||
-    areaConditionChecklist.isLoading
+    areaConditionChecklist.isLoading ||
+    currentEmployee.isLoading
   ) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
+      <SafetyValidationSummary
+        errors={validationErrors}
+        fieldOrder={workCompletionFieldOrder}
+      />
+
       <FormSection title="Requester Details" description="Your employee information for this work completion request.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={requester.name} disabled />
@@ -283,6 +302,7 @@ export default function WorkCompletionForm() {
             ref={actualStartDateTimeRef}
             label="Actual Start Date/Time"
             required
+            max={getLatestActualWorkDateTime()}
             value={actualStartDateTime}
             error={validationErrors.actualStartDateTime}
             onValueChange={(value) => {
@@ -294,6 +314,8 @@ export default function WorkCompletionForm() {
             ref={actualCompletionDateTimeRef}
             label="Actual Completion Date/Time"
             required
+            min={actualStartDateTime ? getDateTimeAfter(actualStartDateTime) : undefined}
+            max={getLatestActualWorkDateTime()}
             value={actualCompletionDateTime}
             error={validationErrors.actualCompletionDateTime}
             onValueChange={(value) => {
@@ -638,11 +660,16 @@ function validateWorkCompletionForm({
 
   const actualStart = new Date(actualStartDateTime);
   const actualCompletion = new Date(actualCompletionDateTime);
+  const latestActualTime = new Date(Date.now() - 10 * 60 * 1000);
   if (actualStartDateTime && Number.isNaN(actualStart.getTime())) {
     errors.actualStartDateTime = "Select a valid actual start date/time.";
+  } else if (actualStartDateTime && actualStart > latestActualTime) {
+    errors.actualStartDateTime = "Actual start date/time must be at least 10 minutes in the past.";
   }
   if (actualCompletionDateTime && Number.isNaN(actualCompletion.getTime())) {
     errors.actualCompletionDateTime = "Select a valid actual completion date/time.";
+  } else if (actualCompletionDateTime && actualCompletion > latestActualTime) {
+    errors.actualCompletionDateTime = "Actual completion date/time must be at least 10 minutes in the past.";
   }
   if (
     actualStartDateTime &&

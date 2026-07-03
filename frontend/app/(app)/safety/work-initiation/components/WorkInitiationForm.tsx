@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
@@ -15,14 +15,22 @@ import {
   workCategoryOptions,
   workTypeOptionsByCategory,
 } from "@/lib/mock/work-initiation";
-import { getSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import {
   useIncidentReport,
   useIncidentReports,
-  useSafetyActors,
 } from "@/lib/modules/safety/incidentReport";
+import {
+  getSafetyEmployeeRequester,
+  useSafetyActors,
+  useSafetyCurrentEmployee,
+  useSafetyDepartments,
+} from "@/lib/modules/safety/people";
+import {
+  getDateTimeAfter,
+  getEarliestPlannedStartDateTime,
+} from "@/lib/modules/safety/date-rules";
 import {
   workInitiationsApi,
   type WorkInitiationCategory,
@@ -36,6 +44,7 @@ import {
   type ValidationRef,
 } from "@/lib/modules/safety/form-validation";
 import type { IncidentHazardReport } from "@/types/safety";
+import SafetyValidationSummary from "../../components/SafetyValidationSummary";
 
 const toOptions = (items: string[]) =>
   items.map((item) => ({ value: item, label: item }));
@@ -61,15 +70,6 @@ const locationOptions = toOptions([
   "Electrical Room",
   "Loading Area",
   "Inspection Bay",
-]);
-
-const departmentTeamOptions = toOptions([
-  "Engineering",
-  "Maintenance",
-  "Operations",
-  "Logistics",
-  "HSE",
-  "Admin",
 ]);
 
 const contractorOptions = toOptions([
@@ -165,22 +165,38 @@ export default function WorkInitiationForm() {
   const plannedStartDateTimeRef = useRef<HTMLInputElement | null>(null);
   const plannedEndDateTimeRef = useRef<HTMLInputElement | null>(null);
 
-  const requester = {
-    ...getSafetyCurrentUser(),
-    requestDate: formatLocalDate(),
-  };
+  const currentEmployee = useSafetyCurrentEmployee();
+  const requester = getSafetyEmployeeRequester(
+    currentEmployee.data,
+    formatLocalDate(),
+  );
 
   const recommendedIncidentsQuery = useIncidentReports({
     status: "recommended",
   });
 
   const linkedIncidentQuery = useIncidentReport(incidentIdFromQuery ?? "");
-  const safetyActorsQuery = useSafetyActors();
-
-  const employeeOptions = (safetyActorsQuery.data ?? []).map((actor) => ({
-    value: actor.id,
-    label: `${actor.name}${actor.job_title ? ` - ${actor.job_title}` : ""}`,
-  }));
+  const departmentsQuery = useSafetyDepartments();
+  const departmentTeamOptions = useMemo(
+    () =>
+      (departmentsQuery.data ?? []).map((department) => ({
+        value: department.value,
+        label: department.label,
+      })),
+    [departmentsQuery.data],
+  );
+  const departmentEmployeesQuery = useSafetyActors(
+    assignedDepartment ? { department: assignedDepartment } : undefined,
+    { enabled: Boolean(assignedDepartment) },
+  );
+  const employeeOptions = useMemo(
+    () =>
+      (departmentEmployeesQuery.data ?? []).map((actor) => ({
+        value: actor.id,
+        label: `${actor.name}${actor.job_title ? ` - ${actor.job_title}` : ""}`,
+      })),
+    [departmentEmployeesQuery.data],
+  );
 
   const recommendedIncidents = recommendedIncidentsQuery.data ?? [];
 
@@ -263,9 +279,6 @@ export default function WorkInitiationForm() {
       workInitiationFieldOrder,
     );
     if (firstInvalidField) {
-      const message =
-        nextValidationErrors[firstInvalidField] ?? "Complete the required field.";
-      toast.error(message);
       scrollToValidationField(
         getWorkInitiationFieldRef(firstInvalidField, {
           titleRef,
@@ -337,6 +350,11 @@ export default function WorkInitiationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
+      <SafetyValidationSummary
+        errors={validationErrors}
+        fieldOrder={workInitiationFieldOrder}
+      />
+
       <FormSection
         title="Requester Details"
         description="Your employee information for this work initiation request."
@@ -538,12 +556,20 @@ export default function WorkInitiationForm() {
             label="Assigned Department / Team"
             required
             options={departmentTeamOptions}
-            placeholder="Select department or team"
+            placeholder={
+              departmentsQuery.isLoading
+                ? "Loading departments..."
+                : "Select department or team"
+            }
             value={assignedDepartment}
             error={validationErrors.assignedDepartment}
             onValueChange={(value) => {
               setAssignedDepartment(value);
+              setAssignedSupervisor("");
+              setAssignedWorkers([]);
               clearValidationError("assignedDepartment", setValidationErrors);
+              clearValidationError("assignedSupervisor", setValidationErrors);
+              clearValidationError("assignedWorkers", setValidationErrors);
             }}
           />
 
@@ -554,7 +580,9 @@ export default function WorkInitiationForm() {
             searchable
             options={employeeOptions}
             placeholder={
-              safetyActorsQuery.isLoading
+              !assignedDepartment
+                ? "Select a department first"
+                : departmentEmployeesQuery.isLoading
                 ? "Loading employees..."
                 : "Select supervisor"
             }
@@ -564,6 +592,7 @@ export default function WorkInitiationForm() {
               setAssignedSupervisor(value);
               clearValidationError("assignedSupervisor", setValidationErrors);
             }}
+            disabled={!assignedDepartment || departmentEmployeesQuery.isLoading}
           />
 
           <FormMultiSelect
@@ -573,7 +602,9 @@ export default function WorkInitiationForm() {
             searchable
             options={employeeOptions}
             placeholder={
-              safetyActorsQuery.isLoading
+              !assignedDepartment
+                ? "Select a department first"
+                : departmentEmployeesQuery.isLoading
                 ? "Loading employees..."
                 : "Select workers"
             }
@@ -583,6 +614,7 @@ export default function WorkInitiationForm() {
               setAssignedWorkers(value);
               clearValidationError("assignedWorkers", setValidationErrors);
             }}
+            disabled={!assignedDepartment || departmentEmployeesQuery.isLoading}
           />
 
           <FormSelect
@@ -627,6 +659,7 @@ export default function WorkInitiationForm() {
             ref={plannedStartDateTimeRef}
             label="Planned Start Date/Time"
             required
+            min={getEarliestPlannedStartDateTime()}
             value={plannedStartDateTime}
             error={validationErrors.plannedStartDateTime}
             onValueChange={(value) => {
@@ -639,6 +672,11 @@ export default function WorkInitiationForm() {
             ref={plannedEndDateTimeRef}
             label="Planned End Date/Time"
             required
+            min={
+              plannedStartDateTime
+                ? getDateTimeAfter(plannedStartDateTime)
+                : getEarliestPlannedStartDateTime()
+            }
             value={plannedEndDateTime}
             error={validationErrors.plannedEndDateTime}
             onValueChange={(value) => {

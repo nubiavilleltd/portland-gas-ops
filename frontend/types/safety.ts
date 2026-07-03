@@ -56,7 +56,9 @@ export interface WorkInitiationAssetDetails {
 
 export interface WorkInitiationAssignment {
   assignedDepartment: string;
+  assignedSupervisorId?: string;
   assignedSupervisor: string;
+  assignedWorkerIds?: string[];
   assignedWorkers: string[];
   contractorsNeeded: boolean;
   selectedContractor: string;
@@ -77,7 +79,9 @@ export interface AssignedWorkInitiationSummary {
   location: string;
   exactWorkArea: string;
   workDescription: string;
+  assignedSupervisorId?: string;
   assignedSupervisor: string;
+  assignedWorkerIds?: string[];
   assignedWorkers: string[];
   contractorsNeeded: boolean;
   selectedContractor: string;
@@ -97,6 +101,7 @@ export interface WorkInitiationRequest {
   id: string;
   reference?: string;
   status: WorkInitiationStatus;
+  requesterId?: string;
   requester: WorkAuthorizationRequester;
   title: string;
   workDescription: string;
@@ -146,8 +151,12 @@ export interface WorkAuthorizationRiskIndicators {
 }
 
 export interface WorkAuthorizationAttachment {
+  id?: string;
   name: string;
-  type: "image" | "document";
+  type: "image" | "document" | "video";
+  url?: string;
+  mimeType?: string;
+  fileSize?: number;
 }
 
 export interface WorkAuthorizationApprovalResult {
@@ -182,6 +191,7 @@ export interface WorkAuthorizationRequest {
   reference?: string;
   requestedAtRaw?: string;
   status: WorkAuthorizationStatus;
+  requesterId?: string;
   requester: WorkAuthorizationRequester;
   workInitiation: AssignedWorkInitiationSummary;
   requestDetails: WorkAuthorizationRequestDetails;

@@ -26,10 +26,7 @@ export function useWorkAuthorizations(params?: WorkAuthorizationListParams) {
     queryKey: workAuthorizationKeys.list(params),
     queryFn: async () => {
       const items = await workAuthorizationsApi.list(params);
-      const details = await Promise.all(
-        items.map((item) => workAuthorizationsApi.getById(item.id)),
-      );
-      return details.map(mapWorkAuthorizationToRequest);
+      return items.map(mapWorkAuthorizationToRequest);
     },
     enabled: isAuthenticated,
     staleTime: 60 * 1000,

@@ -119,20 +119,9 @@ export interface IncidentReportResponse extends IncidentReportListItem {
 export interface IncidentReportListParams {
   skip?: number;
   limit?: number;
+  cursor_reported_at?: string;
+  cursor_id?: string;
   status?: IncidentReportStatus;
   report_type?: IncidentReportType;
-  search?: string;
-}
-
-export interface SafetyActor {
-  id: string;
-  name: string;
-  email: string;
-  department?: string | null;
-  job_title?: string | null;
-}
-
-export interface SafetyActorListParams {
-  department?: string;
   search?: string;
 }

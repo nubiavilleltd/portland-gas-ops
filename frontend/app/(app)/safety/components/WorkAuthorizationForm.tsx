@@ -23,7 +23,11 @@ import {
   workAuthorizationsApi,
   type WorkAuthorizationCreate,
 } from "@/lib/modules/safety/workAuthorization";
-import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
+import {
+  getSafetyEmployeeDisplayName,
+  getSafetyEmployeeRequester,
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
 import { formatLocalDate } from "@/lib/safety-demo-dates";
 import {
   clearValidationError,
@@ -34,6 +38,7 @@ import {
 import type { AssignedWorkInitiationSummary } from "@/types/safety";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
+import SafetyValidationSummary from "./SafetyValidationSummary";
 
 const yesNoOptions = [
   { value: "Yes", label: "Yes" },
@@ -50,10 +55,15 @@ const workAuthorizationFieldOrder: WorkAuthorizationValidationField[] = [
 export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
-  const requester = {
-    ...getSafetyCurrentUser(),
-    requestDate: formatLocalDate(),
-  };
+  const currentEmployee = useSafetyCurrentEmployee();
+  const requester = getSafetyEmployeeRequester(
+    currentEmployee.data,
+    formatLocalDate(),
+  );
+  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
+  const isCurrentEmployeeName = (name: string) =>
+    Boolean(currentEmployeeName) &&
+    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
   const workInitiationsQuery = useWorkInitiations({ status: "approved" });
   const riskChecklist = useActiveSafetyChecklist(
     "work_authorization",
@@ -65,9 +75,9 @@ export default function WorkAuthorizationForm() {
         request.status === "approved" &&
         request.operationalReview?.decision === "Approve" &&
         (
-          isSafetyCurrentUser(request.requester.name) ||
-          isSafetyCurrentUser(request.assignment.assignedSupervisor) ||
-          request.assignment.assignedWorkers.some(isSafetyCurrentUser)
+          isCurrentEmployeeName(request.requester.name) ||
+          isCurrentEmployeeName(request.assignment.assignedSupervisor) ||
+          request.assignment.assignedWorkers.some(isCurrentEmployeeName)
         ),
     );
   const workInitiations: AssignedWorkInitiationSummary[] = approvedWorkInitiations
@@ -127,7 +137,6 @@ export default function WorkAuthorizationForm() {
       workAuthorizationFieldOrder,
     );
     if (firstInvalidField) {
-      toast.error(nextValidationErrors[firstInvalidField] ?? "Complete the required field.");
       scrollToValidationField(
         firstInvalidField === "selectedWorkInitiationId"
           ? selectedWorkInitiationRef
@@ -147,16 +156,15 @@ export default function WorkAuthorizationForm() {
       ppe_available: riskAnswers.ppe_available === "Yes",
       additional_safety_note: emptyToNull(safetyNote),
       attachment_notes: emptyToNull(attachmentNotes),
-      attachments: safetyFiles.map((file) => ({
-        name: file.name,
-        type: file.type.startsWith("image/") ? "image" : "document",
-      })),
     };
 
     let authorizationWasSaved = false;
     try {
       setIsSubmitting(true);
-      const savedAuthorization = await workAuthorizationsApi.create(payload);
+      const savedAuthorization = await workAuthorizationsApi.create(
+        payload,
+        safetyFiles,
+      );
       authorizationWasSaved = true;
       const checklistAnswers = riskChecklist.data
         ? buildRiskChecklistAnswers(riskChecklist.data, riskAnswers, safetyNote)
@@ -185,12 +193,17 @@ export default function WorkAuthorizationForm() {
     }
   }
 
-  if (riskChecklist.isLoading || workInitiationsQuery.isLoading) {
+  if (riskChecklist.isLoading || workInitiationsQuery.isLoading || currentEmployee.isLoading) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
+      <SafetyValidationSummary
+        errors={validationErrors}
+        fieldOrder={workAuthorizationFieldOrder}
+      />
+
       <FormSection title="Requester Details" description="Your employee information for this work authorization request.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={requester.name} disabled />

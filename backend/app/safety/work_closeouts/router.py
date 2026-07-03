@@ -9,20 +9,22 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.employees.models import Employee
 from app.safety.dependencies import require_hse_reviewer
-from app.safety.work_authorizations import service as work_authorization_service
-from app.safety.work_authorizations.models import WorkAuthorizationStatus
-from app.safety.work_authorizations.schemas import (
-    WorkAuthorizationCreate,
-    WorkAuthorizationHseReviewCreate,
-    WorkAuthorizationResponse,
+from app.safety.work_closeouts import service as work_closeout_service
+from app.safety.work_closeouts.models import WorkCloseOutStatus
+from app.safety.work_closeouts.schemas import (
+    WorkCloseOutCreate,
+    WorkCloseOutDecisionCreate,
+    WorkCloseOutHseReviewCreate,
+    WorkCloseOutListItem,
+    WorkCloseOutResponse,
 )
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 
 
 router = APIRouter(
-    prefix="/work-authorizations",
-    tags=["Safety Work Authorizations"],
+    prefix="/work-closeouts",
+    tags=["Safety Work Close-Outs"],
 )
 
 ALLOWED_ATTACHMENT_TYPES = {
@@ -53,23 +55,29 @@ async def validate_attachments(files: List[UploadFile]) -> list[tuple[bytes, str
     for file in files:
         if not file.filename:
             continue
+
         if file.content_type not in ALLOWED_ATTACHMENT_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid attachment type '{file.content_type}'.",
             )
+
         file_bytes = await file.read()
+
         if len(file_bytes) > max_bytes:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Attachment '{file.filename}' exceeds {MAX_ATTACHMENT_SIZE_MB} MB.",
             )
-        validated.append((
-            file_bytes,
-            file.filename,
-            file.content_type or "application/octet-stream",
-            len(file_bytes),
-        ))
+
+        validated.append(
+            (
+                file_bytes,
+                file.filename,
+                file.content_type or "application/octet-stream",
+                len(file_bytes),
+            )
+        )
 
     return validated
 
@@ -89,18 +97,18 @@ def parse_form_payload(data: str, schema):
         )
 
 
-@router.get("", response_model=List[WorkAuthorizationResponse])
-def list_work_authorizations(
+@router.get("", response_model=List[WorkCloseOutListItem])
+def list_work_closeouts(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     cursor_created_at: Optional[datetime] = Query(None),
     cursor_id: Optional[str] = Query(None),
-    status_filter: Optional[WorkAuthorizationStatus] = Query(None, alias="status"),
+    status_filter: Optional[WorkCloseOutStatus] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    records = work_authorization_service.list_work_authorizations(
+    records = work_closeout_service.list_work_closeouts(
         db=db,
         skip=skip,
         limit=limit,
@@ -109,64 +117,94 @@ def list_work_authorizations(
         status_filter=status_filter,
         search=search,
     )
-    return [WorkAuthorizationResponse.from_model(record) for record in records]
+
+    return [WorkCloseOutListItem.from_model(record) for record in records]
 
 
 @router.post(
     "",
-    response_model=WorkAuthorizationResponse,
+    response_model=WorkCloseOutResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_work_authorization(
+async def create_work_closeout(
     data: str = Form(...),
-    attachments: List[UploadFile] = File(default=[]),
+    completion_evidence: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    payload = parse_form_payload(data, WorkAuthorizationCreate)
-    attachment_files = await validate_attachments(attachments)
+    payload = parse_form_payload(data, WorkCloseOutCreate)
+    evidence_files = await validate_attachments(completion_evidence)
 
-    record = work_authorization_service.create_work_authorization(
+    record = work_closeout_service.create_work_closeout(
         db=db,
         data=payload,
         current_user=current_user,
-        attachments=attachment_files,
+        completion_evidence=evidence_files,
     )
-    return WorkAuthorizationResponse.from_model(record)
+
+    return WorkCloseOutResponse.from_model(record)
 
 
-@router.get("/{work_authorization_id}", response_model=WorkAuthorizationResponse)
-def get_work_authorization(
-    work_authorization_id: str,
+@router.get("/{work_closeout_id}", response_model=WorkCloseOutResponse)
+def get_work_closeout(
+    work_closeout_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record = work_authorization_service.get_work_authorization(
+    record = work_closeout_service.get_work_closeout(
         db=db,
-        work_authorization_id=work_authorization_id,
+        work_closeout_id=work_closeout_id,
     )
-    return WorkAuthorizationResponse.from_model(record)
+
+    return WorkCloseOutResponse.from_model(record)
 
 
-@router.post(
-    "/{work_authorization_id}/hse-review",
-    response_model=WorkAuthorizationResponse,
-)
-async def create_hse_review(
-    work_authorization_id: str,
-    data: str = Form(...),
-    hse_evidence: List[UploadFile] = File(default=[]),
+@router.post("/{work_closeout_id}/supervisor-review", response_model=WorkCloseOutResponse)
+def supervisor_review(
+    work_closeout_id: str,
+    data: WorkCloseOutDecisionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    record = work_closeout_service.supervisor_decision(
+        db=db,
+        work_closeout_id=work_closeout_id,
+        data=data,
+        current_user=current_user,
+    )
+
+    return WorkCloseOutResponse.from_model(record)
+
+
+@router.post("/{work_closeout_id}/operations-head-review", response_model=WorkCloseOutResponse)
+def operations_head_review(
+    work_closeout_id: str,
+    data: WorkCloseOutDecisionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    record = work_closeout_service.operations_head_decision(
+        db=db,
+        work_closeout_id=work_closeout_id,
+        data=data,
+        current_user=current_user,
+    )
+
+    return WorkCloseOutResponse.from_model(record)
+
+
+@router.post("/{work_closeout_id}/hse-review", response_model=WorkCloseOutResponse)
+def hse_review(
+    work_closeout_id: str,
+    data: WorkCloseOutHseReviewCreate,
     db: Session = Depends(get_db),
     inspector: Employee = Depends(require_hse_reviewer),
 ):
-    payload = parse_form_payload(data, WorkAuthorizationHseReviewCreate)
-    evidence_files = await validate_attachments(hse_evidence)
-
-    record = work_authorization_service.create_hse_review(
+    record = work_closeout_service.hse_decision(
         db=db,
-        work_authorization_id=work_authorization_id,
-        data=payload,
+        work_closeout_id=work_closeout_id,
+        data=data,
         inspector=inspector,
-        hse_evidence=evidence_files,
     )
-    return WorkAuthorizationResponse.from_model(record)
+
+    return WorkCloseOutResponse.from_model(record)
