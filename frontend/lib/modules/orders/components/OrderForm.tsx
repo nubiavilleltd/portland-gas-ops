@@ -100,18 +100,18 @@ export default function OrderForm({
 
 
 
-  const productOptions = activeProducts.map((p) => {
-    const stockInfo =
-      p.productType === "tracked"
-        ? `${getAvailableCount(inventoryItems, p.id)} unit(s) available`
-        : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
+  // const productOptions = activeProducts.map((p) => {
+  //   const stockInfo =
+  //     p.productType === "tracked"
+  //       ? `${getAvailableCount(inventoryItems, p.id)} unit(s) available`
+  //       : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
 
-    return {
-      value: p.id,
-      label: p.name, // ← shown when selected (clean)
-      description: stockInfo, // ← shown only in dropdown
-    };
-  });
+  //   return {
+  //     value: p.id,
+  //     label: p.name, // ← shown when selected (clean)
+  //     description: stockInfo, // ← shown only in dropdown
+  //   };
+  // });
 
   // ── Field array ─────────────────────────────────────────
   const { fields, append, remove } = useFieldArray({
