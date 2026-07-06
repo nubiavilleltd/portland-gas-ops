@@ -1,0 +1,11 @@
+from __future__ import annotations
+
+from enum import Enum
+
+
+class VehicleErrorCode(str, Enum):
+    VEHICLE_NOT_FOUND = "VEHICLE_NOT_FOUND"
+    VEHICLE_NOT_AVAILABLE = "VEHICLE_NOT_AVAILABLE"
+    VEHICLE_ALREADY_ASSIGNED = "VEHICLE_ALREADY_ASSIGNED"
+
+    PLATE_NUMBER_IN_USE = "PLATE_NUMBER_IN_USE"
