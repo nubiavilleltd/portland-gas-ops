@@ -16,7 +16,7 @@ feature/*     ← individual feature or fix branches
 
 ### 1. Never push directly to `main` or `dev`
 
-All changes must come in through a Pull Request (PR). Please respect this even though it is not enforced by branch protection yet.
+All changes must come in through a Pull Request (PR). Please respect this even though it is not enforced by branch protection yet. Please do!!
 
 ### 2. Always branch from `dev`
 
