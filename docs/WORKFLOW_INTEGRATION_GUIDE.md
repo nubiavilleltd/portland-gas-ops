@@ -694,6 +694,44 @@ That's it. The hook and component handle:
 
 The keys are step numbers (as strings for JSON), the values are employee UUIDs. The backend `engine.start()` receives this as `picked_approvers: dict[int, str]`.
 
+### Quick reference — copy-paste checklist
+
+```tsx
+// 1. Import
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+
+// 2. Hook (in component body)
+const approverPicker = useApproverPicker("asset");          // new request
+const approverPicker = useApproverPicker("asset", editId);  // resubmit
+
+// 3. Validate in onSubmit
+const err = approverPicker.validate();
+if (err) { toast.error(err); return; }
+payload.picked_approvers = approverPicker.picksPayload;
+
+// 4. Render (place before the submit button)
+<WorkflowApproversSection {...approverPicker} />
+```
+
+**Backend equivalent** — add `picked_approvers` to the module's Create schema and pass it to the engine:
+
+```python
+# schemas.py
+class AssetCreate(BaseModel):
+    # ... your fields ...
+    picked_approvers: dict[int, str] = Field(default_factory=dict)
+
+# service.py — inside create_request()
+engine.start(
+    request_type="asset",
+    request_id=req.id,
+    title="...",
+    requester=employee,
+    picked_approvers=data.picked_approvers or None,
+)
+```
+
 ### Backend: receiving picked_approvers in your schema
 
 ```python
