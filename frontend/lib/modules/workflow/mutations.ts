@@ -138,3 +138,42 @@ export function useSetWorkflowAssignment() {
     onSuccess: () => qc.invalidateQueries({ queryKey: workflowKeys.assignments() }),
   });
 }
+
+// ── Approval actions (used from request detail pages) ─────────────────────────
+
+type ApprovalAction = { approvalRequestId: string; comment?: string };
+
+function invalidateAfterAction(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["my-approvals"] });
+  qc.invalidateQueries({ queryKey: ["my-requests"] });
+  qc.invalidateQueries({ queryKey: ["audit-trail"] });
+  // Invalidate all module queries so detail pages reflect the new status immediately
+  qc.invalidateQueries({ queryKey: ["procurement"] });
+}
+
+export function useWorkflowApprove() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ approvalRequestId, comment }: ApprovalAction) =>
+      post(`/api/workflow/requests/${approvalRequestId}/approve`, { comment }),
+    onSuccess: () => invalidateAfterAction(qc),
+  });
+}
+
+export function useWorkflowReject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ approvalRequestId, comment }: ApprovalAction) =>
+      post(`/api/workflow/requests/${approvalRequestId}/reject`, { comment }),
+    onSuccess: () => invalidateAfterAction(qc),
+  });
+}
+
+export function useWorkflowReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ approvalRequestId, comment }: ApprovalAction) =>
+      post(`/api/workflow/requests/${approvalRequestId}/return`, { comment }),
+    onSuccess: () => invalidateAfterAction(qc),
+  });
+}

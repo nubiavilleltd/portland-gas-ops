@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, AlertCircle, Plus, Trash2, GripVertical,
-  ChevronUp, ChevronDown, Pencil, CheckCircle, XCircle, RotateCcw,
+  ChevronUp, ChevronDown, Pencil,
 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -15,13 +15,16 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import SelectInput from "@/components/forms/SelectInput";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import {
   useWorkflow,
   useUpdateWorkflow,
   useAddStep,
   useDeleteStep,
   useReorderSteps,
+  useApproverGroups,
 } from "@/lib/modules/workflow";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 import { patch } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { workflowKeys } from "@/lib/modules/workflow/queries";
@@ -32,14 +35,11 @@ import type { WorkflowStep, AssigneeType } from "@/types/workflow";
 
 const ASSIGNEE_TYPE_OPTIONS = [
   { value: "requester_operations_manager", label: "Requester's Operations Manager" },
-  { value: "role",                         label: "Specific Role (e.g. Finance Manager)" },
-  { value: "specific",                     label: "Specific Person" },
-  { value: "requester_pick",               label: "Requester Picks from Group" },
-  { value: "requester_hod",                label: "Requester's Head of Department" },
-  { value: "requester_skip_level",         label: "Requester's Skip-Level Manager" },
+  { value: "specific",                     label: "Specific Person (pre-set)" },
+  { value: "requester_pick",               label: "Requester Picks Approver" },
 ];
 
-const ASSIGNEE_TYPE_LABELS: Record<AssigneeType, string> = {
+const ASSIGNEE_TYPE_LABELS: Record<string, string> = {
   requester_operations_manager: "Operations Manager",
   role:                         "By Role",
   specific:                     "Specific Person",
@@ -69,21 +69,17 @@ function StepBadge({ type }: { type: AssigneeType }) {
 // ── Step form (add / edit) ────────────────────────────────────────────────────
 
 interface StepFormData {
-  step_name: string;
+  step_name:     string;
   assignee_type: AssigneeType | "";
-  role: string;
-  can_approve: boolean;
-  can_reject: boolean;
-  can_return: boolean;
+  employee_id:   string;        // for "specific"
+  group_id:      string;        // for "requester_pick"
 }
 
 const EMPTY_STEP: StepFormData = {
-  step_name: "",
+  step_name:     "",
   assignee_type: "",
-  role: "",
-  can_approve: true,
-  can_reject: true,
-  can_return: false,
+  employee_id:   "",
+  group_id:      "",
 };
 
 function StepForm({
@@ -98,17 +94,34 @@ function StepForm({
   saving: boolean;
 }) {
   const [form, setForm] = useState<StepFormData>(initial ?? EMPTY_STEP);
+  const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
+
+  const { data: employeeList = [] } = useEmployees();
+  const { data: groups = [] } = useApproverGroups();
+
+  const employees: PickedEmployee[] = employeeList.map((e) => ({
+    id:          e.id,
+    name:        [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+    role:        e.job_title ?? e.user?.role ?? "",
+    department:  e.department ?? "",
+    avatar_url:  e.user?.profile_picture_url,
+  }));
+
+  const groupOptions = groups.map((g) => ({ value: g.id, label: g.name }));
 
   function set<K extends keyof StepFormData>(k: K, v: StepFormData[K]) {
     setForm((prev) => ({ ...prev, [k]: v }));
+  }
+
+  function handleTypeChange(v: string) {
+    setForm((prev) => ({ ...prev, assignee_type: v as AssigneeType, employee_id: "", group_id: "" }));
+    setPickedEmployee(null);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onSave(form);
   }
-
-  const needsRole = form.assignee_type === "role";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-5 bg-gray-50 rounded-xl border border-brand-border">
@@ -125,48 +138,41 @@ function StepForm({
           required
           placeholder="Select approver type…"
           value={form.assignee_type}
-          onValueChange={(v) => set("assignee_type", v as AssigneeType)}
+          onValueChange={handleTypeChange}
           options={ASSIGNEE_TYPE_OPTIONS}
         />
       </div>
 
-      {needsRole && (
-        <FormInput
-          label="Role Name"
+      {form.assignee_type === "specific" && (
+        <EmployeePicker
+          label="Select Employee"
           required
-          placeholder="e.g. finance_manager, md, hse_manager"
-          value={form.role}
-          onChange={(e) => set("role", e.target.value)}
-          helperText="Must match the role value stored on the employee record exactly."
+          employees={employees}
+          value={pickedEmployee}
+          onChange={(emp) => {
+            setPickedEmployee(emp);
+            set("employee_id", emp?.id ?? "");
+          }}
+          placeholder="Search by name or department…"
         />
       )}
 
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
-          Available Actions for This Step
-        </p>
-        <div className="flex flex-wrap gap-4">
-          {(
-            [
-              { key: "can_approve", label: "Approve", icon: <CheckCircle size={13} className="text-green-600" /> },
-              { key: "can_reject",  label: "Reject",  icon: <XCircle size={13} className="text-red-600" /> },
-              { key: "can_return",  label: "Return for Revision", icon: <RotateCcw size={13} className="text-amber-600" /> },
-            ] as const
-          ).map(({ key, label, icon }) => (
-            <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={form[key]}
-                onChange={(e) => set(key, e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-brand-purple focus:ring-brand-purple"
-              />
-              <span className="flex items-center gap-1 text-sm text-brand-text-primary">
-                {icon} {label}
-              </span>
-            </label>
-          ))}
+      {form.assignee_type === "requester_pick" && (
+        <div className="space-y-1.5">
+          <SelectInput
+            label="Restrict to Group (optional)"
+            placeholder="Any employee — no restriction"
+            value={form.group_id}
+            onValueChange={(v) => set("group_id", v)}
+            options={groupOptions}
+          />
+          <p className="text-xs text-brand-text-secondary">
+            {form.group_id
+              ? "Requester will pick from this group's members only."
+              : "No group selected — requester can pick any employee."}
+          </p>
         </div>
-      </div>
+      )}
 
       <div className="flex items-center justify-end gap-2 pt-1">
         <button
@@ -231,10 +237,8 @@ export default function WorkflowDetailPage() {
       await addStep.mutateAsync({
         step_name:     form.step_name,
         assignee_type: form.assignee_type as string,
-        role:          form.assignee_type === "role" ? form.role || undefined : undefined,
-        can_approve:   form.can_approve,
-        can_reject:    form.can_reject,
-        can_return:    form.can_return,
+        employee_id:   form.assignee_type === "specific"       ? form.employee_id || undefined : undefined,
+        group_id:      form.assignee_type === "requester_pick" ? form.group_id    || undefined : undefined,
       });
       setShowAddForm(false);
       toast.success("Step added");
@@ -249,10 +253,8 @@ export default function WorkflowDetailPage() {
       await patch(`/api/workflow/${id}/steps/${editingStep.id}`, {
         step_name:     form.step_name,
         assignee_type: form.assignee_type,
-        role:          form.assignee_type === "role" ? form.role || undefined : undefined,
-        can_approve:   form.can_approve,
-        can_reject:    form.can_reject,
-        can_return:    form.can_return,
+        employee_id:   form.assignee_type === "specific"       ? form.employee_id || undefined : undefined,
+        group_id:      form.assignee_type === "requester_pick" ? form.group_id    || undefined : undefined,
       });
       await qc.invalidateQueries({ queryKey: workflowKeys.detail(id) });
       setEditingStep(null);
@@ -388,19 +390,17 @@ export default function WorkflowDetailPage() {
                 initial={{
                   step_name:     step.step_name,
                   assignee_type: step.assignee_type,
-                  role:          step.role ?? "",
-                  can_approve:   step.can_approve,
-                  can_reject:    step.can_reject,
-                  can_return:    step.can_return,
+                  employee_id:   step.employee_id ?? "",
+                  group_id:      step.group_id ?? "",
                 }}
                 onSave={handleEditStep}
                 onCancel={() => setEditingStep(null)}
                 saving={false}
               />
             ) : (
-              <div className="flex items-start gap-3 p-4 bg-white border border-brand-border rounded-xl">
+              <div className="flex items-center gap-3 p-4 bg-white border border-brand-border rounded-xl">
                 {/* Step number */}
-                <div className="h-7 w-7 rounded-full bg-brand-purple flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                <div className="h-7 w-7 rounded-full bg-brand-purple flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {step.step_number}
                 </div>
 
@@ -412,23 +412,6 @@ export default function WorkflowDetailPage() {
                     {step.role && (
                       <span className="text-xs font-mono text-brand-text-secondary bg-gray-100 px-1.5 py-0.5 rounded">
                         {step.role}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                    {step.can_approve && (
-                      <span className="flex items-center gap-1 text-[10px] text-green-700">
-                        <CheckCircle size={11} /> Approve
-                      </span>
-                    )}
-                    {step.can_reject && (
-                      <span className="flex items-center gap-1 text-[10px] text-red-700">
-                        <XCircle size={11} /> Reject
-                      </span>
-                    )}
-                    {step.can_return && (
-                      <span className="flex items-center gap-1 text-[10px] text-amber-700">
-                        <RotateCcw size={11} /> Return for Revision
                       </span>
                     )}
                   </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, AlertCircle, FileText, Download, ChevronDown, X } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -10,19 +10,26 @@ import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import AuditTrail from "@/components/forms/AuditTrail";
 import { getErrorMessage } from "@/lib/errors";
 import { PROCUREMENT_ERRORS } from "@/lib/modules/procurement";
 import {
   useProcurement,
-  useApproveProcurement,
-  useRejectProcurement,
-  useReturnProcurement,
-  useIssuePO,
-  useUpdatePOStatus,
+  useApproveAndIssuePO,
+  useConfirmDelivery,
+  useRegeneratePOPDF,
 } from "@/lib/modules/procurement";
-import { useVendors } from "@/lib/modules/vendors";
+import {
+  useMyApprovals,
+  useAuditTrail,
+} from "@/lib/modules/workflow/queries";
+import {
+  useWorkflowApprove,
+  useWorkflowReject,
+  useWorkflowReturn,
+} from "@/lib/modules/workflow/mutations";
 import { useToast } from "@/hooks/useToast";
-import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCurrency, capitalize } from "@/lib/utils";
 import type { ProcurementStatus } from "@/types";
 
 // ── Status badge colours ───────────────────────────────────────────────────────
@@ -33,7 +40,8 @@ const STATUS_LABELS: Record<ProcurementStatus, string> = {
   approved:  "Approved",
   rejected:  "Rejected",
   returned:  "Returned",
-  po_issued: "PO Issued",
+  awaiting_confirmation: "Awaiting Confirmation",
+  completed: "Completed",
 };
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -44,21 +52,30 @@ export default function ProcurementDetailPage() {
   const toast   = useToast();
 
   const { data: req, isLoading, isError } = useProcurement(id);
-  const approveRequest = useApproveProcurement();
-  const rejectRequest  = useRejectProcurement();
-  const returnRequest  = useReturnProcurement();
-  const issuePO        = useIssuePO();
-  const updatePOStatus = useUpdatePOStatus();
+  const approveAndIssuePO  = useApproveAndIssuePO();
+  const confirmDelivery    = useConfirmDelivery();
+  const regeneratePOPDF    = useRegeneratePOPDF();
 
-  const { data: vendors = [] } = useVendors();
+  // Procurement workflow constants — step 4 = Issue PO, step 5 = Delivery Confirmation
+  const ISSUE_PO_STEP = 4;
 
-  // PO issue state
-  const [poVendorId,     setPoVendorId]     = useState("");
-  const [poNotes,        setPoNotes]        = useState("");
-  const [poVendorSearch, setPoVendorSearch] = useState("");
-  const [poDropdownOpen, setPoDropdownOpen] = useState(false);
-  const [poVendorName,   setPoVendorName]   = useState("");
+  // Workflow: check if I'm the current step's approver for this request
+  const { data: myApprovals = [] } = useMyApprovals();
+  const myApprovalEntry = myApprovals.find(
+    (a) => a.request_type === "procurement" && a.request_id === id
+  );
+  const approvalRequestId = myApprovalEntry?.approval_request_id ?? null;
 
+  // Workflow approval actions (wired to engine, not direct admin bypass)
+  const workflowApprove = useWorkflowApprove();
+  const workflowReject  = useWorkflowReject();
+  const workflowReturn  = useWorkflowReturn();
+
+  // Audit trail
+  const { data: auditTrail = [] } = useAuditTrail("procurement", id);
+
+  // Goods received confirmation state
+  const [goodsConfirmed, setGoodsConfirmed] = useState(false);
 
   function raiserName() {
     if (!req?.raiser?.user) return "—";
@@ -72,16 +89,16 @@ export default function ProcurementDetailPage() {
   ) ?? 0;
 
   async function handleAction(action: "approve" | "reject" | "return", comment: string) {
-    if (!req) return;
+    if (!approvalRequestId) return;
     try {
       if (action === "approve") {
-        await approveRequest.mutateAsync({ id, comment: comment || undefined });
+        await workflowApprove.mutateAsync({ approvalRequestId, comment: comment || undefined });
         toast.success("Request approved");
       } else if (action === "reject") {
-        await rejectRequest.mutateAsync({ id, comment: comment || undefined });
+        await workflowReject.mutateAsync({ approvalRequestId, comment: comment || undefined });
         toast.success("Request rejected");
       } else {
-        await returnRequest.mutateAsync({ id, comment: comment || undefined });
+        await workflowReturn.mutateAsync({ approvalRequestId, comment: comment || undefined });
         toast.success("Returned to requester for revision");
       }
     } catch (err) {
@@ -89,42 +106,13 @@ export default function ProcurementDetailPage() {
     }
   }
 
-  async function handleIssuePO() {
-    try {
-      await issuePO.mutateAsync({
-        id,
-        data: {
-          vendor_id: poVendorId || undefined,
-          notes:     poNotes   || undefined,
-        },
-      });
-      toast.success("Purchase Order issued");
-      setPoVendorId("");
-      setPoVendorName("");
-      setPoNotes("");
-    } catch (err) {
-      toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
-    }
-  }
-
-  async function handlePOStatus(poId: string, status: "delivered" | "cancelled") {
-    try {
-      await updatePOStatus.mutateAsync({ poId, status });
-      toast.success(`PO marked as ${status}`);
-    } catch (err) {
-      toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
-    }
-  }
-
-  const filteredVendors = vendors.filter((v) =>
-    v.name.toLowerCase().includes(poVendorSearch.toLowerCase())
-  );
-
   const isBusy =
-    approveRequest.isPending ||
-    rejectRequest.isPending  ||
-    returnRequest.isPending  ||
-    issuePO.isPending;
+    workflowApprove.isPending   ||
+    workflowReject.isPending    ||
+    workflowReturn.isPending    ||
+    approveAndIssuePO.isPending ||
+    confirmDelivery.isPending;
+
 
   if (isLoading) {
     return (
@@ -174,6 +162,12 @@ export default function ProcurementDetailPage() {
           <p className="text-xs text-brand-text-secondary mt-1">
             {STATUS_LABELS[req.status] ?? req.status} · Raised {formatDate(req.created_at)}
           </p>
+          {req.next_actor_name && (
+            <p className="text-xs text-brand-text-secondary mt-1">
+              Next Actor: <span className="font-medium text-brand-text-primary">{req.next_actor_name}</span>
+              {req.current_step_name && <span className="text-brand-text-secondary"> · {req.current_step_name}</span>}
+            </p>
+          )}
         </div>
         <div className="shrink-0 pt-1 flex flex-col items-end gap-2">
           <ApprovalBadge status={req.status} />
@@ -362,22 +356,34 @@ export default function ProcurementDetailPage() {
                     }`}>
                       {capitalize(p.status)}
                     </span>
-                    {p.status === "issued" && (
-                      <button
-                        onClick={() => handlePOStatus(p.id, "delivered")}
-                        disabled={updatePOStatus.isPending}
-                        className="text-xs text-brand-purple hover:underline disabled:opacity-50"
-                      >
-                        Mark Delivered
-                      </button>
-                    )}
-                    {p.document_id && (
+                    {p.document?.file_path ? (
                       <a
-                        href={`/api/documents/${p.document_id}/download`}
+                        href={p.document.file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="flex items-center gap-1 text-xs text-brand-purple hover:underline"
                       >
                         <Download size={12} /> Download PO
                       </a>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await regeneratePOPDF.mutateAsync({ requestId: id, poId: p.id });
+                            toast.success("PO PDF generated — click Download PO to get it");
+                          } catch {
+                            toast.error("Failed to generate PDF. Check Cloudinary configuration.");
+                          }
+                        }}
+                        disabled={regeneratePOPDF.isPending}
+                        className="flex items-center gap-1 text-xs text-amber-600 hover:underline disabled:opacity-50"
+                      >
+                        {regeneratePOPDF.isPending ? (
+                          <span>Generating…</span>
+                        ) : (
+                          <><FileText size={12} /> Generate PDF</>
+                        )}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -386,8 +392,47 @@ export default function ProcurementDetailPage() {
           </FormSection>
         )}
 
-        {/* ── Pending → Approve / Reject / Return ──────────────────────────── */}
-        {req.status === "pending" && (
+        {/* ── Step 5: Delivery Confirmation (procurement officer assigned to step 5) ── */}
+        {approvalRequestId && req.status === "awaiting_confirmation" && (
+          <ApprovalPanel
+            title="Goods Received Confirmation"
+            description="Confirm that the goods or services have been received in full to close this request."
+            showReturn={false}
+            showReject={false}
+            showApprove
+            approveLabel="Confirm Goods Received"
+            onApprove={async () => {
+              if (!goodsConfirmed) {
+                toast.error("Please check the confirmation box before proceeding.");
+                return;
+              }
+              try {
+                await confirmDelivery.mutateAsync(id);
+                toast.success("Goods confirmed — request completed");
+              } catch (err) {
+                toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
+              }
+            }}
+            approveLoading={confirmDelivery.isPending}
+            disabled={isBusy}
+            extraFields={
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={goodsConfirmed}
+                  onChange={(e) => setGoodsConfirmed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-brand-border accent-brand-purple"
+                />
+                <span className="text-sm text-brand-text-primary">
+                  I confirm that the goods/services for this purchase order have been received in full and are satisfactory.
+                </span>
+              </label>
+            }
+          />
+        )}
+
+        {/* ── Steps 1–4: Approval Panel ─────────────────────────────────────── */}
+        {approvalRequestId && req.status === "pending" && (
           <ApprovalPanel
             title="Approval Decision"
             description="Review the request details above and make your decision."
@@ -395,107 +440,41 @@ export default function ProcurementDetailPage() {
             showReject
             showApprove
             returnLabel="Return for Revision"
+            approveLabel={myApprovalEntry?.current_step_number === ISSUE_PO_STEP ? "Issue PO" : "Approve"}
             onReturn={(comment)  => handleAction("return",  comment)}
             onReject={(comment)  => handleAction("reject",  comment)}
-            onApprove={(comment) => handleAction("approve", comment)}
-            returnLoading={returnRequest.isPending}
-            rejectLoading={rejectRequest.isPending}
-            approveLoading={approveRequest.isPending}
+            onApprove={async (comment) => {
+              if (myApprovalEntry?.current_step_number === ISSUE_PO_STEP) {
+                try {
+                  await approveAndIssuePO.mutateAsync({ id });
+                  toast.success("PO issued — awaiting delivery confirmation");
+                } catch (err) {
+                  toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
+                }
+              } else {
+                handleAction("approve", comment);
+              }
+            }}
+            returnLoading={workflowReturn.isPending}
+            rejectLoading={workflowReject.isPending}
+            approveLoading={workflowApprove.isPending || approveAndIssuePO.isPending}
             disabled={isBusy}
           />
         )}
 
-        {/* ── Approved → Issue PO ───────────────────────────────────────────── */}
-        {req.status === "approved" && (
-          <FormSection title="Issue Purchase Order" description="Select a vendor and issue a PO for this approved request.">
-            {/* Vendor picker */}
-            <div className="relative">
-              <label className="block text-xs font-medium text-brand-text-secondary mb-1.5">Vendor</label>
-              {poVendorName ? (
-                <div className="flex items-center justify-between h-10 px-3 rounded-lg border border-brand-border bg-white text-sm">
-                  <span>{poVendorName}</span>
-                  <button
-                    type="button"
-                    onClick={() => { setPoVendorId(""); setPoVendorName(""); }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <div
-                    className="flex items-center h-10 px-3 rounded-lg border border-brand-border bg-white gap-2 cursor-text"
-                    onClick={() => setPoDropdownOpen(true)}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Search vendors…"
-                      value={poVendorSearch}
-                      onChange={(e) => { setPoVendorSearch(e.target.value); setPoDropdownOpen(true); }}
-                      onFocus={() => setPoDropdownOpen(true)}
-                      className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
-                    />
-                    <ChevronDown size={14} className="text-gray-400 shrink-0" />
-                  </div>
-                  {poDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setPoDropdownOpen(false)} />
-                      <div className="absolute z-20 top-full mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden">
-                        {filteredVendors.length === 0 ? (
-                          <div className="px-4 py-3 text-sm text-brand-text-secondary">No vendors found</div>
-                        ) : (
-                          <ul className="max-h-48 overflow-y-auto">
-                            {filteredVendors.map((v) => (
-                              <li key={v.id}>
-                                <button
-                                  type="button"
-                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition-colors"
-                                  onClick={() => {
-                                    setPoVendorId(v.id);
-                                    setPoVendorName(v.name);
-                                    setPoDropdownOpen(false);
-                                    setPoVendorSearch("");
-                                  }}
-                                >
-                                  <span className="font-medium">{v.name}</span>
-                                  <span className="ml-2 text-xs text-brand-text-secondary capitalize">
-                                    {v.category.replace(/_/g, " ")}
-                                  </span>
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-brand-text-secondary mb-1.5">Notes (optional)</label>
-              <textarea
-                value={poNotes}
-                onChange={(e) => setPoNotes(e.target.value)}
-                rows={2}
-                placeholder="e.g. Net 30 payment terms"
-                className="w-full px-3 py-2 text-sm border border-brand-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-purple/30 resize-none"
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                onClick={handleIssuePO}
-                disabled={isBusy || !poVendorId}
-                className="px-5 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
-              >
-                {issuePO.isPending ? "Issuing PO…" : "Issue Purchase Order"}
-              </button>
-            </div>
-          </FormSection>
-        )}
+        {/* ── Audit Trail ──────────────────────────────────────────────────── */}
+        <AuditTrail
+          title="Approval History"
+          description="A full record of every action taken on this request."
+          emptyMessage="No actions recorded yet."
+          items={auditTrail.map((entry) => ({
+            action:   entry.action.charAt(0).toUpperCase() + entry.action.slice(1).replace(/_/g, " "),
+            actor:    entry.actor_name ?? "System",
+            role:     entry.actor_role ?? "",
+            dateTime: formatDateTime(entry.acted_at),
+            comment:  entry.comment ?? "",
+          }))}
+        />
 
       </div>
 

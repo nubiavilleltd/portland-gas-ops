@@ -79,18 +79,22 @@ const COLUMNS: Column<ApprovalWorkflowListItem>[] = [
 
 export default function WorkflowsPage() {
   const { data: workflows = [], isLoading, isError } = useWorkflows();
-  const updateWorkflow = useUpdateWorkflow("");
   const deleteWorkflow = useDeleteWorkflow();
   const toast = useToast();
 
   const [deleteTarget, setDeleteTarget] = useState<ApprovalWorkflowListItem | null>(null);
+  const [toggleTarget, setToggleTarget] = useState<ApprovalWorkflowListItem | null>(null);
 
-  function handleToggleActive(wf: ApprovalWorkflowListItem) {
-    const next = !wf.is_active;
-    useUpdateWorkflow(wf.id).mutate(
+  // Hook must be called unconditionally at the top level — ID is swapped via state
+  const updateWorkflow = useUpdateWorkflow(toggleTarget?.id ?? "");
+
+  function handleToggleConfirm() {
+    if (!toggleTarget) return;
+    const next = !toggleTarget.is_active;
+    updateWorkflow.mutate(
       { is_active: next },
       {
-        onSuccess: () => toast.success(next ? "Workflow activated" : "Workflow deactivated"),
+        onSuccess: () => { toast.success(next ? "Workflow activated" : "Workflow deactivated"); setToggleTarget(null); },
         onError:   () => toast.error("Failed to update workflow"),
       }
     );
@@ -121,7 +125,7 @@ export default function WorkflowsPage() {
           <button
             type="button"
             title={wf.is_active ? "Deactivate" : "Activate"}
-            onClick={(e) => { e.stopPropagation(); handleToggleActive(wf); }}
+            onClick={(e) => { e.stopPropagation(); setToggleTarget(wf); }}
             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
           >
             {wf.is_active ? <ToggleRight size={16} className="text-green-600" /> : <ToggleLeft size={16} />}
@@ -174,6 +178,21 @@ export default function WorkflowsPage() {
           actions={tableActions}
         />
       )}
+
+      <ConfirmDialog
+        open={!!toggleTarget}
+        title={toggleTarget?.is_active ? "Deactivate Workflow" : "Activate Workflow"}
+        message={
+          toggleTarget?.is_active
+            ? `Deactivate "${toggleTarget?.name}"? New requests will not be routed through this workflow until it is reactivated.`
+            : `Activate "${toggleTarget?.name}"? It will be available for assignment and will start routing new requests.`
+        }
+        confirmLabel={toggleTarget?.is_active ? "Deactivate" : "Activate"}
+        destructive={toggleTarget?.is_active}
+        loading={updateWorkflow.isPending}
+        onConfirm={handleToggleConfirm}
+        onCancel={() => setToggleTarget(null)}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

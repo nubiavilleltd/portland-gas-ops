@@ -35,6 +35,8 @@ class ProcurementRepository:
                     .joinedload(PurchaseOrder.vendor),
                 joinedload(ProcurementRequest.purchase_orders)
                     .joinedload(PurchaseOrder.issuer).joinedload(Employee.user),
+                joinedload(ProcurementRequest.purchase_orders)
+                    .joinedload(PurchaseOrder.document),
             )
         )
 
