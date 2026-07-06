@@ -11,10 +11,14 @@ import { useWorkflows, useWorkflowAssignments, useSetWorkflowAssignment } from "
 import { useToast } from "@/hooks/useToast";
 
 const REQUEST_TYPES = [
-  { value: "procurement", label: "Procurement Requests",  description: "Purchase requests raised by employees" },
-  { value: "asset",       label: "Asset Requests",        description: "Loan and requisition requests for company assets" },
-  { value: "leave",       label: "Leave Requests",        description: "Annual, sick, and other leave types" },
-  { value: "safety",      label: "Safety Incidents",      description: "Incident reports requiring HSE review" },
+  { value: "procurement",        label: "Procurement Requests",   description: "Purchase requests raised by employees" },
+  { value: "asset",              label: "Asset Requests",         description: "Loan and requisition requests for company assets" },
+  { value: "leave",              label: "Leave Requests",         description: "Annual, sick, and other leave types" },
+  { value: "cash_requisition",   label: "Cash Requisitions",      description: "Petty cash and advance payment requests" },
+  { value: "invoice",            label: "Invoice Approvals",      description: "Vendor invoice review and payment approval" },
+  { value: "work_initiation",    label: "Work Initiation",        description: "PTW / work initiation forms before field work begins" },
+  { value: "work_closeout",      label: "Work Close-Out",         description: "Completion sign-off after field work is done" },
+  { value: "safety",             label: "Safety Incidents",       description: "Incident and hazard reports requiring HSE review" },
 ];
 
 export default function WorkflowAssignmentsPage() {

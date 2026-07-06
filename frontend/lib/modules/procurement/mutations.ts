@@ -74,6 +74,30 @@ export function useIssuePO() {
   });
 }
 
+export function useApproveAndIssuePO() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
+      post<ProcurementRequest>(`/api/procurement/${id}/approve-and-issue-po`, { notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: procurementKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
+    },
+  });
+}
+
+export function useConfirmDelivery() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      post<ProcurementRequest>(`/api/procurement/${id}/confirm-delivery`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: procurementKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
+    },
+  });
+}
+
 export function useRemoveProcurementAttachment() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -95,11 +119,22 @@ export function useUploadProcurementAttachment() {
   });
 }
 
+export function useRegeneratePOPDF() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, poId }: { requestId: string; poId: string }) =>
+      post<ProcurementRequest>(`/api/procurement/${requestId}/purchase-orders/${poId}/regenerate-pdf`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
+  });
+}
+
 export function useUpdatePOStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ poId, status }: { poId: string; status: "delivered" | "cancelled" }) =>
       patch<PurchaseOrder>(`/api/procurement/purchase-orders/${poId}/status`, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: procurementKeys.all });
+    },
   });
 }

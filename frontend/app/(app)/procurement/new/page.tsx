@@ -20,6 +20,8 @@ import { useVendors, useCreateVendor } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency, capitalize } from "@/lib/utils";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
 
 // ── Zod schema ─────────────────────────────────────────────────────────────────
 
@@ -103,6 +105,10 @@ export default function NewProcurementPage() {
   const [attachmentRemoved, setAttachmentRemoved]   = useState(false);
   const [qtyDisplays, setQtyDisplays] = useState<Record<number, string>>({});
   const [costDisplays, setCostDisplays] = useState<Record<number, string>>({});
+
+  // Workflow-driven approver picks — reusable across all request form types
+  const approverPicker = useApproverPicker("procurement", editId ?? undefined);
+
   const [vendorMode, setVendorMode] = useState<VendorMode>("existing");
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
@@ -245,6 +251,10 @@ export default function NewProcurementPage() {
     }
     setVendorError("");
 
+    // Validate approver picks for any requester_pick steps
+    const picksError = approverPicker.validate();
+    if (picksError) { toast.error(picksError); return; }
+
     try {
       let vendorId = vendorMode === "existing" ? formData.vendor_id || undefined : undefined;
 
@@ -282,6 +292,7 @@ export default function NewProcurementPage() {
           unit_price:  parseFloat(item.unit_cost) || null,
           total_price: parseFloat(item.total_cost) || null,
         })),
+        picked_approvers: approverPicker.picksPayload,
       };
       if (isEditMode && editId) {
         // Edit mode: PATCH to update fields
@@ -713,6 +724,9 @@ export default function NewProcurementPage() {
             />
           )}
         </FormSection>
+
+        {/* ── Approvers (rendered by reusable hook + component) ───────────── */}
+        <WorkflowApproversSection {...approverPicker} />
 
         {/* ── Actions ──────────────────────────────────────────────────────── */}
         <div className="py-2">

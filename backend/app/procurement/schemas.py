@@ -93,6 +93,8 @@ class ProcurementCreate(BaseModel):
     required_by: Optional[str] = None
     vendor_id: str = Field(..., min_length=1, description="Vendor is required")
     items: List[ProcurementItemCreate] = Field(..., min_length=1)
+    # {step_number: employee_id} — required for requester_pick steps
+    picked_approvers: dict[int, str] = Field(default_factory=dict)
 
     @field_validator("description")
     @classmethod
@@ -148,6 +150,10 @@ class ProcurementResponse(BaseModel):
     items: List[ProcurementItemResponse] = []
     purchase_orders: List["PurchaseOrderResponse"] = []
 
+    # Workflow — who holds the ball right now
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
+
     class Config:
         from_attributes = True
 
@@ -169,11 +175,26 @@ class ProcurementListItem(BaseModel):
     raiser: Optional[EmployeeInProcurement]
     vendor: Optional[VendorInProcurement]
 
+    # Workflow — who holds the ball right now (only populated for pending rows)
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
+
+    # PO document URL — set when a PO with a document exists
+    po_document_url: Optional[str] = None
+
     class Config:
         from_attributes = True
 
 
 # ── Purchase order ─────────────────────────────────────────────────────────────
+
+class DocumentInPO(BaseModel):
+    id: int
+    file_path: Optional[str]
+    name: str
+
+    class Config:
+        from_attributes = True
 
 class IssuePORequest(BaseModel):
     notes: Optional[str] = None
@@ -204,6 +225,7 @@ class PurchaseOrderResponse(BaseModel):
 
     vendor: Optional[VendorInProcurement]
     issuer: Optional[EmployeeInProcurement]
+    document: Optional[DocumentInPO] = None
 
     class Config:
         from_attributes = True

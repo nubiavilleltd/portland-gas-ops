@@ -58,3 +58,105 @@ export function useWorkflowAssignments() {
     staleTime: 30 * 1000,
   });
 }
+
+export interface WorkflowForTypeStep {
+  step_number:   number;
+  step_name:     string;
+  assignee_type: string;
+  group_id:      string | null;
+  group_name:    string | null;
+  group_members: { id: string; name: string; job_title: string | null; department: string | null; avatar_url: string | null }[];
+}
+
+export interface WorkflowForType {
+  id:    string;
+  name:  string;
+  steps: WorkflowForTypeStep[];
+}
+
+export function useWorkflowForType(requestType: string) {
+  return useQuery<WorkflowForType | null>({
+    queryKey: ["workflow-for-type", requestType],
+    queryFn:  () => get<WorkflowForType | null>(`/api/workflow/for-type/${requestType}`),
+    staleTime: 60 * 1000,
+  });
+}
+
+export interface MyRequest {
+  id: string;
+  reference: string;
+  request_type: string;
+  request_id: string;
+  title: string | null;
+  status: string;
+  department: string | null;
+  approval_request_id: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export function useMyRequests() {
+  return useQuery<MyRequest[]>({
+    queryKey: ["my-requests"],
+    queryFn:  () => get<MyRequest[]>("/api/workflow/my-requests"),
+  });
+}
+
+export interface MyApproval {
+  approval_request_id: string;
+  request_type:        string;
+  request_id:          string;
+  reference:           string | null;
+  title:               string | null;
+  department:          string | null;
+  current_step_number: number;
+  attempt_number:      number;
+  submitted_at:        string;
+}
+
+export function useMyApprovals() {
+  return useQuery<MyApproval[]>({
+    queryKey: ["my-approvals"],
+    queryFn:  () => get<MyApproval[]>("/api/workflow/my-approvals"),
+  });
+}
+
+export interface AuditEntry {
+  id:          string;
+  action:      string;
+  actor_name:  string | null;
+  actor_role:  string | null;
+  step_number: number | null;
+  comment:     string | null;
+  acted_at:    string;
+}
+
+export interface RequesterPick {
+  employee_id: string;
+  name:        string;
+  job_title:   string | null;
+  department:  string | null;
+}
+
+/**
+ * Fetches the requester_pick assignments from the previous approval attempt.
+ * Used to pre-fill the Approvers section when resubmitting a returned request.
+ * Only enabled when requestId is provided (i.e. edit/resubmit mode).
+ */
+export function useRequesterPicks(requestType: string, requestId: string | undefined) {
+  return useQuery<Record<string, RequesterPick>>({
+    queryKey: ["requester-picks", requestType, requestId],
+    queryFn:  () => get<Record<string, RequesterPick>>(`/api/workflow/picks/${requestType}/${requestId}`),
+    enabled:  !!requestId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useAuditTrail(requestType: string, requestId: string) {
+  return useQuery<AuditEntry[]>({
+    queryKey: ["audit-trail", requestType, requestId],
+    queryFn:  () => get<AuditEntry[]>(`/api/workflow/audit/${requestType}/${requestId}`),
+    enabled:  !!requestId,
+    staleTime: 10 * 1000,
+  });
+}

@@ -20,6 +20,8 @@ import {
   useRemoveGroupMember,
 } from "@/lib/modules/workflow";
 import { useToast } from "@/hooks/useToast";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 import type { ApproverGroupListItem } from "@/types/workflow";
 
 // ── Group List sidebar ────────────────────────────────────────────────────────
@@ -84,11 +86,24 @@ export default function ApproverGroupsPage() {
   const [newGroupName, setNewGroupName]         = useState("");
   const [newGroupDesc, setNewGroupDesc]         = useState("");
   const [removeMemberId, setRemoveMemberId]     = useState<string | null>(null);
-  const [addEmployeeId, setAddEmployeeId]       = useState("");
+  const [pickedMember, setPickedMember]         = useState<PickedEmployee | null>(null);
 
   const { data: selectedGroup } = useApproverGroup(selectedId ?? "");
   const addMember    = useAddGroupMember(selectedId ?? "");
   const removeMember = useRemoveGroupMember(selectedId ?? "");
+
+  const { data: allEmployeeList = [] } = useEmployees();
+  // Exclude already-added members from the picker
+  const existingMemberIds = new Set((selectedGroup?.members ?? []).map((m) => m.employee_id));
+  const availableEmployees: PickedEmployee[] = allEmployeeList
+    .filter((e) => !existingMemberIds.has(e.id))
+    .map((e) => ({
+      id:         e.id,
+      name:       [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+      role:       e.job_title ?? e.user?.role ?? "",
+      department: e.department ?? "",
+      avatar_url: e.user?.profile_picture_url,
+    }));
 
   async function handleCreateGroup(e: React.FormEvent) {
     e.preventDefault();
@@ -111,13 +126,13 @@ export default function ApproverGroupsPage() {
 
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault();
-    if (!addEmployeeId.trim()) { toast.error("Employee ID is required"); return; }
+    if (!pickedMember) { toast.error("Please select an employee"); return; }
     try {
-      await addMember.mutateAsync(addEmployeeId.trim());
-      setAddEmployeeId("");
+      await addMember.mutateAsync(pickedMember.id);
+      setPickedMember(null);
       toast.success("Member added");
     } catch {
-      toast.error("Failed to add member — check the employee ID");
+      toast.error("Failed to add member");
     }
   }
 
@@ -240,20 +255,23 @@ export default function ApproverGroupsPage() {
                 {/* Add member */}
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-brand-text-secondary mb-3">Add Member</p>
-                  <form onSubmit={handleAddMember} className="flex gap-2">
-                    <FormInput
+                  <form onSubmit={handleAddMember} className="space-y-3">
+                    <EmployeePicker
                       label=""
-                      placeholder="Employee ID (e.g. PG-EMP-0042)"
-                      value={addEmployeeId}
-                      onChange={(e) => setAddEmployeeId(e.target.value)}
+                      employees={availableEmployees}
+                      value={pickedMember}
+                      onChange={setPickedMember}
+                      placeholder="Search employees…"
                     />
-                    <Button type="submit" size="sm" leftIcon={<UserPlus size={13} />} disabled={addMember.isPending}>
-                      {addMember.isPending ? "Adding…" : "Add"}
+                    <Button
+                      type="submit"
+                      size="sm"
+                      leftIcon={<UserPlus size={13} />}
+                      disabled={addMember.isPending || !pickedMember}
+                    >
+                      {addMember.isPending ? "Adding…" : "Add to Group"}
                     </Button>
                   </form>
-                  <p className="text-xs text-brand-text-secondary mt-1">
-                    Enter the employee number to search employees will be added in a future update.
-                  </p>
                 </div>
               </div>
             )}
