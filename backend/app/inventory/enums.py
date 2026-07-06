@@ -47,6 +47,7 @@ class InventoryItemStatus(str, Enum):
     available = "available"
     reserved = "reserved"
     in_transit = "in_transit"
+    checked_out   = "checked_out"
     with_customer = "with_customer"
     maintenance = "maintenance"
     retired = "retired"
