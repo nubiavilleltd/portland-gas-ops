@@ -37,6 +37,10 @@ export interface IncidentReportCreate {
 
 export type IncidentReportUpdate = Partial<IncidentReportCreate>;
 
+export interface IncidentResolveCreate {
+  work_closeout_id: string;
+}
+
 export interface IncidentHseReviewCreate {
   confirmed_report_type: IncidentReportType;
   confirmed_severity: IncidentSeverityEstimate;

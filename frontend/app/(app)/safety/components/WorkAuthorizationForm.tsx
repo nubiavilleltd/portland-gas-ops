@@ -110,7 +110,7 @@ export default function WorkAuthorizationForm() {
   const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
   const workInitiationOptions = approvedWorkInitiations.map((item) => ({
     value: item.id,
-    label: `${item.reference ?? item.id} - ${item.title}`,
+    label: item.reference ? `${item.reference} - ${item.title}` : item.title,
     description: `${item.requester.name} | ${item.requester.requestDate}`,
   }));
   const selectedWorkInitiation = workInitiations.find(

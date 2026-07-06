@@ -13,15 +13,14 @@ import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
-import {
-  getMockWorkCloseOutRequest,
-} from "@/lib/mock/work-close-out";
 import { isExceptionWorkCloseOut } from "@/lib/safety-demo-routing";
 import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
-  updateWorkCloseOut,
-  useSafetyDemoData,
-} from "@/lib/safety-demo-store";
+  useHseWorkCloseoutReview,
+  useOperationsHeadWorkCloseoutReview,
+  useSupervisorWorkCloseoutReview,
+  useWorkCloseout,
+} from "@/lib/modules/safety/workCloseout";
 import {
   useSafetyCurrentEmployee,
   type SafetyEmployeeProfile,
@@ -29,7 +28,6 @@ import {
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import type {
   WorkAuthorizationAttachment,
-  WorkAuthorizationAuditTrailItem,
   WorkCloseOutApprovalResult,
   WorkCloseOutDecision,
   WorkCloseOutHseApproval,
@@ -50,14 +48,15 @@ const workCloseOutRoles: { value: WorkCloseOutRole; label: string }[] = [
   { value: "hse", label: "HSE Inspector" },
 ];
 
-function decisionPastTense(decision: WorkCloseOutDecision) {
-  if (decision === "Acknowledge") return "acknowledged";
-  if (decision === "Deny") return "denied";
-  return `${decision.toLowerCase()}ed`;
-}
-
 function isReturnOrDeny(decision: WorkCloseOutDecision) {
   return decision === "Return" || decision === "Deny";
+}
+
+function toApiDecision(decision: WorkCloseOutDecision) {
+  if (decision === "Approve") return "approve";
+  if (decision === "Acknowledge") return "acknowledge";
+  if (decision === "Return") return "return";
+  return "deny";
 }
 
 export default function WorkCloseOutDetailsView({
@@ -69,9 +68,11 @@ export default function WorkCloseOutDetailsView({
   const toast = useToast();
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
-  const initialRequest = getMockWorkCloseOutRequest(requestId);
-  const { workCloseOuts } = useSafetyDemoData();
-  const request = workCloseOuts.find((item) => item.id === requestId) ?? initialRequest;
+  const closeoutQuery = useWorkCloseout(requestId);
+  const request = closeoutQuery.data;
+  const supervisorReview = useSupervisorWorkCloseoutReview(requestId);
+  const operationsHeadReview = useOperationsHeadWorkCloseoutReview(requestId);
+  const hseReview = useHseWorkCloseoutReview(requestId);
   const isExceptionCloseOut = request ? isExceptionWorkCloseOut(request) : false;
   const isRequester = employeeMatchesName(currentEmployee, request?.requester.name);
   const isAssignedSupervisor = employeeMatchesName(
@@ -133,7 +134,7 @@ export default function WorkCloseOutDetailsView({
     showAuditTrail: Boolean(!isDraft || isApproved || isAcknowledged || isReturned || isDenied),
   };
 
-  if (currentEmployeeQuery.isLoading) {
+  if (currentEmployeeQuery.isLoading || closeoutQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
@@ -144,177 +145,69 @@ export default function WorkCloseOutDetailsView({
       </div>
     );
   }
-  const persistedRequestId = request.id;
-
-  function persistUpdate(
-    update: (current: WorkCloseOutRequest) => WorkCloseOutRequest,
-  ) {
-    const updated = updateWorkCloseOut(persistedRequestId, update);
-    return updated;
-  }
 
   function submitCloseOut() {
-    if (!request) return;
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action: "Submitted",
-      actor: request.requester.name,
-      role: "Requester",
-      dateTime: "2026-05-18 02:30 PM",
-      comment: "Work completion submitted for close-out.",
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status: "submitted",
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    toast.success("Close-out submitted.");
+    toast.info("Returned close-out update is not available yet.");
   }
 
-  function supervisorDecision(decision: WorkCloseOutDecision) {
+  async function supervisorDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (isReturnOrDeny(decision) && !supervisorComment.trim()) return;
-
-    const approval: WorkCloseOutApprovalResult = {
-      decision,
-      approver: request.workAuthorization.supervisor,
-      dateTime: "2026-05-18 03:00 PM",
-      comment:
-        supervisorComment ||
-        (decision === "Approve"
-          ? "Completion reviewed and accepted."
-          : decision === "Acknowledge"
-            ? "Exception close-out reviewed and acknowledged for audit."
-          : `Close-out ${decisionPastTense(decision)} by supervisor.`),
-    };
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action:
-        decision === "Approve"
-          ? "Supervisor Approved"
-          : decision === "Acknowledge"
-            ? "Supervisor Acknowledged"
-            : `Supervisor ${decision}ed`,
-      actor: approval.approver,
-      role: "Supervisor",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status:
-        decision === "Approve" || decision === "Acknowledge"
-          ? "pending"
-          : decision === "Return"
-            ? "returned"
-            : "denied",
-      supervisorApproval: approval,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showCloseOutDecisionToast(toast, decision, "Supervisor");
-    routeBackToWorkCloseOutRequests(router);
+    try {
+      await supervisorReview.mutateAsync({
+        decision: toApiDecision(decision),
+        comment: supervisorComment || null,
+      });
+      showCloseOutDecisionToast(toast, decision, "Supervisor");
+      routeBackToWorkCloseOutRequests(router);
+    } catch (error) {
+      console.error("Failed to submit supervisor close-out decision", error);
+      toast.error("Unable to submit supervisor decision.");
+    }
   }
 
-  function hseDecision(decision: WorkCloseOutDecision) {
+  async function hseDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
     if (hseChecksIncomplete) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (decision === "Approve" && hseApprovalBlocked) return;
     if (isReturnOrDeny(decision) && !hseComment.trim()) return;
-
-    const approval: WorkCloseOutHseApproval = {
-      inspector: request.workAuthorization.hseApprover,
-      verifiedCloseOut: hseVerifiedCloseOut === "Yes",
-      areaSafeForOperations: hseAreaSafe === "Yes",
-      correctiveActionRequired: hseCorrectiveActionRequired === "Yes",
-      correctiveActionDetails: "",
-      decision,
-      comment:
-        hseComment ||
-        (decision === "Approve"
-          ? "Area verified safe. Close-out approved."
-          : decision === "Acknowledge"
-            ? "Exception close-out verified and acknowledged for audit."
-          : `Close-out ${decisionPastTense(decision)} by HSE.`),
-      dateTime: "2026-05-18 03:40 PM",
-    };
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action:
-        decision === "Approve"
-          ? "HSE Approved"
-          : decision === "Acknowledge"
-            ? "HSE Acknowledged"
-            : `HSE ${decision}ed`,
-      actor: approval.inspector,
-      role: "HSE Inspector",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status:
-        decision === "Approve"
-          ? "approved"
-          : decision === "Acknowledge"
-            ? "acknowledged"
-          : decision === "Return"
-            ? "returned"
-            : "denied",
-      hseApproval: approval,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showCloseOutDecisionToast(toast, decision, "HSE");
-    routeBackToWorkCloseOutRequests(router);
+    try {
+      await hseReview.mutateAsync({
+        decision: toApiDecision(decision),
+        comment: hseComment || null,
+        verified_close_out: hseVerifiedCloseOut === "Yes",
+        area_safe_for_operations: hseAreaSafe === "Yes",
+        corrective_action_required: hseCorrectiveActionRequired === "Yes",
+        corrective_action_details: null,
+      });
+      showCloseOutDecisionToast(toast, decision, "HSE");
+      routeBackToWorkCloseOutRequests(router);
+    } catch (error) {
+      console.error("Failed to submit HSE close-out decision", error);
+      toast.error("Unable to submit HSE decision.");
+    }
   }
 
-  function operationsHeadDecision(decision: WorkCloseOutDecision) {
+  async function operationsHeadDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (isReturnOrDeny(decision) && !operationsHeadComment.trim()) return;
-
-    const approval: WorkCloseOutApprovalResult = {
-      decision,
-      approver: "Grace Bello",
-      dateTime: "2026-05-18 03:20 PM",
-      comment:
-        operationsHeadComment ||
-        (decision === "Approve"
-          ? "Completion reviewed and recommended for HSE verification."
-          : decision === "Acknowledge"
-            ? "Exception close-out acknowledged and sent for HSE verification."
-          : `Close-out ${decisionPastTense(decision)} by Operations Head.`),
-    };
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action:
-        decision === "Approve"
-          ? "Operations Head Approved"
-          : decision === "Acknowledge"
-            ? "Operations Head Acknowledged"
-            : `Operations Head ${decision}ed`,
-      actor: approval.approver,
-      role: "Operations Head",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status:
-        decision === "Approve" || decision === "Acknowledge"
-          ? "pending"
-          : decision === "Return"
-            ? "returned"
-            : "denied",
-      operationsHeadApproval: approval,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showCloseOutDecisionToast(toast, decision, "Operations Head");
-    routeBackToWorkCloseOutRequests(router);
+    try {
+      await operationsHeadReview.mutateAsync({
+        decision: toApiDecision(decision),
+        comment: operationsHeadComment || null,
+      });
+      showCloseOutDecisionToast(toast, decision, "Operations Head");
+      routeBackToWorkCloseOutRequests(router);
+    } catch (error) {
+      console.error("Failed to submit Operations Head close-out decision", error);
+      toast.error("Unable to submit Operations Head decision.");
+    }
   }
 
   return (
@@ -329,7 +222,7 @@ export default function WorkCloseOutDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={request.id}
+        id={request.reference ?? "Reference pending"}
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={
@@ -525,7 +418,11 @@ function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
   return (
     <FormSection title="Approved Work Summary" description="Approved work authorization details linked to this completion request.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work Authorization Reference" value={work.id} disabled />
+        <FormInput
+          label="Work Authorization Reference"
+          value={work.reference ?? "Reference pending"}
+          disabled
+        />
         <FormInput label="Work Authorization Title" value={work.title} disabled />
         <FormInput label="Original Requester" value={work.requester} disabled />
         <FormInput label="Department" value={work.department} disabled />

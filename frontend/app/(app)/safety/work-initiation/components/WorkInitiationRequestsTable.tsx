@@ -11,7 +11,11 @@ import { useWorkInitiations } from "@/lib/modules/safety/workInitiation";
 import type { WorkInitiationRequest } from "@/types/safety";
 
 const columns: Column<WorkInitiationRequest>[] = [
-  { key: "reference", label: "Reference", render: (_, row) => row.reference ?? row.id },
+  {
+    key: "reference",
+    label: "Reference",
+    render: (_, row) => row.reference ?? "Reference pending",
+  },
   { key: "title", label: "Work Title" },
   { key: "requester", label: "Requester", render: (_, row) => row.requester.name },
   { key: "workCategory", label: "Work Category" },

@@ -386,7 +386,7 @@ export default function WorkAuthorizationDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={request.id}
+        id={request.reference ?? "Reference pending"}
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={
@@ -509,7 +509,11 @@ function AssignedWorkSummarySection({
   return (
     <FormSection title="Assigned Work Summary" description="Approved scope and assignments carried from Work Initiation.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work Initiation Reference" value={work.id} disabled />
+        <FormInput
+          label="Work Initiation Reference"
+          value={work.reference ?? "Reference pending"}
+          disabled
+        />
         <FormInput
           label="Work Title"
           value={work.title}

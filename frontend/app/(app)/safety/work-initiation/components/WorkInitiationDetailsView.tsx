@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -14,20 +14,26 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
-import {
-  contractorContactEmailByName,
-  workCategoryOptions,
-  workTypeOptionsByCategory,
-} from "@/lib/mock/work-initiation";
-import { updateWorkInitiation } from "@/lib/safety-demo-store";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
-import { useWorkInitiation } from "@/lib/modules/safety/workInitiation";
-import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import {
+  useWorkInitiation,
+  useOperationsHodReviewWorkInitiation,
+  useSupervisorReviewWorkInitiation,
+  useUpdateWorkInitiation,
+} from "@/lib/modules/safety/workInitiation";
+import type {
+  WorkInitiationCategory,
+  WorkInitiationUpdate,
+} from "@/lib/modules/safety/workInitiation";
+import {
+  useSafetyActors,
+  useSafetyCurrentEmployee,
+  useSafetyDepartments,
+} from "@/lib/modules/safety/people";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
 import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type {
-  WorkAuthorizationAuditTrailItem,
   WorkAuthorizationAttachment,
   WorkAuthorizationDecision,
   WorkInitiationRequest,
@@ -35,8 +41,74 @@ import type {
 } from "@/types/safety";
 
 const toOptions = (items: string[]) => items.map((item) => ({ value: item, label: item }));
+const workCategoryOptions = [
+  "Routine Work",
+  "Maintenance",
+  "Incident/Hazard",
+  "Customer Work",
+  "Project Work",
+  "Emergency Work",
+  "Other",
+];
+const workCategoryValueByLabel: Record<string, WorkInitiationCategory> = {
+  "Routine Work": "routine_work",
+  Maintenance: "maintenance",
+  "Incident/Hazard": "incident_hazard",
+  "Customer Work": "customer_work",
+  "Project Work": "project_work",
+  "Emergency Work": "emergency_work",
+  Other: "other",
+};
+const workTypeOptionsByCategory: Record<string, string[]> = {
+  "Routine Work": [
+    "Routine Bay Check",
+    "Vehicle Inspection",
+    "Equipment Inspection",
+    "Preventive Maintenance",
+    "General Engineering Work",
+  ],
+  Maintenance: [
+    "Corrective Maintenance",
+    "Gas System Repair",
+    "Electrical Repair",
+    "Facility Repair",
+    "Equipment Servicing",
+  ],
+  "Incident/Hazard": [
+    "Incident/Hazard Corrective Work",
+    "Gas Leak Corrective Work",
+    "Unsafe Condition Correction",
+    "Inspection Finding",
+    "Emergency Safety Repair",
+  ],
+  "Customer Work": [
+    "CNG Conversion",
+    "CNG Cylinder Work",
+    "Vehicle Conversion Support",
+    "Transport Preparation",
+    "Customer Vehicle Inspection",
+  ],
+  "Project Work": [
+    "Planned Project",
+    "Workshop Modification",
+    "Facility Upgrade",
+    "Installation Work",
+  ],
+  "Emergency Work": [
+    "Emergency Work",
+    "Emergency Repair",
+    "Urgent Gas System Response",
+    "Critical Equipment Recovery",
+  ],
+  Other: ["Other"],
+};
+const contractorContactEmailByName: Record<string, string> = {
+  "SafeWeld Engineering Ltd": "projects@safeweld.example",
+  "Prime Gas Services": "operations@primegas.example",
+  "Vehicle Conversion Partners": "service@vehicleconversion.example",
+  "Electrical Support Contractors": "support@electricalcontractors.example",
+};
 const categoryOptions = toOptions(workCategoryOptions);
-const employeeOptions = toOptions(["Mary James", "Felix Ohemu", "Samuel Bassey", "Grace Bello"]);
 const locationOptions = toOptions([
   "Conversion Bay 1",
   "Conversion Bay 2",
@@ -54,6 +126,27 @@ const contractorOptions = toOptions([
   "Electrical Support Contractors",
 ]);
 const yesNoOptions = toOptions(["Yes", "No"]);
+
+type WorkInitiationEditValues = {
+  title: string;
+  workCategory: string;
+  relatedIncidentHazardId: string;
+  workType: string[];
+  location: string;
+  exactWorkArea: string;
+  workDescription: string;
+  reasonForWork: string;
+  assignedDepartment: string;
+  assignedSupervisorId: string;
+  assignedWorkerIds: string[];
+  contractorsNeeded: string;
+  selectedContractor: string;
+  contractorContactEmail: string;
+  plannedStartDateTime: string;
+  plannedEndDateTime: string;
+  materialsRequired: string;
+};
+
 const workInitiationRoles: { value: WorkInitiationRole; label: string }[] = [
   { value: "requester", label: "Requester" },
   { value: "supervisor", label: "Supervisor" },
@@ -68,21 +161,54 @@ export default function WorkInitiationDetailsView({
   const router = useRouter();
   const toast = useToast();
   const requestQuery = useWorkInitiation(requestId);
+  const supervisorReviewMutation = useSupervisorReviewWorkInitiation();
+  const operationsHodReviewMutation = useOperationsHodReviewWorkInitiation();
+  const updateWorkInitiationMutation = useUpdateWorkInitiation(requestId);
   const request = requestQuery.data;
+  console.log("WorkInitiationDetailsView request:", request);
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
+  const [editValuesById, setEditValuesById] = useState<
+    Record<string, WorkInitiationEditValues>
+  >({});
+  const editValues = request
+    ? editValuesById[request.id] ?? buildInitialEditValues(request)
+    : null;
   const recommendedIncidentsQuery = useIncidentReports({ status: "recommended" });
   const incidentHazardRequestOptions = (recommendedIncidentsQuery.data ?? [])
     .filter((report) => report.status === "recommended")
     .map((report) => ({
       value: report.id,
-      label: `${report.reference ?? report.id} - ${report.title || report.reportType}`,
+      label: report.reference
+        ? `${report.reference} - ${report.title || report.reportType}`
+        : report.title || report.reportType,
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHodComment, setOperationsHodComment] = useState("");
-  const [assignedWorkers, setAssignedWorkers] = useState<string[]>([]);
-  const [selectedContractor, setSelectedContractor] = useState("");
+  const departmentsQuery = useSafetyDepartments();
+  const departmentOptions = useMemo(
+    () =>
+      (departmentsQuery.data ?? []).map((department) => ({
+        value: department.value,
+        label: department.label,
+      })),
+    [departmentsQuery.data],
+  );
+  const departmentEmployeesQuery = useSafetyActors(
+    editValues?.assignedDepartment
+      ? { department: editValues.assignedDepartment }
+      : undefined,
+    { enabled: Boolean(editValues?.assignedDepartment) },
+  );
+  const employeeOptions = useMemo(
+    () =>
+      (departmentEmployeesQuery.data ?? []).map((actor) => ({
+        value: actor.id,
+        label: `${actor.name}${actor.job_title ? ` - ${actor.job_title}` : ""}`,
+      })),
+    [departmentEmployeesQuery.data],
+  );
 
   if (requestQuery.isLoading || currentEmployeeQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={4} />;
@@ -95,12 +221,13 @@ export default function WorkInitiationDetailsView({
       </div>
     );
   }
-  const persistedRequestId = request.id;
+
   const isRequester = Boolean(
     request.requesterId &&
       currentEmployee?.id &&
       request.requesterId === currentEmployee.id,
   );
+
   const isAssignedSupervisor = Boolean(
     request.assignment.assignedSupervisorId &&
       currentEmployee?.id &&
@@ -121,93 +248,94 @@ export default function WorkInitiationDetailsView({
   const canOperationsHodReview =
     isOperationsHod && request.status === "pending";
 
-  function persistUpdate(
-    update: (current: WorkInitiationRequest) => WorkInitiationRequest,
+  function setEditValues(
+    action: React.SetStateAction<WorkInitiationEditValues | null>,
   ) {
-    updateWorkInitiation(persistedRequestId, update);
-  }
-
-  function submitRequest() {
     if (!request) return;
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action: "Submitted",
-      actor: request.requester.name,
-      role: "Requester",
-      dateTime: "2026-05-18 09:30 AM",
-      comment: "Work initiation request submitted.",
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status: "submitted",
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    toast.success("Work initiation submitted.");
+    setEditValuesById((current) => {
+      const previous = current[request.id] ?? buildInitialEditValues(request);
+      const next =
+        typeof action === "function"
+          ? action(previous)
+          : action;
+
+      if (!next) return current;
+      return {
+        ...current,
+        [request.id]: next,
+      };
+    });
   }
 
-  function supervisorReview(decision: WorkAuthorizationDecision) {
+  
+
+  async function submitRequest() {
     if (!request) return;
-    if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) return;
-    const nextStatus =
-      decision === "Approve" ? "pending" : decision === "Return" ? "returned" : "denied";
-    const result = {
-      decision,
-      approver: request.assignment.assignedSupervisor || "Mary James",
-      dateTime: "2026-05-18 10:15 AM",
-      comment:
-        supervisorComment ||
-        (decision === "Approve"
-          ? "Work details reviewed and recommended to Operations HOD."
-          : `Work initiation ${decision.toLowerCase()}ed.`),
-    };
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action: decision === "Approve" ? "Supervisor Approved" : `Supervisor ${decision}ed`,
-      actor: result.approver,
-      role: "Supervisor",
-      dateTime: result.dateTime,
-      comment: result.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status: nextStatus,
-      supervisorApproval: result,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showDecisionToast(toast, "Work initiation", decision, "Supervisor");
-    routeBackToWorkInitiationRequests(router);
+    if (!editValues) return;
+    try {
+      await updateWorkInitiationMutation.mutateAsync(
+        buildWorkInitiationUpdatePayload(editValues),
+      );
+      toast.success("Work initiation submitted.");
+      routeBackToWorkInitiationRequests(router);
+    } catch (error) {
+      console.error("Failed to submit work initiation", error);
+      toast.error("Unable to submit work initiation.");
+    }
   }
 
-  function operationsHodReview(decision: WorkAuthorizationDecision) {
-    if ((decision === "Return" || decision === "Deny") && !operationsHodComment.trim()) return;
-    const nextStatus =
-      decision === "Approve" ? "approved" : decision === "Return" ? "returned" : "denied";
-    const result = {
-      decision,
-      reviewer: "Grace Bello",
-      dateTime: "2026-05-18 10:45 AM",
-      comment:
-        operationsHodComment ||
-        (decision === "Approve"
-          ? "Work approved by Operations HOD. Assignment confirmed for Work Authorization."
-          : `Work initiation ${decision.toLowerCase()}ed by Operations HOD.`),
-    };
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action:
-        decision === "Approve"
-          ? "Operations HOD Approved"
-          : `Operations HOD ${decision}ed`,
-      actor: result.reviewer,
-      role: "Operations HOD",
-      dateTime: "2026-05-18 10:45 AM",
-      comment: result.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status: nextStatus,
-      operationalReview: result,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showDecisionToast(toast, "Work initiation", decision, "Operations HOD");
-    routeBackToWorkInitiationRequests(router);
+  async function supervisorReview(decision: WorkAuthorizationDecision) {
+    if (!request) return;
+    if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) {
+      toast.error("Add a supervisor comment before returning or denying.");
+      return;
+    }
+
+    try {
+      await supervisorReviewMutation.mutateAsync({
+        id: request.id,
+        payload: {
+          decision: toBackendDecision(decision),
+          comment: supervisorComment || null,
+        },
+      });
+
+      showDecisionToast(toast, "Work initiation", decision, "Supervisor");
+      routeBackToWorkInitiationRequests(router);
+    } catch (error) {
+      console.error("Failed to submit supervisor review", error);
+      toast.error("Unable to submit supervisor review.");
+    }
+  }
+
+  async function operationsHodReview(decision: WorkAuthorizationDecision) {
+    if (!request) return;
+    if ((decision === "Return" || decision === "Deny") && !operationsHodComment.trim()) {
+      toast.error("Add an Operations HOD comment before returning or denying.");
+      return;
+    }
+
+    try {
+      await operationsHodReviewMutation.mutateAsync({
+        id: request.id,
+        payload: {
+          decision: toBackendDecision(decision),
+          comment: operationsHodComment || null,
+        },
+      });
+
+      showDecisionToast(toast, "Work initiation", decision, "Operations HOD");
+      routeBackToWorkInitiationRequests(router);
+    } catch (error) {
+      console.error("Failed to submit Operations HOD review", error);
+      toast.error("Unable to submit Operations HOD review.");
+    }
+  }
+
+  function toBackendDecision(decision: WorkAuthorizationDecision) {
+    if (decision === "Approve") return "approve";
+    if (decision === "Return") return "return";
+    return "deny";
   }
 
   return (
@@ -222,7 +350,7 @@ export default function WorkInitiationDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={request.reference ?? request.id}
+        id={request.reference ?? "Reference pending"}
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={
@@ -243,21 +371,31 @@ export default function WorkInitiationDetailsView({
       <WorkDetails
         request={request}
         editable={canRequesterEdit}
+        values={editValues ?? buildInitialEditValues(request)}
+        onValuesChange={setEditValues}
         incidentHazardRequestOptions={incidentHazardRequestOptions}
       />
       {/* <AssetDetails request={request} editable={canRequesterEdit} /> */}
       <AssignmentPlanning
         request={request}
         editable={canRequesterEdit}
-        assignedWorkers={assignedWorkers.length > 0 ? assignedWorkers : request.assignment.assignedWorkers}
-        onAssignedWorkersChange={setAssignedWorkers}
-        selectedContractor={selectedContractor || request.assignment.selectedContractor}
-        onSelectedContractorChange={setSelectedContractor}
+        values={editValues ?? buildInitialEditValues(request)}
+        onValuesChange={setEditValues}
+        departmentOptions={departmentOptions}
+        employeeOptions={employeeOptions}
+        employeesLoading={departmentEmployeesQuery.isLoading}
       />
 
       {canRequesterEdit ? (
         <div className="flex justify-end">
-          <Button type="button" onClick={submitRequest}>Submit Work Initiation</Button>
+          <Button
+            type="button"
+            loading={updateWorkInitiationMutation.isPending}
+            loadingText="Submitting..."
+            onClick={submitRequest}
+          >
+            Submit Work Initiation
+          </Button>
         </div>
       ) : null}
 
@@ -340,45 +478,76 @@ function RequesterDetails({ request }: { request: WorkInitiationRequest }) {
 function WorkDetails({
   request,
   editable,
+  values,
+  onValuesChange,
   incidentHazardRequestOptions,
 }: {
   request: WorkInitiationRequest;
   editable: boolean;
+  values: WorkInitiationEditValues;
+  onValuesChange: React.Dispatch<
+    React.SetStateAction<WorkInitiationEditValues | null>
+  >;
   incidentHazardRequestOptions: { value: string; label: string }[];
 }) {
-  const [workCategory, setWorkCategory] = useState(request.workCategory);
-  const [workTypes, setWorkTypes] = useState<string[]>(request.workType);
   const workTypeOptions = toOptions(
-    workCategory ? workTypeOptionsByCategory[workCategory] ?? [] : [],
+    values.workCategory ? workTypeOptionsByCategory[values.workCategory] ?? [] : [],
   );
 
   function handleWorkCategoryChange(nextCategory: string) {
-    setWorkCategory(nextCategory);
-    setWorkTypes([]);
+    onValuesChange((current) =>
+      current
+        ? {
+            ...current,
+            workCategory: nextCategory,
+            relatedIncidentHazardId:
+              nextCategory === "Incident/Hazard"
+                ? current.relatedIncidentHazardId
+                : "",
+            workType: [],
+          }
+        : current,
+    );
   }
 
   return (
     <FormSection title="Work Details" description="Requested work scope, purpose, location, and supporting evidence.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work Title" defaultValue={request.title} disabled={!editable} />
+        <FormInput
+          label="Work Title"
+          value={values.title}
+          disabled={!editable}
+          onChange={(event) =>
+            onValuesChange((current) =>
+              current ? { ...current, title: event.target.value } : current,
+            )
+          }
+        />
         {editable ? (
           <FormSelect
             label="Work Category"
             options={categoryOptions}
-            value={workCategory}
+            value={values.workCategory}
             onValueChange={handleWorkCategoryChange}
             placeholder="Select work category"
           />
         ) : (
           <FormInput label="Work Category" value={request.workCategory} disabled />
         )}
-        {workCategory === "Incident/Hazard" ? (
+        {values.workCategory === "Incident/Hazard" ? (
           editable ? (
             <FormSelect
               label="Related Incident/Hazard Request"
               searchable
               options={incidentHazardRequestOptions}
-              defaultValue={request.relatedIncidentHazardId}
+              value={values.relatedIncidentHazardId}
+              onValueChange={(value) =>
+                onValuesChange((current) =>
+                  current
+                    ? { ...current, relatedIncidentHazardId: value }
+                    : current,
+                )
+              }
               placeholder="Select related incident or hazard"
               dropdownClassName="md:min-w-[34rem]"
             />
@@ -396,26 +565,68 @@ function WorkDetails({
             searchable
             creatable
             options={workTypeOptions}
-            value={workTypes}
-            onValueChange={setWorkTypes}
-            placeholder={workCategory ? "Select or add work type" : "Select work category first"}
-            disabled={!workCategory}
+            value={values.workType}
+            onValueChange={(value) =>
+              onValuesChange((current) =>
+                current ? { ...current, workType: value } : current,
+              )
+            }
+            placeholder={values.workCategory ? "Select or add work type" : "Select work category first"}
+            disabled={!values.workCategory}
           />
         ) : (
           <FormInput label="Work Type" value={request.workType.join(", ")} disabled />
         )}
         <FormMultiSelect
           label="Location"
-          defaultValue={request.location ? [request.location] : []}
+          value={values.location ? [values.location] : []}
+          onValueChange={(value) =>
+            onValuesChange((current) =>
+              current ? { ...current, location: value[0] ?? "" } : current,
+            )
+          }
           disabled={!editable}
           searchable
           creatable
           options={locationOptions}
           placeholder="Select or add location"
         />
-        <FormTextarea label="Exact Work Area" defaultValue={request.exactWorkArea} disabled={!editable} />
-        <FormTextarea label="Work Description" defaultValue={request.workDescription} disabled={!editable} />
-        <FormTextarea label="Reason for Work" defaultValue={request.reasonForWork} disabled={!editable} />
+        <FormTextarea
+          label="Exact Work Area"
+          value={values.exactWorkArea}
+          disabled={!editable}
+          onChange={(event) =>
+            onValuesChange((current) =>
+              current
+                ? { ...current, exactWorkArea: event.target.value }
+                : current,
+            )
+          }
+        />
+        <FormTextarea
+          label="Work Description"
+          value={values.workDescription}
+          disabled={!editable}
+          onChange={(event) =>
+            onValuesChange((current) =>
+              current
+                ? { ...current, workDescription: event.target.value }
+                : current,
+            )
+          }
+        />
+        <FormTextarea
+          label="Reason for Work"
+          value={values.reasonForWork}
+          disabled={!editable}
+          onChange={(event) =>
+            onValuesChange((current) =>
+              current
+                ? { ...current, reasonForWork: event.target.value }
+                : current,
+            )
+          }
+        />
       </div>
       <div className="mt-4">
         <AttachmentList attachments={request.attachments} />
@@ -447,33 +658,139 @@ function WorkDetails({
 function AssignmentPlanning({
   request,
   editable,
-  assignedWorkers,
-  onAssignedWorkersChange,
-  selectedContractor,
-  onSelectedContractorChange,
+  values,
+  onValuesChange,
+  departmentOptions,
+  employeeOptions,
+  employeesLoading,
 }: {
   request: WorkInitiationRequest;
   editable: boolean;
-  assignedWorkers: string[];
-  onAssignedWorkersChange: (value: string[]) => void;
-  selectedContractor: string;
-  onSelectedContractorChange: (value: string) => void;
+  values: WorkInitiationEditValues;
+  onValuesChange: React.Dispatch<
+    React.SetStateAction<WorkInitiationEditValues | null>
+  >;
+  departmentOptions: { value: string; label: string }[];
+  employeeOptions: { value: string; label: string }[];
+  employeesLoading: boolean;
 }) {
   const assignment = request.assignment;
   return (
     <FormSection title="Assignment & Planning" description="Assigned team, workers, contractor, and planned schedule.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Assigned Department / Team" defaultValue={assignment.assignedDepartment} disabled={!editable} />
-        <FormInput label="Assigned Supervisor" defaultValue={assignment.assignedSupervisor} disabled={!editable} />
-        <FormMultiSelect label="Assigned Workers" options={employeeOptions} value={assignedWorkers} onValueChange={onAssignedWorkersChange} disabled={!editable} />
-        <FormSelect label="Contractors Needed?" options={yesNoOptions} value={assignment.contractorsNeeded ? "Yes" : "No"} onValueChange={() => undefined} disabled={!editable} />
-        {assignment.contractorsNeeded ? (
+        {editable ? (
+          <FormSelect
+            label="Assigned Department / Team"
+            options={departmentOptions}
+            value={values.assignedDepartment}
+            placeholder="Select department or team"
+            onValueChange={(value) =>
+              onValuesChange((current) =>
+                current
+                  ? {
+                      ...current,
+                      assignedDepartment: value,
+                      assignedSupervisorId: "",
+                      assignedWorkerIds: [],
+                    }
+                  : current,
+              )
+            }
+          />
+        ) : (
+          <FormInput
+            label="Assigned Department / Team"
+            value={assignment.assignedDepartment}
+            disabled
+          />
+        )}
+        {editable ? (
+          <FormSelect
+            label="Assigned Supervisor"
+            searchable
+            options={employeeOptions}
+            value={values.assignedSupervisorId}
+            onValueChange={(value) =>
+              onValuesChange((current) =>
+                current
+                  ? { ...current, assignedSupervisorId: value }
+                  : current,
+              )
+            }
+            placeholder={
+              !values.assignedDepartment
+                ? "Select a department first"
+                : employeesLoading
+                  ? "Loading employees..."
+                  : "Select supervisor"
+            }
+            disabled={!values.assignedDepartment || employeesLoading}
+          />
+        ) : (
+          <FormInput
+            label="Assigned Supervisor"
+            value={assignment.assignedSupervisor}
+            disabled
+          />
+        )}
+        <FormMultiSelect
+          label="Assigned Workers"
+          options={editable ? employeeOptions : toOptions(assignment.assignedWorkers)}
+          value={editable ? values.assignedWorkerIds : assignment.assignedWorkers}
+          onValueChange={(value) =>
+            onValuesChange((current) =>
+              current ? { ...current, assignedWorkerIds: value } : current,
+            )
+          }
+          disabled={!editable || !values.assignedDepartment || employeesLoading}
+          searchable
+          placeholder={
+            !values.assignedDepartment
+              ? "Select a department first"
+              : employeesLoading
+                ? "Loading employees..."
+                : "Select workers"
+          }
+        />
+        <FormSelect
+          label="Contractors Needed?"
+          options={yesNoOptions}
+          value={values.contractorsNeeded}
+          onValueChange={(value) =>
+            onValuesChange((current) =>
+              current
+                ? {
+                    ...current,
+                    contractorsNeeded: value,
+                    selectedContractor:
+                      value === "Yes" ? current.selectedContractor : "",
+                    contractorContactEmail:
+                      value === "Yes" ? current.contractorContactEmail : "",
+                  }
+                : current,
+            )
+          }
+          disabled={!editable}
+        />
+        {values.contractorsNeeded === "Yes" ? (
           <>
             <FormSelect
               label="Selected Contractor"
               options={contractorOptions}
-              value={selectedContractor}
-              onValueChange={onSelectedContractorChange}
+              value={values.selectedContractor}
+              onValueChange={(value) =>
+                onValuesChange((current) =>
+                  current
+                    ? {
+                        ...current,
+                        selectedContractor: value,
+                        contractorContactEmail:
+                          contractorContactEmailByName[value] ??
+                          current.contractorContactEmail,
+                      }
+                    : current,
+                )
+              }
               searchable
               creatable
               placeholder="Select contractor"
@@ -482,14 +799,58 @@ function AssignmentPlanning({
             <FormInput
               label="Contractor Contact Email"
               type="email"
-              value={contractorContactEmailByName[selectedContractor] ?? assignment.contractorContactEmail}
-              disabled
+              value={values.contractorContactEmail}
+              onChange={(event) =>
+                onValuesChange((current) =>
+                  current
+                    ? {
+                        ...current,
+                        contractorContactEmail: event.target.value,
+                      }
+                    : current,
+                )
+              }
+              disabled={!editable}
             />
           </>
         ) : null}
-        <FormInput label="Planned Start Date/Time" defaultValue={assignment.plannedStartDateTime} disabled={!editable} />
-        <FormInput label="Planned End Date/Time" defaultValue={assignment.plannedEndDateTime} disabled={!editable} />
-        <FormTextarea label="Materials / Parts Required" defaultValue={assignment.materialsRequired} disabled={!editable} className="md:col-span-2" />
+        <FormInput
+          label="Planned Start Date/Time"
+          value={values.plannedStartDateTime}
+          disabled={!editable}
+          onChange={(event) =>
+            onValuesChange((current) =>
+              current
+                ? { ...current, plannedStartDateTime: event.target.value }
+                : current,
+            )
+          }
+        />
+        <FormInput
+          label="Planned End Date/Time"
+          value={values.plannedEndDateTime}
+          disabled={!editable}
+          onChange={(event) =>
+            onValuesChange((current) =>
+              current
+                ? { ...current, plannedEndDateTime: event.target.value }
+                : current,
+            )
+          }
+        />
+        <FormTextarea
+          label="Materials / Parts Required"
+          value={values.materialsRequired}
+          disabled={!editable}
+          className="md:col-span-2"
+          onChange={(event) =>
+            onValuesChange((current) =>
+              current
+                ? { ...current, materialsRequired: event.target.value }
+                : current,
+            )
+          }
+        />
       </div>
     </FormSection>
   );
@@ -591,6 +952,70 @@ function getWorkInitiationAccessRole({
   if (isRequester) return "requester";
 
   return "requester";
+}
+
+function buildInitialEditValues(
+  request: WorkInitiationRequest,
+): WorkInitiationEditValues {
+  return {
+    title: request.title,
+    workCategory: request.workCategory,
+    relatedIncidentHazardId: request.relatedIncidentHazardId,
+    workType: request.workType,
+    location: request.location,
+    exactWorkArea: request.exactWorkArea,
+    workDescription: request.workDescription,
+    reasonForWork: request.reasonForWork,
+    assignedDepartment: request.assignment.assignedDepartment,
+    assignedSupervisorId: request.assignment.assignedSupervisorId ?? "",
+    assignedWorkerIds: request.assignment.assignedWorkerIds ?? [],
+    contractorsNeeded: request.assignment.contractorsNeeded ? "Yes" : "No",
+    selectedContractor: request.assignment.selectedContractor,
+    contractorContactEmail: request.assignment.contractorContactEmail,
+    plannedStartDateTime: request.assignment.plannedStartDateTime,
+    plannedEndDateTime: request.assignment.plannedEndDateTime,
+    materialsRequired: request.assignment.materialsRequired,
+  };
+}
+
+function buildWorkInitiationUpdatePayload(
+  values: WorkInitiationEditValues,
+): WorkInitiationUpdate {
+  const workCategory =
+    workCategoryValueByLabel[values.workCategory] ?? "other";
+
+  return {
+    title: values.title,
+    work_category: workCategory,
+    related_incident_report_id:
+      workCategory === "incident_hazard"
+        ? values.relatedIncidentHazardId || null
+        : null,
+    work_type: values.workType,
+    location: values.location,
+    exact_work_area: values.exactWorkArea || null,
+    work_description: values.workDescription,
+    reason_for_work: values.reasonForWork,
+    assigned_department: values.assignedDepartment,
+    assigned_supervisor_id: values.assignedSupervisorId,
+    assigned_worker_ids: values.assignedWorkerIds,
+    contractors_needed: values.contractorsNeeded === "Yes",
+    selected_contractor_name: values.contractorsNeeded === "Yes"
+      ? values.selectedContractor || null
+      : null,
+    contractor_contact_email: values.contractorsNeeded === "Yes"
+      ? values.contractorContactEmail || null
+      : null,
+    planned_start_at: toApiDateTime(values.plannedStartDateTime),
+    planned_end_at: toApiDateTime(values.plannedEndDateTime),
+    materials_required: values.materialsRequired || null,
+  };
+}
+
+function toApiDateTime(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toISOString();
 }
 
 function isOperationsHodEmployee(employee?: SafetyEmployeeProfile | null) {

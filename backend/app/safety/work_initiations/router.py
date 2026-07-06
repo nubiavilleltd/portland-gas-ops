@@ -15,6 +15,7 @@ from app.safety.work_initiations.models import (
 from app.safety.work_initiations.schemas import (
     WorkInitiationCreate,
     WorkInitiationResponse,
+    WorkInitiationReviewCreate,
     WorkInitiationUpdate,
 )
 
@@ -86,6 +87,44 @@ def update_work_initiation(
     current_user: User = Depends(get_current_user),
 ):
     record = work_initiation_service.update_work_initiation(
+        db=db,
+        work_initiation_id=work_initiation_id,
+        data=data,
+        current_user=current_user,
+    )
+    return WorkInitiationResponse.from_model(record)
+
+
+@router.post(
+    "/{work_initiation_id}/supervisor-review",
+    response_model=WorkInitiationResponse,
+)
+def supervisor_review_work_initiation(
+    work_initiation_id: str,
+    data: WorkInitiationReviewCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    record = work_initiation_service.supervisor_review_work_initiation(
+        db=db,
+        work_initiation_id=work_initiation_id,
+        data=data,
+        current_user=current_user,
+    )
+    return WorkInitiationResponse.from_model(record)
+
+
+@router.post(
+    "/{work_initiation_id}/operations-hod-review",
+    response_model=WorkInitiationResponse,
+)
+def operations_hod_review_work_initiation(
+    work_initiation_id: str,
+    data: WorkInitiationReviewCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    record = work_initiation_service.operations_hod_review_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
         data=data,

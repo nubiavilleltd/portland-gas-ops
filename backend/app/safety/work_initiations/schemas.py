@@ -86,6 +86,15 @@ class WorkInitiationCreate(BaseModel):
 class WorkInitiationUpdate(WorkInitiationCreate):
     pass
 
+class WorkInitiationReviewCreate(BaseModel):
+    decision: WorkInitiationDecision
+    comment: Optional[str] = None
+
+    @field_validator("comment", mode="before")
+    @classmethod
+    def strip_comment(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
 
 class WorkInitiationEmployeeSummary(BaseModel):
     id: str

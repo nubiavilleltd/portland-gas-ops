@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -8,14 +8,22 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.employees.models import Department, Employee
 from app.safety.dependencies import get_employee_for_user
+from app.safety.checklists.models import (
+    SafetyChecklistParentType,
+    SafetyChecklistStage,
+)
+from app.safety.checklists.schemas import ChecklistResponsesCreate
+from app.safety.checklists.service import add_parent_responses
 from app.safety.work_authorizations.models import (
     SafetyWorkAuthorization,
     WorkAuthorizationStatus,
 )
 from app.safety.work_closeouts.models import (
+    SafetyCloseOutReview,
     SafetyWorkCloseOut,
     WorkCloseOutAnswer,
     WorkCloseOutDecision,
+    WorkCloseOutReviewerRole,
     WorkCloseOutStatus,
 )
 from app.safety.work_closeouts.schemas import (
@@ -118,6 +126,7 @@ def create_work_closeout(
         db=db,
         authorization=authorization,
         requester=requester,
+        data=data,
     )
 
     record = SafetyWorkCloseOut(
@@ -149,6 +158,13 @@ def create_work_closeout(
     db.add(record)
     db.flush()
 
+    add_work_closeout_checklist_responses(
+        db=db,
+        record=record,
+        data=data,
+        answered_by=requester.id,
+    )
+
     create_work_closeout_documents(
         db=db,
         work_closeout_id=record.id,
@@ -165,6 +181,7 @@ def validate_work_closeout_create_rules(
     db: Session,
     authorization: SafetyWorkAuthorization,
     requester: Employee,
+    data: WorkCloseOutCreate,
 ) -> None:
     if authorization.status != WorkAuthorizationStatus.approved:
         raise HTTPException(
@@ -196,6 +213,8 @@ def validate_work_closeout_create_rules(
             },
         )
 
+    validate_work_closeout_schedule(data, authorization)
+
 
 def is_closeout_requester_allowed(
     requester: Employee,
@@ -207,6 +226,72 @@ def is_closeout_requester_allowed(
         return True
 
     return any(worker.worker_id == requester.id for worker in initiation.workers)
+
+
+def validate_work_closeout_schedule(
+    data: WorkCloseOutCreate,
+    authorization: SafetyWorkAuthorization,
+) -> None:
+    initiation = authorization.work_initiation
+    planned_start = to_utc(initiation.planned_start_at) if initiation else None
+    planned_end = to_utc(initiation.planned_end_at) if initiation else None
+    actual_start = to_utc(data.actual_start_at)
+    actual_completion = to_utc(data.actual_completion_at)
+
+    if planned_start and actual_completion < planned_start:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Actual completion date/time cannot be before the approved "
+                "planned start date/time."
+            ),
+        )
+
+    schedule_deviated = (
+        (planned_start is not None and actual_start < planned_start)
+        or (planned_end is not None and actual_completion > planned_end)
+    )
+    if schedule_deviated and not data.deviation_explanation:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Deviation explanation is required when actual work timing "
+                "falls outside the approved work schedule."
+            ),
+        )
+
+
+def add_work_closeout_checklist_responses(
+    db: Session,
+    record: SafetyWorkCloseOut,
+    data: WorkCloseOutCreate,
+    answered_by: str,
+) -> None:
+    response_group_id = record.id
+    checklist_groups = (
+        (SafetyChecklistStage.completion, data.completion_checklist_answers),
+        (SafetyChecklistStage.monitoring, data.monitoring_checklist_answers),
+        (SafetyChecklistStage.closeout_review, data.area_condition_checklist_answers),
+    )
+
+    for stage, answers in checklist_groups:
+        add_parent_responses(
+            db=db,
+            data=ChecklistResponsesCreate(
+                parent_type=SafetyChecklistParentType.work_closeout,
+                parent_id=record.id,
+                response_group_id=response_group_id,
+                answers=answers,
+            ),
+            answered_by=answered_by,
+        )
+
+
+def to_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(timezone.utc)
 
 
 def get_existing_active_closeout_for_authorization(
@@ -324,9 +409,9 @@ def get_work_closeout(
         db.query(SafetyWorkCloseOut)
         .options(
             joinedload(SafetyWorkCloseOut.requester).joinedload(Employee.user),
-            joinedload(SafetyWorkCloseOut.supervisor).joinedload(Employee.user),
-            joinedload(SafetyWorkCloseOut.operations_head).joinedload(Employee.user),
-            joinedload(SafetyWorkCloseOut.hse_inspector).joinedload(Employee.user),
+            joinedload(SafetyWorkCloseOut.reviews)
+            .joinedload(SafetyCloseOutReview.reviewer)
+            .joinedload(Employee.user),
             joinedload(SafetyWorkCloseOut.work_authorization)
             .joinedload(SafetyWorkAuthorization.hse_inspector)
             .joinedload(Employee.user),
@@ -369,10 +454,14 @@ def supervisor_decision(
 
     validate_supervisor_decision(record, data, reviewer)
 
-    record.supervisor_decision = data.decision
-    record.supervisor_id = reviewer.id
-    record.supervisor_comment = data.comment
-    record.supervisor_decided_at = datetime.utcnow()
+    add_closeout_review(
+        db=db,
+        record=record,
+        reviewer_role=WorkCloseOutReviewerRole.supervisor,
+        reviewer_id=reviewer.id,
+        decision=data.decision,
+        comment=data.comment,
+    )
     record.status = status_after_intermediate_decision(record, data.decision)
 
     db.commit()
@@ -390,10 +479,14 @@ def operations_head_decision(
 
     validate_operations_head_decision(record, data, reviewer, current_user)
 
-    record.operations_head_decision = data.decision
-    record.operations_head_id = reviewer.id
-    record.operations_head_comment = data.comment
-    record.operations_head_decided_at = datetime.utcnow()
+    add_closeout_review(
+        db=db,
+        record=record,
+        reviewer_role=WorkCloseOutReviewerRole.operations_head,
+        reviewer_id=reviewer.id,
+        decision=data.decision,
+        comment=data.comment,
+    )
     record.status = status_after_intermediate_decision(record, data.decision)
 
     db.commit()
@@ -410,14 +503,18 @@ def hse_decision(
 
     validate_hse_decision(record, data)
 
-    record.hse_inspector_id = inspector.id
-    record.hse_verified_close_out = data.verified_close_out
-    record.hse_area_safe_for_operations = data.area_safe_for_operations
-    record.hse_corrective_action_required = data.corrective_action_required
-    record.hse_corrective_action_details = data.corrective_action_details
-    record.hse_decision = data.decision
-    record.hse_comment = data.comment
-    record.hse_decided_at = datetime.utcnow()
+    add_closeout_review(
+        db=db,
+        record=record,
+        reviewer_role=WorkCloseOutReviewerRole.hse,
+        reviewer_id=inspector.id,
+        decision=data.decision,
+        comment=data.comment,
+        verified_close_out=data.verified_close_out,
+        area_safe_for_operations=data.area_safe_for_operations,
+        corrective_action_required=data.corrective_action_required,
+        corrective_action_details=data.corrective_action_details,
+    )
     record.status = status_after_hse_decision(data.decision)
 
     db.commit()
@@ -457,7 +554,10 @@ def validate_operations_head_decision(
     reviewer: Employee,
     current_user: User,
 ) -> None:
-    if record.status != WorkCloseOutStatus.pending or not record.supervisor_decision:
+    if record.status != WorkCloseOutStatus.pending or not get_closeout_review(
+        record,
+        WorkCloseOutReviewerRole.supervisor,
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Operations Head can only review a work close-out after supervisor review.",
@@ -483,7 +583,10 @@ def validate_hse_decision(
     record: SafetyWorkCloseOut,
     data: WorkCloseOutHseReviewCreate,
 ) -> None:
-    if record.status != WorkCloseOutStatus.pending or not record.operations_head_decision:
+    if record.status != WorkCloseOutStatus.pending or not get_closeout_review(
+        record,
+        WorkCloseOutReviewerRole.operations_head,
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="HSE can only review a work close-out after Operations Head review.",
@@ -553,6 +656,55 @@ def status_after_hse_decision(decision: WorkCloseOutDecision) -> WorkCloseOutSta
     if decision == WorkCloseOutDecision.return_:
         return WorkCloseOutStatus.returned
     return WorkCloseOutStatus.denied
+
+
+def add_closeout_review(
+    db: Session,
+    record: SafetyWorkCloseOut,
+    reviewer_role: WorkCloseOutReviewerRole,
+    reviewer_id: str,
+    decision: WorkCloseOutDecision,
+    comment: Optional[str] = None,
+    verified_close_out: Optional[bool] = None,
+    area_safe_for_operations: Optional[bool] = None,
+    corrective_action_required: Optional[bool] = None,
+    corrective_action_details: Optional[str] = None,
+) -> SafetyCloseOutReview:
+    if get_closeout_review(record, reviewer_role):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{reviewer_role.value.replace('_', ' ').title()} review already exists for this work close-out.",
+        )
+
+    review = SafetyCloseOutReview(
+        work_closeout_id=record.id,
+        reviewer_role=reviewer_role.value,
+        reviewer_id=reviewer_id,
+        decision=decision,
+        comment=comment,
+        verified_close_out=verified_close_out,
+        area_safe_for_operations=area_safe_for_operations,
+        corrective_action_required=corrective_action_required,
+        corrective_action_details=corrective_action_details,
+        decided_at=datetime.utcnow(),
+    )
+    db.add(review)
+    db.flush()
+    return review
+
+
+def get_closeout_review(
+    record: SafetyWorkCloseOut,
+    reviewer_role: WorkCloseOutReviewerRole,
+) -> Optional[SafetyCloseOutReview]:
+    return next(
+        (
+            review
+            for review in (record.reviews or [])
+            if review.reviewer_role == reviewer_role.value
+        ),
+        None,
+    )
 
 
 def is_exception_closeout(record: SafetyWorkCloseOut) -> bool:

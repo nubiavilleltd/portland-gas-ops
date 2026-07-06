@@ -16,9 +16,9 @@ import type { WorkAuthorizationRequest } from "@/types/safety";
 
 const columns: Column<WorkAuthorizationRequest>[] = [
   {
-    key: "id",
+    key: "reference",
     label: "Reference",
-    render: (_, row) => row.reference || row.id,
+    render: (_, row) => row.reference || "Reference pending",
   },
   {
     key: "title",

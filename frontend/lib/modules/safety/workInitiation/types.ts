@@ -91,6 +91,11 @@ export interface WorkInitiationResponse extends WorkInitiationListItem {
   is_active: boolean;
 }
 
+export interface WorkInitiationReviewCreate {
+  decision: WorkInitiationDecision;
+  comment?: string | null;
+}
+
 export interface WorkInitiationListParams {
   skip?: number;
   limit?: number;

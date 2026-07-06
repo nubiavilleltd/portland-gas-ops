@@ -9,18 +9,21 @@ import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import {
-  createWorkCloseOut,
-  useSafetyDemoData,
-} from "@/lib/safety-demo-store";
-import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
-import type { ApprovedWorkAuthorizationOption } from "@/types/safety";
+import { formatLocalDate } from "@/lib/safety-demo-dates";
+import type {
+  ApprovedWorkAuthorizationOption,
+  WorkAuthorizationRequest,
+} from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
 import {
-  getSafetyEmployeeDisplayName,
   getSafetyEmployeeRequester,
   useSafetyCurrentEmployee,
 } from "@/lib/modules/safety/people";
+import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
+import {
+  useCreateWorkCloseout,
+  type WorkCloseOutChecklistAnswerCreate,
+} from "@/lib/modules/safety/workCloseout";
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
@@ -76,39 +79,28 @@ export default function WorkCompletionForm() {
   const [validationErrors, setValidationErrors] = useState<
     ValidationErrors<WorkCompletionValidationField>
   >({});
-  const { workAuthorizations: storedWorkAuthorizations } = useSafetyDemoData();
   const currentEmployee = useSafetyCurrentEmployee();
+  const approvedAuthorizations = useWorkAuthorizations({
+    status: "approved",
+    limit: 100,
+  });
+  const createCloseout = useCreateWorkCloseout();
   const requester = getSafetyEmployeeRequester(
     currentEmployee.data,
     formatLocalDate(),
   );
-  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
-  const isCurrentEmployeeName = (name: string) =>
-    Boolean(currentEmployeeName) &&
-    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
   const completionChecklist = useActiveSafetyChecklist("work_closeout", "completion");
   const monitoringChecklist = useActiveSafetyChecklist("work_closeout", "monitoring");
   const areaConditionChecklist = useActiveSafetyChecklist(
     "work_closeout",
     "closeout_review",
   );
-  const workAuthorizations: ApprovedWorkAuthorizationOption[] = storedWorkAuthorizations
-    .filter((request) => request.status === "approved" && isCurrentEmployeeName(request.requester.name))
-    .map((request) => ({
-      id: request.id,
-      title: request.workInitiation.title,
-      status: "approved",
-      requester: request.requester.name,
-      requestDate: request.requester.requestDate,
-      department: request.requester.department,
-      location: request.workInitiation.location,
-      exactWorkArea: request.workInitiation.exactWorkArea,
-      approvedStartDateTime: request.workInitiation.plannedStartDateTime,
-      approvedEndDateTime: request.workInitiation.plannedEndDateTime,
-      workTypes: request.workInitiation.workType,
-      supervisor: request.workInitiation.assignedSupervisor,
-      hseApprover: request.hseApproval?.approver ?? "Samuel Bassey",
-    }));
+  const workAuthorizations: ApprovedWorkAuthorizationOption[] = (approvedAuthorizations.data ?? [])
+    .filter((request) =>
+      request.status === "approved" &&
+      canCurrentEmployeeCloseOutAuthorization(request, currentEmployee.data?.id),
+    )
+    .map(mapApprovedAuthorizationOption);
   const [actualStartDateTime, setActualStartDateTime] = useState("");
   const [actualCompletionDateTime, setActualCompletionDateTime] = useState("");
   const [workCompleted, setWorkCompleted] = useState("");
@@ -145,13 +137,20 @@ export default function WorkCompletionForm() {
       ) ?? null,
     [selectedWorkAuthorizationId, workAuthorizations]
   );
+  const requiresDeviationExplanation =
+    completedAsApproved === "No" ||
+    hasScheduleDeviation({
+      selectedWorkAuthorization,
+      actualStartDateTime,
+      actualCompletionDateTime,
+    });
   const workAuthorizationOptions = workAuthorizations.map((item) => ({
     value: item.id,
-    label: `${item.id} - ${item.title}`,
+    label: item.reference ? `${item.reference} - ${item.title}` : item.title,
     description: `${item.requester} | ${item.requestDate}`,
   }));
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextValidationErrors = validateWorkCompletionForm({
       selectedWorkAuthorization,
@@ -197,65 +196,75 @@ export default function WorkCompletionForm() {
       return;
     }
     if (!selectedWorkAuthorization) return;
-    const submittedAt = formatLocalDateTime();
 
-    createWorkCloseOut((id) => ({
-      id,
-      status: "submitted",
-      title: `Close-out for ${selectedWorkAuthorization.title}`,
-      requester,
-      workAuthorization: selectedWorkAuthorization,
-      completionDetails: {
-        actualStartDateTime,
-        actualCompletionDateTime,
-        workCompleted: workCompleted === "Yes",
-        completedAsApproved: completedAsApproved === "Yes",
-        deviationExplanation,
-        completionSummary,
-        incidentObserved: incidentObserved === "Yes",
-        incidentNote,
-        completionEvidence: completionFiles.map((file) => ({
-          name: file.name,
-          type: file.type.startsWith("image/") ? "image" : "document",
-        })),
-        completionNotes: "",
-      },
-      monitoring: {
-        monitoredDuringExecution: monitoredDuringExecution === "Yes",
-        stayedWithinScope: stayedWithinScope === "Yes",
-        ppeAndControlsMaintained: ppeAndControlsMaintained === "Yes",
-        unsafeConditionAddressed: (unsafeConditionAddressed || "N/A") as "Yes" | "No" | "N/A",
-        monitoringComment: "",
-      },
-      areaCondition: {
-        workAreaCleaned: workAreaCleaned === "Yes",
-        toolsRemoved: toolsRemoved === "Yes",
-        systemSafe: systemSafe === "Yes",
-        remainingHazard: remainingHazard === "Yes",
-        remainingHazardDetails,
-      },
-      supervisorApproval: null,
-      operationsHeadApproval: null,
-      hseApproval: null,
-      auditTrail: [{
-        action: "Submitted",
-        actor: requester.name,
-        role: "Requester",
-        dateTime: submittedAt,
-        comment: "Work completion submitted for close-out.",
-      }],
-    }));
-    toast.success("Work close-out submitted successfully.");
-    window.setTimeout(() => {
-      router.push("/safety/work-close-out");
-    }, 700);
+    try {
+      const saved = await createCloseout.mutateAsync({
+        payload: {
+          work_authorization_id: selectedWorkAuthorization.id,
+          actual_start_at: toApiDateTime(actualStartDateTime),
+          actual_completion_at: toApiDateTime(actualCompletionDateTime),
+          work_completed: workCompleted === "Yes",
+          completed_as_approved: completedAsApproved === "Yes",
+          deviation_explanation: deviationExplanation || null,
+          completion_summary: completionSummary,
+          incident_observed: incidentObserved === "Yes",
+          incident_note: incidentNote || null,
+          completion_notes: null,
+          monitored_during_execution: monitoredDuringExecution === "Yes",
+          stayed_within_scope: stayedWithinScope === "Yes",
+          ppe_and_controls_maintained: ppeAndControlsMaintained === "Yes",
+          unsafe_condition_addressed: yesNoNaToAnswer(unsafeConditionAddressed),
+          monitoring_comment: null,
+          work_area_cleaned: workAreaCleaned === "Yes",
+          tools_removed: toolsRemoved === "Yes",
+          system_safe: systemSafe === "Yes",
+          remaining_hazard: remainingHazard === "Yes",
+          remaining_hazard_details: remainingHazardDetails || null,
+          completion_checklist_answers: buildCompletionChecklistAnswers(
+            completionChecklist.data?.items ?? [],
+            {
+              workCompleted,
+              completedAsApproved,
+              incidentObserved,
+            },
+          ),
+          monitoring_checklist_answers: buildMonitoringChecklistAnswers(
+            monitoringChecklist.data?.items ?? [],
+            {
+              monitoredDuringExecution,
+              stayedWithinScope,
+              ppeAndControlsMaintained,
+              unsafeConditionAddressed,
+            },
+          ),
+          area_condition_checklist_answers: buildAreaConditionChecklistAnswers(
+            areaConditionChecklist.data?.items ?? [],
+            {
+              workAreaCleaned,
+              toolsRemoved,
+              systemSafe,
+              remainingHazard,
+            },
+          ),
+        },
+        completionEvidence: completionFiles,
+      });
+      toast.success("Work close-out submitted successfully.");
+      window.setTimeout(() => {
+        router.push(`/safety/work-close-out/${saved.id}`);
+      }, 700);
+    } catch (error) {
+      console.error("Failed to submit work close-out", error);
+      toast.error("Unable to submit work close-out. Please review and try again.");
+    }
   }
 
   if (
     completionChecklist.isLoading ||
     monitoringChecklist.isLoading ||
     areaConditionChecklist.isLoading ||
-    currentEmployee.isLoading
+    currentEmployee.isLoading ||
+    approvedAuthorizations.isLoading
   ) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
@@ -396,12 +405,12 @@ export default function WorkCompletionForm() {
                 }}
               />
             ))}
-          {completedAsApproved === "No" ? (
+          {requiresDeviationExplanation ? (
             <FormTextarea
               ref={deviationExplanationRef}
               label="Explanation for change/deviation"
               required
-              placeholder="Explain the deviation from approved scope"
+              placeholder="Explain the deviation from approved scope or schedule"
               className="md:col-span-2"
               value={deviationExplanation}
               error={validationErrors.deviationExplanation}
@@ -432,7 +441,7 @@ export default function WorkCompletionForm() {
               onChange={setCompletionFiles}
               accept="image/*,.pdf,.doc,.docx"
               maxFiles={10}
-              hint="Local selection only. No upload is performed."
+              hint="Upload photos, videos, or documents that support the close-out."
             />
           </div>
           {/* <FormTextarea
@@ -572,10 +581,174 @@ export default function WorkCompletionForm() {
       </FormSection>
 
       <div className="flex gap-3 pt-1">
-        <Button type="submit">Submit Close-Out</Button>
+        <Button type="submit" loading={createCloseout.isPending} loadingText="Submitting...">
+          Submit Close-Out
+        </Button>
       </div>
     </form>
   );
+}
+
+function mapApprovedAuthorizationOption(
+  request: WorkAuthorizationRequest,
+): ApprovedWorkAuthorizationOption {
+  return {
+    id: request.id,
+    reference: request.reference,
+    title: request.workInitiation.title,
+    status: "approved",
+    requester: request.requester.name,
+    requestDate: request.requester.requestDate,
+    department: request.requester.department,
+    location: request.workInitiation.location,
+    exactWorkArea: request.workInitiation.exactWorkArea,
+    approvedStartDateTime: request.workInitiation.plannedStartDateTime,
+    approvedEndDateTime: request.workInitiation.plannedEndDateTime,
+    workTypes: request.workInitiation.workType,
+    supervisor: request.workInitiation.assignedSupervisor,
+    hseApprover: request.hseApproval?.approver ?? "HSE Inspector",
+  };
+}
+
+function canCurrentEmployeeCloseOutAuthorization(
+  request: WorkAuthorizationRequest,
+  employeeId?: string,
+) {
+  if (!employeeId) return false;
+  return (
+    request.requesterId === employeeId ||
+    request.workInitiation.assignedSupervisorId === employeeId ||
+    Boolean(request.workInitiation.assignedWorkerIds?.includes(employeeId))
+  );
+}
+
+function toApiDateTime(value: string) {
+  return new Date(value).toISOString();
+}
+
+function yesNoNaToAnswer(value: string) {
+  if (value === "Yes") return "yes";
+  if (value === "No") return "no";
+  return "not_applicable";
+}
+
+function hasScheduleDeviation({
+  selectedWorkAuthorization,
+  actualStartDateTime,
+  actualCompletionDateTime,
+}: {
+  selectedWorkAuthorization: ApprovedWorkAuthorizationOption | null;
+  actualStartDateTime: string;
+  actualCompletionDateTime: string;
+}) {
+  if (!selectedWorkAuthorization) return false;
+
+  const actualStart = parseDateValue(actualStartDateTime);
+  const actualCompletion = parseDateValue(actualCompletionDateTime);
+  const approvedStart = parseDateValue(
+    selectedWorkAuthorization.approvedStartDateTime,
+  );
+  const approvedEnd = parseDateValue(
+    selectedWorkAuthorization.approvedEndDateTime,
+  );
+
+  return Boolean(
+    (actualStart && approvedStart && actualStart < approvedStart) ||
+      (actualCompletion && approvedEnd && actualCompletion > approvedEnd),
+  );
+}
+
+function parseDateValue(value: string) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildCompletionChecklistAnswers(
+  items: SafetyChecklistItem[],
+  values: {
+    workCompleted: string;
+    completedAsApproved: string;
+    incidentObserved: string;
+  },
+): WorkCloseOutChecklistAnswerCreate[] {
+  return [
+    booleanAnswer(items, "work_completed", values.workCompleted),
+    booleanAnswer(items, "completed_as_approved", values.completedAsApproved),
+    booleanAnswer(items, "incident_observed", values.incidentObserved),
+  ].filter(Boolean) as WorkCloseOutChecklistAnswerCreate[];
+}
+
+function buildMonitoringChecklistAnswers(
+  items: SafetyChecklistItem[],
+  values: {
+    monitoredDuringExecution: string;
+    stayedWithinScope: string;
+    ppeAndControlsMaintained: string;
+    unsafeConditionAddressed: string;
+  },
+): WorkCloseOutChecklistAnswerCreate[] {
+  return [
+    booleanAnswer(
+      items,
+      "monitored_during_execution",
+      values.monitoredDuringExecution,
+    ),
+    booleanAnswer(items, "stayed_within_scope", values.stayedWithinScope),
+    booleanAnswer(
+      items,
+      "ppe_and_controls_maintained",
+      values.ppeAndControlsMaintained,
+    ),
+    enumAnswer(
+      items,
+      "unsafe_condition_addressed",
+      yesNoNaToAnswer(values.unsafeConditionAddressed),
+    ),
+  ].filter(Boolean) as WorkCloseOutChecklistAnswerCreate[];
+}
+
+function buildAreaConditionChecklistAnswers(
+  items: SafetyChecklistItem[],
+  values: {
+    workAreaCleaned: string;
+    toolsRemoved: string;
+    systemSafe: string;
+    remainingHazard: string;
+  },
+): WorkCloseOutChecklistAnswerCreate[] {
+  return [
+    booleanAnswer(items, "work_area_cleaned", values.workAreaCleaned),
+    booleanAnswer(items, "tools_removed", values.toolsRemoved),
+    booleanAnswer(items, "system_safe", values.systemSafe),
+    booleanAnswer(items, "remaining_hazard", values.remainingHazard),
+  ].filter(Boolean) as WorkCloseOutChecklistAnswerCreate[];
+}
+
+function booleanAnswer(
+  items: SafetyChecklistItem[],
+  itemKey: string,
+  value: string,
+): WorkCloseOutChecklistAnswerCreate | null {
+  const item = items.find((current) => current.item_key === itemKey);
+  if (!item) return null;
+  return {
+    item_id: item.id,
+    value_boolean: value === "Yes",
+  };
+}
+
+function enumAnswer(
+  items: SafetyChecklistItem[],
+  itemKey: string,
+  value: string,
+): WorkCloseOutChecklistAnswerCreate | null {
+  const item = items.find((current) => current.item_key === itemKey);
+  if (!item) return null;
+  return {
+    item_id: item.id,
+    selected_option: value,
+  };
 }
 
 function ApprovedWorkSummary({
@@ -591,6 +764,11 @@ function ApprovedWorkSummary({
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
+          <FormInput
+            label="Work Authorization Reference"
+            value={workAuthorization.reference ?? ""}
+            disabled
+          />
           <FormInput label="Work Authorization Title" value={workAuthorization.title} disabled />
           <FormInput label="Original Requester" value={workAuthorization.requester} disabled />
           <FormInput label="Department" value={workAuthorization.department} disabled />
@@ -680,6 +858,19 @@ function validateWorkCompletionForm({
   ) {
     errors.actualCompletionDateTime = "Actual completion date/time must be after actual start date/time.";
   }
+  if (
+    selectedWorkAuthorization &&
+    actualCompletionDateTime &&
+    !errors.actualCompletionDateTime
+  ) {
+    const approvedStart = parseDateValue(
+      selectedWorkAuthorization.approvedStartDateTime,
+    );
+    if (approvedStart && actualCompletion < approvedStart) {
+      errors.actualCompletionDateTime =
+        "Actual completion date/time cannot be before the approved work start date/time.";
+    }
+  }
 
   if (!workCompleted || !completedAsApproved || !incidentObserved) {
     errors.completionChecklist = "Complete the required completion checks.";
@@ -687,8 +878,17 @@ function validateWorkCompletionForm({
   if (completionSummary.trim().length < 3) {
     errors.completionSummary = "Briefly describe what was completed.";
   }
-  if (completedAsApproved === "No" && deviationExplanation.trim().length < 3) {
-    errors.deviationExplanation = "Explain the deviation from approved scope.";
+  if (
+    (completedAsApproved === "No" ||
+      hasScheduleDeviation({
+        selectedWorkAuthorization,
+        actualStartDateTime,
+        actualCompletionDateTime,
+      })) &&
+    deviationExplanation.trim().length < 3
+  ) {
+    errors.deviationExplanation =
+      "Explain why work differed from the approved scope or schedule.";
   }
   if (incidentObserved === "Yes" && incidentNote.trim().length < 3) {
     errors.incidentNote = "Describe the incident, hazard, or near miss.";

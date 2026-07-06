@@ -6,6 +6,7 @@ import type {
   IncidentReportListParams,
   IncidentReportResponse,
   IncidentReportUpdate,
+  IncidentResolveCreate,
 } from "./types";
 
 export const incidentReportsApi = {
@@ -48,6 +49,19 @@ export const incidentReportsApi = {
     payload: IncidentReportUpdate,
   ): Promise<IncidentReportResponse> => {
     const { data } = await api.patch(`/api/safety/incidents/${id}`, payload);
+    return data;
+  },
+
+  resolveWithCloseout: async (
+    id: string,
+    payload: IncidentResolveCreate,
+  ): Promise<IncidentReportResponse> => {
+    const { data } = await api.post(`/api/safety/incidents/${id}/resolve`, payload);
+    return data;
+  },
+
+  close: async (id: string): Promise<IncidentReportResponse> => {
+    const { data } = await api.post(`/api/safety/incidents/${id}/close`);
     return data;
   },
 

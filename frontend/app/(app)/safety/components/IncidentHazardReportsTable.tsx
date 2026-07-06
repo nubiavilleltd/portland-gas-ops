@@ -20,7 +20,7 @@ const columns: Column<IncidentHazardReport>[] = [
   {
     key: "reference",
     label: "Reference",
-    render: (value, row) => String(value || row.id),
+    render: (value) => String(value || "Reference pending"),
   },
   {
     key: "title",

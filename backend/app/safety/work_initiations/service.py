@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.employees.models import Employee
+from app.employees.models import Department, Employee
 from app.shared.models.reference_counter import ReferenceCounter
 from app.safety.dependencies import get_employee_for_user
 from app.safety.incidents.models import IncidentReportStatus, SafetyIncidentReport
@@ -14,10 +14,15 @@ from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
     WorkInitiationCategory,
+    WorkInitiationDecision,
     WorkInitiationStatus,
 )
-from app.safety.work_initiations.schemas import WorkInitiationCreate, WorkInitiationUpdate
-from app.shared.models.user import User
+from app.safety.work_initiations.schemas import (
+    WorkInitiationCreate,
+    WorkInitiationReviewCreate,
+    WorkInitiationUpdate,
+)
+from app.shared.models.user import User, UserRole
 
 
 WORK_INITIATION_REFERENCE_ENTITY = "work_initiation"
@@ -211,6 +216,101 @@ def update_work_initiation(
 
     db.commit()
     return get_work_initiation(db, record.id)
+
+def supervisor_review_work_initiation(
+    db: Session,
+    work_initiation_id: str,
+    data: WorkInitiationReviewCreate,
+    current_user: User,
+) -> SafetyWorkInitiation:
+    record = get_work_initiation(db, work_initiation_id)
+    reviewer = get_employee_for_user(db, current_user)
+
+    if record.status != WorkInitiationStatus.submitted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only submitted work initiations can be reviewed by the assigned supervisor.",
+        )
+
+    if reviewer.id != record.assigned_supervisor_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the assigned supervisor can review this work initiation.",
+        )
+
+    require_comment_for_negative_decision(data)
+
+    record.supervisor_decision = data.decision
+    record.supervisor_id = reviewer.id
+    record.supervisor_comment = data.comment
+    record.supervisor_decided_at = datetime.utcnow()
+
+    if data.decision == WorkInitiationDecision.approve:
+        record.status = WorkInitiationStatus.pending
+    elif data.decision == WorkInitiationDecision.return_:
+        record.status = WorkInitiationStatus.returned
+    else:
+        record.status = WorkInitiationStatus.denied
+
+    db.commit()
+
+    return get_work_initiation(db, record.id)
+
+
+def operations_hod_review_work_initiation(
+    db: Session,
+    work_initiation_id: str,
+    data: WorkInitiationReviewCreate,
+    current_user: User,
+) -> SafetyWorkInitiation:
+    record = get_work_initiation(db, work_initiation_id)
+    reviewer = get_employee_for_user(db, current_user)
+
+    if record.status != WorkInitiationStatus.pending:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only work initiations pending Operations HOD review can be reviewed.",
+        )
+
+    if record.supervisor_decision != WorkInitiationDecision.approve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Operations HOD can only review after supervisor approval.",
+        )
+
+    if current_user.role not in (UserRole.super_admin, UserRole.admin):
+        if reviewer.department != Department.operations:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only Operations department users can perform Operations HOD review.",
+            )
+
+    require_comment_for_negative_decision(data)
+
+    record.operations_hod_decision = data.decision
+    record.operations_hod_id = reviewer.id
+    record.operations_hod_comment = data.comment
+    record.operations_hod_decided_at = datetime.utcnow()
+
+    if data.decision == WorkInitiationDecision.approve:
+        record.status = WorkInitiationStatus.approved
+    elif data.decision == WorkInitiationDecision.return_:
+        record.status = WorkInitiationStatus.returned
+    else:
+        record.status = WorkInitiationStatus.denied
+
+    db.commit()
+
+    return get_work_initiation(db, record.id)
+
+
+def require_comment_for_negative_decision(data: WorkInitiationReviewCreate) -> None:
+    if data.decision in (WorkInitiationDecision.return_, WorkInitiationDecision.deny):
+        if not data.comment:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Comment is required when returning or denying a work initiation.",
+            )
 
 
 def validate_incident_work_initiation_rules(

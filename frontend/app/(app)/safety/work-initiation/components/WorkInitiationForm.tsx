@@ -10,11 +10,6 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import {
-  contractorContactEmailByName,
-  workCategoryOptions,
-  workTypeOptionsByCategory,
-} from "@/lib/mock/work-initiation";
 import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -50,6 +45,64 @@ const toOptions = (items: string[]) =>
   items.map((item) => ({ value: item, label: item }));
 
 const yesNoOptions = toOptions(["Yes", "No"]);
+const workCategoryOptions = [
+  "Routine Work",
+  "Maintenance",
+  "Incident/Hazard",
+  "Customer Work",
+  "Project Work",
+  "Emergency Work",
+  "Other",
+];
+const workTypeOptionsByCategory: Record<string, string[]> = {
+  "Routine Work": [
+    "Routine Bay Check",
+    "Vehicle Inspection",
+    "Equipment Inspection",
+    "Preventive Maintenance",
+    "General Engineering Work",
+  ],
+  Maintenance: [
+    "Corrective Maintenance",
+    "Gas System Repair",
+    "Electrical Repair",
+    "Facility Repair",
+    "Equipment Servicing",
+  ],
+  "Incident/Hazard": [
+    "Incident/Hazard Corrective Work",
+    "Gas Leak Corrective Work",
+    "Unsafe Condition Correction",
+    "Inspection Finding",
+    "Emergency Safety Repair",
+  ],
+  "Customer Work": [
+    "CNG Conversion",
+    "CNG Cylinder Work",
+    "Vehicle Conversion Support",
+    "Transport Preparation",
+    "Customer Vehicle Inspection",
+  ],
+  "Project Work": [
+    "Planned Project",
+    "Workshop Modification",
+    "Facility Upgrade",
+    "Installation Work",
+  ],
+  "Emergency Work": [
+    "Emergency Work",
+    "Emergency Repair",
+    "Urgent Gas System Response",
+    "Critical Equipment Recovery",
+  ],
+  Other: ["Other"],
+};
+const contractorContactEmailByName: Record<string, string> = {
+  "SafeWeld Engineering Ltd": "projects@safeweld.example",
+  "Prime Gas Services": "operations@primegas.example",
+  "Vehicle Conversion Partners": "service@vehicleconversion.example",
+  "Electrical Support Contractors": "support@electricalcontractors.example",
+};
 const categoryOptions = toOptions(workCategoryOptions);
 
 const categoryByLabel: Record<string, WorkInitiationCategory> = {
@@ -59,6 +112,7 @@ const categoryByLabel: Record<string, WorkInitiationCategory> = {
   "Customer Work": "customer_work",
   "Project Work": "project_work",
   "Emergency Work": "emergency_work",
+  Other: "other",
 };
 
 const locationOptions = toOptions([
@@ -210,9 +264,9 @@ export default function WorkInitiationForm() {
     .filter((report) => isActionRecommendedIncident(report))
     .map((report) => ({
       value: report.id,
-      label: `${report.reference ?? report.id} - ${
-        report.title || report.reportType
-      }`,
+      label: report.reference
+        ? `${report.reference} - ${report.title || report.reportType}`
+        : report.title || report.reportType,
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
 
@@ -427,10 +481,12 @@ export default function WorkInitiationForm() {
                   required
                   value={
                     selectedIncident
-                      ? `${selectedIncident.reference ?? selectedIncident.id} - ${
-                          selectedIncident.title || selectedIncident.reportType
-                        }`
-                      : relatedIncidentId
+                      ? selectedIncident.reference
+                        ? `${selectedIncident.reference} - ${
+                            selectedIncident.title || selectedIncident.reportType
+                          }`
+                        : selectedIncident.title || selectedIncident.reportType
+                      : "Reference pending"
                   }
                   error={validationErrors.relatedIncidentId}
                   disabled
@@ -737,7 +793,9 @@ function IncidentContextCard({ incident }: { incident: IncidentHazardReport }) {
             Linked Incident/Hazard
           </p>
           <p className="mt-1 truncate font-semibold text-brand-text-primary">
-            {incident.reference ?? incident.id} - {incident.title}
+            {incident.reference
+              ? `${incident.reference} - ${incident.title}`
+              : incident.title}
           </p>
           <p className="mt-1 text-blue-800">
             {incident.reportType} | {incident.reporter.name} |{" "}

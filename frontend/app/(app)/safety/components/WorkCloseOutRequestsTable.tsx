@@ -6,21 +6,25 @@ import {
   getSafetyEmployeeDisplayName,
   useSafetyCurrentEmployee,
 } from "@/lib/modules/safety/people";
+import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
 import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkCloseOutHref,
   sortByLatestSafetyActivity,
 } from "@/lib/safety-demo-routing";
-import { useSafetyDemoData } from "@/lib/safety-demo-store";
 import type { WorkCloseOutRequest } from "@/types/safety";
 
 const columns: Column<WorkCloseOutRequest>[] = [
-  { key: "id", label: "Reference" },
+  {
+    key: "reference",
+    label: "Reference",
+    render: (_, row) => row.reference ?? "Reference pending",
+  },
   { key: "title", label: "Close-Out Request" },
   {
     key: "workAuthorization",
     label: "Work Authorization",
-    render: (_, row) => row.workAuthorization.id,
+    render: (_, row) => row.workAuthorization.reference ?? "Reference pending",
   },
   {
     key: "requester",
@@ -55,14 +59,14 @@ export default function WorkCloseOutRequestsTable({
 }: {
   scope?: "user" | "admin";
 }) {
-  const { workCloseOuts } = useSafetyDemoData();
+  const closeOuts = useWorkCloseouts({ limit: 100 });
   const currentEmployee = useSafetyCurrentEmployee();
   const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
   const isCurrentEmployeeName = (name: string) =>
     Boolean(currentEmployeeName) &&
     name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
   const requests = sortByLatestSafetyActivity(
-    workCloseOuts.filter(
+    (closeOuts.data ?? []).filter(
       (request) =>
         request.status !== "draft" &&
         (scope === "admin" || isCurrentEmployeeName(request.requester.name)),
@@ -74,7 +78,7 @@ export default function WorkCloseOutRequestsTable({
     <DataTable
       columns={columns}
       data={requests}
-      isLoading={currentEmployee.isLoading}
+      isLoading={currentEmployee.isLoading || closeOuts.isLoading}
       rowHref={(request) =>
         scope === "admin"
           ? getAdminWorkCloseOutHref(request)

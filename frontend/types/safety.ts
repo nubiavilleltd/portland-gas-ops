@@ -215,6 +215,8 @@ export type WorkCloseOutStatus =
 
 export interface ApprovedWorkAuthorizationOption {
   id: string;
+  reference?: string;
+  relatedIncidentHazardId?: string;
   title: string;
   status: "approved";
   requester: string;
@@ -280,6 +282,7 @@ export interface WorkCloseOutHseApproval {
 
 export interface WorkCloseOutRequest {
   id: string;
+  reference?: string;
   status: WorkCloseOutStatus;
   title: string;
   requester: WorkAuthorizationRequester;
