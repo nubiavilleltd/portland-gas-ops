@@ -99,9 +99,9 @@ class CustomerResponse(BaseModel):
     customer_no: str
     name: str
     type: CustomerType
-    email: str | None
-    phone: str | None
-    address: str | None
+    email: str
+    phone: str
+    address: str
     status: CustomerStatus
     created_at: datetime
     updated_at: datetime

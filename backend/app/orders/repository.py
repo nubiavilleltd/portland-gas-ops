@@ -149,3 +149,15 @@ class OrderRepository:
         db.flush()
 
         return order
+    
+    def list_by_customer(
+        self,
+        db: Session,
+        customer_id: str,
+    ) -> List[Order]:
+        return (
+            db.query(Order)
+            .filter(Order.customer_id == customer_id)
+            .order_by(Order.created_at.desc())
+            .all()
+        )

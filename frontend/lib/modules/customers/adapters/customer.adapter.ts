@@ -33,9 +33,9 @@ interface BackendCustomer {
     customer_no: string;
     type: BackendCustomerType;
     name: string;
-    email: string | null;
-    phone: string | null;
-    address: string | null;
+    email: string;
+    phone: string;
+    address: string;
     status: BackendCustomerStatus;
     created_at: string;
     updated_at: string;
@@ -70,11 +70,12 @@ export function adaptCustomer(raw: BackendCustomer): Customer {
         customerNo: raw.customer_no,
         name: raw.name,
         type: mapType(raw.type),
-        phone: raw.phone ?? "",
-        email: raw.email ?? "",
-        address: raw.address ?? "",
+        phone: raw.phone,
+        email: raw.email,
+        address: raw.address,
         status: mapStatus(raw.status),
         createdAt: raw.created_at,   // snake_case → camelCase
+        updatedAt: raw.updated_at,
     };
 }
 

@@ -23,10 +23,22 @@ import { useCustomerByNo } from "@/lib/modules/customers/hooks/useCustomers";
 import { CustomersService } from "@/lib/modules/customers/services/customers.service";
 import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
 import { parseError } from "@/lib/errors";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCurrency } from "@/lib/utils";
 import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
 import { useToggleCustomerStatus } from "@/lib/modules/customers/hooks/useCustomerMutations";
+
+import SimpleTable, {
+  SimpleTableColumn,
+} from "@/components/ui/SimpleTable";
+
+import { useCustomerOrders } from "@/lib/modules/customers/hooks/useCustomers";
+
+import { ORDER_ROUTES } from "@/lib/routes";
+
+
+import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
+import { Order } from "@/lib/modules/orders/types/orders.types";
 
 
 
@@ -37,10 +49,58 @@ export default function CustomerDetailPage() {
   const customerNo = params.id as string;
 
   const { customer, isLoading, error } = useCustomerByNo(customerNo);
+  const {
+  orders,
+  isLoading: loadingOrders,
+} = useCustomerOrders(customerNo);
   // const [isToggling, setIsToggling] = useState(false);
 
   const isActive = customer?.status === "active"
   const { mutate: toggleStatus, isPending: isToggling } = useToggleCustomerStatus(customerNo);
+
+  const orderColumns: SimpleTableColumn<Order>[] = [
+    {
+      label: "Order No",
+      render: (order) => (
+        <span className="font-medium">
+          {order.orderNumber}
+        </span>
+      ),
+    },
+
+    {
+      label: "Date",
+      render: (order) => formatDate(order.createdAt),
+    },
+
+    {
+      label: "Status",
+      render: (order) => (
+        <OrderStatusBadge status={order.orderStatus} />
+      ),
+    },
+
+    {
+      label: "Amount",
+      align: "right",
+      render: (order) =>
+        formatCurrency(order.totalAmount),
+    },
+
+    {
+      label: "",
+      align: "right",
+      render: (order) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          href={ORDER_ROUTES.detail(order.orderNumber)}
+        >
+          View
+        </Button>
+      ),
+    },
+  ];
 
   // ── Loading skeleton ──────────────────────────────────
   if (isLoading) {
@@ -72,7 +132,7 @@ export default function CustomerDetailPage() {
 
 
 
- 
+
 
   // ── Render ────────────────────────────────────────────
   return (
@@ -130,34 +190,6 @@ export default function CustomerDetailPage() {
         </div>
       </div>
 
-      {/* Details card */}
-      {/* <div className="bg-white border border-brand-border rounded-2xl p-6">
-        <DetailRow
-          icon={
-            customer.type === "corporate"
-              ? <Building2 size={16} />
-              : <User size={16} />
-          }
-          label="Type"
-          value={customer.type === "corporate" ? "Corporate" : "Individual"}
-        />
-        <DetailRow
-          icon={<Phone size={16} />}
-          label="Phone"
-          value={customer.phone}
-        />
-        <DetailRow
-          icon={<Mail size={16} />}
-          label="Email"
-          value={customer.email}
-        />
-        <DetailRow
-          icon={<MapPin size={16} />}
-          label="Address"
-          value={customer.address}
-        />
-      </div> */}
-
       <FormSection
         title="Customer Details"
         description="View customer information and contact details"
@@ -190,6 +222,20 @@ export default function CustomerDetailPage() {
           />
         </div>
 
+      </FormSection>
+
+      <FormSection
+        title="Order History"
+        description="Orders placed by this customer"
+        className="mt-4"
+      >
+        <SimpleTable
+          columns={orderColumns}
+          rows={orders}
+          // loading={loadingOrders}
+          emptyMessage="This customer has not placed any orders yet."
+          keyExtractor={(o) => o.id}
+        />
       </FormSection>
     </AppLayout>
   );

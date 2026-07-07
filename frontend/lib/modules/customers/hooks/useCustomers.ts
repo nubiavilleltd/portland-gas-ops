@@ -56,3 +56,17 @@ export function useCustomerSelectOptions() {
     refetch,
   };
 }
+
+export function useCustomerOrders(customerNo: string) {
+  const query = useQuery({
+    queryKey: CUSTOMER_KEYS.orders(customerNo),
+    queryFn: () => CustomersService.getCustomerOrders(customerNo),
+  });
+
+  return {
+    orders: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}

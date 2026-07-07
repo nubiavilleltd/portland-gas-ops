@@ -219,3 +219,11 @@ class OrderService:
 
     def set_invoice(self, db: Session, order: Order, invoice_id: str) -> Order:
         return self.repo.update(db, order, invoice_id=invoice_id)
+    
+    
+    def list_for_customer(
+        self,
+        db: Session,
+        customer_id: str,
+    ):
+        return self.repo.list_by_customer(db, customer_id)
