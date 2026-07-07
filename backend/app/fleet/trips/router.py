@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from backend.app.fleet.trips.workflows.mark_ready_workflow import MarkReadyWorkflow
+from app.fleet.trips.workflows.mark_ready_workflow import MarkReadyWorkflow
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -18,11 +18,12 @@ from app.fleet.trips.enums import TripStatus
 
 from app.fleet.trips.schema import (
     TripCreate,
+    TripAssignResources,
+    TripCancel,
+    TripComplete,
+    TripAddOrder,
     TripResponse,
-    AssignResourcesRequest,
-    CancelTripRequest,
-    CompleteTripRequest,
-    AddOrderToTripRequest,
+    TripListResponse,
 )
 
 from app.fleet.trips.service import TripService
@@ -153,7 +154,7 @@ def create_trip(
 )
 def assign_resources(
     trip_id: int,
-    data: AssignResourcesRequest,
+    data: TripAssignResources,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -253,7 +254,7 @@ def start_trip(
 )
 def complete_trip(
     trip_id: int,
-    data: CompleteTripRequest,
+    data: TripComplete,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -281,7 +282,7 @@ def complete_trip(
 )
 def cancel_trip(
     trip_id: int,
-    data: CancelTripRequest,
+    data: TripCancel,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -309,7 +310,7 @@ def cancel_trip(
 )
 def add_order_to_trip(
     trip_id: int,
-    data: AddOrderToTripRequest,
+    data: TripAddOrder,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(

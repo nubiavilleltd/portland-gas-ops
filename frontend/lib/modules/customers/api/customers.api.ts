@@ -43,4 +43,11 @@ export const customersApi = {
         const { data } = await api.post(`/api/customers/${customerNo}/deactivate`);
         return data;
     },
+    listOrders: async (customerNo: string) => {
+        const { data } = await api.get(
+            `/api/customers/${customerNo}/orders`
+        );
+
+        return data;
+    },
 };

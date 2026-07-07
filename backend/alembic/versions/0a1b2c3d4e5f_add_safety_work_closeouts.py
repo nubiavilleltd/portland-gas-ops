@@ -1,7 +1,7 @@
 """add safety work closeouts
 
 Revision ID: 0a1b2c3d4e5f
-Revises: 7863f1e40518
+Revises: b1c2d3e4f5a6
 Create Date: 2026-07-03
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import mysql
 
 
 revision: str = "0a1b2c3d4e5f"
-down_revision: Union[str, None] = "7863f1e40518"
+down_revision: Union[str, None] = "b1c2d3e4f5a6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
