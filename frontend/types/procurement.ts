@@ -6,7 +6,8 @@ export type ProcurementStatus =
   | "approved"
   | "rejected"
   | "returned"
-  | "po_issued";
+  | "awaiting_confirmation"
+  | "completed";
 
 export type POStatus = "issued" | "delivered" | "cancelled";
 
@@ -61,6 +62,7 @@ export interface PurchaseOrder {
   status: POStatus;
   notes: string | null;
   document_id: number | null;
+  document: { id: number; file_path: string | null; name: string } | null;
   vendor: VendorInProcurement | null;
   issuer: EmployeeInProcurement | null;
 }
@@ -85,6 +87,9 @@ export interface ProcurementRequest {
   vendor: VendorInProcurement | null;
   items: ProcurementItem[];
   purchase_orders: PurchaseOrder[];
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
 }
 
 /** Lighter type for list views */
@@ -103,6 +108,11 @@ export interface ProcurementListItem {
   updated_at: string | null;
   raiser: EmployeeInProcurement | null;
   vendor: VendorInProcurement | null;
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
+  /** PO document download URL — set when a PO with a document exists */
+  po_document_url: string | null;
 }
 
 export interface ProcurementItemInput {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -16,7 +16,8 @@ const STATUS_OPTIONS = [
   { value: "draft",     label: "Draft" },
   { value: "pending",   label: "Pending Approval" },
   { value: "approved",  label: "Approved" },
-  { value: "po_issued", label: "PO Issued" },
+  { value: "awaiting_confirmation", label: "Awaiting Confirmation" },
+  { value: "completed", label: "Completed" },
   { value: "rejected",  label: "Rejected" },
   { value: "returned",  label: "Returned" },
 ];
@@ -57,6 +58,40 @@ const columns: Column<ProcurementListItem>[] = [
     key: "status",
     label: "Status",
     render: (v) => <ApprovalBadge status={String(v)} />,
+  },
+  {
+    key: "po_document_url",
+    label: "PO",
+    render: (_, row) =>
+      row.po_document_url ? (
+        <a
+          href={row.po_document_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-purple-50 text-brand-purple hover:bg-purple-100 transition-colors"
+          title="Download Purchase Order"
+        >
+          <Download size={14} />
+        </a>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
+  {
+    key: "next_actor_name",
+    label: "Next Actor",
+    render: (_, row) =>
+      row.next_actor_name ? (
+        <div>
+          <p className="text-sm text-brand-text-primary">{row.next_actor_name}</p>
+          {row.current_step_name && (
+            <p className="text-xs text-brand-text-secondary">{row.current_step_name}</p>
+          )}
+        </div>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
   },
 ];
 
