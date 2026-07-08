@@ -30,6 +30,24 @@ class InventoryService:
     def __init__(self):
         self.repo = InventoryRepository()
 
+    def create_location(
+        self,
+        db: Session,
+        *,
+        name: str,
+        address: str | None = None,
+        is_default: bool = False,
+    ):
+        location_no = self.repo.generate_location_no(db)
+
+        return self.repo.create_location(
+            db=db,
+            location_no=location_no,
+            name=name,
+            address=address,
+            is_default=is_default,
+        )
+
     # -------------------------------------------------------------------------
     # Retrieval
     # -------------------------------------------------------------------------
@@ -332,9 +350,11 @@ class InventoryService:
                     f"(required {quantity}, found {len(available_items)})."
                 ),
             )
+        movement_no = self.repo.generate_movement_no(db)
 
         movement = self.repo.create_stock_movement(
             db=db,
+            movement_no=movement_no,
             product_id=product_id,
             movement_type=MovementType.check_out,
             quantity=Decimal(quantity),

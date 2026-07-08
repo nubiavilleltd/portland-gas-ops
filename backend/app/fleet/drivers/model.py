@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 
 from sqlalchemy import (
     Column,
@@ -15,12 +16,14 @@ from sqlalchemy.dialects.mysql import CHAR
 
 from app.core.database import Base
 from app.fleet.drivers.enums import DriverStatus
+import uuid
 
 
 class Driver(Base):
     __tablename__ = "drivers"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    driver_no = Column(String(50), unique=True, nullable=False)
 
     employee_id = Column(
         CHAR(36),
