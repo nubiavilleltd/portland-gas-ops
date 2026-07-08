@@ -6,9 +6,6 @@ import Button from "@/components/ui/Button";
 
 // import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
 
-
-
-
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
 import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
@@ -51,37 +48,29 @@ const columns: Column<Vehicle>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => (
-      <FleetStatusBadge status={value as Vehicle["status"]} />
-    ),
+    render: (value) => <FleetStatusBadge status={value as Vehicle["status"]} />,
   },
 ];
 
 // Replace the entire <div className="bg-white border ..."> block with:
 
-
-
 export default function VehiclesPage() {
-  const {vehicles} = useVehicles();
+  const { vehicles } = useVehicles();
 
   return (
     <AppLayout pageTitle="Vehicles">
       <PageHeader
         title="All Vehicles"
         description="View all operational fleet vehicles"
-        action={
-          <Button href="/admin/fleet/vehicles/new">
-            Add Vehicle
-          </Button>
-        }
+        action={<Button href="/admin/fleet/vehicles/new">Add Vehicle</Button>}
       />
 
       <DataTable<Vehicle>
-  columns={columns}
-  data={vehicles}
-  rowHref={(vehicle) => `/admin/fleet/vehicles/${vehicle.id}`}
-  emptyMessage="No vehicles found."
-/>
+        columns={columns}
+        data={vehicles}
+        rowHref={(vehicle) => `/admin/fleet/vehicles/${vehicle.id}`}
+        emptyMessage="No vehicles found."
+      />
     </AppLayout>
   );
 }

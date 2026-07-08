@@ -128,7 +128,7 @@ export default function InvoiceDetailPage() {
     },
     {
       label: "Date",
-      render: (payment) => formatDate(payment.date),
+      render: (payment) => formatDate(payment.paymentDate),
     },
     {
       label: "Method",
