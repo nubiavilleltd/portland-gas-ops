@@ -27,6 +27,7 @@ import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 export default function OrdersListPage() {
 
   const { orders } = useOrders()
+  console.log("orders", orders)
   const { customers } = useCustomers()
   const { kpis } = useOrderKPIs()
 
@@ -43,12 +44,10 @@ export default function OrdersListPage() {
     { key: "orderNumber", label: "ORDER NO." },
 
     {
-      key: "customer_id", label: "CUSTOMER", render: (value) =>
-        customerMap[value as string]
-          ?.name ?? "—"
+      key: "customerName", label: "CUSTOMER"
     },
 
-    { key: "orderType", label: "TYPE" },
+    // { key: "orderType", label: "TYPE" },
 
     {
       key: "totalAmount",

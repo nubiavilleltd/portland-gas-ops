@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 
 from sqlalchemy import (
     Column,
@@ -21,9 +22,8 @@ from app.fleet.trips.enums import TripStatus, TripType
 class Trip(Base):
     __tablename__ = "trips"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-
-    trip_no = Column(String(50), unique=True, nullable=True)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_no = Column(String(50), unique=True, nullable=False)
 
     trip_type = Column(
         SAEnum(TripType),
@@ -32,13 +32,13 @@ class Trip(Base):
     )
 
     driver_id = Column(
-        Integer,
+        CHAR(36),
         ForeignKey("drivers.id", ondelete="SET NULL"),
         nullable=True,
     )
 
     vehicle_id = Column(
-        Integer,
+        CHAR(36),
         ForeignKey("vehicles.id", ondelete="SET NULL"),
         nullable=True,
     )
@@ -99,7 +99,7 @@ class TripOrder(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     trip_id = Column(
-        Integer,
+        CHAR(36),
         ForeignKey("trips.id", ondelete="CASCADE"),
         nullable=False,
     )

@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from app.shared.utils.number_generator import generate_entity_no
 from sqlalchemy.orm import Session, joinedload
 
 from app.fleet.drivers.model import Driver
 
 
 class DriverRepository:
+
+    def generate_driver_no(self, db: Session) -> str:
+        return generate_entity_no(db, Driver, "driver_no", "DRV")
 
     def get_by_id(self, db: Session, driver_id: int) -> Optional[Driver]:
         return (

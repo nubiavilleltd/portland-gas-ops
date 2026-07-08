@@ -105,26 +105,6 @@ def activate_customer(
     "/{customer_no}/orders",
     response_model=OrderListResponse,
 )
-def get_customer_orders(
-    customer_no: str,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return order_service.list_for_customer(
-        db=db,
-        customer_no=customer_no,
-        page=page,
-        page_size=page_size,
-    )
-
-
-
-@router.get(
-    "/{customer_no}/orders",
-    response_model=OrderListResponse,
-)
 def customer_orders(
     customer_no: str,
     db: Session = Depends(get_db),
