@@ -147,6 +147,11 @@ from app.inventory.validators import (
 # Warehouse Locations
 # ============================================================================
 
+class CreateLocationInput(BaseModel):
+    name: str
+    address: str | None = None
+    is_default: bool = False
+
 class LocationResponse(BaseModel):
     id: int
     name: str

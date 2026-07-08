@@ -64,9 +64,12 @@ class DriverService:
                 DriverErrorCode.LICENSE_NUMBER_ALREADY_EXISTS,
                 "License number already exists.",
             )
+        
+        driver_no = self.repo.generate_driver_no(db)
 
         return self.repo.create(
             db,
+            driver_no=driver_no,
             employee_id=data.employee_id,
             license_number=data.license_number,
             license_expiry_date=data.license_expiry_date,

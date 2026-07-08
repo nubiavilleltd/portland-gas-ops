@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 
 from sqlalchemy import (
     Column,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     String,
 )
 from sqlalchemy.sql import func
+from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -20,9 +22,8 @@ from app.fleet.vehicles.enums import VehicleStatus, VehicleType
 class Vehicle(Base):
     __tablename__ = "vehicles"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-
-    vehicle_no = Column(String(50), unique=True, nullable=True)
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    vehicle_no = Column(String(50), unique=True, nullable=False)
     plate_number = Column(String(50), unique=True, nullable=False)
 
     name = Column(String(255), nullable=False)

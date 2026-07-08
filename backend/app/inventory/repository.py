@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
+from app.shared.utils.number_generator import generate_entity_no
 
 from app.inventory.enums import InventoryItemStatus, MovementType
 from app.inventory.model import (
@@ -22,6 +23,28 @@ class InventoryRepository:
     # -------------------------------------------------------------------------
     # Warehouse Locations
     # -------------------------------------------------------------------------
+
+    def generate_location_no(
+        self,
+        db: Session,
+    ) -> str:
+        return generate_entity_no(
+            db=db,
+            model=WarehouseLocation,
+            field_name="location_no",
+            prefix="LOC",
+        )
+    
+    def generate_movement_no(
+        self,
+        db: Session,
+    ) -> str:
+        return generate_entity_no(
+            db=db,
+            model=StockMovement,
+            field_name="movement_no",
+            prefix="MOV",
+        )
 
     def list_locations(self, db: Session) -> List[WarehouseLocation]:
         return (
