@@ -10,8 +10,8 @@ export function canCreateTrip(): boolean {
 
 export function canLinkOrderToTrip(order: Order): boolean {
   return (
-    order.order_status === "confirmed" &&
-    order.fulfillment_status === "pending"
+    order.orderStatus === "confirmed" &&
+    order.fulfillmentStatus === "pending"
   );
 }
 

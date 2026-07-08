@@ -10,7 +10,11 @@ export type PaymentStatus =
 export interface Payment {
   id: string;
 
-  invoice_id: string;
+  paymentNo: string;
+
+  invoiceId: string;
+
+  invoiceNo: string;
 
   reference: string;
 
@@ -18,9 +22,11 @@ export interface Payment {
 
   method: PaymentMethod;
 
-  date: string;
+  paymentDate: string;
 
-  recorded_by: string;
+  recordedBy: string;
+
+  createdAt: string;
 }
 
 

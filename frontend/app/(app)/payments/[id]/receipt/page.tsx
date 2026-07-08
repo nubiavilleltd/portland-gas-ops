@@ -24,9 +24,9 @@ export default function PaymentReceiptPage() {
   const [downloading, setDownloading] = useState(false);
 
   const { payment, isLoading: paymentLoading, error } = usePaymentById(id);
-  const { invoice, isLoading: invoiceLoading } = useInvoiceById(payment?.invoice_id ?? "");
+  const { invoice, isLoading: invoiceLoading } = useInvoiceById(payment?.invoiceId ?? "");
   const { order } = useOrderById(invoice?.order_id ?? "");
-  const { payments: allInvoicePayments } = usePaymentsByInvoice(payment?.invoice_id ?? "");
+  const { payments: allInvoicePayments } = usePaymentsByInvoice(payment?.invoiceId ?? "");
   const { customers } = useCustomers();
 
   const customer = order ? customers.find((c) => c.id === order.customerId) : undefined;
@@ -62,7 +62,7 @@ export default function PaymentReceiptPage() {
 
   // ── Calculate cumulative amounts ──────────────────────────
   const sortedPayments = [...allInvoicePayments].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
   );
   const thisPaymentIndex = sortedPayments.findIndex((p) => p.id === payment.id);
   const paymentsUpToThis = sortedPayments.slice(0, thisPaymentIndex + 1);
@@ -139,7 +139,7 @@ export default function PaymentReceiptPage() {
         >
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
             <InfoRow label="Reference" value={payment.reference} mono />
-            <InfoRow label="Date" value={formatDate(payment.date)} />
+            <InfoRow label="Date" value={formatDate(payment.paymentDate)} />
             <InfoRow label="Method" value={formatPaymentMethodLabel(payment.method)} />
             <div className="col-span-2 md:col-span-3">
               <p className="text-xs text-brand-text-secondary">Amount Received</p>
@@ -221,7 +221,7 @@ export default function PaymentReceiptPage() {
                           </span>
                         )}
                       </td>
-                      <td className="py-3">{formatDate(p.date)}</td>
+                      <td className="py-3">{formatDate(p.paymentDate)}</td>
                       <td className="py-3">{formatPaymentMethodLabel(p.method)}</td>
                       <td className="py-3 text-right font-medium">{formatCurrency(p.amount)}</td>
                       <td className="py-3 text-right">

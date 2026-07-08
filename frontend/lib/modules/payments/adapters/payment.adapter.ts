@@ -1,5 +1,4 @@
-import type { Payment } from "../types/payments.types";
-import type { PaymentMethod } from "../types/payments.types";
+import type { Payment, PaymentMethod } from "../types/payments.types";
 
 interface BackendPayment {
     id: string;
@@ -23,17 +22,28 @@ interface BackendPaymentList {
 }
 
 export function adaptPayment(raw: BackendPayment): Payment {
-    return {
-        id: raw.payment_no ?? raw.id,
-        invoice_id: raw.invoice_no ?? raw.invoice_id,  // use invoice_no for frontend navigation
-        reference: raw.reference ?? raw.payment_no ?? raw.id,
-        amount: Number(raw.amount),
-        method: raw.method as PaymentMethod,
-        date: raw.payment_date,
-        recorded_by: raw.recorded_by,
-    };
-}
+  return {
+    id: raw.id,
 
+    paymentNo: raw.payment_no ?? raw.id,
+
+    invoiceId: raw.invoice_id,
+
+    invoiceNo: raw.invoice_no ?? raw.invoice_id,
+
+    reference: raw.reference ?? raw.payment_no ?? raw.id,
+
+    amount: Number(raw.amount),
+
+    method: raw.method as PaymentMethod,
+
+    paymentDate: raw.payment_date,
+
+    recordedBy: raw.recorded_by,
+
+    createdAt: raw.created_at,
+  };
+}
 export function adaptPaymentList(raw: BackendPaymentList): Payment[] {
     return raw.items.map(adaptPayment);
 }

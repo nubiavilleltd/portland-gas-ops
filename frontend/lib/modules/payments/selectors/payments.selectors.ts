@@ -20,7 +20,7 @@ export function getPaymentsByInvoice(
   payments: Payment[],
   invoiceId: string
 ): Payment[] {
-  return payments.filter((p) => p.invoice_id === invoiceId);
+  return payments.filter((p) => p.invoiceId === invoiceId);
 }
 
  

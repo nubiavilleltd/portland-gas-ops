@@ -3,7 +3,8 @@
 
 import { Driver } from "../types/driver.types";
 import { Trip } from "../types/trip.types";
-import { Vehicle } from "../types/vehicle.types";
+import { Vehicle, VehicleType } from "../types/vehicle.types";
+import type { VehicleFormValues } from "../components/VehicleForm";
 
 interface BackendDriver {
     id: number;
@@ -40,6 +41,52 @@ interface BackendVehicle {
     insurance_expiry_date: string;
     roadworthiness_expiry_date: string;
     created_at: string;
+}
+
+export interface CreateVehicleRequest {
+  name: string;
+  plate_number: string;
+
+  type: VehicleType;
+
+  make?: string;
+  model?: string;
+  year?: number;
+
+  capacity?: number;
+
+  fuel_type: string;
+
+  mileage?: number;
+
+  last_service_date?: string;
+  next_service_date?: string;
+  insurance_expiry_date?: string;
+
+  image?: File;
+}
+
+export interface UpdateVehicleRequest {
+  name?: string;
+  plate_number?: string;
+
+  type?: VehicleType;
+
+  make?: string;
+  model?: string;
+  year?: number;
+
+  capacity?: number;
+
+  fuel_type?: string;
+
+  mileage?: number;
+
+  last_service_date?: string;
+  next_service_date?: string;
+  insurance_expiry_date?: string;
+
+  image?: File;
 }
 
 interface BackendTrip {
@@ -126,4 +173,72 @@ export function adaptTrip(raw: BackendTrip): Trip {
         cancelled_at: raw.cancelled_at ?? undefined,
         created_at: raw.created_at,
     };
+}
+
+
+export function adaptCreateVehicleRequest(
+  input: VehicleFormValues
+): CreateVehicleRequest {
+  return {
+    name: input.name,
+    plate_number: input.plate_number,
+
+    type: input.type,
+
+    make: input.make || undefined,
+    model: input.model || undefined,
+
+    year: input.year ? Number(input.year) : undefined,
+
+    capacity: input.capacity
+      ? Number(input.capacity)
+      : undefined,
+
+    fuel_type: input.fuel_type,
+
+    mileage: input.mileage
+      ? Number(input.mileage)
+      : undefined,
+
+    last_service_date: input.last_service_date || undefined,
+    next_service_date: input.next_service_date || undefined,
+    insurance_expiry_date:
+      input.insurance_expiry_date || undefined,
+
+    image: input.image,
+  };
+}
+
+
+export function adaptUpdateVehicleRequest(
+  input: VehicleFormValues
+): UpdateVehicleRequest {
+  return {
+    name: input.name,
+    plate_number: input.plate_number,
+
+    type: input.type,
+
+    make: input.make || undefined,
+    model: input.model || undefined,
+
+    year: input.year ? Number(input.year) : undefined,
+
+    capacity: input.capacity
+      ? Number(input.capacity)
+      : undefined,
+
+    fuel_type: input.fuel_type,
+
+    mileage: input.mileage
+      ? Number(input.mileage)
+      : undefined,
+
+    last_service_date: input.last_service_date || undefined,
+    next_service_date: input.next_service_date || undefined,
+    insurance_expiry_date:
+      input.insurance_expiry_date || undefined,
+
+    image: input.image || undefined,
+  };
 }

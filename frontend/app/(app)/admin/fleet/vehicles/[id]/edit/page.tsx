@@ -14,6 +14,10 @@ import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
 
+import { adaptUpdateVehicleRequest } from "@/lib/modules/fleet/adapters/fleet.adapter";
+
+
+
 export default function EditVehiclePage() {
   const params = useParams();
   const router = useRouter();
@@ -29,29 +33,16 @@ export default function EditVehiclePage() {
   }
 
 
-  async function handleSubmit(data: VehicleFormValues) {
-    await VehiclesService.updateVehicle(id, {
-      name: data.name,
-      plate_number: data.plate_number,
-      type: data.type as Vehicle["type"],
-      make: data.make,
-      model: data.model,
-      year: Number(data.year),
-      image: data.image || undefined,
-      capacity: data.capacity ? Number(data.capacity) : undefined,
-      fuel_type: data.fuel_type,
-      mileage: data.mileage ? Number(data.mileage) : undefined,
-      last_service_date: data.last_service_date,
-      next_service_date: data.next_service_date,
-      insurance_expiry_date: data.insurance_expiry_date,
-      roadworthiness_expiry_date: data.roadworthiness_expiry_date,
-    });
+async function handleSubmit(data: VehicleFormValues) {
+  await VehiclesService.updateVehicle(
+    id,
+    adaptUpdateVehicleRequest(data)
+  );
 
-    toast.success("Vehicle successfully updated")
+  toast.success("Vehicle successfully updated");
 
-    router.push(`/admin/fleet/vehicles/${id}`);
-  }
-
+  router.push(`/admin/fleet/vehicles/${id}`);
+}
   return (
     <AppLayout pageTitle="Edit Vehicle">
 
@@ -72,7 +63,7 @@ export default function EditVehiclePage() {
           make: vehicle.make,
           model: vehicle.model,
           year: String(vehicle.year),
-          image: vehicle.image ?? "",
+          existingImage: vehicle.image,
           capacity: vehicle.capacity ? String(vehicle.capacity) : "",
           fuel_type: vehicle.fuel_type,
           mileage: vehicle.mileage ? String(vehicle.mileage) : "",

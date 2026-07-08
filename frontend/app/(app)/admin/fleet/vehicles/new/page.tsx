@@ -12,30 +12,17 @@ import { VehiclesService } from "@/lib/modules/fleet/services/vehicles.service";
 import { toast } from "sonner";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { BackButton } from "@/components/ui/BackButton";
+import { adaptCreateVehicleRequest } from "@/lib/modules/fleet/adapters/fleet.adapter";
 
 export default function AddVehiclePage() {
   const router = useRouter();
 
-  async function handleSubmit(data: VehicleFormValues) {
-  const newVehicle = await VehiclesService.createVehicle({
-    name: data.name,
-    plate_number: data.plate_number,
-    type: data.type as Vehicle["type"],
-    make: data.make,
-    model: data.model,
-    year: Number(data.year),
-    image: data.image || undefined,
-    capacity: data.capacity ? Number(data.capacity) : undefined,
-    fuel_type: data.fuel_type,
-    mileage: data.mileage ? Number(data.mileage) : undefined,
-    last_service_date: data.last_service_date,
-    next_service_date: data.next_service_date,
-    insurance_expiry_date: data.insurance_expiry_date,
-    roadworthiness_expiry_date: data.roadworthiness_expiry_date,
-    status: "available",
-  });
+async function handleSubmit(data: VehicleFormValues) {
+  await VehiclesService.createVehicle(
+    adaptCreateVehicleRequest(data)
+  );
 
-  toast.success("Vehicle successfully created")
+  toast.success("Vehicle successfully created");
 
   router.push(`/admin/${FLEET_ROUTES.vehicleList()}`);
 }
