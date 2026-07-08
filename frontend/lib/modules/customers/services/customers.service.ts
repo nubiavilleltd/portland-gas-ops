@@ -5,11 +5,11 @@
 //  the adapter translates backend shapes to frontend shapes.
 // ============================================================
 
-import api from "@/lib/api";
 import { adaptCustomer, adaptCustomerList } from "../adapters/customer.adapter";
 import { getErrorMessage } from "@/lib/api/error";
 import type { Customer, CreateCustomerInput, UpdateCustomerInput } from "../types/customer.types";
 import { customersApi } from "../api/customers.api";
+import { adaptOrderList } from "../../orders/adapters/order.adapter";
 
 export class CustomersService {
   // ── READ ────────────────────────────────────────────────
@@ -18,6 +18,17 @@ export class CustomersService {
     const raw = await customersApi.list();
     return adaptCustomerList(raw);
   }
+
+  static async getCustomer(customerNo: string): Promise<Customer> {
+    const raw = await customersApi.get(customerNo);
+    return adaptCustomer(raw);
+}
+
+static async getCustomerOrders(customerNo: string) {
+    const raw = await customersApi.listOrders(customerNo);
+
+    return adaptOrderList(raw);
+}
 
   // ── CREATE ──────────────────────────────────────────────
 
@@ -39,7 +50,7 @@ export class CustomersService {
   ): Promise<Customer> {
     try {
       const raw = await customersApi.update(customerNo, input);
-      return adaptCustomer(raw);;
+      return adaptCustomer(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to update customer"));
     }

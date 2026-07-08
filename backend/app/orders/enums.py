@@ -15,7 +15,3 @@ class FulfillmentStatus(str, Enum):
     in_transit = "in_transit"
     delivered  = "delivered"
     failed     = "failed"
-
-class DispositionStatus(str, Enum):
-    sold   = "sold"
-    loaned = "loaned"

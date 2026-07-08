@@ -32,7 +32,10 @@ from app.inventory.model import (                             # noqa: F401
     WarehouseLocation, InventoryItem, ConsumableStock,
     StockMovement, StockMovementItem, OrderItemInventory,
 )
-from app.fleet.model import Driver, Vehicle, Trip, TripOrder  # noqa: F401
+from app.fleet.drivers.model import Driver # noqa: F401
+from app.fleet.vehicles.model import Vehicle # noqa: F401
+from app.fleet.trips.model import Trip, TripOrder  # noqa: F401
+
 
 config = context.config
 

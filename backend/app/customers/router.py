@@ -11,9 +11,13 @@ from app.customers.schema import (
 )
 from app.customers.enums import CustomerType, CustomerStatus
 from app.shared.models.user import User
+from app.orders.schema import OrderListResponse
+from app.orders.service import OrderService
+
 
 router = APIRouter()
 service = CustomerService()
+order_service = OrderService()
 
 
 @router.get("/", response_model=CustomerListResponse)
@@ -95,3 +99,45 @@ def activate_customer(
     db.commit()
     db.refresh(customer)
     return customer
+
+
+@router.get(
+    "/{customer_no}/orders",
+    response_model=OrderListResponse,
+)
+def get_customer_orders(
+    customer_no: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return order_service.list_for_customer(
+        db=db,
+        customer_no=customer_no,
+        page=page,
+        page_size=page_size,
+    )
+
+
+
+@router.get(
+    "/{customer_no}/orders",
+    response_model=OrderListResponse,
+)
+def customer_orders(
+    customer_no: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    customer = service.get_by_no_or_raise(db, customer_no)
+
+    orders = order_service.list_for_customer(db, customer.id)
+
+    return OrderListResponse(
+        items=orders,
+        total=len(orders),
+        page=1,
+        page_size=len(orders),
+        has_next=False,
+    )

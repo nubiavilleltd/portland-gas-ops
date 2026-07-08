@@ -1,6 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 
+
 class InvoiceErrorCode(str, Enum):
     INVOICE_NOT_FOUND        = "INVOICE_NOT_FOUND"
     INVOICE_ALREADY_PAID     = "INVOICE_ALREADY_PAID"

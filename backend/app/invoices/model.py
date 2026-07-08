@@ -22,6 +22,7 @@ class Invoice(Base):
     created_by = Column(CHAR(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    paid_at = Column(DateTime(timezone=True), nullable=True)
 
-    order    = relationship("Order", foreign_keys=[order_id])
+    order = relationship("Order", foreign_keys=[order_id], uselist=False)
     payments = relationship("Payment", back_populates="invoice")

@@ -15,13 +15,13 @@ class Customer(Base):
     customer_no = Column(String(50), unique=True, nullable=False, index=True)
     name        = Column(String(255), nullable=False, index=True)
     type        = Column(SAEnum(CustomerType), nullable=False, default=CustomerType.corporate)
-    email       = Column(String(255), unique=True, nullable=True, index=True)
-    phone       = Column(String(50), nullable=True)
-    address     = Column(String(500), nullable=True)
+    email       = Column(String(255), unique=True, nullable=False, index=True)
+    phone       = Column(String(50), nullable=False)
+    address     = Column(String(500), nullable=False)
     status      = Column(SAEnum(CustomerStatus), nullable=False, default=CustomerStatus.active, index=True)
 
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships (added as domain tables are created)
-    # orders = relationship("Order", back_populates="customer")
+    orders = relationship("Order", back_populates="customer")
