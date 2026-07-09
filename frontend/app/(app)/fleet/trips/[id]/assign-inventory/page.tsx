@@ -11,7 +11,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { useInventoryItems } from "@/lib/modules/inventory/hooks/useInventory";
@@ -91,10 +91,10 @@ function DispositionPicker({
 // ── Page ──────────────────────────────────────────────────
 export default function AssignInventoryPage() {
   const router = useRouter();
-  const { id } = useParams<{ id: string }>();
+  const { id:tripNo } = useParams<{ id: string }>();
   const assignInventory = useAssignInventoryWorkflow();
 
-  const { trip, isLoading: tripLoading } = useTripById(id);
+  const { trip, isLoading: tripLoading } = useTripByNo(tripNo);
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products, isLoading: productsLoading } = useProducts();
   const { customers, isLoading: customersLoading } = useCustomers();
@@ -142,7 +142,7 @@ export default function AssignInventoryPage() {
             This trip is not awaiting inventory assignment. Current status:{" "}
             <strong>{trip.status}</strong>
           </p>
-          <Button variant="outline" href={FLEET_ROUTES.tripDetail(id)}>
+          <Button variant="outline" href={FLEET_ROUTES.tripDetail(tripNo)}>
             Back to Trip
           </Button>
         </div>
@@ -167,16 +167,16 @@ export default function AssignInventoryPage() {
   // ── Derive all tracked line items across this trip ────────
   function getTrackedLineItems() {
     return tripOrders.flatMap((order) =>
-      (order?.order_items ?? [])
+      (order?.orderItems ?? [])
         .filter((lineItem) => {
-          const product = productMap.get(lineItem.product_id);
+          const product = productMap.get(lineItem.productId);
           return product && isTracked(product);
         })
         .map((lineItem) => ({
           order: order!,
           lineItem,
-          product:  productMap.get(lineItem.product_id)!,
-          key:      lineItemKey(order!.id, lineItem.product_id),
+          product:  productMap.get(lineItem.productId)!,
+          key:      lineItemKey(order!.id, lineItem.productId),
           required: Math.ceil(lineItem.quantity),
         }))
     );
@@ -208,7 +208,7 @@ export default function AssignInventoryPage() {
     const assignments = getTrackedLineItems()
       .map(({ order, lineItem, key }) => ({
         orderId:     order.id,
-        productId:   lineItem.product_id,
+        productId:   lineItem.productId,
         itemIds:     selection[key]?.itemIds ?? [],
         disposition: selection[key]?.disposition ?? "sold",
       }))
@@ -243,29 +243,29 @@ export default function AssignInventoryPage() {
               {/* Order header */}
               <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
                 <h2 className="text-sm font-semibold text-brand-text-primary">
-                  {order.order_number}
+                  {order.orderNumber}
                 </h2>
                 <p className="text-xs text-brand-text-secondary mt-0.5">
-                  {customerMap.get(order.customer_id)?.name ?? "-"}
+                  {customerMap.get(order.customerId)?.name ?? "-"}
                 </p>
               </div>
 
               {/* Line items */}
               <div className="p-6 space-y-4">
-                {order.order_items?.map((lineItem) => {
-                  const product = productMap.get(lineItem.product_id);
+                {order.orderItems?.map((lineItem) => {
+                  const product = productMap.get(lineItem.productId);
                   if (!product) return null;
 
                   if (!isTracked(product)) {
                     return (
                       <ConsumableLineItem
-                        key={lineItem.product_id}
+                        key={lineItem.productId}
                         productName={product.name}
                       />
                     );
                   }
 
-                  const key         = lineItemKey(order.id, lineItem.product_id);
+                  const key         = lineItemKey(order.id, lineItem.productId);
                   const selectedIds = selection[key]?.itemIds ?? [];
                   const disposition = selection[key]?.disposition ?? "sold";
                   const required    = Math.ceil(lineItem.quantity);
@@ -273,7 +273,7 @@ export default function AssignInventoryPage() {
 
                   return (
                     <div
-                      key={lineItem.product_id}
+                      key={lineItem.productId}
                       className="border border-brand-border rounded-xl overflow-hidden"
                     >
                       {/* Header */}
@@ -316,7 +316,7 @@ export default function AssignInventoryPage() {
                           onClick={() =>
                             setActivePicker({
                               orderId:     order.id,
-                              productId:   lineItem.product_id,
+                              productId:   lineItem.productId,
                               productName: product.name,
                               required,
                             })

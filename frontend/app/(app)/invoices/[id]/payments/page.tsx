@@ -8,21 +8,21 @@ import Button from "@/components/ui/Button";
 import { BackButton } from "@/components/ui/BackButton";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaymentsByInvoice } from "@/lib/modules/payments/hooks/usePayments";
-import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
+import { useInvoiceById, useInvoiceByNo } from "@/lib/modules/invoices/hooks/useInvoices";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 import type { Payment } from "@/lib/modules/payments/types/payments.types";
 
 export default function InvoicePaymentsPage() {
-  const { id } = useParams<{ id: string }>();
-  const { payments, isLoading } = usePaymentsByInvoice(id);
-  const { invoice } = useInvoiceById(id);
+  const { id:invoiceNo } = useParams<{ id: string }>();
+  const { invoice } = useInvoiceByNo(invoiceNo);
+  const { payments, isLoading } = usePaymentsByInvoice(invoice?.id as string);
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
   const columns: SimpleTableColumn<Payment>[] = [
     {
       label: "Date",
-      render: (p) => formatDate(p.date),
+      render: (p) => formatDate(p.paymentDate),
     },
     {
       label: "Reference",

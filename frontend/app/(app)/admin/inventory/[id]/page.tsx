@@ -21,6 +21,7 @@ import { formatDate } from "@/lib/utils";
 
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import { BadgeVariant } from "@/config/badge.config";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 
 // ── Status config ─────────────────────────────────────────
 const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
@@ -83,8 +84,9 @@ export default function InventoryItemDetailPage() {
   const { item,      isLoading: itemLoading      } = useInventoryItemById(id);
   const { movements, isLoading: movementsLoading } = useStockMovementsByItem(id);
   const { products,  isLoading: productsLoading  } = useProducts();
+  const {order, isLoading: orderLoading} = useOrderById(item?.order_id as string)
 
-  const isLoading = itemLoading || movementsLoading || productsLoading;
+  const isLoading = itemLoading || movementsLoading || productsLoading || orderLoading;
 
   if (isLoading) {
     return (
@@ -219,7 +221,7 @@ export default function InventoryItemDetailPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      href={`/orders/${item.order_id}`}
+                      href={`/orders/${order?.orderNumber}`}
                     >
                       View Order
                     </Button>

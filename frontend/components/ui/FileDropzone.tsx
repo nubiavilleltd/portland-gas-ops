@@ -1,7 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { UploadCloud, X, FileText, AlertCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  FileArchive,
+  FileImage,
+  FileText,
+  FileVideo,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -160,26 +168,13 @@ export default function FileDropzone({
 
       {/* File list */}
       {value.length > 0 && (
-        <ul className="space-y-1.5 mt-1">
+        <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {value.map((file, i) => (
-            <li
+            <FilePreviewItem
               key={`${file.name}-${i}`}
-              className="flex items-center gap-3 px-3 py-2 bg-white border border-brand-border rounded-lg"
-            >
-              <FileText size={15} className="text-brand-purple shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-brand-text-primary truncate">{file.name}</p>
-                <p className="text-xs text-brand-text-secondary">{formatBytes(file.size)}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeFile(i)}
-                className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                aria-label={`Remove ${file.name}`}
-              >
-                <X size={14} />
-              </button>
-            </li>
+              file={file}
+              onRemove={() => removeFile(i)}
+            />
           ))}
         </ul>
       )}
@@ -200,4 +195,94 @@ export default function FileDropzone({
       )}
     </div>
   );
+}
+
+function FilePreviewItem({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove: () => void;
+}) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const isImage =
+    file.type.startsWith("image/") ||
+    /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)$/i.test(file.name);
+  const previewUrl = useMemo(
+    () => (isImage ? URL.createObjectURL(file) : null),
+    [file, isImage],
+  );
+
+  useEffect(() => {
+    if (!previewUrl) return undefined;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  return (
+    <li className="min-w-0 rounded-lg border border-brand-border bg-white p-2">
+      <div className="flex items-start justify-between gap-2">
+        {previewUrl && !previewFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-md border border-brand-border object-cover"
+            onError={() => setPreviewFailed(true)}
+          />
+        ) : (
+          <FileTypeIcon file={file} />
+        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          className="shrink-0 rounded-md p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+          aria-label={`Remove ${file.name}`}
+        >
+          <X size={14} />
+        </button>
+      </div>
+      <p className="mt-2 truncate text-xs font-medium text-brand-text-primary">
+        {file.name}
+      </p>
+      <p className="text-[11px] text-brand-text-secondary">{formatBytes(file.size)}</p>
+    </li>
+  );
+}
+
+function FileTypeIcon({ file }: { file: File }) {
+  const iconClassName = "text-brand-purple";
+  const icon = getFileType(file);
+
+  return (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-brand-border bg-gray-50">
+      {icon === "image" ? (
+        <FileImage size={18} className={iconClassName} />
+      ) : icon === "video" ? (
+        <FileVideo size={18} className={iconClassName} />
+      ) : icon === "archive" ? (
+        <FileArchive size={18} className={iconClassName} />
+      ) : (
+        <FileText size={18} className={iconClassName} />
+      )}
+    </div>
+  );
+}
+
+function getFileType(file: File) {
+  const mimeType = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+
+  if (mimeType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)$/.test(name)) {
+    return "image";
+  }
+
+  if (mimeType.startsWith("video/") || /\.(mp4|mov|avi|webm|mkv)$/.test(name)) {
+    return "video";
+  }
+
+  if (/\.(zip|rar|7z|tar|gz)$/.test(name)) {
+    return "archive";
+  }
+
+  return "document";
 }

@@ -1,15 +1,10 @@
-
-
 import type {
   Order,
   OrderStatus,
   FulfillmentStatus,
   OrderKPIs,
-} from "@/lib/modules/orders/types/orders.types";
-
-import type { Product } from "../../products/types/product.types";
-import type { CreateOrderFormValues } from "../schemas/create-order.schema";
-import { PaymentStatus } from "../../payments/types/payments.types";
+} from "../types/orders.types";
+import type { PaymentStatus } from "../../payments/types/payments.types";
 
 // ── LOOKUPS ─────────────────────────────────────────────
 
@@ -17,7 +12,14 @@ export function getOrderById(
   orders: Order[],
   id: string
 ): Order | undefined {
-  return orders.find((o) => o.id === id);
+  return orders.find((order) => order.id === id);
+}
+
+export function getOrderByNumber(
+  orders: Order[],
+  orderNumber: string
+): Order | undefined {
+  return orders.find((order) => order.orderNumber === orderNumber);
 }
 
 // ── FILTERS ─────────────────────────────────────────────
@@ -26,57 +28,74 @@ export function getOrdersByStatus(
   orders: Order[],
   status: OrderStatus
 ): Order[] {
-  return orders.filter((o) => o.order_status === status);
+  return orders.filter((order) => order.orderStatus === status);
 }
 
 export function getOrdersByFulfillmentStatus(
   orders: Order[],
   status: FulfillmentStatus
 ): Order[] {
-  return orders.filter((o) => o.fulfillment_status === status);
+  return orders.filter(
+    (order) => order.fulfillmentStatus === status
+  );
 }
 
 export function getOrdersByPaymentStatus(
   orders: Order[],
   status: PaymentStatus
 ): Order[] {
-  return orders.filter((o) => o.payment_status === status);
-}
-
-export function getConfirmedUnassignedOrders(orders: Order[]): Order[] {
   return orders.filter(
-    (o) =>
-      o.order_status === "confirmed" &&
-      o.fulfillment_status === "pending"
+    (order) => order.paymentStatus === status
   );
 }
 
-// ── KPIs (pure aggregation) ─────────────────────────────
-
-export function getOrderKPIs(orders: Order[]): OrderKPIs {
-  
-  const validOrders = orders.filter((o) => o.order_status !== "cancelled")
-  return {
-    totalOrders: orders.length,
-    pendingDispatch: orders.filter(
-      (o) =>
-        o.order_status !== "cancelled" && o.order_status === "confirmed" &&
-        o.fulfillment_status === "pending"
-    ).length,
-    inTransit: orders.filter(
-      (o) =>
-        o.fulfillment_status === "dispatched" ||
-        o.fulfillment_status === "in_transit"
-    ).length,
-    delivered: orders.filter((o) => o.fulfillment_status === "delivered")
-      .length,
-    unpaidOrders: orders.filter(
-      (o) =>
-        o.payment_status === "unpaid" ||
-        o.payment_status === "partially_paid"
-    ).length,
-    totalRevenue: validOrders.reduce((sum, o) => sum + o.total_amount, 0),
-  };
+export function getConfirmedUnassignedOrders(
+  orders: Order[]
+): Order[] {
+  return orders.filter(
+    (order) =>
+      order.orderStatus === "confirmed" &&
+      order.fulfillmentStatus === "pending"
+  );
 }
 
+// ── KPIs ────────────────────────────────────────────────
 
+export function getOrderKPIs(
+  orders: Order[]
+): OrderKPIs {
+  const activeOrders = orders.filter(
+    (order) => order.orderStatus !== "cancelled"
+  );
+
+  return {
+    totalOrders: orders.length,
+
+    pendingDispatch: activeOrders.filter(
+      (order) =>
+        order.orderStatus === "confirmed" &&
+        order.fulfillmentStatus === "pending"
+    ).length,
+
+    inTransit: activeOrders.filter(
+      (order) =>
+        order.fulfillmentStatus === "dispatched" ||
+        order.fulfillmentStatus === "in_transit"
+    ).length,
+
+    delivered: activeOrders.filter(
+      (order) => order.fulfillmentStatus === "delivered"
+    ).length,
+
+    unpaidOrders: activeOrders.filter(
+      (order) =>
+        order.paymentStatus === "unpaid" ||
+        order.paymentStatus === "partially_paid"
+    ).length,
+
+    totalRevenue: activeOrders.reduce(
+      (sum, order) => sum + order.totalAmount,
+      0
+    ),
+  };
+}

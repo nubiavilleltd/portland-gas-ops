@@ -23,13 +23,14 @@ import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentS
 // import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 // import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import FormSection from "@/components/ui/FormSection";
-import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
 // import { generateInvoiceNumber } from "@/lib/modules/invoices/utils";
 import { canGenerateInvoice } from "@/lib/modules/orders/guards/orders.guards";
 import { Order } from "@/lib/modules/orders/types/orders.types";
 import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreateInvoiceWorkflow";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { BackButton } from "@/components/ui/BackButton";
+import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 
 
 
@@ -48,12 +49,14 @@ function CreateInvoicePageContent() {
 
   const { customers } = useCustomers()
 
-  const orderId = searchParams.get("orderId") as string;
+  const orderNo = searchParams.get("orderNo") as string;
 
   // ── REAL order lookup (was hardcoded before) ───────────────────
-  const { order } = useOrderById(orderId);
+  const { order } = useOrderByNumber(orderNo);
   const { mutate: generateInvoice, isPending } = useCreateInvoiceWorkflow(order as Order);
   const canInvoice = canGenerateInvoice(order as Order);
+
+  const {invoice} = useInvoiceById(order?.invoiceId as string)
 
   const customerMap = Object.fromEntries(
     customers.map((customer) => [
@@ -107,9 +110,9 @@ function CreateInvoicePageContent() {
           </p>
           <p className="text-sm mb-4">
             Current status:{" "}
-            <FulfillmentStatusBadge status={order.fulfillment_status} />
+            <FulfillmentStatusBadge status={order.fulfillmentStatus} />
           </p>
-          <Button href={`/orders/${orderId}`} variant="outline">
+          <Button href={`/orders/${orderNo}`} variant="outline">
             Back to Order
           </Button>
         </div>
@@ -117,7 +120,7 @@ function CreateInvoicePageContent() {
     );
   }
 
-  if (order.invoice_id) {
+  if (order.invoiceId) {
     return (
       <AppLayout pageTitle="Invoice Already Exists">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
@@ -125,7 +128,7 @@ function CreateInvoicePageContent() {
           <p className="text-sm text-brand-text-secondary mb-4">
             This order already has an invoice.
           </p>
-          <Button href={`/invoices/${order.invoice_id}`} variant="outline">
+          <Button href={`/invoices/${invoice?.invoice_number}`} variant="outline">
             View Invoice
           </Button>
         </div>
@@ -163,31 +166,31 @@ function CreateInvoicePageContent() {
         <FormSection title="Order Summary" description="Invoice will be generated from this order">
           <div className="flex items-start justify-end mb-4">
 
-            <FulfillmentStatusBadge status={order.fulfillment_status} />
+            <FulfillmentStatusBadge status={order.fulfillmentStatus} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
             <div>
               <p className="text-xs text-brand-text-secondary">Order Number</p>
-              <p className="font-medium mt-1">{order.order_number}</p>
+              <p className="font-medium mt-1">{order.orderNumber}</p>
             </div>
 
             <div>
               <p className="text-xs text-brand-text-secondary">Customer</p>
-              <p className="font-medium mt-1">{customerMap[order.customer_id]?.name}</p>
+              <p className="font-medium mt-1">{customerMap[order.customerId]?.name}</p>
             </div>
 
             <div>
               <p className="text-xs text-brand-text-secondary">Total Amount</p>
               <p className="font-medium mt-1">
-                {formatCurrency(order.total_amount)}
+                {formatCurrency(order.totalAmount)}
               </p>
             </div>
 
             <div>
               <p className="text-xs text-brand-text-secondary">Delivered On</p>
               <p className="font-medium mt-1">
-                {order.delivered_at ? formatDate(order.delivered_at) : "—"}
+                {order.deliveredAt ? formatDate(order.deliveredAt) : "—"}
               </p>
             </div>
           </div>

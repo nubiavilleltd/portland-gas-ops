@@ -30,7 +30,7 @@ export async function generateReceiptPdf(input: GenerateReceiptPdfInput): Promis
   // ── Calculate cumulative amounts up to and including this payment ──
   // Sort all payments chronologically, find payments up to and including this one
   const sortedPayments = [...allInvoicePayments].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
   );
   const thisPaymentIndex = sortedPayments.findIndex((p) => p.id === payment.id);
   const paymentsUpToThis = sortedPayments.slice(0, thisPaymentIndex + 1);
@@ -61,7 +61,7 @@ export async function generateReceiptPdf(input: GenerateReceiptPdfInput): Promis
   drawTitle(
     doc,
     isPartialPayment && !isFullySettled ? "PAYMENT RECEIPT (PARTIAL)" : "PAYMENT RECEIPT",
-    `Receipt Ref: ${payment.reference}   |   Date: ${fmtDate(payment.date)}`
+    `Receipt Ref: ${payment.reference}   |   Date: ${fmtDate(payment.paymentDate)}`
   );
 
   // ── Two-column: RECEIVED FROM / PAYMENT DETAILS ──────────
@@ -71,7 +71,7 @@ export async function generateReceiptPdf(input: GenerateReceiptPdfInput): Promis
   const colW = PAGE.width / 2 - ml - 4;
 
   drawLabelValue(doc, "Received From", customer?.name ?? "—", col1, y, colW);
-  drawLabelValue(doc, "Payment Date", fmtDate(payment.date), col2, y, colW);
+  drawLabelValue(doc, "Payment Date", fmtDate(payment.paymentDate), col2, y, colW);
   y += 15;
 
   if (customer?.address) {
@@ -197,7 +197,7 @@ export async function generateReceiptPdf(input: GenerateReceiptPdfInput): Promis
       doc.setTextColor(...(isCurrentPayment ? COLORS.purple : COLORS.darkText));
 
       doc.text(p.reference, ml + 2, y + 5);
-      doc.text(fmtDate(p.date), ml + 55, y + 5);
+      doc.text(fmtDate(p.paymentDate), ml + 55, y + 5);
       doc.text(formatPaymentMethodLabel(p.method), ml + 95, y + 5);
       doc.text(fmtCurrency(p.amount), mr - 2, y + 5, { align: "right" });
 

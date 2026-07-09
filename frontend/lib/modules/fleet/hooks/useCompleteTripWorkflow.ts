@@ -56,7 +56,7 @@ export function useCompleteTripWorkflow() {
 
       toast.success("Trip completed successfully");
 
-      router.push(FLEET_ROUTES.tripDetail(updatedTrip.id));
+      router.push(FLEET_ROUTES.tripDetail(updatedTrip.trip_number));
     },
 
     onError: (err: any) => {

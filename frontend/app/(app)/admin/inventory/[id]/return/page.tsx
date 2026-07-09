@@ -28,6 +28,7 @@ import { formatDate } from "@/lib/utils";
 
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import { BadgeVariant } from "@/config/badge.config";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 
 // ── Schema ────────────────────────────────────────────────
 const returnItemSchema = z.object({
@@ -83,6 +84,7 @@ export default function ReturnItemPage() {
   const { id }   = useParams<{ id: string }>();
 
   const { item,     isLoading: itemLoading     } = useInventoryItemById(id);
+  const {order} = useOrderById(item?.order_id as string)
   const { products, isLoading: productsLoading } = useProducts();
   const returnItem = useReturnItem();
 
@@ -239,7 +241,7 @@ export default function ReturnItemPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    href={`/orders/${item.order_id}`}
+                    href={`/orders/${order?.orderNumber}`}
                   >
                     View Order
                   </Button>

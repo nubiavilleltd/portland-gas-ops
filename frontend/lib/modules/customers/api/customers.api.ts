@@ -13,8 +13,8 @@ export const customersApi = {
         return data;
     },
 
-    get: async (id: string) => {
-        const { data } = await api.get(`/api/customers/${id}`);
+    get: async (customerNo: string) => {
+        const { data } = await api.get(`/api/customers/${customerNo}`);
         return data;
     },
 
@@ -29,18 +29,25 @@ export const customersApi = {
         return data;
     },
 
-    update: async (id: string, input: UpdateCustomerInput) => {
-        const { data } = await api.put(`/api/customers/${id}`, input);
+    update: async (customerNo: string, input: UpdateCustomerInput) => {
+        const { data } = await api.put(`/api/customers/${customerNo}`, input);
         return data;
     },
 
-    activate: async (id: string) => {
-        const { data } = await api.post(`/api/customers/${id}/activate`);
+    activate: async (customerNo: string) => {
+        const { data } = await api.post(`/api/customers/${customerNo}/activate`);
         return data;
     },
 
-    deactivate: async (id: string) => {
-        const { data } = await api.post(`/api/customers/${id}/deactivate`);
+    deactivate: async (customerNo: string) => {
+        const { data } = await api.post(`/api/customers/${customerNo}/deactivate`);
+        return data;
+    },
+    listOrders: async (customerNo: string) => {
+        const { data } = await api.get(
+            `/api/customers/${customerNo}/orders`
+        );
+
         return data;
     },
 };

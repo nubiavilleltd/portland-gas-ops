@@ -10,7 +10,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import DatePicker from "@/components/forms/DatePicker";
 import SelectInput from "@/components/forms/SelectInput";
-import { useAllAssignmentLogs, useAssets } from "@/hooks/useAssets";
+import { useAllAssignmentLogs, useAssets } from "@/lib/modules/assets";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetAssignmentLog } from "@/types";
 
@@ -35,8 +35,8 @@ const EVENT_LABELS: Record<string, string> = {
 };
 
 function movementSummary(log: AssetAssignmentLog): string {
-  const from = [log.from_person, log.from_location].filter(Boolean).join(" / ");
-  const to   = [log.to_person,   log.to_location  ].filter(Boolean).join(" / ");
+  const from = [log.from_employee_name, log.from_location].filter(Boolean).join(" / ");
+  const to   = [log.to_employee_name,   log.to_location  ].filter(Boolean).join(" / ");
   if (from && to) return `${from} → ${to}`;
   if (to)   return to;
   if (from) return from;
@@ -46,8 +46,8 @@ function movementSummary(log: AssetAssignmentLog): string {
 // ── Detail Modal ───────────────────────────────────────────────────────────────
 
 function LogDetailModal({ log, onClose }: { log: AssetAssignmentLog; onClose: () => void }) {
-  const from = [log.from_person, log.from_location].filter(Boolean);
-  const to   = [log.to_person,   log.to_location  ].filter(Boolean);
+  const from = [log.from_employee_name, log.from_location].filter(Boolean);
+  const to   = [log.to_employee_name,   log.to_location  ].filter(Boolean);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -81,7 +81,7 @@ function LogDetailModal({ log, onClose }: { log: AssetAssignmentLog; onClose: ()
                 <p className="text-xs text-brand-text-secondary mb-1">From</p>
                 {from.length > 0 ? (
                   <div className="space-y-0.5">
-                    {log.from_person   && <p className="text-sm font-medium text-brand-text-primary">{log.from_person}</p>}
+                    {log.from_employee_name && <p className="text-sm font-medium text-brand-text-primary">{log.from_employee_name}</p>}
                     {log.from_location && <p className="text-xs text-brand-text-secondary">{log.from_location}</p>}
                   </div>
                 ) : (
@@ -92,7 +92,7 @@ function LogDetailModal({ log, onClose }: { log: AssetAssignmentLog; onClose: ()
                 <p className="text-xs text-brand-text-secondary mb-1">To</p>
                 {to.length > 0 ? (
                   <div className="space-y-0.5">
-                    {log.to_person   && <p className="text-sm font-medium text-brand-text-primary">{log.to_person}</p>}
+                    {log.to_employee_name && <p className="text-sm font-medium text-brand-text-primary">{log.to_employee_name}</p>}
                     {log.to_location && <p className="text-xs text-brand-text-secondary">{log.to_location}</p>}
                   </div>
                 ) : (

@@ -14,7 +14,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormSection from "@/components/ui/FormSection";
-import { useCreateAsset, useAssetCategories, useAssetTypes } from "@/hooks/useAssets";
+import { useCreateAsset, useAssetCategories, useAssetTypes } from "@/lib/modules/assets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { SEED_EMPLOYEES } from "@/app/(app)/hr-management/_components/_data";

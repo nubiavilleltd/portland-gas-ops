@@ -10,15 +10,15 @@ import Button from "@/components/ui/Button";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormSection from "@/components/ui/FormSection";
 
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useCancelTripWorkflow } from "@/lib/modules/fleet/hooks/useCancelTripWorkflow";
 import { canCancelTrip } from "@/lib/modules/fleet/guards/trip.guards";
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
 
 export default function CancelTripPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id:tripNo } = useParams<{ id: string }>();
   const router = useRouter();
-  const { trip, isLoading } = useTripById(id);
+  const { trip, isLoading } = useTripByNo(tripNo);
   const cancelTrip = useCancelTripWorkflow();
   const [reason, setReason] = useState("");
 
@@ -47,7 +47,7 @@ export default function CancelTripPage() {
             Trips that are already dispatched, in transit, completed, or
             already cancelled cannot be cancelled from here.
           </p>
-          <Button variant="outline" href={FLEET_ROUTES.tripDetail(id)}>
+          <Button variant="outline" href={FLEET_ROUTES.tripDetail(tripNo)}>
             Back to Trip
           </Button>
         </div>

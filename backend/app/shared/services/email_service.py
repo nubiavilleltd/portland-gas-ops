@@ -138,3 +138,132 @@ def send_account_setup(
         "employee_no": employee_no,
     })
     _send(to_email, subject, html)
+
+
+# ── Workflow notification emails ───────────────────────────────────────────────
+
+_REQUEST_TYPE_LABELS: dict[str, str] = {
+    "procurement":      "Procurement",
+    "asset":            "Asset",
+    "leave":            "Leave",
+    "cash_requisition": "Cash Requisition",
+    "invoice":          "Invoice",
+    "work_initiation":  "Work Initiation",
+    "work_authorization": "Work Authorization",
+    "work_closeout":    "Work Closeout",
+    "safety":           "Safety",
+}
+
+# Maps request_type → frontend URL path segment
+_REQUEST_TYPE_PATHS: dict[str, str] = {
+    "procurement":      "procurement",
+    "asset":            "assets",
+    "leave":            "leave",
+    "cash_requisition": "cash-requisitions",
+    "invoice":          "invoices",
+    "work_initiation":  "safety/work-initiation",
+    "work_authorization": "safety/work-authorization",
+    "work_closeout":    "safety/work-close-out",
+    "safety":           "safety",
+}
+
+
+def get_request_type_label(request_type: str) -> str:
+    return _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
+
+
+def get_request_url(request_type: str, request_id: str) -> str:
+    """Build the deep-link URL for a request's detail page."""
+    path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
+    base = settings.FRONTEND_URL.rstrip("/")
+    return f"{base}/{path}/{request_id}"
+
+
+def send_approval_required(
+    to_email: str,
+    approver_name: str,
+    requester_name: str,
+    request_type_label: str,
+    request_title: str,
+    step_name: str,
+    action_url: str,
+) -> None:
+    """Notify an approver that a step is waiting for their action."""
+    subject = f"Action Required: {request_type_label} request awaiting your approval"
+    html = _render("approval_required.html", {
+        "subject":            subject,
+        "approver_name":      approver_name,
+        "requester_name":     requester_name,
+        "request_type_label": request_type_label,
+        "request_title":      request_title,
+        "step_name":          step_name,
+        "action_url":         action_url,
+    })
+    _send(to_email, subject, html)
+
+
+def send_approval_result(
+    to_email: str,
+    requester_name: str,
+    request_type_label: str,
+    request_title: str,
+    action: str,  # "approved" | "rejected" | "returned"
+    comment: str | None,
+    action_url: str,
+) -> None:
+    """Notify the requester of the outcome of their request."""
+    _ACTION_META = {
+        "approved": {
+            "label":   "Approved",
+            "color":   "#16a34a",
+            "heading": "Your Request Has Been Approved",
+            "message": "Your request has been fully approved. You can view the details by clicking the button below.",
+        },
+        "rejected": {
+            "label":   "Rejected",
+            "color":   "#dc2626",
+            "heading": "Your Request Has Been Rejected",
+            "message": "Unfortunately your request has been rejected. Please contact your manager if you have questions.",
+        },
+        "returned": {
+            "label":   "Returned for Revision",
+            "color":   "#d97706",
+            "heading": "Your Request Needs Revision",
+            "message": "Your request has been returned for revision. Please review the comment below, make the necessary changes, and resubmit.",
+        },
+    }
+    meta = _ACTION_META.get(action, {
+        "label":   action.title(),
+        "color":   "#6b7280",
+        "heading": f"Request {action.title()}",
+        "message": "",
+    })
+
+    # Build optional comment row
+    if comment:
+        comment_row_html = (
+            f'<tr style="background:#f9fafb;">'
+            f'<td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600;">Comment</td>'
+            f'<td style="padding:10px 14px; font-size:13px; color:#111118;">{comment}</td>'
+            f'</tr>'
+        )
+        comment_row_style = "border-bottom:1px solid #e5e7eb;"
+    else:
+        comment_row_html = ""
+        comment_row_style = ""
+
+    subject = f"{request_type_label} Request {meta['label']}"
+    html = _render("approval_result.html", {
+        "subject":            subject,
+        "requester_name":     requester_name,
+        "request_type_label": request_type_label,
+        "request_title":      request_title,
+        "action_label":       meta["label"],
+        "action_color":       meta["color"],
+        "result_heading":     meta["heading"],
+        "result_message":     meta["message"],
+        "comment_row_html":   comment_row_html,
+        "comment_row_style":  comment_row_style,
+        "action_url":         action_url,
+    })
+    _send(to_email, subject, html)

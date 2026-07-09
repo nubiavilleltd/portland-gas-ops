@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,9 @@ from app.core.config import settings
 from app.shared.models import approval, document, reference_counter, token, user, setup  # noqa: F401
 from app.hr import models as _hr_models  # noqa: F401
 from app.finance import models as _finance_models  # noqa: F401
+from app.shared.models import approval, document, reference_counter, token, user  # noqa: F401
+# approval.py now contains all workflow engine models (ApprovalWorkflow, WorkflowStep,
+# ApprovalRequest, ApprovalHistory, WorkflowAuditTrail, AllRequest, Notification, etc.)
 from app.employees import models as _employee_models  # noqa: F401
 from app.vendors import models as _vendor_models  # noqa: F401
 from app.assets import models as _asset_models  # noqa: F401
@@ -24,10 +28,23 @@ from app.safety.checklists import models as _safety_checklist_models  # noqa: F4
 from app.safety.incidents import models as _safety_incident_models  # noqa: F401
 from app.safety.work_initiations import models as _safety_work_initiation_models  # noqa: F401
 from app.safety.work_authorizations import models as _safety_work_authorization_models  # noqa: F401
+from app.safety.work_closeouts import models as _safety_work_closeout_models  # noqa: F401
 from app.orders.model import Order, OrderItem    # noqa: F401
 from app.invoices.model import Invoice           # noqa: F401
 from app.payments.model import Payment           # noqa: F401
+from app.audit.model import AuditLog                          # noqa: F401
+from app.inventory.model import (                             # noqa: F401
+    WarehouseLocation, InventoryItem, ConsumableStock,
+    StockMovement, StockMovementItem, OrderItemInventory,
+)
 
+from app.fleet.drivers.model import Driver # noqa: F401
+from app.fleet.vehicles.model import Vehicle # noqa: F401
+from app.fleet.trips.model import Trip, TripOrder  # noqa: F401
+
+
+
+from app.shared.workflow.router import router as workflow_router
 from app.auth.router import router as auth_router
 from app.users.router import router as users_router
 from app.employees.router import router as employees_router
@@ -41,6 +58,12 @@ from app.orders.router import router as orders_router
 from app.invoices.router import router as invoices_router
 from app.payments.router import router as payments_router
 from app.hr.router import router as hr_router
+from app.audit.router import router as audit_router
+from app.inventory.router import router as inventory_router
+from app.fleet.drivers.router import router as drivers_router
+from app.fleet.vehicles.router import router as vehicles_router
+from app.fleet.trips.router import router as trips_router
+
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -71,7 +94,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     Convert Pydantic's 422 validation errors into our standard error envelope.
     This means the frontend always receives the same shape: {error_code, message, details}.
     """
-    errors = exc.errors()
+    errors = jsonable_encoder(
+        exc.errors(),
+        custom_encoder={Exception: str},
+    )
     first = errors[0] if errors else {}
     field = " → ".join(str(loc) for loc in first.get("loc", []) if loc != "body")
     msg   = first.get("msg", "Validation error")
@@ -103,6 +129,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
+app.include_router(workflow_router, prefix="/api/workflow", tags=["Workflow Engine"])
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(employees_router, prefix="/api/employees", tags=["Employees"])
@@ -119,6 +146,11 @@ app.include_router(orders_router,   prefix="/api/orders",   tags=["Orders"])
 app.include_router(invoices_router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
 app.include_router(hr_router, tags=["HR Management"])
+app.include_router(audit_router,     prefix="/api/audit",     tags=["Audit"])
+app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
+app.include_router(drivers_router, prefix="/api/fleet/drivers", tags=["Drivers"])
+app.include_router(vehicles_router, prefix="/api/fleet/vehicles", tags=["Vehicles"])
+app.include_router(trips_router, prefix="/api/fleet/trips", tags=["Trips"])
 
 
 @app.get("/api/health")

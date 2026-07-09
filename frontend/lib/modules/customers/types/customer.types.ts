@@ -3,12 +3,14 @@ export type CustomerStatus = "active" | "inactive";
 
 export interface Customer {
   id: string;
+  customerNo: string;
   name: string;
   type: CustomerType;
   phone: string;
   email: string;
   address: string;
   createdAt: string;
+  updatedAt: string;
   status:    CustomerStatus; 
 }
 

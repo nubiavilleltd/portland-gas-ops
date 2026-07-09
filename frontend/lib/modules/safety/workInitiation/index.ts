@@ -1,7 +1,10 @@
 export { workInitiationsApi } from "./api";
 export {
+  useUpdateWorkInitiation,
   useWorkInitiation,
   useWorkInitiations,
+  useSupervisorReviewWorkInitiation,
+  useOperationsHodReviewWorkInitiation,
   workInitiationKeys,
 } from "./hooks";
 export { mapWorkInitiationToRequest } from "./mappers";
@@ -13,6 +16,8 @@ export type {
   WorkInitiationListItem,
   WorkInitiationListParams,
   WorkInitiationResponse,
+  WorkInitiationReviewCreate,
   WorkInitiationReviewResponse,
   WorkInitiationStatus,
+  WorkInitiationUpdate,
 } from "./types";

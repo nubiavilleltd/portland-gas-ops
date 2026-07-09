@@ -1,16 +1,13 @@
 import { Invoice } from "../../invoices/types/invoice.types";
 import type { Order } from "../types/orders.types";
 
-
 export function isDraft(order: Order) {
-  return order.order_status === "draft";
+  return order.orderStatus === "draft";
 }
+
+export const canEditOrder = isDraft;
 
 export function canUpdateDraft(order: Order) {
-  return isDraft(order);
-}
-
-export function canSubmitDraft(order: Order) {
   return isDraft(order);
 }
 
@@ -18,94 +15,74 @@ export function canSubmitOrder(order: Order) {
   return isDraft(order);
 }
 
-/**
- * Can the order be edited?
- */
-export function canEditOrder(order: Order): boolean {
-  return isDraft(order)
+export function canConfirmOrder(order: Order) {
+  return order.orderStatus === "submitted";
 }
 
-/**
- * Can the order be confirmed?
- */
-// export function canConfirmOrder(order: Order): boolean {
-//   return order.order_status === "draft";
-// }
-
-export function canConfirmOrder(order: Order): boolean {
-  return order.order_status === "submitted";   // only submitted orders get confirmed
-}
-
-/**
- * Can order be assigned to a trip?
- */
-export function canAssignToTrip(order: Order): boolean {
+export function canAssignToTrip(order: Order) {
   return (
-    order.order_status === "confirmed" &&
-    order.fulfillment_status === "pending" && order.payment_status === "paid"
+    order.orderStatus === "confirmed" &&
+    order.fulfillmentStatus === "pending" &&
+    order.paymentStatus === "paid"
   );
 }
 
-/**
- * Can order go into dispatch flow?
- * (workflow gate — not UI logic)
- */
-export function canDispatchOrder(order: Order): boolean {
-  if (order.order_status !== "confirmed") return false;
+export function canDispatchOrder(order: Order) {
+  if (order.orderStatus !== "confirmed") {
+    return false;
+  }
 
-//   if (order.requires_approval && order.approval_status !== "approved") {
-//     return false;
-//   }
+  // Future approval rules go here.
 
   return true;
 }
 
-/**
- * Can invoice be generated?
- */
-// export function canGenerateInvoice(order: Order): boolean {
-//   return order.fulfillment_status === "delivered" && !order.invoice_id;
-// }
-
-export function canGenerateInvoice(order: Order): boolean {
-  return order.order_status === "submitted" && !order.invoice_id;
-}
-
-
-
-
-export function canConfirmDelivery(order: Order): boolean {
+export function canGenerateInvoice(order: Order) {
   return (
-    order.order_status === "confirmed" && order.fulfillment_status === "in_transit")
-}
-
-
-/**
- * Can order be closed?
- */
-export function canCloseOrder(order: Order): boolean {
-  return (
-    order.fulfillment_status === "delivered" &&
-    order.payment_status === "paid"
+    order.orderStatus === "submitted" &&
+    !order.invoiceId
   );
 }
 
-export function canCancelOrder(order: Order): boolean {
-  if (order.order_status === "completed" || order.order_status === "cancelled" || order.order_status === "draft") {
+export function canConfirmDelivery(order: Order) {
+  return (
+    order.orderStatus === "confirmed" &&
+    order.fulfillmentStatus === "in_transit"
+  );
+}
+
+export function canCloseOrder(order: Order) {
+  return (
+    order.fulfillmentStatus === "delivered" &&
+    order.paymentStatus === "paid"
+  );
+}
+
+export function canCancelOrder(order: Order) {
+  if (
+    ["draft", "completed", "cancelled"].includes(order.orderStatus)
+  ) {
     return false;
   }
-  // Block if already moving through fulfillment
-  if (["dispatched", "in_transit", "delivered"].includes(order.fulfillment_status)) {
+
+  if (
+    ["dispatched", "in_transit", "delivered"].includes(
+      order.fulfillmentStatus
+    )
+  ) {
     return false;
   }
+
   return true;
 }
 
-
-export function canMakePayment(invoice:Invoice, order: Order): boolean {
+export function canMakePayment(
+  invoice: Invoice,
+  order: Order
+) {
   return (
-    invoice &&
-    order.payment_status !== "paid" && order.order_status !== "cancelled"
+    !!invoice &&
+    order.paymentStatus !== "paid" &&
+    order.orderStatus !== "cancelled"
   );
 }
-

@@ -4,9 +4,11 @@ from sqlalchemy import Column, String, Text, Numeric, DateTime, Date, Enum as SA
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy import UniqueConstraint
 from app.core.database import Base
-from app.orders.enums import OrderStatus, FulfillmentStatus, DispositionStatus
+from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.payments.enums import PaymentStatus
+from app.inventory.enums import DispositionStatus
 
 
 class Order(Base):
@@ -15,6 +17,7 @@ class Order(Base):
     id                  = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     order_no            = Column(String(50), unique=True, nullable=True, index=True)
     customer_id         = Column(CHAR(36), ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False)
+    customer_name = Column(String(255), nullable=False)  # historical snapshot
     order_status        = Column(SAEnum(OrderStatus), nullable=False, default=OrderStatus.draft)
     fulfillment_status  = Column(SAEnum(FulfillmentStatus), nullable=False, default=FulfillmentStatus.pending)
     payment_status      = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.unpaid)
@@ -46,12 +49,13 @@ class OrderItem(Base):
     id           = Column(Integer, primary_key=True, autoincrement=True)
     order_id     = Column(CHAR(36), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
     product_id   = Column(CHAR(36), ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
-    product_name = Column(String(255), nullable=False)   # snapshot
+    product_name = Column(String(255), nullable=False)   # historial snapshot
     quantity     = Column(Numeric(10, 3), nullable=False)
-    unit_price   = Column(Numeric(15, 2), nullable=False)  # snapshot
+    unit_price   = Column(Numeric(15, 2), nullable=False)  # historical snapshot
     total        = Column(Numeric(15, 2), nullable=False)
     disposition  = Column(SAEnum(DispositionStatus), nullable=True)
 
     # Relationships
     order   = relationship("Order", back_populates="order_items")
     product = relationship("Product", foreign_keys=[product_id])
+    inventory_assignments = relationship("OrderItemInventory", cascade="all, delete-orphan")

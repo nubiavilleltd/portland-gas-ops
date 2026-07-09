@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
@@ -13,7 +13,6 @@ import {
   Wrench,
   Plus,
   ClipboardList,
-  Car,
   ArrowRight,
   History,
   Download,
@@ -32,7 +31,9 @@ import {
   useAssetCategories,
   useAssetTypes,
   useAssignmentLogs,
-} from "@/hooks/useAssets";
+} from "@/lib/modules/assets";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useToast } from "@/hooks/useToast";
 import { formatCurrency, formatDate, capitalize } from "@/lib/utils";
 import type {
@@ -49,10 +50,10 @@ const conditionOptions = [
   { value: "poor", label: "Poor" },
 ];
 const statusOptions = [
-  { value: "available", label: "Available" },
-  { value: "assigned", label: "Assigned" },
-  { value: "under_repair", label: "Under Repair" },
-  { value: "retired", label: "Retired" },
+  { value: "available",         label: "Available" },
+  { value: "assigned",          label: "Assigned" },
+  { value: "under_maintenance", label: "Under Maintenance" },
+  { value: "decommissioned",    label: "Decommissioned" },
 ];
 const maintenanceTypeOptions = [
   { value: "routine", label: "Routine Service" },
@@ -69,10 +70,10 @@ const frequencyOptions = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  available: "bg-green-100 text-green-700",
-  assigned: "bg-blue-100 text-blue-700",
-  under_repair: "bg-amber-100 text-amber-700",
-  retired: "bg-gray-100 text-gray-500",
+  available:         "bg-green-100 text-green-700",
+  assigned:          "bg-blue-100 text-blue-700",
+  under_maintenance: "bg-amber-100 text-amber-700",
+  decommissioned:    "bg-gray-100 text-gray-500",
 };
 const CONDITION_STYLES: Record<string, string> = {
   new: "bg-purple-100 text-purple-700",
@@ -92,24 +93,22 @@ const LOG_EVENT_COLOURS: Record<string, string> = {
 function logEventDescription(log: AssetAssignmentLog): string {
   switch (log.event_type) {
     case "registered":
-      return log.to_person
-        ? `Registered — assigned to ${log.to_person}${log.to_location ? ` at ${log.to_location}` : ""}`
+      return log.to_employee_name
+        ? `Registered — assigned to ${log.to_employee_name}${log.to_location ? ` at ${log.to_location}` : ""}`
         : `Registered — available${log.to_location ? ` at ${log.to_location}` : ""}`;
     case "assigned":
-      return `Assigned to ${log.to_person ?? "—"}${log.to_location ? ` at ${log.to_location}` : ""}`;
+      return `Assigned to ${log.to_employee_name ?? "—"}${log.to_location ? ` at ${log.to_location}` : ""}`;
     case "transferred": {
       const from =
-        [log.from_person, log.from_location].filter(Boolean).join(" / ") || "—";
+        [log.from_employee_name, log.from_location].filter(Boolean).join(" / ") || "—";
       const to =
-        [log.to_person, log.to_location].filter(Boolean).join(" / ") || "—";
+        [log.to_employee_name, log.to_location].filter(Boolean).join(" / ") || "—";
       return `Transferred: ${from} → ${to}`;
     }
     case "returned":
       return `Returned / Repaired${log.to_location ? ` — available at ${log.to_location}` : ""}`;
     case "status_changed":
       return log.notes ?? "Status changed";
-    case "retired":
-      return `Retired${log.notes ? ` — ${log.notes}` : ""}`;
     default:
       return log.notes ?? capitalize(log.event_type);
   }
@@ -131,7 +130,7 @@ function EditModal({
     condition: string;
     status: string;
     location: string | null;
-    assigned_to_name: string | null;
+    assigned_to: string | null;
     description: string | null;
     maintenance_type: string | null;
     maintenance_frequency_months: number | null;
@@ -141,6 +140,21 @@ function EditModal({
 }) {
   const toast = useToast();
   const updateAsset = useUpdateAsset(asset.id);
+  const { data: employeeList = [] } = useEmployees();
+  const employees: PickedEmployee[] = employeeList.map((e) => ({
+    id: e.id,
+    name: [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+    role: e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
+  }));
+  const [assignedEmployee, setAssignedEmployee] = useState<PickedEmployee | null>(null);
+
+  useEffect(() => {
+    if (!asset.assigned_to || employees.length === 0) return;
+    const found = employees.find((e) => e.id === asset.assigned_to) ?? null;
+    if (found) setAssignedEmployee(found);
+  }, [employees.length, asset.assigned_to]);
   const [form, setForm] = useState({
     name: asset.name,
     category_id: asset.category_id ?? "",
@@ -152,7 +166,7 @@ function EditModal({
     condition: asset.condition,
     status: asset.status,
     location: asset.location ?? "",
-    assigned_to_name: asset.assigned_to_name ?? "",
+    assigned_to: asset.assigned_to ?? "",
     description: asset.description ?? "",
     maintenance_type: asset.maintenance_type ?? "",
     maintenance_frequency_months: asset.maintenance_frequency_months
@@ -192,7 +206,7 @@ function EditModal({
           condition: form.condition as import("@/types").AssetCondition,
           status: form.status as import("@/types").AssetStatus,
           location: form.location || undefined,
-          assigned_to_name: form.assigned_to_name || undefined,
+          assigned_to: assignedEmployee?.id || undefined,
           description: form.description || undefined,
           maintenance_type: (form.maintenance_type || undefined) as
             | import("@/types").MaintenanceType
@@ -357,14 +371,12 @@ function EditModal({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-brand-text-primary">
-              Assigned To
-            </label>
-            <input
-              value={form.assigned_to_name}
-              onChange={(e) => set("assigned_to_name", e.target.value)}
-              placeholder="e.g. Tunde Okafor"
-              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            <EmployeePicker
+              label="Assigned To"
+              employees={employees}
+              value={assignedEmployee}
+              onChange={setAssignedEmployee}
+              placeholder="Search employee (optional)"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -455,15 +467,23 @@ function TransferModal({
   asset: {
     id: string;
     name: string;
-    assigned_to_name: string | null;
+    assigned_to: string | null;
     location: string | null;
   };
   onClose: () => void;
 }) {
   const toast = useToast();
   const transfer = useTransferAsset();
+  const { data: employeeList = [] } = useEmployees();
+  const employees: PickedEmployee[] = employeeList.map((e) => ({
+    id: e.id,
+    name: [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+    role: e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
+  }));
+  const [toEmployee, setToEmployee] = useState<PickedEmployee | null>(null);
   const [form, setForm] = useState({
-    to_person: "",
     to_location: "",
     notes: "",
   });
@@ -471,7 +491,7 @@ function TransferModal({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
   async function handleTransfer() {
-    if (!form.to_person.trim() || !form.to_location.trim()) {
+    if (!toEmployee || !form.to_location.trim()) {
       toast.error("Person and location are required");
       return;
     }
@@ -479,7 +499,8 @@ function TransferModal({
       await transfer.mutateAsync({
         id: asset.id,
         data: {
-          to_person: form.to_person,
+          to_employee_id: toEmployee.id,
+          to_employee_name: toEmployee.name,
           to_location: form.to_location,
           notes: form.notes || undefined,
         },
@@ -508,11 +529,11 @@ function TransferModal({
             <X size={18} />
           </button>
         </div>
-        {(asset.assigned_to_name || asset.location) && (
+        {(asset.assigned_to || asset.location) && (
           <div className="px-6 pt-4">
             <p className="text-xs text-brand-text-secondary mb-1">Current</p>
             <p className="text-sm text-brand-text-primary">
-              {[asset.assigned_to_name, asset.location]
+              {[asset.assigned_to_name ?? asset.assigned_to, asset.location]
                 .filter(Boolean)
                 .join(" — ")}
             </p>
@@ -520,14 +541,12 @@ function TransferModal({
         )}
         <div className="p-6 space-y-4">
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-brand-text-primary">
-              Transfer To (Person/Team) <span className="text-red-500">*</span>
-            </label>
-            <input
-              value={form.to_person}
-              onChange={(e) => set("to_person", e.target.value)}
-              placeholder="e.g. Ngozi Eze"
-              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            <EmployeePicker
+              label="Transfer To (Person/Team)"
+              employees={employees}
+              value={toEmployee}
+              onChange={setToEmployee}
+              placeholder="Search employee"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -756,7 +775,22 @@ export default function AdminAssetDetailPage() {
     "details",
   );
 
-  function downloadQR() {
+  async function downloadQR() {
+    if (asset?.qr_url) {
+      try {
+        const res = await fetch(asset.qr_url);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${asset?.asset_tag ?? asset?.name ?? "asset"}-qr.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        window.open(asset.qr_url, "_blank");
+      }
+      return;
+    }
     const container = qrRef.current;
     if (!container) return;
     const svg = container.querySelector("svg");
@@ -907,9 +941,9 @@ export default function AdminAssetDetailPage() {
             <div className="lg:col-span-2 space-y-5">
               <div className="bg-white border border-brand-border rounded-2xl">
                 <div className="relative h-64 bg-gray-50 flex items-center justify-center rounded-2xl overflow-hidden">
-                  {asset.image_url ? (
+                  {asset.attachment_url ? (
                     <Image
-                      src={asset.image_url}
+                      src={asset.attachment_url}
                       alt={asset.name}
                       fill
                       className="object-contain"
@@ -937,7 +971,7 @@ export default function AdminAssetDetailPage() {
                         ["Asset Tag", asset.asset_tag ?? "—"],
                         ["Serial Number", asset.serial_number ?? "—"],
                         ["Location", asset.location ?? "—"],
-                        ["Assigned To", asset.assigned_to_name ?? "—"],
+                        ["Assigned To", asset.assigned_to_name ?? asset.assigned_to ?? "—"],
                         ["Purchase Date", formatDate(asset.purchase_date)],
                         [
                           "Purchase Cost",
@@ -968,95 +1002,6 @@ export default function AdminAssetDetailPage() {
                       </p>
                     </div>
                   )}
-                  {asset.vehicle_details && (
-                    <div className="mt-5 pt-5 border-t border-brand-border">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Car size={14} className="text-brand-purple" />
-                        <p className="text-sm font-semibold text-brand-text-primary">
-                          Vehicle Details
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
-                        {(
-                          [
-                            [
-                              "Plate Number",
-                              asset.vehicle_details.plate_number ?? "—",
-                            ],
-                            [
-                              "Vehicle Type",
-                              asset.vehicle_details.vehicle_type
-                                ? capitalize(
-                                    asset.vehicle_details.vehicle_type.replace(
-                                      /_/g,
-                                      " ",
-                                    ),
-                                  )
-                                : "—",
-                            ],
-                            [
-                              "Fuel Type",
-                              asset.vehicle_details.fuel_type
-                                ? capitalize(asset.vehicle_details.fuel_type)
-                                : "—",
-                            ],
-                            [
-                              "Year of Manufacture",
-                              asset.vehicle_details.year_of_manufacture
-                                ? String(
-                                    asset.vehicle_details.year_of_manufacture,
-                                  )
-                                : "—",
-                            ],
-                            ["Color", asset.vehicle_details.color ?? "—"],
-                            [
-                              "Seating Capacity",
-                              asset.vehicle_details.seating_capacity
-                                ? `${asset.vehicle_details.seating_capacity} seats`
-                                : "—",
-                            ],
-                            [
-                              "Engine Number",
-                              asset.vehicle_details.engine_number ?? "—",
-                            ],
-                            [
-                              "Chassis Number (VIN)",
-                              asset.vehicle_details.chassis_number ?? "—",
-                            ],
-                            [
-                              "Mileage at Registration",
-                              asset.vehicle_details.mileage_at_registration !=
-                              null
-                                ? `${asset.vehicle_details.mileage_at_registration.toLocaleString()} km`
-                                : "—",
-                            ],
-                            [
-                              "Insurance Expiry",
-                              formatDate(
-                                asset.vehicle_details.insurance_expiry_date,
-                              ),
-                            ],
-                            [
-                              "Road Worthiness Expiry",
-                              formatDate(
-                                asset.vehicle_details
-                                  .road_worthiness_expiry_date,
-                              ),
-                            ],
-                          ] as [string, string][]
-                        ).map(([label, value]) => (
-                          <div key={label}>
-                            <p className="text-xs text-brand-text-secondary mb-0.5">
-                              {label}
-                            </p>
-                            <p className="font-medium text-brand-text-primary">
-                              {value}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -1082,13 +1027,13 @@ export default function AdminAssetDetailPage() {
                       {capitalize(asset.condition)}
                     </span>
                   </div>
-                  {asset.assigned_to_name && (
+                  {asset.assigned_to && (
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-brand-text-secondary shrink-0">
                         Assigned To
                       </span>
                       <span className="font-medium text-brand-text-primary text-right">
-                        {asset.assigned_to_name}
+                        {asset.assigned_to_name ?? asset.assigned_to}
                       </span>
                     </div>
                   )}
@@ -1133,12 +1078,16 @@ export default function AdminAssetDetailPage() {
                     ref={qrRef}
                     className="p-3 bg-white border border-brand-border rounded-xl"
                   >
-                    <QRCode
-                      value={`${typeof window !== "undefined" ? window.location.origin : ""}/assets/${asset.id}`}
-                      size={140}
-                      fgColor="#1a1a1a"
-                      bgColor="#ffffff"
-                    />
+                    {asset.qr_url ? (
+                      <img src={asset.qr_url} alt="QR Code" width={140} height={140} />
+                    ) : (
+                      <QRCode
+                        value={`${typeof window !== "undefined" ? window.location.origin : ""}/assets/${asset.id}`}
+                        size={140}
+                        fgColor="#1a1a1a"
+                        bgColor="#ffffff"
+                      />
+                    )}
                   </div>
                   {asset.asset_tag && (
                     <p className="text-xs font-mono text-brand-text-secondary">

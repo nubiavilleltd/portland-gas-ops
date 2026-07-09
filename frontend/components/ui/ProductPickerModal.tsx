@@ -37,8 +37,8 @@ function ProductCard({
 
   const isLow = isTracked(product)
     ? getAvailableCount(inventoryItems, product.id) === 0
-    : product.minimum_stock != null &&
-      getConsumableStockLevel(consumableStock, product.id) <= product.minimum_stock;
+    : product.minimumStock != null &&
+      getConsumableStockLevel(consumableStock, product.id) <= product.minimumStock;
 
   return (
     <div className="flex items-center gap-4 px-4 py-3">
@@ -74,7 +74,7 @@ function ProductCard({
             {stockLabel}
           </span>
           <span className="text-xs text-brand-text-secondary">
-            {formatCurrency(product.default_unit_price)} / {product.unit}
+            {formatCurrency(product.defaultUnitPrice)} / {product.unit}
           </span>
         </div>
       </div>

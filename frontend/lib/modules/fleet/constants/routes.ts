@@ -15,14 +15,14 @@ export const FLEET_ROUTES = {
   dashboard: () => "/fleet",
 
   // ── Trips ────────────────────────────────────────────
-  tripList:     ()           => "/fleet/trips",
-  tripDetail:   (id: string) => `/fleet/trips/${id}`,
-  tripEdit:     (id: string) => `/fleet/trips/${id}/edit`,
+  tripList: () => "/fleet/trips",
+  tripDetail: (tripNo: string) => `/fleet/trips/${tripNo}`,
+  tripEdit: (tripNo: string) => `/fleet/trips/${tripNo}/edit`,
 
   /**
    * tripNew supports optional context params carried from other pages.
    *
-   * Passing orderId locks Trip Type to "Order Delivery" and
+   * PassingNo locks Trip Type to "Order Delivery" and
    * pre-fills the destination from the order.
    *
    * Passing driverId / vehicleId auto-assigns them after creation.
@@ -32,8 +32,8 @@ export const FLEET_ROUTES = {
    *   → "/fleet/trips/new?orderId=ord-001"
    */
   tripNew: (params?: {
-    orderId?:   string;
-    driverId?:  string;
+    orderNo?: string;
+    driverId?: string;
     vehicleId?: string;
   }) => {
     const base = "/fleet/trips/new";
@@ -47,21 +47,21 @@ export const FLEET_ROUTES = {
   },
 
   // Actions — route-based modal pattern
-  tripAssign:   (id: string) => `/fleet/trips/${id}/assign`,
-  tripDispatch: (id: string) => `/fleet/trips/${id}/dispatch`,
-  tripStart:    (id: string) => `/fleet/trips/${id}/start`,
-  tripComplete: (id: string) => `/fleet/trips/${id}/complete`,
-  tripUpdate:   (id: string) => `/fleet/trips/${id}/update`,
+  tripAssign: (tripNo: string) => `/fleet/trips/${tripNo}/assign`,
+  tripDispatch: (tripNo: string) => `/fleet/trips/${tripNo}/dispatch`,
+  tripStart: (tripNo: string) => `/fleet/trips/${tripNo}/start`,
+  tripComplete: (tripNo: string) => `/fleet/trips/${tripNo}/complete`,
+  tripUpdate: (tripNo: string) => `/fleet/trips/${tripNo}/update`,
 
   // ── Drivers ──────────────────────────────────────────
-  driverList:   ()           => "/fleet/drivers",
-  driverNew:    ()           => "/fleet/drivers/new",
+  driverList: () => "/fleet/drivers",
+  driverNew: () => "/fleet/drivers/new",
   driverDetail: (id: string) => `/fleet/drivers/${id}`,
-  driverEdit:   (id: string) => `/fleet/drivers/${id}/edit`,
+  driverEdit: (id: string) => `/fleet/drivers/${id}/edit`,
 
   // ── Vehicles ─────────────────────────────────────────
-  vehicleList:   ()           => "/fleet/vehicles",
-  vehicleNew:    ()           => "/fleet/vehicles/new",
+  vehicleList: () => "/fleet/vehicles",
+  vehicleNew: () => "/fleet/vehicles/new",
   vehicleDetail: (id: string) => `/fleet/vehicles/${id}`,
-  vehicleEdit:   (id: string) => `/fleet/vehicles/${id}/edit`,
+  vehicleEdit: (id: string) => `/fleet/vehicles/${id}/edit`,
 } as const;

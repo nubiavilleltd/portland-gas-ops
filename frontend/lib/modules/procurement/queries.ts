@@ -20,11 +20,11 @@ export function useProcurementList(status?: ProcurementStatus) {
   });
 }
 
-export function useProcurement(id: string) {
+export function useProcurement(id: string, options?: { enabled?: boolean }) {
   return useQuery<ProcurementRequest>({
     queryKey: procurementKeys.detail(id),
     queryFn:  () => get<ProcurementRequest>(`/api/procurement/${id}`),
-    enabled:  !!id,
+    enabled:  !!id && (options?.enabled ?? true),
   });
 }
 

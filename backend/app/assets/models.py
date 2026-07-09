@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 import uuid
 import enum
 from app.core.database import Base
+from app.shared.models.document import Document
 
 
 class AssetCondition(str, enum.Enum):
@@ -15,7 +16,7 @@ class AssetCondition(str, enum.Enum):
 
 class AssetStatus(str, enum.Enum):
     available = "available"
-    in_use = "in_use"
+    assigned = "assigned"
     under_maintenance = "under_maintenance"
     decommissioned = "decommissioned"
 
@@ -26,10 +27,11 @@ class AssetRequestType(str, enum.Enum):
 
 
 class AssetRequestStatus(str, enum.Enum):
-    pending = "pending"
-    approved = "approved"
-    rejected = "rejected"
-    returned = "returned"
+    pending   = "pending"
+    approved  = "approved"
+    rejected  = "rejected"
+    returned  = "returned"
+    allocated = "allocated"
 
 
 class MaintenanceType(str, enum.Enum):
@@ -37,6 +39,14 @@ class MaintenanceType(str, enum.Enum):
     inspection = "inspection"
     calibration = "calibration"
     repair = "repair"
+
+
+class AssetAssignmentEventType(str, enum.Enum):
+    registered = "registered"
+    assigned = "assigned"
+    transferred = "transferred"
+    returned = "returned"
+    status_changed = "status_changed"
 
 
 class AssetCategory(Base):
@@ -49,6 +59,20 @@ class AssetCategory(Base):
     created_at = Column(DateTime, default=func.now())
 
     assets = relationship("Asset", back_populates="category")
+    types  = relationship("AssetType", back_populates="category", cascade="all, delete-orphan")
+
+
+class AssetType(Base):
+    __tablename__ = "asset_types"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    category_id = Column(String(36), ForeignKey("asset_categories.id", ondelete="CASCADE"), nullable=False)
+    name        = Column(String(255), nullable=False)
+    prefix      = Column(String(10), nullable=False)
+    is_active   = Column(Boolean, default=True, nullable=False)
+    created_at  = Column(DateTime, default=func.now())
+
+    category = relationship("AssetCategory", back_populates="types")
 
 
 class Asset(Base):
@@ -57,14 +81,18 @@ class Asset(Base):
     id                           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name                         = Column(String(255), nullable=False)
     category_id                  = Column(String(36), ForeignKey("asset_categories.id"), nullable=True)
+    asset_type_id                = Column(String(36), ForeignKey("asset_types.id", ondelete="SET NULL"), nullable=True)
+    asset_tag                    = Column(String(50), nullable=True, unique=True)
     serial_number                = Column(String(255), nullable=True)
     purchase_date                = Column(Date, nullable=True)
     purchase_cost                = Column(Numeric(12, 2), nullable=True)
     condition                    = Column(SAEnum(AssetCondition), nullable=False, default=AssetCondition.good)
     status                       = Column(SAEnum(AssetStatus), nullable=False, default=AssetStatus.available)
-    image_url                    = Column(String(500), nullable=True)
+    attachment_id                = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    qr_document_id               = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     description                  = Column(Text, nullable=True)
-    assigned_to                  = Column(String(255), nullable=True)
+    assigned_to                  = Column(String(36), nullable=True)   # employee ID
+    location                     = Column(String(255), nullable=True)
     total_quantity               = Column(Integer, nullable=False, default=1)
     available_quantity           = Column(Integer, nullable=False, default=1)
     low_stock_threshold          = Column(Integer, nullable=False, default=1)
@@ -76,10 +104,14 @@ class Asset(Base):
     created_at                   = Column(DateTime, default=func.now())
     updated_at                   = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    category          = relationship("AssetCategory", back_populates="assets")
-    added_by_user     = relationship("User", foreign_keys=[added_by])
-    request_items     = relationship("AssetRequestItem", back_populates="asset")
-    maintenance_logs  = relationship("AssetMaintenanceLog", back_populates="asset", order_by="AssetMaintenanceLog.performed_date.desc()")
+    category         = relationship("AssetCategory", back_populates="assets")
+    asset_type       = relationship("AssetType")
+    added_by_user    = relationship("User", foreign_keys=[added_by])
+    request_items    = relationship("AssetRequestItem", back_populates="asset")
+    maintenance_logs = relationship("AssetMaintenanceLog", back_populates="asset", order_by="AssetMaintenanceLog.performed_date.desc()")
+    assignment_logs  = relationship("AssetAssignmentLog", back_populates="asset", order_by="AssetAssignmentLog.performed_at.desc()")
+    attachment       = relationship("Document", foreign_keys=[attachment_id])
+    qr_document      = relationship("Document", foreign_keys=[qr_document_id])
 
 
 class AssetRequest(Base):
@@ -99,22 +131,28 @@ class AssetRequest(Base):
     created_at       = Column(DateTime, default=func.now())
     updated_at       = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    items     = relationship("AssetRequestItem", back_populates="request", cascade="all, delete-orphan")
-    requester = relationship("User", foreign_keys=[requested_by])
-    approver  = relationship("User", foreign_keys=[approved_by])
+    allocated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    allocated_at = Column(DateTime, nullable=True)
+
+    items       = relationship("AssetRequestItem", back_populates="request", cascade="all, delete-orphan")
+    requester   = relationship("User", foreign_keys=[requested_by])
+    approver    = relationship("User", foreign_keys=[approved_by])
+    allocator   = relationship("User", foreign_keys=[allocated_by])
 
 
 class AssetRequestItem(Base):
     __tablename__ = "asset_request_items"
 
-    id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    request_id = Column(String(36), ForeignKey("asset_requests.id"), nullable=False)
-    asset_id   = Column(String(36), ForeignKey("assets.id"), nullable=False)
-    quantity   = Column(Integer, nullable=False, default=1)
-    notes      = Column(Text, nullable=True)
+    id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    request_id    = Column(String(36), ForeignKey("asset_requests.id"), nullable=False)
+    asset_type_id = Column(String(36), ForeignKey("asset_types.id", ondelete="SET NULL"), nullable=True)
+    asset_id      = Column(String(36), ForeignKey("assets.id"), nullable=True)
+    quantity      = Column(Integer, nullable=False, default=1)
+    notes         = Column(Text, nullable=True)
 
-    request = relationship("AssetRequest", back_populates="items")
-    asset   = relationship("Asset", back_populates="request_items")
+    request    = relationship("AssetRequest", back_populates="items")
+    asset_type = relationship("AssetType")
+    asset      = relationship("Asset", back_populates="request_items")
 
 
 class AssetMaintenanceLog(Base):
@@ -132,3 +170,24 @@ class AssetMaintenanceLog(Base):
 
     asset          = relationship("Asset", back_populates="maintenance_logs")
     logged_by_user = relationship("User", foreign_keys=[logged_by])
+
+
+class AssetAssignmentLog(Base):
+    __tablename__ = "asset_assignment_logs"
+
+    id                 = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    asset_id           = Column(String(36), ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
+    asset_tag          = Column(String(50), nullable=True)   # snapshot at time of log
+    event_type         = Column(SAEnum(AssetAssignmentEventType), nullable=False)
+    from_employee_id   = Column(String(36), nullable=True)
+    from_employee_name = Column(String(255), nullable=True)
+    from_location      = Column(String(255), nullable=True)
+    to_employee_id     = Column(String(36), nullable=True)
+    to_employee_name   = Column(String(255), nullable=True)
+    to_location        = Column(String(255), nullable=True)
+    notes              = Column(Text, nullable=True)
+    performed_by       = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    performed_at       = Column(DateTime, default=func.now())
+
+    asset             = relationship("Asset", back_populates="assignment_logs")
+    performed_by_user = relationship("User", foreign_keys=[performed_by])

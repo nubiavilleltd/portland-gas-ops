@@ -111,7 +111,7 @@ onSuccess: (trip: Trip) => {
   queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
 
   toast.success("Trip created successfully");
-  router.push(FLEET_ROUTES.tripDetail(trip.id));
+  router.push(FLEET_ROUTES.tripDetail(trip.trip_number));
 },
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to create trip");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -14,16 +14,34 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
-import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
-import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
-import type { SafetyChecklistItem, SafetyChecklistTemplate } from "@/lib/modules/safety/checklists";
-import { updateWorkAuthorization } from "@/lib/safety-demo-store";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import {
+  safetyChecklistsApi,
+  useActiveSafetyChecklist,
+} from "@/lib/modules/safety/checklists";
+import type {
+  SafetyChecklistAnswerCreate,
+  SafetyChecklistItem,
+  SafetyChecklistTemplate,
+} from "@/lib/modules/safety/checklists";
+import {
+  mapWorkAuthorizationToRequest,
+  useUpdateWorkAuthorization,
+  useWorkAuthorization,
+  workAuthorizationsApi,
+  type WorkAuthorizationDecision,
+  type WorkAuthorizationHseReviewCreate,
+  type WorkAuthorizationInspectionCheck,
+  type WorkAuthorizationInspectionResult,
+} from "@/lib/modules/safety/workAuthorization";
+import {
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
-  WorkAuthorizationAuditTrailItem,
   WorkAuthorizationHseInspection,
   WorkAuthorizationRequest,
   WorkAuthorizationRole,
@@ -92,13 +110,45 @@ const initialHseInspectionChecks: EditableHseInspectionCheckState = {
   safetyControlsInPlace: "",
 };
 
-function toInspectionCheckValue(
+function toApiInspectionCheck(
   value: EditableInspectionCheckValue,
-): InspectionCheckValue {
-  if (value === "pass") return "Pass";
-  if (value === "fail") return "Fail";
-  if (value === "not_applicable") return "N/A";
-  return value || "N/A";
+): WorkAuthorizationInspectionCheck {
+  if (value === "Pass" || value === "pass") return "pass";
+  if (value === "Fail" || value === "fail") return "fail";
+  return "not_applicable";
+}
+
+function toApiInspectionResult(
+  value: EditableHseInspectionResult,
+): WorkAuthorizationInspectionResult {
+  if (value === "Passed") return "passed";
+  if (value === "Failed") return "failed";
+  return "returned";
+}
+
+function toApiDecision(
+  value: "Approve" | "Return" | "Deny",
+): WorkAuthorizationDecision {
+  if (value === "Approve") return "approve";
+  if (value === "Return") return "return";
+  return "deny";
+}
+
+function getSelectedRiskIndicators(request: WorkAuthorizationRequest) {
+  return [
+    request.riskIndicators.gasInvolved ? "Gas/CNG/LNG involved" : "",
+    request.riskIndicators.pressurizedSystem ? "Pressurized system involved" : "",
+    request.riskIndicators.heatOrSparks
+      ? "Heat, sparks, welding, cutting, or grinding"
+      : "",
+    request.riskIndicators.electricalIsolation
+      ? "Electrical isolation required"
+      : "",
+    request.riskIndicators.liftingEquipment
+      ? "Lifting/heavy equipment involved"
+      : "",
+    request.riskIndicators.ppeAvailable ? "All required PPE available" : "",
+  ].filter(Boolean);
 }
 
 function toChecklistOptions(item: SafetyChecklistItem) {
@@ -120,19 +170,56 @@ const hseInspectionItemKeyMap: Partial<
   safety_controls_in_place: "safetyControlsInPlace",
 };
 
+function buildHseInspectionChecklistAnswers(
+  checklist: SafetyChecklistTemplate | undefined,
+  checks: EditableHseInspectionCheckState,
+  result: EditableHseInspectionResult,
+  comment: string,
+): SafetyChecklistAnswerCreate[] {
+  if (!checklist) return [];
+
+  return checklist.items.reduce<SafetyChecklistAnswerCreate[]>((answers, item) => {
+    const mappedKey = hseInspectionItemKeyMap[item.item_key];
+
+    if (item.input_type === "enum" && mappedKey) {
+      answers.push({
+        item_id: item.id,
+        selected_option: toApiInspectionCheck(checks[mappedKey]),
+      });
+      return answers;
+    }
+
+    if (item.input_type === "enum" && item.item_key === "hse_inspection_result") {
+      answers.push({
+        item_id: item.id,
+        selected_option: toApiInspectionResult(result),
+      });
+      return answers;
+    }
+
+    if (item.input_type === "text" && item.item_key === "inspection_comments") {
+      const value = comment.trim();
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_text: value,
+        });
+      }
+    }
+
+    return answers;
+  }, []);
+}
+
 export default function WorkAuthorizationDetailsView({
   requestId,
-  initialRole,
 }: {
   requestId: string;
-  initialRole?: WorkAuthorizationRole;
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [currentRole, setCurrentRole] =
-    useState<WorkAuthorizationRole>(initialRole ?? "requester");
-  const [request, setRequest] = useState<WorkAuthorizationRequest | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [updatedRequest, setUpdatedRequest] =
+    useState<WorkAuthorizationRequest | null>(null);
   const [hseComment, setHseComment] = useState("");
   const [hseEvidence, setHseEvidence] = useState<File[]>([]);
   const [hseInspectionChecks, setHseInspectionChecks] = useState(
@@ -140,10 +227,53 @@ export default function WorkAuthorizationDetailsView({
   );
   const [hseInspectionResult, setHseInspectionResult] =
     useState<EditableHseInspectionResult>("");
+  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
+  const [additionalSafetyNote, setAdditionalSafetyNote] = useState("");
+  const [requesterAttachments, setRequesterAttachments] = useState<File[]>([]);
   const hseInspectionChecklist = useActiveSafetyChecklist(
     "work_authorization",
     "inspection",
   );
+  const requestQuery = useWorkAuthorization(requestId);
+  const updateWorkAuthorization = useUpdateWorkAuthorization(requestId);
+  const myApprovalsQuery = useMyApprovals();
+  const currentEmployeeQuery = useSafetyCurrentEmployee();
+  const currentEmployee = currentEmployeeQuery.data;
+  const request =
+    updatedRequest?.id === requestId ? updatedRequest : requestQuery.data ?? null;
+  const myWorkAuthorizationApproval = (myApprovalsQuery.data ?? []).find(
+    (approval) =>
+      approval.request_type === "work_authorization" &&
+      approval.request_id === requestId,
+  );
+
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!request) return;
+    setRiskIndicators(getSelectedRiskIndicators(request));
+    setAdditionalSafetyNote(request.riskIndicators.additionalSafetyNote);
+    setRequesterAttachments([]);
+  }, [request?.id, request?.status]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  const isRequester = Boolean(
+    request?.requesterId &&
+      currentEmployee?.id &&
+      request.requesterId === currentEmployee.id,
+  );
+  const isAssignedSupervisor = Boolean(
+    request?.workInitiation.assignedSupervisorId &&
+      currentEmployee?.id &&
+      request.workInitiation.assignedSupervisorId === currentEmployee.id,
+  );
+  const isHseEmployee = isHseDepartment(currentEmployee?.department);
+  const isAssignedHseWorkflowApprover = Boolean(myWorkAuthorizationApproval);
+  const hasDirectWorkAuthorizationAccess =
+    isRequester || isAssignedSupervisor || isAssignedHseWorkflowApprover;
+  const currentRole = getWorkAuthorizationAccessRole({
+    isRequester,
+    isAssignedSupervisor,
+    isHseEmployee: isAssignedHseWorkflowApprover,
+  });
 
   const hasFailedHseInspectionCheck = Object.values(hseInspectionChecks).some(
     (value) => value === "Fail" || value === "fail",
@@ -152,43 +282,28 @@ export default function WorkAuthorizationDetailsView({
   const shouldDisableHseApproval =
     hasFailedHseInspectionCheck || hasFailedHseInspectionResult;
 
-  useEffect(() => {
-    let mounted = true;
+  const isDraft = request?.status === "draft";
+  const isSubmitted = request?.status === "submitted";
+  const isApproved = request?.status === "approved";
+  const isReturned = request?.status === "returned";
+  const isDenied = request?.status === "denied";
+  const permissions = {
+    canEditDraft: isRequester && (isDraft || isReturned),
+    canHseInspect: isHseEmployee && isAssignedHseWorkflowApprover && isSubmitted,
+    showHseSection: Boolean(
+      (isHseEmployee && isAssignedHseWorkflowApprover && isSubmitted) ||
+        isApproved ||
+        isReturned ||
+        isDenied,
+    ),
+    showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
+  };
 
-    fetchWorkAuthorizationRequest(requestId)
-      .then((item) => {
-        if (mounted) setRequest(item);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [requestId]);
-
-  const permissions = useMemo(() => {
-    const isDraft = request?.status === "draft";
-    const isSubmitted = request?.status === "submitted";
-    const isApproved = request?.status === "approved";
-    const isReturned = request?.status === "returned";
-    const isDenied = request?.status === "denied";
-
-    return {
-      canEditDraft: currentRole === "requester" && (isDraft || isReturned),
-      canHseInspect: currentRole === "hse" && isSubmitted,
-      showHseSection: Boolean(
-        (currentRole === "hse" && isSubmitted) ||
-          isApproved ||
-          isReturned ||
-          isDenied,
-      ),
-      showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
-    };
-  }, [currentRole, request?.status]);
-
-  if (loading) {
+  if (
+    requestQuery.isLoading ||
+    currentEmployeeQuery.isLoading ||
+    myApprovalsQuery.isLoading
+  ) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
@@ -206,32 +321,39 @@ export default function WorkAuthorizationDetailsView({
   }
   const persistedRequestId = request.id;
 
-  function persistUpdate(
-    update: (current: WorkAuthorizationRequest) => WorkAuthorizationRequest,
-  ) {
-    const updated = updateWorkAuthorization(persistedRequestId, update);
-    if (updated) setRequest(updated);
+  async function handleRequesterSubmit() {
+    try {
+      const updated = await updateWorkAuthorization.mutateAsync({
+        payload: {
+          gas_involved: riskIndicators.includes("Gas/CNG/LNG involved"),
+          pressurized_system: riskIndicators.includes("Pressurized system involved"),
+          heat_or_sparks: riskIndicators.includes(
+            "Heat, sparks, welding, cutting, or grinding",
+          ),
+          electrical_isolation: riskIndicators.includes(
+            "Electrical isolation required",
+          ),
+          lifting_equipment: riskIndicators.includes(
+            "Lifting/heavy equipment involved",
+          ),
+          ppe_available: riskIndicators.includes("All required PPE available"),
+          additional_safety_note: additionalSafetyNote || null,
+          attachment_notes: null,
+          attachments: [],
+        },
+        attachments: requesterAttachments,
+      });
+      setUpdatedRequest(mapWorkAuthorizationToRequest(updated));
+      toast.success("Work authorization resubmitted.");
+      routeBackToWorkAuthorizationRequests(router);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Work authorization could not be resubmitted."),
+      );
+    }
   }
 
-  function handleRequesterSubmit() {
-    if (!request) return;
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action: "Submitted",
-      actor: request.requester.name,
-      role: "Requester",
-      dateTime: "2026-05-18 09:30 AM",
-      comment: "Work authorization request submitted.",
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status: "submitted",
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    toast.success("Work authorization submitted.");
-  }
-
-  function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
+  async function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
     if (decision === "Approve" && shouldDisableHseApproval) {
       return;
     }
@@ -239,86 +361,87 @@ export default function WorkAuthorizationDetailsView({
       return;
     }
 
-    const inspection: WorkAuthorizationHseInspection = {
-      workAreaSafe: toInspectionCheckValue(hseInspectionChecks.workAreaSafe),
-      emergencyEquipmentAvailable: toInspectionCheckValue(
+    const result =
+      hseInspectionResult ||
+      (decision === "Approve"
+        ? "Passed"
+        : decision === "Return"
+          ? "Returned"
+          : "Failed");
+    const payload: WorkAuthorizationHseReviewCreate = {
+      work_area_safe: toApiInspectionCheck(hseInspectionChecks.workAreaSafe),
+      emergency_equipment_available: toApiInspectionCheck(
         hseInspectionChecks.emergencyEquipmentAvailable,
       ),
-      gasPressureCheckCompleted: toInspectionCheckValue(
+      gas_pressure_check_completed: toApiInspectionCheck(
         hseInspectionChecks.gasPressureCheckCompleted,
       ),
-      ppeAndSafetyKitsAvailable: toInspectionCheckValue(
+      ppe_and_safety_kits_available: toApiInspectionCheck(
         hseInspectionChecks.ppeAndSafetyKitsAvailable,
       ),
-      safetyControlsInPlace: toInspectionCheckValue(hseInspectionChecks.safetyControlsInPlace),
-      inspectionDateTime: "2026-05-18 11:00 AM",
-      comments: hseComment || "Area inspected and cleared for work.",
-      result:
-        hseInspectionResult ||
-        (decision === "Approve"
-          ? "Passed"
-          : decision === "Return"
-            ? "Returned"
-            : "Failed"),
-      evidence:
-        hseEvidence.length > 0
-          ? hseEvidence.map((file) => ({
-              name: file.name,
-              type: "image" as const,
-            }))
-          : [{ name: "hse-inspection-photo.jpg", type: "image" }],
-    };
-    const approval: WorkAuthorizationApprovalResult = {
-      decision,
-      approver: "Samuel Bassey",
-      dateTime: "2026-05-18 11:10 AM",
-      comment:
+      safety_controls_in_place: toApiInspectionCheck(
+        hseInspectionChecks.safetyControlsInPlace,
+      ),
+      hse_inspection_result: toApiInspectionResult(result),
+      hse_inspection_comment: hseComment || "Area inspected and cleared for work.",
+      decision: toApiDecision(decision),
+      decision_comment:
         hseComment ||
         (decision === "Approve"
           ? "Request approved by HSE."
           : `Request ${decisionPastTense(decision)} by HSE.`),
     };
 
-    const pastTense = {
-      Approve: "Approved",
-      Deny: "Denied",
-      Return: "Returned",
-      Reject: "Rejected", // Easy to add more later!
-      Cancel: "Cancelled",
-    };
+    try {
+      const updated = await workAuthorizationsApi.createHseReview(
+        persistedRequestId,
+        payload,
+        hseEvidence,
+      );
+      setUpdatedRequest(mapWorkAuthorizationToRequest(updated));
 
-    const inspectionAudit: WorkAuthorizationAuditTrailItem = {
-      action: "HSE Inspection Completed",
-      actor: approval.approver,
-      role: "HSE Inspector",
-      dateTime: inspection.inspectionDateTime,
-      comment: inspection.comments,
-    };
-    const decisionAudit: WorkAuthorizationAuditTrailItem = {
-      action: `HSE ${pastTense[decision] || `${decision}ed`}`,
-      actor: approval.approver,
-      role: "HSE Inspector",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status:
-        decision === "Approve"
-          ? "approved"
-          : decision === "Return"
-            ? "returned"
-            : "denied",
-      hseInspection: inspection,
-      hseApproval: approval,
-      auditTrail: [...current.auditTrail, inspectionAudit, decisionAudit],
-    }));
-    if (decision === "Approve") {
-      toast.success("Work authorization approved by HSE.");
-    } else if (decision === "Return") {
-      toast.info("Work authorization returned to requester.");
-    } else {
-      toast.error("Work authorization denied by HSE.");
+      const checklistAnswers = buildHseInspectionChecklistAnswers(
+        hseInspectionChecklist.data,
+        hseInspectionChecks,
+        result,
+        payload.hse_inspection_comment ?? "",
+      );
+      let checklistHistoryWasSaved = true;
+
+      if (checklistAnswers.length > 0) {
+        try {
+          await safetyChecklistsApi.createResponses({
+            parent_type: "work_authorization",
+            parent_id: persistedRequestId,
+            answers: checklistAnswers,
+          });
+        } catch (checklistError) {
+          checklistHistoryWasSaved = false;
+          console.error(
+            "Failed to save work authorization HSE inspection checklist responses",
+            checklistError,
+          );
+        }
+      }
+
+      if (!checklistHistoryWasSaved) {
+        toast.info(
+          "HSE decision saved, but the inspection checklist history could not be saved.",
+        );
+        routeBackToWorkAuthorizationRequests(router);
+        return;
+      }
+
+      if (decision === "Approve") {
+        toast.success("Work authorization approved by HSE.");
+      } else if (decision === "Return") {
+        toast.info("Work authorization returned to requester.");
+      } else {
+        toast.error("Work authorization denied by HSE.");
+      }
+      routeBackToWorkAuthorizationRequests(router);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "HSE decision could not be saved."));
     }
   }
 
@@ -334,14 +457,17 @@ export default function WorkAuthorizationDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={request.id}
+        id={request.reference ?? "Reference pending"}
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
-        roleLabel={roleLabel(currentRole)}
+        onRoleChange={() => undefined}
+        roleLabel={
+          hasDirectWorkAuthorizationAccess ? roleLabel(currentRole) : "Viewer"
+        }
         roles={workAuthorizationRoles}
         recordLabel="Work Authorization Details"
         status={<ApprovalBadge status={request.status} />}
         nextActor={getWorkAuthorizationNextActor(request)}
+        showRoleSwitcher={false}
       />
 
       <StatusNote request={request} currentRole={currentRole} />
@@ -349,18 +475,29 @@ export default function WorkAuthorizationDetailsView({
       <RequesterDetailsSection request={request} />
       <AssignedWorkSummarySection request={request} />
       <RiskIndicatorsSection
-        request={request}
         editable={permissions.canEditDraft}
+        selectedRiskIndicators={riskIndicators}
+        onRiskIndicatorsChange={setRiskIndicators}
+        additionalSafetyNote={additionalSafetyNote}
+        onAdditionalSafetyNoteChange={setAdditionalSafetyNote}
       />
       <AttachmentsSection
         request={request}
         editable={permissions.canEditDraft}
+        newAttachments={requesterAttachments}
+        onNewAttachmentsChange={setRequesterAttachments}
       />
 
       {currentRole === "requester" &&
       (request.status === "draft" || request.status === "returned") ? (
         <div className="flex justify-end">
-          <Button onClick={handleRequesterSubmit}>Submit Request</Button>
+          <Button
+            onClick={handleRequesterSubmit}
+            loading={updateWorkAuthorization.isPending}
+            loadingText="Submitting..."
+          >
+            Submit Request
+          </Button>
         </div>
       ) : null}
 
@@ -454,7 +591,11 @@ function AssignedWorkSummarySection({
   return (
     <FormSection title="Assigned Work Summary" description="Approved scope and assignments carried from Work Initiation.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work Initiation Reference" value={work.id} disabled />
+        <FormInput
+          label="Work Initiation Reference"
+          value={work.reference ?? "Reference pending"}
+          disabled
+        />
         <FormInput
           label="Work Title"
           value={work.title}
@@ -493,35 +634,34 @@ function AssignedWorkSummarySection({
 }
 
 function RiskIndicatorsSection({
-  request,
   editable,
+  selectedRiskIndicators,
+  onRiskIndicatorsChange,
+  additionalSafetyNote,
+  onAdditionalSafetyNoteChange,
 }: {
-  request: WorkAuthorizationRequest;
   editable: boolean;
+  selectedRiskIndicators: string[];
+  onRiskIndicatorsChange: (value: string[]) => void;
+  additionalSafetyNote: string;
+  onAdditionalSafetyNoteChange: (value: string) => void;
 }) {
-  const selectedRiskIndicators = [
-    request.riskIndicators.gasInvolved ? "Gas/CNG/LNG involved" : "",
-    request.riskIndicators.pressurizedSystem ? "Pressurized system involved" : "",
-    request.riskIndicators.heatOrSparks ? "Heat, sparks, welding, cutting, or grinding" : "",
-    request.riskIndicators.electricalIsolation ? "Electrical isolation required" : "",
-    request.riskIndicators.liftingEquipment ? "Lifting/heavy equipment involved" : "",
-    request.riskIndicators.ppeAvailable ? "All required PPE available" : "",
-  ].filter(Boolean);
-
   return (
     <FormSection title="Risk & Safety Indicators" description="Safety considerations identified for this work activity.">
       <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
         <FormMultiSelect
           label="Risk Indicators"
           options={riskIndicatorOptions}
-          defaultValue={selectedRiskIndicators}
+          value={selectedRiskIndicators}
+          onValueChange={onRiskIndicatorsChange}
           disabled={!editable}
           searchable
           placeholder="Select all risk indicators that apply"
         />
         <FormTextarea
           label="Additional Safety Note"
-          defaultValue={request.riskIndicators.additionalSafetyNote}
+          value={additionalSafetyNote}
+          onChange={(event) => onAdditionalSafetyNoteChange(event.target.value)}
           disabled={!editable}
         />
       </div>
@@ -532,12 +672,14 @@ function RiskIndicatorsSection({
 function AttachmentsSection({
   request,
   editable,
+  newAttachments,
+  onNewAttachmentsChange,
 }: {
   request: WorkAuthorizationRequest;
   editable: boolean;
+  newAttachments: File[];
+  onNewAttachmentsChange: (files: File[]) => void;
 }) {
-  const [newAttachments, setNewAttachments] = useState<File[]>([]);
-
   return (
     <FormSection title="Attachments" description="Supporting safety documents and evidence attached to this request.">
       <AttachmentList attachments={request.attachments} />
@@ -546,10 +688,10 @@ function AttachmentsSection({
           <FileDropzone
             label="Add Attachments"
             value={newAttachments}
-            onChange={setNewAttachments}
+            onChange={onNewAttachmentsChange}
             accept="image/*,.pdf,.doc,.docx"
             maxFiles={10}
-            hint="Local selection only. No upload is performed."
+            hint="These files will be uploaded when the returned request is resubmitted."
           />
         </div>
       ) : null}
@@ -569,27 +711,58 @@ function AttachmentList({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {attachments.map((attachment) => (
-        <div
-          key={attachment.name}
-          className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? (
-              <ImageIcon size={18} />
-            ) : (
-              <FileText size={18} />
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">
-              {attachment.name}
-            </p>
-            <p className="text-xs capitalize text-brand-text-secondary">
-              {attachment.type}
-            </p>
-          </div>
-        </div>
+        <AttachmentItem
+          key={attachment.id ?? attachment.name}
+          attachment={attachment}
+        />
       ))}
+    </div>
+  );
+}
+
+function AttachmentItem({
+  attachment,
+}: {
+  attachment: WorkAuthorizationAttachment;
+}) {
+  const content = (
+    <>
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
+        {attachment.type === "image" ? (
+          <ImageIcon size={18} />
+        ) : (
+          <FileText size={18} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-brand-text-primary">
+          {attachment.name}
+        </p>
+        <p className="text-xs capitalize text-brand-text-secondary">
+          {attachment.type}
+        </p>
+      </div>
+    </>
+  );
+
+  if (attachment.url) {
+    return (
+      <a
+        href={attachment.url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3 transition-colors hover:border-brand-purple hover:bg-brand-purple-faint"
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
+    >
+      {content}
     </div>
   );
 }
@@ -647,6 +820,20 @@ function HseInspectionActionSection({
         />
       );
     }
+    if (item.input_type === "enum" && item.item_key === "hse_inspection_result") {
+      return (
+        <FormSelect
+          key={item.id}
+          label={item.label}
+          options={inspectionResultOptions}
+          placeholder="Select inspection result"
+          value={inspectionResult}
+          onValueChange={(value) =>
+            onInspectionResultChange(value as EditableHseInspectionResult)
+          }
+        />
+      );
+    }
     return (
       <FormInput
         key={item.id}
@@ -669,15 +856,17 @@ function HseInspectionActionSection({
           label="Inspection date/time"
           defaultValue="2026-05-18 11:00 AM"
         />
-        <FormSelect
-          label="Inspection result"
-          options={inspectionResultOptions}
-          placeholder="Select inspection result"
-          value={inspectionResult}
-          onValueChange={(value) =>
-            onInspectionResultChange(value as EditableHseInspectionResult)
-          }
-        />
+        {checklist?.items.some((item) => item.item_key === "hse_inspection_result") ? null : (
+          <FormSelect
+            label="Inspection result"
+            options={inspectionResultOptions}
+            placeholder="Select inspection result"
+            value={inspectionResult}
+            onValueChange={(value) =>
+              onInspectionResultChange(value as EditableHseInspectionResult)
+            }
+          />
+        )}
         <div className="md:col-span-2">
           <FileDropzone
             label="Inspection evidence/images"
@@ -868,4 +1057,48 @@ function roleLabel(role: WorkAuthorizationRole) {
   if (role === "hse") return "HSE Inspector";
   if (role === "supervisor") return "Supervisor";
   return "Requester";
+}
+
+function getWorkAuthorizationAccessRole({
+  isRequester,
+  isAssignedSupervisor,
+  isHseEmployee,
+}: {
+  isRequester: boolean;
+  isAssignedSupervisor: boolean;
+  isHseEmployee: boolean;
+}): WorkAuthorizationRole {
+  if (isHseEmployee) return "hse";
+  if (isAssignedSupervisor) return "supervisor";
+  if (isRequester) return "requester";
+
+  return "requester";
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalizedDepartment = department?.trim().toLowerCase();
+  return normalizedDepartment === "hse" || normalizedDepartment === "safety";
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response
+    ?.data?.detail;
+
+  if (typeof detail === "string") return detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    "message" in detail &&
+    typeof detail.message === "string"
+  ) {
+    return detail.message;
+  }
+
+  return fallback;
+}
+
+function routeBackToWorkAuthorizationRequests(router: ReturnType<typeof useRouter>) {
+  window.setTimeout(() => {
+    router.push("/safety/work-authorization");
+  }, 700);
 }

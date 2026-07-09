@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
-
+from datetime import datetime, timedelta, timezone
+from pydantic import model_validator
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.safety.work_initiations.models import (
@@ -9,6 +10,11 @@ from app.safety.work_initiations.models import (
     WorkInitiationStatus,
 )
 
+def to_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(timezone.utc)
 
 class WorkInitiationCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=255)
@@ -58,12 +64,36 @@ class WorkInitiationCreate(BaseModel):
         return deduped
 
     @model_validator(mode="after")
-    def validate_dates_and_contractor(self):
-        if self.planned_end_at <= self.planned_start_at:
+    def validate_planned_dates(self):
+        now = datetime.now(timezone.utc)
+        minimum_start_time = now + timedelta(minutes=10)
+
+        planned_start = to_utc(self.planned_start_at)
+        planned_end = to_utc(self.planned_end_at)
+
+        if planned_start < minimum_start_time:
+            raise ValueError("Planned start date/time must be at least 10 minutes from now.")
+
+        if planned_end < now:
+            raise ValueError("Planned end date/time cannot be in the past.")
+
+        if planned_end <= planned_start:
             raise ValueError("Planned end date/time must be after planned start date/time.")
-        if self.contractors_needed and not self.selected_contractor_name:
-            raise ValueError("Selected contractor is required when contractors are needed.")
+
         return self
+
+
+class WorkInitiationUpdate(WorkInitiationCreate):
+    pass
+
+class WorkInitiationReviewCreate(BaseModel):
+    decision: WorkInitiationDecision
+    comment: Optional[str] = None
+
+    @field_validator("comment", mode="before")
+    @classmethod
+    def strip_comment(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 class WorkInitiationEmployeeSummary(BaseModel):

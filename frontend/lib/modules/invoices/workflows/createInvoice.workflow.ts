@@ -38,7 +38,7 @@ export async function createInvoiceWorkflow(order: Order, data: InvoiceForm): Pr
   // Backend handles: create invoice + link to order + set order.payment_status=unpaid
   await InvoicesService.createInvoice({
     order_id:     order.id,
-    total_amount: order.total_amount,
+    total_amount: order.totalAmount,
     invoice_date: data.invoice_date,
     due_date:     data.due_date,
   });

@@ -56,8 +56,8 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
   if (customer?.address) {
     drawLabelValue(doc, "Address", customer.address, col1, y, colW);
   }
-  if (order?.order_number) {
-    drawLabelValue(doc, "Order Number", order.order_number, col2, y, colW);
+  if (order?.orderNumber) {
+    drawLabelValue(doc, "Order Number", order.orderNumber, col2, y, colW);
   }
   y += 15;
 
@@ -73,21 +73,21 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
   y += 6;
 
   // ── Line items table ────────────────────────────────────
-  const lineItems = order?.order_items ?? [];
+  const lineItems = order?.orderItems ?? [];
 
   const columns: TableColumn<OrderLineItem>[] = [
     {
       header: "Product",
       width: 70,
       align: "left",
-      render: (item) => item.product_name,
+      render: (item) => item.productName,
     },
     {
       header: "Qty",
       width: 30,
       align: "center",
       render: (item) => {
-        const unit = productUnitMap.get(item.product_id) ?? "";
+        const unit = productUnitMap.get(item.productId) ?? "";
         return `${item.quantity.toLocaleString()} ${unit}`.trim();
       },
     },
@@ -95,7 +95,7 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
       header: "Unit Price (NGN)",
       width: 37,
       align: "right",
-      render: (item) => fmtCurrency(item.unit_price),
+      render: (item) => fmtCurrency(item.unitPrice),
     },
     {
       header: "Total (NGN)",
@@ -150,7 +150,7 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
         header: "Date",
         width: 40,
         align: "center",
-        render: (p) => fmtDate(p.date),
+        render: (p) => fmtDate(p.paymentDate),
       },
       {
         header: "Method",

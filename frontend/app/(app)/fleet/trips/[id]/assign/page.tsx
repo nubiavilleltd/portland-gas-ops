@@ -15,7 +15,7 @@ import DriverPickerModal from "@/components/ui/DriverPickerModal";
 import VehiclePickerModal from "@/components/ui/VehiclePickerModal";
 
 // ✅ hooks (domain layer)
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useAvailableDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useAvailableVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useAssignResourcesWorkflow } from "@/lib/modules/fleet/hooks/useAssignResourcesWorkflow";
@@ -30,10 +30,10 @@ export default function AssignResourcesPage() {
 
   const assignResources = useAssignResourcesWorkflow();
 
-  const tripId = params.id as string;
+  const tripNo = params.id as string;
 
   // ✅ domain hooks instead of selectors
-  const { trip } = useTripById(tripId);
+  const { trip } = useTripByNo(tripNo);
   const { drivers: availableDrivers } = useAvailableDrivers();
   const { vehicles: availableVehicles } = useAvailableVehicles();
 
@@ -59,7 +59,7 @@ export default function AssignResourcesPage() {
             trip is currently <TripStatusBadge status={trip.status} />.
           </p>
           <Button
-            href={`/fleet/trips/${tripId}`}
+            href={`/fleet/trips/${tripNo}`}
             variant="outline"
           >
             Back to Trip
@@ -74,7 +74,7 @@ export default function AssignResourcesPage() {
   async function handleAssign() {
     if (!canSubmit) return;
     await assignResources.mutateAsync({
-      tripId,
+      tripId:trip?.id as string,
       driverId: selectedDriverId,
       vehicleId: selectedVehicleId,
     });
@@ -83,7 +83,7 @@ export default function AssignResourcesPage() {
   return (
     <AppLayout pageTitle="Assign Driver & Vehicle">
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
         label="Back to Trip"
       />
       <PageHeader

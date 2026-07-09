@@ -21,7 +21,7 @@ export default function PaymentDetailPage() {
 
   const {payment, error} = usePaymentById(id)
 
-  const {invoice} = useInvoiceById(payment?.invoice_id as string)
+  const {invoice} = useInvoiceById(payment?.invoiceId as string)
 
 
   if (error || !payment) {
@@ -86,7 +86,7 @@ export default function PaymentDetailPage() {
                 Date
               </p>
               <p className="font-medium mt-1">
-                {formatDate(payment?.date ?? "")}
+                {formatDate(payment?.paymentDate ?? "")}
               </p>
             </div>
 

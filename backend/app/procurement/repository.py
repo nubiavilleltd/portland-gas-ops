@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from sqlalchemy.orm import Session, joinedload
-from datetime import datetime
 
 from app.procurement.models import ProcurementRequest, ProcurementItem, PurchaseOrder
 from app.employees.models import Employee
 from app.shared.models.user import User
 from app.shared.models.document import Document
+from app.shared.utils.helpers import generate_reference
 
 
 class ProcurementRepository:
@@ -16,38 +16,10 @@ class ProcurementRepository:
     # ── Reference generation ──────────────────────────────────────────────────
 
     def next_request_reference(self) -> str:
-        year = datetime.now().year
-        pattern = f"PR-{year}-%"
-        last = (
-            self.db.query(ProcurementRequest.reference)
-            .filter(ProcurementRequest.reference.like(pattern))
-            .order_by(ProcurementRequest.reference.desc())
-            .first()
-        )
-        num = 1
-        if last:
-            try:
-                num = int(last[0].split("-")[-1]) + 1
-            except (ValueError, IndexError):
-                pass
-        return f"PR-{year}-{num:03d}"
+        return generate_reference("PR", self.db, ProcurementRequest, ProcurementRequest.reference)
 
     def next_po_number(self) -> str:
-        year = datetime.now().year
-        pattern = f"PO-{year}-%"
-        last = (
-            self.db.query(PurchaseOrder.po_number)
-            .filter(PurchaseOrder.po_number.like(pattern))
-            .order_by(PurchaseOrder.po_number.desc())
-            .first()
-        )
-        num = 1
-        if last:
-            try:
-                num = int(last[0].split("-")[-1]) + 1
-            except (ValueError, IndexError):
-                pass
-        return f"PO-{year}-{num:03d}"
+        return generate_reference("PO", self.db, PurchaseOrder, PurchaseOrder.po_number)
 
     # ── Procurement requests ──────────────────────────────────────────────────
 
@@ -57,11 +29,14 @@ class ProcurementRepository:
             .options(
                 joinedload(ProcurementRequest.raiser).joinedload(Employee.user),
                 joinedload(ProcurementRequest.vendor),
+                joinedload(ProcurementRequest.attachment),
                 joinedload(ProcurementRequest.items),
                 joinedload(ProcurementRequest.purchase_orders)
                     .joinedload(PurchaseOrder.vendor),
                 joinedload(ProcurementRequest.purchase_orders)
                     .joinedload(PurchaseOrder.issuer).joinedload(Employee.user),
+                joinedload(ProcurementRequest.purchase_orders)
+                    .joinedload(PurchaseOrder.document),
             )
         )
 
@@ -122,10 +97,18 @@ class ProcurementRepository:
         root = self._get_or_create_folder("Purchase Orders", None)
         return self._get_or_create_folder(request_reference, root.id)
 
+    def get_purchase_requests_folder(self) -> Document:
+        """Return (or create) the Purchase Requests root folder."""
+        return self._get_or_create_folder("Purchase Requests", None)
+
     def add_document(self, doc: Document) -> Document:
         self.db.add(doc)
         self.db.flush()
         return doc
+
+    def delete_document(self, doc_id: int) -> None:
+        self.db.query(Document).filter(Document.id == doc_id).delete()
+        self.db.flush()
 
     # ── Purchase orders ───────────────────────────────────────────────────────
 

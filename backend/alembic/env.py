@@ -22,10 +22,20 @@ from app.safety.checklists import models as _safety_checklist_models  # noqa: F4
 from app.safety.incidents import models as _safety_incident_models  # noqa: F401
 from app.safety.work_initiations import models as _safety_work_initiation_models  # noqa: F401
 from app.safety.work_authorizations import models as _safety_work_authorization_models  # noqa: F401
+from app.safety.work_closeouts import models as _safety_work_closeout_models  # noqa: F401
 
 from app.payments.model import Payment   # noqa: F401
 from app.orders.model import Order, OrderItem  # noqa: F401
 from app.invoices.model import Invoice   # noqa: F401
+from app.audit.model import AuditLog                          # noqa: F401
+from app.inventory.model import (                             # noqa: F401
+    WarehouseLocation, InventoryItem, ConsumableStock,
+    StockMovement, StockMovementItem, OrderItemInventory,
+)
+from app.fleet.drivers.model import Driver # noqa: F401
+from app.fleet.vehicles.model import Vehicle # noqa: F401
+from app.fleet.trips.model import Trip, TripOrder  # noqa: F401
+
 
 config = context.config
 

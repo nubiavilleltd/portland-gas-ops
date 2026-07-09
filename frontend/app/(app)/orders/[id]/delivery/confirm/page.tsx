@@ -15,7 +15,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import FormSection from "@/components/ui/FormSection";
-import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
 import { useConfirmDeliveryWorkflow } from "@/lib/modules/orders/hooks/useConfirmDeliveryWorkflow";
 import { Order } from "@/lib/modules/orders/types/orders.types";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
@@ -25,22 +25,23 @@ import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
 import { ORDER_ROUTES } from "@/lib/routes";
+import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 
 export default function OrderDeliveryPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
-  const { order } = useOrderById(id);
+  const orderNo = params.id as string;
+  const { order } = useOrderByNumber(orderNo);
 
   const { customers } = useCustomers();
+  const {invoice} = useInvoiceById(order?.invoiceId || "");
   const confirmDelivery = useConfirmDeliveryWorkflow()
   const customerMap = new Map(customers.map((c) => [c.id, c]));
 
 
   const [proofNotes, setProofNotes] = useState("");
   const [receivedBy, setReceivedBy] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
 
   if (!order) {
     return (
@@ -50,7 +51,7 @@ export default function OrderDeliveryPage() {
     );
   }
 
-  const alreadyDelivered = order.fulfillment_status === "delivered";
+  const alreadyDelivered = order.fulfillmentStatus === "delivered";
 
   const canConfirm = canConfirmDelivery(order)
 
@@ -68,7 +69,7 @@ export default function OrderDeliveryPage() {
   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
       label: "Product",
-      render: (item) => <span className="font-medium">{item.product_name}</span>,
+      render: (item) => <span className="font-medium">{item.productName}</span>,
     },
     {
       label: "Quantity",
@@ -92,7 +93,7 @@ export default function OrderDeliveryPage() {
       </button> */}
 
       <BackButton
-        href={`${ORDER_ROUTES.detail(id)}`}
+        href={`${ORDER_ROUTES.detail(orderNo)}`}
         label="Back to Order"
       />
 
@@ -109,7 +110,7 @@ export default function OrderDeliveryPage() {
           <div>
             <p className="font-medium text-green-800">Delivery Already Confirmed</p>
             <p className="text-sm text-green-600">
-              Delivered on {order.delivered_at ? formatDate(order.delivered_at) : "—"}
+              Delivered on {order.deliveredAt ? formatDate(order.deliveredAt) : "—"}
             </p>
           </div>
         </div>
@@ -122,7 +123,7 @@ export default function OrderDeliveryPage() {
             <p className="font-medium text-yellow-800">Delivery Cannot Be Confirmed Yet</p>
             <p className="text-sm text-yellow-600">
               Order must in transit before confirming delivery.
-              Current status: <FulfillmentStatusBadge status={order.fulfillment_status} />
+              Current status: <FulfillmentStatusBadge status={order.fulfillmentStatus} />
             </p>
           </div>
         </div>
@@ -142,11 +143,11 @@ export default function OrderDeliveryPage() {
         <Truck size={18} />
       </div> */}
             <div>
-              <h3 className="font-semibold">{order.order_number}</h3>
-              <p className="text-sm text-brand-text-secondary">{customerMap.get(order.customer_id)?.name || "Unknown customer"}</p>
+              <h3 className="font-semibold">{order.orderNumber}</h3>
+              <p className="text-sm text-brand-text-secondary">{customerMap.get(order.customerId)?.name || "Unknown customer"}</p>
             </div>
             <div className="ml-auto">
-              <FulfillmentStatusBadge status={order.fulfillment_status} />
+              <FulfillmentStatusBadge status={order.fulfillmentStatus} />
             </div>
           </div>
 
@@ -155,7 +156,7 @@ export default function OrderDeliveryPage() {
             <p className="text-xs text-brand-text-secondary mb-3">Items</p>
             <SimpleTable
               columns={itemColumns}
-              rows={order.order_items}
+              rows={order.orderItems}
               keyExtractor={(_, index) => String(index)}
             />
           </div>
@@ -164,7 +165,7 @@ export default function OrderDeliveryPage() {
             <MapPin size={16} className="text-brand-purple mt-0.5 shrink-0" />
             <div>
               <p className="text-xs text-brand-text-secondary">Delivery Address</p>
-              <p className="text-sm font-medium">{order.delivery_address}</p>
+              <p className="text-sm font-medium">{order.deliveryAddress}</p>
             </div>
           </div>
         </FormSection>
@@ -241,14 +242,14 @@ export default function OrderDeliveryPage() {
             </Button>
           )}
 
-          {alreadyDelivered && !order.invoice_id && (
-            <Button href={`/invoices/new?orderId=${id}`}>
+          {alreadyDelivered && !order.invoiceId && (
+            <Button href={`/invoices/new?orderNo=${order.orderNumber}`}>
               Create Invoice →
             </Button>
           )}
 
-          {alreadyDelivered && order.invoice_id && (
-            <Button href={`/invoices/${order.invoice_id}`} variant="outline">
+          {alreadyDelivered && order.invoiceId && (
+            <Button href={`/invoices/${invoice?.invoice_number || order.invoiceId}`} variant="outline">
               View Invoice →
             </Button>
           )}
@@ -259,11 +260,3 @@ export default function OrderDeliveryPage() {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-brand-text-secondary">{label}</p>
-      <p className="font-medium mt-0.5">{value}</p>
-    </div>
-  );
-}

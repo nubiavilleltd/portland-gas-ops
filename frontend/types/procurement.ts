@@ -1,13 +1,13 @@
 import type { Vendor } from "./vendor";
 
-// draft → pending → approved → po_issued | rejected | returned
 export type ProcurementStatus =
   | "draft"
   | "pending"
   | "approved"
   | "rejected"
   | "returned"
-  | "po_issued";
+  | "awaiting_confirmation"
+  | "completed";
 
 export type POStatus = "issued" | "delivered" | "cancelled";
 
@@ -23,9 +23,18 @@ export interface EmployeeInProcurement {
   } | null;
 }
 
+export interface AttachmentInProcurement {
+  id: number;
+  name: string;
+  file_path: string;
+  mime_type: string | null;
+  file_size: number | null;
+}
+
 export interface VendorInProcurement {
   id: string;
   name: string;
+  contact_person: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
@@ -38,6 +47,7 @@ export interface ProcurementItem {
   id: string;
   description: string;
   quantity: number;
+  unit: string | null;
   unit_price: number | null;
   total_price: number | null;
 }
@@ -52,6 +62,7 @@ export interface PurchaseOrder {
   status: POStatus;
   notes: string | null;
   document_id: number | null;
+  document: { id: number; file_path: string | null; name: string } | null;
   vendor: VendorInProcurement | null;
   issuer: EmployeeInProcurement | null;
 }
@@ -60,58 +71,73 @@ export interface PurchaseOrder {
 export interface ProcurementRequest {
   id: string;
   reference: string;
-  title: string;
+  category: string | null;
   description: string | null;
   estimated_amount: number | null;
   currency: string;
   status: ProcurementStatus;
   raised_by: string;
+  required_by: string | null;
   vendor_id: string | null;
+  attachment_id: number | null;
+  attachment: AttachmentInProcurement | null;
   created_at: string;
   updated_at: string | null;
   raiser: EmployeeInProcurement | null;
   vendor: VendorInProcurement | null;
   items: ProcurementItem[];
   purchase_orders: PurchaseOrder[];
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
 }
 
-/** Lighter type for list views — no items / POs */
+/** Lighter type for list views */
 export interface ProcurementListItem {
   id: string;
   reference: string;
-  title: string;
+  category: string | null;
   status: ProcurementStatus;
   estimated_amount: number | null;
   currency: string;
   raised_by: string;
+  required_by: string | null;
   vendor_id: string | null;
+  attachment_id: number | null;
   created_at: string;
   updated_at: string | null;
   raiser: EmployeeInProcurement | null;
   vendor: VendorInProcurement | null;
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
+  /** PO document download URL — set when a PO with a document exists */
+  po_document_url: string | null;
 }
 
-/** What the create / update forms submit */
 export interface ProcurementItemInput {
   description: string;
   quantity: number;
+  unit?: string;
   unit_price: number | null;
   total_price: number | null;
 }
 
 export interface ProcurementCreateInput {
-  title: string;
+  category?: string;
   description?: string;
   estimated_amount?: number;
   currency?: string;
+  required_by?: string;
   vendor_id?: string;
   items: ProcurementItemInput[];
 }
 
 export interface ProcurementUpdateInput {
-  title?: string;
+  category?: string;
   description?: string;
   estimated_amount?: number;
+  required_by?: string;
   vendor_id?: string;
   items?: ProcurementItemInput[];
 }

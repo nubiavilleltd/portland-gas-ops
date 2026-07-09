@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy import and_, exists, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -17,24 +18,65 @@ from app.safety.work_authorizations.models import (
 from app.safety.work_authorizations.schemas import (
     WorkAuthorizationCreate,
     WorkAuthorizationHseReviewCreate,
+    WorkAuthorizationUpdate,
 )
 from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
     WorkInitiationStatus,
 )
+from app.shared.models.approval import (
+    AllRequest,
+    ApprovalOverallStatus,
+    ApprovalRequest,
+)
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
+from app.shared.models.document import Document
+from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.workflow_engine import WorkflowEngine
 
 
 WORK_AUTHORIZATION_REFERENCE_ENTITY = "work_authorization"
 WORK_AUTHORIZATION_REFERENCE_PREFIX = "WA"
-ACTIVE_WORK_AUTHORIZATION_STATUSES = (
-    WorkAuthorizationStatus.draft,
-    WorkAuthorizationStatus.submitted,
-    WorkAuthorizationStatus.returned,
-    WorkAuthorizationStatus.approved,
-)
+WORK_AUTHORIZATION_REQUEST_TYPE = "work_authorization"
+WORK_AUTHORIZATION_DOCUMENT_CATEGORY_PREFIX = "safety_work_authorization"
+WORK_AUTHORIZATION_HSE_DOCUMENT_CATEGORY_PREFIX = "safety_work_authorization_hse"
+
+
+def work_authorization_document_category(work_authorization_id: str) -> str:
+    return f"{WORK_AUTHORIZATION_DOCUMENT_CATEGORY_PREFIX}:{work_authorization_id}"
+
+
+def work_authorization_hse_document_category(work_authorization_id: str) -> str:
+    return f"{WORK_AUTHORIZATION_HSE_DOCUMENT_CATEGORY_PREFIX}:{work_authorization_id}"
+
+
+def get_active_workflow_approval_request_id(
+    db: Session,
+    work_authorization_id: str,
+) -> str:
+    row = (
+        db.query(AllRequest.approval_request_id)
+        .join(
+            ApprovalRequest,
+            ApprovalRequest.id == AllRequest.approval_request_id,
+        )
+        .filter(
+            AllRequest.request_type == WORK_AUTHORIZATION_REQUEST_TYPE,
+            AllRequest.request_id == work_authorization_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .first()
+    )
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No active workflow approval request found for this work authorization.",
+        )
+
+    return row.approval_request_id
 
 
 def reserve_work_authorization_reference(db: Session) -> str:
@@ -88,8 +130,10 @@ def create_work_authorization(
     db: Session,
     data: WorkAuthorizationCreate,
     current_user: User,
+    attachments: Optional[list[tuple[bytes, str, str, int]]] = None,
 ) -> SafetyWorkAuthorization:
     requester = get_employee_for_user(db, current_user)
+    attachments = attachments or []
     work_initiation = get_work_initiation_for_authorization(
         db,
         data.work_initiation_id,
@@ -109,12 +153,109 @@ def create_work_authorization(
         ppe_available=data.ppe_available,
         additional_safety_note=data.additional_safety_note,
         attachment_notes=data.attachment_notes,
-        attachments_json=[item.model_dump() for item in data.attachments],
+        attachments_json=[],
     )
     db.add(record)
+    db.flush()
+
+    create_work_authorization_documents(
+        db=db,
+        work_authorization_id=record.id,
+        files=attachments,
+        uploaded_by=requester.id,
+        hse_evidence=False,
+    )
+    start_work_authorization_workflow(
+        db=db,
+        record=record,
+        requester=requester,
+    )
+
     db.commit()
 
     return get_work_authorization(db, record.id)
+
+
+def update_work_authorization(
+    db: Session,
+    work_authorization_id: str,
+    data: WorkAuthorizationUpdate,
+    current_user: User,
+    attachments: Optional[list[tuple[bytes, str, str, int]]] = None,
+) -> SafetyWorkAuthorization:
+    record = get_work_authorization(db, work_authorization_id)
+    requester = get_employee_for_user(db, current_user)
+    attachments = attachments or []
+
+    if record.requester_id != requester.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the requester can update this work authorization.",
+        )
+
+    if record.status not in (WorkAuthorizationStatus.draft, WorkAuthorizationStatus.returned):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only draft or returned work authorizations can be updated.",
+        )
+
+    record.status = WorkAuthorizationStatus.submitted
+    record.gas_involved = data.gas_involved
+    record.pressurized_system = data.pressurized_system
+    record.heat_or_sparks = data.heat_or_sparks
+    record.electrical_isolation = data.electrical_isolation
+    record.lifting_equipment = data.lifting_equipment
+    record.ppe_available = data.ppe_available
+    record.additional_safety_note = data.additional_safety_note
+    record.attachment_notes = data.attachment_notes
+    record.attachments_json = data.attachments or []
+
+    clear_hse_review(record)
+
+    create_work_authorization_documents(
+        db=db,
+        work_authorization_id=record.id,
+        files=attachments,
+        uploaded_by=requester.id,
+        hse_evidence=False,
+    )
+    start_work_authorization_workflow(
+        db=db,
+        record=record,
+        requester=requester,
+    )
+
+    db.commit()
+    return get_work_authorization(db, record.id)
+
+
+def start_work_authorization_workflow(
+    db: Session,
+    record: SafetyWorkAuthorization,
+    requester: Employee,
+) -> None:
+    engine = WorkflowEngine(db)
+    engine.start(
+        request_type=WORK_AUTHORIZATION_REQUEST_TYPE,
+        request_id=record.id,
+        title=f"{record.reference} — {record.work_initiation.title}",
+        requester=requester,
+    )
+
+
+def clear_hse_review(record: SafetyWorkAuthorization) -> None:
+    record.hse_inspector_id = None
+    record.work_area_safe = None
+    record.emergency_equipment_available = None
+    record.gas_pressure_check_completed = None
+    record.ppe_and_safety_kits_available = None
+    record.safety_controls_in_place = None
+    record.hse_inspection_result = None
+    record.hse_inspection_comment = None
+    record.hse_evidence_json = []
+    record.hse_decision = None
+    record.hse_decision_comment = None
+    record.hse_decided_at = None
 
 
 def validate_work_authorization_create_rules(
@@ -122,6 +263,12 @@ def validate_work_authorization_create_rules(
     work_initiation: SafetyWorkInitiation,
     requester: Employee,
 ) -> None:
+    if not work_initiation.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only active work initiations can be authorized.",
+        )
+
     if work_initiation.status != WorkInitiationStatus.approved:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -141,14 +288,7 @@ def validate_work_authorization_create_rules(
     if existing_record:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "message": (
-                    "A work authorization already exists for this work initiation. "
-                    "Update and resubmit the existing request instead."
-                ),
-                "existing_work_authorization_id": existing_record.id,
-                "existing_work_authorization_reference": existing_record.reference,
-            },
+            detail="A work authorization already exists for this work initiation.",
         )
 
 
@@ -170,7 +310,6 @@ def get_existing_active_authorization_for_work_initiation(
         .filter(
             SafetyWorkAuthorization.work_initiation_id == work_initiation_id,
             SafetyWorkAuthorization.is_active == True,
-            SafetyWorkAuthorization.status.in_(ACTIVE_WORK_AUTHORIZATION_STATUSES),
         )
         .order_by(SafetyWorkAuthorization.created_at.desc())
         .first()
@@ -192,7 +331,6 @@ def get_work_initiation_for_authorization(
         )
         .filter(
             SafetyWorkInitiation.id == work_initiation_id,
-            SafetyWorkInitiation.is_active == True,
         )
         .first()
     )
@@ -204,10 +342,53 @@ def get_work_initiation_for_authorization(
     return work_initiation
 
 
+def list_eligible_work_initiations_for_authorization(
+    db: Session,
+    current_user: User,
+) -> list[SafetyWorkInitiation]:
+    requester = get_employee_for_user(db, current_user)
+    active_authorization_exists = exists().where(
+        SafetyWorkAuthorization.work_initiation_id == SafetyWorkInitiation.id,
+        SafetyWorkAuthorization.is_active == True,
+    )
+
+    return (
+        db.query(SafetyWorkInitiation)
+        .options(
+            joinedload(SafetyWorkInitiation.requester).joinedload(Employee.user),
+            joinedload(SafetyWorkInitiation.assigned_supervisor).joinedload(Employee.user),
+            joinedload(SafetyWorkInitiation.workers)
+            .joinedload(SafetyWorkInitiationWorker.worker)
+            .joinedload(Employee.user),
+            joinedload(SafetyWorkInitiation.supervisor).joinedload(Employee.user),
+            joinedload(SafetyWorkInitiation.operations_hod).joinedload(Employee.user),
+        )
+        .filter(
+            SafetyWorkInitiation.is_active == True,
+            SafetyWorkInitiation.status == WorkInitiationStatus.approved,
+            ~active_authorization_exists,
+            or_(
+                SafetyWorkInitiation.requester_id == requester.id,
+                SafetyWorkInitiation.assigned_supervisor_id == requester.id,
+                SafetyWorkInitiation.workers.any(
+                    SafetyWorkInitiationWorker.worker_id == requester.id,
+                ),
+            ),
+        )
+        .order_by(
+            SafetyWorkInitiation.created_at.desc(),
+            SafetyWorkInitiation.id.desc(),
+        )
+        .all()
+    )
+
+
 def list_work_authorizations(
     db: Session,
     skip: int = 0,
     limit: int = 20,
+    cursor_created_at: Optional[datetime] = None,
+    cursor_id: Optional[str] = None,
     status_filter: Optional[WorkAuthorizationStatus] = None,
     search: Optional[str] = None,
 ) -> list[SafetyWorkAuthorization]:
@@ -215,7 +396,14 @@ def list_work_authorizations(
         db.query(SafetyWorkAuthorization)
         .options(
             joinedload(SafetyWorkAuthorization.requester).joinedload(Employee.user),
-            joinedload(SafetyWorkAuthorization.work_initiation),
+            joinedload(SafetyWorkAuthorization.hse_inspector).joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.assigned_supervisor)
+            .joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.workers)
+            .joinedload(SafetyWorkInitiationWorker.worker)
+            .joinedload(Employee.user),
         )
         .filter(SafetyWorkAuthorization.is_active == True)
     )
@@ -232,12 +420,26 @@ def list_work_authorizations(
             | SafetyWorkInitiation.location.ilike(search_value)
         )
 
-    return (
-        query.order_by(SafetyWorkAuthorization.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
+    if cursor_created_at and cursor_id:
+        query = query.filter(
+            or_(
+                SafetyWorkAuthorization.created_at < cursor_created_at,
+                and_(
+                    SafetyWorkAuthorization.created_at == cursor_created_at,
+                    SafetyWorkAuthorization.id < cursor_id,
+                ),
+            )
+        )
+
+    query = query.order_by(
+        SafetyWorkAuthorization.created_at.desc(),
+        SafetyWorkAuthorization.id.desc(),
     )
+
+    if skip > 0:
+        query = query.offset(skip)
+
+    return query.limit(limit).all()
 
 
 def get_work_authorization(
@@ -270,7 +472,87 @@ def get_work_authorization(
             detail="Work authorization not found.",
         )
 
+    record.attachments = list_work_authorization_documents(
+        db,
+        record.id,
+        hse_evidence=False,
+    )
+    record.hse_evidence = list_work_authorization_documents(
+        db,
+        record.id,
+        hse_evidence=True,
+    )
+
     return record
+
+
+def list_work_authorization_documents(
+    db: Session,
+    work_authorization_id: str,
+    hse_evidence: bool,
+) -> list[Document]:
+    category = (
+        work_authorization_hse_document_category(work_authorization_id)
+        if hse_evidence
+        else work_authorization_document_category(work_authorization_id)
+    )
+    return (
+        db.query(Document)
+        .filter(
+            Document.category == category,
+            Document.type == "file",
+        )
+        .order_by(Document.created_at)
+        .all()
+    )
+
+
+def create_work_authorization_documents(
+    db: Session,
+    work_authorization_id: str,
+    files: list[tuple[bytes, str, str, int]],
+    uploaded_by: Optional[str],
+    hse_evidence: bool,
+) -> list[Document]:
+    if not files:
+        return []
+
+    storage = get_storage_service()
+    documents: list[Document] = []
+    category = (
+        work_authorization_hse_document_category(work_authorization_id)
+        if hse_evidence
+        else work_authorization_document_category(work_authorization_id)
+    )
+    folder = (
+        f"safety/work-authorizations/{work_authorization_id}/hse"
+        if hse_evidence
+        else f"safety/work-authorizations/{work_authorization_id}/requester"
+    )
+
+    for file_bytes, filename, mime_type, file_size in files:
+        result = storage.upload(
+            file_bytes=file_bytes,
+            filename=filename,
+            folder=folder,
+            resource_type=ResourceType.AUTO,
+            overwrite=False,
+        )
+        document = Document(
+            type="file",
+            name=filename,
+            category=category,
+            file_path=result.url,
+            file_size=result.file_size or file_size,
+            mime_type=mime_type,
+            uploaded_by=uploaded_by,
+            parent_id=None,
+        )
+        db.add(document)
+        documents.append(document)
+
+    db.flush()
+    return documents
 
 
 def create_hse_review(
@@ -278,8 +560,10 @@ def create_hse_review(
     work_authorization_id: str,
     data: WorkAuthorizationHseReviewCreate,
     inspector: Employee,
-) -> SafetyWorkAuthorization:
+    hse_evidence: Optional[list[tuple[bytes, str, str, int]]] = None,
+) -> tuple[SafetyWorkAuthorization, str]:
     record = get_work_authorization(db, work_authorization_id)
+    hse_evidence = hse_evidence or []
 
     if record.status != WorkAuthorizationStatus.submitted:
         raise HTTPException(
@@ -289,22 +573,60 @@ def create_hse_review(
 
     validate_hse_decision(data)
 
-    record.hse_inspector_id = inspector.id
-    record.work_area_safe = data.work_area_safe
-    record.emergency_equipment_available = data.emergency_equipment_available
-    record.gas_pressure_check_completed = data.gas_pressure_check_completed
-    record.ppe_and_safety_kits_available = data.ppe_and_safety_kits_available
-    record.safety_controls_in_place = data.safety_controls_in_place
-    record.hse_inspection_result = data.hse_inspection_result
-    record.hse_inspection_comment = data.hse_inspection_comment
-    record.hse_evidence_json = [item.model_dump() for item in data.hse_evidence]
-    record.hse_decision = data.decision
-    record.hse_decision_comment = data.decision_comment
-    record.hse_decided_at = datetime.utcnow()
-    record.status = status_for_hse_decision(data.decision)
+    approval_request_id = get_active_workflow_approval_request_id(
+        db,
+        record.id,
+    )
+
+    engine = WorkflowEngine(db)
+
+    def mark_hse_review() -> None:
+        record.hse_inspector_id = inspector.id
+        record.work_area_safe = data.work_area_safe
+        record.emergency_equipment_available = data.emergency_equipment_available
+        record.gas_pressure_check_completed = data.gas_pressure_check_completed
+        record.ppe_and_safety_kits_available = data.ppe_and_safety_kits_available
+        record.safety_controls_in_place = data.safety_controls_in_place
+        record.hse_inspection_result = data.hse_inspection_result
+        record.hse_inspection_comment = data.hse_inspection_comment
+        record.hse_evidence_json = []
+        record.hse_decision = data.decision
+        record.hse_decision_comment = data.decision_comment
+        record.hse_decided_at = datetime.utcnow()
+        record.status = status_for_hse_decision(data.decision)
+
+    if data.decision == WorkAuthorizationDecision.approve:
+        engine.approve(
+            approval_request_id,
+            inspector,
+            comment=data.decision_comment or None,
+            on_final_approval=mark_hse_review,
+        )
+    elif data.decision == WorkAuthorizationDecision.return_:
+        engine.return_(
+            approval_request_id,
+            inspector,
+            comment=data.decision_comment or None,
+            on_returned=mark_hse_review,
+        )
+    else:
+        engine.reject(
+            approval_request_id,
+            inspector,
+            comment=data.decision_comment or None,
+            on_rejected=mark_hse_review,
+        )
+
+    create_work_authorization_documents(
+        db=db,
+        work_authorization_id=record.id,
+        files=hse_evidence,
+        uploaded_by=inspector.id,
+        hse_evidence=True,
+    )
 
     db.commit()
-    return get_work_authorization(db, record.id)
+    return get_work_authorization(db, record.id), approval_request_id
 
 
 def validate_hse_decision(data: WorkAuthorizationHseReviewCreate) -> None:

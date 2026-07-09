@@ -165,6 +165,7 @@ export default function ApprovalPanel({
 }: ApprovalPanelProps) {
   const [internalComment, setInternalComment] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [lastAction, setLastAction] = useState<"return" | "reject" | "approve" | string | null>(null);
   const comment = commentValue ?? internalComment;
 
   function handleCommentChange(nextComment: string) {
@@ -181,6 +182,7 @@ export default function ApprovalPanel({
       return;
     }
     setValidationError("");
+    setLastAction("return");
     onReturn?.(comment);
   }
 
@@ -190,7 +192,13 @@ export default function ApprovalPanel({
       return;
     }
     setValidationError("");
+    setLastAction("reject");
     onReject?.(comment);
+  }
+
+  function handleApproveClick() {
+    setLastAction("approve");
+    onApprove?.(comment);
   }
 
   const sectionDescription = reviewingAs
@@ -199,6 +207,11 @@ export default function ApprovalPanel({
 
   const anyLoading = returnLoading || rejectLoading || approveLoading ||
     extraActions.some((a) => a.loading);
+
+  // A button is loading if: explicit loading prop OR (global disabled + it was the last clicked)
+  const isReturnLoading  = returnLoading  || (disabled && lastAction === "return");
+  const isRejectLoading  = rejectLoading  || (disabled && lastAction === "reject");
+  const isApproveLoading = approveLoading || (disabled && lastAction === "approve");
 
   const hasButtons = showReturn || showReject || showApprove || extraActions.length > 0;
 
@@ -239,7 +252,7 @@ export default function ApprovalPanel({
               icon={returnIcon}
               variant="return"
               onClick={handleReturnClick}
-              loading={returnLoading}
+              loading={isReturnLoading}
               disabled={disabled || returnDisabled || anyLoading}
             />
           )}
@@ -251,7 +264,7 @@ export default function ApprovalPanel({
               icon={rejectIcon}
               variant="reject"
               onClick={handleRejectClick}
-              loading={rejectLoading}
+              loading={isRejectLoading}
               disabled={disabled || rejectDisabled || anyLoading}
             />
           )}
@@ -263,8 +276,8 @@ export default function ApprovalPanel({
               label={action.label}
               icon={action.icon}
               variant={action.variant ?? "neutral"}
-              onClick={() => action.onClick(comment)}
-              loading={action.loading}
+              onClick={() => { setLastAction(action.key); action.onClick(comment); }}
+              loading={action.loading || (disabled && lastAction === action.key)}
               disabled={disabled || action.disabled || anyLoading}
             />
           ))}
@@ -275,8 +288,8 @@ export default function ApprovalPanel({
               label={approveLabel}
               icon={approveIcon}
               variant="approve"
-              onClick={() => onApprove(comment)}
-              loading={approveLoading}
+              onClick={handleApproveClick}
+              loading={isApproveLoading}
               disabled={disabled || approveDisabled || anyLoading}
             />
           )}

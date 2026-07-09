@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # In production set this to your Vercel URL e.g. https://yourapp.vercel.app
     LOGO_URL: Optional[str] = None
 
+    # Frontend base URL — used to generate QR code links for assets
+    # In production set this to your Vercel URL e.g. https://yourapp.vercel.app
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # OTP
     OTP_EXPIRE_MINUTES: int = 10
 

@@ -5,6 +5,8 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
 import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
+import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
@@ -20,7 +22,7 @@ const columns: Column<IncidentHazardReport>[] = [
   {
     key: "reference",
     label: "Reference",
-    render: (value, row) => String(value || row.id),
+    render: (value) => String(value || "Reference pending"),
   },
   {
     key: "title",
@@ -60,9 +62,12 @@ const columns: Column<IncidentHazardReport>[] = [
     render: (_, row) => getIncidentHazardNextActor(row),
   },
   {
-    key: "dateTimeObserved",
+    key: "reportedAtRaw",
     label: "Date Reported",
-    render: (value, row) => String(value || row.reporter.reportDate),
+    getSearchValue: (row) => row.reporter.reportDate,
+    getSortValue: (row) => row.reportedAtRaw ?? row.reporter.reportDate,
+    className: "whitespace-nowrap",
+    render: (_, row) => row.reporter.reportDate || "-",
   },
 ];
 
@@ -74,16 +79,38 @@ export default function IncidentHazardReportsTable({
   scope?: "user" | "admin";
 }) {
   const reportsQuery = useIncidentReports();
+  const currentEmployee = useSafetyCurrentEmployee();
+  const myApprovals = useMyApprovals();
+  const currentEmployeeId = currentEmployee.data?.id;
+  const isHseEmployee = isHseDepartment(currentEmployee.data?.department);
+  const approvalRequestIds = new Set(
+    (myApprovals.data ?? [])
+      .filter((approval) => approval.request_type === "incident_hazard")
+      .map((approval) => approval.request_id),
+  );
+  const canSeeReport = (report: IncidentHazardReport) =>
+    scope === "admin" ||
+    isHseEmployee ||
+    approvalRequestIds.has(report.id) ||
+    Boolean(
+      currentEmployeeId &&
+        (report.reporterId === currentEmployeeId ||
+          report.hseReview?.actionOwnerId === currentEmployeeId),
+    );
   const reports = sortByLatestSafetyActivity(
-    (reportsQuery.data ?? []).filter((report) => report.status !== "draft"),
-    (report) => report.dateTimeObserved || report.reporter.reportDate,
+    (reportsQuery.data ?? []).filter(
+      (report) => report.status !== "draft" && canSeeReport(report),
+    ),
+    (report) => report.reportedAtRaw ?? report.reporter.reportDate,
   );
 
   return (
     <DataTable
       columns={columns}
       data={reports}
-      isLoading={reportsQuery.isLoading}
+      isLoading={
+        reportsQuery.isLoading || currentEmployee.isLoading || myApprovals.isLoading
+      }
       rowHref={(report) =>
         scope === "admin" ? getAdminIncidentHref(report) : `/safety/incidents/${report.id}`
       }
@@ -94,4 +121,9 @@ export default function IncidentHazardReportsTable({
       }
     />
   );
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalized = department?.trim().toLowerCase();
+  return normalized === "hse" || normalized === "safety";
 }

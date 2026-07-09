@@ -25,26 +25,28 @@ import type {
 } from "@/lib/modules/safety/checklists";
 import {
   incidentReportsApi,
+  useCloseIncident,
   useIncidentReport,
-  useSafetyActors,
+  useResolveIncidentWithCloseout,
   type IncidentHseDecision,
   type IncidentHseReviewCreate,
   type IncidentReportType,
   type IncidentSeverityEstimate,
 } from "@/lib/modules/safety/incidentReport";
+import { getTodayDateInputValue } from "@/lib/modules/safety/date-rules";
+import {
+  useSafetyActors,
+  useSafetyDepartments,
+} from "@/lib/modules/safety/people";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   incidentSeverityOptions,
   reportTypeOptions,
-} from "@/lib/mock/incident-hazard";
-import {
-  closeResolvedIncident,
-  getApprovedCloseOutForIncident,
-  resolveIncidentWithCompletedWork,
-} from "@/lib/safety-demo-store";
+} from "@/lib/modules/safety/incidentReport/constants";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
 import type {
   IncidentHazardAttachment,
   IncidentHazardHseReview,
@@ -55,14 +57,6 @@ import type {
 const toOptions = (items: string[]) =>
   items.map((item) => ({ value: item, label: item }));
 const yesNoOptions = toOptions(["Yes", "No"]);
-const departmentOptions = toOptions([
-  "Engineering",
-  "Maintenance",
-  "Operations",
-  "Logistics",
-  "HSE",
-  "Admin",
-]);
 const reportTypeByLabel: Record<string, IncidentReportType> = {
   Incident: "incident",
   Hazard: "hazard",
@@ -85,7 +79,6 @@ const incidentHazardRoles: { value: IncidentHazardRole; label: string }[] = [
 
 export default function IncidentHazardDetailsView({
   reportId,
-  initialRole,
 }: {
   reportId: string;
   initialRole?: IncidentHazardRole;
@@ -99,12 +92,18 @@ export default function IncidentHazardDetailsView({
     "incident_report",
     reportId,
   );
-  const completedWork = report
-    ? getApprovedCloseOutForIncident(report.id)
-    : null;
-  const [currentRole, setCurrentRole] = useState<IncidentHazardRole>(
-    initialRole ?? "reporter",
+  const workCloseoutsQuery = useWorkCloseouts({ limit: 100 });
+  const completedWork = useMemo(
+    () =>
+      (workCloseoutsQuery.data ?? []).find(
+        (request) =>
+          request.workAuthorization.relatedIncidentHazardId === report?.id &&
+          (request.status === "approved" || request.status === "acknowledged"),
+      ) ?? null,
+    [report?.id, workCloseoutsQuery.data],
   );
+  const resolveIncident = useResolveIncidentWithCloseout(reportId);
+  const closeIncidentMutation = useCloseIncident(reportId);
   const [hseComment, setHseComment] = useState("");
   const [confirmedReportType, setConfirmedReportType] = useState("");
   const [confirmedSeverity, setConfirmedSeverity] = useState("");
@@ -123,7 +122,19 @@ export default function IncidentHazardDetailsView({
     "incident_hse_review",
     "hse_review",
   );
-  const actionOwnerQuery = useSafetyActors();
+  const departmentsQuery = useSafetyDepartments();
+  const departmentOptions = useMemo(
+    () =>
+      (departmentsQuery.data ?? []).map((department) => ({
+        value: department.value,
+        label: department.label,
+      })),
+    [departmentsQuery.data],
+  );
+  const actionOwnerQuery = useSafetyActors(
+    assignedDepartment ? { department: assignedDepartment } : undefined,
+    { enabled: Boolean(assignedDepartment) },
+  );
   const actionOwnerOptions = useMemo(
     () =>
       (actionOwnerQuery.data ?? []).map((actor) => ({
@@ -137,6 +148,21 @@ export default function IncidentHazardDetailsView({
     myEmployeeQuery.data?.id &&
     report.hseReview.actionOwnerId === myEmployeeQuery.data.id,
   );
+  const isHseEmployee = isHseDepartment(myEmployeeQuery.data?.department);
+  const isActionOwnerContext =
+    isAssignedActionOwner &&
+    Boolean(
+      report?.status === "recommended" ||
+        report?.status === "resolved" ||
+        report?.status === "closed",
+    );
+  const currentRole: IncidentHazardRole = isHseEmployee
+    ? "hse"
+    : isActionOwnerContext
+      ? "action_owner"
+      : "reporter";
+  const canActAsActionOwner =
+    isAssignedActionOwner && report?.status === "recommended";
 
   const permissions = useMemo(() => {
     const isDraft = report?.status === "draft";
@@ -145,29 +171,29 @@ export default function IncidentHazardDetailsView({
     const isResolved = report?.status === "resolved";
     const isClosed = report?.status === "closed";
     return {
-      canReporterEdit: currentRole === "reporter" && isDraft,
-      canHseReview: currentRole === "hse" && isSubmitted,
+      canReporterEdit: false,
+      canHseReview: isHseEmployee && isSubmitted,
       canActionOwnerResolve:
-        currentRole === "action_owner" &&
-        isRecommended &&
-        isAssignedActionOwner &&
-        Boolean(completedWork),
-      canHseClose: currentRole === "hse" && isResolved,
-      showActionOwnerSection: Boolean(isRecommended || isResolved || isClosed),
+        isRecommended && isAssignedActionOwner && Boolean(completedWork),
+      canHseClose: isHseEmployee && isResolved,
+      showActionOwnerSection:
+        Boolean(isRecommended || isResolved || isClosed) &&
+        Boolean(isHseEmployee || isAssignedActionOwner),
       showHseReview: Boolean(
-        (currentRole === "hse" && isSubmitted) || Boolean(report?.hseReview),
+        (isHseEmployee && (isSubmitted || Boolean(report?.hseReview))) ||
+          (isAssignedActionOwner && Boolean(report?.hseReview)),
       ),
       showAuditTrail: Boolean(!isDraft),
     };
   }, [
     completedWork,
-    currentRole,
+    isHseEmployee,
     isAssignedActionOwner,
     report?.hseReview,
     report?.status,
   ]);
 
-  if (reportQuery.isLoading) {
+  if (reportQuery.isLoading || myEmployeeQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={4} />;
   }
 
@@ -183,24 +209,46 @@ export default function IncidentHazardDetailsView({
   if (permissions.canHseReview && hseReviewChecklist.isLoading) {
     return <SafetyProcessFormSkeleton sections={6} />;
   }
-  const persistedReportId = report.id;
-
   async function recommendToDepartment() {
     await saveHseReview("recommended");
   }
 
-  function resolveRecommendedIncident() {
-    resolveIncidentWithCompletedWork(persistedReportId);
-    toast.success("Incident marked resolved.");
+  async function resolveRecommendedIncident() {
+    if (!completedWork) {
+      toast.error("No approved linked work close-out is available for this incident.");
+      return;
+    }
+
+    try {
+      await resolveIncident.mutateAsync({
+        work_closeout_id: completedWork.id,
+      });
+      await reportQuery.refetch();
+      toast.success("Incident marked resolved.");
+    } catch (error) {
+      console.error("Failed to resolve incident", error);
+      toast.error(getApiErrorMessage(error, "Incident could not be resolved."));
+    }
   }
 
-  function closeIncident() {
-    closeResolvedIncident(persistedReportId);
-    toast.success("Incident closed by HSE.");
+  async function closeIncident() {
+    try {
+      await closeIncidentMutation.mutateAsync();
+      await reportQuery.refetch();
+      toast.success("Incident closed by HSE.");
+    } catch (error) {
+      console.error("Failed to close incident", error);
+      toast.error(getApiErrorMessage(error, "Incident could not be closed."));
+    }
   }
 
   async function hseFinalDecision(decision: "Resolved" | "Not Resolved") {
     await saveHseReview(decision === "Resolved" ? "resolved" : "not_resolved");
+  }
+
+  function handleAssignedDepartmentChange(nextDepartment: string) {
+    setAssignedDepartment(nextDepartment);
+    setActionOwner("");
   }
 
   async function saveHseReview(decision: IncidentHseDecision) {
@@ -338,14 +386,15 @@ export default function IncidentHazardDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={report.reference ?? report.id}
+        id={report.reference ?? "Reference pending"}
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
+        onRoleChange={() => undefined}
         roleLabel={getIncidentHazardRoleLabel(currentRole)}
         roles={incidentHazardRoles}
         status={<ApprovalBadge status={report.status} />}
         nextActor={getIncidentHazardNextActor(report)}
         switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
+        showRoleSwitcher={false}
       />
 
       <StatusNote report={report} currentRole={currentRole} />
@@ -376,11 +425,13 @@ export default function IncidentHazardDetailsView({
             correctiveActionDetails={correctiveActionDetails}
             onCorrectiveActionDetailsChange={setCorrectiveActionDetails}
             assignedDepartment={assignedDepartment}
-            onAssignedDepartmentChange={setAssignedDepartment}
+            onAssignedDepartmentChange={handleAssignedDepartmentChange}
+            departmentOptions={departmentOptions}
+            departmentLoading={departmentsQuery.isLoading}
             actionOwner={actionOwner}
             onActionOwnerChange={setActionOwner}
             actionOwnerOptions={actionOwnerOptions}
-            actionOwnerLoading={actionOwnerQuery.isLoading}
+            actionOwnerLoading={Boolean(assignedDepartment) && actionOwnerQuery.isLoading}
             targetCompletionDate={targetCompletionDate}
             onTargetCompletionDateChange={setTargetCompletionDate}
             checklistAnswers={hseChecklistAnswers}
@@ -402,18 +453,25 @@ export default function IncidentHazardDetailsView({
             report={report}
             completedWorkReference={
               completedWork
-                ? `${completedWork.id} - ${completedWork.title} | ${completedWork.requester.name} | ${completedWork.requester.requestDate}`
-                : report.resolutionWorkCompletionId || ""
+                ? `${completedWork.reference ?? "Reference pending"} - ${completedWork.title} | ${completedWork.requester.name} | ${completedWork.requester.requestDate}`
+                : report.resolutionWorkCompletionId
+                  ? "Linked work completion"
+                  : ""
             }
             canResolve={permissions.canActionOwnerResolve}
             canCreateLinkedWork={canActAsActionOwner}
             onResolve={resolveRecommendedIncident}
+            isResolving={resolveIncident.isPending}
           />
         ) : null
       ) : null}
 
       {permissions.canHseClose ? (
-        <HseClosureAction report={report} onClose={closeIncident} />
+        <HseClosureAction
+          report={report}
+          onClose={closeIncident}
+          isClosing={closeIncidentMutation.isPending}
+        />
       ) : null}
 
       {permissions.showAuditTrail ? (
@@ -473,7 +531,7 @@ function ReportDetails({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput
           label="Report Reference"
-          value={report.reference ?? report.id}
+          value={report.reference ?? "Reference pending"}
           disabled
         />
         <FormInput
@@ -590,6 +648,8 @@ function HseReviewAction({
   onCorrectiveActionDetailsChange,
   assignedDepartment,
   onAssignedDepartmentChange,
+  departmentOptions,
+  departmentLoading,
   actionOwner,
   onActionOwnerChange,
   actionOwnerOptions,
@@ -620,6 +680,8 @@ function HseReviewAction({
   onCorrectiveActionDetailsChange: (value: string) => void;
   assignedDepartment: string;
   onAssignedDepartmentChange: (value: string) => void;
+  departmentOptions: { value: string; label: string }[];
+  departmentLoading: boolean;
   actionOwner: string;
   onActionOwnerChange: (value: string) => void;
   actionOwnerOptions: { value: string; label: string }[];
@@ -752,7 +814,11 @@ function HseReviewAction({
                   required
                   searchable
                   options={departmentOptions}
-                  placeholder="Select department"
+                  placeholder={
+                    departmentLoading
+                      ? "Loading departments..."
+                      : "Select department"
+                  }
                   value={assignedDepartment}
                   onValueChange={onAssignedDepartmentChange}
                 />
@@ -762,16 +828,20 @@ function HseReviewAction({
                   searchable
                   options={actionOwnerOptions}
                   placeholder={
-                    actionOwnerLoading
+                    !assignedDepartment
+                      ? "Select a department first"
+                      : actionOwnerLoading
                       ? "Loading action owners..."
                       : "Select action owner"
                   }
                   value={actionOwner}
                   onValueChange={onActionOwnerChange}
+                  disabled={!assignedDepartment || actionOwnerLoading}
                 />
                 <FormDatePicker
                   label="Target Completion Date"
                   required
+                  min={getTodayDateInputValue()}
                   value={targetCompletionDate}
                   onValueChange={onTargetCompletionDateChange}
                 />
@@ -893,12 +963,14 @@ function CorrectiveWorkResolution({
   canResolve,
   canCreateLinkedWork,
   onResolve,
+  isResolving,
 }: {
   report: IncidentHazardReport;
   completedWorkReference: string;
   canResolve: boolean;
   canCreateLinkedWork: boolean;
   onResolve: () => void;
+  isResolving: boolean;
 }) {
   return (
     <FormSection
@@ -946,7 +1018,12 @@ function CorrectiveWorkResolution({
       ) : null}
       {canResolve ? (
         <div className="mt-4">
-          <Button type="button" onClick={onResolve}>
+          <Button
+            type="button"
+            onClick={onResolve}
+            loading={isResolving}
+            loadingText="Resolving..."
+          >
             Mark Incident Resolved
           </Button>
         </div>
@@ -958,9 +1035,11 @@ function CorrectiveWorkResolution({
 function HseClosureAction({
   report,
   onClose,
+  isClosing,
 }: {
   report: IncidentHazardReport;
   onClose: () => void;
+  isClosing: boolean;
 }) {
   return (
     <ApprovalPanel
@@ -970,6 +1049,7 @@ function HseClosureAction({
       showReturn={false}
       showReject={false}
       approveLabel="Close Incident"
+      approveDisabled={isClosing}
       onApprove={onClose}
       extraFields={
         <div className="space-y-4">
@@ -1125,37 +1205,63 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 function AttachmentList({
   attachments,
 }: {
-  attachments: IncidentHazardAttachment[];
+  attachments?: IncidentHazardAttachment[];
 }) {
-  if (attachments.length === 0) {
+  const safeAttachments = attachments ?? [];
+
+  if (safeAttachments.length === 0) {
     return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
   }
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <div
-          key={attachment.name}
-          className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? (
-              <ImageIcon size={18} />
-            ) : (
-              <FileText size={18} />
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">
-              {attachment.name}
-            </p>
-            <p className="text-xs capitalize text-brand-text-secondary">
-              {attachment.type}
-            </p>
-          </div>
-        </div>
+      {safeAttachments.map((attachment) => (
+        <AttachmentItem key={attachment.id ?? attachment.name} attachment={attachment} />
       ))}
     </div>
+  );
+}
+
+function AttachmentItem({
+  attachment,
+}: {
+  attachment: IncidentHazardAttachment;
+}) {
+  const content = (
+    <>
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
+        {attachment.type === "image" ? (
+          <ImageIcon size={18} />
+        ) : (
+          <FileText size={18} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-brand-text-primary">
+          {attachment.name}
+        </p>
+        <p className="text-xs capitalize text-brand-text-secondary">
+          {attachment.type}
+        </p>
+      </div>
+    </>
+  );
+
+  const className = "flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3";
+
+  if (!attachment.url) {
+    return <div className={className}>{content}</div>;
+  }
+
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noreferrer"
+      className={`${className} transition-colors hover:border-brand-purple/40 hover:bg-white`}
+    >
+      {content}
+    </a>
   );
 }
 
@@ -1205,6 +1311,11 @@ function getIncidentHazardRoleLabel(role: IncidentHazardRole) {
   };
 
   return labelByRole[role];
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalizedDepartment = department?.trim().toLowerCase();
+  return normalizedDepartment === "hse" || normalizedDepartment === "safety";
 }
 
 function FormSection({

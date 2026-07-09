@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
@@ -10,30 +10,99 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import {
-  contractorContactEmailByName,
-  workCategoryOptions,
-  workTypeOptionsByCategory,
-} from "@/lib/mock/work-initiation";
-import { getSafetyCurrentUser } from "@/lib/safety-demo-identity";
-import { formatLocalDate } from "@/lib/safety-demo-dates";
+import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import {
   useIncidentReport,
   useIncidentReports,
-  useSafetyActors,
 } from "@/lib/modules/safety/incidentReport";
+import {
+  getSafetyEmployeeRequester,
+  useSafetyActors,
+  useSafetyCurrentEmployee,
+  useSafetyDepartments,
+} from "@/lib/modules/safety/people";
+import {
+  getDateTimeAfter,
+  getEarliestPlannedStartDateTime,
+} from "@/lib/modules/safety/date-rules";
 import {
   workInitiationsApi,
   type WorkInitiationCategory,
   type WorkInitiationCreate,
 } from "@/lib/modules/safety/workInitiation";
+import {
+  clearValidationError,
+  getFirstInvalidField,
+  scrollToValidationField,
+  type ValidationErrors,
+  type ValidationRef,
+} from "@/lib/modules/safety/form-validation";
 import type { IncidentHazardReport } from "@/types/safety";
+import SafetyValidationSummary from "../../components/SafetyValidationSummary";
 
 const toOptions = (items: string[]) =>
   items.map((item) => ({ value: item, label: item }));
 
 const yesNoOptions = toOptions(["Yes", "No"]);
+const workCategoryOptions = [
+  "Routine Work",
+  "Maintenance",
+  "Incident/Hazard",
+  "Customer Work",
+  "Project Work",
+  "Emergency Work",
+  "Other",
+];
+const workTypeOptionsByCategory: Record<string, string[]> = {
+  "Routine Work": [
+    "Routine Bay Check",
+    "Vehicle Inspection",
+    "Equipment Inspection",
+    "Preventive Maintenance",
+    "General Engineering Work",
+  ],
+  Maintenance: [
+    "Corrective Maintenance",
+    "Gas System Repair",
+    "Electrical Repair",
+    "Facility Repair",
+    "Equipment Servicing",
+  ],
+  "Incident/Hazard": [
+    "Incident/Hazard Corrective Work",
+    "Gas Leak Corrective Work",
+    "Unsafe Condition Correction",
+    "Inspection Finding",
+    "Emergency Safety Repair",
+  ],
+  "Customer Work": [
+    "CNG Conversion",
+    "CNG Cylinder Work",
+    "Vehicle Conversion Support",
+    "Transport Preparation",
+    "Customer Vehicle Inspection",
+  ],
+  "Project Work": [
+    "Planned Project",
+    "Workshop Modification",
+    "Facility Upgrade",
+    "Installation Work",
+  ],
+  "Emergency Work": [
+    "Emergency Work",
+    "Emergency Repair",
+    "Urgent Gas System Response",
+    "Critical Equipment Recovery",
+  ],
+  Other: ["Other"],
+};
+const contractorContactEmailByName: Record<string, string> = {
+  "SafeWeld Engineering Ltd": "projects@safeweld.example",
+  "Prime Gas Services": "operations@primegas.example",
+  "Vehicle Conversion Partners": "service@vehicleconversion.example",
+  "Electrical Support Contractors": "support@electricalcontractors.example",
+};
 const categoryOptions = toOptions(workCategoryOptions);
 
 const categoryByLabel: Record<string, WorkInitiationCategory> = {
@@ -43,6 +112,7 @@ const categoryByLabel: Record<string, WorkInitiationCategory> = {
   "Customer Work": "customer_work",
   "Project Work": "project_work",
   "Emergency Work": "emergency_work",
+  Other: "other",
 };
 
 const locationOptions = toOptions([
@@ -56,21 +126,45 @@ const locationOptions = toOptions([
   "Inspection Bay",
 ]);
 
-const departmentTeamOptions = toOptions([
-  "Engineering",
-  "Maintenance",
-  "Operations",
-  "Logistics",
-  "HSE",
-  "Admin",
-]);
-
 const contractorOptions = toOptions([
   "SafeWeld Engineering Ltd",
   "Prime Gas Services",
   "Vehicle Conversion Partners",
   "Electrical Support Contractors",
 ]);
+
+type WorkInitiationValidationField =
+  | "title"
+  | "workCategory"
+  | "relatedIncidentId"
+  | "workTypes"
+  | "locations"
+  | "workDescription"
+  | "reasonForWork"
+  | "assignedDepartment"
+  | "assignedSupervisor"
+  | "assignedWorkers"
+  | "contractorsNeeded"
+  | "selectedContractor"
+  | "plannedStartDateTime"
+  | "plannedEndDateTime";
+
+const workInitiationFieldOrder: WorkInitiationValidationField[] = [
+  "title",
+  "workCategory",
+  "relatedIncidentId",
+  "workTypes",
+  "locations",
+  "workDescription",
+  "reasonForWork",
+  "assignedDepartment",
+  "assignedSupervisor",
+  "assignedWorkers",
+  "contractorsNeeded",
+  "selectedContractor",
+  "plannedStartDateTime",
+  "plannedEndDateTime",
+];
 
 export default function WorkInitiationForm() {
   const router = useRouter();
@@ -81,6 +175,9 @@ export default function WorkInitiationForm() {
   const isIncidentLinkedFromQuery = Boolean(incidentIdFromQuery);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<
+    ValidationErrors<WorkInitiationValidationField>
+  >({});
   const [files, setFiles] = useState<File[]>([]);
 
   const [workCategory, setWorkCategory] = useState(
@@ -107,23 +204,53 @@ export default function WorkInitiationForm() {
   const [plannedStartDateTime, setPlannedStartDateTime] = useState("");
   const [plannedEndDateTime, setPlannedEndDateTime] = useState("");
   const [materialsRequired, setMaterialsRequired] = useState("");
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const workCategoryRef = useRef<HTMLInputElement | null>(null);
+  const relatedIncidentIdRef = useRef<HTMLInputElement | null>(null);
+  const workTypesRef = useRef<HTMLInputElement | null>(null);
+  const locationsRef = useRef<HTMLInputElement | null>(null);
+  const workDescriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const reasonForWorkRef = useRef<HTMLTextAreaElement | null>(null);
+  const assignedDepartmentRef = useRef<HTMLInputElement | null>(null);
+  const assignedSupervisorRef = useRef<HTMLInputElement | null>(null);
+  const assignedWorkersRef = useRef<HTMLInputElement | null>(null);
+  const contractorsNeededRef = useRef<HTMLInputElement | null>(null);
+  const selectedContractorRef = useRef<HTMLInputElement | null>(null);
+  const plannedStartDateTimeRef = useRef<HTMLInputElement | null>(null);
+  const plannedEndDateTimeRef = useRef<HTMLInputElement | null>(null);
 
-  const requester = {
-    ...getSafetyCurrentUser(),
-    requestDate: formatLocalDate(),
-  };
+  const currentEmployee = useSafetyCurrentEmployee();
+  const requester = getSafetyEmployeeRequester(
+    currentEmployee.data,
+    formatLocalDate(),
+  );
 
   const recommendedIncidentsQuery = useIncidentReports({
     status: "recommended",
   });
 
   const linkedIncidentQuery = useIncidentReport(incidentIdFromQuery ?? "");
-  const safetyActorsQuery = useSafetyActors();
-
-  const employeeOptions = (safetyActorsQuery.data ?? []).map((actor) => ({
-    value: actor.id,
-    label: `${actor.name}${actor.job_title ? ` - ${actor.job_title}` : ""}`,
-  }));
+  const departmentsQuery = useSafetyDepartments();
+  const departmentTeamOptions = useMemo(
+    () =>
+      (departmentsQuery.data ?? []).map((department) => ({
+        value: department.value,
+        label: department.label,
+      })),
+    [departmentsQuery.data],
+  );
+  const departmentEmployeesQuery = useSafetyActors(
+    assignedDepartment ? { department: assignedDepartment } : undefined,
+    { enabled: Boolean(assignedDepartment) },
+  );
+  const employeeOptions = useMemo(
+    () =>
+      (departmentEmployeesQuery.data ?? []).map((actor) => ({
+        value: actor.id,
+        label: `${actor.name}${actor.job_title ? ` - ${actor.job_title}` : ""}`,
+      })),
+    [departmentEmployeesQuery.data],
+  );
 
   const recommendedIncidents = recommendedIncidentsQuery.data ?? [];
 
@@ -137,9 +264,9 @@ export default function WorkInitiationForm() {
     .filter((report) => isActionRecommendedIncident(report))
     .map((report) => ({
       value: report.id,
-      label: `${report.reference ?? report.id} - ${
-        report.title || report.reportType
-      }`,
+      label: report.reference
+        ? `${report.reference} - ${report.title || report.reportType}`
+        : report.title || report.reportType,
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
 
@@ -154,21 +281,27 @@ export default function WorkInitiationForm() {
   function handleWorkCategoryChange(nextCategory: string) {
     setWorkCategory(nextCategory);
     setWorkTypes([]);
+    clearValidationError("workCategory", setValidationErrors);
+    clearValidationError("workTypes", setValidationErrors);
 
     if (nextCategory !== "Incident/Hazard") {
       setRelatedIncidentId("");
+      clearValidationError("relatedIncidentId", setValidationErrors);
     }
   }
 
   function handleRelatedIncidentChange(nextIncidentId: string) {
     setRelatedIncidentId(nextIncidentId);
+    clearValidationError("relatedIncidentId", setValidationErrors);
   }
 
   function handleContractorsNeededChange(nextValue: string) {
     setContractorsNeeded(nextValue);
+    clearValidationError("contractorsNeeded", setValidationErrors);
 
     if (nextValue !== "Yes") {
       setSelectedContractor("");
+      clearValidationError("selectedContractor", setValidationErrors);
     }
   }
 
@@ -177,7 +310,7 @@ export default function WorkInitiationForm() {
 
     if (isSubmitting) return;
 
-    const validationMessage = validateWorkInitiationForm({
+    const nextValidationErrors = validateWorkInitiationForm({
       title,
       workCategory,
       relatedIncidentId,
@@ -193,9 +326,31 @@ export default function WorkInitiationForm() {
       plannedStartDateTime,
       plannedEndDateTime,
     });
+    setValidationErrors(nextValidationErrors);
 
-    if (validationMessage) {
-      toast.error(validationMessage);
+    const firstInvalidField = getFirstInvalidField(
+      nextValidationErrors,
+      workInitiationFieldOrder,
+    );
+    if (firstInvalidField) {
+      scrollToValidationField(
+        getWorkInitiationFieldRef(firstInvalidField, {
+          titleRef,
+          workCategoryRef,
+          relatedIncidentIdRef,
+          workTypesRef,
+          locationsRef,
+          workDescriptionRef,
+          reasonForWorkRef,
+          assignedDepartmentRef,
+          assignedSupervisorRef,
+          assignedWorkersRef,
+          contractorsNeededRef,
+          selectedContractorRef,
+          plannedStartDateTimeRef,
+          plannedEndDateTimeRef,
+        }),
+      );
       return;
     }
 
@@ -218,8 +373,8 @@ export default function WorkInitiationForm() {
         contractorsNeeded === "Yes"
           ? emptyToNull(contractorContactEmailByName[selectedContractor] ?? "")
           : null,
-      planned_start_at: plannedStartDateTime,
-      planned_end_at: plannedEndDateTime,
+      planned_start_at: toApiDateTime(plannedStartDateTime),
+      planned_end_at: toApiDateTime(plannedEndDateTime),
       materials_required: emptyToNull(materialsRequired),
     };
 
@@ -249,6 +404,11 @@ export default function WorkInitiationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
+      <SafetyValidationSummary
+        errors={validationErrors}
+        fieldOrder={workInitiationFieldOrder}
+      />
+
       <FormSection
         title="Requester Details"
         description="Your employee information for this work initiation request."
@@ -288,19 +448,26 @@ export default function WorkInitiationForm() {
           ) : null}
 
           <FormInput
+            ref={titleRef}
             label="Work Title"
             required
             placeholder="Enter work title"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            error={validationErrors.title}
+            onChange={(event) => {
+              setTitle(event.target.value);
+              clearValidationError("title", setValidationErrors);
+            }}
           />
 
           <FormSelect
+            ref={workCategoryRef}
             label="Work Category"
             required
             options={categoryOptions}
             placeholder="Select work category"
             value={workCategory}
+            error={validationErrors.workCategory}
             onValueChange={handleWorkCategoryChange}
             disabled={isIncidentLinkedFromQuery}
           />
@@ -309,19 +476,24 @@ export default function WorkInitiationForm() {
             <>
               {isIncidentLinkedFromQuery ? (
                 <FormInput
+                  ref={relatedIncidentIdRef}
                   label="Related Incident/Hazard Request"
                   required
                   value={
                     selectedIncident
-                      ? `${selectedIncident.reference ?? selectedIncident.id} - ${
-                          selectedIncident.title || selectedIncident.reportType
-                        }`
-                      : relatedIncidentId
+                      ? selectedIncident.reference
+                        ? `${selectedIncident.reference} - ${
+                            selectedIncident.title || selectedIncident.reportType
+                          }`
+                        : selectedIncident.title || selectedIncident.reportType
+                      : "Reference pending"
                   }
+                  error={validationErrors.relatedIncidentId}
                   disabled
                 />
               ) : (
                 <FormSelect
+                  ref={relatedIncidentIdRef}
                   label="Related Incident/Hazard Request"
                   required
                   searchable
@@ -333,6 +505,7 @@ export default function WorkInitiationForm() {
                   }
                   dropdownClassName="md:min-w-[34rem]"
                   value={relatedIncidentId}
+                  error={validationErrors.relatedIncidentId}
                   onValueChange={handleRelatedIncidentChange}
                 />
               )}
@@ -346,13 +519,18 @@ export default function WorkInitiationForm() {
           ) : null}
 
           <FormMultiSelect
+            ref={workTypesRef}
             label="Work Type"
             required
             searchable
             creatable
             options={workTypeOptions}
             value={workTypes}
-            onValueChange={setWorkTypes}
+            error={validationErrors.workTypes}
+            onValueChange={(value) => {
+              setWorkTypes(value);
+              clearValidationError("workTypes", setValidationErrors);
+            }}
             placeholder={
               workCategory
                 ? "Select or add work type"
@@ -362,6 +540,7 @@ export default function WorkInitiationForm() {
           />
 
           <FormMultiSelect
+            ref={locationsRef}
             label="Location"
             required
             searchable
@@ -369,7 +548,11 @@ export default function WorkInitiationForm() {
             options={locationOptions}
             placeholder="Select or add location"
             value={locations}
-            onValueChange={setLocations}
+            error={validationErrors.locations}
+            onValueChange={(value) => {
+              setLocations(value);
+              clearValidationError("locations", setValidationErrors);
+            }}
           />
 
           <FormTextarea
@@ -380,21 +563,31 @@ export default function WorkInitiationForm() {
           />
 
           <FormTextarea
+            ref={workDescriptionRef}
             label="Work Description"
             required
             placeholder="Describe what needs to be done"
             className="md:col-span-2"
             value={workDescription}
-            onChange={(event) => setWorkDescription(event.target.value)}
+            error={validationErrors.workDescription}
+            onChange={(event) => {
+              setWorkDescription(event.target.value);
+              clearValidationError("workDescription", setValidationErrors);
+            }}
           />
 
           <FormTextarea
+            ref={reasonForWorkRef}
             label="Reason for Work"
             required
             placeholder="Explain why the work is needed"
             className="md:col-span-2"
             value={reasonForWork}
-            onChange={(event) => setReasonForWork(event.target.value)}
+            error={validationErrors.reasonForWork}
+            onChange={(event) => {
+              setReasonForWork(event.target.value);
+              clearValidationError("reasonForWork", setValidationErrors);
+            }}
           />
 
           <div className="md:col-span-2">
@@ -415,54 +608,86 @@ export default function WorkInitiationForm() {
       >
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect
+            ref={assignedDepartmentRef}
             label="Assigned Department / Team"
             required
             options={departmentTeamOptions}
-            placeholder="Select department or team"
+            placeholder={
+              departmentsQuery.isLoading
+                ? "Loading departments..."
+                : "Select department or team"
+            }
             value={assignedDepartment}
-            onValueChange={setAssignedDepartment}
+            error={validationErrors.assignedDepartment}
+            onValueChange={(value) => {
+              setAssignedDepartment(value);
+              setAssignedSupervisor("");
+              setAssignedWorkers([]);
+              clearValidationError("assignedDepartment", setValidationErrors);
+              clearValidationError("assignedSupervisor", setValidationErrors);
+              clearValidationError("assignedWorkers", setValidationErrors);
+            }}
           />
 
           <FormSelect
+            ref={assignedSupervisorRef}
             label="Assigned Supervisor"
             required
             searchable
             options={employeeOptions}
             placeholder={
-              safetyActorsQuery.isLoading
+              !assignedDepartment
+                ? "Select a department first"
+                : departmentEmployeesQuery.isLoading
                 ? "Loading employees..."
                 : "Select supervisor"
             }
             value={assignedSupervisor}
-            onValueChange={setAssignedSupervisor}
+            error={validationErrors.assignedSupervisor}
+            onValueChange={(value) => {
+              setAssignedSupervisor(value);
+              clearValidationError("assignedSupervisor", setValidationErrors);
+            }}
+            disabled={!assignedDepartment || departmentEmployeesQuery.isLoading}
           />
 
           <FormMultiSelect
+            ref={assignedWorkersRef}
             label="Assigned Workers"
             required
             searchable
             options={employeeOptions}
             placeholder={
-              safetyActorsQuery.isLoading
+              !assignedDepartment
+                ? "Select a department first"
+                : departmentEmployeesQuery.isLoading
                 ? "Loading employees..."
                 : "Select workers"
             }
             value={assignedWorkers}
-            onValueChange={setAssignedWorkers}
+            error={validationErrors.assignedWorkers}
+            onValueChange={(value) => {
+              setAssignedWorkers(value);
+              clearValidationError("assignedWorkers", setValidationErrors);
+            }}
+            disabled={!assignedDepartment || departmentEmployeesQuery.isLoading}
           />
 
           <FormSelect
+            ref={contractorsNeededRef}
             label="Contractors Needed?"
             required
             options={yesNoOptions}
             placeholder="Select an option"
             value={contractorsNeeded}
+            error={validationErrors.contractorsNeeded}
             onValueChange={handleContractorsNeededChange}
           />
 
           {contractorsNeeded === "Yes" ? (
             <>
               <FormSelect
+                ref={selectedContractorRef}
                 label="Selected Contractor"
                 required
                 searchable
@@ -470,7 +695,11 @@ export default function WorkInitiationForm() {
                 options={contractorOptions}
                 placeholder="Select contractor"
                 value={selectedContractor}
-                onValueChange={setSelectedContractor}
+                error={validationErrors.selectedContractor}
+                onValueChange={(value) => {
+                  setSelectedContractor(value);
+                  clearValidationError("selectedContractor", setValidationErrors);
+                }}
               />
 
               <FormInput
@@ -483,15 +712,33 @@ export default function WorkInitiationForm() {
           ) : null}
 
           <FormDateTimeInput
+            ref={plannedStartDateTimeRef}
             label="Planned Start Date/Time"
+            required
+            min={getEarliestPlannedStartDateTime()}
             value={plannedStartDateTime}
-            onValueChange={setPlannedStartDateTime}
+            error={validationErrors.plannedStartDateTime}
+            onValueChange={(value) => {
+              setPlannedStartDateTime(value);
+              clearValidationError("plannedStartDateTime", setValidationErrors);
+            }}
           />
 
           <FormDateTimeInput
+            ref={plannedEndDateTimeRef}
             label="Planned End Date/Time"
+            required
+            min={
+              plannedStartDateTime
+                ? getDateTimeAfter(plannedStartDateTime)
+                : getEarliestPlannedStartDateTime()
+            }
             value={plannedEndDateTime}
-            onValueChange={setPlannedEndDateTime}
+            error={validationErrors.plannedEndDateTime}
+            onValueChange={(value) => {
+              setPlannedEndDateTime(value);
+              clearValidationError("plannedEndDateTime", setValidationErrors);
+            }}
           />
 
           <FormTextarea
@@ -546,7 +793,9 @@ function IncidentContextCard({ incident }: { incident: IncidentHazardReport }) {
             Linked Incident/Hazard
           </p>
           <p className="mt-1 truncate font-semibold text-brand-text-primary">
-            {incident.reference ?? incident.id} - {incident.title}
+            {incident.reference
+              ? `${incident.reference} - ${incident.title}`
+              : incident.title}
           </p>
           <p className="mt-1 text-blue-800">
             {incident.reportType} | {incident.reporter.name} |{" "}
@@ -603,35 +852,84 @@ function validateWorkInitiationForm({
   selectedContractor: string;
   plannedStartDateTime: string;
   plannedEndDateTime: string;
-}) {
-  if (title.trim().length < 3) return "Enter a work title.";
-  if (!workCategory) return "Select work category.";
+}): ValidationErrors<WorkInitiationValidationField> {
+  const errors: ValidationErrors<WorkInitiationValidationField> = {};
+
+  if (title.trim().length < 3) errors.title = "Enter a work title.";
+  if (!workCategory) errors.workCategory = "Select work category.";
 
   if (workCategory === "Incident/Hazard" && !relatedIncidentId) {
-    return "Select the related incident/hazard request.";
+    errors.relatedIncidentId = "Select the related incident/hazard request.";
   }
 
-  if (workTypes.length === 0) return "Select at least one work type.";
-  if (locations.length === 0) return "Select at least one location.";
-  if (workDescription.trim().length < 5) return "Describe the work to be done.";
-  if (reasonForWork.trim().length < 3) return "Enter the reason for work.";
-  if (!assignedDepartment) return "Select assigned department.";
-  if (!assignedSupervisor) return "Select assigned supervisor.";
-  if (assignedWorkers.length === 0) return "Select at least one assigned worker.";
-  if (!contractorsNeeded) return "Select whether contractors are needed.";
+  if (workTypes.length === 0) errors.workTypes = "Select at least one work type.";
+  if (locations.length === 0) errors.locations = "Select at least one location.";
+  if (workDescription.trim().length < 5) {
+    errors.workDescription = "Describe the work to be done.";
+  }
+  if (reasonForWork.trim().length < 3) {
+    errors.reasonForWork = "Enter the reason for work.";
+  }
+  if (!assignedDepartment) errors.assignedDepartment = "Select assigned department.";
+  if (!assignedSupervisor) errors.assignedSupervisor = "Select assigned supervisor.";
+  if (assignedWorkers.length === 0) {
+    errors.assignedWorkers = "Select at least one assigned worker.";
+  }
+  if (!contractorsNeeded) {
+    errors.contractorsNeeded = "Select whether contractors are needed.";
+  }
 
   if (contractorsNeeded === "Yes" && !selectedContractor) {
-    return "Select contractor.";
+    errors.selectedContractor = "Select contractor.";
   }
 
-  if (!plannedStartDateTime) return "Select planned start date/time.";
-  if (!plannedEndDateTime) return "Select planned end date/time.";
-
-  if (plannedEndDateTime <= plannedStartDateTime) {
-    return "Planned end date/time must be after planned start date/time.";
+  if (!plannedStartDateTime) {
+    errors.plannedStartDateTime = "Select planned start date/time.";
+  }
+  if (!plannedEndDateTime) {
+    errors.plannedEndDateTime = "Select planned end date/time.";
   }
 
-  return "";
+  const now = new Date();
+  const minimumStartTime = new Date(now.getTime() + 10 * 60 * 1000);
+
+  const plannedStart = new Date(plannedStartDateTime);
+  const plannedEnd = new Date(plannedEndDateTime);
+
+  if (plannedStartDateTime && Number.isNaN(plannedStart.getTime())) {
+    errors.plannedStartDateTime = "Select a valid planned start date/time.";
+  }
+
+  if (plannedEndDateTime && Number.isNaN(plannedEnd.getTime())) {
+    errors.plannedEndDateTime = "Select a valid planned end date/time.";
+  }
+
+  if (plannedStartDateTime && !errors.plannedStartDateTime && plannedStart < minimumStartTime) {
+    errors.plannedStartDateTime = "Planned start date/time must be at least 10 minutes from now.";
+  }
+
+  if (plannedEndDateTime && !errors.plannedEndDateTime && plannedEnd < now) {
+    errors.plannedEndDateTime = "Planned end date/time cannot be in the past.";
+  }
+
+  if (
+    plannedStartDateTime &&
+    plannedEndDateTime &&
+    !errors.plannedStartDateTime &&
+    !errors.plannedEndDateTime &&
+    plannedEnd <= plannedStart
+  ) {
+    errors.plannedEndDateTime = "Planned end date/time must be after planned start date/time.";
+  }
+
+  return errors;
+}
+
+function getWorkInitiationFieldRef(
+  field: WorkInitiationValidationField,
+  refs: Record<`${WorkInitiationValidationField}Ref`, ValidationRef>,
+) {
+  return refs[`${field}Ref`];
 }
 
 function getApiErrorMessage(error: unknown, fallback: string) {

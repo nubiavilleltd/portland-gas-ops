@@ -14,13 +14,14 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormSection from "@/components/ui/FormSection";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import {
   useCreateAsset,
   useAssetCategories,
   useAssetTypes,
-} from "@/hooks/useAssets";
+} from "@/lib/modules/assets";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useToast } from "@/hooks/useToast";
-import { SEED_EMPLOYEES } from "@/app/(app)/hr-management/_components/_data";
 import CurrencyInput from "@/components/forms/CurrencyInput";
 import { Controller } from "react-hook-form";
 
@@ -32,21 +33,18 @@ const schema = z.object({
   category_id: z.string().optional(),
   asset_type_id: z.string().optional(),
   serial_number: z.string().optional(),
-  purchase_date: z.string().optional(),
-  purchase_cost: z.string().optional(),
+  purchase_date: z.string().min(1, "Purchase date is required"),
+  purchase_cost: z.string().min(1, "Purchase cost is required"),
   condition: z.enum(["new", "good", "fair", "poor"], {
     error: "Select a condition",
   }),
-  status: z.enum(["available", "assigned", "under_repair", "retired"], {
-    error: "Select a status",
-  }),
   location: z.string().min(1, "Location is required"),
-  assigned_to_name: z.string().optional(),
+  assigned_to: z.string().optional(),
   description: z.string().optional(),
-  maintenance_type: z
-    .enum(["routine", "inspection", "calibration", "repair"])
-    .optional(),
-  maintenance_frequency_months: z.string().optional(),
+  maintenance_type: z.enum(["routine", "inspection", "calibration", "repair"], {
+    error: "Select a maintenance type",
+  }),
+  maintenance_frequency_months: z.string().min(1, "Maintenance frequency is required"),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -56,12 +54,6 @@ const conditionOptions = [
   { value: "good", label: "Good" },
   { value: "fair", label: "Fair" },
   { value: "poor", label: "Poor" },
-];
-const statusOptions = [
-  { value: "available", label: "Available" },
-  { value: "assigned", label: "Assigned" },
-  { value: "under_repair", label: "Under Repair" },
-  { value: "retired", label: "Retired" },
 ];
 const maintenanceTypeOptions = [
   { value: "routine", label: "Routine Service" },
@@ -83,14 +75,20 @@ export default function AdminRegisterAssetPage() {
   const createAsset = useCreateAsset();
   const { data: categories = [] } = useAssetCategories();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [assignedEmployee, setAssignedEmployee] = useState<PickedEmployee | null>(null);
+
+  const { data: employeeList = [] } = useEmployees();
+  const employees: PickedEmployee[] = employeeList.map((e) => ({
+    id: e.id,
+    name: [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+    role: e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
+  }));
 
   const categoryOptions = categories.map((c) => ({
     value: c.id,
     label: c.name,
-  }));
-  const employeeOptions = SEED_EMPLOYEES.map((e) => ({
-    value: `${e.firstName} ${e.lastName}`,
-    label: `${e.firstName} ${e.lastName} — ${e.title}`,
   }));
 
   const {
@@ -98,11 +96,10 @@ export default function AdminRegisterAssetPage() {
     register,
     handleSubmit,
     watch,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { condition: "new", status: "available", category_id: "" },
+    defaultValues: { condition: "new", category_id: "" },
   });
 
   const watchedCategoryId = watch("category_id");
@@ -115,6 +112,10 @@ export default function AdminRegisterAssetPage() {
   }));
 
   async function onSubmit(formData: FormData) {
+    if (!imageFiles[0]) {
+      toast.error("Asset image is required.");
+      return;
+    }
     try {
       await createAsset.mutateAsync({
         data: {
@@ -122,21 +123,17 @@ export default function AdminRegisterAssetPage() {
           category_id: formData.category_id || undefined,
           asset_type_id: formData.asset_type_id || undefined,
           serial_number: formData.serial_number || undefined,
-          purchase_date: formData.purchase_date || undefined,
-          purchase_cost: formData.purchase_cost
-            ? parseFloat(formData.purchase_cost)
-            : undefined,
+          purchase_date: formData.purchase_date,
+          purchase_cost: parseFloat(formData.purchase_cost),
           condition: formData.condition,
-          status: formData.status,
           location: formData.location,
-          assigned_to_name: formData.assigned_to_name || undefined,
+          assigned_to: assignedEmployee?.id || undefined,
           description: formData.description || undefined,
-          maintenance_type: formData.maintenance_type || undefined,
-          maintenance_frequency_months: formData.maintenance_frequency_months
-            ? parseInt(formData.maintenance_frequency_months)
-            : undefined,
+          maintenance_type: formData.maintenance_type,
+          maintenance_frequency_months: parseInt(formData.maintenance_frequency_months),
         },
-        image: imageFiles[0] ?? null,
+        image: imageFiles[0],
+        to_employee_name: assignedEmployee?.name,
       });
       toast.success("Asset registered successfully");
       router.push("/admin/assets");
@@ -216,19 +213,7 @@ export default function AdminRegisterAssetPage() {
               error={errors.condition?.message}
               {...register("condition")}
             />
-            <FormSelect
-              label="Status"
-              required
-              options={statusOptions}
-              placeholder="Select status"
-              error={errors.status?.message}
-              {...register("status")}
-            />
           </div>
-          <p className="text-xs text-brand-text-secondary">
-            Asset tag is auto-generated on save (e.g.{" "}
-            <span className="font-mono">LAP-LKI-001</span>)
-          </p>
         </FormSection>
         <FormSection
           title="Purchase Info"
@@ -238,16 +223,17 @@ export default function AdminRegisterAssetPage() {
           <div className="grid grid-cols-3 gap-5">
             <FormDatePicker
               label="Purchase Date"
+              required
               error={errors.purchase_date?.message}
               {...register("purchase_date")}
             />
-            {/* <FormInput label="Purchase Cost (NGN)" type="number" min="0" step="0.01" placeholder="0.00" error={errors.purchase_cost?.message} {...register("purchase_cost")} /> */}
             <Controller
               control={control}
               name="purchase_cost"
               render={({ field }) => (
                 <CurrencyInput
                   label="Purchase Cost (NGN)"
+                  required
                   placeholder="0.00"
                   error={errors.purchase_cost?.message}
                   value={field.value ?? ""}
@@ -271,13 +257,12 @@ export default function AdminRegisterAssetPage() {
           bodyClassName="p-6 space-y-0"
         >
           <div className="grid grid-cols-3 gap-5">
-            <FormSelect
+            <EmployeePicker
               label="Assign To"
-              options={employeeOptions}
-              placeholder="Select employee (optional)"
-              hint="The asset can be assigned separately after registration"
-              error={errors.assigned_to_name?.message}
-              {...register("assigned_to_name")}
+              employees={employees}
+              value={assignedEmployee}
+              onChange={setAssignedEmployee}
+              placeholder="Search employee (optional)"
             />
           </div>
         </FormSection>
@@ -294,6 +279,7 @@ export default function AdminRegisterAssetPage() {
           />
           <FileDropzone
             label="Asset Image"
+            required
             value={imageFiles}
             onChange={setImageFiles}
             accept=".png,.jpg,.jpeg,.webp"
@@ -304,21 +290,23 @@ export default function AdminRegisterAssetPage() {
         </FormSection>
         <FormSection
           title="Maintenance Schedule"
-          description="Optional — the system will flag this asset when maintenance is due"
+          description="The system will flag this asset when maintenance is due"
           bodyClassName="p-6 space-y-0"
         >
           <div className="grid grid-cols-3 gap-5">
             <FormSelect
               label="Maintenance Type"
+              required
               options={maintenanceTypeOptions}
-              placeholder="Select type (optional)"
+              placeholder="Select type"
               error={errors.maintenance_type?.message}
               {...register("maintenance_type")}
             />
             <FormSelect
               label="Maintenance Frequency"
+              required
               options={frequencyOptions}
-              placeholder="Select frequency (optional)"
+              placeholder="Select frequency"
               error={errors.maintenance_frequency_months?.message}
               {...register("maintenance_frequency_months")}
             />
