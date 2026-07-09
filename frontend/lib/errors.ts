@@ -47,7 +47,11 @@ export function getErrorMessage(
 ): string {
   const detail = extractApiError(err);
   if (!detail) return fallback;
-  const merged = { ...ERROR_MESSAGES, ...domainErrors };
+  const merged: Record<string, string> = {
+    ...ERROR_MESSAGES,
+    ...domainErrors,
+  };
+
   return merged[detail.error_code] ?? detail.message ?? fallback;
 }
 
