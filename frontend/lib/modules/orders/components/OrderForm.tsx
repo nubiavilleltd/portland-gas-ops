@@ -193,15 +193,11 @@ export default function OrderForm({
       key: "unitPrice",
       label: "Unit Price (₦)",
       width: "140px",
-      renderCell: (row, index, onChange) => (
-        <CurrencyInput
-          value={row.unitPrice || ""}
-          placeholder="0.00"
-          onValueChange={(raw) =>
-            onChange({ unitPrice: parseFloat(raw) || 0 })
-          }
-          inputClassName="border-0 focus:ring-0 px-0 h-auto"
-        />
+
+      renderCell: (row) => (
+        <span className="text-sm font-medium text-brand-text-secondary">
+          {formatCurrency(row.unitPrice || 0)}
+        </span>
       ),
     },
     {

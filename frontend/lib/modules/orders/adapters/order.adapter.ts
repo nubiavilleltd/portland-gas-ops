@@ -99,11 +99,8 @@ export interface CreateOrderRequest {
 
   order_items: {
     product_id: string;
-    product_name: string;
 
     quantity: number;
-    unit_price: number;
-    total: number;
   }[];
 }
 
@@ -124,11 +121,8 @@ export interface UpdateOrderRequest {
 
   order_items?: {
     product_id: string;
-    product_name: string;
 
     quantity: number;
-    unit_price: number;
-    total: number;
   }[];
 }
 
@@ -263,11 +257,8 @@ export function adaptCreateOrderRequest(
 
     order_items: input.orderItems.map((item) => ({
       product_id: item.productId,
-      product_name: item.productName,
 
       quantity: item.quantity,
-      unit_price: item.unitPrice,
-      total: item.total,
     })),
   };
 }
@@ -292,11 +283,8 @@ export function adaptUpdateOrderRequest(
 
     order_items: input.orderItems?.map((item) => ({
       product_id: item.productId,
-      product_name: item.productName,
 
       quantity: item.quantity,
-      unit_price: item.unitPrice,
-      total: item.total,
     })),
   };
 }

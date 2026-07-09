@@ -12,7 +12,6 @@ from app.orders.validators import (
     validate_delivery_address,
     validate_order_items,
     validate_quantity,
-    validate_unit_price,
 )
 from app.payments.enums import PaymentStatus
 
@@ -22,18 +21,11 @@ from app.payments.enums import PaymentStatus
 class OrderItemCreate(BaseModel):
     product_id: str
     quantity: Decimal
-    unit_price: Decimal
 
     @field_validator("quantity")
     @classmethod
     def quantity_validator(cls, value: Decimal) -> Decimal:
         return validate_quantity(value)
-
-    @field_validator("unit_price")
-    @classmethod
-    def unit_price_validator(cls, value: Decimal) -> Decimal:
-        return validate_unit_price(value)
-
 
 class OrderCreate(BaseModel):
     customer_id: str

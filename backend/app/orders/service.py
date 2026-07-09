@@ -61,7 +61,7 @@ class OrderService:
                 CustomerErrorCode.CUSTOMER_NOT_FOUND,
                 "Customer not found",
             )
-        total = sum(Decimal(str(i.total)) for i in data.order_items)
+        items, total = self._build_order_items(db, data.order_items)
         order_no = self.repo.generate_order_no(db)
 
         order = self.repo.create(
@@ -77,16 +77,11 @@ class OrderService:
             total_amount       = total,
             created_by         = created_by,
         )
-        self.repo.create_items(db, order.id, [
-            {
-                "product_id":   i.product_id,
-                "product_name": i.product_name,
-                "quantity":     i.quantity,
-                "unit_price":   i.unit_price,
-                "total":        i.total,
-            }
-            for i in data.order_items
-        ])
+        self.repo.create_items(
+            db,
+            order.id,
+            items,
+        )
         return order
 
     def create_and_submit(self, db: Session, data: OrderCreate, created_by: str) -> Order:
@@ -117,18 +112,13 @@ class OrderService:
             updates["notes"] = data.notes
 
         if data.order_items is not None:
-            total = sum(Decimal(str(i.total)) for i in data.order_items)
+            items, total = self._build_order_items(db, data.order_items)
             updates["total_amount"] = total
-            self.repo.replace_items(db, order.id, [
-                {
-                    "product_id":   i.product_id,
-                    "product_name": i.product_name,
-                    "quantity":     i.quantity,
-                    "unit_price":   i.unit_price,
-                    "total":        i.total,
-                }
-                for i in data.order_items
-            ])
+            self.repo.replace_items(
+                db,
+                order.id,
+                items,
+            )
 
         return self.repo.update(db, order, **updates)
 
@@ -227,3 +217,33 @@ class OrderService:
         customer_id: str,
     ):
         return self.repo.list_by_customer(db, customer_id)
+    
+    def _build_order_items(
+        self,
+        db: Session,
+        order_items,
+    ):
+        from app.products.service import ProductService
+
+        product_service = ProductService()
+
+        items = []
+        subtotal = Decimal("0")
+
+        for line in order_items:
+            product = product_service.get_or_raise(db, line.product_id)
+
+            unit_price = Decimal(product.default_unit_price)
+            line_total = unit_price * line.quantity
+
+            items.append({
+                "product_id": product.id,
+                "product_name": product.name,
+                "quantity": line.quantity,
+                "unit_price": unit_price,
+                "total": line_total,
+            })
+
+            subtotal += line_total
+
+        return items, subtotal

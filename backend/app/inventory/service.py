@@ -68,6 +68,24 @@ class InventoryService:
     def get_kpis(self, db: Session):
         return self.repo.get_kpis(db)
 
+    # def list_items(
+    #     self,
+    #     db: Session,
+    #     product_id: Optional[str] = None,
+    #     status: Optional[InventoryItemStatus] = None,
+    #     location_id: Optional[int] = None,
+    #     page: int = 1,
+    #     page_size: int = 50,
+    # ):
+    #     return self.repo.list_inventory_items(
+    #         db,
+    #         product_id=product_id,
+    #         status=status,
+    #         location_id=location_id,
+    #         page=page,
+    #         page_size=page_size,
+    #     )
+
     def list_items(
         self,
         db: Session,
@@ -77,7 +95,7 @@ class InventoryService:
         page: int = 1,
         page_size: int = 50,
     ):
-        return self.repo.list_inventory_items(
+        items, _ = self.repo.list_inventory_items(
             db,
             product_id=product_id,
             status=status,
@@ -85,6 +103,8 @@ class InventoryService:
             page=page,
             page_size=page_size,
         )
+
+        return items
 
     def list_stock(self, db: Session):
         return self.repo.list_consumable_stock(db)
