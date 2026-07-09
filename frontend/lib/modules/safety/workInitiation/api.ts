@@ -3,6 +3,7 @@ import type {
   WorkInitiationCreate,
   WorkInitiationListParams,
   WorkInitiationResponse,
+  WorkInitiationReviewCreate,
   WorkInitiationUpdate,
 } from "./types";
 
@@ -31,6 +32,22 @@ export const workInitiationsApi = {
     payload: WorkInitiationUpdate,
   ): Promise<WorkInitiationResponse> => {
     const { data } = await api.put(`/api/safety/work-initiations/${id}`, payload);
+    return data;
+  },
+
+  supervisorReview: async (
+    id: string,
+    payload: WorkInitiationReviewCreate,
+  ): Promise<WorkInitiationResponse> => {
+    const { data } = await api.post(`/api/safety/work-initiations/${id}/supervisor-review`, payload);
+    return data;
+  },
+
+  operationsHodReview: async (
+    id: string,
+    payload: WorkInitiationReviewCreate,
+  ): Promise<WorkInitiationResponse> => {
+    const { data } = await api.post(`/api/safety/work-initiations/${id}/operations-hod-review`, payload);
     return data;
   },
 };

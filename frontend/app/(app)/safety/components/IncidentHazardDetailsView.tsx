@@ -25,7 +25,9 @@ import type {
 } from "@/lib/modules/safety/checklists";
 import {
   incidentReportsApi,
+  useCloseIncident,
   useIncidentReport,
+  useResolveIncidentWithCloseout,
   type IncidentHseDecision,
   type IncidentHseReviewCreate,
   type IncidentReportType,
@@ -41,14 +43,10 @@ import SafetyChoiceTable from "./SafetyChoiceTable";
 import {
   incidentSeverityOptions,
   reportTypeOptions,
-} from "@/lib/mock/incident-hazard";
-import {
-  closeResolvedIncident,
-  getApprovedCloseOutForIncident,
-  resolveIncidentWithCompletedWork,
-} from "@/lib/safety-demo-store";
+} from "@/lib/modules/safety/incidentReport/constants";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
 import type {
   IncidentHazardAttachment,
   IncidentHazardHseReview,
@@ -94,9 +92,18 @@ export default function IncidentHazardDetailsView({
     "incident_report",
     reportId,
   );
-  const completedWork = report
-    ? getApprovedCloseOutForIncident(report.id)
-    : null;
+  const workCloseoutsQuery = useWorkCloseouts({ limit: 100 });
+  const completedWork = useMemo(
+    () =>
+      (workCloseoutsQuery.data ?? []).find(
+        (request) =>
+          request.workAuthorization.relatedIncidentHazardId === report?.id &&
+          (request.status === "approved" || request.status === "acknowledged"),
+      ) ?? null,
+    [report?.id, workCloseoutsQuery.data],
+  );
+  const resolveIncident = useResolveIncidentWithCloseout(reportId);
+  const closeIncidentMutation = useCloseIncident(reportId);
   const [hseComment, setHseComment] = useState("");
   const [confirmedReportType, setConfirmedReportType] = useState("");
   const [confirmedSeverity, setConfirmedSeverity] = useState("");
@@ -202,20 +209,37 @@ export default function IncidentHazardDetailsView({
   if (permissions.canHseReview && hseReviewChecklist.isLoading) {
     return <SafetyProcessFormSkeleton sections={6} />;
   }
-  const persistedReportId = report.id;
-
   async function recommendToDepartment() {
     await saveHseReview("recommended");
   }
 
-  function resolveRecommendedIncident() {
-    resolveIncidentWithCompletedWork(persistedReportId);
-    toast.success("Incident marked resolved.");
+  async function resolveRecommendedIncident() {
+    if (!completedWork) {
+      toast.error("No approved linked work close-out is available for this incident.");
+      return;
+    }
+
+    try {
+      await resolveIncident.mutateAsync({
+        work_closeout_id: completedWork.id,
+      });
+      await reportQuery.refetch();
+      toast.success("Incident marked resolved.");
+    } catch (error) {
+      console.error("Failed to resolve incident", error);
+      toast.error(getApiErrorMessage(error, "Incident could not be resolved."));
+    }
   }
 
-  function closeIncident() {
-    closeResolvedIncident(persistedReportId);
-    toast.success("Incident closed by HSE.");
+  async function closeIncident() {
+    try {
+      await closeIncidentMutation.mutateAsync();
+      await reportQuery.refetch();
+      toast.success("Incident closed by HSE.");
+    } catch (error) {
+      console.error("Failed to close incident", error);
+      toast.error(getApiErrorMessage(error, "Incident could not be closed."));
+    }
   }
 
   async function hseFinalDecision(decision: "Resolved" | "Not Resolved") {
@@ -362,7 +386,7 @@ export default function IncidentHazardDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={report.reference ?? report.id}
+        id={report.reference ?? "Reference pending"}
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={getIncidentHazardRoleLabel(currentRole)}
@@ -429,18 +453,25 @@ export default function IncidentHazardDetailsView({
             report={report}
             completedWorkReference={
               completedWork
-                ? `${completedWork.id} - ${completedWork.title} | ${completedWork.requester.name} | ${completedWork.requester.requestDate}`
-                : report.resolutionWorkCompletionId || ""
+                ? `${completedWork.reference ?? "Reference pending"} - ${completedWork.title} | ${completedWork.requester.name} | ${completedWork.requester.requestDate}`
+                : report.resolutionWorkCompletionId
+                  ? "Linked work completion"
+                  : ""
             }
             canResolve={permissions.canActionOwnerResolve}
             canCreateLinkedWork={canActAsActionOwner}
             onResolve={resolveRecommendedIncident}
+            isResolving={resolveIncident.isPending}
           />
         ) : null
       ) : null}
 
       {permissions.canHseClose ? (
-        <HseClosureAction report={report} onClose={closeIncident} />
+        <HseClosureAction
+          report={report}
+          onClose={closeIncident}
+          isClosing={closeIncidentMutation.isPending}
+        />
       ) : null}
 
       {permissions.showAuditTrail ? (
@@ -500,7 +531,7 @@ function ReportDetails({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput
           label="Report Reference"
-          value={report.reference ?? report.id}
+          value={report.reference ?? "Reference pending"}
           disabled
         />
         <FormInput
@@ -932,12 +963,14 @@ function CorrectiveWorkResolution({
   canResolve,
   canCreateLinkedWork,
   onResolve,
+  isResolving,
 }: {
   report: IncidentHazardReport;
   completedWorkReference: string;
   canResolve: boolean;
   canCreateLinkedWork: boolean;
   onResolve: () => void;
+  isResolving: boolean;
 }) {
   return (
     <FormSection
@@ -985,7 +1018,12 @@ function CorrectiveWorkResolution({
       ) : null}
       {canResolve ? (
         <div className="mt-4">
-          <Button type="button" onClick={onResolve}>
+          <Button
+            type="button"
+            onClick={onResolve}
+            loading={isResolving}
+            loadingText="Resolving..."
+          >
             Mark Incident Resolved
           </Button>
         </div>
@@ -997,9 +1035,11 @@ function CorrectiveWorkResolution({
 function HseClosureAction({
   report,
   onClose,
+  isClosing,
 }: {
   report: IncidentHazardReport;
   onClose: () => void;
+  isClosing: boolean;
 }) {
   return (
     <ApprovalPanel
@@ -1009,6 +1049,7 @@ function HseClosureAction({
       showReturn={false}
       showReject={false}
       approveLabel="Close Incident"
+      approveDisabled={isClosing}
       onApprove={onClose}
       extraFields={
         <div className="space-y-4">

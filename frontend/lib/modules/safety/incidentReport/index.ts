@@ -1,8 +1,10 @@
 export { incidentReportsApi } from "./api";
 export {
   incidentReportKeys,
+  useCloseIncident,
   useIncidentReport,
   useIncidentReports,
+  useResolveIncidentWithCloseout,
 } from "./hooks";
 export { mapIncidentReportToHazardReport } from "./mappers";
 export type {
@@ -16,5 +18,6 @@ export type {
   IncidentReportStatus,
   IncidentReportType,
   IncidentReportUpdate,
+  IncidentResolveCreate,
   IncidentSeverityEstimate,
 } from "./types";

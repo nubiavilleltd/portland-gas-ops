@@ -64,7 +64,9 @@ export interface WorkInitiationAssignment {
   selectedContractor: string;
   contractorContactEmail: string;
   plannedStartDateTime: string;
+  plannedStartDateTimeRaw?: string;
   plannedEndDateTime: string;
+  plannedEndDateTimeRaw?: string;
   materialsRequired: string;
 }
 
@@ -87,7 +89,9 @@ export interface AssignedWorkInitiationSummary {
   selectedContractor: string;
   contractorContactEmail: string;
   plannedStartDateTime: string;
+  plannedStartDateTimeRaw?: string;
   plannedEndDateTime: string;
+  plannedEndDateTimeRaw?: string;
 }
 
 export interface WorkInitiationReview {
@@ -215,6 +219,8 @@ export type WorkCloseOutStatus =
 
 export interface ApprovedWorkAuthorizationOption {
   id: string;
+  reference?: string;
+  relatedIncidentHazardId?: string;
   title: string;
   status: "approved";
   requester: string;
@@ -223,15 +229,20 @@ export interface ApprovedWorkAuthorizationOption {
   location: string;
   exactWorkArea: string;
   approvedStartDateTime: string;
+  approvedStartDateTimeRaw?: string;
   approvedEndDateTime: string;
+  approvedEndDateTimeRaw?: string;
   workTypes: string[];
+  supervisorId?: string;
   supervisor: string;
   hseApprover: string;
 }
 
 export interface WorkCloseOutCompletionDetails {
   actualStartDateTime: string;
+  actualStartDateTimeRaw?: string;
   actualCompletionDateTime: string;
+  actualCompletionDateTimeRaw?: string;
   workCompleted: boolean;
   completedAsApproved: boolean;
   deviationExplanation: string;
@@ -280,8 +291,10 @@ export interface WorkCloseOutHseApproval {
 
 export interface WorkCloseOutRequest {
   id: string;
+  reference?: string;
   status: WorkCloseOutStatus;
   title: string;
+  requesterId?: string;
   requester: WorkAuthorizationRequester;
   workAuthorization: ApprovedWorkAuthorizationOption;
   completionDetails: WorkCloseOutCompletionDetails;
@@ -345,6 +358,7 @@ export interface IncidentHazardReport {
   reportedAtRaw?: string;
   dateTimeObservedRaw?: string;
   status: IncidentHazardStatus;
+  reporterId?: string;
   reporter: IncidentHazardReporter;
   title: string;
   reportType: string;

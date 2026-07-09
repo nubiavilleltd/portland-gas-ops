@@ -3,9 +3,11 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.safety.checklists.schemas import ChecklistAnswerCreate
 from app.safety.work_closeouts.models import (
     WorkCloseOutAnswer,
     WorkCloseOutDecision,
+    WorkCloseOutReviewerRole,
     WorkCloseOutStatus,
 )
 
@@ -52,6 +54,10 @@ class WorkCloseOutCreate(BaseModel):
     remaining_hazard: bool = False
     remaining_hazard_details: Optional[str] = Field(None, max_length=5000)
 
+    completion_checklist_answers: list[ChecklistAnswerCreate] = Field(..., min_length=1)
+    monitoring_checklist_answers: list[ChecklistAnswerCreate] = Field(..., min_length=1)
+    area_condition_checklist_answers: list[ChecklistAnswerCreate] = Field(..., min_length=1)
+
     @field_validator(
         "deviation_explanation",
         "completion_summary",
@@ -93,6 +99,10 @@ class WorkCloseOutCreate(BaseModel):
         return self
 
 
+class WorkCloseOutUpdate(WorkCloseOutCreate):
+    pass
+
+
 class WorkCloseOutDecisionCreate(BaseModel):
     decision: WorkCloseOutDecision
     comment: Optional[str] = Field(None, max_length=5000)
@@ -129,10 +139,12 @@ class WorkCloseOutAuthorizationSummary(BaseModel):
     status: str
     work_initiation_id: str
     work_initiation_reference: Optional[str]
+    related_incident_report_id: Optional[str]
     title: Optional[str]
     location: Optional[str]
     exact_work_area: Optional[str]
     work_type: list[str]
+    assigned_supervisor_id: Optional[str]
     assigned_supervisor: Optional[str]
     assigned_workers: list[str]
     planned_start_at: Optional[datetime]
@@ -170,6 +182,7 @@ class WorkCloseOutListItem(BaseModel):
     requester_role: Optional[str]
     work_authorization_id: str
     work_authorization_reference: Optional[str]
+    related_incident_report_id: Optional[str]
     title: Optional[str]
     location: Optional[str]
     actual_start_at: datetime
@@ -193,6 +206,7 @@ class WorkCloseOutListItem(BaseModel):
             requester_role=employee_role(closeout.requester),
             work_authorization_id=closeout.work_authorization_id,
             work_authorization_reference=authorization.reference if authorization else None,
+            related_incident_report_id=initiation.related_incident_report_id if initiation else None,
             title=initiation.title if initiation else None,
             location=initiation.location if initiation else None,
             actual_start_at=closeout.actual_start_at,
@@ -261,18 +275,14 @@ class WorkCloseOutResponse(WorkCloseOutListItem):
             remaining_hazard=closeout.remaining_hazard,
             remaining_hazard_details=closeout.remaining_hazard_details,
             supervisor_review=build_review(
-                closeout.supervisor_decision,
-                closeout.supervisor,
-                closeout.supervisor_comment,
-                closeout.supervisor_decided_at,
+                get_closeout_review(closeout, WorkCloseOutReviewerRole.supervisor),
             ),
             operations_head_review=build_review(
-                closeout.operations_head_decision,
-                closeout.operations_head,
-                closeout.operations_head_comment,
-                closeout.operations_head_decided_at,
+                get_closeout_review(closeout, WorkCloseOutReviewerRole.operations_head),
             ),
-            hse_review=build_hse_review(closeout),
+            hse_review=build_hse_review(
+                get_closeout_review(closeout, WorkCloseOutReviewerRole.hse),
+            ),
             is_exception=is_exception_closeout(closeout),
             is_active=closeout.is_active,
         )
@@ -289,10 +299,12 @@ def authorization_summary(authorization) -> Optional[WorkCloseOutAuthorizationSu
         status=authorization.status.value,
         work_initiation_id=authorization.work_initiation_id,
         work_initiation_reference=initiation.reference if initiation else None,
+        related_incident_report_id=initiation.related_incident_report_id if initiation else None,
         title=initiation.title if initiation else None,
         location=initiation.location if initiation else None,
         exact_work_area=initiation.exact_work_area if initiation else None,
         work_type=split_list(initiation.work_type) if initiation else [],
+        assigned_supervisor_id=initiation.assigned_supervisor_id if initiation else None,
         assigned_supervisor=employee_name(initiation.assigned_supervisor) if initiation else None,
         assigned_workers=[
             employee_name(worker.worker) or "N/A"
@@ -307,36 +319,42 @@ def authorization_summary(authorization) -> Optional[WorkCloseOutAuthorizationSu
     )
 
 
-def build_review(
-    decision: Optional[WorkCloseOutDecision],
-    reviewer,
-    comment: Optional[str],
-    decided_at: Optional[datetime],
-) -> Optional[WorkCloseOutReviewResponse]:
-    if not decision:
+def build_review(review) -> Optional[WorkCloseOutReviewResponse]:
+    if not review:
         return None
     return WorkCloseOutReviewResponse(
-        decision=decision,
-        reviewer_id=reviewer.id if reviewer else None,
-        reviewer_name=employee_name(reviewer),
-        comment=comment,
-        decided_at=decided_at,
+        decision=review.decision,
+        reviewer_id=review.reviewer_id,
+        reviewer_name=employee_name(review.reviewer),
+        comment=review.comment,
+        decided_at=review.decided_at,
     )
 
 
-def build_hse_review(closeout) -> Optional[WorkCloseOutHseReviewResponse]:
-    if not closeout.hse_decision:
+def build_hse_review(review) -> Optional[WorkCloseOutHseReviewResponse]:
+    if not review:
         return None
     return WorkCloseOutHseReviewResponse(
-        inspector_id=closeout.hse_inspector_id,
-        inspector_name=employee_name(closeout.hse_inspector),
-        verified_close_out=closeout.hse_verified_close_out,
-        area_safe_for_operations=closeout.hse_area_safe_for_operations,
-        corrective_action_required=closeout.hse_corrective_action_required,
-        corrective_action_details=closeout.hse_corrective_action_details,
-        decision=closeout.hse_decision,
-        comment=closeout.hse_comment,
-        decided_at=closeout.hse_decided_at,
+        inspector_id=review.reviewer_id,
+        inspector_name=employee_name(review.reviewer),
+        verified_close_out=review.verified_close_out,
+        area_safe_for_operations=review.area_safe_for_operations,
+        corrective_action_required=review.corrective_action_required,
+        corrective_action_details=review.corrective_action_details,
+        decision=review.decision,
+        comment=review.comment,
+        decided_at=review.decided_at,
+    )
+
+
+def get_closeout_review(closeout, reviewer_role: WorkCloseOutReviewerRole):
+    return next(
+        (
+            review
+            for review in (getattr(closeout, "reviews", None) or [])
+            if review.reviewer_role == reviewer_role.value
+        ),
+        None,
     )
 
 

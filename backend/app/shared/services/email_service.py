@@ -149,6 +149,7 @@ _REQUEST_TYPE_LABELS: dict[str, str] = {
     "cash_requisition": "Cash Requisition",
     "invoice":          "Invoice",
     "work_initiation":  "Work Initiation",
+    "work_authorization": "Work Authorization",
     "work_closeout":    "Work Closeout",
     "safety":           "Safety",
 }
@@ -160,8 +161,9 @@ _REQUEST_TYPE_PATHS: dict[str, str] = {
     "leave":            "leave",
     "cash_requisition": "cash-requisitions",
     "invoice":          "invoices",
-    "work_initiation":  "work-orders",
-    "work_closeout":    "work-orders",
+    "work_initiation":  "safety/work-initiation",
+    "work_authorization": "safety/work-authorization",
+    "work_closeout":    "safety/work-close-out",
     "safety":           "safety",
 }
 

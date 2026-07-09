@@ -21,6 +21,7 @@ const REQUEST_TYPES = [
   { value: "cash_requisition", label: "Cash Requisitions" },
   { value: "invoice",          label: "Invoice Approvals" },
   { value: "work_initiation",  label: "Work Initiation" },
+  { value: "work_authorization", label: "Work Authorization" },
   { value: "work_closeout",    label: "Work Close-Out" },
   { value: "safety",           label: "Safety Incidents" },
 ];

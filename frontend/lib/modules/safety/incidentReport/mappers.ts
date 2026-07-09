@@ -58,6 +58,7 @@ export function mapIncidentReportToHazardReport(
     reportedAtRaw: report.reported_at,
     dateTimeObservedRaw: report.observed_at,
     status: statusMap[report.status],
+    reporterId: report.reported_by,
     reporter: {
       name: report.reporter_name || "Reporter",
       department: report.reporter_department ?? "",

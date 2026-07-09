@@ -23,7 +23,11 @@ from app.safety.incidents.schemas import (
     IncidentHseReviewCreate,
     IncidentReportCreate,
     IncidentReportUpdate,
+    IncidentResolveCreate,
 )
+from app.safety.work_authorizations.models import SafetyWorkAuthorization
+from app.safety.work_closeouts.models import SafetyWorkCloseOut, WorkCloseOutStatus
+from app.safety.work_initiations.models import SafetyWorkInitiation
 
 INCIDENT_REFERENCE_ENTITY = "incident_report"
 INCIDENT_REFERENCE_PREFIX = "IH"
@@ -382,6 +386,90 @@ def update_incident_report(
     db.refresh(report)
 
     return get_incident_report(db, report.id)
+
+
+def resolve_incident_with_closeout(
+    db: Session,
+    incident_id: str,
+    data: IncidentResolveCreate,
+    current_user: User,
+) -> SafetyIncidentReport:
+    report = get_incident_report(db, incident_id)
+    employee = get_employee_for_user(db, current_user)
+
+    if report.status != IncidentReportStatus.recommended:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only recommended incident reports can be resolved by an action owner.",
+        )
+
+    if not report.hse_review or report.hse_review.action_owner_id != employee.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the assigned action owner can resolve this incident report.",
+        )
+
+    closeout = get_closeout_for_incident_resolution(
+        db=db,
+        work_closeout_id=data.work_closeout_id,
+        incident_id=report.id,
+    )
+
+    report.status = IncidentReportStatus.resolved
+    report.resolution_work_closeout_id = closeout.id
+
+    db.commit()
+    db.refresh(report)
+
+    return get_incident_report(db, report.id)
+
+
+def close_resolved_incident(
+    db: Session,
+    incident_id: str,
+) -> SafetyIncidentReport:
+    report = get_incident_report(db, incident_id)
+
+    if report.status != IncidentReportStatus.resolved:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only resolved incident reports can be closed by HSE.",
+        )
+
+    report.status = IncidentReportStatus.closed
+    db.commit()
+    db.refresh(report)
+
+    return get_incident_report(db, report.id)
+
+
+def get_closeout_for_incident_resolution(
+    db: Session,
+    work_closeout_id: str,
+    incident_id: str,
+) -> SafetyWorkCloseOut:
+    closeout = (
+        db.query(SafetyWorkCloseOut)
+        .join(SafetyWorkCloseOut.work_authorization)
+        .join(SafetyWorkAuthorization.work_initiation)
+        .filter(
+            SafetyWorkCloseOut.id == work_closeout_id,
+            SafetyWorkCloseOut.is_active == True,
+            SafetyWorkCloseOut.status.in_(
+                (WorkCloseOutStatus.approved, WorkCloseOutStatus.acknowledged),
+            ),
+            SafetyWorkInitiation.related_incident_report_id == incident_id,
+        )
+        .first()
+    )
+
+    if not closeout:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Approved close-out linked to this incident report was not found.",
+        )
+
+    return closeout
 
 
 def deactivate_incident_report(

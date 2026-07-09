@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, exists, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -10,18 +10,32 @@ from app.employees.models import Employee
 from app.shared.models.reference_counter import ReferenceCounter
 from app.safety.dependencies import get_employee_for_user
 from app.safety.incidents.models import IncidentReportStatus, SafetyIncidentReport
+from app.safety.permissions import require_safety_operations_approver
 from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
     WorkInitiationCategory,
+    WorkInitiationDecision,
     WorkInitiationStatus,
 )
-from app.safety.work_initiations.schemas import WorkInitiationCreate, WorkInitiationUpdate
+from app.safety.work_initiations.schemas import (
+    WorkInitiationCreate,
+    WorkInitiationReviewCreate,
+    WorkInitiationUpdate,
+)
 from app.shared.models.user import User
+from app.shared.models.approval import (
+    AllRequest,
+    ApprovalOverallStatus,
+    ApprovalRequest,
+    ApprovalStepAssignment,
+)
+from app.shared.services.workflow_engine import WorkflowEngine
 
 
 WORK_INITIATION_REFERENCE_ENTITY = "work_initiation"
 WORK_INITIATION_REFERENCE_PREFIX = "WI"
+WORK_INITIATION_REQUEST_TYPE = "work_initiation"
 ACTIVE_RELATED_INCIDENT_WORK_STATUSES = (
     WorkInitiationStatus.draft,
     WorkInitiationStatus.submitted,
@@ -29,6 +43,33 @@ ACTIVE_RELATED_INCIDENT_WORK_STATUSES = (
     WorkInitiationStatus.returned,
     WorkInitiationStatus.approved,
 )
+
+def get_active_workflow_approval_request_id(
+    db: Session,
+    work_initiation_id: str,
+) -> str:
+    row = (
+        db.query(AllRequest.approval_request_id)
+        .join(
+            ApprovalRequest,
+            ApprovalRequest.id == AllRequest.approval_request_id,
+        )
+        .filter(
+            AllRequest.request_type == WORK_INITIATION_REQUEST_TYPE,
+            AllRequest.request_id == work_initiation_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .first()
+    )
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No active workflow approval request found for this work initiation.",
+        )
+
+    return row.approval_request_id
+
 
 
 def reserve_work_initiation_reference(db: Session) -> str:
@@ -128,6 +169,12 @@ def create_work_initiation(
                 worker_id=worker.id,
             )
         )
+    start_work_initiation_workflow(
+    db=db,
+    record=record,
+    requester=requester,
+    assigned_supervisor=assigned_supervisor,
+    )   
 
     db.commit()
     return get_work_initiation(db, record.id)
@@ -209,19 +256,201 @@ def update_work_initiation(
             )
         )
 
+    start_work_initiation_workflow(
+    db=db,
+    record=record,
+    requester=requester,
+    assigned_supervisor=assigned_supervisor,
+    )
+
     db.commit()
     return get_work_initiation(db, record.id)
+
+def start_work_initiation_workflow(
+    db: Session,
+    record: SafetyWorkInitiation,
+    requester: Employee,
+    assigned_supervisor: Employee,
+) -> None:
+    engine = WorkflowEngine(db)
+    engine.start(
+        request_type=WORK_INITIATION_REQUEST_TYPE,
+        request_id=record.id,
+        title=f"{record.reference} — {record.title}",
+        requester=requester,
+        picked_approvers={
+            1: assigned_supervisor.id,
+        },
+    )
+
+
+def supervisor_review_work_initiation(
+    db: Session,
+    work_initiation_id: str,
+    data: WorkInitiationReviewCreate,
+    current_user: User,
+) -> tuple[SafetyWorkInitiation, str]:
+    record = get_work_initiation(db, work_initiation_id)
+    reviewer = get_employee_for_user(db, current_user)
+
+    if record.status != WorkInitiationStatus.submitted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only submitted work initiations can be reviewed by the assigned supervisor.",
+        )
+
+    if reviewer.id != record.assigned_supervisor_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the assigned supervisor can review this work initiation.",
+        )
+
+    require_comment_for_negative_decision(data)
+
+    approval_request_id = get_active_workflow_approval_request_id(
+        db,
+        record.id,
+    )
+
+    engine = WorkflowEngine(db)
+
+    def mark_supervisor_review() -> None:
+        record.supervisor_decision = data.decision
+        record.supervisor_id = reviewer.id
+        record.supervisor_comment = data.comment
+        record.supervisor_decided_at = datetime.utcnow()
+
+        if data.decision == WorkInitiationDecision.approve:
+            record.status = WorkInitiationStatus.pending
+        elif data.decision == WorkInitiationDecision.return_:
+            record.status = WorkInitiationStatus.returned
+        else:
+            record.status = WorkInitiationStatus.denied
+
+    if data.decision == WorkInitiationDecision.approve:
+        engine.approve(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+        )
+        mark_supervisor_review()
+
+    elif data.decision == WorkInitiationDecision.return_:
+        engine.return_(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_returned=mark_supervisor_review,
+        )
+
+    else:
+        engine.reject(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_rejected=mark_supervisor_review,
+        )
+
+    db.commit()
+
+    return get_work_initiation(db, record.id), approval_request_id
+
+
+def operations_hod_review_work_initiation(
+    db: Session,
+    work_initiation_id: str,
+    data: WorkInitiationReviewCreate,
+    current_user: User,
+) -> tuple[SafetyWorkInitiation, str]:
+    record = get_work_initiation(db, work_initiation_id)
+    reviewer = get_employee_for_user(db, current_user)
+    require_safety_operations_approver(reviewer)
+
+    if record.status != WorkInitiationStatus.pending:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only work initiations pending Operations Manager review can be reviewed.",
+        )
+
+    if record.supervisor_decision != WorkInitiationDecision.approve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Operations Manager can only review after supervisor approval.",
+        )
+
+    require_comment_for_negative_decision(data)
+
+    approval_request_id = get_active_workflow_approval_request_id(
+        db,
+        record.id,
+    )
+
+    engine = WorkflowEngine(db)
+
+    def mark_operations_review() -> None:
+        record.operations_hod_decision = data.decision
+        record.operations_hod_id = reviewer.id
+        record.operations_hod_comment = data.comment
+        record.operations_hod_decided_at = datetime.utcnow()
+
+        if data.decision == WorkInitiationDecision.approve:
+            record.status = WorkInitiationStatus.approved
+        elif data.decision == WorkInitiationDecision.return_:
+            record.status = WorkInitiationStatus.returned
+        else:
+            record.status = WorkInitiationStatus.denied
+
+    if data.decision == WorkInitiationDecision.approve:
+        engine.approve(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_final_approval=mark_operations_review,
+        )
+
+    elif data.decision == WorkInitiationDecision.return_:
+        engine.return_(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_returned=mark_operations_review,
+        )
+
+    else:
+        engine.reject(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_rejected=mark_operations_review,
+        )
+
+    db.commit()
+
+    return get_work_initiation(db, record.id), approval_request_id
+
+
+def require_comment_for_negative_decision(data: WorkInitiationReviewCreate) -> None:
+    if data.decision in (WorkInitiationDecision.return_, WorkInitiationDecision.deny):
+        if not data.comment:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Comment is required when returning or denying a work initiation.",
+            )
 
 
 def validate_incident_work_initiation_rules(
     db: Session,
-    data: WorkInitiationCreate,
+    data: WorkInitiationCreate | WorkInitiationUpdate,
     requester: Employee,
     exclude_work_initiation_id: Optional[str] = None,
 ) -> None:
     if data.work_category != WorkInitiationCategory.incident_hazard:
         if data.related_incident_report_id:
-            get_related_incident(db, data.related_incident_report_id)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only incident/hazard work can be linked to an incident report.",
+            )
+
         return
 
     if not data.related_incident_report_id:
@@ -239,6 +468,7 @@ def validate_incident_work_initiation_rules(
         )
 
     review = incident.hse_review
+
     if not review or not review.action_owner_id or not review.assigned_department:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -263,18 +493,16 @@ def validate_incident_work_initiation_rules(
         data.related_incident_report_id,
         exclude_work_initiation_id=exclude_work_initiation_id,
     )
+
     if existing_record:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
-                "message": (
-                    "A work initiation already exists for this incident. "
-                ),
+                "message": "A work initiation already exists for this incident.",
                 "existing_work_initiation_id": existing_record.id,
                 "existing_work_initiation_reference": existing_record.reference,
             },
         )
-
 
 def get_related_incident(db: Session, incident_id: str) -> SafetyIncidentReport:
     incident = (
@@ -355,6 +583,7 @@ def get_employees(db: Session, employee_ids: list[str]) -> list[Employee]:
 
 def list_work_initiations(
     db: Session,
+    current_user: User,
     skip: int = 0,
     limit: int = 20,
     cursor_created_at: Optional[datetime] = None,
@@ -363,6 +592,15 @@ def list_work_initiations(
     work_category: Optional[WorkInitiationCategory] = None,
     search: Optional[str] = None,
 ) -> list[SafetyWorkInitiation]:
+    employee = get_employee_for_user(db, current_user)
+    current_approval_exists = exists().where(
+        ApprovalRequest.request_type == WORK_INITIATION_REQUEST_TYPE,
+        ApprovalRequest.request_id == SafetyWorkInitiation.id,
+        ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        ApprovalStepAssignment.approval_request_id == ApprovalRequest.id,
+        ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+        ApprovalStepAssignment.assigned_to == employee.id,
+    )
     query = (
         db.query(SafetyWorkInitiation)
         .options(
@@ -374,7 +612,16 @@ def list_work_initiations(
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(SafetyWorkInitiation.is_active == True)
+        .filter(
+            SafetyWorkInitiation.is_active == True,
+            or_(
+                SafetyWorkInitiation.requester_id == employee.id,
+                SafetyWorkInitiation.workers.any(
+                    SafetyWorkInitiationWorker.worker_id == employee.id,
+                ),
+                current_approval_exists,
+            ),
+        )
     )
 
     if status_filter:
@@ -412,6 +659,58 @@ def list_work_initiations(
         query = query.offset(skip)
 
     return query.limit(limit).all()
+
+
+def get_work_initiation_for_current_user(
+    db: Session,
+    work_initiation_id: str,
+    current_user: User,
+) -> SafetyWorkInitiation:
+    record = get_work_initiation(db, work_initiation_id)
+    employee = get_employee_for_user(db, current_user)
+
+    if not can_view_work_initiation(db, record, employee):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this work initiation.",
+        )
+
+    return record
+
+
+def can_view_work_initiation(
+    db: Session,
+    record: SafetyWorkInitiation,
+    employee: Employee,
+) -> bool:
+    if record.requester_id == employee.id:
+        return True
+    if any(worker.worker_id == employee.id for worker in record.workers):
+        return True
+    return is_current_work_initiation_approver(db, record.id, employee.id)
+
+
+def is_current_work_initiation_approver(
+    db: Session,
+    work_initiation_id: str,
+    employee_id: str,
+) -> bool:
+    return (
+        db.query(ApprovalStepAssignment.id)
+        .join(
+            ApprovalRequest,
+            ApprovalRequest.id == ApprovalStepAssignment.approval_request_id,
+        )
+        .filter(
+            ApprovalRequest.request_type == WORK_INITIATION_REQUEST_TYPE,
+            ApprovalRequest.request_id == work_initiation_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+            ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ApprovalStepAssignment.assigned_to == employee_id,
+        )
+        .first()
+        is not None
+    )
 
 
 def get_work_initiation(db: Session, work_initiation_id: str) -> SafetyWorkInitiation:
