@@ -69,6 +69,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/admin/payslips",
       },
       {
+        name: "Leave Type Setup",
+        description: "Configure and manage all leave types",
+        icon: CalendarDays,
+        href: "/admin/leave-types",
+      },
+      {
         name: "Payroll",
         description: "Payroll runs and disbursements",
         icon: DollarSign,

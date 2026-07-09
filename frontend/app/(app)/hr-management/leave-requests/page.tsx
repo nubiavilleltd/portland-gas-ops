@@ -17,6 +17,10 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormTextarea from "@/components/forms/FormTextarea";
 import DataTable from "@/components/data-table/data-table";
 import { leaveRequestColumns } from "../_components/columns";
+import { useCreateLeaveRequest, useLeaveRequests } from "@/lib/modules/leave-requests/hooks";
+import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
+import { useEmployees } from "@/lib/modules/employees/hooks";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   LEAVE_STORE,
   LEAVE_TYPE_OPTIONS,
@@ -44,16 +48,12 @@ const REQUEST_TYPE_OPTIONS = [
 
 const schema = z.object({
   request_type:  z.string().min(1, "Select request type"),
-  employee_name: z.string().optional(),
+  employee_id:   z.string().optional(), // Optional because it's only shown when "Others" is selected
   leave_type:    z.string().min(1, "Select a leave type"),
   start_date:    z.string().min(1, "Start date is required"),
   end_date:      z.string().min(1, "End date is required"),
-  reliever:      z.string().min(1, "Select a reliever"),
+  reliever_id:   z.string().min(1, "Select a reliever"),
   reason:        z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.request_type === "others" && !data.employee_name?.trim()) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Select an employee", path: ["employee_name"] });
-  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -69,83 +69,116 @@ function calcDays(start: string, end: string): number {
 
 export default function LeaveRequestsPage() {
   const router = useRouter();
+  const { user: currentUser } = useCurrentUser();
   const [view, setView] = useState<View>("list");
   const [items, setItems] = useState<LeaveRequest[]>(() =>
     LEAVE_STORE.filter((item) => item.requester === CURRENT_USER.name)
   );
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 
+  const createLeaveRequest = useCreateLeaveRequest();
+  const { data: employees = [] } = useEmployees({ limit: 200 });
+  const { data: leaveTypesResponse, isLoading: isLoadingLeaveTypes, error: leaveTypesError } = useLeaveTypes({ limit: 100, is_active: true });
+  const leaveTypes = leaveTypesResponse?.data || [];
+
+  console.log("Leave Types Debug:", { leaveTypes, isLoadingLeaveTypes, leaveTypesError, leaveTypesResponse, rawResponse: JSON.stringify(leaveTypesResponse) });
+
+  // Get current user's employee record
+  const currentUserEmployee = employees.find((e) => e.user?.id === currentUser?.id);
+
+  // Convert real leave types to form options (use ID as value)
+  const realLeaveTypeOptions = leaveTypes.map((lt) => ({
+    value: String(lt.id),
+    label: lt.leave_type_name,
+  }));
+
+  // Convert real employees to form options
+  const realEmployeeOptions = employees.map((e) => ({
+    value: e.id,
+    label: `${e.user?.first_name || ""} ${e.user?.last_name || ""} — ${e.job_title || ""}`,
+  }));
+
+  // Reliever options (all employees except self)
+  const relieverOptions = employees
+    .filter((e) => e.id !== currentUserEmployee?.id) // Exclude current user
+    .map((e) => ({
+      value: e.id,
+      label: `${e.user?.first_name || ""} ${e.user?.last_name || ""} — ${e.job_title || ""}`,
+    }));
+
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
 
   const watchRequestType = form.watch("request_type");
-  const watchEmployee    = form.watch("employee_name");
   const watchStart       = form.watch("start_date");
   const watchEnd         = form.watch("end_date");
   const watchLeaveType   = form.watch("leave_type");
 
   const isOthers = watchRequestType === "others";
 
-  const balanceName = isOthers ? (watchEmployee ?? "") : CURRENT_USER.name;
-  const activeBal = watchLeaveType && balanceName
-    ? calcLeaveBalance(balanceName, watchLeaveType, YEAR)
+  // For balance calc, look up the leave type by ID and use its entitlement
+  const selectedLeaveType = watchLeaveType
+    ? leaveTypes.find((lt) => String(lt.id) === watchLeaveType)
     : null;
 
-  const selectedEmployee = isOthers
-    ? SEED_EMPLOYEES.find((e) => `${e.firstName} ${e.lastName}` === watchEmployee)
-    : undefined;
+  const leaveTypeName = selectedLeaveType?.leave_type_name;
+
+  // Use real entitlement from leave type setup
+  const activeBal = selectedLeaveType ? {
+    entitlement: selectedLeaveType.entitlement_days,
+    used: 0,  // TODO: Calculate from approved leave requests
+    remaining: selectedLeaveType.entitlement_days
+  } : null;
 
   const days = calcDays(watchStart, watchEnd);
   const exceedsBalance = days > 0 && activeBal !== null && days > activeBal.remaining;
 
-  const employeeOptions = SEED_EMPLOYEES.map((e) => ({
-    value: `${e.firstName} ${e.lastName}`,
-    label: `${e.firstName} ${e.lastName} — ${e.title}`,
-  }));
+  async function onSubmit(data: FormData) {
+    try {
+      const employeeId = isOthers ? data.employee_id : currentUserEmployee?.id;
+      const reliever_id = data.reliever_id;
 
-  const relieverOptions = SEED_EMPLOYEES
-    .filter((e) => {
-      const fullName = `${e.firstName} ${e.lastName}`;
-      return isOthers ? fullName !== watchEmployee : fullName !== CURRENT_USER.name;
-    })
-    .map((e) => ({
-      value: `${e.firstName} ${e.lastName}`,
-      label: `${e.firstName} ${e.lastName} — ${e.title}`,
-    }));
+      if (!employeeId || !reliever_id) {
+        toast.error("Employee and reliever are required");
+        return;
+      }
 
-  function onSubmit(data: FormData) {
-    const ref = genHRRef("LRQ");
-    const employeeName = isOthers ? (data.employee_name ?? CURRENT_USER.name) : CURRENT_USER.name;
-    const department   = isOthers ? (selectedEmployee?.department ?? "—") : CURRENT_USER.department;
-    const jobTitle     = isOthers ? selectedEmployee?.title : CURRENT_USER.title;
-    const now = new Date();
+      // Call the real API to create leave request
+      // Convert dates to ISO format (YYYY-MM-DD)
+      const startDateObj = new Date(data.start_date);
+      const endDateObj = new Date(data.end_date);
+      const startDateISO = startDateObj.toISOString().split('T')[0];
+      const endDateISO = endDateObj.toISOString().split('T')[0];
 
-    const newItem: LeaveRequest = {
-      id: ref,
-      ref,
-      requestType: data.request_type as "self" | "others",
-      requester: CURRENT_USER.name,
-      employee: employeeName,
-      jobTitle,
-      type: data.leave_type,
-      department,
-      startDate: data.start_date,
-      endDate: data.end_date,
-      days,
-      reliever: data.reliever,
-      reason: data.reason,
-      supportingDocuments: supportingFiles.length > 0
-        ? supportingFiles.map((f) => f.name)
-        : undefined,
-      status: "pending",
-      date: now.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-    };
-    LEAVE_STORE.unshift(newItem);
-    setItems([...LEAVE_STORE]);
-    toast.success(`Request submitted successfully — Reference: ${ref}`);
-    form.reset();
-    setSupportingFiles([]);
-    setTimeout(() => location.reload(), 800);
+      const leaveTypeId = parseInt(data.leave_type, 10);
+      console.log("Leave type ID parsed:", { raw: data.leave_type, parsed: leaveTypeId });
+
+      await createLeaveRequest.mutateAsync({
+        employee_id: employeeId,
+        leave_type_id: leaveTypeId,
+        reliever_id: reliever_id,
+        start_date: startDateISO,
+        end_date: endDateISO,
+        reason: data.reason,
+      });
+
+      toast.success("Leave request submitted successfully!");
+      form.reset();
+      setSupportingFiles([]);
+      setView("list");
+    } catch (error: unknown) {
+      let message = "Failed to submit leave request";
+      console.error("Submission error:", error);
+      if (error instanceof Error) {
+        message = error.message;
+        // Log the full error for debugging
+        if ('response' in error) {
+          const axiosError = error as { response?: { data?: unknown } };
+          console.error("API response:", axiosError.response?.data);
+        }
+      }
+      toast.error(message);
+    }
   }
 
   function goBack() {
@@ -172,32 +205,31 @@ export default function LeaveRequestsPage() {
           />
 
           {/* My Leave Balance strip */}
+          {leaveTypes.length > 0 && (
           <div className="mb-5 bg-brand-card border border-brand-border rounded-2xl px-4 py-3 overflow-hidden">
             <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
               My Leave Balance — {YEAR}
             </p>
             <div className="flex gap-3">
-              {LEAVE_TYPES.map((type) => {
-                const bal = calcLeaveBalance(CURRENT_USER.name, type, YEAR);
-                return (
-                  <section key={type} className="rounded-xl border border-brand-border bg-white p-3 flex-shrink-0 min-w-[130px]">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-xs text-brand-text-secondary leading-tight">{type}</p>
-                        <p className="mt-1 text-xl font-bold text-brand-text-primary">{bal.remaining}</p>
-                      </div>
-                      <span className="rounded-lg p-1.5 ring-1 bg-purple-50 text-purple-700 ring-purple-100 shrink-0">
-                        <CalendarDays size={16} />
-                      </span>
+              {leaveTypes.map((lt) => (
+                <section key={lt.id} className="rounded-xl border border-brand-border bg-white p-3 flex-shrink-0 min-w-[130px]">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs text-brand-text-secondary leading-tight">{lt.leave_type_name}</p>
+                      <p className="mt-1 text-xl font-bold text-brand-text-primary">{lt.entitlement_days}</p>
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-brand-text-secondary">
-                      {bal.remaining}/{bal.entitlement} days left
-                    </p>
-                  </section>
-                );
-              })}
+                    <span className="rounded-lg p-1.5 ring-1 bg-purple-50 text-purple-700 ring-purple-100 shrink-0">
+                      <CalendarDays size={16} />
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-4 text-brand-text-secondary">
+                    {lt.entitlement_days}/{lt.entitlement_days} days left
+                  </p>
+                </section>
+              ))}
             </div>
           </div>
+          )}
 
           <div className="w-full overflow-hidden">
             <DataTable
@@ -231,9 +263,21 @@ export default function LeaveRequestsPage() {
             {/* ── Requester Details (fixed, like invoice) ── */}
             <FormSection title="Requester Details" description="Your employee information for this leave request.">
               <div className="grid gap-4 md:grid-cols-2">
-                <FormInput label="Requester Name"  value={CURRENT_USER.name}       disabled />
-                <FormInput label="Department"       value={CURRENT_USER.department} disabled />
-                <FormInput label="Job Title / Role" value={CURRENT_USER.title}      disabled />
+                <FormInput
+                  label="Requester Name"
+                  value={currentUserEmployee ? `${currentUserEmployee.user?.first_name || ""} ${currentUserEmployee.user?.last_name || ""}`.trim() : ""}
+                  disabled
+                />
+                <FormInput
+                  label="Department"
+                  value={currentUserEmployee?.department || ""}
+                  disabled
+                />
+                <FormInput
+                  label="Job Title / Role"
+                  value={currentUserEmployee?.job_title || ""}
+                  disabled
+                />
                 <FormDatePicker label="Request Date" value={TODAY} disabled />
               </div>
             </FormSection>
@@ -246,7 +290,7 @@ export default function LeaveRequestsPage() {
                 <FormSelect
                   label="Leave Type"
                   required
-                  options={LEAVE_TYPE_OPTIONS}
+                  options={realLeaveTypeOptions}
                   sortOptions={false}
                   placeholder="Select leave type"
                   error={errors.leave_type?.message}
@@ -267,7 +311,7 @@ export default function LeaveRequestsPage() {
                   <div className="md:col-span-2 rounded-xl border border-brand-purple bg-white px-4 py-3 flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-brand-text-secondary uppercase tracking-wide">
-                        {isOthers && watchEmployee ? `${watchEmployee}'s` : "Your"} {watchLeaveType} Balance
+                        Your {leaveTypeName} Balance
                       </p>
                       <div className="flex items-baseline gap-1.5 mt-1">
                         <span className="text-sm font-bold text-brand-purple">
@@ -296,27 +340,11 @@ export default function LeaveRequestsPage() {
                   <FormSelect
                     label="Employee Name"
                     required
-                    options={employeeOptions}
+                    options={realEmployeeOptions}
                     sortOptions={false}
                     placeholder="Select employee"
-                    error={errors.employee_name?.message}
-                    {...form.register("employee_name")}
-                  />
-                )}
-                {isOthers && (
-                  <FormInput
-                    label="Employee Department"
-                    value={selectedEmployee?.department ?? ""}
-                    disabled
-                    placeholder="Auto-filled on selection"
-                  />
-                )}
-                {isOthers && (
-                  <FormInput
-                    label="Employee Job Title / Role"
-                    value={selectedEmployee?.title ?? ""}
-                    disabled
-                    placeholder="Auto-filled on selection"
+                    error={errors.employee_id?.message}
+                    {...form.register("employee_id")}
                   />
                 )}
 
@@ -344,7 +372,7 @@ export default function LeaveRequestsPage() {
                   />
                   {exceedsBalance && activeBal && (
                     <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                      Requested {days} day{days !== 1 ? "s" : ""} exceeds your available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {watchLeaveType}.
+                      Requested {days} day{days !== 1 ? "s" : ""} exceeds your available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {leaveTypeName}.
                     </p>
                   )}
                 </div>
@@ -355,8 +383,8 @@ export default function LeaveRequestsPage() {
                   options={relieverOptions}
                   sortOptions={false}
                   placeholder="Select reliever"
-                  error={errors.reliever?.message}
-                  {...form.register("reliever")}
+                  error={errors.reliever_id?.message}
+                  {...form.register("reliever_id")}
                 />
                 <div className="md:col-span-2">
                   <FileDropzone

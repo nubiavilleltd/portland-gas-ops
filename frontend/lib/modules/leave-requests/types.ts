@@ -1,0 +1,42 @@
+export interface LeaveRequestListItem {
+  id: string;
+  reference: string;
+  employee_id: string;
+  employee_name?: string;
+  employee_no?: string;
+  leave_type_id: number;
+  leave_type_name?: string;
+  reliever_id?: string;
+  reliever_name?: string;
+  start_date: string;
+  end_date: string;
+  days: number;
+  reason?: string;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface LeaveRequestDetail extends LeaveRequestListItem {}
+
+export interface LeaveRequestCreatePayload {
+  employee_id: string;
+  leave_type_id: number;
+  reliever_id: string;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+  document_id?: number;
+}
+
+export interface LeaveRequestListResponse {
+  data: LeaveRequestListItem[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface ListLeaveRequestsParams {
+  skip?: number;
+  limit?: number;
+}
