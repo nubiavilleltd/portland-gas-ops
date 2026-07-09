@@ -4,7 +4,9 @@ import type {
   WorkAuthorizationHseReviewCreate,
   WorkAuthorizationListParams,
   WorkAuthorizationResponse,
+  WorkAuthorizationUpdate,
 } from "./types";
+import type { WorkInitiationResponse } from "../workInitiation/types";
 
 export const workAuthorizationsApi = {
   list: async (
@@ -19,6 +21,13 @@ export const workAuthorizationsApi = {
     return data;
   },
 
+  eligibleWorkInitiations: async (): Promise<WorkInitiationResponse[]> => {
+    const { data } = await api.get(
+      "/api/safety/work-authorizations/eligible-work-initiations",
+    );
+    return data;
+  },
+
   create: async (
     payload: WorkAuthorizationCreate,
     attachments: File[] = [],
@@ -28,6 +37,21 @@ export const workAuthorizationsApi = {
     attachments.forEach((file) => form.append("attachments", file));
 
     const { data } = await api.post("/api/safety/work-authorizations", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
+  update: async (
+    id: string,
+    payload: WorkAuthorizationUpdate,
+    attachments: File[] = [],
+  ): Promise<WorkAuthorizationResponse> => {
+    const form = new FormData();
+    form.append("data", JSON.stringify(payload));
+    attachments.forEach((file) => form.append("attachments", file));
+
+    const { data } = await api.put(`/api/safety/work-authorizations/${id}`, form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return data;

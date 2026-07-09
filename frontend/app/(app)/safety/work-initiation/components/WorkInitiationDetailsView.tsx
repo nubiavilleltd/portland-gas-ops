@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
-import FormDatePicker from "@/components/forms/FormDatePicker";
+import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
@@ -31,6 +31,10 @@ import {
   useSafetyCurrentEmployee,
   useSafetyDepartments,
 } from "@/lib/modules/safety/people";
+import {
+  getDateTimeAfter,
+  getEarliestPlannedStartDateTime,
+} from "@/lib/modules/safety/date-rules";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
 import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type {
@@ -272,6 +276,12 @@ export default function WorkInitiationDetailsView({
   async function submitRequest() {
     if (!request) return;
     if (!editValues) return;
+    const validationMessage = validateReturnedWorkInitiationEdit(editValues);
+    if (validationMessage) {
+      toast.error(validationMessage);
+      return;
+    }
+
     try {
       await updateWorkInitiationMutation.mutateAsync(
         buildWorkInitiationUpdatePayload(editValues),
@@ -469,7 +479,7 @@ function RequesterDetails({ request }: { request: WorkInitiationRequest }) {
         <FormInput label="Requester Name" value={request.requester.name} disabled />
         <FormInput label="Department" value={request.requester.department} disabled />
         <FormInput label="Job Title / Role" value={request.requester.role} disabled />
-        <FormDatePicker label="Request Date" value={request.requester.requestDate} disabled />
+        <FormInput label="Request Date" value={request.requester.requestDate} disabled />
       </div>
     </FormSection>
   );
@@ -814,26 +824,32 @@ function AssignmentPlanning({
             />
           </>
         ) : null}
-        <FormInput
+        <FormDateTimeInput
           label="Planned Start Date/Time"
           value={values.plannedStartDateTime}
+          min={editable ? getEarliestPlannedStartDateTime() : undefined}
           disabled={!editable}
-          onChange={(event) =>
+          onValueChange={(value) =>
             onValuesChange((current) =>
               current
-                ? { ...current, plannedStartDateTime: event.target.value }
+                ? { ...current, plannedStartDateTime: value }
                 : current,
             )
           }
         />
-        <FormInput
+        <FormDateTimeInput
           label="Planned End Date/Time"
           value={values.plannedEndDateTime}
+          min={
+            editable && values.plannedStartDateTime
+              ? getDateTimeAfter(values.plannedStartDateTime)
+              : undefined
+          }
           disabled={!editable}
-          onChange={(event) =>
+          onValueChange={(value) =>
             onValuesChange((current) =>
               current
-                ? { ...current, plannedEndDateTime: event.target.value }
+                ? { ...current, plannedEndDateTime: value }
                 : current,
             )
           }
@@ -972,8 +988,12 @@ function buildInitialEditValues(
     contractorsNeeded: request.assignment.contractorsNeeded ? "Yes" : "No",
     selectedContractor: request.assignment.selectedContractor,
     contractorContactEmail: request.assignment.contractorContactEmail,
-    plannedStartDateTime: request.assignment.plannedStartDateTime,
-    plannedEndDateTime: request.assignment.plannedEndDateTime,
+    plannedStartDateTime: toDateTimeInputValue(
+      request.assignment.plannedStartDateTimeRaw,
+    ),
+    plannedEndDateTime: toDateTimeInputValue(
+      request.assignment.plannedEndDateTimeRaw,
+    ),
     materialsRequired: request.assignment.materialsRequired,
   };
 }
@@ -1012,23 +1032,62 @@ function buildWorkInitiationUpdatePayload(
   };
 }
 
+function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
+  const now = new Date();
+  const minimumStartTime = new Date(now.getTime() + 10 * 60 * 1000);
+  const plannedStart = new Date(values.plannedStartDateTime);
+  const plannedEnd = new Date(values.plannedEndDateTime);
+
+  if (!values.plannedStartDateTime) {
+    return "Select planned start date/time.";
+  }
+  if (!values.plannedEndDateTime) {
+    return "Select planned end date/time.";
+  }
+  if (Number.isNaN(plannedStart.getTime())) {
+    return "Select a valid planned start date/time.";
+  }
+  if (Number.isNaN(plannedEnd.getTime())) {
+    return "Select a valid planned end date/time.";
+  }
+  if (plannedStart < minimumStartTime) {
+    return "Planned start date/time must be at least 10 minutes from now.";
+  }
+  if (plannedEnd < now) {
+    return "Planned end date/time cannot be in the past.";
+  }
+  if (plannedEnd <= plannedStart) {
+    return "Planned end date/time must be after planned start date/time.";
+  }
+
+  return null;
+}
+
 function toApiDateTime(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toISOString();
 }
 
+function toDateTimeInputValue(value?: string) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hours = String(parsed.getHours()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 function isOperationsHodEmployee(employee?: SafetyEmployeeProfile | null) {
-  const userRole = employee?.user?.role?.trim().toLowerCase();
-  if (userRole === "admin" || userRole === "super_admin") return true;
-
   const department = employee?.department?.trim().toLowerCase();
-  const jobTitle = employee?.job_title?.trim().toLowerCase() ?? "";
+  const jobTitle = employee?.job_title?.trim() ?? "";
 
-  return (
-    department === "operations" &&
-    /\b(hod|head|manager|lead)\b/.test(jobTitle)
-  );
+  return department === "operations" && jobTitle === "Process Manager";
 }
 
 function getWorkInitiationRoleLabel(role: WorkInitiationRole) {

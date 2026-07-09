@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/store/authStore";
 import { workAuthorizationsApi } from "./api";
 import { mapWorkAuthorizationToRequest } from "./mappers";
-import type { WorkAuthorizationListParams } from "./types";
+import { mapWorkInitiationToRequest } from "../workInitiation/mappers";
+import type { WorkAuthorizationListParams, WorkAuthorizationUpdate } from "./types";
 
 export const workAuthorizationKeys = {
   all: ["safety", "work-authorizations"] as const,
@@ -11,6 +12,8 @@ export const workAuthorizationKeys = {
   list: (params?: WorkAuthorizationListParams) =>
     [...workAuthorizationKeys.lists(), params ?? {}] as const,
   detail: (id: string) => [...workAuthorizationKeys.all, "detail", id] as const,
+  eligibleWorkInitiations: () =>
+    [...workAuthorizationKeys.all, "eligible-work-initiations"] as const,
 };
 
 function shouldRetry(failureCount: number, error: unknown) {
@@ -46,5 +49,40 @@ export function useWorkAuthorization(id: string) {
     enabled: isAuthenticated && Boolean(id),
     staleTime: 60 * 1000,
     retry: shouldRetry,
+  });
+}
+
+export function useEligibleWorkInitiationsForAuthorization() {
+  const { isAuthenticated } = useAuthStore();
+
+  return useQuery({
+    queryKey: workAuthorizationKeys.eligibleWorkInitiations(),
+    queryFn: async () => {
+      const items = await workAuthorizationsApi.eligibleWorkInitiations();
+      return items.map(mapWorkInitiationToRequest);
+    },
+    enabled: isAuthenticated,
+    staleTime: 60 * 1000,
+    retry: shouldRetry,
+  });
+}
+
+export function useUpdateWorkAuthorization(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      payload,
+      attachments = [],
+    }: {
+      payload: WorkAuthorizationUpdate;
+      attachments?: File[];
+    }) => workAuthorizationsApi.update(id, payload, attachments),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.detail(id) }),
+        queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.lists() }),
+      ]);
+    },
   });
 }

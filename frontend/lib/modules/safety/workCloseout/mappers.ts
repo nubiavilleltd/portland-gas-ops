@@ -11,6 +11,7 @@ import type {
 } from "@/types/safety";
 import type {
   WorkCloseOutDecision,
+  WorkCloseOutListItem,
   WorkCloseOutResponse,
   WorkCloseOutReviewResponse,
 } from "./types";
@@ -23,12 +24,15 @@ const decisionLabels: Record<WorkCloseOutDecision, UiWorkCloseOutDecision> = {
 };
 
 export function mapWorkCloseOutToRequest(
-  item: WorkCloseOutResponse,
+  item: WorkCloseOutListItem | WorkCloseOutResponse,
 ): WorkCloseOutRequest {
   const workAuthorization = mapWorkAuthorizationSummary(item);
-  const supervisorApproval = mapReview(item.supervisor_review);
-  const operationsHeadApproval = mapReview(item.operations_head_review);
+  const supervisorApproval = mapReview(getCloseOutDetail(item)?.supervisor_review);
+  const operationsHeadApproval = mapReview(
+    getCloseOutDetail(item)?.operations_head_review,
+  );
   const hseApproval = mapHseReview(item);
+  const detail = getCloseOutDetail(item);
 
   return {
     id: item.id,
@@ -37,6 +41,7 @@ export function mapWorkCloseOutToRequest(
     title:
       item.title ||
       `Close-out for ${workAuthorization.reference ?? "Work Authorization"}`,
+    requesterId: item.requester_id,
     requester: {
       name: item.requester_name || "Requester",
       department: item.requester_department || "",
@@ -46,29 +51,31 @@ export function mapWorkCloseOutToRequest(
     workAuthorization,
     completionDetails: {
       actualStartDateTime: formatFriendlyDateTime(item.actual_start_at),
+      actualStartDateTimeRaw: item.actual_start_at,
       actualCompletionDateTime: formatFriendlyDateTime(item.actual_completion_at),
-      workCompleted: item.work_completed,
-      completedAsApproved: item.completed_as_approved,
-      deviationExplanation: item.deviation_explanation ?? "",
-      completionSummary: item.completion_summary,
-      incidentObserved: item.incident_observed,
-      incidentNote: item.incident_note ?? "",
-      completionEvidence: item.completion_evidence.map(mapAttachment),
-      completionNotes: item.completion_notes ?? "",
+      actualCompletionDateTimeRaw: item.actual_completion_at,
+      workCompleted: detail?.work_completed ?? false,
+      completedAsApproved: detail?.completed_as_approved ?? false,
+      deviationExplanation: detail?.deviation_explanation ?? "",
+      completionSummary: detail?.completion_summary ?? "",
+      incidentObserved: detail?.incident_observed ?? false,
+      incidentNote: detail?.incident_note ?? "",
+      completionEvidence: (detail?.completion_evidence ?? []).map(mapAttachment),
+      completionNotes: detail?.completion_notes ?? "",
     },
     monitoring: {
-      monitoredDuringExecution: item.monitored_during_execution,
-      stayedWithinScope: item.stayed_within_scope,
-      ppeAndControlsMaintained: item.ppe_and_controls_maintained,
-      unsafeConditionAddressed: mapAnswer(item.unsafe_condition_addressed),
-      monitoringComment: item.monitoring_comment ?? "",
+      monitoredDuringExecution: detail?.monitored_during_execution ?? false,
+      stayedWithinScope: detail?.stayed_within_scope ?? false,
+      ppeAndControlsMaintained: detail?.ppe_and_controls_maintained ?? false,
+      unsafeConditionAddressed: mapAnswer(detail?.unsafe_condition_addressed),
+      monitoringComment: detail?.monitoring_comment ?? "",
     },
     areaCondition: {
-      workAreaCleaned: item.work_area_cleaned,
-      toolsRemoved: item.tools_removed,
-      systemSafe: item.system_safe,
-      remainingHazard: item.remaining_hazard,
-      remainingHazardDetails: item.remaining_hazard_details ?? "",
+      workAreaCleaned: detail?.work_area_cleaned ?? false,
+      toolsRemoved: detail?.tools_removed ?? false,
+      systemSafe: detail?.system_safe ?? false,
+      remainingHazard: detail?.remaining_hazard ?? false,
+      remainingHazardDetails: detail?.remaining_hazard_details ?? "",
     },
     supervisorApproval,
     operationsHeadApproval,
@@ -82,9 +89,9 @@ export function mapWorkCloseOutToRequest(
 }
 
 function mapWorkAuthorizationSummary(
-  item: WorkCloseOutResponse,
+  item: WorkCloseOutListItem | WorkCloseOutResponse,
 ): ApprovedWorkAuthorizationOption {
-  const authorization = item.work_authorization;
+  const authorization = getCloseOutDetail(item)?.work_authorization;
 
   return {
     id: item.work_authorization_id,
@@ -104,8 +111,11 @@ function mapWorkAuthorizationSummary(
     location: authorization?.location || item.location || "",
     exactWorkArea: authorization?.exact_work_area || "",
     approvedStartDateTime: formatFriendlyDateTime(authorization?.planned_start_at),
+    approvedStartDateTimeRaw: authorization?.planned_start_at ?? undefined,
     approvedEndDateTime: formatFriendlyDateTime(authorization?.planned_end_at),
+    approvedEndDateTimeRaw: authorization?.planned_end_at ?? undefined,
     workTypes: authorization?.work_type ?? [],
+    supervisorId: authorization?.assigned_supervisor_id ?? undefined,
     supervisor: authorization?.assigned_supervisor || "",
     hseApprover: authorization?.hse_approver || "HSE Inspector",
   };
@@ -124,8 +134,10 @@ function mapReview(
   };
 }
 
-function mapHseReview(item: WorkCloseOutResponse): WorkCloseOutHseApproval | null {
-  const review = item.hse_review;
+function mapHseReview(
+  item: WorkCloseOutListItem | WorkCloseOutResponse,
+): WorkCloseOutHseApproval | null {
+  const review = getCloseOutDetail(item)?.hse_review;
   if (!review?.decision) return null;
 
   return {
@@ -164,14 +176,14 @@ function attachmentType(type: string) {
   return "document" as const;
 }
 
-function mapAnswer(value: string): "Yes" | "No" | "N/A" {
+function mapAnswer(value?: string): "Yes" | "No" | "N/A" {
   if (value === "yes") return "Yes";
   if (value === "no") return "No";
   return "N/A";
 }
 
 function buildAuditTrail(
-  item: WorkCloseOutResponse,
+  item: WorkCloseOutListItem | WorkCloseOutResponse,
   reviews: {
     supervisorApproval: WorkCloseOutApprovalResult | null;
     operationsHeadApproval: WorkCloseOutApprovalResult | null;
@@ -219,6 +231,12 @@ function buildAuditTrail(
   }
 
   return trail;
+}
+
+function getCloseOutDetail(
+  item: WorkCloseOutListItem | WorkCloseOutResponse,
+): WorkCloseOutResponse | null {
+  return "completion_evidence" in item ? item : null;
 }
 
 function decisionAction(decision: UiWorkCloseOutDecision) {

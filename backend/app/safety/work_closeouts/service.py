@@ -6,8 +6,9 @@ from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.employees.models import Department, Employee
+from app.employees.models import Employee
 from app.safety.dependencies import get_employee_for_user
+from app.safety.permissions import require_safety_operations_approver
 from app.safety.checklists.models import (
     SafetyChecklistParentType,
     SafetyChecklistStage,
@@ -30,19 +31,27 @@ from app.safety.work_closeouts.schemas import (
     WorkCloseOutCreate,
     WorkCloseOutDecisionCreate,
     WorkCloseOutHseReviewCreate,
+    WorkCloseOutUpdate,
 )
 from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
 )
 from app.shared.models.document import Document
+from app.shared.models.approval import (
+    AllRequest,
+    ApprovalOverallStatus,
+    ApprovalRequest,
+)
 from app.shared.models.reference_counter import ReferenceCounter
-from app.shared.models.user import User, UserRole
+from app.shared.models.user import User
 from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.workflow_engine import WorkflowEngine
 
 
 WORK_CLOSEOUT_REFERENCE_ENTITY = "work_closeout"
 WORK_CLOSEOUT_REFERENCE_PREFIX = "WCO"
+WORK_CLOSEOUT_REQUEST_TYPE = "work_closeout"
 WORK_CLOSEOUT_DOCUMENT_CATEGORY_PREFIX = "safety_work_closeout_completion"
 
 ACTIVE_WORK_CLOSEOUT_STATUSES = (
@@ -57,6 +66,33 @@ ACTIVE_WORK_CLOSEOUT_STATUSES = (
 
 def work_closeout_document_category(work_closeout_id: str) -> str:
     return f"{WORK_CLOSEOUT_DOCUMENT_CATEGORY_PREFIX}:{work_closeout_id}"
+
+
+def get_active_workflow_approval_request_id(
+    db: Session,
+    work_closeout_id: str,
+) -> str:
+    row = (
+        db.query(AllRequest.approval_request_id)
+        .join(
+            ApprovalRequest,
+            ApprovalRequest.id == AllRequest.approval_request_id,
+        )
+        .filter(
+            AllRequest.request_type == WORK_CLOSEOUT_REQUEST_TYPE,
+            AllRequest.request_id == work_closeout_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .first()
+    )
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No active workflow approval request found for this work close-out.",
+        )
+
+    return row.approval_request_id
 
 
 def reserve_work_closeout_reference(db: Session) -> str:
@@ -171,10 +207,120 @@ def create_work_closeout(
         files=completion_evidence,
         uploaded_by=requester.id,
     )
+    start_work_closeout_workflow(
+        db=db,
+        record=record,
+        requester=requester,
+        authorization=authorization,
+    )
 
     db.commit()
 
     return get_work_closeout(db, record.id)
+
+
+def update_work_closeout(
+    db: Session,
+    work_closeout_id: str,
+    data: WorkCloseOutUpdate,
+    current_user: User,
+    completion_evidence: Optional[list[tuple[bytes, str, str, int]]] = None,
+) -> SafetyWorkCloseOut:
+    requester = get_employee_for_user(db, current_user)
+    record = get_work_closeout(db, work_closeout_id)
+    completion_evidence = completion_evidence or []
+
+    if record.requester_id != requester.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the requester can update this work close-out.",
+        )
+
+    if record.status not in (WorkCloseOutStatus.draft, WorkCloseOutStatus.returned):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only draft or returned work close-outs can be updated.",
+        )
+
+    if record.work_authorization_id != data.work_authorization_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Returned work close-out cannot be linked to a different work authorization.",
+        )
+
+    validate_work_closeout_schedule(data, record.work_authorization)
+
+    record.status = WorkCloseOutStatus.submitted
+    record.actual_start_at = data.actual_start_at
+    record.actual_completion_at = data.actual_completion_at
+    record.work_completed = data.work_completed
+    record.completed_as_approved = data.completed_as_approved
+    record.deviation_explanation = data.deviation_explanation
+    record.completion_summary = data.completion_summary
+    record.incident_observed = data.incident_observed
+    record.incident_note = data.incident_note
+    record.completion_notes = data.completion_notes
+    record.monitored_during_execution = data.monitored_during_execution
+    record.stayed_within_scope = data.stayed_within_scope
+    record.ppe_and_controls_maintained = data.ppe_and_controls_maintained
+    record.unsafe_condition_addressed = data.unsafe_condition_addressed
+    record.monitoring_comment = data.monitoring_comment
+    record.work_area_cleaned = data.work_area_cleaned
+    record.tools_removed = data.tools_removed
+    record.system_safe = data.system_safe
+    record.remaining_hazard = data.remaining_hazard
+    record.remaining_hazard_details = data.remaining_hazard_details
+
+    record.reviews.clear()
+    db.flush()
+
+    add_work_closeout_checklist_responses(
+        db=db,
+        record=record,
+        data=data,
+        answered_by=requester.id,
+    )
+
+    create_work_closeout_documents(
+        db=db,
+        work_closeout_id=record.id,
+        files=completion_evidence,
+        uploaded_by=requester.id,
+    )
+    start_work_closeout_workflow(
+        db=db,
+        record=record,
+        requester=requester,
+        authorization=record.work_authorization,
+    )
+
+    db.commit()
+    return get_work_closeout(db, record.id)
+
+
+def start_work_closeout_workflow(
+    db: Session,
+    record: SafetyWorkCloseOut,
+    requester: Employee,
+    authorization: SafetyWorkAuthorization,
+) -> None:
+    initiation = authorization.work_initiation
+    if not initiation or not initiation.assigned_supervisor_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Work close-out cannot start workflow without an assigned supervisor.",
+        )
+
+    engine = WorkflowEngine(db)
+    engine.start(
+        request_type=WORK_CLOSEOUT_REQUEST_TYPE,
+        request_id=record.id,
+        title=f"{record.reference} — {initiation.title}",
+        requester=requester,
+        picked_approvers={
+            1: initiation.assigned_supervisor_id,
+        },
+    )
 
 
 def validate_work_closeout_create_rules(
@@ -238,17 +384,9 @@ def validate_work_closeout_schedule(
     actual_start = to_utc(data.actual_start_at)
     actual_completion = to_utc(data.actual_completion_at)
 
-    if planned_start and actual_completion < planned_start:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "Actual completion date/time cannot be before the approved "
-                "planned start date/time."
-            ),
-        )
-
     schedule_deviated = (
         (planned_start is not None and actual_start < planned_start)
+        or (planned_start is not None and actual_completion < planned_start)
         or (planned_end is not None and actual_completion > planned_end)
     )
     if schedule_deviated and not data.deviation_explanation:
@@ -448,24 +586,53 @@ def supervisor_decision(
     work_closeout_id: str,
     data: WorkCloseOutDecisionCreate,
     current_user: User,
-) -> SafetyWorkCloseOut:
+) -> tuple[SafetyWorkCloseOut, str]:
     reviewer = get_employee_for_user(db, current_user)
     record = get_work_closeout(db, work_closeout_id)
 
     validate_supervisor_decision(record, data, reviewer)
 
-    add_closeout_review(
-        db=db,
-        record=record,
-        reviewer_role=WorkCloseOutReviewerRole.supervisor,
-        reviewer_id=reviewer.id,
-        decision=data.decision,
-        comment=data.comment,
+    approval_request_id = get_active_workflow_approval_request_id(
+        db,
+        record.id,
     )
-    record.status = status_after_intermediate_decision(record, data.decision)
+    engine = WorkflowEngine(db)
+
+    def mark_supervisor_review() -> None:
+        add_closeout_review(
+            db=db,
+            record=record,
+            reviewer_role=WorkCloseOutReviewerRole.supervisor,
+            reviewer_id=reviewer.id,
+            decision=data.decision,
+            comment=data.comment,
+        )
+        record.status = status_after_intermediate_decision(record, data.decision)
+
+    if data.decision in (WorkCloseOutDecision.approve, WorkCloseOutDecision.acknowledge):
+        engine.approve(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+        )
+        mark_supervisor_review()
+    elif data.decision == WorkCloseOutDecision.return_:
+        engine.return_(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_returned=mark_supervisor_review,
+        )
+    else:
+        engine.reject(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_rejected=mark_supervisor_review,
+        )
 
     db.commit()
-    return get_work_closeout(db, record.id)
+    return get_work_closeout(db, record.id), approval_request_id
 
 
 def operations_head_decision(
@@ -473,24 +640,53 @@ def operations_head_decision(
     work_closeout_id: str,
     data: WorkCloseOutDecisionCreate,
     current_user: User,
-) -> SafetyWorkCloseOut:
+) -> tuple[SafetyWorkCloseOut, str]:
     reviewer = get_employee_for_user(db, current_user)
     record = get_work_closeout(db, work_closeout_id)
 
-    validate_operations_head_decision(record, data, reviewer, current_user)
+    validate_operations_head_decision(record, data, reviewer)
 
-    add_closeout_review(
-        db=db,
-        record=record,
-        reviewer_role=WorkCloseOutReviewerRole.operations_head,
-        reviewer_id=reviewer.id,
-        decision=data.decision,
-        comment=data.comment,
+    approval_request_id = get_active_workflow_approval_request_id(
+        db,
+        record.id,
     )
-    record.status = status_after_intermediate_decision(record, data.decision)
+    engine = WorkflowEngine(db)
+
+    def mark_operations_head_review() -> None:
+        add_closeout_review(
+            db=db,
+            record=record,
+            reviewer_role=WorkCloseOutReviewerRole.operations_head,
+            reviewer_id=reviewer.id,
+            decision=data.decision,
+            comment=data.comment,
+        )
+        record.status = status_after_intermediate_decision(record, data.decision)
+
+    if data.decision in (WorkCloseOutDecision.approve, WorkCloseOutDecision.acknowledge):
+        engine.approve(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+        )
+        mark_operations_head_review()
+    elif data.decision == WorkCloseOutDecision.return_:
+        engine.return_(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_returned=mark_operations_head_review,
+        )
+    else:
+        engine.reject(
+            approval_request_id,
+            reviewer,
+            comment=data.comment or None,
+            on_rejected=mark_operations_head_review,
+        )
 
     db.commit()
-    return get_work_closeout(db, record.id)
+    return get_work_closeout(db, record.id), approval_request_id
 
 
 def hse_decision(
@@ -498,27 +694,56 @@ def hse_decision(
     work_closeout_id: str,
     data: WorkCloseOutHseReviewCreate,
     inspector: Employee,
-) -> SafetyWorkCloseOut:
+) -> tuple[SafetyWorkCloseOut, str]:
     record = get_work_closeout(db, work_closeout_id)
 
     validate_hse_decision(record, data)
 
-    add_closeout_review(
-        db=db,
-        record=record,
-        reviewer_role=WorkCloseOutReviewerRole.hse,
-        reviewer_id=inspector.id,
-        decision=data.decision,
-        comment=data.comment,
-        verified_close_out=data.verified_close_out,
-        area_safe_for_operations=data.area_safe_for_operations,
-        corrective_action_required=data.corrective_action_required,
-        corrective_action_details=data.corrective_action_details,
+    approval_request_id = get_active_workflow_approval_request_id(
+        db,
+        record.id,
     )
-    record.status = status_after_hse_decision(data.decision)
+    engine = WorkflowEngine(db)
+
+    def mark_hse_review() -> None:
+        add_closeout_review(
+            db=db,
+            record=record,
+            reviewer_role=WorkCloseOutReviewerRole.hse,
+            reviewer_id=inspector.id,
+            decision=data.decision,
+            comment=data.comment,
+            verified_close_out=data.verified_close_out,
+            area_safe_for_operations=data.area_safe_for_operations,
+            corrective_action_required=data.corrective_action_required,
+            corrective_action_details=data.corrective_action_details,
+        )
+        record.status = status_after_hse_decision(data.decision)
+
+    if data.decision in (WorkCloseOutDecision.approve, WorkCloseOutDecision.acknowledge):
+        engine.approve(
+            approval_request_id,
+            inspector,
+            comment=data.comment or None,
+            on_final_approval=mark_hse_review,
+        )
+    elif data.decision == WorkCloseOutDecision.return_:
+        engine.return_(
+            approval_request_id,
+            inspector,
+            comment=data.comment or None,
+            on_returned=mark_hse_review,
+        )
+    else:
+        engine.reject(
+            approval_request_id,
+            inspector,
+            comment=data.comment or None,
+            on_rejected=mark_hse_review,
+        )
 
     db.commit()
-    return get_work_closeout(db, record.id)
+    return get_work_closeout(db, record.id), approval_request_id
 
 
 def validate_supervisor_decision(
@@ -552,7 +777,6 @@ def validate_operations_head_decision(
     record: SafetyWorkCloseOut,
     data: WorkCloseOutDecisionCreate,
     reviewer: Employee,
-    current_user: User,
 ) -> None:
     if record.status != WorkCloseOutStatus.pending or not get_closeout_review(
         record,
@@ -563,12 +787,7 @@ def validate_operations_head_decision(
             detail="Operations Head can only review a work close-out after supervisor review.",
         )
 
-    if current_user.role not in (UserRole.super_admin, UserRole.admin):
-        if reviewer.department != Department.operations:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only Operations department users can perform Operations Head close-out review.",
-            )
+    require_safety_operations_approver(reviewer)
 
     validate_decision_for_closeout_type(record, data.decision)
 

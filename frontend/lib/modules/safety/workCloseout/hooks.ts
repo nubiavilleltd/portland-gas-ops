@@ -8,6 +8,7 @@ import type {
   WorkCloseOutDecisionCreate,
   WorkCloseOutHseReviewCreate,
   WorkCloseOutListParams,
+  WorkCloseOutUpdate,
 } from "./types";
 
 export const workCloseoutKeys = {
@@ -29,10 +30,13 @@ function shouldRetry(failureCount: number, error: unknown) {
 export function useWorkCloseouts(params?: WorkCloseOutListParams) {
   const { isAuthenticated } = useAuthStore();
 
+  console.log("useWorkCloseouts params", params, isAuthenticated);
+
   return useQuery({
     queryKey: workCloseoutKeys.list(params),
     queryFn: async () => {
       const items = await workCloseoutsApi.list(params);
+      console.log("items", items);
       return items.map(mapWorkCloseOutToRequest);
     },
     enabled: isAuthenticated,
@@ -69,6 +73,26 @@ export function useCreateWorkCloseout() {
     }) => workCloseoutsApi.create(payload, completionEvidence),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateWorkCloseout(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      payload,
+      completionEvidence = [],
+    }: {
+      payload: WorkCloseOutUpdate;
+      completionEvidence?: File[];
+    }) => workCloseoutsApi.update(id, payload, completionEvidence),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(id) }),
+        queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
+      ]);
     },
   });
 }

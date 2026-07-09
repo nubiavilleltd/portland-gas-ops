@@ -255,7 +255,13 @@ export default function WorkCompletionForm() {
       }, 700);
     } catch (error) {
       console.error("Failed to submit work close-out", error);
-      toast.error("Unable to submit work close-out. Please review and try again.");
+      console.error("Work close-out error detail", getApiErrorDetail(error));
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Unable to submit work close-out. Please review and try again.",
+        ),
+      );
     }
   }
 
@@ -387,24 +393,19 @@ export default function WorkCompletionForm() {
               </p>
             ) : null}
           </div>
-          {completionChecklist.data?.items
-            .filter((item) => item.input_type === "text")
-            .map((item: SafetyChecklistItem) => (
-              <FormTextarea
-                ref={completionSummaryRef}
-                key={item.id}
-                label={item.label}
-                required={item.is_required}
-                placeholder="Briefly describe what was completed"
-                className="md:col-span-2"
-                value={completionSummary}
-                error={validationErrors.completionSummary}
-                onChange={(event) => {
-                  setCompletionSummary(event.target.value);
-                  clearValidationError("completionSummary", setValidationErrors);
-                }}
-              />
-            ))}
+          <FormTextarea
+            ref={completionSummaryRef}
+            label="Completion Summary"
+            required
+            placeholder="Briefly describe what was completed"
+            className="md:col-span-2"
+            value={completionSummary}
+            error={validationErrors.completionSummary}
+            onChange={(event) => {
+              setCompletionSummary(event.target.value);
+              clearValidationError("completionSummary", setValidationErrors);
+            }}
+          />
           {requiresDeviationExplanation ? (
             <FormTextarea
               ref={deviationExplanationRef}
@@ -603,8 +604,11 @@ function mapApprovedAuthorizationOption(
     location: request.workInitiation.location,
     exactWorkArea: request.workInitiation.exactWorkArea,
     approvedStartDateTime: request.workInitiation.plannedStartDateTime,
+    approvedStartDateTimeRaw: request.workInitiation.plannedStartDateTimeRaw,
     approvedEndDateTime: request.workInitiation.plannedEndDateTime,
+    approvedEndDateTimeRaw: request.workInitiation.plannedEndDateTimeRaw,
     workTypes: request.workInitiation.workType,
+    supervisorId: request.workInitiation.assignedSupervisorId,
     supervisor: request.workInitiation.assignedSupervisor,
     hseApprover: request.hseApproval?.approver ?? "HSE Inspector",
   };
@@ -632,6 +636,44 @@ function yesNoNaToAnswer(value: string) {
   return "not_applicable";
 }
 
+function getApiErrorDetail(error: unknown) {
+  return (error as { response?: { data?: { detail?: unknown } } }).response?.data
+    ?.detail;
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = getApiErrorDetail(error);
+
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (
+          item &&
+          typeof item === "object" &&
+          "msg" in item &&
+          typeof item.msg === "string"
+        ) {
+          return item.msg;
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+  if (
+    detail &&
+    typeof detail === "object" &&
+    "message" in detail &&
+    typeof detail.message === "string"
+  ) {
+    return detail.message;
+  }
+
+  return fallback;
+}
+
 function hasScheduleDeviation({
   selectedWorkAuthorization,
   actualStartDateTime,
@@ -646,14 +688,17 @@ function hasScheduleDeviation({
   const actualStart = parseDateValue(actualStartDateTime);
   const actualCompletion = parseDateValue(actualCompletionDateTime);
   const approvedStart = parseDateValue(
-    selectedWorkAuthorization.approvedStartDateTime,
+    selectedWorkAuthorization.approvedStartDateTimeRaw ??
+      selectedWorkAuthorization.approvedStartDateTime,
   );
   const approvedEnd = parseDateValue(
-    selectedWorkAuthorization.approvedEndDateTime,
+    selectedWorkAuthorization.approvedEndDateTimeRaw ??
+      selectedWorkAuthorization.approvedEndDateTime,
   );
 
   return Boolean(
     (actualStart && approvedStart && actualStart < approvedStart) ||
+      (actualCompletion && approvedStart && actualCompletion < approvedStart) ||
       (actualCompletion && approvedEnd && actualCompletion > approvedEnd),
   );
 }
@@ -858,20 +903,6 @@ function validateWorkCompletionForm({
   ) {
     errors.actualCompletionDateTime = "Actual completion date/time must be after actual start date/time.";
   }
-  if (
-    selectedWorkAuthorization &&
-    actualCompletionDateTime &&
-    !errors.actualCompletionDateTime
-  ) {
-    const approvedStart = parseDateValue(
-      selectedWorkAuthorization.approvedStartDateTime,
-    );
-    if (approvedStart && actualCompletion < approvedStart) {
-      errors.actualCompletionDateTime =
-        "Actual completion date/time cannot be before the approved work start date/time.";
-    }
-  }
-
   if (!workCompleted || !completedAsApproved || !incidentObserved) {
     errors.completionChecklist = "Complete the required completion checks.";
   }

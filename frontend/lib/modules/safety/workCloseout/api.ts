@@ -5,6 +5,7 @@ import type {
   WorkCloseOutHseReviewCreate,
   WorkCloseOutListParams,
   WorkCloseOutResponse,
+  WorkCloseOutUpdate,
 } from "./types";
 
 export const workCloseoutsApi = {
@@ -31,6 +32,23 @@ export const workCloseoutsApi = {
     );
 
     const { data } = await api.post("/api/safety/work-closeouts", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
+  update: async (
+    id: string,
+    payload: WorkCloseOutUpdate,
+    completionEvidence: File[] = [],
+  ): Promise<WorkCloseOutResponse> => {
+    const form = new FormData();
+    form.append("data", JSON.stringify(payload));
+    completionEvidence.forEach((file) =>
+      form.append("completion_evidence", file),
+    );
+
+    const { data } = await api.put(`/api/safety/work-closeouts/${id}`, form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return data;

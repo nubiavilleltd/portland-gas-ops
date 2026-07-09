@@ -99,6 +99,10 @@ class WorkCloseOutCreate(BaseModel):
         return self
 
 
+class WorkCloseOutUpdate(WorkCloseOutCreate):
+    pass
+
+
 class WorkCloseOutDecisionCreate(BaseModel):
     decision: WorkCloseOutDecision
     comment: Optional[str] = Field(None, max_length=5000)
@@ -140,6 +144,7 @@ class WorkCloseOutAuthorizationSummary(BaseModel):
     location: Optional[str]
     exact_work_area: Optional[str]
     work_type: list[str]
+    assigned_supervisor_id: Optional[str]
     assigned_supervisor: Optional[str]
     assigned_workers: list[str]
     planned_start_at: Optional[datetime]
@@ -299,6 +304,7 @@ def authorization_summary(authorization) -> Optional[WorkCloseOutAuthorizationSu
         location=initiation.location if initiation else None,
         exact_work_area=initiation.exact_work_area if initiation else None,
         work_type=split_list(initiation.work_type) if initiation else [],
+        assigned_supervisor_id=initiation.assigned_supervisor_id if initiation else None,
         assigned_supervisor=employee_name(initiation.assigned_supervisor) if initiation else None,
         assigned_workers=[
             employee_name(worker.worker) or "N/A"

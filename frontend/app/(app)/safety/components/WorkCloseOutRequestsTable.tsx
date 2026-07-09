@@ -2,11 +2,9 @@
 
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import {
-  getSafetyEmployeeDisplayName,
-  useSafetyCurrentEmployee,
-} from "@/lib/modules/safety/people";
+import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
 import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   getAdminWorkCloseOutHref,
@@ -61,15 +59,24 @@ export default function WorkCloseOutRequestsTable({
 }) {
   const closeOuts = useWorkCloseouts({ limit: 100 });
   const currentEmployee = useSafetyCurrentEmployee();
-  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
-  const isCurrentEmployeeName = (name: string) =>
-    Boolean(currentEmployeeName) &&
-    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
+  const myApprovals = useMyApprovals();
+  const currentEmployeeId = currentEmployee.data?.id;
+  const approvalRequestIds = new Set(
+    (myApprovals.data ?? [])
+      .filter((approval) => approval.request_type === "work_closeout")
+      .map((approval) => approval.request_id),
+  );
+  const isCurrentEmployeeRequester = (request: WorkCloseOutRequest) =>
+    Boolean(currentEmployeeId && request.requesterId === currentEmployeeId);
+  const isCurrentEmployeeApprover = (request: WorkCloseOutRequest) =>
+    approvalRequestIds.has(request.id);
   const requests = sortByLatestSafetyActivity(
     (closeOuts.data ?? []).filter(
       (request) =>
         request.status !== "draft" &&
-        (scope === "admin" || isCurrentEmployeeName(request.requester.name)),
+        (scope === "admin" ||
+          isCurrentEmployeeRequester(request) ||
+          isCurrentEmployeeApprover(request)),
     ),
     (request) => request.requester.requestDate,
   );
@@ -78,7 +85,7 @@ export default function WorkCloseOutRequestsTable({
     <DataTable
       columns={columns}
       data={requests}
-      isLoading={currentEmployee.isLoading || closeOuts.isLoading}
+      isLoading={currentEmployee.isLoading || closeOuts.isLoading || myApprovals.isLoading}
       rowHref={(request) =>
         scope === "admin"
           ? getAdminWorkCloseOutHref(request)

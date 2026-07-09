@@ -10,14 +10,20 @@ from app.core.database import get_db
 from app.employees.models import Employee
 from app.safety.dependencies import require_hse_reviewer
 from app.safety.work_authorizations import service as work_authorization_service
-from app.safety.work_authorizations.models import WorkAuthorizationStatus
+from app.safety.work_authorizations.models import (
+    WorkAuthorizationDecision,
+    WorkAuthorizationStatus,
+)
 from app.safety.work_authorizations.schemas import (
     WorkAuthorizationCreate,
     WorkAuthorizationHseReviewCreate,
     WorkAuthorizationResponse,
+    WorkAuthorizationUpdate,
 )
+from app.safety.work_initiations.schemas import WorkInitiationResponse
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
+from app.shared.services import workflow_email
 
 
 router = APIRouter(
@@ -132,7 +138,23 @@ async def create_work_authorization(
         current_user=current_user,
         attachments=attachment_files,
     )
+    workflow_email.notify_new_request(db, "work_authorization", record.id)
     return WorkAuthorizationResponse.from_model(record)
+
+
+@router.get(
+    "/eligible-work-initiations",
+    response_model=List[WorkInitiationResponse],
+)
+def list_eligible_work_initiations_for_authorization(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    records = work_authorization_service.list_eligible_work_initiations_for_authorization(
+        db=db,
+        current_user=current_user,
+    )
+    return [WorkInitiationResponse.from_model(record) for record in records]
 
 
 @router.get("/{work_authorization_id}", response_model=WorkAuthorizationResponse)
@@ -145,6 +167,28 @@ def get_work_authorization(
         db=db,
         work_authorization_id=work_authorization_id,
     )
+    return WorkAuthorizationResponse.from_model(record)
+
+
+@router.put("/{work_authorization_id}", response_model=WorkAuthorizationResponse)
+async def update_work_authorization(
+    work_authorization_id: str,
+    data: str = Form(...),
+    attachments: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    payload = parse_form_payload(data, WorkAuthorizationUpdate)
+    attachment_files = await validate_attachments(attachments)
+
+    record = work_authorization_service.update_work_authorization(
+        db=db,
+        work_authorization_id=work_authorization_id,
+        data=payload,
+        current_user=current_user,
+        attachments=attachment_files,
+    )
+    workflow_email.notify_new_request(db, "work_authorization", record.id)
     return WorkAuthorizationResponse.from_model(record)
 
 
@@ -162,11 +206,32 @@ async def create_hse_review(
     payload = parse_form_payload(data, WorkAuthorizationHseReviewCreate)
     evidence_files = await validate_attachments(hse_evidence)
 
-    record = work_authorization_service.create_hse_review(
+    record, approval_request_id = work_authorization_service.create_hse_review(
         db=db,
         work_authorization_id=work_authorization_id,
         data=payload,
         inspector=inspector,
         hse_evidence=evidence_files,
     )
+    if payload.decision == WorkAuthorizationDecision.approve:
+        workflow_email.notify_request_result(
+            db,
+            approval_request_id,
+            "approved",
+            comment=payload.decision_comment,
+        )
+    elif payload.decision == WorkAuthorizationDecision.return_:
+        workflow_email.notify_request_result(
+            db,
+            approval_request_id,
+            "returned",
+            comment=payload.decision_comment,
+        )
+    else:
+        workflow_email.notify_request_result(
+            db,
+            approval_request_id,
+            "rejected",
+            comment=payload.decision_comment,
+        )
     return WorkAuthorizationResponse.from_model(record)

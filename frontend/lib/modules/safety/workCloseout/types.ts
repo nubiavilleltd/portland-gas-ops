@@ -56,6 +56,8 @@ export interface WorkCloseOutCreate {
   area_condition_checklist_answers: WorkCloseOutChecklistAnswerCreate[];
 }
 
+export type WorkCloseOutUpdate = WorkCloseOutCreate;
+
 export interface WorkCloseOutDecisionCreate {
   decision: WorkCloseOutDecision;
   comment?: string | null;
@@ -79,6 +81,7 @@ export interface WorkCloseOutAuthorizationSummary {
   location?: string | null;
   exact_work_area?: string | null;
   work_type: string[];
+  assigned_supervisor_id?: string | null;
   assigned_supervisor?: string | null;
   assigned_workers: string[];
   planned_start_at?: string | null;
