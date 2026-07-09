@@ -1,0 +1,23 @@
+<!-- Injected into base.html {{body_content}} -->
+<!-- Sent when IT creates a new employee account -->
+
+<h1>Set up your Portland Gas account</h1>
+
+<p>Hi {{first_name}},</p>
+
+<p>
+  Your Portland Gas Operations account has been created by IT.
+  Your employee number is <strong>{{employee_no}}</strong>.
+</p>
+
+<p>
+  Click the button below to set your password and activate your account.
+  This link expires in <strong>72 hours</strong>.
+</p>
+
+<a href="{{setup_link}}" class="btn">Set up my account</a>
+
+<p style="font-size:13px;color:#6b7280;">
+  If you did not expect this email, please contact your IT administrator at
+  <a href="mailto:it@portlandgas.com" style="color:#7c3aed;">it@portlandgas.com</a>.
+</p>

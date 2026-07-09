@@ -13,6 +13,7 @@ export type VehicleStatus =
 
 export interface Vehicle {
   id: string;
+  vehicle_no:string;
 
   // ── Identity ─────────────────────────────────────
   name: string;

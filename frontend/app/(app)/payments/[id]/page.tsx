@@ -21,7 +21,7 @@ export default function PaymentDetailPage() {
 
   const {payment, error} = usePaymentById(id)
 
-  const {invoice} = useInvoiceById(payment?.invoice_id as string)
+  const {invoice} = useInvoiceById(payment?.invoiceId as string)
 
 
   if (error || !payment) {
@@ -46,7 +46,7 @@ export default function PaymentDetailPage() {
       <BackButton label="Back" />
 
       <PageHeader
-        title={payment?.payment_reference as string}
+        title={payment?.reference as string}
         description="Payment transaction record"
         action={
           <Button href={PAYMENT_ROUTES.receipt(payment.id)}>
@@ -68,7 +68,7 @@ export default function PaymentDetailPage() {
                 Reference
               </p>
               <p className="font-medium mt-1">
-                {payment.payment_reference}
+                {payment.reference}
               </p>
             </div>
 
@@ -86,7 +86,7 @@ export default function PaymentDetailPage() {
                 Date
               </p>
               <p className="font-medium mt-1">
-                {formatDate(payment?.payment_date ?? "")}
+                {formatDate(payment?.paymentDate ?? "")}
               </p>
             </div>
 
@@ -95,7 +95,7 @@ export default function PaymentDetailPage() {
                 Method
               </p>
               <p className="font-medium mt-1">
-                {formatPaymentMethodLabel(payment.payment_method)}
+                {formatPaymentMethodLabel(payment.method)}
               </p>
             </div>
           </div>

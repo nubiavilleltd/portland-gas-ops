@@ -17,12 +17,6 @@ import { useCreateCustomer } from "@/lib/modules/customers/hooks/useCustomerMuta
 export default function NewCustomerPage() {
   const router = useRouter();
 
-  // async function handleSubmit(data: CreateCustomerFormData) {
-  //   await CustomersService.createCustomer(data);
-  //   toast.success("Customer created successfully")
-  //   router.push(CUSTOMER_ROUTES.list());
-  // }
-
   const { mutateAsync: createCustomer, isPending } = useCreateCustomer();
 
 async function handleSubmit(data: CreateCustomerFormData) {

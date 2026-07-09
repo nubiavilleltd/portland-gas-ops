@@ -38,15 +38,17 @@ function LoginContent() {
     try {
       await login(data.email, data.password, data.remember_me ?? false);
       toast.success("Welcome back!");
-      router.replace("/");
+      router.replace(params.get("next") ?? "/");
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { detail?: string } } };
       if (error?.response?.status === 403) {
-        setApiError("Your email is not verified. Check your inbox for the verification code.");
+        setApiError(error.response.data?.detail ?? "Your account is not yet active. Check your email for the account setup link.");
       } else if (error?.response?.status === 429) {
         setApiError("Too many attempts. Please wait a minute and try again.");
-      } else {
+      } else if (error?.response?.status === 401) {
         setApiError("Invalid email or password. Please try again.");
+      } else {
+        setApiError("Something went wrong. Please try again or contact IT support.");
       }
     }
   }
@@ -73,7 +75,7 @@ function LoginContent() {
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input type="checkbox" className="h-4 w-4 rounded border-brand-border" {...register("remember_me")} />
-                <span className="text-sm text-brand-text-secondary">Remember me for 7 days</span>
+                <span className="text-sm text-brand-text-secondary">Remember me</span>
               </label>
               <Link href="/forgot-password" className="text-sm text-brand-purple hover:underline">Forgot password?</Link>
             </div>

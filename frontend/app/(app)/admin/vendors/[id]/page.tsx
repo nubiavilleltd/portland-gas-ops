@@ -4,17 +4,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2, PowerOff, Power } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import { useVendor, useDeleteVendor } from "@/hooks/useVendors";
-import { useProcurementByVendor } from "@/hooks/useProcurement";
+import { useVendor, useDeleteVendor, useDeactivateVendor, useReactivateVendor, VENDOR_ERRORS } from "@/lib/modules/vendors";
+import { useProcurementByVendor } from "@/lib/modules/procurement";
 import { useToast } from "@/hooks/useToast";
+import { getErrorMessage } from "@/lib/errors";
 import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
-import type { VendorCategory, ProcurementRequest, PaymentStatus } from "@/types";
+import type { VendorCategory, ProcurementListItem } from "@/types";
 
 const CATEGORY_COLOURS: Record<VendorCategory, string> = {
   equipment:     "bg-blue-100 text-blue-700",
@@ -38,16 +39,6 @@ const AVATAR_COLOURS: Record<VendorCategory, string> = {
   logistics:     "bg-teal-500",
 };
 
-const PAYMENT_BADGE: Record<PaymentStatus, string> = {
-  unpaid:    "bg-red-50 text-red-700 border border-red-200",
-  part_paid: "bg-amber-50 text-amber-700 border border-amber-200",
-  paid:      "bg-green-50 text-green-700 border border-green-200",
-};
-
-const PAYMENT_LABELS: Record<PaymentStatus, string> = {
-  unpaid: "Unpaid", part_paid: "Part Paid", paid: "Paid",
-};
-
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start gap-4 py-3 border-b border-brand-border last:border-0">
@@ -69,12 +60,21 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
   );
 }
 
-const REQUEST_COLUMNS: Column<ProcurementRequest>[] = [
+const STATUS_BADGE: Record<string, string> = {
+  draft:     "bg-gray-100 text-gray-600",
+  pending:   "bg-amber-50 text-amber-700 border border-amber-200",
+  approved:  "bg-green-50 text-green-700 border border-green-200",
+  rejected:  "bg-red-50 text-red-700 border border-red-200",
+  returned:  "bg-orange-50 text-orange-700 border border-orange-200",
+  po_issued: "bg-blue-50 text-blue-700 border border-blue-200",
+};
+
+const REQUEST_COLUMNS: Column<ProcurementListItem>[] = [
   { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
-  { key: "category", label: "Category", render: (v) => <span className="capitalize text-sm">{String(v).replace(/_/g, " ")}</span> },
+  { key: "title", label: "Title", render: (v) => <span className="text-sm">{String(v)}</span> },
   { key: "created_at", label: "Date", render: (v) => <span className="text-brand-text-secondary text-xs">{formatDate(v as string)}</span> },
-  { key: "items", label: "Total Value", render: (_, row) => { const total = row.items.reduce((sum, item) => sum + item.total_cost, 0); return <span className="text-sm font-medium">{formatCurrency(total)}</span>; } },
-  { key: "payment_status", label: "Payment", render: (v) => { const ps = v as PaymentStatus; return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PAYMENT_BADGE[ps] ?? ""}`}>{PAYMENT_LABELS[ps] ?? String(v)}</span>; } },
+  { key: "estimated_amount", label: "Est. Value", render: (v) => v ? <span className="text-sm font-medium">{formatCurrency(Number(v))}</span> : <span className="text-brand-text-secondary">—</span> },
+  { key: "status", label: "Status", render: (v) => <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[String(v)] ?? "bg-gray-100 text-gray-600"}`}>{capitalize(String(v).replace(/_/g, " "))}</span> },
 ];
 
 export default function AdminVendorDetailPage() {
@@ -82,9 +82,14 @@ export default function AdminVendorDetailPage() {
   const router = useRouter();
   const toast = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmReactivate, setConfirmReactivate] = useState(false);
   const { data: vendor, isLoading, isError } = useVendor(id);
   const { data: requests = [], isLoading: reqLoading } = useProcurementByVendor(id);
+
   const deleteVendor = useDeleteVendor();
+  const deactivateVendor = useDeactivateVendor();
+  const reactivateVendor = useReactivateVendor();
 
   if (isLoading) {
     return <AppLayout pageTitle="Admin — Vendors"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
@@ -100,7 +105,21 @@ export default function AdminVendorDetailPage() {
   function handleDelete() {
     deleteVendor.mutate(id, {
       onSuccess: () => { toast.success("Vendor removed"); router.push("/admin/vendors"); },
-      onError: () => toast.error("Failed to delete vendor"),
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
+    });
+  }
+
+  function handleDeactivate() {
+    deactivateVendor.mutate(id, {
+      onSuccess: () => { toast.success("Vendor deactivated"); setConfirmDeactivate(false); },
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
+    });
+  }
+
+  function handleReactivate() {
+    reactivateVendor.mutate(id, {
+      onSuccess: () => { toast.success("Vendor reactivated"); setConfirmReactivate(false); },
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
     });
   }
 
@@ -130,8 +149,13 @@ export default function AdminVendorDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button href={`/admin/vendors/${id}/edit`} variant="ghost" size="sm" leftIcon={<Pencil size={14} />} />
-          <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => setConfirmDelete(true)} />
+          <Button href={`/admin/vendors/${id}/edit`} variant="ghost" size="sm" leftIcon={<Pencil size={14} />} title="Edit vendor" />
+          {vendor.is_active ? (
+            <Button variant="ghost" size="sm" leftIcon={<PowerOff size={14} />} onClick={() => setConfirmDeactivate(true)} title="Deactivate vendor" />
+          ) : (
+            <Button variant="ghost" size="sm" leftIcon={<Power size={14} />} onClick={() => setConfirmReactivate(true)} title="Reactivate vendor" />
+          )}
+          <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => setConfirmDelete(true)} title="Delete vendor" />
         </div>
       </div>
 
@@ -143,6 +167,23 @@ export default function AdminVendorDetailPage() {
         destructive
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmDeactivate}
+        title="Deactivate Vendor"
+        message={`Deactivating "${vendor.name}" will hide them from procurement request forms. Existing requests are not affected.`}
+        confirmLabel="Deactivate"
+        destructive
+        onConfirm={handleDeactivate}
+        onCancel={() => setConfirmDeactivate(false)}
+      />
+      <ConfirmDialog
+        open={confirmReactivate}
+        title="Reactivate Vendor"
+        message={`Reactivating "${vendor.name}" will make them available again on procurement request forms.`}
+        confirmLabel="Reactivate"
+        onConfirm={handleReactivate}
+        onCancel={() => setConfirmReactivate(false)}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">

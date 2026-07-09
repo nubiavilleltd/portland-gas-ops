@@ -11,9 +11,9 @@ import {
 } from "../schemas/create-order.schema";
 
 export const DEFAULT_LINE_ITEM: OrderLineItem = {
-  product_id: "",
+  productId: "",
   quantity: 1,
-  unit_price: 0,
+  unitPrice: 0,
 };
 
 interface UseCreateOrderFormOptions {
@@ -25,21 +25,21 @@ export function useCreateOrderForm(options: UseCreateOrderFormOptions = {}) {
     resolver: zodResolver(createOrderSchema),
     mode: "onTouched",
     defaultValues: {
-      customer_id: "",
-      order_items: [{ ...DEFAULT_LINE_ITEM }],
-      delivery_address: "",
-      delivery_date: "",
+      customerId: "",
+      orderItems: [{ ...DEFAULT_LINE_ITEM }],
+      deliveryAddress: "",
+      deliveryDate: "",
       notes: "",
       ...options.defaultValues,
     },
   });
 
-  const orderItems = form.watch("order_items") ?? [];
+  const orderItems = form.watch("orderItems") ?? [];
 
   const subtotal = useMemo(
     () =>
       orderItems.reduce(
-        (sum, item) => sum + (item.quantity || 0) * (item.unit_price || 0),
+        (sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0),
         0
       ),
     [orderItems]

@@ -27,8 +27,9 @@ import type {
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import {
-  getProductById,
+  getProductByNo,
   getActiveProducts,
+  getProductById,
 } from "@/lib/modules/products/selectors/products.selectors";
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
@@ -97,160 +98,64 @@ export default function OrderForm({
   const { stock: consumableStock } = useConsumableStock();
   const activeProducts = getActiveProducts(products);
 
-  // const productOptions = activeProducts.map((p) => ({
-  //   value: p.id,
-  //   label: p.name,
-  // }));
 
-  //   const productOptions = activeProducts.map((p) => {
-  //   const stockInfo = p.product_type === "tracked"
-  //     ? `${getAvailableCount(inventoryItems, p.id)} available`
-  //     : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
+
+  // const productOptions = activeProducts.map((p) => {
+  //   const stockInfo =
+  //     p.productType === "tracked"
+  //       ? `${getAvailableCount(inventoryItems, p.id)} unit(s) available`
+  //       : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
 
   //   return {
   //     value: p.id,
-  //     label: `${p.name} — ${stockInfo}`,
+  //     label: p.name, // ← shown when selected (clean)
+  //     description: stockInfo, // ← shown only in dropdown
   //   };
   // });
-
-  const productOptions = activeProducts.map((p) => {
-    const stockInfo =
-      p.product_type === "tracked"
-        ? `${getAvailableCount(inventoryItems, p.id)} unit(s) available`
-        : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
-
-    return {
-      value: p.id,
-      label: p.name, // ← shown when selected (clean)
-      description: stockInfo, // ← shown only in dropdown
-    };
-  });
 
   // ── Field array ─────────────────────────────────────────
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "order_items",
+    name: "orderItems",
   });
 
-  const orderItems = watch("order_items") ?? [];
+  const orderItems = watch("orderItems") ?? [];
 
   // ── Subtotal ─────────────────────────────────────────────
   const subtotal = orderItems.reduce((sum, item) => {
-    return sum + (item.quantity || 0) * (item.unit_price || 0);
+    return sum + (item.quantity || 0) * (item.unitPrice || 0);
   }, 0);
 
   // ── Columns ──────────────────────────────────────────────
   const columns: LineItemColumn<OrderLineItem>[] = [
-    // {
-    //   key: "product_id",
-    //   label: "Product",
-    //   width: "2fr",
-    //   // renderCell: (row, index, onChange) => (
-    //   //   <select
-    //   //     value={row.product_id}
-    //   //     disabled={productsLoading}
-    //   //     onChange={(e) => {
-    //   //       const productId = e.target.value;
-
-    //   //       // Check if product is already in another row
-    //   //       const isDuplicate = orderItems.some(
-    //   //         (item, i) => i !== index && item.product_id === productId,
-    //   //       );
-
-    //   //       if (isDuplicate) {
-    //   //         toast.error(
-    //   //           "This product is already in the order. Update the quantity instead.",
-    //   //         );
-    //   //         return;
-    //   //       }
-
-    //   //       onChange({ product_id: productId });
-    //   //       const product = getProductById(products, productId);
-    //   //       if (product) {
-    //   //         setValue(
-    //   //           `order_items.${index}.unit_price`,
-    //   //           product.default_unit_price,
-    //   //         );
-    //   //       }
-    //   //     }}
-    //   //     className="w-full text-sm outline-none bg-transparent"
-    //   //   >
-    //   //     <option value="">Select product</option>
-    //   //     {productOptions.map((opt) => (
-    //   //       <option
-    //   //         key={opt.value}
-    //   //         value={opt.value}
-    //   //       >
-    //   //         {opt.label}
-    //   //       </option>
-    //   //     ))}
-    //   //   </select>
-    //   // ),
-
-    //   renderCell: (row, index, onChange) => (
-    //     <SelectInput
-    //       value={row.product_id}
-    //       options={productOptions}
-    //       placeholder={productsLoading ? "Loading…" : "Select product"}
-    //       disabled={productsLoading}
-    //       searchable
-    //       sortOptions={false}
-    //       onValueChange={(productId) => {
-    //         if (!productId) return;
-
-    //         const isDuplicate = orderItems.some(
-    //           (item, i) => i !== index && item.product_id === productId,
-    //         );
-
-    //         if (isDuplicate) {
-    //           toast.error(
-    //             "This product is already in the order. Update the quantity instead.",
-    //           );
-    //           return;
-    //         }
-
-    //         onChange({ product_id: productId });
-    //         const product = getProductById(products, productId);
-    //         if (product) {
-    //           setValue(
-    //             `order_items.${index}.unit_price`,
-    //             product.default_unit_price,
-    //           );
-    //         }
-    //       }}
-    //       triggerClassName="border-0 focus:ring-0 px-0 h-auto shadow-none"
-    //     />
-    //   ),
-    // },
-
     {
-  key: "product_id",
-  label: "Product",
-  width: "2fr",
-  renderCell: (row, index) => {
-    const selected = getProductById(products, row.product_id);
-    return (
-      <button
-        type="button"
-        onClick={() => setPickerIndex(index)}
-        className={cn(
-          "w-full text-left text-sm py-0.5 transition-colors",
-          selected
-            ? "text-brand-text-primary font-medium"
-            : "text-brand-text-secondary"
-        )}
-      >
-        {selected ? (
-          <span>{selected.name}</span>
-        ) : (
-          <span className="text-brand-text-secondary">
-            {productsLoading ? "Loading…" : "Click to select product"}
-          </span>
-        )}
-      </button>
-    );
-  },
-},
+      key: "productId",
+      label: "Product",
+      width: "2fr",
+      renderCell: (row, index) => {
+        const selected = getProductById(products, row.productId);
+        return (
+          <button
+            type="button"
+            onClick={() => setPickerIndex(index)}
+            className={cn(
+              "w-full text-left text-sm py-0.5 transition-colors",
+              selected
+                ? "text-brand-text-primary font-medium"
+                : "text-brand-text-secondary",
+            )}
+          >
+            {selected ? (
+              <span>{selected.name}</span>
+            ) : (
+              <span className="text-brand-text-secondary">
+                {productsLoading ? "Loading…" : "Click to select product"}
+              </span>
+            )}
+          </button>
+        );
+      },
+    },
 
     {
       key: "quantity",
@@ -258,7 +163,7 @@ export default function OrderForm({
       width: "130px",
 
       renderCell: (row, index, onChange) => {
-        const product = getProductById(products, row.product_id);
+        const product = getProductById(products, row.productId);
         const unitLabel = product ? getUnitLabel(product) : "";
         return (
           <div className="flex items-center gap-1">
@@ -285,15 +190,15 @@ export default function OrderForm({
     },
 
     {
-      key: "unit_price",
+      key: "unitPrice",
       label: "Unit Price (₦)",
       width: "140px",
       renderCell: (row, index, onChange) => (
         <CurrencyInput
-          value={row.unit_price || ""}
+          value={row.unitPrice || ""}
           placeholder="0.00"
           onValueChange={(raw) =>
-            onChange({ unit_price: parseFloat(raw) || 0 })
+            onChange({ unitPrice: parseFloat(raw) || 0 })
           }
           inputClassName="border-0 focus:ring-0 px-0 h-auto"
         />
@@ -304,7 +209,7 @@ export default function OrderForm({
       label: "Total",
       width: "120px",
       renderCell: (row) => {
-        const itemTotal = (row.quantity || 0) * (row.unit_price || 0);
+        const itemTotal = (row.quantity || 0) * (row.unitPrice || 0);
         return (
           <span className="text-sm font-medium text-brand-text-primary">
             {itemTotal > 0 ? formatCurrency(itemTotal) : "—"}
@@ -345,7 +250,7 @@ export default function OrderForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Controller
             control={control}
-            name="customer_id"
+            name="customerId"
             render={({ field }) => (
               <FormSelect
                 label="Customer"
@@ -354,7 +259,7 @@ export default function OrderForm({
                   customersLoading ? "Loading customers…" : "Select customer"
                 }
                 options={customerOptions}
-                error={errors.customer_id?.message}
+                error={errors.customerId?.message}
                 value={field.value}
                 onValueChange={field.onChange}
               />
@@ -376,7 +281,7 @@ export default function OrderForm({
           onChange={(index, patch) => {
             const current = orderItems[index];
             setValue(
-              `order_items.${index}`,
+              `orderItems.${index}`,
               { ...current, ...patch } as OrderLineItem,
               { shouldValidate: true },
             );
@@ -384,7 +289,7 @@ export default function OrderForm({
           addLabel="Add Product"
           totals={totals}
           minRows={1}
-          error={errors.order_items?.message}
+          error={errors.orderItems?.message}
         />
       </FormSection>
 
@@ -395,17 +300,33 @@ export default function OrderForm({
       >
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <FormDatePicker
+            {/* <FormDatePicker
               label="Scheduled Date"
               required
-              {...register("delivery_date")}
+              {...register("deliveryDate")}
+            /> */}
+
+            <Controller
+              control={control}
+              name="deliveryDate"
+              render={({ field }) => (
+                <FormDatePicker
+                  label="Delivery Date"
+                  required
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  error={errors.deliveryDate?.message}
+                />
+              )}
             />
             <FormInput
               label="Delivery Address"
               required
               placeholder="Street, City, State"
-              error={errors.delivery_address?.message}
-              {...register("delivery_address")}
+              error={errors.deliveryAddress?.message}
+              {...register("deliveryAddress")}
             />
           </div>
 
@@ -453,6 +374,8 @@ export default function OrderForm({
             type="button"
             variant="outline"
             disabled={isSubmitting}
+            loading={isSubmitting}
+            loadingText={submitLoadingLabel}
             onClick={() => onSaveDraft?.(form.getValues())}
           >
             Save Draft
@@ -460,6 +383,7 @@ export default function OrderForm({
         )}
         <Button
           type="submit"
+          disabled={isSubmitting}
           loading={isSubmitting}
           loadingText={submitLoadingLabel}
         >
@@ -468,32 +392,39 @@ export default function OrderForm({
       </div>
 
       <ProductPickerModal
-  open={pickerIndex !== null}
-  onClose={() => setPickerIndex(null)}
-  onSelect={(product) => {
-    if (pickerIndex === null) return;
+        open={pickerIndex !== null}
+        onClose={() => setPickerIndex(null)}
+        onSelect={(product) => {
+          if (pickerIndex === null) return;
 
-    // Uniqueness check
-    const isDuplicate = orderItems.some(
-      (item, i) => i !== pickerIndex && item.product_id === product.id
-    );
-    if (isDuplicate) {
-      toast.error("This product is already in the order. Update the quantity instead.");
-      return;
-    }
+          // Uniqueness check
+          const isDuplicate = orderItems.some(
+            (item, i) => i !== pickerIndex && item.productId === product.id,
+          );
+          if (isDuplicate) {
+            toast.error(
+              "This product is already in the order. Update the quantity instead.",
+            );
+            return;
+          }
 
-    // Set product and auto-fill price
-    setValue(`order_items.${pickerIndex}.product_id`, product.id, { shouldValidate: true });
-    setValue(`order_items.${pickerIndex}.unit_price`, product.default_unit_price);
-    setPickerIndex(null);
-  }}
-  products={activeProducts}
-  inventoryItems={inventoryItems}
-  consumableStock={consumableStock}
-  selectedProductIds={orderItems
-    .map((item) => item.product_id)
-    .filter(Boolean)}
-/>
+          // Set product and auto-fill price
+          setValue(`orderItems.${pickerIndex}.productId`, product.id, {
+            shouldValidate: true,
+          });
+          setValue(
+            `orderItems.${pickerIndex}.unitPrice`,
+            product.defaultUnitPrice || 0,
+          );
+          setPickerIndex(null);
+        }}
+        products={activeProducts}
+        inventoryItems={inventoryItems}
+        consumableStock={consumableStock}
+        selectedProductIds={orderItems
+          .map((item) => item.productId)
+          .filter(Boolean)}
+      />
     </form>
   );
 }

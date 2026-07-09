@@ -14,11 +14,11 @@ export function useSaveDraftOrderWorkflow() {
   return useMutation({
     mutationFn: ({
       input,
-      existingDraftId,
+      existingDraftNo,
     }: {
       input: CreateOrderInput;
-      existingDraftId?: string;
-    }) => saveDraftOrderWorkflow(input, existingDraftId),
+      existingDraftNo?: string;
+    }) => saveDraftOrderWorkflow(input, existingDraftNo),
 
     onSuccess: (savedOrder) => {
       queryClient.setQueryData(ORDER_KEYS.detail(savedOrder.id), savedOrder);

@@ -187,7 +187,7 @@ export function useConsumableStockByProduct(productId: string) {
 export function useStockMovements() {
   const query = useQuery({
     queryKey: INVENTORY_KEYS.movements(),
-    queryFn: InventoryService.getMovements,
+    queryFn: () => InventoryService.getMovements(),
     staleTime: 60 * 1000,
   });
 
@@ -243,3 +243,14 @@ export function useInventoryKPIs() {
     refetch,
   };
 }
+
+
+
+
+
+
+
+
+
+
+

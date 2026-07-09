@@ -8,7 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import SelectInput from "@/components/forms/SelectInput";
-import { useAssetRequests } from "@/hooks/useAssets";
+import { useAssetRequests } from "@/lib/modules/assets";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetRequestListItem, AssetRequestStatus } from "@/types";
 
@@ -41,6 +41,11 @@ const columns: Column<AssetRequestListItem>[] = [
     key: "reference",
     label: "Reference",
     render: (v) => <span className="font-mono text-xs">{String(v)}</span>,
+  },
+  {
+    key: "requester_name",
+    label: "Requested By",
+    render: (v) => <span className="text-brand-text-primary">{v ? String(v) : "—"}</span>,
   },
   {
     key: "request_type",

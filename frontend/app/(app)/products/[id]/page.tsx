@@ -102,7 +102,7 @@ export default function ProductDetailPage() {
                         {product.name}
                     </h1>
                     <p className="text-sm text-brand-text-secondary mt-1">
-                        Added {formatDate(product.created_at)}
+                        Added {formatDate(product.createdAt)}
                     </p>
                 </div>
 
@@ -153,7 +153,7 @@ export default function ProductDetailPage() {
                 <DetailRow label="Unit of Measurement" value={product.unit} />
                 <DetailRow
                     label="Default Unit Price"
-                    value={`${formatCurrency(product.default_unit_price)} / ${product.unit}`}
+                    value={`${formatCurrency(product.defaultUnitPrice)} / ${product.unit}`}
                 />
                 <DetailRow
                     label="Description"

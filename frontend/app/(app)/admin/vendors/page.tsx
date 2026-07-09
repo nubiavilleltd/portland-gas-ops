@@ -4,14 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 // import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, PowerOff, Power } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
-import { useVendors, useDeleteVendor } from "@/hooks/useVendors";
+import { useVendors, useDeactivateVendor, useReactivateVendor, VENDOR_ERRORS } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
+import { getErrorMessage } from "@/lib/errors";
 import { capitalize } from "@/lib/utils";
 import type { Vendor, VendorCategory } from "@/types";
 
@@ -103,14 +104,17 @@ const TABLE_COLUMNS: Column<Vendor>[] = [
       const ac = AVATAR_COLOURS[v.category] ?? "bg-gray-500";
       return (
         <div className="flex items-center gap-2.5">
-          <div className={`h-8 w-8 rounded-lg shrink-0 flex items-center justify-center overflow-hidden ${v.logo_url ? "bg-white border border-brand-border" : `text-white font-semibold text-xs ${ac}`}`}>
+          <div className={`h-9 w-9 rounded-lg shrink-0 flex items-center justify-center overflow-hidden ${v.logo_url ? "bg-white border border-brand-border" : `text-white font-semibold text-xs ${ac}`}`}>
             {v.logo_url
               ? <Image src={v.logo_url} alt={v.name} width={32} height={32} className="object-contain h-full w-full" />
               : v.name.charAt(0).toUpperCase()
             }
           </div>
           <div className="min-w-0">
-            <span className="text-sm font-medium text-brand-text-primary">{v.name}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-brand-text-primary">{v.name}</span>
+              {!v.is_active && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>}
+            </div>
             {v.vendor_code && <p className="text-xs font-mono text-brand-text-secondary">{v.vendor_code}</p>}
           </div>
         </div>
@@ -125,36 +129,64 @@ const TABLE_COLUMNS: Column<Vendor>[] = [
 
 export default function AdminVendorsPage() {
   const toast = useToast();
-  const [deleteTarget, setDeleteTarget] = useState<Vendor | null>(null);
-  // const [view, setView] = useState<"card" | "table">("card"); // view toggle removed — table only
+  const [deactivateTarget, setDeactivateTarget] = useState<Vendor | null>(null);
+  const [reactivateTarget, setReactivateTarget] = useState<Vendor | null>(null);
 
-  const { data: vendors = [], isLoading, isError } = useVendors();
-  const deleteVendor = useDeleteVendor();
+  const { data: vendors = [], isLoading, isError } = useVendors(undefined, true);
+  const deactivateVendor = useDeactivateVendor();
+  const reactivateVendor = useReactivateVendor();
 
-  function handleDelete() {
-    if (!deleteTarget) return;
-    deleteVendor.mutate(deleteTarget.id, {
-      onSuccess: () => { toast.success("Vendor removed"); setDeleteTarget(null); },
-      onError: () => toast.error("Failed to delete vendor"),
+  function handleDeactivate() {
+    if (!deactivateTarget) return;
+    deactivateVendor.mutate(deactivateTarget.id, {
+      onSuccess: () => { toast.success("Vendor deactivated"); setDeactivateTarget(null); },
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
+    });
+  }
+
+  function handleReactivate() {
+    if (!reactivateTarget) return;
+    reactivateVendor.mutate(reactivateTarget.id, {
+      onSuccess: () => { toast.success("Vendor reactivated"); setReactivateTarget(null); },
+      onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
     });
   }
 
   const tableActions: DataTableAction<Vendor>[] = [
     {
-      key: "edit",
+      key: "row-actions",
       label: "",
-      title: "Edit vendor",
-      icon: <Pencil size={14} />,
-      href: (v) => `/admin/vendors/${v.id}/edit`,
-      variant: "ghost",
-    },
-    {
-      key: "delete",
-      label: "",
-      title: "Delete vendor",
-      icon: <Trash2 size={14} />,
-      onClick: (v) => setDeleteTarget(v),
-      variant: "ghost",
+      render: (v) => (
+        <div className="flex items-center gap-1">
+          <a
+            href={`/admin/vendors/${v.id}/edit`}
+            title="Edit vendor"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors cursor-pointer"
+          >
+            <Pencil size={14} />
+          </a>
+          {v.is_active ? (
+            <button
+              type="button"
+              title="Deactivate vendor"
+              onClick={(e) => { e.stopPropagation(); setDeactivateTarget(v); }}
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+            >
+              <PowerOff size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              title="Reactivate vendor"
+              onClick={(e) => { e.stopPropagation(); setReactivateTarget(v); }}
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-brand-text-secondary hover:bg-green-50 hover:text-green-600 transition-colors cursor-pointer"
+            >
+              <Power size={14} />
+            </button>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -164,7 +196,7 @@ export default function AdminVendorsPage() {
         title="Vendors"
         description="Manage suppliers and service providers"
         action={
-          <Link href="/admin/vendors/new" className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors">
+          <Link href="/admin/vendors/new" className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors whitespace-nowrap">
             <Plus size={16} /> Add Vendor
           </Link>
         }
@@ -184,11 +216,28 @@ export default function AdminVendorsPage() {
           rowHref={(v) => `/admin/vendors/${v.id}`}
           showActions
           actions={tableActions}
-          actionsContainerClassName="gap-1"
         />
       )}
 
-      <ConfirmDialog open={!!deleteTarget} title="Delete Vendor" message={`Are you sure you want to remove "${deleteTarget?.name}"? This cannot be undone.`} confirmLabel="Delete" destructive onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        title="Deactivate Vendor"
+        message={`Deactivating "${deactivateTarget?.name}" will hide them from procurement request forms. Existing requests are not affected.`}
+        confirmLabel="Deactivate"
+        destructive
+        loading={deactivateVendor.isPending}
+        onConfirm={handleDeactivate}
+        onCancel={() => setDeactivateTarget(null)}
+      />
+      <ConfirmDialog
+        open={!!reactivateTarget}
+        title="Reactivate Vendor"
+        message={`Reactivating "${reactivateTarget?.name}" will make them available again on procurement request forms.`}
+        confirmLabel="Reactivate"
+        loading={reactivateVendor.isPending}
+        onConfirm={handleReactivate}
+        onCancel={() => setReactivateTarget(null)}
+      />
     </AppLayout>
   );
 }

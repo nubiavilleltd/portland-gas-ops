@@ -12,7 +12,7 @@ import FormSection from "@/components/ui/FormSection";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useCompleteTripWorkflow } from "@/lib/modules/fleet/hooks/useCompleteTripWorkflow";
 import { Trip } from "@/lib/modules/fleet/types/trip.types";
@@ -26,8 +26,8 @@ import { FLEET_ROUTES } from "@/lib/routes";
 export default function CompleteTripPage() {
   const params = useParams();
 
-  const tripId = params.id as string;
-  const { trip } = useTripById(tripId);
+  const tripNo = params.id as string;
+  const { trip } = useTripByNo(tripNo);
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
@@ -70,7 +70,7 @@ export default function CompleteTripPage() {
           </p>
 
           <Button
-            href={`/fleet/trips/${tripId}`}
+            href={`/fleet/trips/${tripNo}`}
             variant="outline"
           >
             Back to Trip
@@ -91,7 +91,7 @@ export default function CompleteTripPage() {
           </p>
 
           <Button
-            href={`/fleet/trips/${tripId}`}
+            href={`/fleet/trips/${tripNo}`}
             variant="outline"
           >
             Back to Trip
@@ -117,7 +117,7 @@ export default function CompleteTripPage() {
     <AppLayout pageTitle="Complete Trip">
 
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
         label="Back to Trip"
       />
       <PageHeader
@@ -184,14 +184,14 @@ export default function CompleteTripPage() {
                   >
                     <div>
                       <p className="text-xs text-brand-text-secondary">Order</p>
-                      <p className="font-medium">{order.order_number}</p>
+                      <p className="font-medium">{order.orderNumber}</p>
                     </div>
 
                     <div>
                       <p className="text-xs text-brand-text-secondary">
                         Customer
                       </p>
-                      <p className="font-medium">{customerMap.get(order.customer_id)?.name || "Unknown customer"}</p>
+                      <p className="font-medium">{customerMap.get(order.customerId)?.name || "Unknown customer"}</p>
                     </div>
 
                     <div>
@@ -199,7 +199,7 @@ export default function CompleteTripPage() {
                         Amount
                       </p>
                       <p className="font-medium">
-                        {formatCurrency(order.total_amount)}
+                        {formatCurrency(order.totalAmount)}
                       </p>
                     </div>
                   </div>

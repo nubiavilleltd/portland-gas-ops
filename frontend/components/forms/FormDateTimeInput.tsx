@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Clock,
 } from "lucide-react";
+import { formatFriendlyDateTime } from "@/lib/safety-demo-dates";
 import { cn } from "@/lib/utils";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -65,17 +66,22 @@ function toTimeValue(date: Date) {
   return `${hour}:${minute}`;
 }
 
-function formatDisplayDateTime(value?: string) {
-  const parsed = parseDateTime(value);
-  if (!parsed) return "";
+function isSameDate(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
 
-  return parsed.toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function clampDateTime(value: Date, minDate: Date | null, maxDate: Date | null) {
+  if (minDate && value < minDate) return minDate;
+  if (maxDate && value > maxDate) return maxDate;
+  return value;
+}
+
+function formatDisplayDateTime(value?: string) {
+  return formatFriendlyDateTime(value);
 }
 
 function getMonthDays(year: number, month: number) {
@@ -204,6 +210,11 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
       onValueChange?.(nextValue);
     }
 
+    function updateDateTimeValue(nextDateTime: Date) {
+      const clampedDateTime = clampDateTime(nextDateTime, minDate, maxDate);
+      updateValue(`${toISODate(clampedDateTime)}T${toTimeValue(clampedDateTime)}`);
+    }
+
     function isDayDisabled(day: Date) {
       if (minDate && day < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate())) {
         return true;
@@ -221,16 +232,35 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
         dayNumber
       );
       const nextTime = selectedTime || "09:00";
-      updateValue(`${toISODate(nextDate)}T${nextTime}`);
+      const [hour = 0, minute = 0] = nextTime.split(":").map(Number);
+      updateDateTimeValue(
+        new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate(), hour, minute),
+      );
     }
 
     function updateTime(nextTime: string) {
       const baseDate = selectedDateTime ?? viewDate;
-      updateValue(`${toISODate(baseDate)}T${nextTime}`);
+      const [hour = 0, minute = 0] = nextTime.split(":").map(Number);
+      updateDateTimeValue(
+        new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hour, minute),
+      );
     }
 
     const month = viewDate.getMonth();
     const year = viewDate.getFullYear();
+    const timeMin =
+      selectedDateTime && minDate && isSameDate(selectedDateTime, minDate)
+        ? toTimeValue(minDate)
+        : undefined;
+    const timeMax =
+      selectedDateTime && maxDate && isSameDate(selectedDateTime, maxDate)
+        ? toTimeValue(maxDate)
+        : undefined;
+    const nowActionDate = new Date();
+    const nowActionDisabled = Boolean(
+      (minDate && nowActionDate < minDate) ||
+        (maxDate && nowActionDate > maxDate),
+    );
     const daysInMonth = getMonthDays(year, month);
     const firstDayOfMonth = new Date(year, month, 1).getDay();
     const cells = [
@@ -392,6 +422,8 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
                 id={`${inputId}-time`}
                 type="time"
                 value={selectedTime || "09:00"}
+                min={timeMin}
+                max={timeMax}
                 onChange={(event) => updateTime(event.target.value)}
                 className="h-9 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary outline-none focus:border-transparent focus:ring-2 focus:ring-brand-purple"
               />
@@ -400,12 +432,13 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
             <div className="flex items-center justify-between border-t border-gray-100 px-4 py-2">
               <button
                 type="button"
+                disabled={nowActionDisabled}
                 onClick={() => {
                   const now = new Date();
                   setViewDate(now);
                   updateValue(`${toISODate(now)}T${toTimeValue(now)}`);
                 }}
-                className="text-xs font-medium text-brand-purple transition-colors hover:text-brand-purple-dark"
+                className="text-xs font-medium text-brand-purple transition-colors hover:text-brand-purple-dark disabled:cursor-not-allowed disabled:text-brand-text-secondary"
               >
                 Now
               </button>

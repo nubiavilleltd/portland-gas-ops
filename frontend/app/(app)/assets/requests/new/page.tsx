@@ -11,7 +11,7 @@ import FormSection from "@/components/ui/FormSection";
 import DynamicLineItems, { type LineItemColumn } from "@/components/ui/DynamicLineItems";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import { useCreateAssetRequest, useAssetTypes, useAssetAvailability } from "@/hooks/useAssets";
+import { useCreateAssetRequest, useAssetTypes, useAssetAvailability } from "@/lib/modules/assets";
 import { useToast } from "@/hooks/useToast";
 import { capitalize } from "@/lib/utils";
 
@@ -116,7 +116,7 @@ function NewAssetRequestForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* ── Section 1: Request Type ──────────────────────────────────────── */}
-        <FormSection title="Request Type" description="Is this a temporary loan or a permanent requisition?" bodyClassName="p-6 space-y-0">
+        <FormSection title="Request Type" required description="Is this a temporary loan or a permanent requisition?" bodyClassName="p-6 space-y-0">
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
             {(["loan", "requisition"] as const).map((type) => (
               <label
@@ -146,7 +146,7 @@ function NewAssetRequestForm() {
         </FormSection>
 
         {/* ── Section 2: Items ─────────────────────────────────────────────── */}
-        <FormSection title="Requested Items" description="Select the asset type(s) you need" bodyClassName="p-6 space-y-0">
+        <FormSection title="Requested Items" required description="Select the asset type(s) you need — at least one item required" bodyClassName="p-6 space-y-0">
           <DynamicLineItems<LineItem>
             columns={[
               {

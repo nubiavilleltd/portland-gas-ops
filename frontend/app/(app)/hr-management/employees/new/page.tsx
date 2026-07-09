@@ -11,6 +11,8 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormFileUpload from "@/components/forms/FormFileUpload";
 import Button from "@/components/ui/Button";
 import { formatNumber } from "@/lib/utils/format-number";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 import {
   EMPLOYEE_STORE,
   SEED_EMPLOYEE_RECORDS,
@@ -63,6 +65,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function NewEmployeePage() {
   const router = useRouter();
   const [empForm, setEmpForm] = useState<EmployeeFormState>({});
+  const [pickedManager, setPickedManager] = useState<PickedEmployee | null>(null);
 
   const ue = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v }));
   const un = (k: keyof Employee, v: string) =>
@@ -75,9 +78,13 @@ export default function NewEmployeePage() {
     empForm.mealAllowance,
   );
 
-  const managerOptions = EMPLOYEE_STORE.map((e) => ({
-    value: e.email,
-    label: `${e.firstName} ${e.lastName}`,
+  const { data: employees = [] } = useEmployees({ limit: 200 });
+  const managerPickerEmployees: PickedEmployee[] = employees.map((e) => ({
+    id: e.id,
+    name: e.user ? `${e.user.first_name ?? ""} ${e.user.last_name ?? ""}`.trim() : e.employee_no,
+    role: e.job_title ?? "—",
+    department: e.department ?? "—",
+    avatar_url: e.user?.profile_picture_url ?? null,
   }));
 
   const DOC_TYPE_OPTIONS = [
@@ -183,22 +190,18 @@ export default function NewEmployeePage() {
               value={empForm.grade ?? ""}
               onValueChange={(v) => ue("grade", v)}
             />
-            <FormSelect
-              label="Line Manager" options={managerOptions} placeholder="Select line manager"
-              value={empForm.lineManagerEmail ?? ""}
-              onValueChange={(email) => {
-                const mgr = EMPLOYEE_STORE.find((e) => e.email === email);
+            <EmployeePicker
+              label="Operations Manager"
+              employees={managerPickerEmployees}
+              value={pickedManager}
+              onChange={(mgr) => {
+                setPickedManager(mgr);
                 setEmpForm((p) => ({
                   ...p,
-                  lineManager: mgr ? `${mgr.firstName} ${mgr.lastName}` : "",
-                  lineManagerEmail: email,
+                  lineManager: mgr?.name ?? "",
+                  lineManagerEmail: "",
                 }));
               }}
-            />
-            <FormInput
-              label="Line Manager Email" type="email"
-              value={empForm.lineManagerEmail ?? ""}
-              disabled
             />
           </div>
         </Section>

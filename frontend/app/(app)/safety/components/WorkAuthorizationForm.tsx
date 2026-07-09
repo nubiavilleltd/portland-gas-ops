@@ -1,51 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
-import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
-import { getSafetyCurrentUser, isSafetyCurrentUser } from "@/lib/safety-demo-identity";
-import { createWorkAuthorization, useSafetyDemoData } from "@/lib/safety-demo-store";
-import { formatLocalDate, formatLocalDateTime } from "@/lib/safety-demo-dates";
+import {
+  safetyChecklistsApi,
+  useActiveSafetyChecklist,
+} from "@/lib/modules/safety/checklists";
+import type {
+  SafetyChecklistAnswerCreate,
+  SafetyChecklistItem,
+  SafetyChecklistTemplate,
+} from "@/lib/modules/safety/checklists";
+import {
+  useEligibleWorkInitiationsForAuthorization,
+  workAuthorizationsApi,
+  type WorkAuthorizationCreate,
+} from "@/lib/modules/safety/workAuthorization";
+import {
+  getSafetyEmployeeRequester,
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
+import { formatLocalDate } from "@/lib/safety-demo-dates";
+import {
+  clearValidationError,
+  getFirstInvalidField,
+  scrollToValidationField,
+  type ValidationErrors,
+} from "@/lib/modules/safety/form-validation";
 import type { AssignedWorkInitiationSummary } from "@/types/safety";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+import SafetyChoiceTable from "./SafetyChoiceTable";
+import SafetyValidationSummary from "./SafetyValidationSummary";
 
-const optionFromStrings = (items: string[]): SelectOption[] =>
-  items.map((item) => ({ value: item, label: item }));
+const yesNoOptions = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+];
 
-const riskIndicatorOptions = optionFromStrings([
-  "Gas/CNG/LNG involved",
-  "Pressurized system involved",
-  "Heat, sparks, welding, cutting, or grinding",
-  "Electrical isolation required",
-  "Lifting/heavy equipment involved",
-  "All required PPE available",
-]);
+type WorkAuthorizationValidationField = "selectedWorkInitiationId" | "riskChecklist";
+
+const workAuthorizationFieldOrder: WorkAuthorizationValidationField[] = [
+  "selectedWorkInitiationId",
+  "riskChecklist",
+];
 
 export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
-  const { workInitiations: storedWorkInitiations } = useSafetyDemoData();
-  const requester = {
-    ...getSafetyCurrentUser(),
-    requestDate: formatLocalDate(),
-  };
-  const approvedWorkInitiations = storedWorkInitiations
-    .filter(
-      (request) =>
-        request.status === "approved" &&
-        request.operationalReview?.decision === "Approve" &&
-        isSafetyCurrentUser(request.requester.name),
-    );
+  const currentEmployee = useSafetyCurrentEmployee();
+  const requester = getSafetyEmployeeRequester(
+    currentEmployee.data,
+    formatLocalDate(),
+  );
+  const workInitiationsQuery = useEligibleWorkInitiationsForAuthorization();
+  const riskChecklist = useActiveSafetyChecklist(
+    "work_authorization",
+    "risk_assessment",
+  );
+  const approvedWorkInitiations = workInitiationsQuery.data ?? [];
   const workInitiations: AssignedWorkInitiationSummary[] = approvedWorkInitiations
     .map((request) => ({
       id: request.id,
+      reference: request.reference,
       title: request.title,
       status: "approved",
       workCategory: request.workCategory,
@@ -54,7 +77,9 @@ export default function WorkAuthorizationForm() {
       location: request.location,
       exactWorkArea: request.exactWorkArea,
       workDescription: request.workDescription,
+      assignedSupervisorId: request.assignment.assignedSupervisorId,
       assignedSupervisor: request.assignment.assignedSupervisor,
+      assignedWorkerIds: request.assignment.assignedWorkerIds,
       assignedWorkers: request.assignment.assignedWorkers,
       contractorsNeeded: request.assignment.contractorsNeeded,
       selectedContractor: request.assignment.selectedContractor,
@@ -63,80 +88,109 @@ export default function WorkAuthorizationForm() {
       plannedEndDateTime: request.assignment.plannedEndDateTime,
     }));
   const [selectedWorkInitiationId, setSelectedWorkInitiationId] = useState("");
-  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
+  const [validationErrors, setValidationErrors] = useState<
+    ValidationErrors<WorkAuthorizationValidationField>
+  >({});
+  const [riskAnswers, setRiskAnswers] = useState<Record<string, string>>({});
   const [safetyNote, setSafetyNote] = useState("");
   const [attachmentNotes, setAttachmentNotes] = useState("");
   const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
   const workInitiationOptions = approvedWorkInitiations.map((item) => ({
     value: item.id,
-    label: `${item.id} - ${item.title}`,
+    label: item.reference ? `${item.reference} - ${item.title}` : item.title,
     description: `${item.requester.name} | ${item.requester.requestDate}`,
   }));
   const selectedWorkInitiation = workInitiations.find(
     (item) => item.id === selectedWorkInitiationId,
   );
+  const selectedWorkInitiationRef = useRef<HTMLInputElement | null>(null);
+  const riskChecklistRef = useRef<HTMLDivElement | null>(null);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedWorkInitiation) return;
-    const submittedAt = formatLocalDateTime();
+    if (isSubmitting) return;
 
-    createWorkAuthorization((id) => ({
-      id,
-      status: "submitted",
-      requester,
-      workInitiation: selectedWorkInitiation,
-      requestDetails: {
-        title: selectedWorkInitiation.title,
-        location: selectedWorkInitiation.location,
-        exactWorkArea: selectedWorkInitiation.exactWorkArea,
-        expectedStartDateTime: selectedWorkInitiation.plannedStartDateTime,
-        expectedEndDateTime: selectedWorkInitiation.plannedEndDateTime,
-        supervisor: selectedWorkInitiation.assignedSupervisor,
-      },
-      workDetails: {
-        typeOfWork: selectedWorkInitiation.workType,
-        description: selectedWorkInitiation.workDescription,
-        reason: "",
-        workersInvolved: selectedWorkInitiation.assignedWorkers,
-        contractorRequired: selectedWorkInitiation.contractorsNeeded,
-        contractorName: selectedWorkInitiation.selectedContractor,
-        contractorContactEmail: selectedWorkInitiation.contractorContactEmail,
-        toolsEquipment: [],
-        specialInstructions: "",
-      },
-      riskIndicators: {
-        gasInvolved: riskIndicators.includes("Gas/CNG/LNG involved"),
-        pressurizedSystem: riskIndicators.includes("Pressurized system involved"),
-        heatOrSparks: riskIndicators.includes("Heat, sparks, welding, cutting, or grinding"),
-        electricalIsolation: riskIndicators.includes("Electrical isolation required"),
-        liftingEquipment: riskIndicators.includes("Lifting/heavy equipment involved"),
-        ppeAvailable: riskIndicators.includes("All required PPE available"),
-        additionalSafetyNote: safetyNote,
-      },
-      attachments: safetyFiles.map((file) => ({
-        name: file.name,
-        type: file.type.startsWith("image/") ? "image" : "document",
-      })),
-      supervisorApproval: null,
-      hseInspection: null,
-      hseApproval: null,
-      auditTrail: [{
-        action: "Submitted",
-        actor: requester.name,
-        role: "Requester",
-        dateTime: submittedAt,
-        comment: attachmentNotes || "Work authorization request submitted for HSE review.",
-      }],
-    }));
-    toast.success("Work authorization request submitted successfully.");
-    window.setTimeout(() => {
-      router.push("/safety/work-authorization");
-    }, 700);
+    const nextValidationErrors = validateWorkAuthorizationForm({
+      selectedWorkInitiation,
+      riskAnswers,
+      checklist: riskChecklist.data,
+    });
+    setValidationErrors(nextValidationErrors);
+
+    const firstInvalidField = getFirstInvalidField(
+      nextValidationErrors,
+      workAuthorizationFieldOrder,
+    );
+    if (firstInvalidField) {
+      scrollToValidationField(
+        firstInvalidField === "selectedWorkInitiationId"
+          ? selectedWorkInitiationRef
+          : riskChecklistRef,
+      );
+      return;
+    }
+    if (!selectedWorkInitiation) return;
+
+    const payload: WorkAuthorizationCreate = {
+      work_initiation_id: selectedWorkInitiation.id,
+      gas_involved: riskAnswers.gas_involved === "Yes",
+      pressurized_system: riskAnswers.pressurized_system === "Yes",
+      heat_or_sparks: riskAnswers.heat_or_sparks === "Yes",
+      electrical_isolation: riskAnswers.electrical_isolation === "Yes",
+      lifting_equipment: riskAnswers.lifting_equipment === "Yes",
+      ppe_available: riskAnswers.ppe_available === "Yes",
+      additional_safety_note: emptyToNull(safetyNote),
+      attachment_notes: emptyToNull(attachmentNotes),
+    };
+
+    let authorizationWasSaved = false;
+    try {
+      setIsSubmitting(true);
+      const savedAuthorization = await workAuthorizationsApi.create(
+        payload,
+        safetyFiles,
+      );
+      authorizationWasSaved = true;
+      const checklistAnswers = riskChecklist.data
+        ? buildRiskChecklistAnswers(riskChecklist.data, riskAnswers, safetyNote)
+        : [];
+
+      if (checklistAnswers.length > 0) {
+        await safetyChecklistsApi.createResponses({
+          parent_type: "work_authorization",
+          parent_id: savedAuthorization.id,
+          answers: checklistAnswers,
+        });
+      }
+
+      toast.success("Work authorization request submitted successfully.");
+      window.setTimeout(() => {
+        router.push("/safety/work-authorization");
+      }, 700);
+    } catch (error) {
+      toast.error(
+        authorizationWasSaved
+          ? "Work authorization was saved, but checklist answers could not be saved."
+          : getApiErrorMessage(error, "Work authorization request could not be submitted."),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (riskChecklist.isLoading || workInitiationsQuery.isLoading || currentEmployee.isLoading) {
+    return <SafetyProcessFormSkeleton sections={5} />;
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
+      <SafetyValidationSummary
+        errors={validationErrors}
+        fieldOrder={workAuthorizationFieldOrder}
+      />
+
       <FormSection title="Requester Details" description="Your employee information for this work authorization request.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput label="Requester Name" value={requester.name} disabled />
@@ -149,6 +203,7 @@ export default function WorkAuthorizationForm() {
       <FormSection title="Work Initiation Lookup" description="Select the approved work initiation that requires safety authorization.">
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect
+            ref={selectedWorkInitiationRef}
             label="Work Initiation Reference"
             required
             searchable
@@ -156,7 +211,11 @@ export default function WorkAuthorizationForm() {
             placeholder="Select approved work initiation"
             dropdownClassName="md:min-w-[34rem]"
             value={selectedWorkInitiationId}
-            onValueChange={setSelectedWorkInitiationId}
+            error={validationErrors.selectedWorkInitiationId}
+            onValueChange={(value) => {
+              setSelectedWorkInitiationId(value);
+              clearValidationError("selectedWorkInitiationId", setValidationErrors);
+            }}
           />
         </div>
       </FormSection>
@@ -164,22 +223,52 @@ export default function WorkAuthorizationForm() {
       <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
 
       <FormSection title="Safety / Risk Indicators" description="Identify safety considerations that apply before the work begins.">
-        <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
-          <FormMultiSelect
-            label="Risk Indicators"
-            required
-            searchable
-            options={riskIndicatorOptions}
-            placeholder="Select all risk indicators that apply"
-            value={riskIndicators}
-            onValueChange={setRiskIndicators}
-          />
-          <FormTextarea
-            label="Additional Safety Note"
-            placeholder="Add any extra safety concern"
-            value={safetyNote}
-            onChange={(event) => setSafetyNote(event.target.value)}
-          />
+        {riskChecklist.isError ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Risk assessment checklist template is not available.
+          </p>
+        ) : null}
+        <div
+          ref={riskChecklistRef}
+          className={
+            validationErrors.riskChecklist
+              ? "space-y-4 rounded-xl border border-red-400 p-2"
+              : "space-y-4"
+          }
+        >
+          {riskChecklist.data ? (
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={riskChecklist.data.items
+                .filter((item) => item.input_type === "boolean")
+                .map((item) => ({
+                  label: item.label,
+                  required: item.is_required,
+                  value: riskAnswers[item.item_key] ?? "",
+                  onValueChange: (value) => {
+                    setRiskAnswers((current) => ({
+                      ...current,
+                      [item.item_key]: value,
+                    }));
+                    clearValidationError("riskChecklist", setValidationErrors);
+                  },
+                }))}
+            />
+          ) : null}
+          {validationErrors.riskChecklist ? (
+            <p className="text-xs text-red-600">{validationErrors.riskChecklist}</p>
+          ) : null}
+          {riskChecklist.data?.items
+            .filter((item) => item.input_type === "text")
+            .map((item: SafetyChecklistItem) => (
+              <FormTextarea
+                key={item.id}
+                label={item.label}
+                placeholder="Add any extra safety concern"
+                value={safetyNote}
+                onChange={(event) => setSafetyNote(event.target.value)}
+              />
+            ))}
         </div>
       </FormSection>
 
@@ -203,7 +292,9 @@ export default function WorkAuthorizationForm() {
       </FormSection>
 
       <div className="flex gap-3 pt-1">
-        <Button type="submit">Submit Request</Button>
+        <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+          Submit Request
+        </Button>
       </div>
     </form>
   );
@@ -246,6 +337,83 @@ function AssignedWorkSummary({
       )}
     </FormSection>
   );
+}
+
+function validateWorkAuthorizationForm({
+  selectedWorkInitiation,
+  riskAnswers,
+  checklist,
+}: {
+  selectedWorkInitiation: AssignedWorkInitiationSummary | undefined;
+  riskAnswers: Record<string, string>;
+  checklist: { items: SafetyChecklistItem[] } | undefined;
+}): ValidationErrors<WorkAuthorizationValidationField> {
+  const errors: ValidationErrors<WorkAuthorizationValidationField> = {};
+
+  if (!selectedWorkInitiation) {
+    errors.selectedWorkInitiationId = "Select approved work initiation.";
+  }
+
+  const missingRiskAnswer = checklist?.items.some((item) => (
+    item.is_required &&
+    item.input_type === "boolean" &&
+    !riskAnswers[item.item_key]
+  ));
+
+  if (missingRiskAnswer) {
+    errors.riskChecklist = "Complete the required safety/risk checks.";
+  }
+
+  return errors;
+}
+
+function buildRiskChecklistAnswers(
+  template: SafetyChecklistTemplate,
+  values: Record<string, string>,
+  safetyNote: string,
+): SafetyChecklistAnswerCreate[] {
+  return template.items.reduce<SafetyChecklistAnswerCreate[]>((answers, item) => {
+    if (item.input_type === "boolean") {
+      const value = values[item.item_key];
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_boolean: value === "Yes",
+        });
+      }
+    } else if (item.input_type === "text") {
+      const value = safetyNote.trim();
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_text: value,
+        });
+      }
+    }
+    return answers;
+  }, []);
+}
+
+function emptyToNull(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response
+    ?.data?.detail;
+
+  if (typeof detail === "string") return detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    "message" in detail &&
+    typeof detail.message === "string"
+  ) {
+    return detail.message;
+  }
+
+  return fallback;
 }
 
 function FormSection({

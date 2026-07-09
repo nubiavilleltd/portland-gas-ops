@@ -16,7 +16,7 @@ import {
   useAssetTypes,
   useCreateAssetType,
   useDeleteAssetType,
-} from "@/hooks/useAssets";
+} from "@/lib/modules/assets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import type { AssetCategory, AssetType } from "@/types";

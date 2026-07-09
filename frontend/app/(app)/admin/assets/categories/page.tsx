@@ -11,7 +11,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   useAssetCategories, useCreateAssetCategory, useUpdateAssetCategory, useDeleteAssetCategory,
   useAssetTypes, useCreateAssetType, useDeleteAssetType,
-} from "@/hooks/useAssets";
+} from "@/lib/modules/assets";
 import { useToast } from "@/hooks/useToast";
 import type { AssetCategory, AssetType } from "@/types";
 
@@ -85,7 +85,7 @@ function AddTypeInline({ categoryId, onDone }: { categoryId: string; onDone: () 
     e.preventDefault();
     if (!typeName.trim()) { setError("Name is required"); return; }
     setError(null);
-    try { await createType.mutateAsync({ name: typeName.trim(), category_id: categoryId }); toast.success("Asset type added"); setTypeName(""); onDone(); }
+    try { const prefix = typeName.trim().substring(0, 3).toUpperCase(); await createType.mutateAsync({ name: typeName.trim(), category_id: categoryId, prefix }); toast.success("Asset type added"); setTypeName(""); onDone(); }
     catch { toast.error("Failed to add asset type"); }
   }
 

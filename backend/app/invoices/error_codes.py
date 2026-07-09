@@ -1,0 +1,10 @@
+from __future__ import annotations
+from enum import Enum
+
+
+class InvoiceErrorCode(str, Enum):
+    INVOICE_NOT_FOUND        = "INVOICE_NOT_FOUND"
+    INVOICE_ALREADY_PAID     = "INVOICE_ALREADY_PAID"
+    INVOICE_ALREADY_EXISTS   = "INVOICE_ALREADY_EXISTS"
+    INVOICE_CANNOT_BE_VOIDED = "INVOICE_CANNOT_BE_VOIDED"
+    ORDER_NOT_INVOICEABLE    = "ORDER_NOT_INVOICEABLE"

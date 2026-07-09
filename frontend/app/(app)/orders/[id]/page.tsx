@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import FormSection from "@/components/ui/FormSection";
 
-import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
 import { useInvoiceByOrderId } from "@/lib/modules/invoices/hooks/useInvoices";
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
@@ -23,11 +23,11 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   canAssignToTrip,
-  canCloseOrder,
-  canConfirmOrder,
+  canCancelOrder,
   canEditOrder,
   canGenerateInvoice,
   canConfirmDelivery,
+  canMakePayment,
 } from "@/lib/modules/orders/guards/orders.guards";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
@@ -38,20 +38,23 @@ import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { BackButton } from "@/components/ui/BackButton";
 
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-import { pluralizeNumber } from "@/lib/utils/format-number";
+import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
+import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
+import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const id = params.id as string;
+  const orderNumber = params.id as string;
 
   const { customers } = useCustomers();
   const { products } = useProducts();
+  const { order, isLoading, error } = useOrderByNumber(orderNumber);
+  const { entries } = useAuditByEntity("order", order?.id as string);
 
-  const { order, isLoading, error } = useOrderById(id);
-  const { invoice } = useInvoiceByOrderId(id);
+  const { invoice } = useInvoiceByOrderId(order?.id as string);
   const { summary: paymentSummary } = usePaymentSummary(invoice?.id);
 
-  const { trip } = useTripById(order?.trip_id as string);
+  const { trip } = useTripById(order?.tripId as string);
 
   const customerMap = Object.fromEntries(
     customers.map((customer) => [customer.id, customer]),
@@ -81,11 +84,11 @@ export default function OrderDetailPage() {
 
   // ── guards (pure UI decisions)
   const canEdit = canEditOrder(order);
-  // const canConfirm = canConfirmOrder(order);
   const canAssign = canAssignToTrip(order);
   const canInvoice = canGenerateInvoice(order);
-  // const canClose = canCloseOrder(order);
+  const canPay = canMakePayment(invoice as Invoice, order);
   const canDeliver = canConfirmDelivery(order);
+  const canCancel = canCancelOrder(order);
 
   const balance = invoice
     ? invoice.total_amount - paymentSummary.amountPaid
@@ -95,20 +98,20 @@ export default function OrderDetailPage() {
     {
       label: "Product",
       render: (item) => (
-        <span className="font-medium">{item.product_name}</span>
+        <span className="font-medium">{item.productName}</span>
       ),
     },
     {
       label: "Quantity",
       render: (item) => {
-        const unit = productMap.get(item.product_id)?.unit ?? "unit";
-        const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
-        return `${item.quantity.toLocaleString()} ${formattedUnit}`;
+        const unit = productMap.get(item.productId)?.unit ?? "unit";
+        // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
+        return `${item.quantity.toLocaleString()} ${unit}`;
       },
     },
     {
       label: "Unit Price",
-      render: (item) => formatCurrency(item.unit_price),
+      render: (item) => formatCurrency(item.unitPrice),
     },
     {
       label: "Total",
@@ -124,57 +127,33 @@ export default function OrderDetailPage() {
         label="Back to Orders"
       />
       <PageHeader
-        title={order.order_number}
+        title={order.orderNumber}
         description="Customer gas order workflow and transaction details"
         action={
           <div className="flex gap-2 flex-wrap justify-end">
             {canEdit && (
               <Button
-                href={ORDER_ROUTES.edit(id)}
+                href={ORDER_ROUTES.edit(orderNumber)}
                 variant="outline"
               >
                 Edit
               </Button>
             )}
 
-            {/* {canConfirm && (
-              <Button href={ORDER_ROUTES.confirm(id)}>
-                Confirm Order
-              </Button>
-            )} */}
-
-            {/* {canAssign && (
-              <Button href={FLEET_ROUTES.tripNew({ orderId: id })}>
-                Assign to Trip
-              </Button>
-            )} */}
-
-            {/* {order.trip_id && (
-              <Button
-                href={FLEET_ROUTES.tripDetail(order.trip_id)}
-                variant="outline"
-              >
-                View Trip
-              </Button>
-            )} */}
 
             {canDeliver && (
-              <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
+              <Button href={ORDER_ROUTES.deliveryConfirm(orderNumber)}>
                 Confirm Delivery →
               </Button>
             )}
 
-            {/* {canInvoice && (
-              <Button href={`${INVOICE_ROUTES.new()}?orderId=${id}`}>
-                Generate Invoice
+            {canCancel && (
+              <Button variant="danger" href={`/orders/${orderNumber}/cancel`}>
+                Cancel Order →
               </Button>
-            )} */}
-            {/* 
-            {canClose && (
-              <Button href={ORDER_ROUTES.close(id)} variant="primary">
-                Close Order
-              </Button>
-            )} */}
+            )}
+
+
           </div>
         }
       />
@@ -188,29 +167,26 @@ export default function OrderDetailPage() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <p className="text-xs font-mono text-brand-text-secondary">
-                {order.order_number}
+                {order.orderNumber}
               </p>
 
               <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-                {customerMap[order.customer_id]?.name ?? "—"}
+                {customerMap[order.customerId]?.name ?? "—"}
               </h2>
-              {/* 
-      <p className="text-sm text-brand-text-secondary mt-1">
-        {order.order_type}
-      </p> */}
+      
             </div>
 
             {/* Three status badges side by side */}
             <div className="flex flex-col gap-1.5 items-end">
-              <OrderStatusBadge status={order.order_status} />
-              <FulfillmentStatusBadge status={order.fulfillment_status} />
-              <PaymentStatusBadge status={order.payment_status} />
+              <OrderStatusBadge status={order.orderStatus} />
+              <FulfillmentStatusBadge status={order.fulfillmentStatus} />
+              <PaymentStatusBadge status={order.paymentStatus} />
             </div>
           </div>
 
           <SimpleTable
             columns={itemColumns}
-            rows={order.order_items}
+            rows={order.orderItems}
             keyExtractor={(_, index) => String(index)}
             footer={
               <tr>
@@ -221,7 +197,7 @@ export default function OrderDetailPage() {
                   Grand Total
                 </td>
                 <td className="pt-3 text-right font-semibold">
-                  {formatCurrency(order.total_amount)}
+                  {formatCurrency(order.totalAmount)}
                 </td>
               </tr>
             }
@@ -244,17 +220,17 @@ export default function OrderDetailPage() {
             <div className="flex justify-end">
               <Button
                 size="sm"
-                href={FLEET_ROUTES.tripNew({ orderId: id })}
+                href={FLEET_ROUTES.tripNew({ orderNo: orderNumber })}
               >
                 Assign to Trip →
               </Button>
             </div>
-          ) : order.trip_id ? (
+          ) : order.tripId ? (
             <div className="flex justify-end">
               <Button
                 size="sm"
                 variant="outline"
-                href={FLEET_ROUTES.tripDetail(order.trip_id)}
+                href={FLEET_ROUTES.tripDetail(trip?.trip_number as string)}
               >
                 View Trip →
               </Button>
@@ -281,7 +257,7 @@ export default function OrderDetailPage() {
             </div>
           ) : (
             <p className="text-sm text-brand-text-secondary">
-              {order.fulfillment_status === "pending"
+              {order.fulfillmentStatus === "pending"
                 ? "This order has not been assigned to a trip yet."
                 : "Trip information not available."}
             </p>
@@ -297,7 +273,7 @@ export default function OrderDetailPage() {
             <div className="flex justify-end">
               <Button
                 size="sm"
-                href={`${INVOICE_ROUTES.new()}?orderId=${id}`}
+                href={`${INVOICE_ROUTES.new()}?orderNo=${orderNumber}`}
               >
                 Create Invoice →
               </Button>
@@ -334,9 +310,9 @@ export default function OrderDetailPage() {
             </div>
           ) : (
             <p className="text-sm text-brand-text-secondary">
-              {order.order_status === "draft"
+              {order.orderStatus === "draft"
                 ? "Submit the order before generating an invoice."
-                : order.order_status === "submitted"
+                : order.orderStatus === "submitted"
                   ? "Generate an invoice so the customer can make payment."
                   : "No invoice generated yet."}
             </p>
@@ -348,11 +324,11 @@ export default function OrderDetailPage() {
           title="Payments"
           description="Track invoice payments, amounts received, and outstanding balance"
         >
-          {invoice && order.payment_status !== "paid" ? (
+          {canPay ? (
             <div className="flex justify-end">
               <Button
                 size="sm"
-                href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice.id}`}
+                href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice?.id || ""}`}
               >
                 Make Payment →
               </Button>
@@ -374,6 +350,10 @@ export default function OrderDetailPage() {
               valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
             />
           </div>
+        </FormSection>
+
+        <FormSection title="Activity" description="Timeline of actions taken on this order">
+          <AuditTimeline entries={entries} />
         </FormSection>
       </div>
     </AppLayout>
