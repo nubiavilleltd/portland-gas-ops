@@ -33,7 +33,7 @@ export default function ProductsPage() {
       label: "Default Unit Price",
     //   render: (value, product) =>
     //     `${formatCurrency(value as number)} / ${getUnitLabel(product) || product.unit}`,
-      render: (_value, product:Product) => formatCurrency(product.default_unit_price),
+      render: (_value, product:Product) => formatCurrency(product.defaultUnitPrice),
     },
     {
       key:   "description",

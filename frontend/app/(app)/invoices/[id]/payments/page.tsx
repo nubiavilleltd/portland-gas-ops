@@ -22,7 +22,7 @@ export default function InvoicePaymentsPage() {
   const columns: SimpleTableColumn<Payment>[] = [
     {
       label: "Date",
-      render: (p) => formatDate(p.date),
+      render: (p) => formatDate(p.paymentDate),
     },
     {
       label: "Reference",
