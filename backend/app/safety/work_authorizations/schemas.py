@@ -48,6 +48,23 @@ class WorkAuthorizationCreate(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 
+class WorkAuthorizationUpdate(BaseModel):
+    gas_involved: bool = False
+    pressurized_system: bool = False
+    heat_or_sparks: bool = False
+    electrical_isolation: bool = False
+    lifting_equipment: bool = False
+    ppe_available: bool = False
+    additional_safety_note: Optional[str] = Field(None, max_length=5000)
+    attachment_notes: Optional[str] = Field(None, max_length=5000)
+    attachments: list[WorkAuthorizationAttachment] = Field(default_factory=list)
+
+    @field_validator("additional_safety_note", "attachment_notes", mode="before")
+    @classmethod
+    def strip_optional_text(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
 class WorkAuthorizationHseReviewCreate(BaseModel):
     work_area_safe: WorkAuthorizationInspectionCheck
     emergency_equipment_available: WorkAuthorizationInspectionCheck

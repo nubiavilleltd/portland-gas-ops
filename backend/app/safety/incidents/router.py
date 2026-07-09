@@ -18,6 +18,7 @@ from app.safety.incidents.schemas import (
     IncidentReportCreate,
     IncidentReportResponse,
     IncidentReportUpdate,
+    IncidentResolveCreate,
 )
 from app.safety.incidents import service as incident_service
 
@@ -183,6 +184,37 @@ def update_incident_report(
         db=db,
         incident_id=incident_id,
         data=data,
+    )
+
+    return IncidentReportResponse.from_model(report)
+
+
+@router.post("/{incident_id}/resolve", response_model=IncidentReportResponse)
+def resolve_incident_report(
+    incident_id: str,
+    data: IncidentResolveCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    report = incident_service.resolve_incident_with_closeout(
+        db=db,
+        incident_id=incident_id,
+        data=data,
+        current_user=current_user,
+    )
+
+    return IncidentReportResponse.from_model(report)
+
+
+@router.post("/{incident_id}/close", response_model=IncidentReportResponse)
+def close_incident_report(
+    incident_id: str,
+    db: Session = Depends(get_db),
+    _inspector: Employee = Depends(require_hse_reviewer),
+):
+    report = incident_service.close_resolved_incident(
+        db=db,
+        incident_id=incident_id,
     )
 
     return IncidentReportResponse.from_model(report)

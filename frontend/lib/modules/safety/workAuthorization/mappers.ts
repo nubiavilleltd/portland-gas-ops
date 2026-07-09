@@ -181,7 +181,9 @@ function mapWorkInitiationSummary(
     selectedContractor: item.selected_contractor_name ?? "",
     contractorContactEmail: item.contractor_contact_email ?? "",
     plannedStartDateTime: formatFriendlyDateTime(item.planned_start_at),
+    plannedStartDateTimeRaw: item.planned_start_at,
     plannedEndDateTime: formatFriendlyDateTime(item.planned_end_at),
+    plannedEndDateTimeRaw: item.planned_end_at,
   };
 }
 
@@ -205,7 +207,9 @@ function emptyWorkInitiationSummary(item: WorkAuthorizationResponse) {
     selectedContractor: "",
     contractorContactEmail: "",
     plannedStartDateTime: formatFriendlyDateTime(item.planned_start_at),
+    plannedStartDateTimeRaw: item.planned_start_at ?? undefined,
     plannedEndDateTime: formatFriendlyDateTime(item.planned_end_at),
+    plannedEndDateTimeRaw: item.planned_end_at ?? undefined,
   };
 }
 

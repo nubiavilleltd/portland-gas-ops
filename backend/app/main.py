@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ from app.safety.checklists import models as _safety_checklist_models  # noqa: F4
 from app.safety.incidents import models as _safety_incident_models  # noqa: F401
 from app.safety.work_initiations import models as _safety_work_initiation_models  # noqa: F401
 from app.safety.work_authorizations import models as _safety_work_authorization_models  # noqa: F401
+from app.safety.work_closeouts import models as _safety_work_closeout_models  # noqa: F401
 from app.orders.model import Order, OrderItem    # noqa: F401
 from app.invoices.model import Invoice           # noqa: F401
 from app.payments.model import Payment           # noqa: F401
@@ -88,7 +90,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     Convert Pydantic's 422 validation errors into our standard error envelope.
     This means the frontend always receives the same shape: {error_code, message, details}.
     """
-    errors = exc.errors()
+    errors = jsonable_encoder(
+        exc.errors(),
+        custom_encoder={Exception: str},
+    )
     first = errors[0] if errors else {}
     field = " → ".join(str(loc) for loc in first.get("loc", []) if loc != "body")
     msg   = first.get("msg", "Validation error")

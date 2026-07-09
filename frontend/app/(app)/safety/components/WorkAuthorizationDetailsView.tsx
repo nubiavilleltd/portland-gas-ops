@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -14,6 +14,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import {
   safetyChecklistsApi,
   useActiveSafetyChecklist,
@@ -25,6 +26,7 @@ import type {
 } from "@/lib/modules/safety/checklists";
 import {
   mapWorkAuthorizationToRequest,
+  useUpdateWorkAuthorization,
   useWorkAuthorization,
   workAuthorizationsApi,
   type WorkAuthorizationDecision,
@@ -132,6 +134,23 @@ function toApiDecision(
   return "deny";
 }
 
+function getSelectedRiskIndicators(request: WorkAuthorizationRequest) {
+  return [
+    request.riskIndicators.gasInvolved ? "Gas/CNG/LNG involved" : "",
+    request.riskIndicators.pressurizedSystem ? "Pressurized system involved" : "",
+    request.riskIndicators.heatOrSparks
+      ? "Heat, sparks, welding, cutting, or grinding"
+      : "",
+    request.riskIndicators.electricalIsolation
+      ? "Electrical isolation required"
+      : "",
+    request.riskIndicators.liftingEquipment
+      ? "Lifting/heavy equipment involved"
+      : "",
+    request.riskIndicators.ppeAvailable ? "All required PPE available" : "",
+  ].filter(Boolean);
+}
+
 function toChecklistOptions(item: SafetyChecklistItem) {
   if (!Array.isArray(item.options_json)) return inspectionCheckOptions;
   return item.options_json.map((option) =>
@@ -208,15 +227,34 @@ export default function WorkAuthorizationDetailsView({
   );
   const [hseInspectionResult, setHseInspectionResult] =
     useState<EditableHseInspectionResult>("");
+  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
+  const [additionalSafetyNote, setAdditionalSafetyNote] = useState("");
+  const [requesterAttachments, setRequesterAttachments] = useState<File[]>([]);
   const hseInspectionChecklist = useActiveSafetyChecklist(
     "work_authorization",
     "inspection",
   );
   const requestQuery = useWorkAuthorization(requestId);
+  const updateWorkAuthorization = useUpdateWorkAuthorization(requestId);
+  const myApprovalsQuery = useMyApprovals();
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
   const request =
     updatedRequest?.id === requestId ? updatedRequest : requestQuery.data ?? null;
+  const myWorkAuthorizationApproval = (myApprovalsQuery.data ?? []).find(
+    (approval) =>
+      approval.request_type === "work_authorization" &&
+      approval.request_id === requestId,
+  );
+
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!request) return;
+    setRiskIndicators(getSelectedRiskIndicators(request));
+    setAdditionalSafetyNote(request.riskIndicators.additionalSafetyNote);
+    setRequesterAttachments([]);
+  }, [request?.id, request?.status]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   const isRequester = Boolean(
     request?.requesterId &&
       currentEmployee?.id &&
@@ -228,12 +266,13 @@ export default function WorkAuthorizationDetailsView({
       request.workInitiation.assignedSupervisorId === currentEmployee.id,
   );
   const isHseEmployee = isHseDepartment(currentEmployee?.department);
+  const isAssignedHseWorkflowApprover = Boolean(myWorkAuthorizationApproval);
   const hasDirectWorkAuthorizationAccess =
-    isRequester || isAssignedSupervisor || isHseEmployee;
+    isRequester || isAssignedSupervisor || isAssignedHseWorkflowApprover;
   const currentRole = getWorkAuthorizationAccessRole({
     isRequester,
     isAssignedSupervisor,
-    isHseEmployee,
+    isHseEmployee: isAssignedHseWorkflowApprover,
   });
 
   const hasFailedHseInspectionCheck = Object.values(hseInspectionChecks).some(
@@ -250,9 +289,9 @@ export default function WorkAuthorizationDetailsView({
   const isDenied = request?.status === "denied";
   const permissions = {
     canEditDraft: isRequester && (isDraft || isReturned),
-    canHseInspect: isHseEmployee && isSubmitted,
+    canHseInspect: isHseEmployee && isAssignedHseWorkflowApprover && isSubmitted,
     showHseSection: Boolean(
-      (isHseEmployee && isSubmitted) ||
+      (isHseEmployee && isAssignedHseWorkflowApprover && isSubmitted) ||
         isApproved ||
         isReturned ||
         isDenied,
@@ -260,7 +299,11 @@ export default function WorkAuthorizationDetailsView({
     showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
   };
 
-  if (requestQuery.isLoading || currentEmployeeQuery.isLoading) {
+  if (
+    requestQuery.isLoading ||
+    currentEmployeeQuery.isLoading ||
+    myApprovalsQuery.isLoading
+  ) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
@@ -278,8 +321,36 @@ export default function WorkAuthorizationDetailsView({
   }
   const persistedRequestId = request.id;
 
-  function handleRequesterSubmit() {
-    toast.info("Draft resubmission is not available for backend work authorizations yet.");
+  async function handleRequesterSubmit() {
+    try {
+      const updated = await updateWorkAuthorization.mutateAsync({
+        payload: {
+          gas_involved: riskIndicators.includes("Gas/CNG/LNG involved"),
+          pressurized_system: riskIndicators.includes("Pressurized system involved"),
+          heat_or_sparks: riskIndicators.includes(
+            "Heat, sparks, welding, cutting, or grinding",
+          ),
+          electrical_isolation: riskIndicators.includes(
+            "Electrical isolation required",
+          ),
+          lifting_equipment: riskIndicators.includes(
+            "Lifting/heavy equipment involved",
+          ),
+          ppe_available: riskIndicators.includes("All required PPE available"),
+          additional_safety_note: additionalSafetyNote || null,
+          attachment_notes: null,
+          attachments: [],
+        },
+        attachments: requesterAttachments,
+      });
+      setUpdatedRequest(mapWorkAuthorizationToRequest(updated));
+      toast.success("Work authorization resubmitted.");
+      routeBackToWorkAuthorizationRequests(router);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Work authorization could not be resubmitted."),
+      );
+    }
   }
 
   async function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
@@ -386,7 +457,7 @@ export default function WorkAuthorizationDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={request.id}
+        id={request.reference ?? "Reference pending"}
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={
@@ -404,18 +475,29 @@ export default function WorkAuthorizationDetailsView({
       <RequesterDetailsSection request={request} />
       <AssignedWorkSummarySection request={request} />
       <RiskIndicatorsSection
-        request={request}
         editable={permissions.canEditDraft}
+        selectedRiskIndicators={riskIndicators}
+        onRiskIndicatorsChange={setRiskIndicators}
+        additionalSafetyNote={additionalSafetyNote}
+        onAdditionalSafetyNoteChange={setAdditionalSafetyNote}
       />
       <AttachmentsSection
         request={request}
         editable={permissions.canEditDraft}
+        newAttachments={requesterAttachments}
+        onNewAttachmentsChange={setRequesterAttachments}
       />
 
       {currentRole === "requester" &&
       (request.status === "draft" || request.status === "returned") ? (
         <div className="flex justify-end">
-          <Button onClick={handleRequesterSubmit}>Submit Request</Button>
+          <Button
+            onClick={handleRequesterSubmit}
+            loading={updateWorkAuthorization.isPending}
+            loadingText="Submitting..."
+          >
+            Submit Request
+          </Button>
         </div>
       ) : null}
 
@@ -509,7 +591,11 @@ function AssignedWorkSummarySection({
   return (
     <FormSection title="Assigned Work Summary" description="Approved scope and assignments carried from Work Initiation.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work Initiation Reference" value={work.id} disabled />
+        <FormInput
+          label="Work Initiation Reference"
+          value={work.reference ?? "Reference pending"}
+          disabled
+        />
         <FormInput
           label="Work Title"
           value={work.title}
@@ -548,35 +634,34 @@ function AssignedWorkSummarySection({
 }
 
 function RiskIndicatorsSection({
-  request,
   editable,
+  selectedRiskIndicators,
+  onRiskIndicatorsChange,
+  additionalSafetyNote,
+  onAdditionalSafetyNoteChange,
 }: {
-  request: WorkAuthorizationRequest;
   editable: boolean;
+  selectedRiskIndicators: string[];
+  onRiskIndicatorsChange: (value: string[]) => void;
+  additionalSafetyNote: string;
+  onAdditionalSafetyNoteChange: (value: string) => void;
 }) {
-  const selectedRiskIndicators = [
-    request.riskIndicators.gasInvolved ? "Gas/CNG/LNG involved" : "",
-    request.riskIndicators.pressurizedSystem ? "Pressurized system involved" : "",
-    request.riskIndicators.heatOrSparks ? "Heat, sparks, welding, cutting, or grinding" : "",
-    request.riskIndicators.electricalIsolation ? "Electrical isolation required" : "",
-    request.riskIndicators.liftingEquipment ? "Lifting/heavy equipment involved" : "",
-    request.riskIndicators.ppeAvailable ? "All required PPE available" : "",
-  ].filter(Boolean);
-
   return (
     <FormSection title="Risk & Safety Indicators" description="Safety considerations identified for this work activity.">
       <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
         <FormMultiSelect
           label="Risk Indicators"
           options={riskIndicatorOptions}
-          defaultValue={selectedRiskIndicators}
+          value={selectedRiskIndicators}
+          onValueChange={onRiskIndicatorsChange}
           disabled={!editable}
           searchable
           placeholder="Select all risk indicators that apply"
         />
         <FormTextarea
           label="Additional Safety Note"
-          defaultValue={request.riskIndicators.additionalSafetyNote}
+          value={additionalSafetyNote}
+          onChange={(event) => onAdditionalSafetyNoteChange(event.target.value)}
           disabled={!editable}
         />
       </div>
@@ -587,12 +672,14 @@ function RiskIndicatorsSection({
 function AttachmentsSection({
   request,
   editable,
+  newAttachments,
+  onNewAttachmentsChange,
 }: {
   request: WorkAuthorizationRequest;
   editable: boolean;
+  newAttachments: File[];
+  onNewAttachmentsChange: (files: File[]) => void;
 }) {
-  const [newAttachments, setNewAttachments] = useState<File[]>([]);
-
   return (
     <FormSection title="Attachments" description="Supporting safety documents and evidence attached to this request.">
       <AttachmentList attachments={request.attachments} />
@@ -601,10 +688,10 @@ function AttachmentsSection({
           <FileDropzone
             label="Add Attachments"
             value={newAttachments}
-            onChange={setNewAttachments}
+            onChange={onNewAttachmentsChange}
             accept="image/*,.pdf,.doc,.docx"
             maxFiles={10}
-            hint="Local selection only. No upload is performed."
+            hint="These files will be uploaded when the returned request is resubmitted."
           />
         </div>
       ) : null}

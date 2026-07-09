@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { mapWorkInitiationToRequest } from "./mappers";
 import { workInitiationsApi } from "./api";
-import type { WorkInitiationListParams, WorkInitiationUpdate } from "./types";
+import type { WorkInitiationListParams, WorkInitiationReviewCreate, WorkInitiationUpdate } from "./types";
 
 export const workInitiationKeys = {
   all: ["safety", "work-initiations"] as const,
@@ -46,6 +46,55 @@ export function useWorkInitiation(id: string) {
     enabled: isAuthenticated && Boolean(id),
     staleTime: 60 * 1000,
     retry: shouldRetry,
+  });
+}
+
+export function useSupervisorReviewWorkInitiation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: WorkInitiationReviewCreate;
+    }) => workInitiationsApi.supervisorReview(id, payload),
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: workInitiationKeys.detail(variables.id),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: workInitiationKeys.lists(),
+        }),
+      ]);
+    },
+  });
+}
+
+
+export function useOperationsHodReviewWorkInitiation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: WorkInitiationReviewCreate;
+    }) => workInitiationsApi.operationsHodReview(id, payload),
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: workInitiationKeys.detail(variables.id),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: workInitiationKeys.lists(),
+        }),
+      ]);
+    },
   });
 }
 

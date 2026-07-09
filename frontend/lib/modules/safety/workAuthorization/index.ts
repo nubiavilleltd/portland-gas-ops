@@ -1,7 +1,9 @@
 export { workAuthorizationsApi } from "./api";
 export {
+  useEligibleWorkInitiationsForAuthorization,
   useWorkAuthorization,
   useWorkAuthorizations,
+  useUpdateWorkAuthorization,
   workAuthorizationKeys,
 } from "./hooks";
 export { mapWorkAuthorizationToRequest } from "./mappers";
@@ -18,5 +20,6 @@ export type {
   WorkAuthorizationListParams,
   WorkAuthorizationResponse,
   WorkAuthorizationStatus,
+  WorkAuthorizationUpdate,
   WorkAuthorizationWorkInitiationSummary,
 } from "./types";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -8,20 +8,25 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
+import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
-import {
-  getMockWorkCloseOutRequest,
-} from "@/lib/mock/work-close-out";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
+import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
 import { isExceptionWorkCloseOut } from "@/lib/safety-demo-routing";
 import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
-  updateWorkCloseOut,
-  useSafetyDemoData,
-} from "@/lib/safety-demo-store";
+  useHseWorkCloseoutReview,
+  useOperationsHeadWorkCloseoutReview,
+  useSupervisorWorkCloseoutReview,
+  useUpdateWorkCloseout,
+  useWorkCloseout,
+  type WorkCloseOutChecklistAnswerCreate,
+} from "@/lib/modules/safety/workCloseout";
 import {
   useSafetyCurrentEmployee,
   type SafetyEmployeeProfile,
@@ -29,7 +34,6 @@ import {
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import type {
   WorkAuthorizationAttachment,
-  WorkAuthorizationAuditTrailItem,
   WorkCloseOutApprovalResult,
   WorkCloseOutDecision,
   WorkCloseOutHseApproval,
@@ -50,14 +54,15 @@ const workCloseOutRoles: { value: WorkCloseOutRole; label: string }[] = [
   { value: "hse", label: "HSE Inspector" },
 ];
 
-function decisionPastTense(decision: WorkCloseOutDecision) {
-  if (decision === "Acknowledge") return "acknowledged";
-  if (decision === "Deny") return "denied";
-  return `${decision.toLowerCase()}ed`;
-}
-
 function isReturnOrDeny(decision: WorkCloseOutDecision) {
   return decision === "Return" || decision === "Deny";
+}
+
+function toApiDecision(decision: WorkCloseOutDecision) {
+  if (decision === "Approve") return "approve";
+  if (decision === "Acknowledge") return "acknowledge";
+  if (decision === "Return") return "return";
+  return "deny";
 }
 
 export default function WorkCloseOutDetailsView({
@@ -69,24 +74,53 @@ export default function WorkCloseOutDetailsView({
   const toast = useToast();
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
-  const initialRequest = getMockWorkCloseOutRequest(requestId);
-  const { workCloseOuts } = useSafetyDemoData();
-  const request = workCloseOuts.find((item) => item.id === requestId) ?? initialRequest;
+  const closeoutQuery = useWorkCloseout(requestId);
+  const request = closeoutQuery.data;
+  const updateCloseout = useUpdateWorkCloseout(requestId);
+  const myApprovalsQuery = useMyApprovals();
+  const supervisorReview = useSupervisorWorkCloseoutReview(requestId);
+  const operationsHeadReview = useOperationsHeadWorkCloseoutReview(requestId);
+  const hseReview = useHseWorkCloseoutReview(requestId);
   const isExceptionCloseOut = request ? isExceptionWorkCloseOut(request) : false;
-  const isRequester = employeeMatchesName(currentEmployee, request?.requester.name);
-  const isAssignedSupervisor = employeeMatchesName(
-    currentEmployee,
-    request?.workAuthorization.supervisor,
+  const isRequester = Boolean(
+    currentEmployee?.id &&
+      request?.requesterId &&
+      currentEmployee.id === request.requesterId,
+  );
+  const isAssignedSupervisor = Boolean(
+    currentEmployee?.id &&
+      request?.workAuthorization.supervisorId &&
+      currentEmployee.id === request.workAuthorization.supervisorId,
   );
   const isOperationsHead = isOperationsHeadEmployee(currentEmployee);
   const isHseEmployee = isHseDepartment(currentEmployee?.department);
+  const myWorkCloseoutApproval = (myApprovalsQuery.data ?? []).find(
+    (approval) =>
+      approval.request_type === "work_closeout" &&
+      approval.request_id === requestId,
+  );
+  const isAssignedWorkflowApprover = Boolean(myWorkCloseoutApproval);
+  const isAssignedWorkflowSupervisor =
+    isAssignedWorkflowApprover && request?.status === "submitted";
+  const isAssignedWorkflowOperationsHead =
+    isAssignedWorkflowApprover &&
+    request?.status === "pending" &&
+    Boolean(request?.supervisorApproval) &&
+    !request?.operationsHeadApproval;
+  const isAssignedWorkflowHse =
+    isAssignedWorkflowApprover &&
+    request?.status === "pending" &&
+    Boolean(request?.operationsHeadApproval);
   const hasDirectCloseOutAccess =
-    isRequester || isAssignedSupervisor || isOperationsHead || isHseEmployee;
+    isRequester ||
+    isAssignedSupervisor ||
+    isAssignedWorkflowOperationsHead ||
+    isAssignedWorkflowHse;
   const currentRole = getWorkCloseOutAccessRole({
     isRequester,
-    isAssignedSupervisor,
-    isOperationsHead,
-    isHseEmployee,
+    isAssignedSupervisor: isAssignedSupervisor || isAssignedWorkflowSupervisor,
+    isOperationsHead: isOperationsHead && isAssignedWorkflowOperationsHead,
+    isHseEmployee: isHseEmployee && isAssignedWorkflowHse,
   });
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHeadComment, setOperationsHeadComment] = useState("");
@@ -94,6 +128,30 @@ export default function WorkCloseOutDetailsView({
   const [hseVerifiedCloseOut, setHseVerifiedCloseOut] = useState("");
   const [hseAreaSafe, setHseAreaSafe] = useState("");
   const [hseCorrectiveActionRequired, setHseCorrectiveActionRequired] = useState("");
+  const [actualStartDateTime, setActualStartDateTime] = useState("");
+  const [actualCompletionDateTime, setActualCompletionDateTime] = useState("");
+  const [workCompleted, setWorkCompleted] = useState("");
+  const [completedAsApproved, setCompletedAsApproved] = useState("");
+  const [incidentObserved, setIncidentObserved] = useState("");
+  const [completionSummary, setCompletionSummary] = useState("");
+  const [deviationExplanation, setDeviationExplanation] = useState("");
+  const [incidentNote, setIncidentNote] = useState("");
+  const [completionEvidence, setCompletionEvidence] = useState<File[]>([]);
+  const [monitoredDuringExecution, setMonitoredDuringExecution] = useState("");
+  const [stayedWithinScope, setStayedWithinScope] = useState("");
+  const [ppeAndControlsMaintained, setPpeAndControlsMaintained] = useState("");
+  const [unsafeConditionAddressed, setUnsafeConditionAddressed] = useState("");
+  const [workAreaCleaned, setWorkAreaCleaned] = useState("");
+  const [toolsRemoved, setToolsRemoved] = useState("");
+  const [systemSafe, setSystemSafe] = useState("");
+  const [remainingHazard, setRemainingHazard] = useState("");
+  const [remainingHazardDetails, setRemainingHazardDetails] = useState("");
+  const completionChecklist = useActiveSafetyChecklist("work_closeout", "completion");
+  const monitoringChecklist = useActiveSafetyChecklist("work_closeout", "monitoring");
+  const areaConditionChecklist = useActiveSafetyChecklist(
+    "work_closeout",
+    "closeout_review",
+  );
   const hseChecksIncomplete =
     !hseVerifiedCloseOut || !hseAreaSafe || !hseCorrectiveActionRequired;
   const hseApprovalBlocked =
@@ -101,6 +159,40 @@ export default function WorkCloseOutDetailsView({
     (hseVerifiedCloseOut !== "Yes" ||
       hseAreaSafe !== "Yes" ||
       hseCorrectiveActionRequired === "Yes");
+
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!request) return;
+    setActualStartDateTime(
+      toDateTimeInputValue(request.completionDetails.actualStartDateTimeRaw),
+    );
+    setActualCompletionDateTime(
+      toDateTimeInputValue(request.completionDetails.actualCompletionDateTimeRaw),
+    );
+    setWorkCompleted(booleanToYesNo(request.completionDetails.workCompleted));
+    setCompletedAsApproved(
+      booleanToYesNo(request.completionDetails.completedAsApproved),
+    );
+    setIncidentObserved(booleanToYesNo(request.completionDetails.incidentObserved));
+    setCompletionSummary(request.completionDetails.completionSummary);
+    setDeviationExplanation(request.completionDetails.deviationExplanation);
+    setIncidentNote(request.completionDetails.incidentNote);
+    setCompletionEvidence([]);
+    setMonitoredDuringExecution(
+      booleanToYesNo(request.monitoring.monitoredDuringExecution),
+    );
+    setStayedWithinScope(booleanToYesNo(request.monitoring.stayedWithinScope));
+    setPpeAndControlsMaintained(
+      booleanToYesNo(request.monitoring.ppeAndControlsMaintained),
+    );
+    setUnsafeConditionAddressed(request.monitoring.unsafeConditionAddressed);
+    setWorkAreaCleaned(booleanToYesNo(request.areaCondition.workAreaCleaned));
+    setToolsRemoved(booleanToYesNo(request.areaCondition.toolsRemoved));
+    setSystemSafe(booleanToYesNo(request.areaCondition.systemSafe));
+    setRemainingHazard(booleanToYesNo(request.areaCondition.remainingHazard));
+    setRemainingHazardDetails(request.areaCondition.remainingHazardDetails);
+  }, [request?.id, request?.status]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   const isDraft = request?.status === "draft";
   const isSubmitted = request?.status === "submitted";
@@ -111,14 +203,16 @@ export default function WorkCloseOutDetailsView({
   const isDenied = request?.status === "denied";
   const permissions = {
     canRequesterEdit: isRequester && (isDraft || isReturned),
-    canSupervisorApprove: isAssignedSupervisor && isSubmitted,
+    canSupervisorApprove: isAssignedWorkflowSupervisor && isSubmitted,
     canOperationsHeadApprove:
       isOperationsHead &&
+      isAssignedWorkflowOperationsHead &&
       isPending &&
       Boolean(request?.supervisorApproval) &&
       !request?.operationsHeadApproval,
     canHseApprove:
       isHseEmployee &&
+      isAssignedWorkflowHse &&
       isPending &&
       Boolean(request?.operationsHeadApproval),
     showSupervisorApproval: Boolean(
@@ -133,7 +227,15 @@ export default function WorkCloseOutDetailsView({
     showAuditTrail: Boolean(!isDraft || isApproved || isAcknowledged || isReturned || isDenied),
   };
 
-  if (currentEmployeeQuery.isLoading) {
+  if (
+    currentEmployeeQuery.isLoading ||
+    closeoutQuery.isLoading ||
+    myApprovalsQuery.isLoading ||
+    (permissions.canRequesterEdit &&
+      (completionChecklist.isLoading ||
+        monitoringChecklist.isLoading ||
+        areaConditionChecklist.isLoading))
+  ) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
@@ -144,177 +246,131 @@ export default function WorkCloseOutDetailsView({
       </div>
     );
   }
-  const persistedRequestId = request.id;
 
-  function persistUpdate(
-    update: (current: WorkCloseOutRequest) => WorkCloseOutRequest,
-  ) {
-    const updated = updateWorkCloseOut(persistedRequestId, update);
-    return updated;
-  }
-
-  function submitCloseOut() {
+  async function submitCloseOut() {
     if (!request) return;
+    const requiresDeviationExplanation =
+      completedAsApproved === "No" ||
+      hasScheduleDeviation({
+        workAuthorization: request.workAuthorization,
+        actualStartDateTime,
+        actualCompletionDateTime,
+      });
 
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action: "Submitted",
-      actor: request.requester.name,
-      role: "Requester",
-      dateTime: "2026-05-18 02:30 PM",
-      comment: "Work completion submitted for close-out.",
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status: "submitted",
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    toast.success("Close-out submitted.");
+    if (requiresDeviationExplanation && deviationExplanation.trim().length < 3) {
+      toast.error("Explain why work differed from the approved scope or schedule.");
+      return;
+    }
+
+    try {
+      await updateCloseout.mutateAsync({
+        payload: {
+          work_authorization_id: request.workAuthorization.id,
+          actual_start_at: toApiDateTime(actualStartDateTime),
+          actual_completion_at: toApiDateTime(actualCompletionDateTime),
+          work_completed: workCompleted === "Yes",
+          completed_as_approved: completedAsApproved === "Yes",
+          deviation_explanation: deviationExplanation || null,
+          completion_summary: completionSummary,
+          incident_observed: incidentObserved === "Yes",
+          incident_note: incidentNote || null,
+          completion_notes: null,
+          monitored_during_execution: monitoredDuringExecution === "Yes",
+          stayed_within_scope: stayedWithinScope === "Yes",
+          ppe_and_controls_maintained: ppeAndControlsMaintained === "Yes",
+          unsafe_condition_addressed: yesNoNaToAnswer(unsafeConditionAddressed),
+          monitoring_comment: null,
+          work_area_cleaned: workAreaCleaned === "Yes",
+          tools_removed: toolsRemoved === "Yes",
+          system_safe: systemSafe === "Yes",
+          remaining_hazard: remainingHazard === "Yes",
+          remaining_hazard_details: remainingHazardDetails || null,
+          completion_checklist_answers: buildCompletionChecklistAnswers(
+            completionChecklist.data?.items ?? [],
+            { workCompleted, completedAsApproved, incidentObserved },
+          ),
+          monitoring_checklist_answers: buildMonitoringChecklistAnswers(
+            monitoringChecklist.data?.items ?? [],
+            {
+              monitoredDuringExecution,
+              stayedWithinScope,
+              ppeAndControlsMaintained,
+              unsafeConditionAddressed,
+            },
+          ),
+          area_condition_checklist_answers: buildAreaConditionChecklistAnswers(
+            areaConditionChecklist.data?.items ?? [],
+            { workAreaCleaned, toolsRemoved, systemSafe, remainingHazard },
+          ),
+        },
+        completionEvidence,
+      });
+      toast.success("Work close-out resubmitted.");
+      routeBackToWorkCloseOutRequests(router);
+    } catch (error) {
+      console.error("Failed to resubmit work close-out", error);
+      toast.error("Unable to resubmit work close-out.");
+    }
   }
 
-  function supervisorDecision(decision: WorkCloseOutDecision) {
+  async function supervisorDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (isReturnOrDeny(decision) && !supervisorComment.trim()) return;
-
-    const approval: WorkCloseOutApprovalResult = {
-      decision,
-      approver: request.workAuthorization.supervisor,
-      dateTime: "2026-05-18 03:00 PM",
-      comment:
-        supervisorComment ||
-        (decision === "Approve"
-          ? "Completion reviewed and accepted."
-          : decision === "Acknowledge"
-            ? "Exception close-out reviewed and acknowledged for audit."
-          : `Close-out ${decisionPastTense(decision)} by supervisor.`),
-    };
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action:
-        decision === "Approve"
-          ? "Supervisor Approved"
-          : decision === "Acknowledge"
-            ? "Supervisor Acknowledged"
-            : `Supervisor ${decision}ed`,
-      actor: approval.approver,
-      role: "Supervisor",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status:
-        decision === "Approve" || decision === "Acknowledge"
-          ? "pending"
-          : decision === "Return"
-            ? "returned"
-            : "denied",
-      supervisorApproval: approval,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showCloseOutDecisionToast(toast, decision, "Supervisor");
-    routeBackToWorkCloseOutRequests(router);
+    try {
+      await supervisorReview.mutateAsync({
+        decision: toApiDecision(decision),
+        comment: supervisorComment || null,
+      });
+      showCloseOutDecisionToast(toast, decision, "Supervisor");
+      routeBackToWorkCloseOutRequests(router);
+    } catch (error) {
+      console.error("Failed to submit supervisor close-out decision", error);
+      toast.error("Unable to submit supervisor decision.");
+    }
   }
 
-  function hseDecision(decision: WorkCloseOutDecision) {
+  async function hseDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
     if (hseChecksIncomplete) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (decision === "Approve" && hseApprovalBlocked) return;
     if (isReturnOrDeny(decision) && !hseComment.trim()) return;
-
-    const approval: WorkCloseOutHseApproval = {
-      inspector: request.workAuthorization.hseApprover,
-      verifiedCloseOut: hseVerifiedCloseOut === "Yes",
-      areaSafeForOperations: hseAreaSafe === "Yes",
-      correctiveActionRequired: hseCorrectiveActionRequired === "Yes",
-      correctiveActionDetails: "",
-      decision,
-      comment:
-        hseComment ||
-        (decision === "Approve"
-          ? "Area verified safe. Close-out approved."
-          : decision === "Acknowledge"
-            ? "Exception close-out verified and acknowledged for audit."
-          : `Close-out ${decisionPastTense(decision)} by HSE.`),
-      dateTime: "2026-05-18 03:40 PM",
-    };
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action:
-        decision === "Approve"
-          ? "HSE Approved"
-          : decision === "Acknowledge"
-            ? "HSE Acknowledged"
-            : `HSE ${decision}ed`,
-      actor: approval.inspector,
-      role: "HSE Inspector",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status:
-        decision === "Approve"
-          ? "approved"
-          : decision === "Acknowledge"
-            ? "acknowledged"
-          : decision === "Return"
-            ? "returned"
-            : "denied",
-      hseApproval: approval,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showCloseOutDecisionToast(toast, decision, "HSE");
-    routeBackToWorkCloseOutRequests(router);
+    try {
+      await hseReview.mutateAsync({
+        decision: toApiDecision(decision),
+        comment: hseComment || null,
+        verified_close_out: hseVerifiedCloseOut === "Yes",
+        area_safe_for_operations: hseAreaSafe === "Yes",
+        corrective_action_required: hseCorrectiveActionRequired === "Yes",
+        corrective_action_details: null,
+      });
+      showCloseOutDecisionToast(toast, decision, "HSE");
+      routeBackToWorkCloseOutRequests(router);
+    } catch (error) {
+      console.error("Failed to submit HSE close-out decision", error);
+      toast.error("Unable to submit HSE decision.");
+    }
   }
 
-  function operationsHeadDecision(decision: WorkCloseOutDecision) {
+  async function operationsHeadDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (isReturnOrDeny(decision) && !operationsHeadComment.trim()) return;
-
-    const approval: WorkCloseOutApprovalResult = {
-      decision,
-      approver: "Grace Bello",
-      dateTime: "2026-05-18 03:20 PM",
-      comment:
-        operationsHeadComment ||
-        (decision === "Approve"
-          ? "Completion reviewed and recommended for HSE verification."
-          : decision === "Acknowledge"
-            ? "Exception close-out acknowledged and sent for HSE verification."
-          : `Close-out ${decisionPastTense(decision)} by Operations Head.`),
-    };
-
-    const audit: WorkAuthorizationAuditTrailItem = {
-      action:
-        decision === "Approve"
-          ? "Operations Head Approved"
-          : decision === "Acknowledge"
-            ? "Operations Head Acknowledged"
-            : `Operations Head ${decision}ed`,
-      actor: approval.approver,
-      role: "Operations Head",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    };
-    persistUpdate((current) => ({
-      ...current,
-      status:
-        decision === "Approve" || decision === "Acknowledge"
-          ? "pending"
-          : decision === "Return"
-            ? "returned"
-            : "denied",
-      operationsHeadApproval: approval,
-      auditTrail: [...current.auditTrail, audit],
-    }));
-    showCloseOutDecisionToast(toast, decision, "Operations Head");
-    routeBackToWorkCloseOutRequests(router);
+    try {
+      await operationsHeadReview.mutateAsync({
+        decision: toApiDecision(decision),
+        comment: operationsHeadComment || null,
+      });
+      showCloseOutDecisionToast(toast, decision, "Operations Head");
+      routeBackToWorkCloseOutRequests(router);
+    } catch (error) {
+      console.error("Failed to submit Operations Head close-out decision", error);
+      toast.error("Unable to submit Operations Head decision.");
+    }
   }
 
   return (
@@ -329,7 +385,7 @@ export default function WorkCloseOutDetailsView({
       </button>
 
       <RoleBasedRecordHeader
-        id={request.id}
+        id={request.reference ?? "Reference pending"}
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={
@@ -346,13 +402,73 @@ export default function WorkCloseOutDetailsView({
       <StatusNote request={request} currentRole={currentRole} />
       <RequesterDetails request={request} />
       <ApprovedWorkSummary request={request} />
-      <CompletionDetails request={request} editable={permissions.canRequesterEdit} />
-      <MonitoringSection request={request} editable={permissions.canRequesterEdit} />
-      <AreaConditionSection request={request} editable={permissions.canRequesterEdit} />
+      <CompletionDetails
+        request={request}
+        editable={permissions.canRequesterEdit}
+        values={{
+          actualStartDateTime,
+          actualCompletionDateTime,
+          workCompleted,
+          completedAsApproved,
+          incidentObserved,
+          completionSummary,
+          deviationExplanation,
+          incidentNote,
+          completionEvidence,
+        }}
+        onChange={{
+          setActualStartDateTime,
+          setActualCompletionDateTime,
+          setWorkCompleted,
+          setCompletedAsApproved,
+          setIncidentObserved,
+          setCompletionSummary,
+          setDeviationExplanation,
+          setIncidentNote,
+          setCompletionEvidence,
+        }}
+      />
+      <MonitoringSection
+        editable={permissions.canRequesterEdit}
+        values={{
+          monitoredDuringExecution,
+          stayedWithinScope,
+          ppeAndControlsMaintained,
+          unsafeConditionAddressed,
+        }}
+        onChange={{
+          setMonitoredDuringExecution,
+          setStayedWithinScope,
+          setPpeAndControlsMaintained,
+          setUnsafeConditionAddressed,
+        }}
+      />
+      <AreaConditionSection
+        editable={permissions.canRequesterEdit}
+        values={{
+          workAreaCleaned,
+          toolsRemoved,
+          systemSafe,
+          remainingHazard,
+          remainingHazardDetails,
+        }}
+        onChange={{
+          setWorkAreaCleaned,
+          setToolsRemoved,
+          setSystemSafe,
+          setRemainingHazard,
+          setRemainingHazardDetails,
+        }}
+      />
 
       {permissions.canRequesterEdit ? (
         <div className="flex justify-end">
-          <Button type="button" onClick={submitCloseOut}>
+          <Button
+            type="button"
+            onClick={submitCloseOut}
+            loading={updateCloseout.isPending}
+            loadingText="Submitting..."
+          >
             Submit Close-Out
           </Button>
         </div>
@@ -525,7 +641,11 @@ function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
   return (
     <FormSection title="Approved Work Summary" description="Approved work authorization details linked to this completion request.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work Authorization Reference" value={work.id} disabled />
+        <FormInput
+          label="Work Authorization Reference"
+          value={work.reference ?? "Reference pending"}
+          disabled
+        />
         <FormInput label="Work Authorization Title" value={work.title} disabled />
         <FormInput label="Original Requester" value={work.requester} disabled />
         <FormInput label="Department" value={work.department} disabled />
@@ -544,35 +664,110 @@ function ApprovedWorkSummary({ request }: { request: WorkCloseOutRequest }) {
 function CompletionDetails({
   request,
   editable,
+  values,
+  onChange,
 }: {
   request: WorkCloseOutRequest;
   editable: boolean;
+  values: {
+    actualStartDateTime: string;
+    actualCompletionDateTime: string;
+    workCompleted: string;
+    completedAsApproved: string;
+    incidentObserved: string;
+    completionSummary: string;
+    deviationExplanation: string;
+    incidentNote: string;
+    completionEvidence: File[];
+  };
+  onChange: {
+    setActualStartDateTime: (value: string) => void;
+    setActualCompletionDateTime: (value: string) => void;
+    setWorkCompleted: (value: string) => void;
+    setCompletedAsApproved: (value: string) => void;
+    setIncidentObserved: (value: string) => void;
+    setCompletionSummary: (value: string) => void;
+    setDeviationExplanation: (value: string) => void;
+    setIncidentNote: (value: string) => void;
+    setCompletionEvidence: (files: File[]) => void;
+  };
 }) {
   const details = request.completionDetails;
-  const [completionEvidence, setCompletionEvidence] = useState<File[]>([]);
+  const requiresDeviationExplanation =
+    values.completedAsApproved === "No" ||
+    hasScheduleDeviation({
+      workAuthorization: request.workAuthorization,
+      actualStartDateTime: values.actualStartDateTime,
+      actualCompletionDateTime: values.actualCompletionDateTime,
+    });
 
   return (
     <FormSection title="Completion Details" description="Recorded completion information and submitted evidence.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Actual Start Date/Time" value={details.actualStartDateTime} disabled={!editable} />
-        <FormInput label="Actual Completion Date/Time" value={details.actualCompletionDateTime} disabled={!editable} />
+        {editable ? (
+          <>
+            <FormDateTimeInput
+              label="Actual Start Date/Time"
+              value={values.actualStartDateTime}
+              onValueChange={onChange.setActualStartDateTime}
+            />
+            <FormDateTimeInput
+              label="Actual Completion Date/Time"
+              value={values.actualCompletionDateTime}
+              onValueChange={onChange.setActualCompletionDateTime}
+            />
+          </>
+        ) : (
+          <>
+            <FormInput label="Actual Start Date/Time" value={details.actualStartDateTime} disabled />
+            <FormInput label="Actual Completion Date/Time" value={details.actualCompletionDateTime} disabled />
+          </>
+        )}
         <div className="md:col-span-2">
           <SafetyChoiceTable
             options={yesNoOptions}
             disabled={!editable}
             rows={[
-              { label: "Was work completed?", value: booleanToYesNo(details.workCompleted) },
-              { label: "Was work completed as approved?", value: booleanToYesNo(details.completedAsApproved) },
-              { label: "Any incident, hazard, or near miss observed?", value: booleanToYesNo(details.incidentObserved) },
+              {
+                label: "Was work completed?",
+                value: values.workCompleted,
+                onValueChange: onChange.setWorkCompleted,
+              },
+              {
+                label: "Was work completed as approved?",
+                value: values.completedAsApproved,
+                onValueChange: onChange.setCompletedAsApproved,
+              },
+              {
+                label: "Any incident, hazard, or near miss observed?",
+                value: values.incidentObserved,
+                onValueChange: onChange.setIncidentObserved,
+              },
             ]}
           />
         </div>
-        {!details.completedAsApproved ? (
-          <FormTextarea label="Explanation for change/deviation" value={details.deviationExplanation} disabled={!editable} />
+        {requiresDeviationExplanation ? (
+          <FormTextarea
+            label="Explanation for change/deviation"
+            value={values.deviationExplanation}
+            onChange={(event) => onChange.setDeviationExplanation(event.target.value)}
+            disabled={!editable}
+          />
         ) : null}
-        <FormTextarea label="Completion Summary" value={details.completionSummary} disabled={!editable} className="md:col-span-2" />
-        {details.incidentObserved ? (
-          <FormTextarea label="Incident/Hazard Note" value={details.incidentNote} disabled={!editable} />
+        <FormTextarea
+          label="Completion Summary"
+          value={values.completionSummary}
+          onChange={(event) => onChange.setCompletionSummary(event.target.value)}
+          disabled={!editable}
+          className="md:col-span-2"
+        />
+        {values.incidentObserved === "Yes" ? (
+          <FormTextarea
+            label="Incident/Hazard Note"
+            value={values.incidentNote}
+            onChange={(event) => onChange.setIncidentNote(event.target.value)}
+            disabled={!editable}
+          />
         ) : null}
         {/* <FormTextarea label="Completion Notes" value={details.completionNotes} disabled={!editable} className="md:col-span-2" /> */}
       </div>
@@ -582,8 +777,8 @@ function CompletionDetails({
           <div className="mt-4">
             <FileDropzone
               label="Completion Evidence"
-              value={completionEvidence}
-              onChange={setCompletionEvidence}
+              value={values.completionEvidence}
+              onChange={onChange.setCompletionEvidence}
               accept="image/*,.pdf,.doc,.docx"
               maxFiles={10}
             />
@@ -595,23 +790,50 @@ function CompletionDetails({
 }
 
 function MonitoringSection({
-  request,
   editable,
+  values,
+  onChange,
 }: {
-  request: WorkCloseOutRequest;
   editable: boolean;
+  values: {
+    monitoredDuringExecution: string;
+    stayedWithinScope: string;
+    ppeAndControlsMaintained: string;
+    unsafeConditionAddressed: string;
+  };
+  onChange: {
+    setMonitoredDuringExecution: (value: string) => void;
+    setStayedWithinScope: (value: string) => void;
+    setPpeAndControlsMaintained: (value: string) => void;
+    setUnsafeConditionAddressed: (value: string) => void;
+  };
 }) {
-  const monitoring = request.monitoring;
   return (
     <FormSection title="Monitoring Attestation" description="Confirmation of monitoring and safety-control compliance during work.">
       <SafetyChoiceTable
         options={yesNoNaOptions}
         disabled={!editable}
         rows={[
-          { label: "Work was monitored during execution", value: booleanToYesNo(monitoring.monitoredDuringExecution) },
-          { label: "Work stayed within approved scope", value: booleanToYesNo(monitoring.stayedWithinScope) },
-          { label: "Required PPE and safety controls were maintained", value: booleanToYesNo(monitoring.ppeAndControlsMaintained) },
-          { label: "Unsafe condition was reported/addressed if noticed", value: monitoring.unsafeConditionAddressed },
+          {
+            label: "Work was monitored during execution",
+            value: values.monitoredDuringExecution,
+            onValueChange: onChange.setMonitoredDuringExecution,
+          },
+          {
+            label: "Work stayed within approved scope",
+            value: values.stayedWithinScope,
+            onValueChange: onChange.setStayedWithinScope,
+          },
+          {
+            label: "Required PPE and safety controls were maintained",
+            value: values.ppeAndControlsMaintained,
+            onValueChange: onChange.setPpeAndControlsMaintained,
+          },
+          {
+            label: "Unsafe condition was reported/addressed if noticed",
+            value: values.unsafeConditionAddressed,
+            onValueChange: onChange.setUnsafeConditionAddressed,
+          },
         ]}
       />
     </FormSection>
@@ -619,13 +841,26 @@ function MonitoringSection({
 }
 
 function AreaConditionSection({
-  request,
   editable,
+  values,
+  onChange,
 }: {
-  request: WorkCloseOutRequest;
   editable: boolean;
+  values: {
+    workAreaCleaned: string;
+    toolsRemoved: string;
+    systemSafe: string;
+    remainingHazard: string;
+    remainingHazardDetails: string;
+  };
+  onChange: {
+    setWorkAreaCleaned: (value: string) => void;
+    setToolsRemoved: (value: string) => void;
+    setSystemSafe: (value: string) => void;
+    setRemainingHazard: (value: string) => void;
+    setRemainingHazardDetails: (value: string) => void;
+  };
 }) {
-  const area = request.areaCondition;
   return (
     <FormSection title="Area / Equipment Condition" description="Condition of the site and equipment after work completion.">
       <div className="space-y-4">
@@ -633,14 +868,36 @@ function AreaConditionSection({
           options={yesNoOptions}
           disabled={!editable}
           rows={[
-            { label: "Work area cleaned after completion", value: booleanToYesNo(area.workAreaCleaned) },
-            { label: "Tools/equipment removed from work area", value: booleanToYesNo(area.toolsRemoved) },
-            { label: "Vehicle/equipment/system left in safe condition", value: booleanToYesNo(area.systemSafe) },
-            { label: "Any remaining hazard?", value: booleanToYesNo(area.remainingHazard) },
+            {
+              label: "Work area cleaned after completion",
+              value: values.workAreaCleaned,
+              onValueChange: onChange.setWorkAreaCleaned,
+            },
+            {
+              label: "Tools/equipment removed from work area",
+              value: values.toolsRemoved,
+              onValueChange: onChange.setToolsRemoved,
+            },
+            {
+              label: "Vehicle/equipment/system left in safe condition",
+              value: values.systemSafe,
+              onValueChange: onChange.setSystemSafe,
+            },
+            {
+              label: "Any remaining hazard?",
+              value: values.remainingHazard,
+              onValueChange: onChange.setRemainingHazard,
+            },
           ]}
         />
-        {area.remainingHazard ? (
-          <FormTextarea label="Remaining Hazard Details" value={area.remainingHazardDetails} disabled={!editable} className="md:col-span-2" />
+        {values.remainingHazard === "Yes" ? (
+          <FormTextarea
+            label="Remaining Hazard Details"
+            value={values.remainingHazardDetails}
+            onChange={(event) => onChange.setRemainingHazardDetails(event.target.value)}
+            disabled={!editable}
+            className="md:col-span-2"
+          />
         ) : null}
       </div>
     </FormSection>
@@ -649,6 +906,144 @@ function AreaConditionSection({
 
 function booleanToYesNo(value: boolean) {
   return value ? "Yes" : "No";
+}
+
+function toDateTimeInputValue(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function toApiDateTime(value: string) {
+  return new Date(value).toISOString();
+}
+
+function yesNoNaToAnswer(value: string) {
+  if (value === "Yes") return "yes";
+  if (value === "No") return "no";
+  return "not_applicable";
+}
+
+function hasScheduleDeviation({
+  workAuthorization,
+  actualStartDateTime,
+  actualCompletionDateTime,
+}: {
+  workAuthorization: WorkCloseOutRequest["workAuthorization"];
+  actualStartDateTime: string;
+  actualCompletionDateTime: string;
+}) {
+  const actualStart = parseDateValue(actualStartDateTime);
+  const actualCompletion = parseDateValue(actualCompletionDateTime);
+  const approvedStart = parseDateValue(
+    workAuthorization.approvedStartDateTimeRaw ??
+      workAuthorization.approvedStartDateTime,
+  );
+  const approvedEnd = parseDateValue(
+    workAuthorization.approvedEndDateTimeRaw ??
+      workAuthorization.approvedEndDateTime,
+  );
+
+  return Boolean(
+    (actualStart && approvedStart && actualStart < approvedStart) ||
+      (actualCompletion && approvedStart && actualCompletion < approvedStart) ||
+      (actualCompletion && approvedEnd && actualCompletion > approvedEnd),
+  );
+}
+
+function parseDateValue(value?: string) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function buildCompletionChecklistAnswers(
+  items: SafetyChecklistItem[],
+  values: {
+    workCompleted: string;
+    completedAsApproved: string;
+    incidentObserved: string;
+  },
+): WorkCloseOutChecklistAnswerCreate[] {
+  return [
+    booleanAnswer(items, "work_completed", values.workCompleted),
+    booleanAnswer(items, "completed_as_approved", values.completedAsApproved),
+    booleanAnswer(items, "incident_observed", values.incidentObserved),
+  ].filter(Boolean) as WorkCloseOutChecklistAnswerCreate[];
+}
+
+function buildMonitoringChecklistAnswers(
+  items: SafetyChecklistItem[],
+  values: {
+    monitoredDuringExecution: string;
+    stayedWithinScope: string;
+    ppeAndControlsMaintained: string;
+    unsafeConditionAddressed: string;
+  },
+): WorkCloseOutChecklistAnswerCreate[] {
+  return [
+    booleanAnswer(
+      items,
+      "monitored_during_execution",
+      values.monitoredDuringExecution,
+    ),
+    booleanAnswer(items, "stayed_within_scope", values.stayedWithinScope),
+    booleanAnswer(
+      items,
+      "ppe_and_controls_maintained",
+      values.ppeAndControlsMaintained,
+    ),
+    enumAnswer(
+      items,
+      "unsafe_condition_addressed",
+      yesNoNaToAnswer(values.unsafeConditionAddressed),
+    ),
+  ].filter(Boolean) as WorkCloseOutChecklistAnswerCreate[];
+}
+
+function buildAreaConditionChecklistAnswers(
+  items: SafetyChecklistItem[],
+  values: {
+    workAreaCleaned: string;
+    toolsRemoved: string;
+    systemSafe: string;
+    remainingHazard: string;
+  },
+): WorkCloseOutChecklistAnswerCreate[] {
+  return [
+    booleanAnswer(items, "work_area_cleaned", values.workAreaCleaned),
+    booleanAnswer(items, "tools_removed", values.toolsRemoved),
+    booleanAnswer(items, "system_safe", values.systemSafe),
+    booleanAnswer(items, "remaining_hazard", values.remainingHazard),
+  ].filter(Boolean) as WorkCloseOutChecklistAnswerCreate[];
+}
+
+function booleanAnswer(
+  items: SafetyChecklistItem[],
+  itemKey: string,
+  value: string,
+): WorkCloseOutChecklistAnswerCreate | null {
+  const item = items.find((current) => current.item_key === itemKey);
+  if (!item) return null;
+  return {
+    item_id: item.id,
+    value_boolean: value === "Yes",
+  };
+}
+
+function enumAnswer(
+  items: SafetyChecklistItem[],
+  itemKey: string,
+  value: string,
+): WorkCloseOutChecklistAnswerCreate | null {
+  const item = items.find((current) => current.item_key === itemKey);
+  if (!item) return null;
+  return {
+    item_id: item.id,
+    selected_option: value,
+  };
 }
 
 function ApprovalResult({
@@ -815,38 +1210,11 @@ function getWorkCloseOutAccessRole({
   return "requester";
 }
 
-function employeeMatchesName(
-  employee: SafetyEmployeeProfile | undefined,
-  name?: string | null,
-) {
-  const expectedName = normalizeComparableText(name);
-  if (!employee || !expectedName) return false;
-
-  return (
-    normalizeComparableText(employee.user?.email) === expectedName ||
-    normalizeComparableText(employee.user?.first_name) === expectedName ||
-    normalizeComparableText(employee.user?.last_name) === expectedName ||
-    normalizeComparableText(
-      `${employee.user?.first_name ?? ""} ${employee.user?.last_name ?? ""}`,
-    ) === expectedName
-  );
-}
-
-function normalizeComparableText(value?: string | null) {
-  return value?.trim().toLowerCase() ?? "";
-}
-
 function isOperationsHeadEmployee(employee?: SafetyEmployeeProfile | null) {
-  const userRole = employee?.user?.role?.trim().toLowerCase();
-  if (userRole === "admin" || userRole === "super_admin") return true;
-
   const department = employee?.department?.trim().toLowerCase();
-  const jobTitle = employee?.job_title?.trim().toLowerCase() ?? "";
+  const jobTitle = employee?.job_title?.trim() ?? "";
 
-  return (
-    department === "operations" &&
-    /\b(hod|head|manager|lead)\b/.test(jobTitle)
-  );
+  return department === "operations" && jobTitle === "Process Manager";
 }
 
 function isHseDepartment(department?: string | null) {

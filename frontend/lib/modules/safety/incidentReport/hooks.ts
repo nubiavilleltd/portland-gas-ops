@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/store/authStore";
 import { incidentReportsApi } from "./api";
 import { mapIncidentReportToHazardReport } from "./mappers";
-import type { IncidentReportListParams } from "./types";
+import type { IncidentReportListParams, IncidentResolveCreate } from "./types";
 
 export const incidentReportKeys = {
   all: ["safety", "incident-reports"] as const,
@@ -46,5 +46,34 @@ export function useIncidentReport(id: string) {
     enabled: isAuthenticated && Boolean(id),
     staleTime: 60 * 1000,
     retry: shouldRetry,
+  });
+}
+
+export function useResolveIncidentWithCloseout(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: IncidentResolveCreate) =>
+      incidentReportsApi.resolveWithCloseout(id, payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: incidentReportKeys.detail(id) }),
+        queryClient.invalidateQueries({ queryKey: incidentReportKeys.lists() }),
+      ]);
+    },
+  });
+}
+
+export function useCloseIncident(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => incidentReportsApi.close(id),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: incidentReportKeys.detail(id) }),
+        queryClient.invalidateQueries({ queryKey: incidentReportKeys.lists() }),
+      ]);
+    },
   });
 }

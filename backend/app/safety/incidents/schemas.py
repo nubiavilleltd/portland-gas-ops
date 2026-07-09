@@ -101,6 +101,10 @@ class IncidentReportUpdate(BaseModel):
         return self
 
 
+class IncidentResolveCreate(BaseModel):
+    work_closeout_id: str
+
+
 class IncidentHseReviewCreate(BaseModel):
     confirmed_report_type: IncidentReportType
     confirmed_severity: IncidentSeverityEstimate

@@ -10,16 +10,18 @@ from app.core.database import get_db
 from app.employees.models import Employee
 from app.safety.dependencies import require_hse_reviewer
 from app.safety.work_closeouts import service as work_closeout_service
-from app.safety.work_closeouts.models import WorkCloseOutStatus
+from app.safety.work_closeouts.models import WorkCloseOutDecision, WorkCloseOutStatus
 from app.safety.work_closeouts.schemas import (
     WorkCloseOutCreate,
     WorkCloseOutDecisionCreate,
     WorkCloseOutHseReviewCreate,
     WorkCloseOutListItem,
     WorkCloseOutResponse,
+    WorkCloseOutUpdate,
 )
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
+from app.shared.services import workflow_email
 
 
 router = APIRouter(
@@ -141,6 +143,7 @@ async def create_work_closeout(
         current_user=current_user,
         completion_evidence=evidence_files,
     )
+    workflow_email.notify_new_request(db, "work_closeout", record.id)
 
     return WorkCloseOutResponse.from_model(record)
 
@@ -159,6 +162,29 @@ def get_work_closeout(
     return WorkCloseOutResponse.from_model(record)
 
 
+@router.put("/{work_closeout_id}", response_model=WorkCloseOutResponse)
+async def update_work_closeout(
+    work_closeout_id: str,
+    data: str = Form(...),
+    completion_evidence: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    payload = parse_form_payload(data, WorkCloseOutUpdate)
+    evidence_files = await validate_attachments(completion_evidence)
+
+    record = work_closeout_service.update_work_closeout(
+        db=db,
+        work_closeout_id=work_closeout_id,
+        data=payload,
+        current_user=current_user,
+        completion_evidence=evidence_files,
+    )
+    workflow_email.notify_new_request(db, "work_closeout", record.id)
+
+    return WorkCloseOutResponse.from_model(record)
+
+
 @router.post("/{work_closeout_id}/supervisor-review", response_model=WorkCloseOutResponse)
 def supervisor_review(
     work_closeout_id: str,
@@ -166,11 +192,18 @@ def supervisor_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record = work_closeout_service.supervisor_decision(
+    record, approval_request_id = work_closeout_service.supervisor_decision(
         db=db,
         work_closeout_id=work_closeout_id,
         data=data,
         current_user=current_user,
+    )
+    notify_closeout_decision_result(
+        db,
+        approval_request_id,
+        data.decision,
+        data.comment,
+        is_final_step=False,
     )
 
     return WorkCloseOutResponse.from_model(record)
@@ -183,11 +216,18 @@ def operations_head_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record = work_closeout_service.operations_head_decision(
+    record, approval_request_id = work_closeout_service.operations_head_decision(
         db=db,
         work_closeout_id=work_closeout_id,
         data=data,
         current_user=current_user,
+    )
+    notify_closeout_decision_result(
+        db,
+        approval_request_id,
+        data.decision,
+        data.comment,
+        is_final_step=False,
     )
 
     return WorkCloseOutResponse.from_model(record)
@@ -200,11 +240,51 @@ def hse_review(
     db: Session = Depends(get_db),
     inspector: Employee = Depends(require_hse_reviewer),
 ):
-    record = work_closeout_service.hse_decision(
+    record, approval_request_id = work_closeout_service.hse_decision(
         db=db,
         work_closeout_id=work_closeout_id,
         data=data,
         inspector=inspector,
     )
+    notify_closeout_decision_result(
+        db,
+        approval_request_id,
+        data.decision,
+        data.comment,
+        is_final_step=True,
+    )
 
     return WorkCloseOutResponse.from_model(record)
+
+
+def notify_closeout_decision_result(
+    db: Session,
+    approval_request_id: str,
+    decision: WorkCloseOutDecision,
+    comment: Optional[str],
+    is_final_step: bool,
+) -> None:
+    if decision in (WorkCloseOutDecision.approve, WorkCloseOutDecision.acknowledge):
+        if is_final_step:
+            workflow_email.notify_request_result(
+                db,
+                approval_request_id,
+                "approved",
+                comment=comment,
+            )
+        else:
+            workflow_email.notify_step_assigned(db, approval_request_id)
+    elif decision == WorkCloseOutDecision.return_:
+        workflow_email.notify_request_result(
+            db,
+            approval_request_id,
+            "returned",
+            comment=comment,
+        )
+    else:
+        workflow_email.notify_request_result(
+            db,
+            approval_request_id,
+            "rejected",
+            comment=comment,
+        )

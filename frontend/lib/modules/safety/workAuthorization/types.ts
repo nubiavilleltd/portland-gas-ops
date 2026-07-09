@@ -42,6 +42,11 @@ export interface WorkAuthorizationCreate {
   attachments?: WorkAuthorizationAttachmentCreate[];
 }
 
+export type WorkAuthorizationUpdate = Omit<
+  WorkAuthorizationCreate,
+  "work_initiation_id"
+>;
+
 export interface WorkAuthorizationHseReviewCreate {
   work_area_safe: WorkAuthorizationInspectionCheck;
   emergency_equipment_available: WorkAuthorizationInspectionCheck;

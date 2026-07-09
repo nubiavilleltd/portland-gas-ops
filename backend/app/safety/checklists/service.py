@@ -80,10 +80,32 @@ def create_parent_responses(
     current_user: User,
 ) -> list[SafetyChecklistResponse]:
     employee = get_current_employee(db, current_user)
+    add_parent_responses(
+        db=db,
+        data=data,
+        answered_by=employee.id,
+    )
+    db.commit()
+
+    return list_parent_responses(
+        db=db,
+        parent_type=data.parent_type,
+        parent_id=data.parent_id,
+    )
+
+
+def add_parent_responses(
+    db: Session,
+    data: ChecklistResponsesCreate,
+    answered_by: str,
+) -> list[SafetyChecklistResponse]:
     item_ids = [answer.item_id for answer in data.answers]
     items = (
         db.query(SafetyChecklistItem)
-        .options(joinedload(SafetyChecklistItem.template))
+        .options(
+            joinedload(SafetyChecklistItem.template)
+            .joinedload(SafetyChecklistTemplate.items)
+        )
         .filter(SafetyChecklistItem.id.in_(item_ids))
         .all()
     )
@@ -96,6 +118,7 @@ def create_parent_responses(
         )
 
     response_group_id = data.response_group_id or str(uuid.uuid4())
+    validate_response_templates(data, items_by_id)
     responses: list[SafetyChecklistResponse] = []
     for answer in data.answers:
         item = items_by_id[answer.item_id]
@@ -126,21 +149,56 @@ def create_parent_responses(
                 value_datetime=answer.value_datetime,
                 selected_option=answer.selected_option,
                 comment=answer.comment,
-                answered_by=employee.id,
+                answered_by=answered_by,
             )
         )
 
     db.add_all(responses)
-    db.commit()
+    db.flush()
+    return responses
 
-    for response in responses:
-        db.refresh(response)
 
-    return list_parent_responses(
-        db=db,
-        parent_type=data.parent_type,
-        parent_id=data.parent_id,
-    )
+def validate_response_templates(
+    data: ChecklistResponsesCreate,
+    items_by_id: dict[str, SafetyChecklistItem],
+) -> None:
+    answered_item_ids = set(items_by_id.keys())
+    templates_by_id = {
+        item.template.id: item.template
+        for item in items_by_id.values()
+    }
+
+    for item in items_by_id.values():
+        template = item.template
+        if not template.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Checklist template is inactive: {template.code}",
+            )
+
+        if template.parent_type != data.parent_type:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Checklist item {item.item_key} does not belong to "
+                    f"{data.parent_type.value}."
+                ),
+            )
+
+    for template in templates_by_id.values():
+        missing_required_items = [
+            item.item_key
+            for item in template.items
+            if item.is_active and item.is_required and item.id not in answered_item_ids
+        ]
+        if missing_required_items:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Missing required checklist answer: "
+                    f"{missing_required_items[0]}"
+                ),
+            )
 
 
 def validate_answer_value(

@@ -18,13 +18,12 @@ import type {
   SafetyChecklistItem,
   SafetyChecklistTemplate,
 } from "@/lib/modules/safety/checklists";
-import { useWorkInitiations } from "@/lib/modules/safety/workInitiation";
 import {
+  useEligibleWorkInitiationsForAuthorization,
   workAuthorizationsApi,
   type WorkAuthorizationCreate,
 } from "@/lib/modules/safety/workAuthorization";
 import {
-  getSafetyEmployeeDisplayName,
   getSafetyEmployeeRequester,
   useSafetyCurrentEmployee,
 } from "@/lib/modules/safety/people";
@@ -60,26 +59,12 @@ export default function WorkAuthorizationForm() {
     currentEmployee.data,
     formatLocalDate(),
   );
-  const currentEmployeeName = getSafetyEmployeeDisplayName(currentEmployee.data);
-  const isCurrentEmployeeName = (name: string) =>
-    Boolean(currentEmployeeName) &&
-    name.trim().toLowerCase() === currentEmployeeName.toLowerCase();
-  const workInitiationsQuery = useWorkInitiations({ status: "approved" });
+  const workInitiationsQuery = useEligibleWorkInitiationsForAuthorization();
   const riskChecklist = useActiveSafetyChecklist(
     "work_authorization",
     "risk_assessment",
   );
-  const approvedWorkInitiations = (workInitiationsQuery.data ?? [])
-    .filter(
-      (request) =>
-        request.status === "approved" &&
-        request.operationalReview?.decision === "Approve" &&
-        (
-          isCurrentEmployeeName(request.requester.name) ||
-          isCurrentEmployeeName(request.assignment.assignedSupervisor) ||
-          request.assignment.assignedWorkers.some(isCurrentEmployeeName)
-        ),
-    );
+  const approvedWorkInitiations = workInitiationsQuery.data ?? [];
   const workInitiations: AssignedWorkInitiationSummary[] = approvedWorkInitiations
     .map((request) => ({
       id: request.id,
@@ -92,7 +77,9 @@ export default function WorkAuthorizationForm() {
       location: request.location,
       exactWorkArea: request.exactWorkArea,
       workDescription: request.workDescription,
+      assignedSupervisorId: request.assignment.assignedSupervisorId,
       assignedSupervisor: request.assignment.assignedSupervisor,
+      assignedWorkerIds: request.assignment.assignedWorkerIds,
       assignedWorkers: request.assignment.assignedWorkers,
       contractorsNeeded: request.assignment.contractorsNeeded,
       selectedContractor: request.assignment.selectedContractor,
@@ -110,7 +97,7 @@ export default function WorkAuthorizationForm() {
   const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
   const workInitiationOptions = approvedWorkInitiations.map((item) => ({
     value: item.id,
-    label: `${item.reference ?? item.id} - ${item.title}`,
+    label: item.reference ? `${item.reference} - ${item.title}` : item.title,
     description: `${item.requester.name} | ${item.requester.requestDate}`,
   }));
   const selectedWorkInitiation = workInitiations.find(

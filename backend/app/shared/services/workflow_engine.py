@@ -143,8 +143,9 @@ _REQUEST_TYPE_PREFIX = {
     "procurement":    "REQ-PROC",
     "asset":          "REQ-ASSET",
     "leave":          "REQ-LEAVE",
-    "work_initiation":"REQ-WI",
-    "work_closeout":  "REQ-WC",
+    "work_initiation":    "REQ-WI",
+    "work_authorization": "REQ-WA",
+    "work_closeout":      "REQ-WC",
 }
 
 

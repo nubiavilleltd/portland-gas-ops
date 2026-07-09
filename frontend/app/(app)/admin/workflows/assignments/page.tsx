@@ -17,6 +17,7 @@ const REQUEST_TYPES = [
   { value: "cash_requisition",   label: "Cash Requisitions",      description: "Petty cash and advance payment requests" },
   { value: "invoice",            label: "Invoice Approvals",      description: "Vendor invoice review and payment approval" },
   { value: "work_initiation",    label: "Work Initiation",        description: "PTW / work initiation forms before field work begins" },
+  { value: "work_authorization", label: "Work Authorization",     description: "HSE authorization before approved field work starts" },
   { value: "work_closeout",      label: "Work Close-Out",         description: "Completion sign-off after field work is done" },
   { value: "safety",             label: "Safety Incidents",       description: "Incident and hazard reports requiring HSE review" },
 ];
