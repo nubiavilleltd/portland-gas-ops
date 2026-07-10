@@ -22,6 +22,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 
 // ─── Response interceptor — silent refresh on 401 ────────────────────────────
 let isRefreshing = false;
+let isRedirectingToLogin = false;   // guard: only one logout+redirect per session
 let failedQueue: Array<{
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -82,16 +83,31 @@ api.interceptors.response.use(
           originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
         }
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         processQueue(refreshError, null);
 
-        // Refresh failed — clear session and redirect to login
-        const { clearTokens } = await import("./auth");
-        await clearTokens();
+        const refreshStatus = refreshError?.response?.status;
 
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
+        // Only clear session + redirect on a real auth failure (401).
+        // A 429 rate-limit means the token is still valid — do NOT redirect,
+        // just let React Query surface the error naturally.
+        if (refreshStatus === 401 && !isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          const { clearTokens } = await import("./auth");
+          await clearTokens();
+          // Call logout to delete the HTTP-only refresh_token cookie.
+          // Without this the cookie persists and middleware keeps redirecting to /
+          // instead of allowing the login page to show.
+          try {
+            await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
+          } catch {
+            // ignore — we're logging out regardless
+          }
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
         }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

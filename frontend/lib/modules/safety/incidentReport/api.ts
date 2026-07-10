@@ -1,6 +1,7 @@
 import api from "@/lib/api";
 import type {
   IncidentHseReviewCreate,
+  IncidentHseVerificationCreate,
   IncidentHseReviewResponse,
   IncidentReportCreate,
   IncidentReportListParams,
@@ -60,8 +61,22 @@ export const incidentReportsApi = {
     return data;
   },
 
-  close: async (id: string): Promise<IncidentReportResponse> => {
-    const { data } = await api.post(`/api/safety/incidents/${id}/close`);
+  close: async (
+    id: string,
+    payload: IncidentHseVerificationCreate,
+  ): Promise<IncidentReportResponse> => {
+    const { data } = await api.post(`/api/safety/incidents/${id}/close`, payload);
+    return data;
+  },
+
+  markNotResolved: async (
+    id: string,
+    payload: IncidentHseVerificationCreate,
+  ): Promise<IncidentReportResponse> => {
+    const { data } = await api.post(
+      `/api/safety/incidents/${id}/not-resolved`,
+      payload,
+    );
     return data;
   },
 

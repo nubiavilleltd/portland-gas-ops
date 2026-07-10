@@ -56,12 +56,16 @@ class ApprovalHistoryAction(str, enum.Enum):
 
 
 class AuditAction(str, enum.Enum):
-    submitted = "submitted"
-    approved  = "approved"
-    rejected  = "rejected"
-    returned  = "returned"
-    escalated = "escalated"
-    recalled  = "recalled"
+    submitted    = "submitted"
+    approved     = "approved"
+    rejected     = "rejected"
+    returned     = "returned"
+    escalated    = "escalated"
+    recalled     = "recalled"
+    recommended  = "recommended"
+    resolved     = "resolved"
+    not_resolved = "not_resolved"
+    closed       = "closed"
 
 
 class AllRequestStatus(str, enum.Enum):

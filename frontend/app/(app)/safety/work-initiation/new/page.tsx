@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -19,7 +20,9 @@ export default function NewWorkInitiationPage() {
         description="Describe the operational work, related asset, and assignment plan."
         className="mb-6"
       />
-      <WorkInitiationForm />
+      <Suspense>
+        <WorkInitiationForm />
+      </Suspense>
     </AppLayout>
   );
 }

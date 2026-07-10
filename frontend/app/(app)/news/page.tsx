@@ -8,27 +8,21 @@ import IntranetLayout from "@/components/layout/IntranetLayout";
 import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { cn } from "@/lib/utils";
+import { useIntranetNewsPublished, useIntranetNewsCategories } from "@/lib/modules/intranet/queries";
+import type { NewsCategoryColor } from "@/lib/modules/intranet/types/intranet.types";
 
-const PG = "https://portlandgasltd.com/wp-content/uploads/2026/03";
 const PAGE_SIZE = 6;
 
-export const NEWS = [
-  { id: 1, category: "Company News",   badge: "bg-[#7234BD] text-white",      title: "Portland Gas Commissions New CNG Refuelling Station in Lekki",   excerpt: "The newly commissioned station marks our 14th fuelling point in Lagos, expanding access to clean energy for fleet operators and private vehicle owners.", date: "9 Jun 2026",  author: "Corporate Communications",     img: `${PG}/Portland-gas-46-1.png` },
-  { id: 2, category: "Announcement",   badge: "bg-[#FFBC00] text-[#1C043B]",  title: "Q2 2026 Town Hall — All Staff Meeting Thursday 12 June",            excerpt: "The MD will address Q2 performance and strategic priorities for H2 2026, then open the floor to questions. Attendance is mandatory for all staff.", date: "8 Jun 2026",  author: "MD's Office",                  img: `${PG}/NASENI-PORTLAND-GAS-LAUNCH-4-scaled-1.jpg` },
-  { id: 3, category: "Policy Update",  badge: "bg-gray-100 text-[#1C043B]",   title: "Updated Remote Work & Flexible Hours Policy Effective 1 July",     excerpt: "HR has published the revised hybrid work policy. All staff must read and acknowledge the new policy before end of June 2026.",                    date: "6 Jun 2026",  author: "Human Resources",              img: `${PG}/Portland-gas-18.png` },
-  { id: 4, category: "Project Update", badge: "bg-[#7234BD] text-white",      title: "Phase 2 of Sagamu–Ibadan LNG Pipeline Now Underway",               excerpt: "Engineering teams have mobilised to site as the second phase of the landmark pipeline project begins. Completion is targeted for Q4 2026.",        date: "4 Jun 2026",  author: "Projects & Engineering",       img: `${PG}/CNG-bus-fleet.jpg` },
-  { id: 5, category: "Safety",         badge: "bg-red-500 text-white",        title: "Mandatory HSE Refresher Training — All Field Staff by 30 June",    excerpt: "HSE has scheduled refresher sessions across all field locations. Supervisors must ensure 100% participation before the end-of-month deadline.",    date: "3 Jun 2026",  author: "Health, Safety & Environment", img: `${PG}/Portland-gas-23.png` },
-  { id: 6, category: "Events",         badge: "bg-[#FFBC00] text-[#1C043B]", title: "Portland Gas Annual Family Fun Day — Saturday 28 June",             excerpt: "Join us for a day of fun, food, and fellowship. Venue: Landmark Event Centre, Victoria Island. Registration closes 20 June — don't miss out.",    date: "2 Jun 2026",  author: "Admin & Corporate Services",   img: `${PG}/KL7V2Q3.webp` },
-];
-
-const TABS = ["All", "News", "Announcements", "Events", "Policies", "Safety"];
-
-const TAB_MAP: Record<string, string[]> = {
-  News:          ["Company News", "Project Update"],
-  Announcements: ["Announcement"],
-  Events:        ["Events"],
-  Policies:      ["Policy Update"],
-  Safety:        ["Safety"],
+// Tailwind-safe badge classes by color key
+const COLOR_BADGE_CLASS: Record<NewsCategoryColor, string> = {
+  purple: "bg-[#7234BD] text-white",
+  yellow: "bg-[#FFBC00] text-[#1C043B]",
+  gray:   "bg-gray-100 text-[#1C043B]",
+  red:    "bg-red-500 text-white",
+  blue:   "bg-blue-100 text-blue-700",
+  green:  "bg-green-100 text-green-700",
+  teal:   "bg-teal-100 text-teal-700",
+  orange: "bg-orange-100 text-orange-700",
 };
 
 export default function NewsPage() {
@@ -36,9 +30,31 @@ export default function NewsPage() {
   const [q,    setQ]    = useState("");
   const [page, setPage] = useState(1);
 
+  const { data: rawNews    = [] } = useIntranetNewsPublished();
+  const { data: categories = [] } = useIntranetNewsCategories();
+
+  const TABS = ["All", ...categories.map((c) => c.name)];
+
+  // Map color key from categories to badge class for each article
+  const colorByName = Object.fromEntries(categories.map((c) => [c.name, c.color as NewsCategoryColor]));
+
+  const NEWS = rawNews.map((n) => ({
+    id:          n.id,
+    category:    n.category,
+    badge:       COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[#1C043B]",
+    title:       n.title,
+    bodyHtml:    n.body,
+    excerptText: n.body.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(),
+    date:        n.published_at
+      ? new Date(n.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+      : "",
+    author:      n.author_name,
+    img:         n.cover_image_url ?? "",
+  }));
+
   const filtered = NEWS.filter((n) => {
-    if (tab !== "All" && !TAB_MAP[tab]?.includes(n.category)) return false;
-    if (q) return n.title.toLowerCase().includes(q.toLowerCase()) || n.excerpt.toLowerCase().includes(q.toLowerCase());
+    if (tab !== "All" && n.category !== tab) return false;
+    if (q) return n.title.toLowerCase().includes(q.toLowerCase()) || n.excerptText.toLowerCase().includes(q.toLowerCase());
     return true;
   });
 
@@ -131,7 +147,10 @@ export default function NewsPage() {
                     <h3 className="font-bold text-[#1C043B] text-sm leading-snug mb-2 group-hover:text-[#7234BD] transition-colors line-clamp-2">
                       {item.title}
                     </h3>
-                    <p className="text-gray-500 text-xs leading-relaxed line-clamp-3 mb-4">{item.excerpt}</p>
+                    <div
+                      className="rich-text-preview line-clamp-3 mb-4"
+                      dangerouslySetInnerHTML={{ __html: item.bodyHtml }}
+                    />
                     <div className="flex items-center justify-between text-[11px] text-gray-400">
                       <span>{item.author}</span>
                       <span className="flex items-center gap-1 text-[#7234BD] font-semibold">

@@ -75,7 +75,7 @@ export default function AssetRequestDetailPage() {
         status: "returned",
         auditEntry: {
           action: "Returned",
-          actor: req?.requester?.name ?? req?.requester_name ?? "Requester",
+          actor: req?.requester_name ?? "Requester",
           role: "Requester",
           dateTime: nowStr(),
           comment: "",

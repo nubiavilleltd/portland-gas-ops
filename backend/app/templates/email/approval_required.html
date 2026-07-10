@@ -5,10 +5,7 @@
 
 <p>Hi {{approver_name}},</p>
 
-<p>
-  A <strong>{{request_type_label}}</strong> request has been submitted and is waiting
-  for your approval.
-</p>
+<p>{{intro_message}}</p>
 
 <table style="width:100%; border:1px solid #e5e7eb; border-radius:8px; border-collapse:collapse; margin:20px 0;">
   <tr style="background:#f9fafb;">
@@ -25,12 +22,9 @@
   </tr>
 </table>
 
-<a href="{{action_url}}" class="btn">Review &amp; Approve</a>
+<a href="{{action_url}}" class="btn">{{button_label}}</a>
 
-<p>
-  Click the button above to open the request. If you are not currently signed in,
-  you will be taken to the login page and redirected back to the request automatically.
-</p>
+<p>{{action_message}}</p>
 
 <hr class="divider" />
 

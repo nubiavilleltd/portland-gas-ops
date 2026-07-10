@@ -2,6 +2,9 @@ function pad(value: number) {
   return String(value).padStart(2, "0");
 }
 
+export const MIN_SCHEDULE_DURATION_MINUTES = 3;
+export const SCHEDULE_DEVIATION_TOLERANCE_MINUTES = 3;
+
 export function toLocalDateInputValue(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
@@ -23,7 +26,7 @@ export function getEarliestPlannedStartDateTime() {
 }
 
 export function getLatestActualWorkDateTime() {
-  return toLocalDateTimeInputValue(addMinutes(new Date(), -10));
+  return toLocalDateTimeInputValue(new Date());
 }
 
 export function getTodayDateInputValue() {

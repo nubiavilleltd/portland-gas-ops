@@ -105,7 +105,7 @@ def setup_account(request: Request, body: SetupAccountRequest, db: Session = Dep
 
 
 @router.post("/refresh")
-@limiter.limit("3/minute")
+@limiter.limit("30/minute")
 def refresh(
     request: Request,
     refresh_token: Optional[str] = Cookie(default=None),

@@ -14,11 +14,27 @@ import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
 import SafetyChoiceTable from "./SafetyChoiceTable";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
-import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
-import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
+import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
+import { useAuditTrail, useMyApprovals } from "@/lib/modules/workflow/queries";
+import {
+  safetyChecklistsApi,
+  useActiveSafetyChecklist,
+  useSafetyChecklistResponses,
+} from "@/lib/modules/safety/checklists";
+import type {
+  SafetyChecklistAnswerCreate,
+  SafetyChecklistItem,
+  SafetyChecklistResponse,
+  SafetyChecklistTemplate,
+} from "@/lib/modules/safety/checklists";
 import { isExceptionWorkCloseOut } from "@/lib/safety-demo-routing";
 import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
+import {
+  getDateTimeAfter,
+  getLatestActualWorkDateTime,
+  MIN_SCHEDULE_DURATION_MINUTES,
+  SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
+} from "@/lib/modules/safety/date-rules";
 import {
   useHseWorkCloseoutReview,
   useOperationsHeadWorkCloseoutReview,
@@ -32,6 +48,7 @@ import {
   type SafetyEmployeeProfile,
 } from "@/lib/modules/safety/people";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
 import type {
   WorkAuthorizationAttachment,
   WorkCloseOutApprovalResult,
@@ -78,6 +95,12 @@ export default function WorkCloseOutDetailsView({
   const request = closeoutQuery.data;
   const updateCloseout = useUpdateWorkCloseout(requestId);
   const myApprovalsQuery = useMyApprovals();
+  const auditTrailQuery = useAuditTrail("work_closeout", requestId);
+  const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
+  const hseCloseoutResponsesQuery = useSafetyChecklistResponses(
+    "closeout_review",
+    request?.hseApproval?.id ?? "",
+  );
   const supervisorReview = useSupervisorWorkCloseoutReview(requestId);
   const operationsHeadReview = useOperationsHeadWorkCloseoutReview(requestId);
   const hseReview = useHseWorkCloseoutReview(requestId);
@@ -111,14 +134,9 @@ export default function WorkCloseOutDetailsView({
     isAssignedWorkflowApprover &&
     request?.status === "pending" &&
     Boolean(request?.operationsHeadApproval);
-  const hasDirectCloseOutAccess =
-    isRequester ||
-    isAssignedSupervisor ||
-    isAssignedWorkflowOperationsHead ||
-    isAssignedWorkflowHse;
   const currentRole = getWorkCloseOutAccessRole({
     isRequester,
-    isAssignedSupervisor: isAssignedSupervisor || isAssignedWorkflowSupervisor,
+    isAssignedSupervisor,
     isOperationsHead: isOperationsHead && isAssignedWorkflowOperationsHead,
     isHseEmployee: isHseEmployee && isAssignedWorkflowHse,
   });
@@ -151,6 +169,10 @@ export default function WorkCloseOutDetailsView({
   const areaConditionChecklist = useActiveSafetyChecklist(
     "work_closeout",
     "closeout_review",
+  );
+  const hseCloseoutChecklist = useActiveSafetyChecklist(
+    "closeout_review",
+    "hse_review",
   );
   const hseChecksIncomplete =
     !hseVerifiedCloseOut || !hseAreaSafe || !hseCorrectiveActionRequired;
@@ -234,7 +256,8 @@ export default function WorkCloseOutDetailsView({
     (permissions.canRequesterEdit &&
       (completionChecklist.isLoading ||
         monitoringChecklist.isLoading ||
-        areaConditionChecklist.isLoading))
+        areaConditionChecklist.isLoading)) ||
+    (permissions.canHseApprove && hseCloseoutChecklist.isLoading)
   ) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
@@ -249,6 +272,16 @@ export default function WorkCloseOutDetailsView({
 
   async function submitCloseOut() {
     if (!request) return;
+    if (updateCloseout.isPending) return;
+    const actualTimingError = validateActualWorkTiming({
+      actualStartDateTime,
+      actualCompletionDateTime,
+    });
+    if (actualTimingError) {
+      toast.error(actualTimingError);
+      return;
+    }
+
     const requiresDeviationExplanation =
       completedAsApproved === "No" ||
       hasScheduleDeviation({
@@ -315,6 +348,7 @@ export default function WorkCloseOutDetailsView({
 
   async function supervisorDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
+    if (supervisorReview.isPending) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (isReturnOrDeny(decision) && !supervisorComment.trim()) return;
@@ -333,13 +367,14 @@ export default function WorkCloseOutDetailsView({
 
   async function hseDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
+    if (hseReview.isPending) return;
     if (hseChecksIncomplete) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (decision === "Approve" && hseApprovalBlocked) return;
     if (isReturnOrDeny(decision) && !hseComment.trim()) return;
     try {
-      await hseReview.mutateAsync({
+      const saved = await hseReview.mutateAsync({
         decision: toApiDecision(decision),
         comment: hseComment || null,
         verified_close_out: hseVerifiedCloseOut === "Yes",
@@ -347,6 +382,34 @@ export default function WorkCloseOutDetailsView({
         corrective_action_required: hseCorrectiveActionRequired === "Yes",
         corrective_action_details: null,
       });
+      const reviewId = saved.hse_review?.id;
+      const checklistAnswers = buildHseCloseoutChecklistAnswers(
+        hseCloseoutChecklist.data?.items ?? [],
+        {
+          hseVerifiedCloseOut,
+          hseAreaSafe,
+          hseCorrectiveActionRequired,
+        },
+      );
+      if (reviewId && checklistAnswers.length > 0) {
+        try {
+          await safetyChecklistsApi.createResponses({
+            parent_type: "closeout_review",
+            parent_id: reviewId,
+            answers: checklistAnswers,
+          });
+        } catch (checklistError) {
+          console.error(
+            "Failed to save HSE close-out checklist responses",
+            checklistError,
+          );
+          toast.info(
+            "HSE decision saved, but the close-out checklist history could not be saved.",
+          );
+          routeBackToWorkCloseOutRequests(router);
+          return;
+        }
+      }
       showCloseOutDecisionToast(toast, decision, "HSE");
       routeBackToWorkCloseOutRequests(router);
     } catch (error) {
@@ -357,6 +420,7 @@ export default function WorkCloseOutDetailsView({
 
   async function operationsHeadDecision(decision: WorkCloseOutDecision) {
     if (!request) return;
+    if (operationsHeadReview.isPending) return;
     if (isExceptionCloseOut && decision === "Approve") return;
     if (!isExceptionCloseOut && decision === "Acknowledge") return;
     if (isReturnOrDeny(decision) && !operationsHeadComment.trim()) return;
@@ -389,7 +453,9 @@ export default function WorkCloseOutDetailsView({
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={
-          hasDirectCloseOutAccess ? getWorkCloseOutRoleLabel(currentRole) : "Viewer"
+          isRequester || isAssignedSupervisor || isAssignedWorkflowApprover
+            ? getWorkCloseOutRoleLabel(currentRole)
+            : "Viewer"
         }
         roles={workCloseOutRoles}
         recordLabel="Work Completion & Close-Out"
@@ -479,7 +545,7 @@ export default function WorkCloseOutDetailsView({
           title={`Supervisor Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
-              ? "This close-out reports incomplete, deviated, or unsafe work. Acknowledge it for audit, return it for correction, or deny it."
+              ? "This close-out was not completed as approved or has a remaining hazard. Acknowledge it for audit, return it for correction, or deny it."
               : "Review the reported completion and record your supervisor decision."
           }
           commentLabel="Supervisor Comment"
@@ -488,6 +554,7 @@ export default function WorkCloseOutDetailsView({
           onCommentChange={setSupervisorComment}
           approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
           rejectLabel="Deny"
+          disabled={supervisorReview.isPending}
           returnDisabled={!supervisorComment.trim()}
           rejectDisabled={!supervisorComment.trim()}
           onApprove={() => supervisorDecision(isExceptionCloseOut ? "Acknowledge" : "Approve")}
@@ -523,6 +590,7 @@ export default function WorkCloseOutDetailsView({
           onCommentChange={setOperationsHeadComment}
           approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
           rejectLabel="Deny"
+          disabled={operationsHeadReview.isPending}
           returnDisabled={!operationsHeadComment.trim()}
           rejectDisabled={!operationsHeadComment.trim()}
           onApprove={() => operationsHeadDecision(isExceptionCloseOut ? "Acknowledge" : "Approve")}
@@ -530,7 +598,11 @@ export default function WorkCloseOutDetailsView({
           onReject={() => operationsHeadDecision("Deny")}
           extraFields={
             <div className="space-y-3">
-              <FormInput label="Operations Head" value="Grace Bello" disabled />
+              <FormInput
+                label="Operations Head"
+                value={getEmployeeDisplayName(currentEmployee) ?? "Operations Head"}
+                disabled
+              />
               {!operationsHeadComment.trim() ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   Add an Operations Head comment before returning or denying this close-out.
@@ -549,7 +621,7 @@ export default function WorkCloseOutDetailsView({
           title={`HSE Final Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
-              ? "Verify the exception close-out, preserve the audit record, and decide whether to acknowledge, return, or deny it."
+              ? "Verify the unresolved hazard or approval deviation, preserve the audit record, and decide whether to acknowledge, return, or deny it."
               : "Verify site safety and complete the final close-out decision."
           }
           commentLabel="HSE Comment"
@@ -558,6 +630,7 @@ export default function WorkCloseOutDetailsView({
           onCommentChange={setHseComment}
           approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
           rejectLabel="Deny"
+          disabled={hseReview.isPending}
           approveDisabled={hseChecksIncomplete || (!isExceptionCloseOut && hseApprovalBlocked)}
           returnDisabled={!hseComment.trim() || hseChecksIncomplete}
           rejectDisabled={!hseComment.trim() || hseChecksIncomplete}
@@ -569,27 +642,20 @@ export default function WorkCloseOutDetailsView({
               <FormInput label="HSE Inspector" value={request.workAuthorization.hseApprover} disabled />
               <SafetyChoiceTable
                 options={yesNoOptions}
-                rows={[
-                  {
-                    label: "Did HSE inspect/verify close-out?",
-                    required: true,
-                    value: hseVerifiedCloseOut,
-                    onValueChange: setHseVerifiedCloseOut,
-                  },
-                  {
-                    label: "Area safe for normal operations?",
-                    required: true,
-                    value: hseAreaSafe,
-                    onValueChange: setHseAreaSafe,
-                  },
-                  {
-                    label: "Corrective action required?",
-                    required: true,
-                    value: hseCorrectiveActionRequired,
-                    onValueChange: setHseCorrectiveActionRequired,
-                  },
-                ]}
+                rows={buildHseCloseoutChecklistRows(hseCloseoutChecklist.data, {
+                  hseVerifiedCloseOut,
+                  setHseVerifiedCloseOut,
+                  hseAreaSafe,
+                  setHseAreaSafe,
+                  hseCorrectiveActionRequired,
+                  setHseCorrectiveActionRequired,
+                })}
               />
+              {hseCloseoutChecklist.isError ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  HSE close-out checklist template is not available; using the standard close-out checks.
+                </p>
+              ) : null}
               {!hseComment.trim() ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   Add an HSE comment before returning or denying this close-out.
@@ -610,12 +676,15 @@ export default function WorkCloseOutDetailsView({
           }
         />
       ) : permissions.showHseApproval && request.hseApproval ? (
-        <HseResult result={request.hseApproval} />
+        <HseResult
+          result={request.hseApproval}
+          checklistResponses={hseCloseoutResponsesQuery.data ?? []}
+        />
       ) : null}
 
       {permissions.showAuditTrail ? (
         <AuditTrail
-          items={request.auditTrail}
+          items={workflowAuditTrail}
           description="Recorded workflow actions and comments for this close-out."
         />
       ) : null}
@@ -709,11 +778,21 @@ function CompletionDetails({
             <FormDateTimeInput
               label="Actual Start Date/Time"
               value={values.actualStartDateTime}
+              max={getLatestActualWorkDateTime()}
               onValueChange={onChange.setActualStartDateTime}
             />
             <FormDateTimeInput
               label="Actual Completion Date/Time"
               value={values.actualCompletionDateTime}
+              min={
+                values.actualStartDateTime
+                  ? getDateTimeAfter(
+                      values.actualStartDateTime,
+                      MIN_SCHEDULE_DURATION_MINUTES,
+                    )
+                  : undefined
+              }
+              max={getLatestActualWorkDateTime()}
               onValueChange={onChange.setActualCompletionDateTime}
             />
           </>
@@ -945,12 +1024,64 @@ function hasScheduleDeviation({
     workAuthorization.approvedEndDateTimeRaw ??
       workAuthorization.approvedEndDateTime,
   );
+  const lateStartThreshold = approvedStart
+    ? new Date(
+        approvedStart.getTime() +
+          SCHEDULE_DEVIATION_TOLERANCE_MINUTES * 60 * 1000,
+      )
+    : null;
+  const earlyCompletionThreshold = approvedEnd
+    ? new Date(
+        approvedEnd.getTime() -
+          SCHEDULE_DEVIATION_TOLERANCE_MINUTES * 60 * 1000,
+      )
+    : null;
 
   return Boolean(
     (actualStart && approvedStart && actualStart < approvedStart) ||
-      (actualCompletion && approvedStart && actualCompletion < approvedStart) ||
+      (actualStart && lateStartThreshold && actualStart > lateStartThreshold) ||
+      (actualCompletion &&
+        earlyCompletionThreshold &&
+        actualCompletion < earlyCompletionThreshold) ||
       (actualCompletion && approvedEnd && actualCompletion > approvedEnd),
   );
+}
+
+function validateActualWorkTiming({
+  actualStartDateTime,
+  actualCompletionDateTime,
+}: {
+  actualStartDateTime: string;
+  actualCompletionDateTime: string;
+}) {
+  if (!actualStartDateTime) return "Select actual start date/time.";
+  if (!actualCompletionDateTime) return "Select actual completion date/time.";
+
+  const actualStart = new Date(actualStartDateTime);
+  const actualCompletion = new Date(actualCompletionDateTime);
+  const now = new Date();
+
+  if (Number.isNaN(actualStart.getTime())) {
+    return "Select a valid actual start date/time.";
+  }
+  if (Number.isNaN(actualCompletion.getTime())) {
+    return "Select a valid actual completion date/time.";
+  }
+  if (actualStart > now) {
+    return "Actual start date/time cannot be in the future.";
+  }
+  if (actualCompletion > now) {
+    return "Actual completion date/time cannot be in the future.";
+  }
+
+  const minimumCompletionTime = new Date(
+    actualStart.getTime() + MIN_SCHEDULE_DURATION_MINUTES * 60 * 1000,
+  );
+  if (actualCompletion < minimumCompletionTime) {
+    return `Actual completion date/time must be at least ${MIN_SCHEDULE_DURATION_MINUTES} minutes after actual start date/time.`;
+  }
+
+  return null;
 }
 
 function parseDateValue(value?: string) {
@@ -1020,11 +1151,99 @@ function buildAreaConditionChecklistAnswers(
   ].filter(Boolean) as WorkCloseOutChecklistAnswerCreate[];
 }
 
+function buildHseCloseoutChecklistAnswers(
+  items: SafetyChecklistItem[],
+  values: {
+    hseVerifiedCloseOut: string;
+    hseAreaSafe: string;
+    hseCorrectiveActionRequired: string;
+  },
+): SafetyChecklistAnswerCreate[] {
+  return [
+    safetyBooleanAnswer(items, "verified_close_out", values.hseVerifiedCloseOut),
+    safetyBooleanAnswer(items, "area_safe_for_operations", values.hseAreaSafe),
+    safetyBooleanAnswer(
+      items,
+      "corrective_action_required",
+      values.hseCorrectiveActionRequired,
+    ),
+  ].filter(Boolean) as SafetyChecklistAnswerCreate[];
+}
+
+function buildHseCloseoutChecklistRows(
+  checklist: SafetyChecklistTemplate | undefined,
+  values: {
+    hseVerifiedCloseOut: string;
+    setHseVerifiedCloseOut: (value: string) => void;
+    hseAreaSafe: string;
+    setHseAreaSafe: (value: string) => void;
+    hseCorrectiveActionRequired: string;
+    setHseCorrectiveActionRequired: (value: string) => void;
+  },
+) {
+  const sourceItems =
+    checklist?.items.filter((item) => item.input_type === "boolean") ?? [
+      {
+        item_key: "verified_close_out",
+        label: "Did HSE inspect/verify close-out?",
+        is_required: true,
+      },
+      {
+        item_key: "area_safe_for_operations",
+        label: "Area safe for normal operations?",
+        is_required: true,
+      },
+      {
+        item_key: "corrective_action_required",
+        label: "Corrective action required?",
+        is_required: true,
+      },
+    ];
+
+  return sourceItems.map((item) => {
+    if (item.item_key === "verified_close_out") {
+      return {
+        label: item.label,
+        required: item.is_required,
+        value: values.hseVerifiedCloseOut,
+        onValueChange: values.setHseVerifiedCloseOut,
+      };
+    }
+    if (item.item_key === "area_safe_for_operations") {
+      return {
+        label: item.label,
+        required: item.is_required,
+        value: values.hseAreaSafe,
+        onValueChange: values.setHseAreaSafe,
+      };
+    }
+    return {
+      label: item.label,
+      required: item.is_required,
+      value: values.hseCorrectiveActionRequired,
+      onValueChange: values.setHseCorrectiveActionRequired,
+    };
+  });
+}
+
 function booleanAnswer(
   items: SafetyChecklistItem[],
   itemKey: string,
   value: string,
 ): WorkCloseOutChecklistAnswerCreate | null {
+  const item = items.find((current) => current.item_key === itemKey);
+  if (!item) return null;
+  return {
+    item_id: item.id,
+    value_boolean: value === "Yes",
+  };
+}
+
+function safetyBooleanAnswer(
+  items: SafetyChecklistItem[],
+  itemKey: string,
+  value: string,
+): SafetyChecklistAnswerCreate | null {
   const item = items.find((current) => current.item_key === itemKey);
   if (!item) return null;
   return {
@@ -1065,20 +1284,24 @@ function ApprovalResult({
   );
 }
 
-function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
+function HseResult({
+  result,
+  checklistResponses,
+}: {
+  result: WorkCloseOutHseApproval;
+  checklistResponses: SafetyChecklistResponse[];
+}) {
   return (
     <FormSection title="HSE Final Close-Out Review Result" description="Final HSE verification and close-out decision.">
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="HSE Inspector" value={result.inspector} disabled />
-        <div className="md:col-span-2">
-          <SafetyChoiceTable
-            options={yesNoOptions}
-            disabled
-            rows={[
-              { label: "Did HSE inspect/verify close-out?", value: booleanToYesNo(result.verifiedCloseOut) },
-              { label: "Area safe for normal operations?", value: booleanToYesNo(result.areaSafeForOperations) },
-              { label: "Corrective action required?", value: booleanToYesNo(result.correctiveActionRequired) },
-            ]}
+        <div className="md:col-span-2 space-y-2">
+          <p className="text-sm font-medium text-brand-text-primary">
+            HSE Checklist Responses
+          </p>
+          <SafetyChecklistResponsesView
+            responses={checklistResponses}
+            emptyMessage="No HSE close-out checklist responses recorded."
           />
         </div>
         {result.correctiveActionRequired ? (
@@ -1095,7 +1318,7 @@ function HseResult({ result }: { result: WorkCloseOutHseApproval }) {
 function ExceptionCloseOutNotice() {
   return (
     <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-      This is an exception close-out. It can be acknowledged for audit, returned, or denied, but it cannot be approved as successful.
+      This is an exception close-out because it was not completed as approved or it has a remaining hazard. It can be acknowledged for audit, returned, or denied, but it cannot be approved as successful.
     </p>
   );
 }
@@ -1215,6 +1438,14 @@ function isOperationsHeadEmployee(employee?: SafetyEmployeeProfile | null) {
   const jobTitle = employee?.job_title?.trim() ?? "";
 
   return department === "operations" && jobTitle === "Process Manager";
+}
+
+function getEmployeeDisplayName(employee?: SafetyEmployeeProfile | null) {
+  const name = [employee?.user?.first_name, employee?.user?.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return name || employee?.user?.email || null;
 }
 
 function isHseDepartment(department?: string | null) {

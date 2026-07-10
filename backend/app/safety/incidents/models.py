@@ -23,6 +23,7 @@ class IncidentReportStatus(str, enum.Enum):
     draft = "draft"
     submitted = "submitted"
     recommended = "recommended"
+    pending_hse_verification = "pending_hse_verification"
     resolved = "resolved"
     not_resolved = "not_resolved"
     closed = "closed"

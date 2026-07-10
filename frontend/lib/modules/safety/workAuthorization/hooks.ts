@@ -1,10 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/store/authStore";
+import {
+  invalidateSafetyWorkflowCaches,
+  writeMappedRecordToSafetyCaches,
+} from "../query-cache";
 import { workAuthorizationsApi } from "./api";
 import { mapWorkAuthorizationToRequest } from "./mappers";
 import { mapWorkInitiationToRequest } from "../workInitiation/mappers";
-import type { WorkAuthorizationListParams, WorkAuthorizationUpdate } from "./types";
+import type {
+  WorkAuthorizationCreate,
+  WorkAuthorizationHseReviewCreate,
+  WorkAuthorizationListParams,
+  WorkAuthorizationUpdate,
+} from "./types";
 
 export const workAuthorizationKeys = {
   all: ["safety", "work-authorizations"] as const,
@@ -67,6 +76,37 @@ export function useEligibleWorkInitiationsForAuthorization() {
   });
 }
 
+export function useCreateWorkAuthorization() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      payload,
+      attachments = [],
+    }: {
+      payload: WorkAuthorizationCreate;
+      attachments?: File[];
+    }) => workAuthorizationsApi.create(payload, attachments),
+    onSuccess: async (data) => {
+      const updated = mapWorkAuthorizationToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workAuthorizationKeys.detail(updated.id),
+        listKey: workAuthorizationKeys.lists(),
+        updated,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.detail(updated.id) }),
+        queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: workAuthorizationKeys.eligibleWorkInitiations(),
+        }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_authorization", updated.id),
+      ]);
+    },
+  });
+}
+
 export function useUpdateWorkAuthorization(id: string) {
   const queryClient = useQueryClient();
 
@@ -78,10 +118,49 @@ export function useUpdateWorkAuthorization(id: string) {
       payload: WorkAuthorizationUpdate;
       attachments?: File[];
     }) => workAuthorizationsApi.update(id, payload, attachments),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      const updated = mapWorkAuthorizationToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workAuthorizationKeys.detail(id),
+        listKey: workAuthorizationKeys.lists(),
+        updated,
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: workAuthorizationKeys.eligibleWorkInitiations(),
+        }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_authorization", id),
+      ]);
+    },
+  });
+}
+
+export function useHseReviewWorkAuthorization(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      payload,
+      evidence = [],
+    }: {
+      payload: WorkAuthorizationHseReviewCreate;
+      evidence?: File[];
+    }) => workAuthorizationsApi.createHseReview(id, payload, evidence),
+    onSuccess: async (data) => {
+      const updated = mapWorkAuthorizationToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workAuthorizationKeys.detail(id),
+        listKey: workAuthorizationKeys.lists(),
+        updated,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.detail(id) }),
+        queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.lists() }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_authorization", id),
       ]);
     },
   });

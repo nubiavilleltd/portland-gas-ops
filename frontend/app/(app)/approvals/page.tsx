@@ -6,6 +6,9 @@ import EmptyState from "@/components/ui/EmptyState";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useMyApprovals, type MyApproval } from "@/lib/modules/workflow/queries";
+
+// DataTable requires T extends { id: string } — map approval_request_id → id
+type ApprovalRow = MyApproval & { id: string };
 import { formatDateTime } from "@/lib/utils";
 
 const PROCESS_CONFIG: Record<string, { label: string; badge: string }> = {
@@ -21,7 +24,7 @@ function getProcessConfig(type: string) {
   return PROCESS_CONFIG[type] ?? { label: type, badge: "bg-gray-100 text-gray-700" };
 }
 
-function requestHref(row: MyApproval): string {
+function requestHref(row: ApprovalRow): string {
   switch (row.request_type) {
     case "procurement": return `/procurement/${row.request_id}`;
     case "asset":       return `/assets/requests/${row.request_id}`;
@@ -32,7 +35,7 @@ function requestHref(row: MyApproval): string {
   }
 }
 
-const columns: Column<MyApproval>[] = [
+const columns: Column<ApprovalRow>[] = [
   {
     key: "reference",
     label: "Reference",
@@ -88,7 +91,8 @@ const columns: Column<MyApproval>[] = [
 ];
 
 export default function MyApprovalsPage() {
-  const { data: approvals = [], isLoading } = useMyApprovals();
+  const { data: rawApprovals = [], isLoading } = useMyApprovals();
+  const approvals: ApprovalRow[] = rawApprovals.map((a) => ({ ...a, id: a.approval_request_id }));
 
   return (
     <AppLayout pageTitle="My Approvals">
