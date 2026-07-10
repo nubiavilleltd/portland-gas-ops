@@ -432,6 +432,43 @@ TEMPLATES: tuple[ChecklistTemplateSeed, ...] = (
             ),
         ),
     ),
+    ChecklistTemplateSeed(
+        id="11111111-1111-1111-1111-111111111110",
+        code="CLOSEOUT_HSE_REVIEW",
+        name="Close-Out HSE Review Checks",
+        parent_type=SafetyChecklistParentType.closeout_review,
+        stage=SafetyChecklistStage.hse_review,
+        description="Final HSE verification checks completed before close-out decision.",
+        items=(
+            ChecklistItemSeed(
+                id="22222222-2222-2222-2222-222222222901",
+                item_key="verified_close_out",
+                label="Did HSE inspect/verify close-out?",
+                input_type=SafetyChecklistInputType.boolean,
+                options_json=None,
+                is_required=True,
+                sort_order=10,
+            ),
+            ChecklistItemSeed(
+                id="22222222-2222-2222-2222-222222222902",
+                item_key="area_safe_for_operations",
+                label="Area safe for normal operations?",
+                input_type=SafetyChecklistInputType.boolean,
+                options_json=None,
+                is_required=True,
+                sort_order=20,
+            ),
+            ChecklistItemSeed(
+                id="22222222-2222-2222-2222-222222222903",
+                item_key="corrective_action_required",
+                label="Corrective action required?",
+                input_type=SafetyChecklistInputType.boolean,
+                options_json=None,
+                is_required=True,
+                sort_order=30,
+            ),
+        ),
+    ),
 )
 
 

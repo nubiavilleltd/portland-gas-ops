@@ -47,6 +47,9 @@ export interface ApprovalPanelProps {
   returnLabel?: string;
   rejectLabel?: string;
   approveLabel?: string;
+  returnLoadingLabel?: string;
+  rejectLoadingLabel?: string;
+  approveLoadingLabel?: string;
 
   // Icons — override defaults
   returnIcon?: React.ReactNode;
@@ -142,6 +145,9 @@ export default function ApprovalPanel({
   returnLabel = "Return",
   rejectLabel = "Reject",
   approveLabel = "Approve",
+  returnLoadingLabel = "Returning...",
+  rejectLoadingLabel,
+  approveLoadingLabel,
 
   returnIcon = <RotateCcw size={14} />,
   rejectIcon = <XCircle size={14} />,
@@ -212,6 +218,11 @@ export default function ApprovalPanel({
   const isReturnLoading  = returnLoading  || (disabled && lastAction === "return");
   const isRejectLoading  = rejectLoading  || (disabled && lastAction === "reject");
   const isApproveLoading = approveLoading || (disabled && lastAction === "approve");
+  const resolvedRejectLoadingLabel =
+    rejectLoadingLabel ?? (rejectLabel === "Deny" ? "Denying..." : "Rejecting...");
+  const resolvedApproveLoadingLabel =
+    approveLoadingLabel ??
+    (approveLabel === "Acknowledge" ? "Acknowledging..." : "Approving...");
 
   const hasButtons = showReturn || showReject || showApprove || extraActions.length > 0;
 
@@ -248,7 +259,7 @@ export default function ApprovalPanel({
           {/* Return — leftmost negative action */}
           {showReturn && onReturn && (
             <ActionButton
-              label={returnLabel}
+              label={isReturnLoading ? returnLoadingLabel : returnLabel}
               icon={returnIcon}
               variant="return"
               onClick={handleReturnClick}
@@ -260,7 +271,7 @@ export default function ApprovalPanel({
           {/* Reject */}
           {showReject && onReject && (
             <ActionButton
-              label={rejectLabel}
+              label={isRejectLoading ? resolvedRejectLoadingLabel : rejectLabel}
               icon={rejectIcon}
               variant="reject"
               onClick={handleRejectClick}
@@ -273,7 +284,11 @@ export default function ApprovalPanel({
           {extraActions.map((action) => (
             <ActionButton
               key={action.key}
-              label={action.label}
+              label={
+                action.loading || (disabled && lastAction === action.key)
+                  ? `${action.label}...`
+                  : action.label
+              }
               icon={action.icon}
               variant={action.variant ?? "neutral"}
               onClick={() => { setLastAction(action.key); action.onClick(comment); }}
@@ -285,7 +300,7 @@ export default function ApprovalPanel({
           {/* Approve — always rightmost / primary */}
           {showApprove && onApprove && (
             <ActionButton
-              label={approveLabel}
+              label={isApproveLoading ? resolvedApproveLoadingLabel : approveLabel}
               icon={approveIcon}
               variant="approve"
               onClick={handleApproveClick}

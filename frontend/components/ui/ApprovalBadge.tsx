@@ -27,6 +27,7 @@ const variants: Record<string, BadgeVariant> = {
 
   // Safety statuses
   recommended: "warning",
+  pending_hse_verification: "info",
   resolved: "success",
   not_resolved: "danger",
 
@@ -71,6 +72,7 @@ const labels: Record<string, string> = {
   returned_to_requester: "Returned",
   completed: "Completed",
   pending_approval: "Pending Approval",
+  pending_hse_verification: "Pending HSE Verification",
   not_resolved: "Not Resolved",
 };
 

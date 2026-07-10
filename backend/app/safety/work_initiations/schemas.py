@@ -1,9 +1,8 @@
-from datetime import datetime
 from typing import Optional
 from datetime import datetime, timedelta, timezone
-from pydantic import model_validator
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
     WorkInitiationDecision,
@@ -77,8 +76,14 @@ class WorkInitiationCreate(BaseModel):
         if planned_end < now:
             raise ValueError("Planned end date/time cannot be in the past.")
 
-        if planned_end <= planned_start:
-            raise ValueError("Planned end date/time must be after planned start date/time.")
+        minimum_end_time = planned_start + timedelta(
+            minutes=MIN_SCHEDULE_DURATION_MINUTES,
+        )
+        if planned_end < minimum_end_time:
+            raise ValueError(
+                f"Planned end date/time must be at least {MIN_SCHEDULE_DURATION_MINUTES} "
+                "minutes after planned start date/time."
+            )
 
         return self
 

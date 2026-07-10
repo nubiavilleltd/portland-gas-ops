@@ -13,6 +13,7 @@ from app.employees.models import Employee
 from app.safety.dependencies import require_hse_reviewer
 from app.safety.incidents.models import IncidentReportStatus, IncidentReportType
 from app.safety.incidents.schemas import (
+    IncidentHseVerificationCreate,
     IncidentHseReviewCreate,
     IncidentHseReviewResponse,
     IncidentReportCreate,
@@ -89,6 +90,7 @@ def list_incident_reports(
 ):
     reports = incident_service.list_incident_reports(
         db=db,
+        current_user=current_user,
         skip=skip,
         limit=limit,
         cursor_reported_at=cursor_reported_at,
@@ -146,6 +148,7 @@ def get_incident_report(
     report = incident_service.get_incident_report(
         db=db,
         incident_id=incident_id,
+        current_user=current_user,
     )
 
     return IncidentReportResponse.from_model(report)
@@ -184,6 +187,7 @@ def update_incident_report(
         db=db,
         incident_id=incident_id,
         data=data,
+        current_user=current_user,
     )
 
     return IncidentReportResponse.from_model(report)
@@ -209,12 +213,32 @@ def resolve_incident_report(
 @router.post("/{incident_id}/close", response_model=IncidentReportResponse)
 def close_incident_report(
     incident_id: str,
+    data: IncidentHseVerificationCreate,
     db: Session = Depends(get_db),
-    _inspector: Employee = Depends(require_hse_reviewer),
+    inspector: Employee = Depends(require_hse_reviewer),
 ):
     report = incident_service.close_resolved_incident(
         db=db,
         incident_id=incident_id,
+        data=data,
+        inspector=inspector,
+    )
+
+    return IncidentReportResponse.from_model(report)
+
+
+@router.post("/{incident_id}/not-resolved", response_model=IncidentReportResponse)
+def mark_incident_not_resolved(
+    incident_id: str,
+    data: IncidentHseVerificationCreate,
+    db: Session = Depends(get_db),
+    inspector: Employee = Depends(require_hse_reviewer),
+):
+    report = incident_service.mark_incident_not_resolved_after_verification(
+        db=db,
+        incident_id=incident_id,
+        data=data,
+        inspector=inspector,
     )
 
     return IncidentReportResponse.from_model(report)
@@ -229,6 +253,7 @@ def delete_incident_report(
     incident_service.deactivate_incident_report(
         db=db,
         incident_id=incident_id,
+        current_user=current_user,
     )
 
     return None

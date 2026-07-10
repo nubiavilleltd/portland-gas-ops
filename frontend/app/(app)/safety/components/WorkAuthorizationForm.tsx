@@ -19,8 +19,8 @@ import type {
   SafetyChecklistTemplate,
 } from "@/lib/modules/safety/checklists";
 import {
+  useCreateWorkAuthorization,
   useEligibleWorkInitiationsForAuthorization,
-  workAuthorizationsApi,
   type WorkAuthorizationCreate,
 } from "@/lib/modules/safety/workAuthorization";
 import {
@@ -60,6 +60,7 @@ export default function WorkAuthorizationForm() {
     formatLocalDate(),
   );
   const workInitiationsQuery = useEligibleWorkInitiationsForAuthorization();
+  const createWorkAuthorization = useCreateWorkAuthorization();
   const riskChecklist = useActiveSafetyChecklist(
     "work_authorization",
     "risk_assessment",
@@ -148,10 +149,10 @@ export default function WorkAuthorizationForm() {
     let authorizationWasSaved = false;
     try {
       setIsSubmitting(true);
-      const savedAuthorization = await workAuthorizationsApi.create(
+      const savedAuthorization = await createWorkAuthorization.mutateAsync({
         payload,
-        safetyFiles,
-      );
+        attachments: safetyFiles,
+      });
       authorizationWasSaved = true;
       const checklistAnswers = riskChecklist.data
         ? buildRiskChecklistAnswers(riskChecklist.data, riskAnswers, safetyNote)
@@ -166,9 +167,7 @@ export default function WorkAuthorizationForm() {
       }
 
       toast.success("Work authorization request submitted successfully.");
-      window.setTimeout(() => {
-        router.push("/safety/work-authorization");
-      }, 700);
+      router.push("/safety/work-authorization");
     } catch (error) {
       toast.error(
         authorizationWasSaved
@@ -292,7 +291,11 @@ export default function WorkAuthorizationForm() {
       </FormSection>
 
       <div className="flex gap-3 pt-1">
-        <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+        <Button
+          type="submit"
+          loading={isSubmitting || createWorkAuthorization.isPending}
+          loadingText="Submitting..."
+        >
           Submit Request
         </Button>
       </div>

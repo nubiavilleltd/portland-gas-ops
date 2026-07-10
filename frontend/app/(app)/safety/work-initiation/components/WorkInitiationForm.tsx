@@ -25,9 +25,10 @@ import {
 import {
   getDateTimeAfter,
   getEarliestPlannedStartDateTime,
+  MIN_SCHEDULE_DURATION_MINUTES,
 } from "@/lib/modules/safety/date-rules";
 import {
-  workInitiationsApi,
+  useCreateWorkInitiation,
   type WorkInitiationCategory,
   type WorkInitiationCreate,
 } from "@/lib/modules/safety/workInitiation";
@@ -170,6 +171,7 @@ export default function WorkInitiationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
+  const createWorkInitiation = useCreateWorkInitiation();
 
   const incidentIdFromQuery = searchParams.get("incidentId");
   const isIncidentLinkedFromQuery = Boolean(incidentIdFromQuery);
@@ -308,7 +310,7 @@ export default function WorkInitiationForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isSubmitting) return;
+    if (isSubmitting || createWorkInitiation.isPending) return;
 
     const nextValidationErrors = validateWorkInitiationForm({
       title,
@@ -381,13 +383,11 @@ export default function WorkInitiationForm() {
     try {
       setIsSubmitting(true);
 
-      await workInitiationsApi.create(payload);
+      await createWorkInitiation.mutateAsync(payload);
 
       toast.success("Work initiation request submitted successfully.");
 
-      window.setTimeout(() => {
-        router.push("/safety/work-initiation");
-      }, 700);
+      router.push("/safety/work-initiation");
     } catch (error) {
       console.error("Failed to submit work initiation", error);
 
@@ -730,7 +730,7 @@ export default function WorkInitiationForm() {
             required
             min={
               plannedStartDateTime
-                ? getDateTimeAfter(plannedStartDateTime)
+                ? getDateTimeAfter(plannedStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
                 : getEarliestPlannedStartDateTime()
             }
             value={plannedEndDateTime}
@@ -752,7 +752,11 @@ export default function WorkInitiationForm() {
       </FormSection>
 
       <div className="flex gap-3 pt-1">
-        <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+        <Button
+          type="submit"
+          loading={isSubmitting || createWorkInitiation.isPending}
+          loadingText="Submitting..."
+        >
           Submit Work Initiation
         </Button>
       </div>
@@ -912,14 +916,17 @@ function validateWorkInitiationForm({
     errors.plannedEndDateTime = "Planned end date/time cannot be in the past.";
   }
 
+  const minimumEndTime = new Date(
+    plannedStart.getTime() + MIN_SCHEDULE_DURATION_MINUTES * 60 * 1000,
+  );
   if (
     plannedStartDateTime &&
     plannedEndDateTime &&
     !errors.plannedStartDateTime &&
     !errors.plannedEndDateTime &&
-    plannedEnd <= plannedStart
+    plannedEnd < minimumEndTime
   ) {
-    errors.plannedEndDateTime = "Planned end date/time must be after planned start date/time.";
+    errors.plannedEndDateTime = `Planned end date/time must be at least ${MIN_SCHEDULE_DURATION_MINUTES} minutes after planned start date/time.`;
   }
 
   return errors;

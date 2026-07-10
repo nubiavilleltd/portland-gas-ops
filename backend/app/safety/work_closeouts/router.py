@@ -112,6 +112,7 @@ def list_work_closeouts(
 ):
     records = work_closeout_service.list_work_closeouts(
         db=db,
+        current_user=current_user,
         skip=skip,
         limit=limit,
         cursor_created_at=cursor_created_at,
@@ -154,9 +155,10 @@ def get_work_closeout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record = work_closeout_service.get_work_closeout(
+    record = work_closeout_service.get_work_closeout_for_current_user(
         db=db,
         work_closeout_id=work_closeout_id,
+        current_user=current_user,
     )
 
     return WorkCloseOutResponse.from_model(record)

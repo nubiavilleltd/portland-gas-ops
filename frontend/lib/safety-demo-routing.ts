@@ -43,6 +43,7 @@ export function getAdminIncidentHref(report: IncidentHazardReport) {
   const roleByStatus: Partial<Record<IncidentHazardReport["status"], IncidentHazardRole>> = {
     submitted: "hse",
     recommended: "action_owner",
+    pending_hse_verification: "hse",
     resolved: "hse",
   };
   return withAdminRole(`/safety/incidents/${report.id}`, roleByStatus[report.status]);
@@ -77,16 +78,7 @@ export function getAdminWorkCloseOutHref(request: WorkCloseOutRequest) {
 
 export function isExceptionWorkCloseOut(request: WorkCloseOutRequest) {
   return (
-    !request.completionDetails.workCompleted ||
     !request.completionDetails.completedAsApproved ||
-    request.completionDetails.incidentObserved ||
-    !request.monitoring.monitoredDuringExecution ||
-    !request.monitoring.stayedWithinScope ||
-    !request.monitoring.ppeAndControlsMaintained ||
-    request.monitoring.unsafeConditionAddressed === "Yes" ||
-    !request.areaCondition.workAreaCleaned ||
-    !request.areaCondition.toolsRemoved ||
-    !request.areaCondition.systemSafe ||
     request.areaCondition.remainingHazard
   );
 }
