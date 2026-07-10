@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const procurementItemSchema = z.object({
   description: z.string().min(1, "Description is required").max(255),
-  quantity:    z.number({ invalid_type_error: "Quantity is required" }).int().min(1, "Must be at least 1"),
+  quantity:    z.number({ error: "Quantity is required" }).int().min(1, "Must be at least 1"),
   unit_price:  z.number().min(0).nullable().optional(),
   total_price: z.number().min(0).nullable().optional(),
 });

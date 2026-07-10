@@ -90,7 +90,7 @@ import { paymentsApi } from "../api/payments.api";
 import { adaptPayment, adaptPaymentList } from "../adapters/payment.adapter";
 import { getErrorMessage } from "@/lib/api/error";
 import type { Payment, CreatePaymentInput } from "../types/payments.types";
-import { v4 as uuidv4 } from "uuid";
+const uuidv4 = () => crypto.randomUUID();
 
 // Per-session idempotency key store
 // One key per invoice — reused on retry, replaced on new payment

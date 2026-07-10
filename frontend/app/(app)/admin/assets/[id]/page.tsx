@@ -204,7 +204,6 @@ function EditModal({
             ? parseFloat(form.purchase_cost)
             : undefined,
           condition: form.condition as import("@/types").AssetCondition,
-          status: form.status as import("@/types").AssetStatus,
           location: form.location || undefined,
           assigned_to: assignedEmployee?.id || undefined,
           description: form.description || undefined,
@@ -468,6 +467,7 @@ function TransferModal({
     id: string;
     name: string;
     assigned_to: string | null;
+    assigned_to_name: string | null;
     location: string | null;
   };
   onClose: () => void;
@@ -1143,8 +1143,7 @@ export default function AdminAssetDetailPage() {
                           {logEventDescription(log)}
                         </p>
                         {log.notes &&
-                          log.event_type !== "status_changed" &&
-                          log.event_type !== "retired" && (
+                          log.event_type !== "status_changed" && (
                             <p className="text-xs text-brand-text-secondary mt-0.5">
                               {log.notes}
                             </p>
