@@ -5,7 +5,8 @@ import { post, patch, del, postForm } from "@/lib/api";
 import { intranetKeys } from "./queries";
 import type { NewsItem, NewsCategory } from "./types/intranet.types";
 
-type NewsCreatePayload = Omit<NewsItem, "id" | "created_at" | "updated_at">;
+// cover_image_url is server-computed from the documents join — never sent in the payload
+type NewsCreatePayload = Omit<NewsItem, "id" | "created_at" | "updated_at" | "cover_image_url">;
 type NewsUpdatePayload = Partial<NewsCreatePayload>;
 
 export type ImageUploadResult = { id: number; url: string };

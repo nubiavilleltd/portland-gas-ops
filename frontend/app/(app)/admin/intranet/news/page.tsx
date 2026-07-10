@@ -251,7 +251,7 @@ export default function IntranetNewsPage() {
         title:          form.title,
         body:           form.body,
         category:       form.category,
-        cover_image_id: coverImageId,
+        cover_image_id: coverImageId ?? null,
         author_name:    form.author_name,
         is_published:   form.is_published,
         published_at:   form.is_published ? (form.published_at ?? new Date().toISOString()) : null,

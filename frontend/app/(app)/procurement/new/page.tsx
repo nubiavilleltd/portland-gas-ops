@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { Suspense, useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -84,7 +85,7 @@ const serviceUnitOptions = [
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function NewProcurementPage() {
+function NewProcurementContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const editId       = searchParams.get("edit"); // present when editing a returned request
@@ -242,7 +243,7 @@ export default function NewProcurementPage() {
       ];
       let hasVendorError = false;
       for (const { field, message } of newVendorRequired) {
-        if (!formData[field]?.trim()) {
+        if (!(formData[field] as string | undefined)?.trim()) {
           setError(field, { message });
           hasVendorError = true;
         }
@@ -747,5 +748,19 @@ export default function NewProcurementPage() {
         </div>
       </form>
     </AppLayout>
+  );
+}
+
+export default function NewProcurementPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppLayout pageTitle="Procurement">
+          <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        </AppLayout>
+      }
+    >
+      <NewProcurementContent />
+    </Suspense>
   );
 }
