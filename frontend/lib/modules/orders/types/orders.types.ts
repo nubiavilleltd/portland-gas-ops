@@ -17,6 +17,12 @@ import type { PaymentStatus } from "../../payments/types/payments.types";
 // Administrative lifecycle of an order
 // ─────────────────────────────────────────────────────────────
 
+
+export type DiscountType =
+  | "none"
+  | "percentage"
+  | "fixed";
+
 export type OrderStatus =
   | "draft"
   | "submitted"
@@ -85,6 +91,11 @@ export interface Order {
 
   // Products
   orderItems: OrderLineItem[];
+
+  discountType: DiscountType;
+  discountValue: number;
+  discountAmount: number;
+
   totalAmount: number;
 
   // Delivery
@@ -131,6 +142,8 @@ export interface CreateOrderInput {
   customerId: string;
 
   orderItems: CreateOrderLineItemInput[];
+  discountType: DiscountType;
+  discountValue: number;
 
   deliveryAddress: string;
   deliveryDate?: string;

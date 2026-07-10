@@ -1,6 +1,5 @@
-import type { CreateOrderFormValues } from "../schemas/create-order.schema";
+import type { CreateOrderFormOutput, CreateOrderFormValues } from "../schemas/create-order.schema";
 import type { CreateOrderInput } from "../types/orders.types";
-
 
 export function buildOrderPayload(
   form: CreateOrderFormValues,
@@ -12,6 +11,9 @@ export function buildOrderPayload(
     deliveryDate: form.deliveryDate,
 
     notes: form.notes,
+
+    discountType: form.discountType ?? "none",
+    discountValue: form.discountValue ?? 0,
 
     orderItems: form.orderItems.map((item) => ({
       productId: item.productId,

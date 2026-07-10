@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import {
+  CreateOrderFormOutput,
   createOrderSchema,
   type CreateOrderFormValues,
   type OrderLineItem,
@@ -13,7 +14,6 @@ import {
 export const DEFAULT_LINE_ITEM: OrderLineItem = {
   productId: "",
   quantity: 1,
-  unitPrice: 0,
 };
 
 interface UseCreateOrderFormOptions {
@@ -21,12 +21,14 @@ interface UseCreateOrderFormOptions {
 }
 
 export function useCreateOrderForm(options: UseCreateOrderFormOptions = {}) {
-  const form = useForm<CreateOrderFormValues>({
+  const form = useForm<CreateOrderFormValues, any, CreateOrderFormOutput>({
     resolver: zodResolver(createOrderSchema),
     mode: "onTouched",
     defaultValues: {
       customerId: "",
       orderItems: [{ ...DEFAULT_LINE_ITEM }],
+      discountType: "none",
+      discountValue: 0,
       deliveryAddress: "",
       deliveryDate: "",
       notes: "",
@@ -34,16 +36,7 @@ export function useCreateOrderForm(options: UseCreateOrderFormOptions = {}) {
     },
   });
 
-  const orderItems = form.watch("orderItems") ?? [];
 
-  const subtotal = useMemo(
-    () =>
-      orderItems.reduce(
-        (sum, item) => sum + (item.quantity || 0) * (item.unitPrice || 0),
-        0
-      ),
-    [orderItems]
-  );
 
-  return { form, subtotal };
+  return { form };
 }
