@@ -23,6 +23,7 @@ import {
 import type {
   OrderLineItem,
   CreateOrderFormValues,
+  CreateOrderFormOutput,
 } from "@/lib/modules/orders/schemas/create-order.schema";
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
@@ -48,7 +49,7 @@ import { useState } from "react";
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
   defaultValues?: Partial<CreateOrderFormValues>;
-  onSubmit: (data: CreateOrderFormValues) => Promise<void>;
+  onSubmit: (data: CreateOrderFormOutput) => Promise<void>;
   onCancel?: () => void;
   // onSaveDraft?: () => void;
   submitLabel?: string;
@@ -99,22 +100,8 @@ export default function OrderForm({
   const activeProducts = getActiveProducts(products);
 
 
-
-  // const productOptions = activeProducts.map((p) => {
-  //   const stockInfo =
-  //     p.productType === "tracked"
-  //       ? `${getAvailableCount(inventoryItems, p.id)} unit(s) available`
-  //       : `${getConsumableStockLevel(consumableStock, p.id).toLocaleString()} ${p.unit} in stock`;
-
-  //   return {
-  //     value: p.id,
-  //     label: p.name, // ← shown when selected (clean)
-  //     description: stockInfo, // ← shown only in dropdown
-  //   };
-  // });
-
   // ── Field array ─────────────────────────────────────────
-  const { fields, append, remove } = useFieldArray({
+  const { append, remove } = useFieldArray({
     control,
     name: "orderItems",
   });
@@ -123,9 +110,14 @@ export default function OrderForm({
 
   // ── Subtotal ─────────────────────────────────────────────
   const subtotal = orderItems.reduce((sum, item) => {
-    return sum + (item.quantity || 0) * (item.unitPrice || 0);
-  }, 0);
+    const product = getProductById(products, item.productId);
 
+    return (
+      sum +
+      (item.quantity || 0) *
+      (product?.defaultUnitPrice || 0)
+    );
+  }, 0);
   // ── Columns ──────────────────────────────────────────────
   const columns: LineItemColumn<OrderLineItem>[] = [
     {
@@ -193,23 +185,28 @@ export default function OrderForm({
       key: "unitPrice",
       label: "Unit Price (₦)",
       width: "140px",
-      renderCell: (row, index, onChange) => (
-        <CurrencyInput
-          value={row.unitPrice || ""}
-          placeholder="0.00"
-          onValueChange={(raw) =>
-            onChange({ unitPrice: parseFloat(raw) || 0 })
-          }
-          inputClassName="border-0 focus:ring-0 px-0 h-auto"
-        />
-      ),
+
+      renderCell: (row) => {
+        const product = getProductById(products, row.productId);
+
+        return (
+          <span className="text-sm font-medium text-brand-text-secondary">
+            {product
+              ? formatCurrency(product.defaultUnitPrice)
+              : "—"}
+          </span>
+        );
+      }
     },
     {
       key: "total",
       label: "Total",
       width: "120px",
       renderCell: (row) => {
-        const itemTotal = (row.quantity || 0) * (row.unitPrice || 0);
+        const product = getProductById(products, row.productId);
+
+        const itemTotal =
+          (row.quantity || 0) * (product?.defaultUnitPrice || 0);
         return (
           <span className="text-sm font-medium text-brand-text-primary">
             {itemTotal > 0 ? formatCurrency(itemTotal) : "—"}
@@ -225,7 +222,7 @@ export default function OrderForm({
   ];
 
   // ── Submit ────────────────────────────────────────────────
-  async function handleFormSubmit(data: CreateOrderFormValues) {
+  async function handleFormSubmit(data: CreateOrderFormOutput) {
     try {
       await onSubmit(data);
     } catch (err) {
@@ -412,10 +409,6 @@ export default function OrderForm({
           setValue(`orderItems.${pickerIndex}.productId`, product.id, {
             shouldValidate: true,
           });
-          setValue(
-            `orderItems.${pickerIndex}.unitPrice`,
-            product.defaultUnitPrice || 0,
-          );
           setPickerIndex(null);
         }}
         products={activeProducts}
