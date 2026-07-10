@@ -187,6 +187,9 @@ def send_approval_required(
     request_title: str,
     step_name: str,
     action_url: str,
+    intro_message: str | None = None,
+    action_message: str | None = None,
+    button_label: str = "Review & Approve",
 ) -> None:
     """Notify an approver that a step is waiting for their action."""
     subject = f"Action Required: {request_type_label} request awaiting your approval"
@@ -197,6 +200,18 @@ def send_approval_required(
         "request_type_label": request_type_label,
         "request_title":      request_title,
         "step_name":          step_name,
+        "intro_message":      intro_message
+        or (
+            f"A {request_type_label} request has been submitted and is "
+            "waiting for your approval."
+        ),
+        "action_message":     action_message
+        or (
+            "Click the button above to open the request. If you are not "
+            "currently signed in, you will be taken to the login page and "
+            "redirected back to the request automatically."
+        ),
+        "button_label":       button_label,
         "action_url":         action_url,
     })
     _send(to_email, subject, html)
@@ -210,6 +225,7 @@ def send_approval_result(
     action: str,  # "approved" | "rejected" | "returned"
     comment: str | None,
     action_url: str,
+    result_message_override: str | None = None,
 ) -> None:
     """Notify the requester of the outcome of their request."""
     _ACTION_META = {
@@ -261,9 +277,40 @@ def send_approval_result(
         "action_label":       meta["label"],
         "action_color":       meta["color"],
         "result_heading":     meta["heading"],
-        "result_message":     meta["message"],
+        "result_message":     result_message_override or meta["message"],
         "comment_row_html":   comment_row_html,
         "comment_row_style":  comment_row_style,
         "action_url":         action_url,
+    })
+    _send(to_email, subject, html)
+
+
+def send_incident_notification(
+    to_email: str,
+    recipient_name: str,
+    subject: str,
+    heading: str,
+    message: str,
+    incident_reference: str,
+    incident_title: str,
+    severity: str,
+    location: str,
+    action_label: str,
+    action_url: str,
+    details: str | None = None,
+) -> None:
+    """Notify a safety user about an incident/hazard report event."""
+    html = _render("incident_notification.html", {
+        "subject": subject,
+        "recipient_name": recipient_name,
+        "heading": heading,
+        "message": message,
+        "incident_reference": incident_reference,
+        "incident_title": incident_title,
+        "severity": severity,
+        "location": location,
+        "details": details or "No additional details provided.",
+        "action_label": action_label,
+        "action_url": action_url,
     })
     _send(to_email, subject, html)

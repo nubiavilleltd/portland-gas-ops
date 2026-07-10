@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.safety.checklists.schemas import ChecklistAnswerCreate
+from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES
 from app.safety.work_closeouts.models import (
     WorkCloseOutAnswer,
     WorkCloseOutDecision,
@@ -74,18 +75,23 @@ class WorkCloseOutCreate(BaseModel):
     @model_validator(mode="after")
     def validate_completion_details(self):
         now = datetime.now(timezone.utc)
-        latest_actual_time = now - timedelta(minutes=10)
         actual_start = to_utc(self.actual_start_at)
         actual_completion = to_utc(self.actual_completion_at)
 
-        if actual_start > latest_actual_time:
-            raise ValueError("Actual start date/time must be at least 10 minutes in the past.")
+        if actual_start > now:
+            raise ValueError("Actual start date/time cannot be in the future.")
 
-        if actual_completion > latest_actual_time:
-            raise ValueError("Actual completion date/time must be at least 10 minutes in the past.")
+        if actual_completion > now:
+            raise ValueError("Actual completion date/time cannot be in the future.")
 
-        if actual_completion < actual_start:
-            raise ValueError("Actual completion date/time must be after actual start date/time.")
+        minimum_completion_time = actual_start + timedelta(
+            minutes=MIN_SCHEDULE_DURATION_MINUTES,
+        )
+        if actual_completion < minimum_completion_time:
+            raise ValueError(
+                f"Actual completion date/time must be at least {MIN_SCHEDULE_DURATION_MINUTES} "
+                "minutes after actual start date/time."
+            )
 
         if not self.completed_as_approved and not self.deviation_explanation:
             raise ValueError("Deviation explanation is required when work was not completed as approved.")
@@ -146,6 +152,7 @@ class WorkCloseOutAuthorizationSummary(BaseModel):
     work_type: list[str]
     assigned_supervisor_id: Optional[str]
     assigned_supervisor: Optional[str]
+    assigned_worker_ids: list[str]
     assigned_workers: list[str]
     planned_start_at: Optional[datetime]
     planned_end_at: Optional[datetime]
@@ -153,6 +160,7 @@ class WorkCloseOutAuthorizationSummary(BaseModel):
 
 
 class WorkCloseOutReviewResponse(BaseModel):
+    id: str
     decision: WorkCloseOutDecision
     reviewer_id: Optional[str] = None
     reviewer_name: Optional[str] = None
@@ -161,6 +169,7 @@ class WorkCloseOutReviewResponse(BaseModel):
 
 
 class WorkCloseOutHseReviewResponse(BaseModel):
+    id: str
     inspector_id: Optional[str] = None
     inspector_name: Optional[str] = None
     verified_close_out: Optional[bool] = None
@@ -185,6 +194,9 @@ class WorkCloseOutListItem(BaseModel):
     related_incident_report_id: Optional[str]
     title: Optional[str]
     location: Optional[str]
+    assigned_supervisor_id: Optional[str]
+    assigned_supervisor: Optional[str]
+    assigned_worker_ids: list[str]
     actual_start_at: datetime
     actual_completion_at: datetime
     submitted_at: datetime
@@ -209,6 +221,15 @@ class WorkCloseOutListItem(BaseModel):
             related_incident_report_id=initiation.related_incident_report_id if initiation else None,
             title=initiation.title if initiation else None,
             location=initiation.location if initiation else None,
+            assigned_supervisor_id=initiation.assigned_supervisor_id if initiation else None,
+            assigned_supervisor=employee_name(initiation.assigned_supervisor) if initiation else None,
+            assigned_worker_ids=[
+                worker.worker_id
+                for worker in sorted(
+                    initiation.workers,
+                    key=lambda item: employee_name(item.worker) or "",
+                )
+            ] if initiation else [],
             actual_start_at=closeout.actual_start_at,
             actual_completion_at=closeout.actual_completion_at,
             submitted_at=closeout.submitted_at,
@@ -306,6 +327,13 @@ def authorization_summary(authorization) -> Optional[WorkCloseOutAuthorizationSu
         work_type=split_list(initiation.work_type) if initiation else [],
         assigned_supervisor_id=initiation.assigned_supervisor_id if initiation else None,
         assigned_supervisor=employee_name(initiation.assigned_supervisor) if initiation else None,
+        assigned_worker_ids=[
+            worker.worker_id
+            for worker in sorted(
+                initiation.workers,
+                key=lambda item: employee_name(item.worker) or "",
+            )
+        ] if initiation else [],
         assigned_workers=[
             employee_name(worker.worker) or "N/A"
             for worker in sorted(
@@ -323,6 +351,7 @@ def build_review(review) -> Optional[WorkCloseOutReviewResponse]:
     if not review:
         return None
     return WorkCloseOutReviewResponse(
+        id=review.id,
         decision=review.decision,
         reviewer_id=review.reviewer_id,
         reviewer_name=employee_name(review.reviewer),
@@ -335,6 +364,7 @@ def build_hse_review(review) -> Optional[WorkCloseOutHseReviewResponse]:
     if not review:
         return None
     return WorkCloseOutHseReviewResponse(
+        id=review.id,
         inspector_id=review.reviewer_id,
         inspector_name=employee_name(review.reviewer),
         verified_close_out=review.verified_close_out,
@@ -360,16 +390,7 @@ def get_closeout_review(closeout, reviewer_role: WorkCloseOutReviewerRole):
 
 def is_exception_closeout(closeout) -> bool:
     return (
-        not closeout.work_completed
-        or not closeout.completed_as_approved
-        or closeout.incident_observed
-        or not closeout.monitored_during_execution
-        or not closeout.stayed_within_scope
-        or not closeout.ppe_and_controls_maintained
-        or closeout.unsafe_condition_addressed == WorkCloseOutAnswer.yes
-        or not closeout.work_area_cleaned
-        or not closeout.tools_removed
-        or not closeout.system_safe
+        not closeout.completed_as_approved
         or closeout.remaining_hazard
     )
 

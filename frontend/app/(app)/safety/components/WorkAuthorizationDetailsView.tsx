@@ -14,21 +14,24 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
+import { useAuditTrail, useMyApprovals } from "@/lib/modules/workflow/queries";
 import {
   safetyChecklistsApi,
   useActiveSafetyChecklist,
+  useSafetyChecklistResponses,
 } from "@/lib/modules/safety/checklists";
 import type {
   SafetyChecklistAnswerCreate,
   SafetyChecklistItem,
+  SafetyChecklistResponse,
   SafetyChecklistTemplate,
 } from "@/lib/modules/safety/checklists";
 import {
   mapWorkAuthorizationToRequest,
+  useHseReviewWorkAuthorization,
   useUpdateWorkAuthorization,
   useWorkAuthorization,
-  workAuthorizationsApi,
   type WorkAuthorizationDecision,
   type WorkAuthorizationHseReviewCreate,
   type WorkAuthorizationInspectionCheck,
@@ -39,6 +42,7 @@ import {
 } from "@/lib/modules/safety/people";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
 import type {
   WorkAuthorizationApprovalResult,
   WorkAuthorizationAttachment,
@@ -235,8 +239,15 @@ export default function WorkAuthorizationDetailsView({
     "inspection",
   );
   const requestQuery = useWorkAuthorization(requestId);
+  const hseInspectionResponsesQuery = useSafetyChecklistResponses(
+    "work_authorization",
+    requestId,
+  );
   const updateWorkAuthorization = useUpdateWorkAuthorization(requestId);
+  const hseReviewWorkAuthorization = useHseReviewWorkAuthorization(requestId);
   const myApprovalsQuery = useMyApprovals();
+  const auditTrailQuery = useAuditTrail("work_authorization", requestId);
+  const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
   const request =
@@ -267,8 +278,6 @@ export default function WorkAuthorizationDetailsView({
   );
   const isHseEmployee = isHseDepartment(currentEmployee?.department);
   const isAssignedHseWorkflowApprover = Boolean(myWorkAuthorizationApproval);
-  const hasDirectWorkAuthorizationAccess =
-    isRequester || isAssignedSupervisor || isAssignedHseWorkflowApprover;
   const currentRole = getWorkAuthorizationAccessRole({
     isRequester,
     isAssignedSupervisor,
@@ -322,6 +331,7 @@ export default function WorkAuthorizationDetailsView({
   const persistedRequestId = request.id;
 
   async function handleRequesterSubmit() {
+    if (updateWorkAuthorization.isPending) return;
     try {
       const updated = await updateWorkAuthorization.mutateAsync({
         payload: {
@@ -354,6 +364,7 @@ export default function WorkAuthorizationDetailsView({
   }
 
   async function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
+    if (hseReviewWorkAuthorization.isPending) return;
     if (decision === "Approve" && shouldDisableHseApproval) {
       return;
     }
@@ -393,11 +404,10 @@ export default function WorkAuthorizationDetailsView({
     };
 
     try {
-      const updated = await workAuthorizationsApi.createHseReview(
-        persistedRequestId,
+      const updated = await hseReviewWorkAuthorization.mutateAsync({
         payload,
-        hseEvidence,
-      );
+        evidence: hseEvidence,
+      });
       setUpdatedRequest(mapWorkAuthorizationToRequest(updated));
 
       const checklistAnswers = buildHseInspectionChecklistAnswers(
@@ -461,7 +471,9 @@ export default function WorkAuthorizationDetailsView({
         currentRole={currentRole}
         onRoleChange={() => undefined}
         roleLabel={
-          hasDirectWorkAuthorizationAccess ? roleLabel(currentRole) : "Viewer"
+          isRequester || isAssignedSupervisor || isAssignedHseWorkflowApprover
+            ? roleLabel(currentRole)
+            : "Viewer"
         }
         roles={workAuthorizationRoles}
         recordLabel="Work Authorization Details"
@@ -480,6 +492,9 @@ export default function WorkAuthorizationDetailsView({
         onRiskIndicatorsChange={setRiskIndicators}
         additionalSafetyNote={additionalSafetyNote}
         onAdditionalSafetyNoteChange={setAdditionalSafetyNote}
+        checklistResponses={(hseInspectionResponsesQuery.data ?? []).filter(
+          (response) => response.stage_snapshot === "risk_assessment",
+        )}
       />
       <AttachmentsSection
         request={request}
@@ -525,12 +540,18 @@ export default function WorkAuthorizationDetailsView({
               onDecision={handleHseDecision}
               disableApprove={shouldDisableHseApproval}
               reasonMissing={!hseComment.trim()}
+              isPending={hseReviewWorkAuthorization.isPending}
             />
           </>
         ) : (
           <>
             {request.hseInspection ? (
-              <HseInspectionResultSection inspection={request.hseInspection} />
+              <HseInspectionResultSection
+                inspection={request.hseInspection}
+                checklistResponses={(hseInspectionResponsesQuery.data ?? []).filter(
+                  (response) => response.stage_snapshot === "inspection",
+                )}
+              />
             ) : null}
             {request.hseApproval ? (
               <ApprovalResultSection
@@ -543,7 +564,7 @@ export default function WorkAuthorizationDetailsView({
       ) : null}
 
       {permissions.showAuditTrail ? (
-        <AuditTrail items={request.auditTrail} />
+        <AuditTrail items={workflowAuditTrail} />
       ) : null}
     </div>
   );
@@ -639,32 +660,47 @@ function RiskIndicatorsSection({
   onRiskIndicatorsChange,
   additionalSafetyNote,
   onAdditionalSafetyNoteChange,
+  checklistResponses,
 }: {
   editable: boolean;
   selectedRiskIndicators: string[];
   onRiskIndicatorsChange: (value: string[]) => void;
   additionalSafetyNote: string;
   onAdditionalSafetyNoteChange: (value: string) => void;
+  checklistResponses: SafetyChecklistResponse[];
 }) {
   return (
     <FormSection title="Risk & Safety Indicators" description="Safety considerations identified for this work activity.">
-      <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
-        <FormMultiSelect
-          label="Risk Indicators"
-          options={riskIndicatorOptions}
-          value={selectedRiskIndicators}
-          onValueChange={onRiskIndicatorsChange}
-          disabled={!editable}
-          searchable
-          placeholder="Select all risk indicators that apply"
-        />
-        <FormTextarea
-          label="Additional Safety Note"
-          value={additionalSafetyNote}
-          onChange={(event) => onAdditionalSafetyNoteChange(event.target.value)}
-          disabled={!editable}
-        />
-      </div>
+      {!editable && checklistResponses.length > 0 ? (
+        <div className="space-y-4">
+          <SafetyChecklistResponsesView responses={checklistResponses} />
+          {additionalSafetyNote ? (
+            <FormTextarea
+              label="Additional Safety Note"
+              value={additionalSafetyNote}
+              disabled
+            />
+          ) : null}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
+          <FormMultiSelect
+            label="Risk Indicators"
+            options={riskIndicatorOptions}
+            value={selectedRiskIndicators}
+            onValueChange={onRiskIndicatorsChange}
+            disabled={!editable}
+            searchable
+            placeholder="Select all risk indicators that apply"
+          />
+          <FormTextarea
+            label="Additional Safety Note"
+            value={additionalSafetyNote}
+            onChange={(event) => onAdditionalSafetyNoteChange(event.target.value)}
+            disabled={!editable}
+          />
+        </div>
+      )}
     </FormSection>
   );
 }
@@ -852,10 +888,6 @@ function HseInspectionActionSection({
           </div>
         ) : null}
         {checklist?.items.map(renderChecklistItem)}
-        <FormInput
-          label="Inspection date/time"
-          defaultValue="2026-05-18 11:00 AM"
-        />
         {checklist?.items.some((item) => item.item_key === "hse_inspection_result") ? null : (
           <FormSelect
             label="Inspection result"
@@ -885,10 +917,12 @@ function HseFinalActionSection({
   onDecision,
   disableApprove,
   reasonMissing,
+  isPending,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
   disableApprove: boolean;
   reasonMissing: boolean;
+  isPending: boolean;
 }) {
   return (
     <ApprovalPanel
@@ -896,6 +930,7 @@ function HseFinalActionSection({
       description="Record the final safety decision for this work authorization."
       showComment={false}
       rejectLabel="Deny"
+      disabled={isPending}
       approveDisabled={disableApprove}
       returnDisabled={reasonMissing}
       rejectDisabled={reasonMissing}
@@ -941,52 +976,39 @@ function ApprovalResultSection({
 
 function HseInspectionResultSection({
   inspection,
+  checklistResponses,
 }: {
   inspection: WorkAuthorizationHseInspection;
+  checklistResponses: SafetyChecklistResponse[];
 }) {
   return (
     <FormSection title="HSE Inspection Result" description="Completed inspection evidence supporting the final HSE decision.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput
-          label="Work area is safe, clean, and accessible"
-          value={inspection.workAreaSafe}
-          disabled
+      <div className="space-y-4">
+        <SafetyChecklistResponsesView
+          responses={checklistResponses}
+          emptyMessage="No HSE inspection checklist responses recorded."
         />
-        <FormInput
-          label="Fire extinguisher/emergency equipment is available"
-          value={inspection.emergencyEquipmentAvailable}
-          disabled
-        />
-        <FormInput
-          label="Gas leak/pressure/abnormal condition check completed"
-          value={inspection.gasPressureCheckCompleted}
-          disabled
-        />
-        <FormInput
-          label="Required PPE and safety kits are available"
-          value={inspection.ppeAndSafetyKitsAvailable}
-          disabled
-        />
-        <FormInput
-          label="Required safety controls are in place"
-          value={inspection.safetyControlsInPlace}
-          disabled
-        />
-        <FormInput
-          label="Inspection date/time"
-          value={inspection.inspectionDateTime}
-          disabled
-        />
-        <FormInput
-          label="Inspection result"
-          value={inspection.result}
-          disabled
-        />
-        <FormTextarea
-          label="Inspection comments"
-          value={inspection.comments}
-          disabled
-        />
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormInput
+            label="Inspection date/time"
+            value={inspection.inspectionDateTime}
+            disabled
+          />
+          {checklistResponses.length === 0 ? (
+            <>
+              <FormInput
+                label="Inspection result"
+                value={inspection.result}
+                disabled
+              />
+              <FormTextarea
+                label="Inspection comments"
+                value={inspection.comments}
+                disabled
+              />
+            </>
+          ) : null}
+        </div>
       </div>
       <div className="mt-4">
         <AttachmentList attachments={inspection.evidence} />

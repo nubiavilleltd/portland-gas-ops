@@ -27,6 +27,8 @@ import {
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
+  MIN_SCHEDULE_DURATION_MINUTES,
+  SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
 } from "@/lib/modules/safety/date-rules";
 import { useActiveSafetyChecklist } from "@/lib/modules/safety/checklists";
 import type { SafetyChecklistItem } from "@/lib/modules/safety/checklists";
@@ -152,6 +154,7 @@ export default function WorkCompletionForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createCloseout.isPending) return;
     const nextValidationErrors = validateWorkCompletionForm({
       selectedWorkAuthorization,
       actualStartDateTime,
@@ -329,7 +332,11 @@ export default function WorkCompletionForm() {
             ref={actualCompletionDateTimeRef}
             label="Actual Completion Date/Time"
             required
-            min={actualStartDateTime ? getDateTimeAfter(actualStartDateTime) : undefined}
+            min={
+              actualStartDateTime
+                ? getDateTimeAfter(actualStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
+                : undefined
+            }
             max={getLatestActualWorkDateTime()}
             value={actualCompletionDateTime}
             error={validationErrors.actualCompletionDateTime}
@@ -695,10 +702,25 @@ function hasScheduleDeviation({
     selectedWorkAuthorization.approvedEndDateTimeRaw ??
       selectedWorkAuthorization.approvedEndDateTime,
   );
+  const lateStartThreshold = approvedStart
+    ? new Date(
+        approvedStart.getTime() +
+          SCHEDULE_DEVIATION_TOLERANCE_MINUTES * 60 * 1000,
+      )
+    : null;
+  const earlyCompletionThreshold = approvedEnd
+    ? new Date(
+        approvedEnd.getTime() -
+          SCHEDULE_DEVIATION_TOLERANCE_MINUTES * 60 * 1000,
+      )
+    : null;
 
   return Boolean(
     (actualStart && approvedStart && actualStart < approvedStart) ||
-      (actualCompletion && approvedStart && actualCompletion < approvedStart) ||
+      (actualStart && lateStartThreshold && actualStart > lateStartThreshold) ||
+      (actualCompletion &&
+        earlyCompletionThreshold &&
+        actualCompletion < earlyCompletionThreshold) ||
       (actualCompletion && approvedEnd && actualCompletion > approvedEnd),
   );
 }
@@ -883,25 +905,28 @@ function validateWorkCompletionForm({
 
   const actualStart = new Date(actualStartDateTime);
   const actualCompletion = new Date(actualCompletionDateTime);
-  const latestActualTime = new Date(Date.now() - 10 * 60 * 1000);
+  const now = new Date();
   if (actualStartDateTime && Number.isNaN(actualStart.getTime())) {
     errors.actualStartDateTime = "Select a valid actual start date/time.";
-  } else if (actualStartDateTime && actualStart > latestActualTime) {
-    errors.actualStartDateTime = "Actual start date/time must be at least 10 minutes in the past.";
+  } else if (actualStartDateTime && actualStart > now) {
+    errors.actualStartDateTime = "Actual start date/time cannot be in the future.";
   }
   if (actualCompletionDateTime && Number.isNaN(actualCompletion.getTime())) {
     errors.actualCompletionDateTime = "Select a valid actual completion date/time.";
-  } else if (actualCompletionDateTime && actualCompletion > latestActualTime) {
-    errors.actualCompletionDateTime = "Actual completion date/time must be at least 10 minutes in the past.";
+  } else if (actualCompletionDateTime && actualCompletion > now) {
+    errors.actualCompletionDateTime = "Actual completion date/time cannot be in the future.";
   }
+  const minimumCompletionTime = new Date(
+    actualStart.getTime() + MIN_SCHEDULE_DURATION_MINUTES * 60 * 1000,
+  );
   if (
     actualStartDateTime &&
     actualCompletionDateTime &&
     !errors.actualStartDateTime &&
     !errors.actualCompletionDateTime &&
-    actualCompletion < actualStart
+    actualCompletion < minimumCompletionTime
   ) {
-    errors.actualCompletionDateTime = "Actual completion date/time must be after actual start date/time.";
+    errors.actualCompletionDateTime = `Actual completion date/time must be at least ${MIN_SCHEDULE_DURATION_MINUTES} minutes after actual start date/time.`;
   }
   if (!workCompleted || !completedAsApproved || !incidentObserved) {
     errors.completionChecklist = "Complete the required completion checks.";

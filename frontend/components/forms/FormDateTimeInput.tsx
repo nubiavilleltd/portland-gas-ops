@@ -256,6 +256,7 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
       selectedDateTime && maxDate && isSameDate(selectedDateTime, maxDate)
         ? toTimeValue(maxDate)
         : undefined;
+    const hasTimeRestriction = Boolean(timeMin || timeMax);
     const nowActionDate = new Date();
     const nowActionDisabled = Boolean(
       (minDate && nowActionDate < minDate) ||
@@ -425,8 +426,22 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
                 min={timeMin}
                 max={timeMax}
                 onChange={(event) => updateTime(event.target.value)}
-                className="h-9 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary outline-none focus:border-transparent focus:ring-2 focus:ring-brand-purple"
+                title={
+                  hasTimeRestriction
+                    ? `Allowed time range: ${timeMin ?? "00:00"} - ${timeMax ?? "23:59"}`
+                    : undefined
+                }
+                className={cn(
+                  "h-9 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary outline-none focus:border-transparent focus:ring-2 focus:ring-brand-purple",
+                  hasTimeRestriction &&
+                    "border-amber-300 bg-amber-50/40 text-brand-text-primary",
+                )}
               />
+              {hasTimeRestriction ? (
+                <p className="mt-1 text-xs text-amber-700">
+                  Available time: {timeMin ?? "00:00"} - {timeMax ?? "23:59"}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex items-center justify-between border-t border-gray-100 px-4 py-2">

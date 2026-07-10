@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -33,6 +34,7 @@ from app.shared.models.approval import (
 from app.shared.services.workflow_engine import WorkflowEngine
 
 
+logger = logging.getLogger(__name__)
 WORK_INITIATION_REFERENCE_ENTITY = "work_initiation"
 WORK_INITIATION_REFERENCE_PREFIX = "WI"
 WORK_INITIATION_REQUEST_TYPE = "work_initiation"
@@ -616,6 +618,7 @@ def list_work_initiations(
             SafetyWorkInitiation.is_active == True,
             or_(
                 SafetyWorkInitiation.requester_id == employee.id,
+                SafetyWorkInitiation.assigned_supervisor_id == employee.id,
                 SafetyWorkInitiation.workers.any(
                     SafetyWorkInitiationWorker.worker_id == employee.id,
                 ),
@@ -684,6 +687,8 @@ def can_view_work_initiation(
     employee: Employee,
 ) -> bool:
     if record.requester_id == employee.id:
+        return True
+    if record.assigned_supervisor_id == employee.id:
         return True
     if any(worker.worker_id == employee.id for worker in record.workers):
         return True

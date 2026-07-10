@@ -1,6 +1,8 @@
 export { workAuthorizationsApi } from "./api";
 export {
+  useCreateWorkAuthorization,
   useEligibleWorkInitiationsForAuthorization,
+  useHseReviewWorkAuthorization,
   useWorkAuthorization,
   useWorkAuthorizations,
   useUpdateWorkAuthorization,

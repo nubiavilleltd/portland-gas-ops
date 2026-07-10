@@ -83,6 +83,7 @@ export interface WorkCloseOutAuthorizationSummary {
   work_type: string[];
   assigned_supervisor_id?: string | null;
   assigned_supervisor?: string | null;
+  assigned_worker_ids: string[];
   assigned_workers: string[];
   planned_start_at?: string | null;
   planned_end_at?: string | null;
@@ -90,6 +91,7 @@ export interface WorkCloseOutAuthorizationSummary {
 }
 
 export interface WorkCloseOutReviewResponse {
+  id: string;
   decision: WorkCloseOutDecision;
   reviewer_id?: string | null;
   reviewer_name?: string | null;
@@ -98,6 +100,7 @@ export interface WorkCloseOutReviewResponse {
 }
 
 export interface WorkCloseOutHseReviewResponse {
+  id: string;
   inspector_id?: string | null;
   inspector_name?: string | null;
   verified_close_out?: boolean | null;
@@ -122,6 +125,9 @@ export interface WorkCloseOutListItem {
   related_incident_report_id?: string | null;
   title?: string | null;
   location?: string | null;
+  assigned_supervisor_id?: string | null;
+  assigned_supervisor?: string | null;
+  assigned_worker_ids?: string[];
   actual_start_at: string;
   actual_completion_at: string;
   submitted_at: string;

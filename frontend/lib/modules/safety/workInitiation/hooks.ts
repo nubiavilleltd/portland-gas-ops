@@ -1,9 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/store/authStore";
+import {
+  invalidateSafetyWorkflowCaches,
+  writeMappedRecordToSafetyCaches,
+} from "../query-cache";
 import { mapWorkInitiationToRequest } from "./mappers";
 import { workInitiationsApi } from "./api";
-import type { WorkInitiationListParams, WorkInitiationReviewCreate, WorkInitiationUpdate } from "./types";
+import type {
+  WorkInitiationCreate,
+  WorkInitiationListParams,
+  WorkInitiationReviewCreate,
+  WorkInitiationUpdate,
+} from "./types";
 
 export const workInitiationKeys = {
   all: ["safety", "work-initiations"] as const,
@@ -49,6 +58,29 @@ export function useWorkInitiation(id: string) {
   });
 }
 
+export function useCreateWorkInitiation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: WorkInitiationCreate) =>
+      workInitiationsApi.create(payload),
+    onSuccess: async (data) => {
+      const updated = mapWorkInitiationToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workInitiationKeys.detail(updated.id),
+        listKey: workInitiationKeys.lists(),
+        updated,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workInitiationKeys.detail(updated.id) }),
+        queryClient.invalidateQueries({ queryKey: workInitiationKeys.lists() }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_initiation", updated.id),
+      ]);
+    },
+  });
+}
+
 export function useSupervisorReviewWorkInitiation() {
   const queryClient = useQueryClient();
 
@@ -60,7 +92,14 @@ export function useSupervisorReviewWorkInitiation() {
       id: string;
       payload: WorkInitiationReviewCreate;
     }) => workInitiationsApi.supervisorReview(id, payload),
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (data, variables) => {
+      const updated = mapWorkInitiationToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workInitiationKeys.detail(variables.id),
+        listKey: workInitiationKeys.lists(),
+        updated,
+      });
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: workInitiationKeys.detail(variables.id),
@@ -68,6 +107,7 @@ export function useSupervisorReviewWorkInitiation() {
         queryClient.invalidateQueries({
           queryKey: workInitiationKeys.lists(),
         }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_initiation", variables.id),
       ]);
     },
   });
@@ -85,7 +125,14 @@ export function useOperationsHodReviewWorkInitiation() {
       id: string;
       payload: WorkInitiationReviewCreate;
     }) => workInitiationsApi.operationsHodReview(id, payload),
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (data, variables) => {
+      const updated = mapWorkInitiationToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workInitiationKeys.detail(variables.id),
+        listKey: workInitiationKeys.lists(),
+        updated,
+      });
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: workInitiationKeys.detail(variables.id),
@@ -93,6 +140,7 @@ export function useOperationsHodReviewWorkInitiation() {
         queryClient.invalidateQueries({
           queryKey: workInitiationKeys.lists(),
         }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_initiation", variables.id),
       ]);
     },
   });
@@ -104,10 +152,18 @@ export function useUpdateWorkInitiation(id: string) {
   return useMutation({
     mutationFn: (payload: WorkInitiationUpdate) =>
       workInitiationsApi.update(id, payload),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      const updated = mapWorkInitiationToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workInitiationKeys.detail(id),
+        listKey: workInitiationKeys.lists(),
+        updated,
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: workInitiationKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workInitiationKeys.lists() }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_initiation", id),
       ]);
     },
   });

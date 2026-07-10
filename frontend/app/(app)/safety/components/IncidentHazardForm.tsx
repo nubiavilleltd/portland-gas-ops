@@ -263,7 +263,6 @@ export default function IncidentHazardForm() {
             label="Report Type"
             required
             searchable
-            creatable
             options={toOptions(reportTypeOptions)}
             placeholder="Select or add report type"
             value={reportType}
