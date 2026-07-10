@@ -76,6 +76,7 @@ class OrderService:
             db,
             order_no           = order_no,
             customer_id        = data.customer_id,
+            customer_name       = customer.name,
             order_status       = OrderStatus.draft,
             fulfillment_status = FulfillmentStatus.pending,
             payment_status     = PaymentStatus.unpaid,
@@ -115,6 +116,7 @@ class OrderService:
                     "Customer not found",
                 )
             updates["customer_id"] = data.customer_id
+            updates["customer_name"] = customer.name
         if data.delivery_address is not None:
             updates["delivery_address"] = data.delivery_address.strip()
         if data.delivery_date is not None:
