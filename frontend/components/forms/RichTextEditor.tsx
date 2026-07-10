@@ -60,6 +60,7 @@ export default function RichTextEditor({ label, required, value, onChange, place
     editorProps: {
       attributes: {
         class: "min-h-[180px] px-3 py-3 text-sm text-brand-text-primary leading-relaxed outline-none",
+        "data-placeholder": placeholder ?? "",
       },
     },
     onUpdate({ editor }) {
@@ -145,14 +146,25 @@ export default function RichTextEditor({ label, required, value, onChange, place
       {/* Editor */}
       <div
         className={cn(
-          "rounded-b-lg border border-brand-border bg-white transition-shadow focus-within:ring-2 focus-within:ring-brand-purple focus-within:border-transparent",
+          "relative rounded-b-lg border border-brand-border bg-white transition-shadow focus-within:ring-2 focus-within:ring-brand-purple focus-within:border-transparent",
           error && "border-red-400 focus-within:ring-red-400"
         )}
       >
-        {!editor.getText() && placeholder && !editor.isFocused && (
-          <p className="absolute px-3 pt-3 text-sm text-brand-text-secondary pointer-events-none select-none">{placeholder}</p>
+        {!editor.getText().trim() && placeholder && (
+          <p className="absolute top-0 left-0 px-3 py-3 text-sm text-brand-text-secondary pointer-events-none select-none">
+            {placeholder}
+          </p>
         )}
-        <EditorContent editor={editor} className="[&_.ProseMirror_h2]:text-base [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:mb-2 [&_.ProseMirror_h3]:text-sm [&_.ProseMirror_h3]:font-semibold [&_.ProseMirror_h3]:mb-1 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-brand-text-secondary [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0" />
+        <EditorContent
+          editor={editor}
+          className={cn(
+            "[&_.ProseMirror]:outline-none",
+            "[&_.ProseMirror_h2]:text-base [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:mb-2",
+            "[&_.ProseMirror_h3]:text-sm [&_.ProseMirror_h3]:font-semibold [&_.ProseMirror_h3]:mb-1",
+            "[&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5",
+            "[&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5",
+          )}
+        />
       </div>
 
       {hint && !error && <p className="text-xs text-brand-text-secondary">{hint}</p>}

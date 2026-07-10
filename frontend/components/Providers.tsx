@@ -11,7 +11,12 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60 * 1000,
-      retry: 1,
+      retry: (failureCount, error: any) => {
+        // Never retry on 401 — the interceptor handles token refresh; retrying here
+        // would flood the refresh endpoint and cause an infinite request storm.
+        if (error?.response?.status === 401) return false;
+        return failureCount < 1;
+      },
     },
   },
 });

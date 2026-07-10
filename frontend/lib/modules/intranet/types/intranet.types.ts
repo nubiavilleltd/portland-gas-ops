@@ -1,24 +1,29 @@
-// ── News & Announcements  (DB: intranet_announcements) ───────────────────────
+// ── News Categories  (DB: intranet_news_categories) ──────────────────────────
 
-export type NewsCategory =
-  | "Company News"
-  | "Announcement"
-  | "Policy Update"
-  | "Project Update"
-  | "Safety"
-  | "Events";
+export type NewsCategoryColor =
+  | "purple" | "yellow" | "gray" | "red" | "blue" | "green" | "teal" | "orange";
+
+export interface NewsCategory {
+  id:         number;
+  name:       string;
+  color:      NewsCategoryColor;
+  created_at: string;
+}
+
+// ── News & Announcements  (DB: intranet_news) ────────────────────────────────
 
 export interface NewsItem {
-  id: number;
-  title: string;
-  body: string;              // DB: body TEXT
-  category: NewsCategory;    // DB: category VARCHAR(60)
-  cover_image_url: string;   // DB: cover_image FK → documents.id (URL denormalised from API)
-  is_published: boolean;     // DB: is_published BOOLEAN
-  published_at: string | null; // DB: published_at TIMESTAMPTZ
-  author_name: string;       // denormalised from employees via created_by FK
-  created_at: string;        // DB: created_at TIMESTAMPTZ
-  updated_at: string;        // DB: updated_at TIMESTAMPTZ
+  id:              number;
+  title:           string;
+  body:            string;
+  category:        string;        // free text — must match a name in intranet_news_categories
+  cover_image_id:  number | null; // FK → documents.id
+  cover_image_url: string | null; // resolved from documents join (Cloudinary URL)
+  is_published:    boolean;
+  published_at:    string | null;
+  author_name:     string;
+  created_at:      string;
+  updated_at:      string;
 }
 
 // ── Events  (DB: intranet_events) ────────────────────────────────────────────

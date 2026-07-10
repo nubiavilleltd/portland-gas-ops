@@ -37,3 +37,20 @@ def require_roles(*roles: str):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
         return current_user
     return role_checker
+
+
+# ── Named guards ───────────────────────────────────────────────────────────────
+
+def login_required(current_user: User = Depends(get_current_user)) -> User:
+    """Any authenticated user. Use instead of get_current_user for clarity."""
+    return current_user
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Restricts access to super_admin and admin roles only."""
+    if current_user.role.value not in ("super_admin", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user

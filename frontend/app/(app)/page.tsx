@@ -29,6 +29,7 @@ import ActionModal from "@/components/ui/ActionModal";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
+import { useIntranetNewsPublished, useIntranetNewsCategories } from "@/lib/modules/intranet/queries";
 
 type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
 const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = [
@@ -75,14 +76,17 @@ const LEADERSHIP_MESSAGES = [
   },
 ];
 
-const NEWS = [
-  { id: 1, category: "Company News",   badge: "bg-[#7234BD] text-white",     title: "Portland Gas Commissions New CNG Refuelling Station in Lekki",    excerpt: "The newly commissioned station marks our 14th fuelling point in Lagos, expanding access to clean energy for fleet operators and private vehicle owners.", date: "9 Jun 2026",  author: "Corporate Communications",     img: `${PG}/Portland-gas-46-1.png` },
-  { id: 2, category: "Announcement",   badge: "bg-[#FFBC00] text-[#1C043B]", title: "Q2 2026 Town Hall — All Staff Meeting Thursday 12 June",           excerpt: "The MD will address Q2 performance and strategic priorities for H2 2026, then open the floor to questions. Attendance is mandatory for all staff.",       date: "8 Jun 2026",  author: "MD's Office",                  img: `${PG}/NASENI-PORTLAND-GAS-LAUNCH-4-scaled-1.jpg` },
-  { id: 3, category: "Policy Update",  badge: "bg-gray-100 text-[#1C043B]",  title: "Updated Remote Work & Flexible Hours Policy Effective 1 July",    excerpt: "HR has published the revised hybrid work policy. All staff must read and acknowledge the new policy before end of June 2026.",                          date: "6 Jun 2026",  author: "Human Resources",              img: `${PG}/Portland-gas-18.png` },
-  { id: 4, category: "Project Update", badge: "bg-[#7234BD] text-white",     title: "Phase 2 of Sagamu–Ibadan LNG Pipeline Now Underway",              excerpt: "Engineering teams have mobilised to site as the second phase of the landmark pipeline project begins. Completion is targeted for Q4 2026.",              date: "4 Jun 2026",  author: "Projects & Engineering",       img: `${PG}/CNG-bus-fleet.jpg` },
-  { id: 5, category: "Safety",         badge: "bg-red-100 text-red-700",     title: "Mandatory HSE Refresher Training — All Field Staff by 30 June",   excerpt: "HSE has scheduled refresher sessions across all field locations. Supervisors must ensure 100% participation before the end-of-month deadline.",          date: "3 Jun 2026",  author: "Health, Safety & Environment", img: `${PG}/Portland-gas-23.png` },
-  { id: 6, category: "Events",         badge: "bg-[#FFBC00] text-[#1C043B]", title: "Portland Gas Annual Family Fun Day — Saturday 28 June",           excerpt: "Join us for a day of fun, food, and fellowship. Venue: Landmark Event Centre, Victoria Island. Registration closes 20 June.",                         date: "2 Jun 2026",  author: "Admin & Corporate Services",   img: `${PG}/KL7V2Q3.webp` },
-];
+// Tailwind-safe badge classes by color key — driven by category.color from DB
+const COLOR_BADGE_CLASS: Record<string, string> = {
+  purple: "bg-[#7234BD] text-white",
+  yellow: "bg-[#FFBC00] text-[#1C043B]",
+  gray:   "bg-gray-100 text-[#1C043B]",
+  red:    "bg-red-100 text-red-700",
+  blue:   "bg-blue-100 text-blue-700",
+  green:  "bg-green-100 text-green-700",
+  teal:   "bg-teal-100 text-teal-700",
+  orange: "bg-orange-100 text-orange-700",
+};
 
 const BIRTHDAYS = [
   { id: 1, name: "Chinyere Okafor",  dept: "Supply Chain", date: "Today"    },
@@ -124,7 +128,7 @@ const SPOTLIGHTS = [
   { id: 3, name: "Tobi Adeyinka", role: "Fleet Coordinator",     dept: "Logistics",        highlight: "Achieved 98% on-time delivery rate for Q2, the highest in the department's history.", avatar: `${AV}?img=60`, tag: "Top Performer",     tagColor: "#7234BD", tagBg: "#F3EEFF" },
 ];
 
-const TABS = ["All", "News", "Announcements", "Events", "Policies"];
+// TABS now built dynamically from the database — see component
 
 // ── Calendar helpers ──────────────────────────────────────────────────────────
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -178,6 +182,25 @@ export default function IntranetHomePage() {
   const [slide,       setSlide]       = useState(0);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [mounted,     setMounted]     = useState(false);
+
+  // News — pulled from API, mapped to the shape the feed UI expects
+  const { data: rawNews = [] }    = useIntranetNewsPublished();
+  const { data: categories = [] } = useIntranetNewsCategories();
+  const TABS = ["All", ...categories.map((c) => c.name)];
+  const colorByName = Object.fromEntries(categories.map((c) => [c.name, c.color]));
+  const NEWS = rawNews.map((n) => ({
+    id:          n.id,
+    category:    n.category,
+    badge:       COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[#1C043B]",
+    title:       n.title,
+    bodyHtml:    n.body,
+    excerptText: n.body.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(),
+    date:        n.published_at
+      ? new Date(n.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+      : "",
+    author:      n.author_name,
+    img:         n.cover_image_url ?? "",
+  }));
 
   // Feedback modal state
   const [feedbackOpen,      setFeedbackOpen]      = useState(false);
@@ -262,16 +285,10 @@ export default function IntranetHomePage() {
     dayEventsMap[e.day].push(e);
   });
 
-  // News feed
-  const tabMap: Record<string, string[]> = {
-    News:          ["Company News", "Project Update"],
-    Announcements: ["Announcement"],
-    Events:        ["Events"],
-    Policies:      ["Policy Update", "Safety"],
-  };
+  // News feed — tab is either "All" or a category name directly
   const feed = NEWS.filter(n => {
-    if (tab !== "All" && !tabMap[tab]?.includes(n.category)) return false;
-    if (q) return n.title.toLowerCase().includes(q.toLowerCase()) || n.excerpt.toLowerCase().includes(q.toLowerCase());
+    if (tab !== "All" && n.category !== tab) return false;
+    if (q) return n.title.toLowerCase().includes(q.toLowerCase()) || n.excerptText.toLowerCase().includes(q.toLowerCase());
     return true;
   });
 
@@ -506,7 +523,7 @@ export default function IntranetHomePage() {
               {feed.length === 0 ? (
                 <div className="py-12 text-center text-gray-400">
                   <Search size={24} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No results for &ldquo;{q}&rdquo;</p>
+                  <p className="text-sm">{q ? <>No results for &ldquo;{q}&rdquo;</> : "No news articles published yet."}</p>
                 </div>
               ) : (
                 <div>
@@ -526,7 +543,10 @@ export default function IntranetHomePage() {
                         <h3 className="font-extrabold text-xl text-[#1C043B] leading-snug mb-2">
                           {feed[0].title}
                         </h3>
-                        <p className="text-sm text-gray-500 leading-relaxed mb-4 line-clamp-3">{feed[0].excerpt}</p>
+                        <div
+                          className="rich-text-preview line-clamp-3 mb-4"
+                          dangerouslySetInnerHTML={{ __html: feed[0].bodyHtml }}
+                        />
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide">
                           {feed[0].author} &nbsp;·&nbsp; {feed[0].date}
                         </p>
