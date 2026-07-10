@@ -100,16 +100,6 @@ function mapWorkAuthorizationSummary(
     authorization?.assigned_supervisor ||
     item.assigned_supervisor ||
     "";
-  console.log("[work-closeout:mapper:supervisor]", {
-    id: item.id,
-    reference: item.reference,
-    rawAssignedSupervisorId: item.assigned_supervisor_id,
-    rawAssignedSupervisor: item.assigned_supervisor,
-    nestedAssignedSupervisorId: authorization?.assigned_supervisor_id,
-    nestedAssignedSupervisor: authorization?.assigned_supervisor,
-    mappedSupervisorId: supervisorId,
-    mappedSupervisor: supervisor,
-  });
 
   return {
     id: item.work_authorization_id,

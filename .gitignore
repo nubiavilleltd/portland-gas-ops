@@ -64,6 +64,10 @@ Thumbs.db
 # ─── Claude local session notes ───────────────────────────────
 CLAUDE_PROGRESS.md
 
+# ─── Local-only Safety QA tooling ─────────────────────────────
+frontend/app/(app)/safety/qa-testing/
+frontend/lib/modules/safety/qa/
+
 # ─── Misc ─────────────────────────────────────────────────────
 *.log
 *.pid

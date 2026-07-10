@@ -1,7 +1,6 @@
 import AppLayout from "@/components/layout/AppLayout";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
-import SafetyPeopleApiDebug from "./components/SafetyPeopleApiDebug";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -38,7 +37,6 @@ const safetyProcesses = [
 export default function SafetyPage() {
   return (
     <AppLayout pageTitle="Safety & Compliance">
-      <SafetyPeopleApiDebug />
       <PageHeader
         title="Safety & Compliance"
         description="Raise and manage your safety and compliance requests"

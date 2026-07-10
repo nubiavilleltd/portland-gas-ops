@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import uuid
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, exists, or_
@@ -59,6 +60,7 @@ WORK_CLOSEOUT_REFERENCE_ENTITY = "work_closeout"
 WORK_CLOSEOUT_REFERENCE_PREFIX = "WCO"
 WORK_CLOSEOUT_REQUEST_TYPE = "work_closeout"
 WORK_CLOSEOUT_DOCUMENT_CATEGORY_PREFIX = "safety_work_closeout_completion"
+APP_LOCAL_TIMEZONE = ZoneInfo("Africa/Lagos")
 
 ACTIVE_WORK_CLOSEOUT_STATUSES = (
     WorkCloseOutStatus.draft,
@@ -388,7 +390,7 @@ def validate_work_closeout_schedule(
     planned_start = to_utc(initiation.planned_start_at) if initiation else None
     planned_end = to_utc(initiation.planned_end_at) if initiation else None
     authorization_requested_at = (
-        to_utc(authorization.requested_at)
+        database_timestamp_to_utc(authorization.requested_at)
         if authorization.requested_at
         else None
     )
@@ -401,7 +403,12 @@ def validate_work_closeout_schedule(
     ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Actual work time cannot be before the work authorization request date.",
+            detail={
+                "message": "Actual work time cannot be before the work authorization request date.",
+                "actual_start_at": actual_start.isoformat(),
+                "actual_completion_at": actual_completion.isoformat(),
+                "authorization_requested_at": authorization_requested_at.isoformat(),
+            },
         )
 
     late_start_threshold = (
@@ -462,6 +469,13 @@ def add_work_closeout_checklist_responses(
 def to_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(timezone.utc)
+
+
+def database_timestamp_to_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=APP_LOCAL_TIMEZONE).astimezone(timezone.utc)
 
     return value.astimezone(timezone.utc)
 

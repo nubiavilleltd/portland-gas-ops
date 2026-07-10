@@ -258,7 +258,6 @@ export default function WorkCompletionForm() {
       }, 700);
     } catch (error) {
       console.error("Failed to submit work close-out", error);
-      console.error("Work close-out error detail", getApiErrorDetail(error));
       toast.error(
         getApiErrorMessage(
           error,

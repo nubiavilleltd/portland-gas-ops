@@ -36,11 +36,13 @@ import {
   getEarliestPlannedStartDateTime,
   MIN_SCHEDULE_DURATION_MINUTES,
 } from "@/lib/modules/safety/date-rules";
+import { safetyLocationOptions } from "@/lib/modules/safety/constants";
 import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
 import { useAuditTrail } from "@/lib/modules/workflow/queries";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
 import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type {
+  IncidentHazardReport,
   WorkAuthorizationAttachment,
   WorkAuthorizationDecision,
   WorkInitiationRequest,
@@ -116,16 +118,7 @@ const contractorContactEmailByName: Record<string, string> = {
   "Electrical Support Contractors": "support@electricalcontractors.example",
 };
 const categoryOptions = toOptions(workCategoryOptions);
-const locationOptions = toOptions([
-  "Conversion Bay 1",
-  "Conversion Bay 2",
-  "Vehicle Yard",
-  "Gas Storage Area",
-  "Maintenance Workshop",
-  "Electrical Room",
-  "Loading Area",
-  "Inspection Bay",
-]);
+const locationOptions = toOptions(safetyLocationOptions);
 const contractorOptions = toOptions([
   "SafeWeld Engineering Ltd",
   "Prime Gas Services",
@@ -174,7 +167,6 @@ export default function WorkInitiationDetailsView({
   const auditTrailQuery = useAuditTrail("work_initiation", requestId);
   const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
   const request = requestQuery.data;
-  console.log("WorkInitiationDetailsView request:", request);
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
   const [editValuesById, setEditValuesById] = useState<
@@ -185,7 +177,9 @@ export default function WorkInitiationDetailsView({
     : null;
   const recommendedIncidentsQuery = useIncidentReports({ status: "recommended" });
   const incidentHazardRequestOptions = (recommendedIncidentsQuery.data ?? [])
-    .filter((report) => report.status === "recommended")
+    .filter((report) =>
+      canCurrentEmployeeRaiseIncidentWorkInitiation(report, currentEmployee),
+    )
     .map((report) => ({
       value: report.id,
       label: report.reference
@@ -1006,6 +1000,26 @@ function buildInitialEditValues(
     ),
     materialsRequired: request.assignment.materialsRequired,
   };
+}
+
+function canCurrentEmployeeRaiseIncidentWorkInitiation(
+  report: IncidentHazardReport,
+  currentEmployee?: SafetyEmployeeProfile | null,
+) {
+  if (!currentEmployee || String(report.status) !== "recommended") return false;
+
+  const review = report.hseReview;
+  if (!review?.actionOwnerId || !review.assignedDepartment) return false;
+
+  return (
+    review.actionOwnerId === currentEmployee.id ||
+    normalizeDepartment(review.assignedDepartment) ===
+      normalizeDepartment(currentEmployee.department)
+  );
+}
+
+function normalizeDepartment(value?: string | null) {
+  return (value ?? "").trim().replace(/_/g, " ").toLowerCase();
 }
 
 function buildWorkInitiationUpdatePayload(

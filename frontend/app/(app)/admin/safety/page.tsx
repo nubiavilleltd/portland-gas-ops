@@ -1,425 +1,421 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import {
-  getAdminIncidentHref,
-  getAdminWorkAuthorizationHref,
-  getAdminWorkCloseOutHref,
-  isExceptionWorkCloseOut,
-} from "@/lib/safety-demo-routing";
-import { useSafetyDemoData } from "@/lib/safety-demo-store";
+  ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  ListChecks,
+  MapPin,
+  ShieldAlert,
+  UserCheck,
+} from "lucide-react";
+import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
+import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
+import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
+import { useWorkInitiations } from "@/lib/modules/safety/workInitiation";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { cn, toTitleCase } from "@/lib/utils";
 import type {
   IncidentHazardReport,
+  IncidentHazardStatus,
   WorkAuthorizationRequest,
+  WorkAuthorizationStatus,
   WorkCloseOutRequest,
+  WorkCloseOutStatus,
+  WorkInitiationRequest,
+  WorkInitiationStatus,
 } from "@/types/safety";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Flame,
-  Gauge,
-  ListChecks,
-  ShieldAlert,
-  ShieldCheck,
-} from "lucide-react";
 
-const severityRank: Record<string, number> = {
-  Critical: 4,
-  High: 3,
-  Medium: 2,
-  Low: 1,
-};
+const openIncidentStatuses = new Set<IncidentHazardStatus>([
+  "submitted",
+  "recommended",
+  "pending_hse_verification",
+  "not_resolved",
+]);
+const pendingInitiationStatuses = new Set<WorkInitiationStatus>([
+  "submitted",
+  "pending",
+]);
+const pendingAuthorizationStatuses = new Set<WorkAuthorizationStatus>([
+  "submitted",
+]);
+const pendingCloseoutStatuses = new Set<WorkCloseOutStatus>([
+  "submitted",
+  "pending",
+]);
 
-type PendingHseRequest = {
+type SafetyActivity = {
   id: string;
-  type: "Incident Review" | "Work Authorization" | "Close-Out Verification";
+  reference: string;
   title: string;
+  type: string;
+  status: string;
   location: string;
   href: string;
-  detail: string;
-  sortScore: number;
+  dateLabel: string;
+  sortDate: number;
 };
 
 export default function AdminSafetyDashboardPage() {
-  const { incidentHazards, workAuthorizations, workCloseOuts } = useSafetyDemoData();
+  const incidentsQuery = useIncidentReports({ limit: 100 });
+  const initiationsQuery = useWorkInitiations({ limit: 100 });
+  const authorizationsQuery = useWorkAuthorizations({ limit: 100 });
+  const closeoutsQuery = useWorkCloseouts({ limit: 100 });
+  const approvalsQuery = useMyApprovals();
+  const currentEmployeeQuery = useSafetyCurrentEmployee();
 
-  const pendingHseRequests = getPendingHseRequests({
-    incidentHazards,
-    workAuthorizations,
-    workCloseOuts,
+  const incidents = incidentsQuery.data ?? [];
+  const initiations = initiationsQuery.data ?? [];
+  const authorizations = authorizationsQuery.data ?? [];
+  const closeouts = closeoutsQuery.data ?? [];
+  const approvals = approvalsQuery.data ?? [];
+  const currentEmployeeId = currentEmployeeQuery.data?.id;
+
+  const isLoading =
+    incidentsQuery.isLoading ||
+    initiationsQuery.isLoading ||
+    authorizationsQuery.isLoading ||
+    closeoutsQuery.isLoading ||
+    approvalsQuery.isLoading ||
+    currentEmployeeQuery.isLoading;
+
+  const highRiskIncidents = incidents.filter((incident) =>
+    ["High", "Critical"].includes(incident.severityEstimate),
+  );
+  const recommendedIncidents = incidents.filter(
+    (incident) => incident.status === "recommended",
+  );
+  const returnedWork = [
+    ...initiations.filter((request) => request.status === "returned"),
+    ...authorizations.filter((request) => request.status === "returned"),
+    ...closeouts.filter((request) => request.status === "returned"),
+  ];
+  const exceptionCloseouts = closeouts.filter(
+    (request) =>
+      request.areaCondition.remainingHazard ||
+      !request.completionDetails.completedAsApproved,
+  );
+  const pendingVerificationIncidents = incidents.filter(
+    (incident) => incident.status === "pending_hse_verification",
+  );
+
+  const assignedToMeCount = currentEmployeeId
+    ? [
+        ...initiations.filter((request) =>
+          isWorkInitiationAssignedToEmployee(request, currentEmployeeId),
+        ),
+        ...authorizations.filter((request) =>
+          isAuthorizationAssignedToEmployee(request, currentEmployeeId),
+        ),
+        ...closeouts.filter((request) =>
+          isCloseoutAssignedToEmployee(request, currentEmployeeId),
+        ),
+      ].length
+    : 0;
+
+  const locationRows = topCounts([
+    ...incidents.map((incident) => incident.location || "Unspecified"),
+    ...initiations.map((request) => request.location || "Unspecified"),
+    ...authorizations.map((request) => request.workInitiation.location || "Unspecified"),
+    ...closeouts.map((request) => request.workAuthorization.location || "Unspecified"),
+  ]);
+  const recentActivity = buildRecentActivity({
+    incidents,
+    initiations,
+    authorizations,
+    closeouts,
   });
-  const approvedCloseOuts = workCloseOuts.filter((request) => request.status === "approved");
-  const acknowledgedCloseOuts = workCloseOuts.filter(
-    (request) => request.status === "acknowledged",
-  );
-  const successfulCloseOuts = approvedCloseOuts.filter(isCleanCloseOut);
-  const worksWithHazards = workCloseOuts.filter(hasCloseOutHazard);
-  const compliantEndToEnd = approvedCloseOuts.filter((closeOut) =>
-    isCompliantEndToEnd(closeOut, workAuthorizations),
-  );
-  const gasOrFireConcerns = incidentHazards.filter(
-    (report) => report.gasFireEnvironmentalConcern,
-  );
-  const openCorrectiveActions = incidentHazards.filter(
-    (report) => report.status === "recommended" || report.status === "resolved",
-  );
-  const topHazardTypes = getTopCounts(
-    incidentHazards
-      .filter((report) => report.status !== "draft")
-      .map((report) => report.reportType || "Unclassified"),
-  );
-  const topHazardLocations = getTopCounts(
-    incidentHazards
-      .filter((report) => report.status !== "draft")
-      .map((report) => report.location || "Unspecified"),
-  );
-  const complianceRate =
-    approvedCloseOuts.length > 0
-      ? Math.round((compliantEndToEnd.length / approvedCloseOuts.length) * 100)
-      : 0;
 
   return (
     <AppLayout pageTitle="Admin">
       <PageHeader
         title="Safety Dashboard"
-        description="Admin source of truth for HSE queue, close-out quality, corrective actions, and hazard patterns"
+        description="Oversight view for safety workload, risk signals, locations, and recent activity."
       />
 
-      <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <DashboardMetric
-          label="Pending HSE Requests"
-          value={pendingHseRequests.length}
-          helper="Incident reviews, authorizations, and close-outs awaiting HSE"
-          icon={<ShieldAlert size={20} />}
-          tone="amber"
-        />
-        <DashboardMetric
-          label="Clean Close-Outs"
-          value={successfulCloseOuts.length}
-          helper="Approved work with no incident, no deviation, and no remaining hazard"
-          icon={<CheckCircle2 size={20} />}
-          tone="green"
-        />
-        <DashboardMetric
-          label="Unsuccessful Close-Outs"
-          value={acknowledgedCloseOuts.length}
-          helper="Exception close-outs acknowledged for audit, not counted as successful"
-          icon={<ShieldAlert size={20} />}
-          tone="orange"
-        />
-        <DashboardMetric
-          label="Works With Hazards"
-          value={worksWithHazards.length}
-          helper="Close-outs that recorded incidents, deviations, or remaining hazards"
-          icon={<AlertTriangle size={20} />}
-          tone="red"
-        />
-        <DashboardMetric
-          label="End-to-End Compliance"
-          value={`${complianceRate}%`}
-          helper={`${compliantEndToEnd.length} of ${approvedCloseOuts.length} approved close-outs fully compliant`}
-          icon={<ShieldCheck size={20} />}
-          tone="blue"
-        />
-      </div>
+      <div className="mt-6 space-y-5">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard
+            title="Open Incidents"
+            value={countByStatus(incidents, openIncidentStatuses)}
+            subtitle={`${highRiskIncidents.length} high or critical`}
+            icon={<ShieldAlert size={20} />}
+            tone="red"
+            loading={isLoading}
+          />
+          <MetricCard
+            title="Pending Initiations"
+            value={countByStatus(initiations, pendingInitiationStatuses)}
+            subtitle={`${returnedWork.length} returned across work flows`}
+            icon={<ClipboardCheck size={20} />}
+            tone="purple"
+            loading={isLoading}
+          />
+          <MetricCard
+            title="Pending Authorizations"
+            value={countByStatus(authorizations, pendingAuthorizationStatuses)}
+            subtitle={`${authorizations.filter((item) => item.status === "approved").length} approved`}
+            icon={<ListChecks size={20} />}
+            tone="blue"
+            loading={isLoading}
+          />
+          <MetricCard
+            title="Pending Close-Outs"
+            value={countByStatus(closeouts, pendingCloseoutStatuses)}
+            subtitle={`${exceptionCloseouts.length} exception signals`}
+            icon={<CheckCircle2 size={20} />}
+            tone="green"
+            loading={isLoading}
+          />
+          <MetricCard
+            title="Awaiting My Approval"
+            value={approvals.length}
+            subtitle={`${assignedToMeCount} assigned to me`}
+            icon={<UserCheck size={20} />}
+            tone="amber"
+            loading={isLoading}
+          />
+        </section>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <TrendPanel
-          title="Most Reported Hazard Types"
-          description="Based on submitted, recommended, resolved, and closed incident reports."
-          rows={topHazardTypes}
-        />
-        <TrendPanel
-          title="Most Reported Locations"
-          description="Shows where repeat safety signals are clustering."
-          rows={topHazardLocations}
-        />
-      </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(360px,0.8fr)]">
-        <section className="rounded-xl border border-brand-border bg-white">
-          <div className="flex flex-col gap-2 border-b border-brand-border px-5 py-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-brand-text-primary">
-                Pending HSE Queue
-              </h2>
-              <p className="mt-1 text-sm text-brand-text-secondary">
-                Only requests currently waiting for HSE action are shown here.
-              </p>
+        <section className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+          <DashboardPanel
+            title="Needs Attention"
+            description="Risk and workflow signals that should be reviewed first."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <AttentionItem
+                label="High / critical incidents"
+                value={highRiskIncidents.length}
+                href="/safety/incidents"
+                tone="red"
+              />
+              <AttentionItem
+                label="Corrective action recommended"
+                value={recommendedIncidents.length}
+                href="/safety/incidents"
+                tone="amber"
+              />
+              <AttentionItem
+                label="Pending HSE verification"
+                value={pendingVerificationIncidents.length}
+                href="/safety/incidents"
+                tone="blue"
+              />
+              <AttentionItem
+                label="Close-out exceptions"
+                value={exceptionCloseouts.length}
+                href="/safety/work-close-out"
+                tone="purple"
+              />
             </div>
-            <span className="w-fit rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
-              {pendingHseRequests.length} open
-            </span>
-          </div>
+          </DashboardPanel>
 
-          {pendingHseRequests.length === 0 ? (
-            <div className="p-5">
-              <p className="rounded-lg border border-dashed border-brand-border bg-gray-50 p-4 text-sm text-brand-text-secondary">
-                No requests are pending HSE review right now.
-              </p>
+          <DashboardPanel
+            title="Top Locations"
+            description="Most frequent locations across visible safety records."
+          >
+            <div className="space-y-3">
+              {locationRows.length > 0 ? (
+                locationRows.map((row) => (
+                  <LocationRow
+                    key={row.label}
+                    label={row.label}
+                    value={row.value}
+                    max={locationRows[0]?.value ?? 1}
+                  />
+                ))
+              ) : (
+                <EmptyState text="No location data available." />
+              )}
             </div>
-          ) : (
-            <div className="divide-y divide-brand-border">
-              {pendingHseRequests.map((request) => (
-                <Link
-                  key={`${request.type}-${request.id}`}
-                  href={request.href}
-                  className="grid gap-3 px-5 py-4 transition-colors hover:bg-gray-50 md:grid-cols-[1fr_150px_120px]"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-mono text-brand-text-secondary">
-                        {request.id}
-                      </span>
-                      <StatusPill label={request.type} tone="blue" />
+          </DashboardPanel>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
+          <DashboardPanel
+            title="Admin Watchlist"
+            description="Records connected to your approvals or operational assignments."
+          >
+            <div className="grid gap-3">
+              <SmallStat
+                label="Awaiting my approval"
+                value={approvals.length}
+                href="/approvals"
+              />
+              <SmallStat
+                label="Assigned to me"
+                value={assignedToMeCount}
+                href="/safety/work-initiation"
+              />
+              <SmallStat
+                label="Returned work"
+                value={returnedWork.length}
+                href="/safety/work-initiation"
+              />
+            </div>
+          </DashboardPanel>
+
+          <DashboardPanel
+            title="Recent Safety Activity"
+            description="Latest visible records across Safety processes."
+          >
+            <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
+              {recentActivity.length > 0 ? (
+                recentActivity.slice(0, 8).map((item) => (
+                  <Link
+                    key={`${item.type}-${item.id}`}
+                    href={item.href}
+                    className="grid gap-2 bg-white px-4 py-3 transition hover:bg-gray-50 md:grid-cols-[1fr_auto] md:items-center"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold uppercase text-brand-text-secondary">
+                          {item.type}
+                        </span>
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-brand-text-secondary">
+                          {toTitleCase(item.status)}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-sm font-semibold text-brand-text-primary">
+                        {item.reference} - {item.title}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-brand-text-secondary">
+                        <MapPin size={12} />
+                        <span className="truncate">{item.location || "Unspecified"}</span>
+                      </p>
                     </div>
-                    <p className="mt-2 line-clamp-1 text-sm font-semibold text-brand-text-primary">
-                      {request.title}
+                    <p className="text-xs text-brand-text-secondary md:text-right">
+                      {item.dateLabel}
                     </p>
-                    <p className="mt-1 line-clamp-1 text-xs text-brand-text-secondary">
-                      {request.detail}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">
-                      Location
-                    </p>
-                    <p className="mt-1 text-sm text-brand-text-primary">{request.location}</p>
-                  </div>
-                  <div className="flex items-center md:justify-end">
-                    <span className="text-sm font-medium text-brand-purple">Review</span>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))
+              ) : (
+                <div className="bg-white p-4">
+                  <EmptyState text="No recent safety activity." />
+                </div>
+              )}
             </div>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-brand-border bg-white">
-          <div className="border-b border-brand-border px-5 py-4">
-            <h2 className="text-base font-semibold text-brand-text-primary">
-              Safety Attention
-            </h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              Signals HSE should keep watching after work moves forward.
-            </p>
-          </div>
-          <div className="grid gap-3 p-5">
-            <SignalRow
-              icon={<Flame size={18} />}
-              label="Gas, fire, or environmental concerns"
-              value={gasOrFireConcerns.length}
-              href="/safety/incidents"
-            />
-            <SignalRow
-              icon={<ListChecks size={18} />}
-              label="Open corrective-action records"
-              value={openCorrectiveActions.length}
-              href="/safety/incidents"
-            />
-            <SignalRow
-              icon={<Gauge size={18} />}
-              label="Approved close-outs reviewed"
-              value={approvedCloseOuts.length}
-              href="/safety/work-close-out"
-            />
-          </div>
+          </DashboardPanel>
         </section>
       </div>
-
     </AppLayout>
   );
 }
 
-function getPendingHseRequests({
-  incidentHazards,
-  workAuthorizations,
-  workCloseOuts,
-}: {
-  incidentHazards: IncidentHazardReport[];
-  workAuthorizations: WorkAuthorizationRequest[];
-  workCloseOuts: WorkCloseOutRequest[];
-}) {
-  const incidentReviews: PendingHseRequest[] = incidentHazards
-    .filter((report) => report.status === "submitted")
-    .map((report) => ({
-      id: report.id,
-      type: "Incident Review",
-      title: report.title || "Untitled incident or hazard report",
-      location: report.location || "-",
-      href: getAdminIncidentHref(report),
-      detail: report.gasFireEnvironmentalConcern
-        ? "Gas, fire, or environmental concern flagged"
-        : report.reportType || "Awaiting HSE review",
-      sortScore: severityRank[report.severityEstimate] ?? 0,
-    }));
-
-  const authorizationReviews: PendingHseRequest[] = workAuthorizations
-    .filter((request) => request.status === "submitted")
-    .map((request) => ({
-      id: request.id,
-      type: "Work Authorization",
-      title: request.workInitiation.title,
-      location: request.workInitiation.location,
-      href: getAdminWorkAuthorizationHref(request),
-      detail: getRiskSummary(request),
-      sortScore: getAuthorizationSortScore(request),
-    }));
-
-  const closeOutReviews: PendingHseRequest[] = workCloseOuts
-    .filter(
-      (request) =>
-        request.status === "pending" &&
-        Boolean(request.operationsHeadApproval) &&
-        !request.hseApproval,
-    )
-    .map((request) => ({
-      id: request.id,
-      type: "Close-Out Verification",
-      title: request.title,
-      location: request.workAuthorization.location,
-      href: getAdminWorkCloseOutHref(request),
-      detail: hasCloseOutHazard(request)
-        ? "Close-out has hazard, deviation, or monitoring concern"
-        : "Operations has approved; HSE verification is pending",
-      sortScore: hasCloseOutHazard(request) ? 3 : 1,
-    }));
-
-  return [...incidentReviews, ...authorizationReviews, ...closeOutReviews].sort(
-    (a, b) => b.sortScore - a.sortScore || a.id.localeCompare(b.id),
-  );
-}
-
-function isCleanCloseOut(request: WorkCloseOutRequest) {
-  return (
-    request.status === "approved" &&
-    request.hseApproval?.decision === "Approve" &&
-    request.completionDetails.workCompleted &&
-    request.completionDetails.completedAsApproved &&
-    !request.completionDetails.incidentObserved &&
-    request.monitoring.monitoredDuringExecution &&
-    request.monitoring.stayedWithinScope &&
-    request.monitoring.ppeAndControlsMaintained &&
-    request.areaCondition.workAreaCleaned &&
-    request.areaCondition.toolsRemoved &&
-    request.areaCondition.systemSafe &&
-    !request.areaCondition.remainingHazard &&
-    request.hseApproval.areaSafeForOperations &&
-    !request.hseApproval.correctiveActionRequired
-  );
-}
-
-function hasCloseOutHazard(request: WorkCloseOutRequest) {
-  return isExceptionWorkCloseOut(request) || Boolean(request.hseApproval?.correctiveActionRequired);
-}
-
-function isCompliantEndToEnd(
-  closeOut: WorkCloseOutRequest,
-  workAuthorizations: WorkAuthorizationRequest[],
-) {
-  const authorization = workAuthorizations.find(
-    (request) => request.id === closeOut.workAuthorization.id,
-  );
-  const requiredInspectionChecks = authorization?.hseInspection
-    ? [
-        authorization.hseInspection.workAreaSafe,
-        authorization.hseInspection.emergencyEquipmentAvailable,
-        authorization.hseInspection.gasPressureCheckCompleted,
-        authorization.hseInspection.ppeAndSafetyKitsAvailable,
-        authorization.hseInspection.safetyControlsInPlace,
-      ]
-    : [];
-  const authorizationCompliant =
-    closeOut.workAuthorization.status === "approved" &&
-    (!authorization ||
-      (authorization.status === "approved" &&
-        authorization.hseApproval?.decision === "Approve" &&
-        authorization.hseInspection?.result === "Passed" &&
-        requiredInspectionChecks.every((value) => value === "Pass")));
-
-  return authorizationCompliant && isCleanCloseOut(closeOut);
-}
-
-function getAuthorizationSortScore(request: WorkAuthorizationRequest) {
-  const { gasInvolved, pressurizedSystem, heatOrSparks, electricalIsolation } =
-    request.riskIndicators;
-
-  if (gasInvolved && (pressurizedSystem || heatOrSparks)) return 3;
-  if (heatOrSparks || electricalIsolation || pressurizedSystem) return 2;
-  return 1;
-}
-
-function getRiskSummary(request: WorkAuthorizationRequest) {
-  const risks = [
-    request.riskIndicators.gasInvolved ? "gas" : "",
-    request.riskIndicators.pressurizedSystem ? "pressurized system" : "",
-    request.riskIndicators.heatOrSparks ? "hot work" : "",
-    request.riskIndicators.electricalIsolation ? "electrical isolation" : "",
-    request.riskIndicators.liftingEquipment ? "lifting" : "",
-  ].filter(Boolean);
-
-  return risks.length > 0
-    ? `Risk indicators: ${risks.join(", ")}`
-    : "No high-risk indicator selected";
-}
-
-function getTopCounts(items: string[]) {
-  const counts = items.reduce<Record<string, number>>((acc, item) => {
-    acc[item] = (acc[item] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  return Object.entries(counts)
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
-    .slice(0, 5);
-}
-
-function DashboardMetric({
-  label,
+function MetricCard({
+  title,
   value,
-  helper,
+  subtitle,
   icon,
   tone,
+  loading,
 }: {
-  label: string;
-  value: string | number;
-  helper: string;
-  icon: ReactNode;
-  tone: "amber" | "green" | "red" | "blue" | "orange";
+  title: string;
+  value: number;
+  subtitle: string;
+  icon: React.ReactNode;
+  tone: "red" | "purple" | "blue" | "green" | "amber";
+  loading: boolean;
 }) {
-  const toneClass = {
-    amber: "bg-amber-50 text-amber-700 ring-amber-100",
-    green: "bg-green-50 text-green-700 ring-green-100",
-    red: "bg-red-50 text-red-700 ring-red-100",
-    blue: "bg-blue-50 text-blue-700 ring-blue-100",
-    orange: "bg-orange-50 text-orange-700 ring-orange-100",
-  }[tone];
-
   return (
-    <section className="rounded-xl border border-brand-border bg-white p-4">
+    <div className="rounded-xl border border-brand-border bg-white p-4 md:rounded-2xl">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-brand-text-secondary">{label}</p>
-          <p className="mt-1 text-2xl font-semibold text-brand-text-primary">{value}</p>
+        <div className="min-w-0">
+          <p className="text-sm text-brand-text-secondary">{title}</p>
+          <p className="mt-2 text-2xl font-semibold text-brand-text-primary">
+            {loading ? "..." : value}
+          </p>
+          <p className="mt-1 truncate text-xs text-brand-text-secondary">{subtitle}</p>
         </div>
-        <span className={`rounded-lg p-2 ring-1 ${toneClass}`}>{icon}</span>
+        <div className={cn("rounded-xl p-2.5", toneClasses[tone])}>{icon}</div>
       </div>
-      <p className="mt-3 text-xs leading-5 text-brand-text-secondary">{helper}</p>
+    </div>
+  );
+}
+
+function DashboardPanel({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-brand-border bg-white md:rounded-2xl">
+      <div className="border-b border-brand-border bg-gray-50 px-4 py-4 md:px-5">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        <p className="mt-1 text-sm text-brand-text-secondary">{description}</p>
+      </div>
+      <div className="p-4 md:p-5">{children}</div>
     </section>
   );
 }
 
-function SignalRow({
-  icon,
+function AttentionItem({
+  label,
+  value,
+  href,
+  tone,
+}: {
+  label: string;
+  value: number;
+  href: string;
+  tone: "red" | "amber" | "blue" | "purple";
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-3 rounded-xl border border-brand-border px-4 py-3 transition hover:border-brand-purple hover:bg-gray-50"
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-brand-text-primary">{label}</p>
+        <p className={cn("mt-1 text-2xl font-semibold", textToneClasses[tone])}>
+          {value}
+        </p>
+      </div>
+      <ArrowRight className="shrink-0 text-brand-text-secondary" size={18} />
+    </Link>
+  );
+}
+
+function LocationRow({
+  label,
+  value,
+  max,
+}: {
+  label: string;
+  value: number;
+  max: number;
+}) {
+  const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="truncate text-sm font-medium text-brand-text-primary">{label}</p>
+        <p className="text-sm text-brand-text-secondary">{value}</p>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
+        <div
+          className="h-full rounded-full bg-brand-purple"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SmallStat({
   label,
   value,
   href,
 }: {
-  icon: ReactNode;
   label: string;
   value: number;
   href: string;
@@ -427,84 +423,147 @@ function SignalRow({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-4 rounded-lg border border-brand-border px-3 py-3 transition-colors hover:border-brand-purple hover:bg-brand-purple-faint"
+      className="flex items-center justify-between rounded-xl border border-brand-border px-4 py-3 transition hover:border-brand-purple hover:bg-gray-50"
     >
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-brand-text-secondary">
-          {icon}
-        </span>
-        <span className="line-clamp-2 text-sm font-medium text-brand-text-primary">
-          {label}
-        </span>
+      <span className="text-sm font-medium text-brand-text-primary">{label}</span>
+      <span className="rounded-full bg-brand-purple-faint px-3 py-1 text-sm font-semibold text-brand-purple">
+        {value}
       </span>
-      <span className="text-lg font-semibold text-brand-text-primary">{value}</span>
     </Link>
   );
 }
 
-function TrendPanel({
-  title,
-  description,
-  rows,
-}: {
-  title: string;
-  description: string;
-  rows: { label: string; value: number }[];
-}) {
-  const maxValue = Math.max(...rows.map((row) => row.value), 1);
+function EmptyState({ text }: { text: string }) {
+  return <p className="text-sm text-brand-text-secondary">{text}</p>;
+}
 
+function countByStatus<T extends { status: string }>(
+  items: T[],
+  statuses: Set<string>,
+) {
+  return items.filter((item) => statuses.has(item.status)).length;
+}
+
+function topCounts(values: string[]) {
+  const counts = new Map<string, number>();
+  values.forEach((value) => {
+    const label = value.trim() || "Unspecified";
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .slice(0, 5);
+}
+
+function buildRecentActivity({
+  incidents,
+  initiations,
+  authorizations,
+  closeouts,
+}: {
+  incidents: IncidentHazardReport[];
+  initiations: WorkInitiationRequest[];
+  authorizations: WorkAuthorizationRequest[];
+  closeouts: WorkCloseOutRequest[];
+}): SafetyActivity[] {
+  return [
+    ...incidents.map((item) => ({
+      id: item.id,
+      reference: item.reference ?? "Incident",
+      title: item.title,
+      type: "Incident",
+      status: item.status,
+      location: item.location,
+      href: `/safety/incidents/${item.id}`,
+      dateLabel: item.reporter.reportDate,
+      sortDate: toSortTime(item.reportedAtRaw ?? item.reporter.reportDate),
+    })),
+    ...initiations.map((item) => ({
+      id: item.id,
+      reference: item.reference ?? "Work Initiation",
+      title: item.title,
+      type: "Initiation",
+      status: item.status,
+      location: item.location,
+      href: `/safety/work-initiation/${item.id}`,
+      dateLabel: item.requester.requestDate,
+      sortDate: toSortTime(item.requester.requestDate),
+    })),
+    ...authorizations.map((item) => ({
+      id: item.id,
+      reference: item.reference ?? "Work Authorization",
+      title: item.workInitiation.title,
+      type: "Authorization",
+      status: item.status,
+      location: item.workInitiation.location,
+      href: `/safety/work-authorization/${item.id}`,
+      dateLabel: item.requester.requestDate,
+      sortDate: toSortTime(item.requestedAtRaw ?? item.requester.requestDate),
+    })),
+    ...closeouts.map((item) => ({
+      id: item.id,
+      reference: item.reference ?? "Close-Out",
+      title: item.title,
+      type: "Close-Out",
+      status: item.status,
+      location: item.workAuthorization.location,
+      href: `/safety/work-close-out/${item.id}`,
+      dateLabel: item.requester.requestDate,
+      sortDate: toSortTime(item.requester.requestDate),
+    })),
+  ].sort((a, b) => b.sortDate - a.sortDate);
+}
+
+function toSortTime(value?: string | null) {
+  if (!value) return 0;
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function isWorkInitiationAssignedToEmployee(
+  request: WorkInitiationRequest,
+  employeeId: string,
+) {
   return (
-    <section className="rounded-xl border border-brand-border bg-white">
-      <div className="border-b border-brand-border px-5 py-4">
-        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
-        <p className="mt-1 text-sm text-brand-text-secondary">{description}</p>
-      </div>
-      <div className="space-y-4 p-5">
-        {rows.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-brand-border bg-gray-50 p-4 text-sm text-brand-text-secondary">
-            No reports available yet.
-          </p>
-        ) : (
-          rows.map((row) => (
-            <div key={row.label}>
-              <div className="mb-1 flex items-center justify-between gap-3">
-                <p className="truncate text-sm font-medium text-brand-text-primary">
-                  {row.label}
-                </p>
-                <p className="text-sm font-semibold text-brand-text-primary">{row.value}</p>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full bg-brand-purple"
-                  style={{ width: `${Math.max((row.value / maxValue) * 100, 12)}%` }}
-                />
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </section>
+    request.assignment.assignedSupervisorId === employeeId ||
+    Boolean(request.assignment.assignedWorkerIds?.includes(employeeId))
   );
 }
 
-function StatusPill({
-  label,
-  tone,
-}: {
-  label: string;
-  tone: "amber" | "blue" | "red" | "green" | "gray";
-}) {
-  const toneClass = {
-    amber: "bg-amber-100 text-amber-700",
-    blue: "bg-blue-100 text-blue-700",
-    red: "bg-red-100 text-red-700",
-    green: "bg-green-100 text-green-700",
-    gray: "bg-gray-100 text-gray-700",
-  }[tone];
-
+function isAuthorizationAssignedToEmployee(
+  request: WorkAuthorizationRequest,
+  employeeId: string,
+) {
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>
-      {label}
-    </span>
+    request.workInitiation.assignedSupervisorId === employeeId ||
+    Boolean(request.workInitiation.assignedWorkerIds?.includes(employeeId))
   );
 }
+
+function isCloseoutAssignedToEmployee(
+  request: WorkCloseOutRequest,
+  employeeId: string,
+) {
+  return (
+    request.workAuthorization.supervisorId === employeeId ||
+    Boolean(request.workAuthorization.assignedWorkerIds?.includes(employeeId))
+  );
+}
+
+const toneClasses = {
+  red: "bg-red-50 text-red-700",
+  purple: "bg-brand-purple-faint text-brand-purple",
+  blue: "bg-blue-50 text-blue-700",
+  green: "bg-green-50 text-green-700",
+  amber: "bg-amber-50 text-amber-700",
+};
+
+const textToneClasses = {
+  red: "text-red-700",
+  amber: "text-amber-700",
+  blue: "text-blue-700",
+  purple: "text-brand-purple",
+};

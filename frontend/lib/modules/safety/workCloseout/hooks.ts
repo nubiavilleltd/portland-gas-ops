@@ -38,33 +38,7 @@ export function useWorkCloseouts(params?: WorkCloseOutListParams) {
     queryKey: workCloseoutKeys.list(params),
     queryFn: async () => {
       const items = await workCloseoutsApi.list(params);
-      console.log(
-        "[work-closeout:list:raw]",
-        items.map((item) => ({
-          id: item.id,
-          reference: item.reference,
-          assigned_supervisor_id: item.assigned_supervisor_id,
-          assigned_supervisor: item.assigned_supervisor,
-          work_authorization: item.work_authorization
-            ? {
-                assigned_supervisor_id:
-                  item.work_authorization.assigned_supervisor_id,
-                assigned_supervisor: item.work_authorization.assigned_supervisor,
-              }
-            : null,
-        })),
-      );
-      const mapped = items.map(mapWorkCloseOutToRequest);
-      console.log(
-        "[work-closeout:list:mapped]",
-        mapped.map((item) => ({
-          id: item.id,
-          reference: item.reference,
-          supervisorId: item.workAuthorization.supervisorId,
-          supervisor: item.workAuthorization.supervisor,
-        })),
-      );
-      return mapped;
+      return items.map(mapWorkCloseOutToRequest);
     },
     enabled: isAuthenticated,
     staleTime: 60 * 1000,
