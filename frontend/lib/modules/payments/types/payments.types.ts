@@ -1,19 +1,32 @@
 export type PaymentMethod = "bank_transfer" | "cash" | "card" | "cheque";
 
+export type PaymentStatus =
+  | "unpaid"
+  | "partially_paid"
+  | "paid"
+  | "overdue"
+  | "void";
+
 export interface Payment {
   id: string;
 
-  invoice_id: string;
+  paymentNo: string;
 
-  payment_reference: string;
+  invoiceId: string;
+
+  invoiceNo: string;
+
+  reference: string;
 
   amount: number;
 
-  payment_method: PaymentMethod;
+  method: PaymentMethod;
 
-  payment_date: string;
+  paymentDate: string;
 
-  recorded_by: string;
+  recordedBy: string;
+
+  createdAt: string;
 }
 
 
@@ -61,3 +74,13 @@ export const PAYMENT_METHODS_ARRAY: PaymentMethod[] = [
     "card",
     "cheque"
   ]
+
+
+  // payments.types.ts — add alongside the PaymentStatus type
+export function isSettled(status: PaymentStatus): boolean {
+  return status === "paid" || status === "void";
+}
+
+export function needsPayment(status: PaymentStatus): boolean {
+  return status === "unpaid" || status === "partially_paid" || status === "overdue";
+}

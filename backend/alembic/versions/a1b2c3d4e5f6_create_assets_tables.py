@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column('purchase_cost',       sa.Numeric(12,2),nullable=True),
         sa.Column('condition',           sa.Enum('new','good','fair','poor'), nullable=False, server_default='good'),
         sa.Column('status',              sa.Enum('available','in_use','under_maintenance','decommissioned'), nullable=False, server_default='available'),
-        sa.Column('image_url',           sa.String(500),  nullable=True),
+        sa.Column('attachment_id',       sa.Integer(),    sa.ForeignKey('documents.id', ondelete='SET NULL'), nullable=True),
         sa.Column('description',         sa.Text(),       nullable=True),
         sa.Column('assigned_to',         sa.String(255),  nullable=True),
         sa.Column('total_quantity',      sa.Integer(),    nullable=False, server_default='1'),

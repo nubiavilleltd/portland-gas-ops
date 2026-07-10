@@ -10,6 +10,7 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormSection from "@/components/ui/FormSection";
 import CurrencyInput from "@/components/forms/CurrencyInput";
 import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
+import { VehicleType } from "../types/vehicle.types";
 
 const VEHICLE_TYPE_OPTIONS = [
   { value: "lpg_tanker", label: "LPG Tanker" },
@@ -29,11 +30,12 @@ const FUEL_TYPE_OPTIONS = [
 export type VehicleFormValues = {
   name: string;
   plate_number: string;
-  type: string;
+  type: VehicleType;
   make: string;
   model: string;
   year: string;
-  image: string;
+  image?: File;
+  existingImage?: string;
   capacity: string;
   fuel_type: string;
   mileage: string;
@@ -46,11 +48,11 @@ export type VehicleFormValues = {
 export const DEFAULT_VEHICLE_FORM_VALUES: VehicleFormValues = {
   name: "",
   plate_number: "",
-  type: "",
+  type: "lpg_tanker",
   make: "",
   model: "",
   year: "",
-  image: "",
+  image: undefined,
   capacity: "",
   fuel_type: "",
   mileage: "",
@@ -81,8 +83,6 @@ export default function VehicleForm({
   });
 
   const [loading, setLoading] = useState(false);
-
-
 
   function patch(field: keyof VehicleFormValues, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -116,28 +116,20 @@ export default function VehicleForm({
 
   return (
     <div className="space-y-6">
-
       {/* IDENTITY */}
       <FormSection
         title="Vehicle Identity"
         description="Basic information about the vehicle"
       >
         <div className="space-y-5">
-
           {/* IMAGE */}
           <ProfilePicUpload
-            value={null}
+            value={form.image ?? null}
             onChange={(file) => {
-              if (!file) {
-                setForm((prev) => ({ ...prev, image: "" }));
-                return;
-              }
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                const base64 = reader.result as string;
-                setForm((prev) => ({ ...prev, image: base64 }));
-              };
-              reader.readAsDataURL(file);
+              setForm((prev) => ({
+                ...prev,
+                image: file ?? undefined,
+              }));
             }}
             shape="circle"
             size={110}
@@ -146,7 +138,6 @@ export default function VehicleForm({
           />
 
           <div className="grid grid-cols-2 gap-5">
-
             <FormInput
               label="Vehicle Name"
               required
@@ -163,7 +154,6 @@ export default function VehicleForm({
               onChange={(e) => patch("plate_number", e.target.value)}
             />
           </div>
-
 
           <div className="grid grid-cols-2 gap-5">
             <FormSelect
@@ -201,7 +191,6 @@ export default function VehicleForm({
               onChange={(e) => patch("year", e.target.value)}
             />
           </div>
-
         </div>
       </FormSection>
 
@@ -250,7 +239,6 @@ export default function VehicleForm({
               onValueChange={(v) => patch("mileage", v)}
             />
           </div>
-
         </div>
       </FormSection>
 
@@ -299,11 +287,13 @@ export default function VehicleForm({
         {/* <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button> */}
-        <Button onClick={handleSubmit} disabled={loading}>
+        <Button
+          onClick={handleSubmit}
+          disabled={loading}
+        >
           {loading ? submitLoadingLabel : submitLabel}
         </Button>
       </div>
-
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { Trip } from "../types/trip.types";
+import type { Trip, TripStatus } from "../types/trip.types";
 import type { Driver } from "../types/driver.types";
 import type { Vehicle } from "../types/vehicle.types";
 import { Order } from "../../orders/types/orders.types";
@@ -10,8 +10,8 @@ export function canCreateTrip(): boolean {
 
 export function canLinkOrderToTrip(order: Order): boolean {
   return (
-    order.order_status === "confirmed" &&
-    order.fulfillment_status === "pending"
+    order.orderStatus === "confirmed" &&
+    order.fulfillmentStatus === "pending"
   );
 }
 
@@ -50,22 +50,6 @@ export function canAssignVehicle(
 
 
 
-
-// export function canAssignResourcesToTrip(trip: Trip | undefined) {
-//   if (!trip) return false;
-//   // return trip.status === "pending" || trip.status === "assigned";
-//   return trip.status === "pending"
-// }
-
-// export function canAssignResourcesToTrip(trip: Trip | undefined) {
-//   if (!trip) return false;
-//   return (
-//     trip.status === "pending" ||
-//     trip.status === "assigned" ||
-//     trip.status === "awaiting_inventory"
-//   );
-// }
-
 export function canAssignResourcesToTrip(trip: Trip | undefined) {
   if (!trip) return false;
   return trip.status === "pending";  // only show before first assignment
@@ -76,37 +60,10 @@ export function canAssignResourcesToTrip(trip: Trip | undefined) {
 // FULL RESOURCE ASSIGNMENT
 // ─────────────────────────────────────────────
 
-export function canAssignResources(params: {
-  trip: Trip | undefined;
-  driver: Driver | undefined;
-  vehicle: Vehicle | undefined;
-}) {
-  const {
-    trip,
-    driver,
-    vehicle,
-  } = params;
-
-  return (
-    canAssignResourcesToTrip(trip) &&
-    canAssignDriver(driver) &&
-    canAssignVehicle(vehicle)
-  );
-}
-
-
-
-// export function canDispatchTrip(trip: Trip) {
-//   return trip.status === "assigned";
-// }
-
 export function canDispatchTrip(trip: Trip): boolean {
   return trip.status === "assigned" || trip.status === "ready";
 }
 
-// export function canAssignInventory(trip: Trip): boolean {
-//   return trip.status === "awaiting_inventory";
-// }
 
 export function canAssignInventory(trip: Trip): boolean {
   return (
@@ -115,9 +72,7 @@ export function canAssignInventory(trip: Trip): boolean {
   );
 }
 
-export function canMarkReady(trip: Trip): boolean {
-  return trip.status === "awaiting_inventory";
-}
+
 
 export function canStartTrip(trip: Trip) {
   return trip.status === "dispatched"
@@ -125,6 +80,13 @@ export function canStartTrip(trip: Trip) {
 
 export function canCompleteTrip(trip: Trip): boolean {
   return trip.status === "in_transit" 
+}
+
+export function canCancelTrip(trip: Trip): boolean {
+  const cancellableStatuses: TripStatus[] = [
+    "pending", "assigned", "awaiting_inventory", "ready"
+  ];
+  return cancellableStatuses.includes(trip.status);
 }
 
 

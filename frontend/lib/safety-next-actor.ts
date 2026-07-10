@@ -8,6 +8,7 @@ import type {
 export function getIncidentHazardNextActor(report: IncidentHazardReport) {
   if (report.status === "submitted") return "HSE Inspector";
   if (report.status === "recommended") return "Action Owner";
+  if (report.status === "pending_hse_verification") return "HSE Inspector";
   if (report.status === "resolved") return "HSE Inspector";
   if (report.status === "closed" || report.status === "not_resolved") return "Closed";
   return "Reporter";

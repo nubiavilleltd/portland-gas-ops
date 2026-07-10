@@ -10,7 +10,7 @@ import FormSection from "@/components/ui/FormSection";
 import SelectInput from "@/components/forms/SelectInput";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { useAssetRequest, useAllocateAssetRequest, useAssets } from "@/hooks/useAssets";
+import { useAssetRequest, useAllocateAssetRequest, useAssets } from "@/lib/modules/assets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { capitalize } from "@/lib/utils";
@@ -27,7 +27,7 @@ interface ItemSectionProps {
 
 function ItemSection({ item, slots, selectedIds, onSlotChange }: ItemSectionProps) {
   const { data: assetsOfType = [] } = useAssets({
-    asset_type_id: item.asset_type_id,
+    asset_type_id: item.asset_type_id ?? undefined,
     status: "available",
   });
 
@@ -130,7 +130,6 @@ function AllocateAssetsContent() {
       await allocate.mutateAsync({
         requestId: request.id,
         allocations,
-        allocatedByName: user?.name ?? "Asset Admin",
       });
       toast.success("Assets allocated successfully");
       router.push(`/assets/requests/${request.id}`);
@@ -192,10 +191,10 @@ function AllocateAssetsContent() {
     <AppLayout pageTitle="Assets">
 
       <Link
-        href="/assets/allocations"
+        href={`/assets/requests/${request.id}`}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors mb-5"
       >
-        <ArrowLeft size={14} /> Back to Allocations Queue
+        <ArrowLeft size={14} /> Back to Request
       </Link>
 
       <PageHeader

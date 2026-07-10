@@ -22,6 +22,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 
 // ─── Response interceptor — silent refresh on 401 ────────────────────────────
 let isRefreshing = false;
+let isRedirectingToLogin = false;   // guard: only one logout+redirect per session
 let failedQueue: Array<{
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -40,8 +41,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    const isAuthEndpoint = originalRequest.url?.includes("/api/auth/");
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+    // Only skip the refresh flow for endpoints that must NOT trigger a refresh
+    // (login/refresh/logout). Other /api/auth/ endpoints like /api/auth/me CAN trigger it.
+    const skipRefresh = ["/api/auth/login", "/api/auth/refresh", "/api/auth/logout"].some(
+      (path) => originalRequest.url?.includes(path)
+    );
+    if (error.response?.status === 401 && !originalRequest._retry && !skipRefresh) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -78,16 +83,31 @@ api.interceptors.response.use(
           originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
         }
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         processQueue(refreshError, null);
 
-        // Refresh failed — clear session and redirect to login
-        const { clearTokens } = await import("./auth");
-        await clearTokens();
+        const refreshStatus = refreshError?.response?.status;
 
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
+        // Only clear session + redirect on a real auth failure (401).
+        // A 429 rate-limit means the token is still valid — do NOT redirect,
+        // just let React Query surface the error naturally.
+        if (refreshStatus === 401 && !isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          const { clearTokens } = await import("./auth");
+          await clearTokens();
+          // Call logout to delete the HTTP-only refresh_token cookie.
+          // Without this the cookie persists and middleware keeps redirecting to /
+          // instead of allowing the login page to show.
+          try {
+            await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
+          } catch {
+            // ignore — we're logging out regardless
+          }
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
         }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -130,6 +150,13 @@ export async function del<T>(url: string): Promise<T> {
  */
 export async function postForm<T>(url: string, formData: FormData): Promise<T> {
   const res = await api.post<T>(url, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+export async function patchForm<T>(url: string, formData: FormData): Promise<T> {
+  const res = await api.patch<T>(url, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return res.data;

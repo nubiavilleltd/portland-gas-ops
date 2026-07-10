@@ -10,7 +10,7 @@ import FormSection from "@/components/ui/FormSection";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import {
   useDriverById,
 } from "@/lib/modules/fleet/hooks/useDrivers";
@@ -28,11 +28,11 @@ export default function StartTripPage() {
 
   const startTrip = useStartTripWorkflow();
 
-  const tripId = params.id as string;
+  const tripNo = params.id as string;
 
   // ── DATA HOOKS ─────────────────────────────────────────
 
-  const { trip } = useTripById(tripId);
+  const { trip } = useTripByNo(tripNo);
   const { driver } = useDriverById(trip?.driver_id as string);
   const { vehicle } = useVehicleById(trip?.vehicle_id as string);
 
@@ -56,7 +56,7 @@ export default function StartTripPage() {
           </p>
 
           <Button
-            href={`/fleet/trips/${tripId}`}
+            href={`/fleet/trips/${tripNo}`}
             variant="outline"
           >
             Back to Trip
@@ -74,7 +74,7 @@ export default function StartTripPage() {
     <AppLayout pageTitle="Start Trip">
 
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripId)}`}
+        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
         label="Back to Trip"
       />
       <PageHeader

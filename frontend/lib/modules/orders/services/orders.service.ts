@@ -1,322 +1,331 @@
-// ============================================================
-//  ORDERS SERVICE
-// ============================================================
 
-import { orders } from "@/lib/modules/orders/mock/orders.mock";
+import { getErrorMessage } from "@/lib/api/error";
+
+import { ordersApi } from "../api/orders.api";
+import {
+  adaptOrder,
+  adaptOrderList,
+  adaptCreateOrderRequest,
+  adaptUpdateOrderRequest,
+} from "../adapters/order.adapter";
+
 import type {
-  Order,
-  OrderStatus,
-  FulfillmentStatus,
-  PaymentStatus,
   CreateOrderInput,
-  UpdateOrderInput,
+  FulfillmentStatus,
+  Order,
   OrderKPIs,
-} from "@/lib/modules/orders/types/orders.types";
-import { generateOrderId, generateOrderNumber } from "../utils";
+  OrderStatus,
+  UpdateOrderInput,
+} from "../types/orders.types";
+
+import type { PaymentStatus } from "../../payments/types/payments.types";
 import { ItemDisposition } from "../../inventory/types/inventory.types";
 
-// ============================================================
-// INTERNAL HELPERS
-// ============================================================
-
-function findOrderIndex(id: string) {
-  return orders.findIndex((o) => o.id === id);
-}
-
-function getOrThrow(id: string): { order: Order; idx: number } {
-  const idx = findOrderIndex(id);
-  if (idx === -1) throw new Error(`Order ${id} not found`);
-  return { order: orders[idx], idx };
-}
-
-// ── Shared payload builder ────────────────────────────────
-// Merges a partial input on top of an existing order (or blank slate).
-// Used by create, update, and draft flows to avoid duplication.
-
-function mergeOrderPayload(
-  input: Partial<CreateOrderInput>,
-  existing?: Partial<Order>
-): Partial<Order> {
-  const order_items = input.order_items ?? existing?.order_items ?? [];
-  const total_amount = order_items.reduce((sum, item) => sum + item.total, 0);
-
-  return {
-    customer_id: input.customer_id ?? existing?.customer_id ?? "",
-    customer_name: input.customer_id ?? existing?.customer_name ?? "",
-    order_items,
-    total_amount,
-    delivery_address: input.delivery_address ?? existing?.delivery_address ?? "",
-    delivery_date:
-      input.delivery_date !== undefined
-        ? input.delivery_date || null
-        : existing?.delivery_date ?? null,
-    notes: input.notes ?? existing?.notes ?? "",
-  };
-}
-
-// ============================================================
-// SERVICE
-// ============================================================
-
 export const OrdersService = {
-
-  // ── READ ────────────────────────────────────────────────
+  // ------------------------------------------------------------------
+  // Queries
+  // ------------------------------------------------------------------
 
   async getOrders(): Promise<Order[]> {
-    return Promise.resolve([...orders]);
+    const raw = await ordersApi.list({ page_size: 200 });
+
+    return adaptOrderList(raw);
   },
 
-  async getOrderById(id: string): Promise<Order | undefined> {
-    return Promise.resolve(orders.find((o) => o.id === id));
-  },
+  async getOrderById(orderNo: string): Promise<Order> {
+    try {
+      const raw = await ordersApi.get(orderNo);
 
-  async getOrdersByStatus(status: OrderStatus): Promise<Order[]> {
-    return Promise.resolve(orders.filter((o) => o.order_status === status));
-  },
-
-  async getOrdersByFulfillmentStatus(status: FulfillmentStatus): Promise<Order[]> {
-    return Promise.resolve(orders.filter((o) => o.fulfillment_status === status));
-  },
-
-  async getOrdersByTrip(tripId: string): Promise<Order[]> {
-    return Promise.resolve(orders.filter((o) => o.trip_id === tripId));
-  },
-
-  // ── DRAFT FLOW ──────────────────────────────────────────
-  // Step 1: Save as draft — generates ID once
-  async createDraftOrder(input: CreateOrderInput): Promise<Order> {
-    const newOrder: Order = {
-      id: generateOrderId(),
-      order_number: generateOrderNumber(),
-      ...mergeOrderPayload(input),
-      order_status: "draft",
-      fulfillment_status: "pending",
-      payment_status: "unpaid",
-      created_at: new Date().toISOString(),
-    } as Order;
-
-    orders.push(newOrder);
-    return newOrder;
-  },
-
-  // Step 2: Update draft — reuses same ID, never generates a new one
-  async updateDraftOrder(id: string, input: Partial<CreateOrderInput>): Promise<Order> {
-    const { order, idx } = getOrThrow(id);
-
-    if (order.order_status !== "draft") {
-      throw new Error("Only draft orders can be updated this way");
+      return adaptOrder(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to load order"));
     }
-
-    const updated: Order = {
-      ...order,
-      ...mergeOrderPayload(input, order),
-    } as Order;
-
-    orders[idx] = updated;
-    return updated;
   },
 
-  async createOrder(input: CreateOrderInput, existingId?: string): Promise<Order> {
-    // If a draft already exists, update it and confirm it — never generate a new ID
-    if (existingId) {
-      const { order, idx } = getOrThrow(existingId);
-      const updated: Order = {
-        ...order,
-        ...mergeOrderPayload(input, order),
-        order_status: "submitted",
-        fulfillment_status: "pending",
-        payment_status: "unpaid",
-      } as Order;
-      orders[idx] = updated;
-      return Promise.resolve(updated);
-    }
-
-    // No draft — fresh submission, generate ID once
-    const newOrder: Order = {
-      id: generateOrderId(),
-      order_number: generateOrderNumber(),
-      ...mergeOrderPayload(input),
-      order_status: "submitted",
-      fulfillment_status: "pending",
-      payment_status: "unpaid",
-      created_at: new Date().toISOString().slice(0, 10),
-    } as Order;
-
-    orders.push(newOrder);
-    return Promise.resolve(newOrder);
-  },
-
-  // Add this to the service alongside confirmOrder
-async submitOrder(id: string): Promise<Order> {
-  return OrdersService.updateOrder(id, {
-    order_status: "submitted",
-  });
-},
-
-
-  // ── UPDATE ──────────────────────────────────────────────
-  async updateOrder(id: string, input: UpdateOrderInput): Promise<Order> {
-    const { order, idx } = getOrThrow(id);
-
-    const updated: Order = {
-      ...order,
-      ...mergeOrderPayload(input, order),
-      // Pass through any status fields from input directly
-      ...(input.order_status && { order_status: input.order_status }),
-      ...(input.fulfillment_status && { fulfillment_status: input.fulfillment_status }),
-      ...(input.payment_status && { payment_status: input.payment_status }),
-      ...(input.trip_id && { trip_id: input.trip_id }),
-      ...(input.invoice_id && { invoice_id: input.invoice_id }),
-    } as Order;
-
-    orders[idx] = updated;
-    return Promise.resolve(updated);
-  },
-
-  // ── STATUS TRANSITIONS ───────────────────────────────────
-
-  async confirmOrder(id: string): Promise<Order> {
-    return OrdersService.updateOrder(id, {
-      order_status: "confirmed",
-      fulfillment_status: "pending",
-    } as UpdateOrderInput);
-  },
-
-  async cancelOrder(id: string): Promise<Order> {
-    return OrdersService.updateOrder(id, { order_status: "cancelled" });
-  },
-
-  async closeOrder(id: string): Promise<Order> {
-    const { order } = getOrThrow(id);
-
-    if (order.fulfillment_status !== "delivered") {
-      throw new Error("Order must be delivered before closing");
-    }
-    if (order.payment_status !== "paid") {
-      throw new Error("Order must be fully paid before closing");
-    }
-
-    return OrdersService.updateOrder(id, { order_status: "completed" });
-  },
-
-  // async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
-  //   const extra: Partial<Order> = { fulfillment_status: status };
-  //   if (status === "delivered") {
-  //     extra.delivered_at = new Date().toISOString().slice(0, 10);
-  //   }
-  //   return OrdersService.updateOrder(id, extra as UpdateOrderInput);
-  // },
-
-//   async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
-//   const extra: Partial<Order> = { fulfillment_status: status };
-//   if (status === "delivered") {
-//     extra.delivered_at = new Date().toISOString().slice(0, 10);
-//   }
-
-//   const updated = await OrdersService.updateOrder(id, extra as UpdateOrderInput);
-
-//   // Auto-close when delivered — payment is guaranteed at this point
-//   if (status === "delivered") {
-//     try {
-//       await OrdersService.closeOrder(id);
-//     } catch {
-//       // best-effort
-//     }
-//   }
-
-//   return updated;
-// },
-
-async updateFulfillmentStatus(id: string, status: FulfillmentStatus): Promise<Order> {
-  const extra: Partial<Order> = { fulfillment_status: status };
-  if (status === "delivered") {
-    extra.delivered_at = new Date().toISOString().slice(0, 10);
-  }
-
-  const updated = await OrdersService.updateOrder(id, extra as UpdateOrderInput);
-
-  // Auto-close when delivered — payment is guaranteed before delivery in this model
-  if (status === "delivered" && updated.payment_status === "paid") {
-    return OrdersService.updateOrder(id, { order_status: "completed" });
-  }
-
-  return updated;
-},
-
-  // async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Order> {
-  //   return OrdersService.updateOrder(id, { payment_status: status });
-  // },
-  async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Order> {
-  const extra: UpdateOrderInput = { payment_status: status };
-
-  if (status === "paid") {
-    extra.order_status = "confirmed";
-  }
-
-  return OrdersService.updateOrder(id, extra);
-},
-
-// Add to orders.service.ts
-async updateOrderLineItem(
-  orderId: string,
-  productId: string,
-  inventoryItemIds: string[],
-  disposition: ItemDisposition,
-): Promise<Order> {
-  const { order, idx } = getOrThrow(orderId);
-
-  const updatedItems = order.order_items?.map((item) =>
-    item.product_id === productId
-      ? { ...item, inventory_item_ids: inventoryItemIds, disposition }
-      : item
-  ) ?? [];
-
-  orders[idx] = { ...order, order_items: updatedItems };
-  return Promise.resolve(orders[idx]);
-},
-
-  async assignToTrip(orderId: string, tripId: string): Promise<Order> {
-    return OrdersService.updateOrder(orderId, {
-      trip_id: tripId,
-      fulfillment_status: "assigned",
+  async getOrdersByStatus(
+    status: OrderStatus,
+  ): Promise<Order[]> {
+    const raw = await ordersApi.list({
+      order_status: status,
+      page_size: 200,
     });
+
+    return adaptOrderList(raw);
   },
 
-  async setInvoice(orderId: string, invoiceId: string): Promise<Order> {
-    return OrdersService.updateOrder(orderId, { invoice_id: invoiceId });
+  async getOrdersByFulfillmentStatus(
+    status: FulfillmentStatus,
+  ): Promise<Order[]> {
+    const raw = await ordersApi.list({
+      fulfillment_status: status,
+      page_size: 200,
+    });
+
+    return adaptOrderList(raw);
   },
 
-  // ── KPIs ────────────────────────────────────────────────
+  async getOrdersByTrip(
+    tripId: string,
+  ): Promise<Order[]> {
+    // TODO:
+    // Replace with backend filtering once the Trips module
+    // exposes a dedicated endpoint/filter.
+    const orders = await this.getOrders();
+
+    return orders.filter((order) => order.tripId === tripId);
+  },
+
+  // ------------------------------------------------------------------
+  // Draft lifecycle
+  // ------------------------------------------------------------------
+
+  async createDraftOrder(
+    input: CreateOrderInput,
+  ): Promise<Order> {
+    try {
+      const raw = await ordersApi.createDraft(
+        adaptCreateOrderRequest(input),
+      );
+
+      return adaptOrder(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to create draft order"),
+      );
+    }
+  },
+
+  async updateDraftOrder(
+    orderNo: string,
+    input: UpdateOrderInput,
+  ): Promise<Order> {
+    try {
+      const raw = await ordersApi.update(
+        orderNo,
+        adaptUpdateOrderRequest(input),
+      );
+
+      return adaptOrder(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to update draft order"),
+      );
+    }
+  },
+
+  async submitOrder(
+    orderNo: string,
+  ): Promise<Order> {
+    try {
+      const raw = await ordersApi.submit(orderNo);
+
+      return adaptOrder(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to submit order"),
+      );
+    }
+  },
+
+  /**
+   * Intentionally NO createOrder().
+   *
+   * Creating and immediately submitting an order is a
+   * backend business workflow, not a frontend orchestration.
+   *
+   * When the backend exposes a dedicated endpoint for that
+   * workflow, this service should simply call it.
+   */
+
+  // ------------------------------------------------------------------
+  // Order actions
+  // ------------------------------------------------------------------
+
+  async cancelOrder(
+    orderNo: string,
+    reason?: string,
+  ): Promise<Order> {
+    try {
+      return adaptOrder(
+        await ordersApi.cancel(orderNo, reason),
+      );
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to cancel order"),
+      );
+    }
+  },
+
+  async confirmDelivery(
+    orderNo: string,
+  ): Promise<Order> {
+    try {
+      return adaptOrder(
+        await ordersApi.confirmDelivery(orderNo),
+      );
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to confirm order"),
+      );
+    }
+  },
+
+  // ------------------------------------------------------------------
+  // Fulfillment
+  // ------------------------------------------------------------------
+
+  async updateFulfillmentStatus(
+    orderNo: string,
+    status: FulfillmentStatus,
+  ): Promise<Order> {
+    try {
+      return adaptOrder(
+        await ordersApi.updateFulfillment(
+          orderNo,
+          status,
+        ),
+      );
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(
+          err,
+          "Failed to update fulfillment status",
+        ),
+      );
+    }
+  },
+
+  // ------------------------------------------------------------------
+  // Payment
+  // ------------------------------------------------------------------
+
+  /**
+   * Temporary compatibility method.
+   *
+   * Payment status is owned by the Payments module.
+   * Orders never update payment status directly.
+   *
+   * Remove this method once all callers have migrated.
+   */
+  async updatePaymentStatus(
+    orderNo: string,
+    _status: PaymentStatus,
+  ): Promise<Order> {
+    return this.getOrderById(orderNo);
+  },
+
+  // ------------------------------------------------------------------
+  // Inventory
+  // ------------------------------------------------------------------
+
+  async updateOrderLineItem(
+    orderNo: string,
+    productId: string,
+    inventoryItemIds: string[],
+    disposition: ItemDisposition,
+  ): Promise<Order> {
+    // TODO:
+    // Implement when the Inventory module is complete.
+    void productId;
+    void inventoryItemIds;
+    void disposition;
+
+    return this.getOrderById(orderNo);
+  },
+
+  // ------------------------------------------------------------------
+  // Relationships
+  // ------------------------------------------------------------------
+
+  async assignToTrip(
+    orderNo: string,
+    tripId: string,
+  ): Promise<Order> {
+    try {
+      return adaptOrder(
+        await ordersApi.setTrip(orderNo, tripId),
+      );
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to assign trip"),
+      );
+    }
+  },
+
+  async setTrip(
+    orderNo: string,
+    tripId: string | null,
+  ): Promise<Order> {
+    try {
+      return adaptOrder(
+        await ordersApi.setTrip(orderNo, tripId),
+      );
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to update trip"),
+      );
+    }
+  },
+
+  async setInvoice(
+    orderNo: string,
+    invoiceId: string,
+  ): Promise<Order> {
+    try {
+      return adaptOrder(
+        await ordersApi.setInvoice(orderNo, invoiceId),
+      );
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to link invoice"),
+      );
+    }
+  },
+
+  // ------------------------------------------------------------------
+  // Dashboard
+  // ------------------------------------------------------------------
 
   async getKPIs(): Promise<OrderKPIs> {
-    const all = await OrdersService.getOrders();
+    // TODO:
+    // Move KPI calculation to the backend once a dedicated
+    // dashboard endpoint becomes available.
+
+    const orders = await this.getOrders();
+
+    const activeOrders = orders.filter(
+      (order) => order.orderStatus !== "cancelled",
+    );
+
     return {
-      totalOrders: all.length,
-      pendingDispatch: all.filter(
-        (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
+      totalOrders: orders.length,
+
+      pendingDispatch: activeOrders.filter(
+        (order) =>
+          order.orderStatus === "confirmed" &&
+          order.fulfillmentStatus === "pending",
       ).length,
-      inTransit: all.filter(
-        (o) => o.fulfillment_status === "in_transit"
+
+      inTransit: activeOrders.filter(
+        (order) =>
+          order.fulfillmentStatus === "in_transit",
       ).length,
-      delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
-      unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
-      totalRevenue: all.reduce((sum, o) => sum + o.total_amount, 0),
+
+      delivered: activeOrders.filter(
+        (order) =>
+          order.fulfillmentStatus === "delivered",
+      ).length,
+
+      unpaidOrders: activeOrders.filter((order) =>
+        ["unpaid", "partially_paid"].includes(
+          order.paymentStatus,
+        ),
+      ).length,
+
+      totalRevenue: activeOrders.reduce(
+        (sum, order) => sum + order.totalAmount,
+        0,
+      ),
     };
   },
 };
-//   async getKPIs(): Promise<OrderKPIs> {
-//     const all = await OrdersService.getOrders();
-//     return {
-//       totalOrders: all.length,
-//       pendingDispatch: all.filter(
-//         (o) => o.order_status === "confirmed" && o.fulfillment_status === "pending"
-//       ).length,
-//       inTransit: all.filter(
-//         (o) => o.fulfillment_status === "dispatched" || o.fulfillment_status === "in_transit"
-//       ).length,
-//       delivered: all.filter((o) => o.fulfillment_status === "delivered").length,
-//       unpaidOrders: all.filter((o) => o.payment_status === "unpaid" || o.payment_status === "partially_paid").length,
-//       totalRevenue: all.reduce((sum, o) => sum + o.total_amount, 0),
-//     };
-//   },
-// };

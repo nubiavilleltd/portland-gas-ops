@@ -1,49 +1,43 @@
 import type { Vendor } from "./vendor";
 
 export type ProcurementStatus =
-  | "pending_line_manager"
-  | "pending_procurement"
-  | "awaiting_payment"
-  | "awaiting_confirmation"
-  | "completed"
+  | "draft"
+  | "pending"
+  | "approved"
   | "rejected"
-  | "returned";
+  | "returned"
+  | "awaiting_confirmation"
+  | "completed";
 
-/** Shared audit trail entry — used on procurement and asset requests */
-export interface RequestAuditEntry {
-  action: string;
-  actor: string;
-  role: string;
-  dateTime: string;
-  comment: string;
+export type POStatus = "issued" | "delivered" | "cancelled";
+
+export interface EmployeeInProcurement {
+  id: string;
+  employee_no: string;
+  job_title: string | null;
+  department: string | null;
+  user: {
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+  } | null;
 }
 
-export type PaymentStatus = "unpaid" | "part_paid" | "paid";
+export interface AttachmentInProcurement {
+  id: number;
+  name: string;
+  file_path: string;
+  mime_type: string | null;
+  file_size: number | null;
+}
 
-export type ProcurementCategory =
-  | "consumables"
-  | "technical"
-  | "services";
-
-export type ItemUnit =
-  | "pieces"
-  | "litres"
-  | "kg"
-  | "boxes"
-  | "metres"
-  | "hours"
-  | "days"
-  | "months"
-  | "sets"
-  | "cartons"
-  | "units";
-
-export interface OneTimeVendor {
+export interface VendorInProcurement {
+  id: string;
   name: string;
   contact_person: string | null;
-  address: string | null;
   phone: string | null;
   email: string | null;
+  address: string | null;
   bank_name: string | null;
   account_name: string | null;
   account_number: string | null;
@@ -53,68 +47,102 @@ export interface ProcurementItem {
   id: string;
   description: string;
   quantity: number;
-  unit: ItemUnit;
-  unit_cost: number;
-  total_cost: number;
-  created_at: string;
+  unit: string | null;
+  unit_price: number | null;
+  total_price: number | null;
 }
 
-/** Full detail response — includes vendor object and items array */
+export interface PurchaseOrder {
+  id: string;
+  po_number: string;
+  procurement_request_id: string;
+  total_amount: number;
+  currency: string;
+  issued_at: string;
+  status: POStatus;
+  notes: string | null;
+  document_id: number | null;
+  document: { id: number; file_path: string | null; name: string } | null;
+  vendor: VendorInProcurement | null;
+  issuer: EmployeeInProcurement | null;
+}
+
+/** Full detail — includes items and POs */
 export interface ProcurementRequest {
   id: string;
   reference: string;
-  category: ProcurementCategory;
-  justification: string | null;
-  required_by: string | null;
+  category: string | null;
+  description: string | null;
+  estimated_amount: number | null;
+  currency: string;
   status: ProcurementStatus;
-  attachment_url: string | null;
-  attachment_name: string | null;
-  po_url: string | null;
-  po_issued_at: string | null;
-  po_issued_by: string | null;
-  payment_terms: string | null;
-  payment_status: PaymentStatus;
-  created_by: string;
-  requester: { name: string; department: string; job_title: string };
-  is_active: boolean;
+  raised_by: string;
+  required_by: string | null;
+  vendor_id: string | null;
+  attachment_id: number | null;
+  attachment: AttachmentInProcurement | null;
   created_at: string;
   updated_at: string | null;
-  vendor: Vendor | null;
-  one_time_vendor: OneTimeVendor | null;
+  raiser: EmployeeInProcurement | null;
+  vendor: VendorInProcurement | null;
   items: ProcurementItem[];
-  auditTrail: RequestAuditEntry[];
+  purchase_orders: PurchaseOrder[];
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
 }
 
-/** Lighter type used in list views — no items array */
+/** Lighter type for list views */
 export interface ProcurementListItem {
   id: string;
   reference: string;
-  category: ProcurementCategory;
+  category: string | null;
   status: ProcurementStatus;
+  estimated_amount: number | null;
+  currency: string;
+  raised_by: string;
   required_by: string | null;
-  attachment_url: string | null;
-  po_url: string | null;
-  payment_status: PaymentStatus;
-  created_by: string;
+  vendor_id: string | null;
+  attachment_id: number | null;
   created_at: string;
-  vendor: Vendor | null;
-  one_time_vendor: OneTimeVendor | null;
+  updated_at: string | null;
+  raiser: EmployeeInProcurement | null;
+  vendor: VendorInProcurement | null;
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
+  /** PO document download URL — set when a PO with a document exists */
+  po_document_url: string | null;
 }
 
-/** What the create form sends */
 export interface ProcurementItemInput {
   description: string;
   quantity: number;
-  unit: ItemUnit;
-  unit_cost: number;
-  total_cost: number;
+  unit?: string;
+  unit_price: number | null;
+  total_price: number | null;
 }
 
 export interface ProcurementCreateInput {
-  category: ProcurementCategory;
-  justification?: string;
+  category?: string;
+  description?: string;
+  estimated_amount?: number;
+  currency?: string;
   required_by?: string;
   vendor_id?: string;
-  one_time_vendor?: OneTimeVendor;
   items: ProcurementItemInput[];
+}
+
+export interface ProcurementUpdateInput {
+  category?: string;
+  description?: string;
+  estimated_amount?: number;
+  required_by?: string;
+  vendor_id?: string;
+  items?: ProcurementItemInput[];
+}
+
+export interface IssuePOInput {
+  notes?: string;
+  vendor_id?: string;
 }

@@ -1,91 +1,3 @@
-// "use client";
-// import AppLayout from "@/components/layout/AppLayout";
-// import PageHeader from "@/components/ui/PageHeader";
-// import Button from "@/components/ui/Button";
-// import WorkspaceCard from "@/components/ui/WorkspaceCard";
-// import { ClipboardList, Truck, FileText, Package, Users } from "lucide-react";
-// import { getOrderKPIs } from "@/lib/modules/orders/selectors/orders.selectors";
-// import { orders } from "@/lib/modules/orders/mock/orders.mock";
-// import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-// import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
-// import { getActiveProducts } from "@/lib/modules/products/selectors/products.selectors";
-// import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
-// import { CUSTOMER_ROUTES } from "@/lib/modules/customers/constants/routes";
-// import { INVOICE_ROUTES, ORDER_ROUTES } from "@/lib/routes";
-
-// export default function OrdersHomePage() {
-//   const kpis = getOrderKPIs(orders);
-//   const { products }  = useProducts();
-//   const { customers } = useCustomers();
-
-//   const activeProductCount = getActiveProducts(products).length;
-
-//   return (
-//     <AppLayout pageTitle="Orders">
-//       <PageHeader
-//         title="Order Operations"
-//         description="Access and manage customer orders and fulfillment workflows"
-//         // action={
-//         //   <Button href="/orders/new">
-//         //     Create Order
-//         //   </Button>
-//         // }
-//       />
-//       <div className="mt-10">
-//         <div className="grid gap-4 mt-5 sm:grid-cols-2 xl:grid-cols-3">
-//           <WorkspaceCard
-//             title="All Orders"
-//             description="View, filter, and manage all customer orders"
-//             href={ORDER_ROUTES.list()}
-//             icon={ClipboardList}
-//             // stat={`${kpis.totalOrders} total`}
-//           />
-
-//           {/* <WorkspaceCard
-//             title="Pending Dispatch"
-//             description="Confirmed orders awaiting trip assignment"
-//             href="/orders/list"
-//             icon={Truck}
-//             stat={`${kpis.pendingDispatch} awaiting`}
-//           /> */}
-
-//           <WorkspaceCard
-//             title="Invoices"
-//             description="Manage billing invoices and payment tracking"
-//             href={INVOICE_ROUTES.list()}
-//             icon={FileText}
-//             // stat={`${kpis.unpaidOrders} unpaid`}
-//           />
-//           <WorkspaceCard
-//             title="Products"
-//             description="Manage the product catalogue available for orders"
-//             href={PRODUCT_ROUTES.list()}
-//             icon={Package}
-//             // stat={`${activeProductCount} active`}
-//           />
-//           <WorkspaceCard
-//             title="Customers"
-//             description="Manage customer records and contact details"
-//             href={CUSTOMER_ROUTES.list()}
-//             icon={Users}
-//             // stat={`${customers.length} total`}
-//           />
-//         </div>
-//       </div>
-//     </AppLayout>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
 "use client";
 
 import { Plus } from "lucide-react";
@@ -95,8 +7,6 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-// import { getOrderActions } from "@/lib/modules/orders/actions/getOrderActions";
 
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
@@ -127,28 +37,24 @@ export default function OrdersListPage() {
   );
 
 
-  console.log("cutomers", {customers, customerMap})
-
-
-
 
   const columns: Column<Order>[] = [
-    { key: "order_number", label: "ORDER NO." },
+    { key: "orderNumber", label: "ORDER NO." },
 
     {
-      key: "customer_id", label: "CUSTOMER", render: (value) =>
+      key: "cutstomerId", label: "CUSTOMER", render: (value) =>
         customerMap[value as string]
           ?.name ?? "—"
     },
     {
-      key: "total_amount",
+      key: "totalAmount",
       label: "AMOUNT",
       render: (value) =>
         formatCurrency(Number(value)),
     },
 
     {
-      key: "delivery_date",
+      key: "deliveryDate",
       label: "DELIVERY DATE",
       render: (value) =>
         value
@@ -157,12 +63,12 @@ export default function OrdersListPage() {
     },
 
     {
-      key: "order_status",
+      key: "orderStatus",
       label: "ORDER STATUS",
       render: (value) => (
         <OrderStatusBadge
           status={
-            value as Order["order_status"]
+            value as Order["orderStatus"]
           }
         />
       ),
@@ -174,7 +80,7 @@ export default function OrdersListPage() {
       render: (value) => (
         <FulfillmentStatusBadge
           status={
-            value as Order["fulfillment_status"]
+            value as Order["fulfillmentStatus"]
           }
         />
       ),
@@ -186,39 +92,11 @@ export default function OrdersListPage() {
       render: (value) => (
         <PaymentStatusBadge
           status={
-            value as Order["payment_status"]
+            value as Order["paymentStatus"]
           }
         />
       ),
     },
-
-    // {
-    //   key: "actions",
-    //   label: "Actions",
-    //   render: (_, order) => {
-    //     const actions =
-    //       getOrderActions(order);
-
-    //     return (
-    //       <div className="flex gap-2">
-    //         {actions.map((action, idx) => (
-    //           <Button
-    //             key={idx}
-    //             size="sm"
-    //             variant={
-    //               action.variant === "outline"
-    //                 ? "outline"
-    //                 : "primary"
-    //             }
-    //             href={action.href}
-    //           >
-    //             {action.label}
-    //           </Button>
-    //         ))}
-    //       </div>
-    //     );
-    //   },
-    // },
   ];
 
   return (
@@ -256,7 +134,7 @@ export default function OrdersListPage() {
       <DataTable<Order>
         columns={columns}
         data={orders}
-        rowHref={(order) => ORDER_ROUTES.detail(order.id)}
+        rowHref={(order) => ORDER_ROUTES.detail(order.orderNumber)}
         emptyMessage="No orders found."
       />
     </AppLayout>

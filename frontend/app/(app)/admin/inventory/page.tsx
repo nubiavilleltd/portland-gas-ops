@@ -242,8 +242,8 @@ const consumableColumns: Column<ConsumableStock>[] = [
     label: "Min. Stock",
     render: (_, row) => {
       const product = getProductById(products, row.product_id);
-      return product?.minimum_stock
-        ? `${product.minimum_stock.toLocaleString()} ${product.unit}`
+      return product?.minimumStock
+        ? `${product.minimumStock.toLocaleString()} ${product.unit}`
         : "—";
     },
   },
@@ -252,7 +252,7 @@ const consumableColumns: Column<ConsumableStock>[] = [
     label: "Status",
     render: (_, row) => {
       const product  = getProductById(products, row.product_id);
-      const minStock = product?.minimum_stock ?? 0;
+      const minStock = product?.minimumStock ?? 0;
       const isLow    = minStock > 0 && row.quantity <= minStock;
       return (
         <Badge

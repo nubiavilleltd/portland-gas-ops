@@ -1,6 +1,12 @@
-import type { ProductUnit } from "../types/product.types";
+import type {
+  ProductStatus,
+  ProductUnit,
+} from "../types/product.types";
 
-export const PRODUCT_STATUS_OPTIONS = [
+export const PRODUCT_STATUS_OPTIONS: ReadonlyArray<{
+  value: ProductStatus;
+  label: string;
+}> = [
   {
     value: "active",
     label: "Active",
@@ -9,9 +15,9 @@ export const PRODUCT_STATUS_OPTIONS = [
     value: "inactive",
     label: "Inactive",
   },
-] as const;
+];
 
-export const PRODUCT_UNIT_OPTIONS: Array<{
+export const PRODUCT_UNIT_OPTIONS: ReadonlyArray<{
   value: ProductUnit;
   label: string;
 }> = [
@@ -35,4 +41,18 @@ export const PRODUCT_UNIT_OPTIONS: Array<{
     value: "unit",
     label: "Unit",
   },
+];
+
+
+
+export const UNIT_OPTIONS: Array<{ value: ProductUnit; label: string }> = [
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "litre", label: "Litres (L)" },
+  { value: "m3", label: "Cubic Metres (m³)" },
+  { value: "tonne", label: "Metric Tonnes (t)" },
+];
+
+export const PRODUCT_TYPE_OPTIONS = [
+  { value: "consumable", label: "Consumable (CNG, LNG, LPG)" },
+  { value: "tracked", label: "Tracked Asset (Cylinder, Generator)" },
 ];

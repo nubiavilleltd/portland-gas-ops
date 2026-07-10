@@ -15,6 +15,7 @@ type Props<T extends string> = {
   nextActor?: string;
   switcherTitle?: string;
   switcherDescription?: string;
+  showRoleSwitcher?: boolean;
 };
 
 export default function RoleBasedRecordHeader<T extends string>({
@@ -27,18 +28,21 @@ export default function RoleBasedRecordHeader<T extends string>({
   recordLabel,
   title,
   nextActor,
-  switcherTitle = "Mock user role",
-  switcherDescription = "Switch roles to preview role-based visibility and actions.",
+  switcherTitle = "Current access",
+  switcherDescription = "Available actions are based on the current employee profile and record assignment.",
+  showRoleSwitcher = true,
 }: Props<T>) {
   return (
     <div className="space-y-5">
-      <MockUserSwitcher
-        value={currentRole}
-        onChange={onRoleChange}
-        roles={roles}
-        title={switcherTitle}
-        description={switcherDescription}
-      />
+      {showRoleSwitcher ? (
+        <MockUserSwitcher
+          value={currentRole}
+          onChange={onRoleChange}
+          roles={roles}
+          title={switcherTitle}
+          description={switcherDescription}
+        />
+      ) : null}
 
       <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

@@ -5,6 +5,7 @@ cloudinary
 fpdf2
 uvicorn[standard]
 sqlalchemy
+sqlalchemy2-stubs
 alembic
 pymysql
 python-dotenv
@@ -16,3 +17,4 @@ bcrypt<4
 python-jose[cryptography]
 python-multipart
 httpx
+bleach

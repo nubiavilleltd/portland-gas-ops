@@ -47,6 +47,9 @@ export interface ApprovalPanelProps {
   returnLabel?: string;
   rejectLabel?: string;
   approveLabel?: string;
+  returnLoadingLabel?: string;
+  rejectLoadingLabel?: string;
+  approveLoadingLabel?: string;
 
   // Icons — override defaults
   returnIcon?: React.ReactNode;
@@ -142,6 +145,9 @@ export default function ApprovalPanel({
   returnLabel = "Return",
   rejectLabel = "Reject",
   approveLabel = "Approve",
+  returnLoadingLabel = "Returning...",
+  rejectLoadingLabel,
+  approveLoadingLabel,
 
   returnIcon = <RotateCcw size={14} />,
   rejectIcon = <XCircle size={14} />,
@@ -165,6 +171,7 @@ export default function ApprovalPanel({
 }: ApprovalPanelProps) {
   const [internalComment, setInternalComment] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [lastAction, setLastAction] = useState<"return" | "reject" | "approve" | string | null>(null);
   const comment = commentValue ?? internalComment;
 
   function handleCommentChange(nextComment: string) {
@@ -181,6 +188,7 @@ export default function ApprovalPanel({
       return;
     }
     setValidationError("");
+    setLastAction("return");
     onReturn?.(comment);
   }
 
@@ -190,7 +198,13 @@ export default function ApprovalPanel({
       return;
     }
     setValidationError("");
+    setLastAction("reject");
     onReject?.(comment);
+  }
+
+  function handleApproveClick() {
+    setLastAction("approve");
+    onApprove?.(comment);
   }
 
   const sectionDescription = reviewingAs
@@ -199,6 +213,16 @@ export default function ApprovalPanel({
 
   const anyLoading = returnLoading || rejectLoading || approveLoading ||
     extraActions.some((a) => a.loading);
+
+  // A button is loading if: explicit loading prop OR (global disabled + it was the last clicked)
+  const isReturnLoading  = returnLoading  || (disabled && lastAction === "return");
+  const isRejectLoading  = rejectLoading  || (disabled && lastAction === "reject");
+  const isApproveLoading = approveLoading || (disabled && lastAction === "approve");
+  const resolvedRejectLoadingLabel =
+    rejectLoadingLabel ?? (rejectLabel === "Deny" ? "Denying..." : "Rejecting...");
+  const resolvedApproveLoadingLabel =
+    approveLoadingLabel ??
+    (approveLabel === "Acknowledge" ? "Acknowledging..." : "Approving...");
 
   const hasButtons = showReturn || showReject || showApprove || extraActions.length > 0;
 
@@ -235,11 +259,11 @@ export default function ApprovalPanel({
           {/* Return — leftmost negative action */}
           {showReturn && onReturn && (
             <ActionButton
-              label={returnLabel}
+              label={isReturnLoading ? returnLoadingLabel : returnLabel}
               icon={returnIcon}
               variant="return"
               onClick={handleReturnClick}
-              loading={returnLoading}
+              loading={isReturnLoading}
               disabled={disabled || returnDisabled || anyLoading}
             />
           )}
@@ -247,11 +271,11 @@ export default function ApprovalPanel({
           {/* Reject */}
           {showReject && onReject && (
             <ActionButton
-              label={rejectLabel}
+              label={isRejectLoading ? resolvedRejectLoadingLabel : rejectLabel}
               icon={rejectIcon}
               variant="reject"
               onClick={handleRejectClick}
-              loading={rejectLoading}
+              loading={isRejectLoading}
               disabled={disabled || rejectDisabled || anyLoading}
             />
           )}
@@ -260,11 +284,15 @@ export default function ApprovalPanel({
           {extraActions.map((action) => (
             <ActionButton
               key={action.key}
-              label={action.label}
+              label={
+                action.loading || (disabled && lastAction === action.key)
+                  ? `${action.label}...`
+                  : action.label
+              }
               icon={action.icon}
               variant={action.variant ?? "neutral"}
-              onClick={() => action.onClick(comment)}
-              loading={action.loading}
+              onClick={() => { setLastAction(action.key); action.onClick(comment); }}
+              loading={action.loading || (disabled && lastAction === action.key)}
               disabled={disabled || action.disabled || anyLoading}
             />
           ))}
@@ -272,11 +300,11 @@ export default function ApprovalPanel({
           {/* Approve — always rightmost / primary */}
           {showApprove && onApprove && (
             <ActionButton
-              label={approveLabel}
+              label={isApproveLoading ? resolvedApproveLoadingLabel : approveLabel}
               icon={approveIcon}
               variant="approve"
-              onClick={() => onApprove(comment)}
-              loading={approveLoading}
+              onClick={handleApproveClick}
+              loading={isApproveLoading}
               disabled={disabled || approveDisabled || anyLoading}
             />
           )}

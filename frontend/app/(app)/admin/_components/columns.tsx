@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Eye, Download, Trash2 } from "lucide-react";
+// Trash2 is kept for other column sets (EmployeeRecord) — do not remove
 import type { Column } from "@/components/data-table/data-table";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { formatDate } from "@/lib/utils";
@@ -8,27 +9,25 @@ import type { Employee, EmployeeRecord, LeaveRequest, PaySlip, PayrollRun } from
 const fmt  = (n: number) => (n === 0 ? "—" : `₦${n.toLocaleString("en-NG")}`);
 const fmtN = (v: unknown) => (v === undefined || v === null || v === "" ? "—" : fmt(Number(v)));
 
-export function createEmployeeColumns(
-  onDelete: (id: string) => void,
-): Column<Employee>[] {
+export function createEmployeeColumns(): Column<Employee>[] {
   return [
     {
       key: "firstName",
-      label: "First Name",
+      label: "FIRST NAME",
       sortable: true,
       render: (v) => <span className="font-medium text-brand-text-primary">{String(v)}</span>,
     },
     {
       key: "lastName",
-      label: "Last Name",
+      label: "LAST NAME",
       sortable: true,
       render: (v) => <span className="font-medium text-brand-text-primary">{String(v)}</span>,
     },
-    { key: "title", label: "Title", sortable: true },
-    { key: "department", label: "Department", sortable: true },
+    { key: "title", label: "TITLE", sortable: true },
+    { key: "department", label: "DEPARTMENT", sortable: true },
     {
       key: "birthday",
-      label: "Birthday",
+      label: "BIRTHDAY",
       sortable: true,
       render: (v) => (
         <span className="text-brand-text-secondary whitespace-nowrap">
@@ -36,53 +35,46 @@ export function createEmployeeColumns(
         </span>
       ),
     },
-    { key: "category", label: "Category", sortable: true },
-    { key: "grade", label: "Grade", sortable: true },
+    { key: "category", label: "CATEGORY", sortable: true },
     {
       key: "lineManager",
-      label: "Operations Manager",
+      label: "OPERATIONS MANAGER",
       sortable: true,
       render: (v) => <span className="text-brand-text-primary">{v ? String(v) : "—"}</span>,
     },
     {
-      key: "lineManagerEmail",
-      label: "Operations Manager Email",
-      sortable: true,
-      render: (v) => <span className="text-brand-text-secondary text-xs">{v ? String(v) : "—"}</span>,
-    },
-    {
       key: "basicSalary",
-      label: "Basic Salary",
+      label: "BASIC SALARY",
       sortable: true,
       render: (v) => <span className="font-medium text-brand-text-primary whitespace-nowrap">{fmtN(v)}</span>,
     },
     {
       key: "housingAllowance",
-      label: "Housing Allowance",
+      label: "HOUSING ALLOWANCE",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
     },
     {
       key: "transportAllowance",
-      label: "Transport Allowance",
+      label: "TRANSPORT ALLOWANCE",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
     },
     {
       key: "mealAllowance",
-      label: "Meal Allowance",
+      label: "MEAL ALLOWANCE",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
     },
     {
       key: "paye",
-      label: "PAYE Tax",
+      label: "PAYE TAX",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
     },
     {
       key: "pension",
-      label: "Pension",
+      label: "PENSION",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
     },
@@ -94,7 +86,7 @@ export function createEmployeeColumns(
     },
     {
       key: "loanRepayment",
-      label: "Loan Repayment",
+      label: "LOAN REPAYMENT",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
     },
@@ -110,13 +102,6 @@ export function createEmployeeColumns(
           >
             <Eye size={14} />
           </Link>
-          <button
-            onClick={() => onDelete(row.id)}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition"
-            title="Delete"
-          >
-            <Trash2 size={14} />
-          </button>
         </div>
       ),
     },

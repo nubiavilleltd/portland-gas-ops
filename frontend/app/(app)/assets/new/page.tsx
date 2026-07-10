@@ -14,7 +14,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormSection from "@/components/ui/FormSection";
-import { useCreateAsset, useAssetCategories, useAssetTypes } from "@/hooks/useAssets";
+import { useCreateAsset, useAssetCategories, useAssetTypes } from "@/lib/modules/assets";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { SEED_EMPLOYEES } from "@/app/(app)/hr-management/_components/_data";
@@ -115,6 +115,7 @@ export default function RegisterAssetPage() {
   async function onSubmit(formData: FormData) {
     try {
       await createAsset.mutateAsync({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data: {
           name: formData.name,
           category_id: formData.category_id || undefined,
@@ -123,15 +124,13 @@ export default function RegisterAssetPage() {
           purchase_date: formData.purchase_date || undefined,
           purchase_cost: formData.purchase_cost ? parseFloat(formData.purchase_cost) : undefined,
           condition: formData.condition,
-          status: formData.status,
           location: formData.location,
-          assigned_to_name: formData.assigned_to_name || undefined,
           description: formData.description || undefined,
           maintenance_type: formData.maintenance_type || undefined,
           maintenance_frequency_months: formData.maintenance_frequency_months
             ? parseInt(formData.maintenance_frequency_months)
             : undefined,
-        },
+        } as any,
         image: imageFiles[0] ?? null,
       });
       toast.success("Asset registered successfully");

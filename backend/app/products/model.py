@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Numeric,
+    String,
+    Text,
+    Integer
+)
+from sqlalchemy.dialects.mysql import CHAR
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.core.database import Base
+from app.products.enums import ProductStatus, ProductType, ProductUnit
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id                  = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    product_no          = Column(String(50), unique=True, nullable=False, index=True)
+
+    name                = Column(String(255), nullable=False, index=True)
+    code                = Column(String(50), unique=True, nullable=True, index=True)
+    description         = Column(Text, nullable=True)
+
+    product_type        = Column(
+        SAEnum(ProductType),
+        nullable=False,
+        default=ProductType.consumable,
+    )
+
+    unit                = Column(
+        SAEnum(ProductUnit),
+        nullable=False,
+        default=ProductUnit.kg,
+    )
+
+    default_unit_price  = Column(Numeric(15, 2), nullable=False)
+    minimum_stock       = Column(Numeric(15, 2), nullable=True)
+
+    primary_document_id = Column(
+        Integer,
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    status              = Column(
+        SAEnum(ProductStatus),
+        nullable=False,
+        default=ProductStatus.active,
+        index=True,
+    )
+
+    created_at          = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    updated_at          = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    # Relationships (added as domain tables are created)
+    primary_image = relationship(
+        "Document",
+        foreign_keys=[primary_document_id],
+    )
+
+    # images = relationship(...)
+    # order_items = relationship(...)

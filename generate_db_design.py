@@ -58,16 +58,20 @@ def left():
 
 # ── Groups: (sheet_tab_name, display_title, accent_hex, tables_list) ──────────
 # Each table = (table_name, description, [(col, type, nullable, pk/fk/notes)])
+# Set hidden=True on any group to hide its sheet and exclude it from the Index.
 
 GROUPS = [
 
     # ── 0. INDEX ──────────────────────────────────────────────────────────────
     None,   # placeholder, handled separately
 
-    # ── 1. IDENTITY ──────────────────────────────────────────────────────────
-    (
-        "Identity", "Identity & Organisation", C["purple"],
-        [
+    # ── 1. IDENTITY  (sheet hidden by default) ────────────────────────────────
+    {
+        "sheet_name":    "Identity",
+        "display_title": "Identity & Organisation",
+        "accent":        C["purple"],
+        "hidden":        True,
+        "tables": [
             (
                 "users",
                 "Authentication records only — one row per login account",
@@ -103,12 +107,15 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
     # ── 2. DOCUMENTS ─────────────────────────────────────────────────────────
-    (
-        "Documents", "Document Library", C["teal"],
-        [
+    {
+        "sheet_name":    "Documents",
+        "display_title": "Document Library",
+        "accent":        C["teal"],
+        "hidden":        False,
+        "tables": [
             (
                 "documents",
                 "Unified file & folder store — self-referencing parent_id for unlimited nesting. type='folder' has no file_path.",
@@ -127,12 +134,15 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
     # ── 3. APPROVAL WORKFLOW ENGINE ───────────────────────────────────────────
-    (
-        "Approval", "Approval Workflow Engine", C["blue"],
-        [
+    {
+        "sheet_name":    "Approval",
+        "display_title": "Approval Workflow Engine",
+        "accent":        C["blue"],
+        "hidden":        False,
+        "tables": [
             (
                 "approval_workflows",
                 "Named workflow templates — one per process type",
@@ -181,7 +191,7 @@ GROUPS = [
             ),
             (
                 "approval_step_assignments",
-                "Stores the resolved approver for each step of each request. Created when a step becomes active — either resolved from the workflow template or captured from the requester's people-picker selection.",
+                "Stores the resolved approver for each step of each request. Created when a step becomes active.",
                 [
                     ("id",                  "SERIAL",     "NO",  "PK"),
                     ("approval_request_id", "INT",        "NO",  "FK → approval_requests.id"),
@@ -192,7 +202,7 @@ GROUPS = [
             ),
             (
                 "approval_history",
-                "Immutable audit log — one row per action taken. Never updated, only inserted.",
+                "Immutable step-by-step log of approver actions — one row per approval action. Never updated, only inserted.",
                 [
                     ("id",                  "SERIAL",      "NO",  "PK"),
                     ("approval_request_id", "INT",         "NO",  "FK → approval_requests.id"),
@@ -201,6 +211,22 @@ GROUPS = [
                     ("action",              "VARCHAR(20)", "NO",  "approved | rejected | returned | escalated"),
                     ("comment",             "TEXT",        "YES", "reason or note from approver"),
                     ("acted_at",            "TIMESTAMPTZ", "NO",  "default now()"),
+                ],
+            ),
+            (
+                "workflow_audit_trail",
+                "Standalone audit trail written by workflowEngine.audit(). Captures every actor event across all workflow requests — both requester actions (submitted, recalled, returned) and approver actions (approved, rejected, escalated). Called independently from the engine so any service can write to it.",
+                [
+                    ("id",              "SERIAL",       "NO",  "PK"),
+                    ("workflow_id",     "INT",          "NO",  "FK → approval_workflows.id"),
+                    ("request_id",      "INT",          "NO",  "PK of the originating request row"),
+                    ("request_type",    "VARCHAR(50)",  "NO",  "procurement | asset"),
+                    ("actor_id",        "INT",          "NO",  "FK → employees.id — person who performed the action"),
+                    ("actor_role",      "VARCHAR(80)",  "YES", "role in this request e.g. requester | line_manager | hod | finance_manager | md"),
+                    ("step_number",     "INT",          "YES", "null for requester-initiated actions (submitted, recalled)"),
+                    ("action",          "VARCHAR(40)",  "NO",  "submitted | approved | rejected | returned | escalated | recalled"),
+                    ("comment",         "TEXT",         "YES", "approver note or requester comment"),
+                    ("acted_at",        "TIMESTAMPTZ",  "NO",  "default now()"),
                 ],
             ),
             (
@@ -239,18 +265,21 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
     # ── 4. ALL REQUESTS ───────────────────────────────────────────────────────
-    (
-        "All Requests", "All Requests", C["slate"],
-        [
+    {
+        "sheet_name":    "All Requests",
+        "display_title": "All Requests",
+        "accent":        C["slate"],
+        "hidden":        False,
+        "tables": [
             (
                 "all_requests",
-                "Unified registry of every request across all processes — powers the All Requests dashboard view",
+                "Unified registry of every request across all processes — powers the All Requests dashboard. Updated on each status change.",
                 [
                     ("id",                  "SERIAL",       "NO",  "PK"),
-                    ("request_no",          "VARCHAR(20)",  "NO",  "UNIQUE  e.g. PR-2026-001, AR-2026-001"),
+                    ("reference",           "VARCHAR(20)",  "NO",  "UNIQUE  e.g. PR-2026-001, AR-2026-001  — human-readable identifier shown to users"),
                     ("request_type",        "VARCHAR(50)",  "NO",  "procurement | asset"),
                     ("request_id",          "INT",          "NO",  "PK of the originating request row"),
                     ("title",               "VARCHAR(200)", "NO",  ""),
@@ -263,36 +292,21 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
     # ── 5. PROCUREMENT ────────────────────────────────────────────────────────
-    (
-        "Procurement", "Procurement", C["green"],
-        [
+    {
+        "sheet_name":    "Procurement",
+        "display_title": "Procurement",
+        "accent":        C["green"],
+        "hidden":        False,
+        "tables": [
             (
                 "vendors",
-                "Approved supplier/vendor registry",
-                [
-                    ("id",               "SERIAL",       "NO",  "PK"),
-                    ("name",             "VARCHAR(200)", "NO",  ""),
-                    ("contact_name",     "VARCHAR(150)", "YES", ""),
-                    ("email",            "VARCHAR(150)", "YES", ""),
-                    ("phone",            "VARCHAR(20)",  "YES", ""),
-                    ("address",          "TEXT",         "YES", ""),
-                    ("bank_name",        "VARCHAR(100)", "YES", ""),
-                    ("bank_account_no",  "VARCHAR(30)",  "YES", ""),
-                    ("bank_account_name","VARCHAR(150)", "YES", ""),
-                    ("is_active",        "BOOLEAN",      "NO",  "default true"),
-                    ("added_by",         "INT",          "NO",  "FK → employees.id"),
-                    ("created_at",       "TIMESTAMPTZ",  "NO",  "default now()"),
-                ],
-            ),
-            (
-                "one_time_vendors",
-                "Temporary/ad-hoc vendors entered at request time — not part of the approved vendor registry",
+                "Unified vendor registry — permanent (approved company suppliers) and temporary (ad-hoc one-time vendors entered at request time). Filter by vendor_type to separate them. procurement_request_id is null for permanent vendors.",
                 [
                     ("id",                     "SERIAL",       "NO",  "PK"),
-                    ("procurement_request_id", "INT",          "NO",  "FK → procurement_requests.id"),
+                    ("vendor_type",            "VARCHAR(15)",  "NO",  "permanent | temporary"),
                     ("name",                   "VARCHAR(200)", "NO",  ""),
                     ("contact_name",           "VARCHAR(150)", "YES", ""),
                     ("email",                  "VARCHAR(150)", "YES", ""),
@@ -301,7 +315,9 @@ GROUPS = [
                     ("bank_name",              "VARCHAR(100)", "YES", ""),
                     ("bank_account_no",        "VARCHAR(30)",  "YES", ""),
                     ("bank_account_name",      "VARCHAR(150)", "YES", ""),
-                    ("reason",                 "TEXT",         "YES", "why a registered vendor was not used"),
+                    ("reason",                 "TEXT",         "YES", "why a registered vendor was not used — populated for temporary vendors only"),
+                    ("procurement_request_id", "INT",          "YES", "FK → procurement_requests.id  (null for permanent vendors)"),
+                    ("is_active",              "BOOLEAN",      "NO",  "default true — set false to deactivate a permanent vendor"),
                     ("added_by",               "INT",          "NO",  "FK → employees.id"),
                     ("created_at",             "TIMESTAMPTZ",  "NO",  "default now()"),
                 ],
@@ -311,15 +327,14 @@ GROUPS = [
                 "Purchase/procurement request raised by any employee",
                 [
                     ("id",               "SERIAL",       "NO",  "PK"),
-                    ("request_no",       "VARCHAR(20)",  "NO",  "UNIQUE  e.g. PR-2026-001"),
+                    ("reference",        "VARCHAR(20)",  "NO",  "UNIQUE  e.g. PR-2026-001  — human-readable identifier shown to users"),
                     ("raised_by",        "INT",          "NO",  "FK → employees.id"),
                     ("department",       "VARCHAR(100)", "NO",  ""),
                     ("title",            "VARCHAR(200)", "NO",  ""),
                     ("description",      "TEXT",         "YES", ""),
                     ("estimated_amount", "NUMERIC(15,2)","YES", ""),
                     ("currency",         "VARCHAR(5)",   "NO",  "default NGN"),
-                    ("vendor_type",      "VARCHAR(20)",  "YES", "registered | one_time"),
-                    ("vendor_id",        "INT",          "YES", "FK → vendors.id  (null if one_time)"),
+                    ("vendor_id",        "INT",          "YES", "FK → vendors.id  (permanent or temporary — set after vendor selection)"),
                     ("status",           "VARCHAR(20)",  "NO",  "draft | pending | approved | rejected | returned | po_issued"),
                     ("created_at",       "TIMESTAMPTZ",  "NO",  "default now()"),
                     ("updated_at",       "TIMESTAMPTZ",  "NO",  "default now()"),
@@ -344,8 +359,7 @@ GROUPS = [
                     ("id",                     "SERIAL",       "NO",  "PK"),
                     ("po_number",              "VARCHAR(20)",  "NO",  "UNIQUE  e.g. PO-2026-001"),
                     ("procurement_request_id", "INT",          "NO",  "FK → procurement_requests.id"),
-                    ("vendor_id",              "INT",          "YES", "FK → vendors.id  (null if one_time_vendor used)"),
-                    ("one_time_vendor_id",     "INT",          "YES", "FK → one_time_vendors.id  (null if registered vendor used)"),
+                    ("vendor_id",              "INT",          "NO",  "FK → vendors.id  (permanent or temporary)"),
                     ("total_amount",           "NUMERIC(15,2)","NO",  ""),
                     ("currency",               "VARCHAR(5)",   "NO",  "default NGN"),
                     ("issued_by",              "INT",          "NO",  "FK → employees.id"),
@@ -355,12 +369,15 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
-    # ── 5. ASSETS ─────────────────────────────────────────────────────────────
-    (
-        "Assets", "Asset Management", C["amber"],
-        [
+    # ── 6. ASSETS ─────────────────────────────────────────────────────────────
+    {
+        "sheet_name":    "Assets",
+        "display_title": "Asset Management",
+        "accent":        C["amber"],
+        "hidden":        False,
+        "tables": [
             (
                 "asset_categories",
                 "Asset type classification",
@@ -397,7 +414,7 @@ GROUPS = [
                 "Employee request to purchase, borrow, or repair an asset",
                 [
                     ("id",           "SERIAL",       "NO",  "PK"),
-                    ("request_no",   "VARCHAR(20)",  "NO",  "UNIQUE  e.g. AR-2026-001"),
+                    ("reference",    "VARCHAR(20)",  "NO",  "UNIQUE  e.g. AR-2026-001  — human-readable identifier shown to users"),
                     ("requester_id", "INT",          "NO",  "FK → employees.id"),
                     ("asset_id",     "INT",          "YES", "FK → assets.id  (null if requesting new purchase)"),
                     ("request_type", "VARCHAR(20)",  "NO",  "purchase | loan | repair"),
@@ -434,12 +451,15 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
-    # ── 6. INTRANET ───────────────────────────────────────────────────────────
-    (
-        "Intranet", "Intranet Content", C["purple"],
-        [
+    # ── 7. INTRANET ───────────────────────────────────────────────────────────
+    {
+        "sheet_name":    "Intranet",
+        "display_title": "Intranet Content",
+        "accent":        C["purple"],
+        "hidden":        False,
+        "tables": [
             (
                 "intranet_announcements",
                 "News and announcements published on the intranet",
@@ -554,12 +574,15 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
-    # ── 9. NOTIFICATIONS ─────────────────────────────────────────────────────
-    (
-        "Notifications", "Notifications", C["teal"],
-        [
+    # ── 8. NOTIFICATIONS ─────────────────────────────────────────────────────
+    {
+        "sheet_name":    "Notifications",
+        "display_title": "Notifications",
+        "accent":        C["teal"],
+        "hidden":        False,
+        "tables": [
             (
                 "notifications",
                 "In-app notifications sent to employees — also used to trigger emails",
@@ -576,7 +599,7 @@ GROUPS = [
                 ],
             ),
         ],
-    ),
+    },
 
 ]
 
@@ -597,7 +620,7 @@ def make_index_sheet(wb, groups):
 
     ws.merge_cells("A2:F2")
     c = ws["A2"]
-    c.value = "Schema Reference  ·  v7.0  ·  June 2026"
+    c.value = "Schema Reference  ·  v8.0  ·  June 2026"
     c.fill = fill(C["purple"])
     c.font = font(color=C["white"], size=10)
     c.alignment = center()
@@ -628,16 +651,22 @@ def make_index_sheet(wb, groups):
     for g in groups:
         if g is None:
             continue
-        sheet_name, display, accent, tables = g
+        # Skip hidden groups from the index
+        if g.get("hidden", False):
+            continue
+        sheet_name    = g["sheet_name"]
+        display_title = g["display_title"]
+        tables        = g["tables"]
         for table_name, desc, cols in tables:
             est_rows = {
                 "users": "~200", "employees": "~200",
                 "documents": "thousands", "approval_history": "thousands",
+                "workflow_audit_trail": "thousands",
                 "approval_step_assignments": "thousands",
                 "notifications": "thousands",
             }.get(table_name, "hundreds")
 
-            vals = [display, sheet_name, table_name, est_rows, desc]
+            vals = [display_title, sheet_name, table_name, est_rows, desc]
             for i, v in enumerate(vals, start=1):
                 c = ws.cell(row=row, column=i, value=v)
                 c.fill = fill("F8F4FF") if row % 2 == 0 else fill(C["white"])
@@ -749,6 +778,7 @@ def make_group_sheet(wb, sheet_name, display_title, accent, tables):
         current_row += 2  # spacer between tables
 
     ws.freeze_panes = "A4"
+    return ws
 
 
 def make_future_sheet(wb):
@@ -851,6 +881,8 @@ def make_future_sheet(wb):
         ("",                         "null — group_id column used  (for picker)"),
     ])
 
+    return ws
+
 
 # ── Build workbook ────────────────────────────────────────────────────────────
 
@@ -859,14 +891,16 @@ make_index_sheet(wb, GROUPS)
 for g in GROUPS:
     if g is None:
         continue
-    sheet_name, display_title, accent, tables = g
-    make_group_sheet(wb, sheet_name, display_title, accent, tables)
+    ws = make_group_sheet(wb, g["sheet_name"], g["display_title"], g["accent"], g["tables"])
+    if g.get("hidden", False):
+        ws.sheet_state = "hidden"
 
-make_future_sheet(wb)
+future_ws = make_future_sheet(wb)
+future_ws.sheet_state = "hidden"
 
 out = "/Users/nubiaville/Documents/portland-gas-ops/Portland_Gas_DB_Design.xlsx"
 wb.save(out)
 
-total_tables = sum(len(g[3]) for g in GROUPS if g is not None)
-total_cols   = sum(len(t[2]) for g in GROUPS if g is not None for t in g[3])
+total_tables = sum(len(g["tables"]) for g in GROUPS if g is not None)
+total_cols   = sum(len(t[2]) for g in GROUPS if g is not None for t in g["tables"])
 print(f"Done. {total_tables} tables · {total_cols} columns → {out}")

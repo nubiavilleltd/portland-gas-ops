@@ -3,8 +3,9 @@
 import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { useVendor, useUpdateVendor } from "@/hooks/useVendors";
+import { useVendor, useUpdateVendor, useUploadVendorLogo, VENDOR_ERRORS } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
+import { getErrorMessage } from "@/lib/errors";
 import type { VendorCategory } from "@/types";
 import VendorForm, { type VendorFormValues } from "../../_components/VendorForm";
 
@@ -14,6 +15,7 @@ export default function EditVendorPage() {
   const toast = useToast();
   const { data: vendor, isLoading, isError } = useVendor(id);
   const updateVendor = useUpdateVendor(id);
+  const uploadLogo = useUploadVendorLogo();
 
   if (isLoading) {
     return (
@@ -44,15 +46,24 @@ export default function EditVendorPage() {
     logo_url: vendor.logo_url ?? "",
   };
 
-  function handleSubmit(values: VendorFormValues) {
+  async function handleSubmit(values: VendorFormValues, logoFile: File | null) {
     updateVendor.mutate(
-      { ...values, category: values.category as VendorCategory, logo_url: values.logo_url || null },
+      { ...values, category: values.category as VendorCategory },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          if (logoFile) {
+            try {
+              await uploadLogo.mutateAsync({ id, file: logoFile });
+            } catch {
+              toast.error("Vendor updated but logo upload failed. Try re-uploading.");
+              router.push("/admin/vendors");
+              return;
+            }
+          }
           toast.success("Vendor updated");
           router.push("/admin/vendors");
         },
-        onError: () => toast.error("Failed to update vendor"),
+        onError: (err) => toast.error(getErrorMessage(err, VENDOR_ERRORS)),
       }
     );
   }
@@ -62,7 +73,7 @@ export default function EditVendorPage() {
       title="Edit Vendor"
       description={`Update details for ${vendor.name}`}
       initial={initial}
-      loading={updateVendor.isPending}
+      loading={updateVendor.isPending || uploadLogo.isPending}
       onSubmit={handleSubmit}
     />
   );

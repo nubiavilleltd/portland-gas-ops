@@ -23,16 +23,17 @@ export interface Product {
   id: string;
   name: string;
   code?: string;
+  productNo: string;
   description?: string;
-  default_unit_price: number;
+  defaultUnitPrice: number;
   unit: ProductUnit;
-  unit_label?: string;
+  unitLabel?: string;
   status: ProductStatus;
-  product_type: ProductType;
-  minimum_stock?: number;
+  productType: ProductType;
+  minimumStock?: number;
   images?: ProductImage[];
-  created_at: string;
-  updated_at?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 
@@ -40,24 +41,24 @@ export interface Product {
 export interface CreateProductInput {
   name: string;
   unit: ProductUnit;
-  default_unit_price: number;  // always number here — no form concerns
-  product_type: ProductType;
+  defaultUnitPrice: number;  // always number here — no form concerns
+  productType: ProductType;
   description?: string;
   code?: string;
   status?: ProductStatus;
-  minimum_stock?: number;
+  minimumStock?: number;
   images?: ProductImage[];
 }
 
 export interface UpdateProductInput {
   name?: string;
   unit?: ProductUnit;
-  default_unit_price?: number;
-  product_type?: ProductType;
+  defaultUnitPrice?: number;
+  productType?: ProductType;
   description?: string;
   code?: string;
   status?: ProductStatus;
-  minimum_stock?: number;
+  minimumStock?: number;
   images?: ProductImage[];
 }
 
@@ -70,9 +71,9 @@ export const UNIT_LABELS: Record<ProductUnit, string> = {
 };
 
 export function getUnitLabel(
-  product: Pick<Product, "unit" | "unit_label">
+  product: Pick<Product, "unit" | "unitLabel">
 ): string {
-  return product.unit_label ?? UNIT_LABELS[product.unit];
+  return product.unitLabel ?? UNIT_LABELS[product.unit];
 }
 
 
@@ -82,10 +83,10 @@ export function getUnitLabel(
 //   return UNIT_LABELS[product.unit];
 // }
 
-export function isTracked(product: Pick<Product, "product_type">): boolean {
-  return product.product_type === "tracked";
+export function isTracked(product: Pick<Product, "productType">): boolean {
+  return product.productType === "tracked";
 }
 
-export function isConsumable(product: Pick<Product, "product_type">): boolean {
-  return product.product_type === "consumable";
+export function isConsumable(product: Pick<Product, "productType">): boolean {
+  return product.productType === "consumable";
 }

@@ -10,25 +10,18 @@
 // ─────────────────────────────────────────────────────────
 
 export const ORDER_ROUTES = {
-    // Lists
-    home: () => "/orders",
-    list: () => "/orders/list",
+  home: () => "/orders",
+  list: () => "/orders/list",
 
-    // Create / Edit
-    new: () => "/orders/new",
-    edit: (id: string) => `/orders/${id}/edit`,
+  new: () => "/orders/new",
+  detail: (orderNo: string) => `/orders/${orderNo}`,
+  edit: (orderNo: string) => `/orders/${orderNo}/edit`,
 
-    // Detail
-    detail: (id: string) => `/orders/${id}`,
+//   confirm: (orderNo: string) => `/orders/${orderNo}/confirm`,
+//   approval: (orderNo: string) => `/orders/${orderNo}/approval`,
+//   close: (orderNo: string) => `/orders/${orderNo}/close`,
 
-    // Actions — these use the route-based modal pattern:
-    // direct URL visit → always-open modal (keeps deep-link)
-    // opened from detail page → controlled modal
-    confirm: (id: string) => `/orders/${id}/confirm`,
-    close: (id: string) => `/orders/${id}/close`,
-    approval: (id: string) => `/orders/${id}/approval`,
-
-    // Delivery sub-routes
-    delivery: (id: string) => `/orders/${id}/delivery`,
-    deliveryConfirm: (id: string) => `/orders/${id}/delivery/confirm`,
+//   delivery: (orderNo: string) => `/orders/${orderNo}/delivery`,
+  deliveryConfirm: (orderNo: string) =>
+    `/orders/${orderNo}/delivery/confirm`,
 } as const;

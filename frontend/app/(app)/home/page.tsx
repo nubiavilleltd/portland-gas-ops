@@ -3,8 +3,6 @@
 import Link from "next/link";
 import AppLayout from "@/components/layout/AppLayout";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useMyApprovals } from "@/hooks/useApprovals";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { homeModuleGroups, type ModuleProcess } from "@/config/module-groups";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
@@ -17,15 +15,14 @@ function canAccessModule(href: string, role: UserRole | undefined): boolean {
 }
 
 export default function HomePage() {
-  const { user, isLoading } = useCurrentUser();
-  const { data: pendingApprovals } = useMyApprovals();
+  const { user } = useCurrentUser();
 
   return (
     <AppLayout>
       {/* Welcome row */}
       <div className="mb-2">
         <h2 className="text-2xl font-semibold text-brand-text-primary">
-          Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""}
+          Welcome back{user ? `, ${user.first_name ?? user.name?.split(" ")[0] ?? ""}` : ""}
         </h2>
       </div>
 
@@ -56,41 +53,6 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Pending approvals strip */}
-      {pendingApprovals && pendingApprovals.items.length > 0 && (
-        <div className="mt-10">
-          <h3 className="text-sm font-semibold text-brand-text-primary mb-3">
-            My pending approvals ({pendingApprovals.total})
-          </h3>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {pendingApprovals.items.slice(0, 5).map((item) => (
-              <Link
-                key={item.id}
-                href="/approvals"
-                className="shrink-0 bg-white border border-brand-border rounded-xl p-4 hover:border-brand-purple hover:shadow-sm transition-all w-60"
-              >
-                <p className="text-xs font-mono text-brand-text-secondary">{item.reference_id}</p>
-                <p className="text-sm font-medium text-brand-text-primary mt-1 line-clamp-1">{item.reference_label}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <ApprovalBadge status={item.status} />
-                  <span className="text-xs text-brand-purple font-medium">Review →</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="mt-10">
-          <div className="h-4 w-40 bg-gray-100 rounded animate-pulse mb-3" />
-          <div className="flex gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="shrink-0 w-60 h-24 bg-white border border-brand-border rounded-xl animate-pulse" />
-            ))}
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 }

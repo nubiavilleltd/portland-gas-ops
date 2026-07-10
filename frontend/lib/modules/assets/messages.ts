@@ -1,0 +1,23 @@
+export const ASSET_MESSAGES = {
+  createSuccess: "Asset registered successfully.",
+  updateSuccess: "Asset updated successfully.",
+  deleteSuccess: "Asset deleted.",
+  transferSuccess: "Asset transferred successfully.",
+  maintenanceLogSuccess: "Maintenance log added.",
+  categoryCreateSuccess: "Category created.",
+  categoryUpdateSuccess: "Category updated.",
+  categoryDeleteSuccess: "Category deleted.",
+  typeCreateSuccess: "Asset type added.",
+  typeDeleteSuccess: "Asset type removed.",
+
+  createError: "Failed to register asset. Please try again.",
+  updateError: "Failed to update asset.",
+  deleteError: "Failed to delete asset.",
+  transferError: "Failed to transfer asset.",
+  maintenanceLogError: "Failed to save maintenance log.",
+  categoryCreateError: "Failed to create category.",
+  categoryUpdateError: "Failed to update category.",
+  categoryDeleteError: "Failed to delete category.",
+  typeCreateError: "Failed to add asset type.",
+  typeDeleteError: "Failed to remove asset type.",
+};

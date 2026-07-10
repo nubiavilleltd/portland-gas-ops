@@ -140,7 +140,7 @@ export function useAssignResourcesWorkflow() {
       );
 
       router.push(
-        FLEET_ROUTES.tripDetail(updatedTrip.id)
+        FLEET_ROUTES.tripDetail(updatedTrip.trip_number)
       );
     },
 

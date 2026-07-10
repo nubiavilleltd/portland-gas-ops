@@ -1,24 +1,33 @@
 "use client";
 
+import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import { isSafetyCurrentUser } from "@/lib/safety-demo-identity";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
-import { useSafetyDemoData } from "@/lib/safety-demo-store";
+import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
+import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
+import SafetyRequestListFilters, {
+  type SafetyRequestListFilter,
+} from "./SafetyRequestListFilters";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
   recommended: "Recommended",
+  pending_hse_verification: "Pending HSE Verification",
   resolved: "Resolved",
   closed: "Closed",
   not_resolved: "Not Resolved",
 };
 
 const columns: Column<IncidentHazardReport>[] = [
-  { key: "id", label: "Reference" },
+  {
+    key: "reference",
+    label: "Reference",
+    render: (value) => String(value || "Reference pending"),
+  },
   {
     key: "title",
     label: "Title",
@@ -57,9 +66,12 @@ const columns: Column<IncidentHazardReport>[] = [
     render: (_, row) => getIncidentHazardNextActor(row),
   },
   {
-    key: "dateTimeObserved",
+    key: "reportedAtRaw",
     label: "Date Reported",
-    render: (value, row) => String(value || row.reporter.reportDate),
+    getSearchValue: (row) => row.reporter.reportDate,
+    getSortValue: (row) => row.reportedAtRaw ?? row.reporter.reportDate,
+    className: "whitespace-nowrap",
+    render: (_, row) => row.reporter.reportDate || "-",
   },
 ];
 
@@ -70,24 +82,58 @@ export default function IncidentHazardReportsTable({
 }: {
   scope?: "user" | "admin";
 }) {
-  const { incidentHazards } = useSafetyDemoData();
+  const [filter, setFilter] = useState<SafetyRequestListFilter>("all");
+  const reportsQuery = useIncidentReports();
+  const currentEmployee = useSafetyCurrentEmployee();
+  const currentEmployeeId = currentEmployee.data?.id;
+  const isHseEmployee = isHseDepartment(currentEmployee.data?.department);
+  const isRaisedByCurrentEmployee = (report: IncidentHazardReport) =>
+    Boolean(currentEmployeeId && report.reporterId === currentEmployeeId);
+  const isAssignedToCurrentEmployee = (report: IncidentHazardReport) =>
+    Boolean(currentEmployeeId && report.hseReview?.actionOwnerId === currentEmployeeId);
+  const isAwaitingCurrentEmployeeApproval = (report: IncidentHazardReport) =>
+    isHseEmployee &&
+    (report.status === "submitted" ||
+      report.status === "pending_hse_verification");
+  const canSeeReport = (report: IncidentHazardReport) =>
+    scope === "admin" ||
+    isHseEmployee ||
+    isRaisedByCurrentEmployee(report) ||
+    isAssignedToCurrentEmployee(report);
+  const visibleReports = (reportsQuery.data ?? []).filter(
+    (report) => report.status !== "draft" && canSeeReport(report),
+  );
   const reports = sortByLatestSafetyActivity(
-    incidentHazards.filter(
-      (report) =>
-        report.status !== "draft" &&
-        (scope === "admin" || isSafetyCurrentUser(report.reporter.name)),
-    ),
-    (report) => report.dateTimeObserved || report.reporter.reportDate,
+    visibleReports.filter((report) => {
+      if (filter === "raised") return isRaisedByCurrentEmployee(report);
+      if (filter === "assigned") return isAssignedToCurrentEmployee(report);
+      if (filter === "approval") return isAwaitingCurrentEmployeeApproval(report);
+      return true;
+    }),
+    (report) => report.reportedAtRaw ?? report.reporter.reportDate,
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={reports}
-      rowHref={(report) =>
-        scope === "admin" ? getAdminIncidentHref(report) : `/safety/incidents/${report.id}`
-      }
-      emptyMessage="No incident or hazard reports found."
-    />
+    <div className="space-y-3">
+      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      <DataTable
+        columns={columns}
+        data={reports}
+        isLoading={reportsQuery.isLoading || currentEmployee.isLoading}
+        rowHref={(report) =>
+          scope === "admin" ? getAdminIncidentHref(report) : `/safety/incidents/${report.id}`
+        }
+        emptyMessage={
+          reportsQuery.isError
+            ? "Incident or hazard reports could not be loaded."
+            : "No incident or hazard reports found."
+        }
+      />
+    </div>
   );
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalized = department?.trim().toLowerCase();
+  return normalized === "hse" || normalized === "safety";
 }

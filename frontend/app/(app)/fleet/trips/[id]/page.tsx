@@ -12,7 +12,7 @@ import { formatDate, formatCurrency, toTitleCase } from "@/lib/utils";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 
-import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
@@ -24,12 +24,15 @@ import {
   canCompleteTrip,
   canDispatchTrip,
   canStartTrip,
+  canCancelTrip
 } from "@/lib/modules/fleet/guards/trip.guards";
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 
 import type { Order } from "@/lib/modules/orders/types/orders.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
+import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
+import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
 
 
 const STATUS_ORDER = [
@@ -45,11 +48,12 @@ const STATUS_ORDER = [
 export default function TripDetailPage() {
   const params = useParams();
 
-  const tripId = params.id as string;
+  const tripNo = params.id as string;
 
 
   // ── React Query hooks (single sources of truth) ─────────
-  const { trip } = useTripById(tripId);
+  const { trip } = useTripByNo(tripNo);
+  const { entries } = useAuditByEntity("trip", trip?.id as string);
 
   const { orders } = useOrders();
   const { customers } = useCustomers();
@@ -73,35 +77,34 @@ export default function TripDetailPage() {
     .map((id) => ordersMap.get(id))
     .filter(Boolean);
 
-  console.log("orderMap:", { ordersMap, linkedOrders });
 
   const orderColumns: SimpleTableColumn<Order>[] = [
     {
       label: "Order",
       render: (order) => (
-        <span className="font-mono text-xs">{order.order_number}</span>
+        <span className="font-mono text-xs">{order.orderNumber}</span>
       ),
     },
     {
       label: "Customer",
       render: (order) =>
-        customerMap.get(order.customer_id)?.name ?? "Unknown Customer",
+        customerMap.get(order.customerId)?.name ?? "Unknown Customer",
     },
     {
       label: "Amount",
-      render: (order) => formatCurrency(order.total_amount),
+      render: (order) => formatCurrency(order.totalAmount),
     },
     {
       label: "Status",
       render: (order) => (
-        <FulfillmentStatusBadge status={order.fulfillment_status} />
+        <FulfillmentStatusBadge status={order.fulfillmentStatus} />
       ),
     },
     {
       label: "",
       align: "right",
       render: (order) => (
-        <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
+        <Button size="sm" variant="outline" href={`/orders/${order.orderNumber}`}>
           View
         </Button>
       ),
@@ -117,6 +120,7 @@ export default function TripDetailPage() {
   const canStart = canStartTrip(trip);
   const canComplete = canCompleteTrip(trip);
   const canAssignInventoryToTrip = canAssignInventory(trip);
+  const canCancel = canCancelTrip(trip);
 
   return (
     <AppLayout pageTitle={trip.trip_number}>
@@ -133,26 +137,31 @@ export default function TripDetailPage() {
 
 
             {canDispatch && (
-              <Button href={`/fleet/trips/${tripId}/dispatch`}>
+              <Button href={`/fleet/trips/${tripNo}/dispatch`}>
                 Dispatch Trip →
               </Button>
             )}
 
             {canStart && (
-              <Button href={`/fleet/trips/${tripId}/start`}>
+              <Button href={`/fleet/trips/${tripNo}/start`}>
                 Start Transit →
               </Button>
             )}
 
             {canComplete && (
-              <Button href={`/fleet/trips/${tripId}/complete`}>
+              <Button href={`/fleet/trips/${tripNo}/complete`}>
                 Complete Trip →
               </Button>
             )}
 
             {canAssignInventoryToTrip && (
-              <Button href={`/fleet/trips/${tripId}/assign-inventory`}>
+              <Button href={`/fleet/trips/${tripNo}/assign-inventory`}>
                 Assign Inventory →
+              </Button>
+            )}
+            {canCancel && (
+              <Button variant="danger" href={`/fleet/trips/${tripNo}/cancel`}>
+                Cancel Trip →
               </Button>
             )}
           </div>
@@ -191,9 +200,44 @@ export default function TripDetailPage() {
           title="Status Flow"
           description="Track the current stage of the trip lifecycle"
         >
-          {trip.status === "cancelled" ? (
+
+
+          {/* {trip.status === "cancelled" ? (
             <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 inline-block">
               Cancelled
+            </div>
+          ) : ( */}
+          {trip.status === "cancelled" ? (
+            <div className="space-y-3">
+              {/* Cancelled badge, prominent */}
+              <div className="flex items-center gap-2">
+                <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 inline-block">
+                  ✕ Cancelled
+                </div>
+                {trip.cancelled_at && (
+                  <span className="text-xs text-brand-text-secondary">
+                    on {formatDate(trip.cancelled_at)}
+                  </span>
+                )}
+              </div>
+
+              {/* Faded progress trail showing how far it got */}
+              <div className="flex gap-2 flex-wrap opacity-50">
+                {STATUS_ORDER.map((step) => (
+                  <div
+                    key={step}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400"
+                  >
+                    <span className="capitalize">{step.replace("_", " ")}</span>
+                  </div>
+                ))}
+              </div>
+
+              {trip.cancellation_reason && (
+                <p className="text-xs text-brand-text-secondary">
+                  Reason: {trip.cancellation_reason}
+                </p>
+              )}
             </div>
           ) : (
             <div className="flex gap-2 flex-wrap">
@@ -224,6 +268,7 @@ export default function TripDetailPage() {
               })}
             </div>
           )}
+
         </FormSection>
 
         {/* ASSIGNMENT */}
@@ -234,7 +279,7 @@ export default function TripDetailPage() {
 
           {canAssign && (
             <div className="flex justify-end">
-              <Button href={`/fleet/trips/${tripId}/assign`}>
+              <Button href={`/fleet/trips/${tripNo}/assign`}>
                 Assign Driver & Vehicle →
               </Button>
             </div>
@@ -287,6 +332,10 @@ export default function TripDetailPage() {
             <p className="text-sm whitespace-pre-line">{trip.notes}</p>
           </FormSection>
         )}
+
+        <FormSection title="Activity" description="Timeline of actions taken on this trip">
+          <AuditTimeline entries={entries} />
+        </FormSection>
       </div>
     </AppLayout>
   );

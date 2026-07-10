@@ -1,93 +1,138 @@
 // ============================================================
 //  PRODUCTS SERVICE
-//  Single source of truth for all product CRUD operations.
-//  All methods return Promises — swap bodies for fetch() calls
-//  when the backend is connected.
+//  Method signatures unchanged from mock version.
+//  Bodies now call the real backend API via productsApi.
+//  The adapter translates backend shapes to frontend Product type.
 // ============================================================
 
-import { products } from "@/lib/modules/products/mock/products.mock";
+import { productsApi } from "../api/products.api";
+import {
+  adaptCreateProductInput,
+  adaptProduct,
+  adaptProductList,
+  adaptUpdateProductInput,
+} from "../adapters/product.adapter";
+import { getErrorMessage } from "@/lib/api/error";
 import type {
   CreateProductInput,
   Product,
   UpdateProductInput,
-} from "@/lib/modules/products/types/product.types";
-import { throwAppError } from "@/lib/errors";
+} from "../types/product.types";
 
 export class ProductsService {
   // ── READ ────────────────────────────────────────────────
 
   static async getProducts(): Promise<Product[]> {
-    // FUTURE: return fetch('/api/products').then(r => r.json());
-    return Promise.resolve([...products]);
+    const raw = await productsApi.list({ page_size: 200 });
+    return adaptProductList(raw);
   }
 
-   static async getProductById(id: string): Promise<Product | undefined> {
-      return Promise.resolve(products.find((p) => p.id === id));
-    }
+  // static async getProductByNo(productNo: string): Promise<Product | undefined> {
+  //   try {
+  //     const raw = await productsApi.get(productNo);
+  //     return adaptProduct(raw);
+  //   } catch {
+  //     return undefined;
+  //   }
+  // }
 
+
+  static async getProductByNo(productNo: string): Promise<Product> {
+    try {
+      const raw = await productsApi.get(productNo);
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to fetch product"));
+    }
+  }
+
+  static async getProductById(id: string): Promise<Product> {
+    try {
+      const raw = await productsApi.get(id);
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to fetch product"));
+    }
+  }
 
   // ── CREATE ──────────────────────────────────────────────
 
+  // static async createProduct(input: CreateProductInput): Promise<Product> {
+  //   try {
+  //     // Extract image Files from input — the mock stored ProductImage objects,
+  //     // but we now have real File objects from the form (passed via input.images as File[])
+  //     const imageFiles = (input as any)._imageFiles as File[] ?? [];
+
+  //     const raw = await productsApi.create(
+  //       {
+  //         name: input.name,
+  //         product_type: input.product_type,
+  //         unit: input.unit,
+  //         default_unit_price: input.default_unit_price,
+  //         code: input.code,
+  //         description: input.description,
+  //         minimum_stock: input.minimum_stock,
+  //       },
+  //       imageFiles,
+  //     );
+  //     return adaptProduct(raw);
+  //   } catch (err) {
+  //     throw new Error(getErrorMessage(err, "Failed to create product"));
+  //   }
+  // }
+
   static async createProduct(input: CreateProductInput): Promise<Product> {
-    const duplicate = products.find(
-      (p) => p.name.toLowerCase() === input.name.toLowerCase()
-    );
-    if (duplicate) throwAppError("PRODUCT_DUPLICATE_NAME");
+    try {
+      const imageFiles = ((input as any)._imageFiles as File[]) ?? [];
 
-    const newProduct: Product = {
-      id: `prod-${Date.now()}`,
-      name: input.name.trim(),
-      unit: input.unit,
-      code:input.code,
-      product_type: input.product_type ?? "consumable",
-      default_unit_price: input.default_unit_price,
-      description: input.description?.trim(),
-      status: "active",
-      images: input.images ?? [],
-      created_at: new Date().toISOString().slice(0, 10),
-      updated_at: new Date().toISOString().slice(0, 10),
-    };
+      const backendInput = adaptCreateProductInput(input);
 
-    products.push(newProduct);
-    // FUTURE: return fetch('/api/products', { method: 'POST', body: JSON.stringify(input) }).then(r => r.json());
-    return Promise.resolve(newProduct);
+      const raw = await productsApi.create(backendInput, imageFiles);
+
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to create product"));
+    }
   }
-
   // ── UPDATE ──────────────────────────────────────────────
 
   static async updateProduct(
-    id: string,
-    input: UpdateProductInput
+    productNo: string,
+    input: UpdateProductInput,
   ): Promise<Product> {
-    const product = products.find((p) => p.id === id);
-    if (!product) throwAppError("PRODUCT_NOT_FOUND");
+    try {
+      const newImageFiles = ((input as any)._newImageFiles as File[]) ?? [];
+      const keptImageIds = ((input as any)._keptImageIds as string[]) ?? [];
 
-    if (input.name) {
-      const duplicate = products.find(
-        (p) =>
-          p.id !== id &&
-          p.name.toLowerCase() === input.name!.toLowerCase()
+      const backendInput = adaptUpdateProductInput(input);
+
+      const raw = await productsApi.update(
+        productNo,
+        backendInput,
+        newImageFiles,
+        keptImageIds,
       );
-      if (duplicate) throwAppError("PRODUCT_DUPLICATE_NAME");
+
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to update product"));
     }
-
-    Object.assign(product, {
-      ...input,
-      name:        input.name?.trim()        ?? product.name,
-      description: input.description?.trim() ?? product.description,
-      updated_at: new Date().toISOString().slice(0, 10)
-    });
-
-    return Promise.resolve(product);
+  }
+  static async deactivateProduct(productNo: string): Promise<Product> {
+    try {
+      const raw = await productsApi.deactivate(productNo);
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to deactivate product"));
+    }
   }
 
-  // ── STATUS TOGGLES ───────────────────────────────────────
-
-  static async deactivateProduct(id: string): Promise<Product> {
-    return ProductsService.updateProduct(id, { status: "inactive" });
-  }
-
-  static async activateProduct(id: string): Promise<Product> {
-    return ProductsService.updateProduct(id, { status: "active" });
+  static async activateProduct(productNo: string): Promise<Product> {
+    try {
+      const raw = await productsApi.activate(productNo);
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Failed to activate product"));
+    }
   }
 }

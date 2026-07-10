@@ -173,7 +173,7 @@ export default function DriverDetailPage() {
               <Avatar
                 src={profileImage}
                 name={driver.full_name}
-                size={64}
+                size="lg"
               />
 
             </div>
