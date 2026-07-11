@@ -7,7 +7,7 @@ import { Vehicle, VehicleType } from "../types/vehicle.types";
 import type { VehicleFormValues } from "../components/VehicleForm";
 
 interface BackendDriver {
-    id: number;
+    id: string;
     employee_id: string;
     full_name: string;
     email: string;
@@ -47,7 +47,7 @@ export interface CreateVehicleRequest {
   name: string;
   plate_number: string;
 
-  type: VehicleType;
+  vehicle_type: VehicleType;
 
   make?: string;
   model?: string;
@@ -62,6 +62,7 @@ export interface CreateVehicleRequest {
   last_service_date?: string;
   next_service_date?: string;
   insurance_expiry_date?: string;
+  roadworthiness_expiry_date?: string;
 
   image?: File;
 }
@@ -70,7 +71,7 @@ export interface UpdateVehicleRequest {
   name?: string;
   plate_number?: string;
 
-  type?: VehicleType;
+  vehicle_type?: VehicleType;
 
   make?: string;
   model?: string;
@@ -85,17 +86,18 @@ export interface UpdateVehicleRequest {
   last_service_date?: string;
   next_service_date?: string;
   insurance_expiry_date?: string;
+  roadworthiness_expiry_date?: string;
 
   image?: File;
 }
 
 interface BackendTrip {
-    id: number;
+    id: string;
     trip_no: string | null;
     type: string;
-    driver_id: number | null;
+    driver_id: string | null;
     driver_name: string | null;
-    vehicle_id: number | null;
+    vehicle_id: string | null;
     vehicle_name: string | null;
     order_ids: string[];
     start_location: string;
@@ -183,7 +185,7 @@ export function adaptCreateVehicleRequest(
     name: input.name,
     plate_number: input.plate_number,
 
-    type: input.type,
+    vehicle_type: input.type,   // ← renamed from "type"
 
     make: input.make || undefined,
     model: input.model || undefined,
@@ -204,6 +206,7 @@ export function adaptCreateVehicleRequest(
     next_service_date: input.next_service_date || undefined,
     insurance_expiry_date:
       input.insurance_expiry_date || undefined,
+    roadworthiness_expiry_date: input.roadworthiness_expiry_date || undefined,
 
     image: input.image,
   };
@@ -217,7 +220,7 @@ export function adaptUpdateVehicleRequest(
     name: input.name,
     plate_number: input.plate_number,
 
-    type: input.type,
+    vehicle_type: input.type,
 
     make: input.make || undefined,
     model: input.model || undefined,
@@ -238,6 +241,7 @@ export function adaptUpdateVehicleRequest(
     next_service_date: input.next_service_date || undefined,
     insurance_expiry_date:
       input.insurance_expiry_date || undefined,
+      roadworthiness_expiry_date: input.roadworthiness_expiry_date || undefined,
 
     image: input.image || undefined,
   };

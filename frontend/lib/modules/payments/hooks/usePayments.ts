@@ -6,6 +6,7 @@ import { PaymentsService } from "@/lib/modules/payments/services/payments.servic
 
 import {
   getPaymentById,
+  getPaymentByNo,
   getPaymentsByInvoice,
   getPaymentSummary,
   getTotalPaidForInvoice,
@@ -50,6 +51,12 @@ export function usePaymentById(id: string) {
     error,
     refetch,
   };
+}
+
+export function usePaymentByNo(paymentNo: string) {
+  const { payments, isLoading, error, refetch } = usePayments();
+  const payment = getPaymentByNo(payments, paymentNo);
+  return { payment, isLoading, error, refetch };
 }
 
 // ─────────────────────────────────────────────

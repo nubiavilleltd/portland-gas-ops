@@ -62,7 +62,7 @@ function CreateTripForm() {
 
   const vehicleId = searchParams.get("vehicleId");
   const driverId = searchParams.get("driverId");
-  const orderId = searchParams.get("orderId");
+  const orderNo = searchParams.get("orderNo");
 
   // ── DATA HOOKS ─────────────────────────────────────────
   const { orders } = useOrders();
@@ -76,9 +76,11 @@ function CreateTripForm() {
   const orderMap = new Map(orders.map((o) => [o.id, o]));
   const customerMap = new Map(customers.map((c) => [c.id, c]));
 
-  const preloadedOrder = orderId ? orderMap.get(orderId) : null;
+  const preloadedOrder = orderNo
+    ? orders.find((o) => o.orderNumber === orderNo)
+    : null;
 
-  const isTripTypeLocked = !!orderId;
+  const isTripTypeLocked = !!orderNo;
 
   const assignableOrders = orders
     .filter(
@@ -102,7 +104,7 @@ function CreateTripForm() {
     resolver: zodResolver(createTripSchema),
     defaultValues: {
       type: "order_delivery",
-      linked_order_id: orderId ?? "",
+      linked_order_id: preloadedOrder?.id ?? "",
       start_location: "",
       end_location: preloadedOrder?.deliveryAddress ?? "",
       scheduled_date: preloadedOrder?.deliveryDate ?? "",
@@ -204,7 +206,7 @@ function CreateTripForm() {
               )}
             />
 
-            {tripType === "order_delivery" && !orderId && (
+            {tripType === "order_delivery" && !orderNo && (
               <Controller
                 control={control}
                 name="linked_order_id"

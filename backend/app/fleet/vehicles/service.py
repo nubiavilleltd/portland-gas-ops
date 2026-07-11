@@ -24,7 +24,7 @@ class VehicleService:
     def get_or_raise(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.repo.get_by_id(db, vehicle_id)
@@ -80,7 +80,7 @@ class VehicleService:
             vehicle_no=vehicle_no,
             plate_number=data.plate_number,
             name=data.name,
-            type=data.type,
+            vehicle_type=data.vehicle_type,
             make=data.make,
             model=data.model,
             year=data.year,
@@ -92,12 +92,13 @@ class VehicleService:
             last_service_date=data.last_service_date,
             next_service_date=data.next_service_date,
             insurance_expiry_date=data.insurance_expiry_date,
+            roadworthiness_expiry_date=data.roadworthiness_expiry_date,
         )
 
     def update(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
         data: VehicleUpdate,
     ) -> Vehicle:
 
@@ -134,8 +135,8 @@ class VehicleService:
     def assign_to_trip(
         self,
         db: Session,
-        vehicle_id: int,
-        trip_id: int,
+        vehicle_id: str,
+        trip_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
@@ -157,7 +158,7 @@ class VehicleService:
     def mark_in_transit(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
@@ -171,7 +172,7 @@ class VehicleService:
     def release(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
@@ -190,7 +191,7 @@ class VehicleService:
     def ensure_available(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
