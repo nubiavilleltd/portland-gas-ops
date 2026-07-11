@@ -9,6 +9,7 @@ class AuditEntityType(str, Enum):
     order          = "order"
     trip           = "trip"
     invoice        = "invoice"
+    payment        = "payment"
     inventory_item = "inventory_item"
 
 

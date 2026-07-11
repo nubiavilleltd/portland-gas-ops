@@ -8,7 +8,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id               = Column(Integer, primary_key=True, autoincrement=True)
-    entity_type      = Column(SAEnum("order", "trip", "invoice", "inventory_item", name="auditentitytype"), nullable=False)
+    entity_type = Column(SAEnum("order", "trip", "invoice", "payment", "inventory_item", name="auditentitytype"), nullable=False)
     entity_id        = Column(String(36), nullable=False)       # UUID or entity_no — polymorphic
     action           = Column(String(100), nullable=False)
     description      = Column(Text, nullable=False)

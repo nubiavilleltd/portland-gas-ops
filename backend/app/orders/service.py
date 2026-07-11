@@ -76,6 +76,7 @@ class OrderService:
             db,
             order_no           = order_no,
             customer_id        = data.customer_id,
+            customer_name       = customer.name,
             order_status       = OrderStatus.draft,
             fulfillment_status = FulfillmentStatus.pending,
             payment_status     = PaymentStatus.unpaid,
@@ -96,8 +97,10 @@ class OrderService:
         return order
 
     def create_and_submit(self, db: Session, data: OrderCreate, created_by: str) -> Order:
-        """Create an order and immediately submit it — no draft step."""
         order = self.create_draft(db, data, created_by)
+        if not guards.can_submit(order):
+            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
+                            "Only draft orders can be submitted")
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
     def update_draft(self, db: Session, order_no: str, data: OrderUpdate) -> Order:
@@ -115,6 +118,7 @@ class OrderService:
                     "Customer not found",
                 )
             updates["customer_id"] = data.customer_id
+            updates["customer_name"] = customer.name
         if data.delivery_address is not None:
             updates["delivery_address"] = data.delivery_address.strip()
         if data.delivery_date is not None:

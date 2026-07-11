@@ -26,3 +26,7 @@ class Invoice(Base):
 
     order = relationship("Order", foreign_keys=[order_id], uselist=False)
     payments = relationship("Payment", back_populates="invoice")
+
+    @property
+    def order_no(self) -> str | None:
+        return self.order.order_no if self.order else None
