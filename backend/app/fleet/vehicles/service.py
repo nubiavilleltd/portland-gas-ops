@@ -80,7 +80,7 @@ class VehicleService:
             vehicle_no=vehicle_no,
             plate_number=data.plate_number,
             name=data.name,
-            type=data.type,
+            vehicle_type=data.vehicle_type,
             make=data.make,
             model=data.model,
             year=data.year,
@@ -92,6 +92,7 @@ class VehicleService:
             last_service_date=data.last_service_date,
             next_service_date=data.next_service_date,
             insurance_expiry_date=data.insurance_expiry_date,
+            roadworthiness_expiry_date=data.roadworthiness_expiry_date,
         )
 
     def update(

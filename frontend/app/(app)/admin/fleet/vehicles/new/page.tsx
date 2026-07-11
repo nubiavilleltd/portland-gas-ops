@@ -1,5 +1,3 @@
-// app/fleet/vehicles/new/page.tsx
-
 "use client";
 
 import { useRouter } from "next/navigation";
