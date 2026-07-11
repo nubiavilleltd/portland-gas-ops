@@ -97,8 +97,10 @@ class OrderService:
         return order
 
     def create_and_submit(self, db: Session, data: OrderCreate, created_by: str) -> Order:
-        """Create an order and immediately submit it — no draft step."""
         order = self.create_draft(db, data, created_by)
+        if not guards.can_submit(order):
+            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
+                            "Only draft orders can be submitted")
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
     def update_draft(self, db: Session, order_no: str, data: OrderUpdate) -> Order:

@@ -76,12 +76,10 @@ export function canCancelOrder(order: Order) {
   return true;
 }
 
-export function canMakePayment(
-  invoice: Invoice,
-  order: Order
-) {
+export function canMakePayment(invoice: Invoice | undefined, order: Order | undefined) {
   return (
     !!invoice &&
+    !!order &&
     order.paymentStatus !== "paid" &&
     order.orderStatus !== "cancelled"
   );

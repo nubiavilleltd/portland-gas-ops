@@ -4,12 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { InvoicesService } from "../services/invoice.services";
 import { getInvoiceById, getInvoiceByNo, getInvoiceByOrderId } from "../selectors/invoices.selectors";
 import { parseError } from "@/lib/errors";
-
-const INVOICE_QUERY_KEY = ["invoices"];
+import { INVOICE_KEYS } from "../constants/query-keys";
 
 export function useInvoices() {
   const query = useQuery({
-    queryKey: INVOICE_QUERY_KEY,
+    queryKey: INVOICE_KEYS.lists(),
     queryFn:  InvoicesService.getInvoices,
     staleTime: 30 * 1000,
   });

@@ -17,7 +17,7 @@ import FormSection from "@/components/ui/FormSection";
 import { formatCurrency } from "@/lib/utils";
 import { PaymentForm, PaymentFormInput, paymentSchema } from "@/lib/modules/payments/schemas/payment.schema";
 
-import { useInvoiceById, useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
+import { useInvoiceById, useInvoiceByNo, useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
 import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 // import { useRecordPayment } from "@/lib/modules/payments/hooks/useRecordPayment";
@@ -97,9 +97,8 @@ function CreatePaymentPageContent() {
   const searchParams = useSearchParams();
   const { invoices } = useInvoices();
 
-  const initialInvoiceId = searchParams.get("invoiceId");
-
-  const { invoice } = useInvoiceById(initialInvoiceId ?? "");
+  const initialInvoiceNo = searchParams.get("invoiceId");
+const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
   // const { recordPayment, isLoading: isRecording, error: recordError } =
   //   useRecordPayment();
 
@@ -160,9 +159,7 @@ function CreatePaymentPageContent() {
         payment_method: "bank_transfer",
       });
 
-      router.replace(
-        `/payments/new?invoiceId=${invoice.id}`
-      );
+     router.replace(`/payments/new?invoiceId=${invoice.invoice_number}`);
     },
     [reset, router, summary.amountPaid]
   );
