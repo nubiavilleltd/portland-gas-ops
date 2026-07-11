@@ -82,7 +82,7 @@ const columns: Column<ApprovalRow>[] = [
     ),
   },
   {
-    key: "current_step_number",
+    key: "action_needed",
     label: "Action Needed",
     render: (_, row) => (
       <ApprovalBadge status={row.current_step_number === 4 ? "awaiting_confirmation" : "pending_approval"} />

@@ -1,0 +1,10 @@
+export const safetyLocationOptions = [
+  "Conversion Bay 1",
+  "Conversion Bay 2",
+  "Vehicle Yard",
+  "Gas Storage Area",
+  "Maintenance Workshop",
+  "Electrical Room",
+  "Loading Area",
+  "Inspection Bay",
+];

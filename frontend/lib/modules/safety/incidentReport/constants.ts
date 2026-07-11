@@ -1,3 +1,5 @@
+import { safetyLocationOptions } from "../constants";
+
 export const reportTypeOptions = [
   "Incident",
   "Hazard",
@@ -9,12 +11,4 @@ export const reportTypeOptions = [
 
 export const incidentSeverityOptions = ["Low", "Medium", "High", "Critical"];
 
-export const incidentLocationOptions = [
-  "Plant",
-  "Pipeline",
-  "Office",
-  "Warehouse",
-  "Customer Site",
-  "Vehicle / Transit",
-  "Other",
-];
+export const incidentLocationOptions = safetyLocationOptions;

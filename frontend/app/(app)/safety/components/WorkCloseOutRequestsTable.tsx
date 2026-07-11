@@ -106,16 +106,6 @@ export default function WorkCloseOutRequestsTable({
     }),
     (request) => request.requester.requestDate,
   );
-  console.log(
-    "[work-closeout:table:rows]",
-    requests.map((request) => ({
-      id: request.id,
-      reference: request.reference,
-      supervisorId: request.workAuthorization.supervisorId,
-      supervisor: request.workAuthorization.supervisor,
-      assignedWorkerIds: request.workAuthorization.assignedWorkerIds,
-    })),
-  );
 
   return (
     <div className="space-y-3">

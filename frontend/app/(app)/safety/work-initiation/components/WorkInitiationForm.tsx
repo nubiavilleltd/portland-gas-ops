@@ -27,6 +27,7 @@ import {
   getEarliestPlannedStartDateTime,
   MIN_SCHEDULE_DURATION_MINUTES,
 } from "@/lib/modules/safety/date-rules";
+import { safetyLocationOptions } from "@/lib/modules/safety/constants";
 import {
   useCreateWorkInitiation,
   type WorkInitiationCategory,
@@ -39,6 +40,7 @@ import {
   type ValidationErrors,
   type ValidationRef,
 } from "@/lib/modules/safety/form-validation";
+import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type { IncidentHazardReport } from "@/types/safety";
 import SafetyValidationSummary from "../../components/SafetyValidationSummary";
 
@@ -116,16 +118,7 @@ const categoryByLabel: Record<string, WorkInitiationCategory> = {
   Other: "other",
 };
 
-const locationOptions = toOptions([
-  "Conversion Bay 1",
-  "Conversion Bay 2",
-  "Vehicle Yard",
-  "Gas Storage Area",
-  "Maintenance Workshop",
-  "Electrical Room",
-  "Loading Area",
-  "Inspection Bay",
-]);
+const locationOptions = toOptions(safetyLocationOptions);
 
 const contractorOptions = toOptions([
   "SafeWeld Engineering Ltd",
@@ -263,7 +256,9 @@ export default function WorkInitiationForm() {
   );
 
   const incidentHazardRequestOptions = incidentOptionsSource
-    .filter((report) => isActionRecommendedIncident(report))
+    .filter((report) =>
+      canCurrentEmployeeRaiseIncidentWorkInitiation(report, currentEmployee.data),
+    )
     .map((report) => ({
       value: report.id,
       label: report.reference
@@ -786,6 +781,26 @@ function mergeUniqueIncidents(reports: IncidentHazardReport[]) {
 
 function isActionRecommendedIncident(report: IncidentHazardReport) {
   return String(report.status) === "recommended";
+}
+
+function canCurrentEmployeeRaiseIncidentWorkInitiation(
+  report: IncidentHazardReport,
+  currentEmployee?: SafetyEmployeeProfile | null,
+) {
+  if (!currentEmployee || !isActionRecommendedIncident(report)) return false;
+
+  const review = report.hseReview;
+  if (!review?.actionOwnerId || !review.assignedDepartment) return false;
+
+  return (
+    review.actionOwnerId === currentEmployee.id ||
+    normalizeDepartment(review.assignedDepartment) ===
+      normalizeDepartment(currentEmployee.department)
+  );
+}
+
+function normalizeDepartment(value?: string | null) {
+  return (value ?? "").trim().replace(/_/g, " ").toLowerCase();
 }
 
 function IncidentContextCard({ incident }: { incident: IncidentHazardReport }) {
