@@ -16,6 +16,13 @@ export function getPaymentById(
   return payments.find((p) => p.id === id);
 }
 
+export function getPaymentByNo(
+  payments: Payment[],
+  paymentNo: string
+): Payment | undefined {
+  return payments.find((p) => p.paymentNo === paymentNo);
+}
+
 export function getPaymentsByInvoice(
   payments: Payment[],
   invoiceId: string
