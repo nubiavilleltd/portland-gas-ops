@@ -146,7 +146,7 @@ export default function InvoiceDetailPage() {
       align: "right",
       render: (payment) => (
         <Button size="sm" variant="outline" href={`/payments/${payment.paymentNo}/receipt`}>
-          Receipt
+          View Receipt →
         </Button>
       ),
     },
