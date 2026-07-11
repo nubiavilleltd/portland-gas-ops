@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import datetime, date
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
+
 
 from app.fleet.trips.enums import TripType, TripStatus
 
@@ -22,8 +23,8 @@ class TripCreate(BaseModel):
 
 
 class TripAssignResources(BaseModel):
-    driver_id: int
-    vehicle_id: int
+    driver_id: str
+    vehicle_id: str
 
 
 class TripCancel(BaseModel):
@@ -45,18 +46,17 @@ class TripOrderResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class TripResponse(BaseModel):
-    id: int
+    id: str
 
     trip_no: Optional[str]
 
-    type: TripType
+    type: TripType = Field(validation_alias="trip_type", serialization_alias="type")
 
-    driver_id: Optional[int]
+    driver_id: Optional[str]
     driver_name: Optional[str]
 
-    vehicle_id: Optional[int]
+    vehicle_id: Optional[str]
     vehicle_name: Optional[str]
 
     orders: list[TripOrderResponse] = []
@@ -80,9 +80,7 @@ class TripResponse(BaseModel):
 
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class TripListResponse(BaseModel):
     items: list[TripResponse]

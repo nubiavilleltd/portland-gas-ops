@@ -35,7 +35,7 @@ from app.fleet.drivers.workflows.update_driver_workflow import (
 )
 
 router = APIRouter(
-    prefix="/drivers",
+    # prefix="/drivers",
     tags=["Drivers"],
 )
 

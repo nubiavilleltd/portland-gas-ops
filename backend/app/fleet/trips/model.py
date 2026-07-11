@@ -91,6 +91,14 @@ class Trip(Base):
         back_populates="trip",
         cascade="all, delete-orphan",
     )
+    
+    @property
+    def driver_name(self) -> str | None:
+        return self.driver.full_name if self.driver else None
+
+    @property
+    def vehicle_name(self) -> str | None:
+        return self.vehicle.name if self.vehicle else None
 
 
 class TripOrder(Base):

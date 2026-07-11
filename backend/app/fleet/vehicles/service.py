@@ -24,7 +24,7 @@ class VehicleService:
     def get_or_raise(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.repo.get_by_id(db, vehicle_id)
@@ -97,7 +97,7 @@ class VehicleService:
     def update(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
         data: VehicleUpdate,
     ) -> Vehicle:
 
@@ -134,8 +134,8 @@ class VehicleService:
     def assign_to_trip(
         self,
         db: Session,
-        vehicle_id: int,
-        trip_id: int,
+        vehicle_id: str,
+        trip_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
@@ -157,7 +157,7 @@ class VehicleService:
     def mark_in_transit(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
@@ -171,7 +171,7 @@ class VehicleService:
     def release(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
@@ -190,7 +190,7 @@ class VehicleService:
     def ensure_available(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)

@@ -51,7 +51,6 @@ from app.fleet.trips.workflows.add_order_to_trip_workflow import (
 )
 
 router = APIRouter(
-    prefix="/trips",
     tags=["Trips"],
 )
 
@@ -91,7 +90,7 @@ def list_trips(
     response_model=TripResponse,
 )
 def get_trip(
-    trip_id: int,
+    trip_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -107,7 +106,7 @@ def get_trip(
     response_model=List[AuditLogResponse],
 )
 def get_trip_audit(
-    trip_id: int,
+    trip_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -138,11 +137,16 @@ def create_trip(
     ),
 ):
 
-    return create_trip_workflow.execute(
+    trip = create_trip_workflow.execute(
         db=db,
         data=data,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip
 
 # -------------------------------------------------------------------------
 # Assign Resources
@@ -153,7 +157,7 @@ def create_trip(
     response_model=TripResponse,
 )
 def assign_resources(
-    trip_id: int,
+    trip_id: str,
     data: TripAssignResources,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -164,13 +168,18 @@ def assign_resources(
     ),
 ):
 
-    return assign_resources_workflow.execute(
+    trip = assign_resources_workflow.execute(
         db=db,
         trip_id=trip_id,
         driver_id=data.driver_id,
         vehicle_id=data.vehicle_id,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip
 
 
 # -------------------------------------------------------------------------
@@ -182,7 +191,7 @@ def assign_resources(
     response_model=TripResponse,
 )
 def mark_ready(
-    trip_id: int,
+    trip_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -192,11 +201,16 @@ def mark_ready(
     ),
 ):
 
-    return mark_ready_workflow.execute(
+    trip = mark_ready_workflow.execute(
         db=db,
         trip_id=trip_id,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip
 
 # -------------------------------------------------------------------------
 # Dispatch Trip
@@ -207,7 +221,7 @@ def mark_ready(
     response_model=TripResponse,
 )
 def dispatch_trip(
-    trip_id: int,
+    trip_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -217,11 +231,16 @@ def dispatch_trip(
     ),
 ):
 
-    return dispatch_trip_workflow.execute(
+    trip = dispatch_trip_workflow.execute(
         db=db,
         trip_id=trip_id,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip
 
 
 # -------------------------------------------------------------------------
@@ -233,16 +252,21 @@ def dispatch_trip(
     response_model=TripResponse,
 )
 def start_trip(
-    trip_id: int,
+    trip_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
 
-    return start_trip_workflow.execute(
+    trip = start_trip_workflow.execute(
         db=db,
         trip_id=trip_id,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip
 
 # -------------------------------------------------------------------------
 # Complete Trip
@@ -253,7 +277,7 @@ def start_trip(
     response_model=TripResponse,
 )
 def complete_trip(
-    trip_id: int,
+    trip_id: str,
     data: TripComplete,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -264,12 +288,17 @@ def complete_trip(
     ),
 ):
 
-    return complete_trip_workflow.execute(
+    trip = complete_trip_workflow.execute(
         db=db,
         trip_id=trip_id,
         proof_notes=data.proof_notes,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip
 
 
 # -------------------------------------------------------------------------
@@ -281,7 +310,7 @@ def complete_trip(
     response_model=TripResponse,
 )
 def cancel_trip(
-    trip_id: int,
+    trip_id: str,
     data: TripCancel,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -292,12 +321,17 @@ def cancel_trip(
     ),
 ):
 
-    return cancel_trip_workflow.execute(
+    trip = cancel_trip_workflow.execute(
         db=db,
         trip_id=trip_id,
         reason=data.reason,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip
 
 
 # -------------------------------------------------------------------------
@@ -309,7 +343,7 @@ def cancel_trip(
     response_model=TripResponse,
 )
 def add_order_to_trip(
-    trip_id: int,
+    trip_id: str,
     data: TripAddOrder,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -320,9 +354,14 @@ def add_order_to_trip(
     ),
 ):
 
-    return add_order_workflow.execute(
+    trip = add_order_workflow.execute(
         db=db,
         trip_id=trip_id,
         order_id=data.order_id,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(trip)
+
+    return trip

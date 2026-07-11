@@ -40,7 +40,7 @@ from app.fleet.vehicles.workflows.update_vehicle_workflow import (
 )
 
 router = APIRouter(
-    prefix="/vehicles",
+    # prefix="/vehicles",
     tags=["Vehicles"],
 )
 
