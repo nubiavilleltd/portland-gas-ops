@@ -302,7 +302,7 @@ export default function OrderDetailPage() {
               <Button
                 size="sm"
                 variant="outline"
-                href={INVOICE_ROUTES.detail(invoice.id)}
+                href={INVOICE_ROUTES.detail(invoice.invoice_number)}
               >
                 View Invoice →
               </Button>

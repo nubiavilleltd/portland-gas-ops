@@ -19,18 +19,16 @@ import {
   InvoiceForm,
   invoiceSchema,
 } from "@/lib/modules/invoices/schemas/invoice.schema";
-import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
-// import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
-// import { OrdersService } from "@/lib/modules/orders/services/orders.service";
+
 import FormSection from "@/components/ui/FormSection";
-import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
-// import { generateInvoiceNumber } from "@/lib/modules/invoices/utils";
+import { useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
 import { canGenerateInvoice } from "@/lib/modules/orders/guards/orders.guards";
 import { Order } from "@/lib/modules/orders/types/orders.types";
 import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreateInvoiceWorkflow";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { BackButton } from "@/components/ui/BackButton";
 import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
+import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 
 
 
@@ -56,7 +54,7 @@ function CreateInvoicePageContent() {
   const { mutate: generateInvoice, isPending } = useCreateInvoiceWorkflow(order as Order);
   const canInvoice = canGenerateInvoice(order as Order);
 
-  const {invoice} = useInvoiceById(order?.invoiceId as string)
+  const { invoice } = useInvoiceById(order?.invoiceId as string)
 
   const customerMap = Object.fromEntries(
     customers.map((customer) => [
@@ -110,7 +108,7 @@ function CreateInvoicePageContent() {
           </p>
           <p className="text-sm mb-4">
             Current status:{" "}
-            <FulfillmentStatusBadge status={order.fulfillmentStatus} />
+            <OrderStatusBadge status={order.orderStatus} />
           </p>
           <Button href={`/orders/${orderNo}`} variant="outline">
             Back to Order
@@ -152,7 +150,7 @@ function CreateInvoicePageContent() {
         Back to Order
       </button> */}
 
-       <BackButton label="Back" />
+      <BackButton label="Back" />
 
       <PageHeader
         title="Generate Invoice"
@@ -166,7 +164,7 @@ function CreateInvoicePageContent() {
         <FormSection title="Order Summary" description="Invoice will be generated from this order">
           <div className="flex items-start justify-end mb-4">
 
-            <FulfillmentStatusBadge status={order.fulfillmentStatus} />
+            <OrderStatusBadge status={order.orderStatus} />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-sm">
@@ -188,9 +186,9 @@ function CreateInvoicePageContent() {
             </div>
 
             <div>
-              <p className="text-xs text-brand-text-secondary">Delivered On</p>
+              <p className="text-xs text-brand-text-secondary">Order Date</p>
               <p className="font-medium mt-1">
-                {order.deliveredAt ? formatDate(order.deliveredAt) : "—"}
+                {formatDate(order.createdAt)}
               </p>
             </div>
           </div>
