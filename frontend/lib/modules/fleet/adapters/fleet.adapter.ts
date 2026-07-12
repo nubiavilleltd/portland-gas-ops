@@ -32,7 +32,7 @@ interface BackendVehicle {
     year: number;
     capacity: string | number | null;
     fuel_type: string;
-    image_url: string | null;
+    primary_image_url: string | null
     mileage: number | null;
     status: string;
     current_trip_id: string;
@@ -143,7 +143,7 @@ export function adaptVehicle(raw: BackendVehicle): Vehicle {
         year: raw.year ?? undefined,
         capacity: raw.capacity != null ? Number(raw.capacity) : undefined,
         fuel_type: raw.fuel_type,
-        image: raw.image_url ?? undefined,
+        image: raw.primary_image_url ?? undefined,
         mileage: raw.mileage ?? undefined,
         status: raw.status as Vehicle["status"],
         current_trip_id: raw.current_trip_id != null ? String(raw.current_trip_id) : undefined,

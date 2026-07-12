@@ -89,3 +89,9 @@ class Driver(Base):
     @property
     def profile_image_url(self) -> str | None:
         return self.profile_image.file_path if self.profile_image else None
+    @property
+    def current_trip_id(self) -> str | None:
+        for trip in self.trips:
+            if trip.status not in ("completed", "cancelled"):
+                return trip.id
+        return None
