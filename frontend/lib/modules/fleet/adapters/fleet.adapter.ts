@@ -118,6 +118,7 @@ interface BackendTrip {
 export function adaptDriver(raw: BackendDriver): Driver {
     return {
         id: String(raw.id),
+        employee_id: raw.employee_id,
         full_name: raw.full_name,
         email: raw.email,
         phone_number: raw.phone_number,

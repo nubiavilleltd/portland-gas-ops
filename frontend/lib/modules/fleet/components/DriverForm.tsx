@@ -8,32 +8,30 @@ import FormInput from "@/components/forms/FormInput";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormSection from "@/components/ui/FormSection";
 import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
+import { toast } from "sonner";
 
 export type DriverFormValues = {
-  full_name: string;
-  email: string;
-  phone_number: string;
+  employee_id: string;
   license_number: string;
   license_expiry_date: string;
   experience_years: string;
   address: string;
-  profile_image?: string;
 };
 
 export const DEFAULT_DRIVER_FORM_VALUES: DriverFormValues = {
-  full_name: "",
-  email: "",
-  phone_number: "",
+  employee_id: "",
   license_number: "",
   license_expiry_date: "",
   experience_years: "",
   address: "",
-  profile_image: "",
 };
 
 interface DriverFormProps {
   defaultValues?: Partial<DriverFormValues>;
-  onSubmit: (data: DriverFormValues, profilePic: File | null) => Promise<void>;
+  employees: PickedEmployee[];              // ← new prop
+  defaultEmployee?: PickedEmployee | null;   // ← new prop, for edit mode
+  onSubmit: (data: DriverFormValues) => Promise<void>;   // ← no more profilePic param
   onCancel: () => void;
   submitLabel?: string;
   submitLoadingLabel?: string;
@@ -41,6 +39,8 @@ interface DriverFormProps {
 
 export default function DriverForm({
   defaultValues,
+  employees,
+  defaultEmployee,
   onSubmit,
   onCancel,
   submitLabel = "Add Driver",
@@ -51,7 +51,9 @@ export default function DriverForm({
     ...defaultValues,
   });
 
-  const [profilePic, setProfilePic] = useState<File | null>(null);
+ const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
+
+const selectedEmployee = pickedEmployee ?? defaultEmployee ?? null;
   const [loading, setLoading] = useState(false);
 
   function patch(field: keyof DriverFormValues, value: string) {
@@ -62,20 +64,18 @@ export default function DriverForm({
     e.preventDefault();
 
     if (
-      !form.full_name ||
-      !form.email ||
-      !form.phone_number ||
+      !pickedEmployee ||
       !form.license_number ||
       !form.license_expiry_date ||
       !form.experience_years
     ) {
-      alert("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
 
     setLoading(true);
     try {
-      await onSubmit(form, profilePic);
+      await onSubmit({ ...form, employee_id: selectedEmployee?.id as string});
     } finally {
       setLoading(false);
     }
@@ -90,35 +90,34 @@ export default function DriverForm({
       >
         <div className="space-y-5">
 
-          <ProfilePicUpload
+          {/* <ProfilePicUpload
             value={profilePic}
             onChange={setProfilePic}
             shape="circle"
             size={110}
             fallback={form.full_name?.[0] ?? "D"}
             label="Driver Profile Picture"
-          />
+          /> */}
 
           <div className="grid grid-cols-2 gap-5">
-            <FormInput
-              label="Full Name"
+            <EmployeePicker
+              label="Employee"
               required
-              placeholder="e.g. Michael Adeyemi"
-              value={form.full_name}
-              onChange={(e) => patch("full_name", e.target.value)}
+              employees={employees}
+              value={selectedEmployee}
+              onChange={setPickedEmployee}
+              disabled={!!defaultEmployee}
             />
 
             <FormInput
-              label="Email"
-              required
-              type="email"
-              placeholder="e.g. michael@example.com"
-              value={form.email}
-              onChange={(e) => patch("email", e.target.value)}
+              label="Home Address"
+              placeholder="e.g. 14 Bode Thomas Street, Lagos"
+              value={form.address}
+              onChange={(e) => patch("address", e.target.value)}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          {/* <div className="grid grid-cols-2 gap-5">
             <FormInput
               label="Phone Number"
               required
@@ -133,7 +132,7 @@ export default function DriverForm({
               value={form.address}
               onChange={(e) => patch("address", e.target.value)}
             />
-          </div>
+          </div> */}
 
         </div>
       </FormSection>
