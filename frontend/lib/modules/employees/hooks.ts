@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/authStore";
 import { employeesApi } from "./api";
 import type { CreateEmployeePayload, UpdateEmployeePayload, ListEmployeesParams } from "./types";
 
@@ -11,24 +12,32 @@ const KEYS = {
 };
 
 export function useEmployees(params: ListEmployeesParams = {}) {
+  const { isAuthenticated } = useAuthStore();
+
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => employeesApi.list(params),
+    enabled: isAuthenticated,
   });
 }
 
 export function useEmployee(id: string) {
+  const { isAuthenticated } = useAuthStore();
+
   return useQuery({
     queryKey: KEYS.detail(id),
     queryFn: () => employeesApi.get(id),
-    enabled: !!id,
+    enabled: isAuthenticated && !!id,
   });
 }
 
 export function useMyEmployee() {
+  const { isAuthenticated } = useAuthStore();
+
   return useQuery({
     queryKey: KEYS.me,
     queryFn: () => employeesApi.getMe(),
+    enabled: isAuthenticated,
     retry: false,
   });
 }
@@ -94,10 +103,12 @@ export function useResendSetup() {
 }
 
 export function useEmployeeDocuments(id: string) {
+  const { isAuthenticated } = useAuthStore();
+
   return useQuery({
     queryKey: KEYS.documents(id),
     queryFn: () => employeesApi.getDocuments(id),
-    enabled: !!id,
+    enabled: isAuthenticated && !!id,
   });
 }
 
