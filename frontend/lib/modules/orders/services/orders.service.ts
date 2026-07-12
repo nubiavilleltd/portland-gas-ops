@@ -127,16 +127,21 @@ export const OrdersService = {
     }
   },
 
-  /**
-   * Intentionally NO createOrder().
-   *
-   * Creating and immediately submitting an order is a
-   * backend business workflow, not a frontend orchestration.
-   *
-   * When the backend exposes a dedicated endpoint for that
-   * workflow, this service should simply call it.
-   */
+async createOrder(
+  input: CreateOrderInput,
+): Promise<Order> {
+  try {
+    const raw = await ordersApi.createAndSubmit(
+      adaptCreateOrderRequest(input),
+    );
 
+    return adaptOrder(raw);
+  } catch (err) {
+    throw new Error(
+      getErrorMessage(err, "Failed to create and submit order"),
+    );
+  }
+},
   // ------------------------------------------------------------------
   // Order actions
   // ------------------------------------------------------------------

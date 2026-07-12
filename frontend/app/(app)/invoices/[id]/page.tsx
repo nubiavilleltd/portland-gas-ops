@@ -91,7 +91,7 @@ export default function InvoiceDetailPage() {
 
   const badgeStatus: PaymentStatus = invoice.status;
 
-  const canPay = canMakePayment(invoice as Invoice, order as Order);
+  const canPay = canMakePayment(invoice, order);
 
   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
@@ -141,15 +141,15 @@ export default function InvoiceDetailPage() {
         <span className="font-medium">{formatCurrency(payment.amount)}</span>
       ),
     },
-      {
-    label: "",
-    align: "right",
-    render: (payment) => (
-      <Button size="sm" variant="outline" href={`/payments/${payment.paymentNo}/receipt`}>
-        Receipt
-      </Button>
-    ),
-  },
+    {
+      label: "",
+      align: "right",
+      render: (payment) => (
+        <Button size="sm" variant="outline" href={`/payments/${payment.paymentNo}/receipt`}>
+          View Receipt →
+        </Button>
+      ),
+    },
   ];
 
 
@@ -293,14 +293,36 @@ export default function InvoiceDetailPage() {
                 rows={order.orderItems}
                 keyExtractor={(_, index) => String(index)}
                 footer={
-                  <tr>
-                    <td colSpan={3} className="pt-3 text-right text-xs font-semibold text-brand-text-secondary">
-                      Grand Total
-                    </td>
-                    <td className="pt-3 text-right font-semibold">
-                      {formatCurrency(order.totalAmount)}
-                    </td>
-                  </tr>
+                  <>
+                    <tr>
+                      <td colSpan={3} className="pt-3 text-right text-xs text-brand-text-secondary">
+                        Subtotal
+                      </td>
+                      <td className="pt-3 text-right text-sm">
+                        {formatCurrency(order.totalAmount + order.discountAmount)}
+                      </td>
+                    </tr>
+                    {order.discountAmount > 0 && (
+                      <tr>
+                        <td colSpan={3} className="text-right text-xs text-brand-text-secondary">
+                          {order.discountType === "percentage"
+                            ? `Discount (${order.discountValue}%)`
+                            : "Discount"}
+                        </td>
+                        <td className="text-right text-sm">
+                          - {formatCurrency(order.discountAmount)}
+                        </td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td colSpan={3} className="pt-1 text-right text-xs font-semibold text-brand-text-secondary">
+                        Grand Total
+                      </td>
+                      <td className="pt-1 text-right font-semibold">
+                        {formatCurrency(order.totalAmount)}
+                      </td>
+                    </tr>
+                  </>
                 }
               />
             </div>

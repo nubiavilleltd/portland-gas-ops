@@ -21,7 +21,7 @@ class DriverService:
     # Queries
     # ------------------------------------------------------------------
 
-    def get_or_raise(self, db: Session, driver_id: int) -> Driver:
+    def get_or_raise(self, db: Session, driver_id: str) -> Driver:
         driver = self.repo.get_by_id(db, driver_id)
 
         if not driver:
@@ -82,7 +82,7 @@ class DriverService:
     def update(
         self,
         db: Session,
-        driver_id: int,
+        driver_id: str,
         data: DriverUpdate,
     ) -> Driver:
 
@@ -119,8 +119,8 @@ class DriverService:
     def assign_to_trip(
         self,
         db: Session,
-        driver_id: int,
-        trip_id: int,
+        driver_id: str,
+        trip_id: str,
     ) -> Driver:
 
         driver = self.get_or_raise(db, driver_id)
@@ -142,7 +142,7 @@ class DriverService:
     def mark_in_transit(
         self,
         db: Session,
-        driver_id: int,
+        driver_id: str,
     ) -> Driver:
 
         driver = self.get_or_raise(db, driver_id)
@@ -156,7 +156,7 @@ class DriverService:
     def release(
         self,
         db: Session,
-        driver_id: int,
+        driver_id: str,
     ) -> Driver:
 
         driver = self.get_or_raise(db, driver_id)
@@ -175,7 +175,7 @@ class DriverService:
     def ensure_available(
         self,
         db: Session,
-        driver_id: int,
+        driver_id: str,
     ) -> Driver:
 
         driver = self.get_or_raise(db, driver_id)

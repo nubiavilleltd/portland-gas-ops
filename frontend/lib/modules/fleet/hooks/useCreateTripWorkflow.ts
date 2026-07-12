@@ -1,32 +1,3 @@
-// import { useMutation } from "@tanstack/react-query";
-// import { useRouter } from "next/navigation";
-// import { toast } from "sonner";
-
-// import {
-//   createTripWorkflow,
-// } from "../workflows/create-trip.workflow";
-
-// import { FLEET_KEYS } from "../constants/query-keys";
-// import { CreateTripInput } from "../types/trip.types";
-
-// export function useCreateTripWorkflow() {
-//   const router = useRouter();
-
-//   return useMutation({
-//     mutationFn: (data: CreateTripInput) =>
-//       createTripWorkflow(data),
-
-//     onSuccess: (trip) => {
-//       toast.success("Trip created successfully");
-
-//       router.push(`/fleet/trips/${trip.id}`);
-//     },
-//   });
-// }
-
-
-
-
 "use client";
 
 

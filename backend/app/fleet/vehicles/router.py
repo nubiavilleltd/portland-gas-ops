@@ -40,7 +40,7 @@ from app.fleet.vehicles.workflows.update_vehicle_workflow import (
 )
 
 router = APIRouter(
-    prefix="/vehicles",
+    # prefix="/vehicles",
     tags=["Vehicles"],
 )
 
@@ -108,7 +108,7 @@ def list_available_vehicles(
     response_model=VehicleResponse,
 )
 def get_vehicle(
-    vehicle_id: int,
+    vehicle_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -119,7 +119,6 @@ def get_vehicle(
     )
 
     return _to_response(vehicle)
-
 
 # -------------------------------------------------------------------------
 # Create
@@ -163,6 +162,9 @@ async def create_vehicle(
         actor_id=current_user.id,
     )
 
+    db.commit()
+    db.refresh(vehicle)
+
     return _to_response(vehicle)
 
 
@@ -175,7 +177,7 @@ async def create_vehicle(
     response_model=VehicleResponse,
 )
 async def update_vehicle(
-    vehicle_id: int,
+    vehicle_id: str,
     data: str = Form(...),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
@@ -206,5 +208,8 @@ async def update_vehicle(
         image=image_data,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(vehicle)
 
     return _to_response(vehicle)

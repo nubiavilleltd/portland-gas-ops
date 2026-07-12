@@ -105,11 +105,32 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
     },
   ];
 
-  y = drawTable(doc, columns, lineItems, y);
-  y += 2;
+ y = drawTable(doc, columns, lineItems, y);
+y += 2;
 
-  y = drawTotalRow(doc, "GRAND TOTAL", `NGN ${fmtCurrency(invoice.total_amount)}`, y, 0);
-  y += 12;
+// ── Subtotal / discount / grand total ────────────────────
+const discountAmount = order?.discountAmount ?? 0;
+const subtotal = invoice.total_amount + discountAmount;
+
+if (discountAmount > 0 && order) {
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.darkText);
+  doc.text("Subtotal", PAGE.marginRight - 60, y + 5);
+  doc.text(`NGN ${fmtCurrency(subtotal)}`, PAGE.marginRight - 2, y + 5, { align: "right" });
+  y += 7;
+
+  const discountLabel =
+    order.discountType === "percentage"
+      ? `Discount (${order.discountValue}%)`
+      : "Discount";
+  doc.text(discountLabel, PAGE.marginRight - 60, y + 5);
+  doc.text(`- NGN ${fmtCurrency(discountAmount)}`, PAGE.marginRight - 2, y + 5, { align: "right" });
+  y += 9;
+}
+
+y = drawTotalRow(doc, "GRAND TOTAL", `NGN ${fmtCurrency(invoice.total_amount)}`, y, 0);
+y += 12;
 
   // ── Payment summary ──────────────────────────────────────
   doc.setFontSize(6.5);

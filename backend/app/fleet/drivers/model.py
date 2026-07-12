@@ -74,3 +74,18 @@ class Driver(Base):
         "Trip",
         back_populates="driver",
     )
+
+    @property
+    def full_name(self) -> str | None:
+        return self.employee.user.full_name if self.employee and self.employee.user else None
+
+    @property
+    def email(self) -> str | None:
+        return self.employee.user.email if self.employee and self.employee.user else None
+
+    @property
+    def phone_number(self) -> str | None:
+        return self.employee.user.phone if self.employee and self.employee.user else None
+    @property
+    def profile_image_url(self) -> str | None:
+        return self.profile_image.file_path if self.profile_image else None

@@ -69,6 +69,28 @@ def create_draft(
     db.refresh(order)
     return _to_response(order)
 
+@router.post("/submit", response_model=OrderResponse, status_code=http_status.HTTP_201_CREATED)
+def create_and_submit_order(
+    data:         OrderCreate,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+):
+    order = service.create_and_submit(db, data, created_by=current_user.id)
+
+    AuditService.record(
+        db, AuditEntityType.order, order.id,
+        "created", "Order created",
+        AuditActorType.employee, current_user.id)
+
+    AuditService.record(
+        db, AuditEntityType.order, order.id,
+        "submitted", "Order submitted for processing",
+        AuditActorType.employee, current_user.id)
+
+    db.commit()
+    db.refresh(order)
+    return _to_response(order)
+
 
 @router.get("/{order_no}", response_model=OrderResponse)
 def get_order(

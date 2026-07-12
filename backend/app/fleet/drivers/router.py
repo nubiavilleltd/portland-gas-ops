@@ -35,7 +35,7 @@ from app.fleet.drivers.workflows.update_driver_workflow import (
 )
 
 router = APIRouter(
-    prefix="/drivers",
+    # prefix="/drivers",
     tags=["Drivers"],
 )
 
@@ -84,7 +84,7 @@ def list_available_drivers(
     response_model=DriverResponse,
 )
 def get_driver(
-    driver_id: int,
+    driver_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -114,12 +114,16 @@ def create_driver(
     ),
 ):
 
-    return create_driver_workflow.execute(
+    driver = create_driver_workflow.execute(
         db=db,
         data=data,
         actor_id=current_user.id,
     )
 
+    db.commit()
+    db.refresh(driver)
+
+    return driver
 
 # -------------------------------------------------------------------------
 # Update Driver
@@ -130,7 +134,7 @@ def create_driver(
     response_model=DriverResponse,
 )
 def update_driver(
-    driver_id: int,
+    driver_id: str,
     data: DriverUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -141,9 +145,14 @@ def update_driver(
     ),
 ):
 
-    return update_driver_workflow.execute(
+    driver = update_driver_workflow.execute(
         db=db,
         driver_id=driver_id,
         data=data,
         actor_id=current_user.id,
     )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver

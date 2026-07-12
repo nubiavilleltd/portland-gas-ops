@@ -15,6 +15,8 @@ from app.orders.error_codes import OrderErrorCode
 from app.orders import guards
 from app.payments.enums import PaymentStatus
 from app.core.exceptions import AppException, ErrorCode
+from app.products.service import ProductService
+from app.orders.enums import DiscountType
 
 
 class OrderService:
@@ -22,6 +24,7 @@ class OrderService:
     def __init__(self):
         self.repo = OrderRepository()
         self.customer_repo = CustomerRepository()
+        self.product_service = ProductService()
 
     def get_or_raise(self, db: Session, order_id: str) -> Order:
         order = self.repo.get_by_id(db, order_id)
@@ -61,37 +64,43 @@ class OrderService:
                 CustomerErrorCode.CUSTOMER_NOT_FOUND,
                 "Customer not found",
             )
-        total = sum(Decimal(str(i.total)) for i in data.order_items)
+        items, subtotal = self._build_order_items(db, data.order_items)
+        discount_amount, total_amount = self._calculate_order_total(
+            subtotal=subtotal,
+            discount_type=data.discount_type,
+            discount_value=data.discount_value,
+        )
         order_no = self.repo.generate_order_no(db)
 
         order = self.repo.create(
             db,
             order_no           = order_no,
             customer_id        = data.customer_id,
+            customer_name       = customer.name,
             order_status       = OrderStatus.draft,
             fulfillment_status = FulfillmentStatus.pending,
             payment_status     = PaymentStatus.unpaid,
             delivery_address   = data.delivery_address.strip(),
             delivery_date      = data.delivery_date,
             notes              = data.notes,
-            total_amount       = total,
+            discount_type=data.discount_type,
+            discount_value=data.discount_value,
+            discount_amount=discount_amount,
+            total_amount=total_amount,
             created_by         = created_by,
         )
-        self.repo.create_items(db, order.id, [
-            {
-                "product_id":   i.product_id,
-                "product_name": i.product_name,
-                "quantity":     i.quantity,
-                "unit_price":   i.unit_price,
-                "total":        i.total,
-            }
-            for i in data.order_items
-        ])
+        self.repo.create_items(
+            db,
+            order.id,
+            items,
+        )
         return order
 
     def create_and_submit(self, db: Session, data: OrderCreate, created_by: str) -> Order:
-        """Create an order and immediately submit it — no draft step."""
         order = self.create_draft(db, data, created_by)
+        if not guards.can_submit(order):
+            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
+                            "Only draft orders can be submitted")
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
     def update_draft(self, db: Session, order_no: str, data: OrderUpdate) -> Order:
@@ -109,6 +118,7 @@ class OrderService:
                     "Customer not found",
                 )
             updates["customer_id"] = data.customer_id
+            updates["customer_name"] = customer.name
         if data.delivery_address is not None:
             updates["delivery_address"] = data.delivery_address.strip()
         if data.delivery_date is not None:
@@ -117,18 +127,49 @@ class OrderService:
             updates["notes"] = data.notes
 
         if data.order_items is not None:
-            total = sum(Decimal(str(i.total)) for i in data.order_items)
-            updates["total_amount"] = total
-            self.repo.replace_items(db, order.id, [
+            items, subtotal = self._build_order_items(
+                db,
+                data.order_items,
+            )
+
+            self.repo.replace_items(
+                db,
+                order.id,
+                items,
+            )
+        else:
+            subtotal = sum(Decimal(str(item.total))for item in order.order_items)
+        if (
+            data.order_items is not None
+            or data.discount_type is not None
+            or data.discount_value is not None
+        ):
+            discount_type = (
+                data.discount_type
+                if data.discount_type is not None
+                else order.discount_type
+            )
+
+            discount_value = (
+                data.discount_value
+                if data.discount_value is not None
+                else order.discount_value
+            )
+
+            discount_amount, total_amount = self._calculate_order_total(
+                subtotal=subtotal,
+                discount_type=discount_type,
+                discount_value=discount_value,
+            )
+
+            updates.update(
                 {
-                    "product_id":   i.product_id,
-                    "product_name": i.product_name,
-                    "quantity":     i.quantity,
-                    "unit_price":   i.unit_price,
-                    "total":        i.total,
+                    "discount_type": discount_type,
+                    "discount_value": discount_value,
+                    "discount_amount": discount_amount,
+                    "total_amount": total_amount,
                 }
-                for i in data.order_items
-            ])
+            )
 
         return self.repo.update(db, order, **updates)
 
@@ -227,3 +268,65 @@ class OrderService:
         customer_id: str,
     ):
         return self.repo.list_by_customer(db, customer_id)
+    
+    def _build_order_items(
+        self,
+        db: Session,
+        order_items,
+    ):
+        items = []
+        subtotal = Decimal("0")
+
+        for line in order_items:
+            product = self.product_service.get_or_raise(
+                db,
+                line.product_id,
+            )
+
+            unit_price = Decimal(str(product.default_unit_price))
+            line_total = unit_price * line.quantity
+
+            items.append(
+                {
+                    "product_id": product.id,
+                    "product_name": product.name,
+                    "quantity": line.quantity,
+                    "unit_price": unit_price,
+                    "total": line_total,
+                }
+            )
+
+            subtotal += line_total
+
+        return items, subtotal
+    def _calculate_discount(
+        self,
+        subtotal: Decimal,
+        discount_type: DiscountType,
+        discount_value: Decimal,
+    ) -> Decimal:
+        if discount_type == DiscountType.none:
+            return Decimal("0")
+
+        if discount_type == DiscountType.fixed:
+            return min(discount_value, subtotal)
+
+        if discount_type == DiscountType.percentage:
+            return (subtotal * discount_value) / Decimal("100")
+
+        return Decimal("0")
+    def _calculate_order_total(
+        self,
+        subtotal: Decimal,
+        discount_type: DiscountType,
+        discount_value: Decimal,
+    ) -> tuple[Decimal, Decimal]:
+        discount_amount = self._calculate_discount(
+            subtotal,
+            discount_type,
+            discount_value,
+        )
+
+        total_amount = subtotal - discount_amount
+
+        return discount_amount, total_amount

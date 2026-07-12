@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 
-import type { CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
+import type { CreateOrderFormOutput, CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
 
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
@@ -28,13 +28,13 @@ export default function NewOrderPage() {
 const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
 
-  async function handleSubmit(data: CreateOrderFormValues) {
-  await submitOrder({ input: buildOrderPayload(data, products), existingDraftNo: draftId ?? undefined });
+  async function handleSubmit(data: CreateOrderFormOutput) {
+  await submitOrder({ input: buildOrderPayload(data), existingDraftNo: draftId ?? undefined });
 }
 
 
   async function handleSaveDraft(data: CreateOrderFormValues) {
-  const saved = await saveDraft({ input: buildOrderPayload(data, products), existingDraftNo: draftId ?? undefined });
+  const saved = await saveDraft({ input: buildOrderPayload(data), existingDraftNo: draftId ?? undefined });
   setDraftId(saved.id);
 }
 

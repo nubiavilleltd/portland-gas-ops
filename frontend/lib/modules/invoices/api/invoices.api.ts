@@ -16,7 +16,7 @@ export const invoicesApi = {
     return data;
   },
 
-  create: async (input: { order_id: string; invoice_date: string; due_date: string; notes?: string }) => {
+  create: async (input: { order_id: string; issued_date: string; due_date: string; notes?: string }) => {
     const { data } = await api.post("/api/invoices/", input);
     return data;
   },

@@ -173,7 +173,7 @@ export default function OrderDetailPage() {
               <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
                 {customerMap[order.customerId]?.name ?? "—"}
               </h2>
-      
+
             </div>
 
             {/* Three status badges side by side */}
@@ -189,17 +189,36 @@ export default function OrderDetailPage() {
             rows={order.orderItems}
             keyExtractor={(_, index) => String(index)}
             footer={
-              <tr>
-                <td
-                  colSpan={3}
-                  className="pt-3 text-right text-xs font-semibold text-brand-text-secondary"
-                >
-                  Grand Total
-                </td>
-                <td className="pt-3 text-right font-semibold">
-                  {formatCurrency(order.totalAmount)}
-                </td>
-              </tr>
+              <>
+                <tr>
+                  <td colSpan={3} className="pt-3 text-right text-xs text-brand-text-secondary">
+                    Subtotal
+                  </td>
+                  <td className="pt-3 text-right text-sm">
+                    {formatCurrency(order.totalAmount + order.discountAmount)}
+                  </td>
+                </tr>
+                {order.discountAmount > 0 && (
+                  <tr>
+                    <td colSpan={3} className="text-right text-xs text-brand-text-secondary">
+                      {order.discountType === "percentage"
+                        ? `Discount (${order.discountValue}%)`
+                        : "Discount"}
+                    </td>
+                    <td className="text-right text-sm">
+                      - {formatCurrency(order.discountAmount)}
+                    </td>
+                  </tr>
+                )}
+                <tr>
+                  <td colSpan={3} className="pt-1 text-right text-xs font-semibold text-brand-text-secondary">
+                    Grand Total
+                  </td>
+                  <td className="pt-1 text-right font-semibold">
+                    {formatCurrency(order.totalAmount)}
+                  </td>
+                </tr>
+              </>
             }
           />
 
@@ -283,7 +302,7 @@ export default function OrderDetailPage() {
               <Button
                 size="sm"
                 variant="outline"
-                href={INVOICE_ROUTES.detail(invoice.id)}
+                href={INVOICE_ROUTES.detail(invoice.invoice_number)}
               >
                 View Invoice →
               </Button>

@@ -11,7 +11,7 @@ import ErrorBanner from "@/components/ui/ErrorBanner";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
 import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
-import type { CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
+import type { CreateOrderFormOutput, CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { ORDER_ROUTES } from "@/lib/routes";
 import { parseError } from "@/lib/errors";
@@ -109,11 +109,11 @@ export default function EditOrderPage() {
   };
 
 
-  async function handleSubmit(data: CreateOrderFormValues) {
-    await submitOrder({ input: buildOrderPayload(data, products), existingDraftNo: orderNo });
+  async function handleSubmit(data: CreateOrderFormOutput) {
+    await submitOrder({ input: buildOrderPayload(data), existingDraftNo: orderNo });
   }
   async function handleSaveDraft(data: CreateOrderFormValues) {
-    await saveDraft({ input: buildOrderPayload(data, products), existingDraftNo: orderNo });
+    await saveDraft({ input: buildOrderPayload(data), existingDraftNo: orderNo });
   }
 
   return (

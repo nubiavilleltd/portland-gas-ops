@@ -9,6 +9,10 @@ class AuditEntityType(str, Enum):
     order          = "order"
     trip           = "trip"
     invoice        = "invoice"
+    payment        = "payment"
+    driver         = "driver"
+    vehicle        = "vehicle"
+    product        = "product"
     inventory_item = "inventory_item"
 
 
@@ -29,17 +33,22 @@ class AuditLogCreate(BaseModel):
     metadata:          Optional[Dict[str, Any]] = None
 
 
-class AuditLogResponse(BaseModel):
-    id:               int
-    entity_type:      AuditEntityType
-    entity_id:        str
-    action:           str
-    description:      str
-    actor_type:       AuditActorType
-    actor_employee_id: Optional[str]
-    actor_name:       Optional[str]
-    metadata:         Optional[Dict[str, Any]]
-    created_at:       datetime
+from pydantic import BaseModel, Field, ConfigDict
 
-    class Config:
-        from_attributes = True
+class AuditLogResponse(BaseModel):
+    id:                int
+    entity_type:       AuditEntityType
+    entity_id:         str
+    action:            str
+    description:       str
+    actor_type:        AuditActorType
+    actor_employee_id: Optional[str]
+    actor_name:        Optional[str]
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        validation_alias="metadata_",
+        serialization_alias="metadata",
+    )
+    created_at:        datetime
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.inventory.enums import DispositionStatus
 from app.orders.enums import FulfillmentStatus, OrderStatus
@@ -12,9 +12,11 @@ from app.orders.validators import (
     validate_delivery_address,
     validate_order_items,
     validate_quantity,
-    validate_unit_price,
+    validate_discount,
+    validate_discount_value,
 )
 from app.payments.enums import PaymentStatus
+from app.orders.enums import DiscountType
 
 
 # ── Request Schemas ───────────────────────────────────────────────────────────
@@ -22,22 +24,17 @@ from app.payments.enums import PaymentStatus
 class OrderItemCreate(BaseModel):
     product_id: str
     quantity: Decimal
-    unit_price: Decimal
 
     @field_validator("quantity")
     @classmethod
     def quantity_validator(cls, value: Decimal) -> Decimal:
         return validate_quantity(value)
 
-    @field_validator("unit_price")
-    @classmethod
-    def unit_price_validator(cls, value: Decimal) -> Decimal:
-        return validate_unit_price(value)
-
-
 class OrderCreate(BaseModel):
     customer_id: str
     order_items: List[OrderItemCreate]
+    discount_type: DiscountType = DiscountType.none
+    discount_value: Decimal = Decimal("0")
     delivery_address: str
     delivery_date: Optional[date] = None
     notes: Optional[str] = None
@@ -54,11 +51,27 @@ class OrderCreate(BaseModel):
     @classmethod
     def delivery_address_validator(cls, value: str) -> str:
         return validate_delivery_address(value)
+    
+    @field_validator("discount_value")
+    @classmethod
+    def discount_value_validator(cls, value: Decimal) -> Decimal:
+        return validate_discount_value(value)
+    
+    @model_validator(mode="after")
+    def validate_discount_fields(self):
+        self.discount_value = validate_discount(
+            self.discount_type,
+            self.discount_value,
+        )
+        return self
 
 
 class OrderUpdate(BaseModel):
     customer_id: Optional[str] = None
     order_items: Optional[List[OrderItemCreate]] = None
+    discount_type: Optional[DiscountType] = None
+    discount_value: Optional[Decimal] = None
+
     delivery_address: Optional[str] = None
     delivery_date: Optional[date] = None
     notes: Optional[str] = None
@@ -78,6 +91,24 @@ class OrderUpdate(BaseModel):
         value: Optional[str],
     ) -> Optional[str]:
         return validate_delivery_address(value, required=False)
+
+    @field_validator("discount_value")
+    @classmethod
+    def discount_value_validator(
+        cls,
+        value: Optional[Decimal],
+    ) -> Optional[Decimal]:
+        return validate_discount_value(value, required=False)
+
+    @model_validator(mode="after")
+    def validate_discount_fields(self):
+        if self.discount_type is not None or self.discount_value is not None:
+            self.discount_value = validate_discount(
+                self.discount_type or DiscountType.none,
+                self.discount_value or Decimal("0"),
+            )
+
+        return self
 
 
 class CancelOrderRequest(BaseModel):
@@ -131,6 +162,9 @@ class OrderResponse(BaseModel):
     notes: Optional[str]
 
     total_amount: Decimal
+    discount_type: DiscountType
+    discount_value: Decimal
+    discount_amount: Decimal
     order_items: List[OrderItemResponse] = Field(default_factory=list)
 
     cancellation_reason: Optional[str]
