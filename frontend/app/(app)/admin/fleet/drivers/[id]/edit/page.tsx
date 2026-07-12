@@ -11,6 +11,7 @@ import type { PickedEmployee } from "@/components/ui/EmployeePicker";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
+import { useMemo } from "react";
 
 export default function EditDriverPage() {
   const params = useParams();
@@ -19,6 +20,16 @@ export default function EditDriverPage() {
   const { driver } = useDriverById(id);
   const { data: allEmployees = [] } = useEmployees({ limit: 200 });
   const { data: currentEmployee } = useEmployee(driver?.employee_id ?? "");
+  console.log("driver", {driver})
+
+
+  const employeeOptions: PickedEmployee[] = useMemo(() => allEmployees.map((e) => ({
+    id: e.id,
+    name: e.user ? `${e.user.first_name ?? ""} ${e.user.last_name ?? ""}`.trim() : e.employee_no,
+    role: e.job_title ?? "—",
+    department: e.department ?? "—",
+    avatar_url: e.user?.profile_picture_url ?? null,
+  })), [allEmployees])
 
   if (!driver) {
     return (
@@ -28,13 +39,6 @@ export default function EditDriverPage() {
     );
   }
 
-  const employeeOptions: PickedEmployee[] = allEmployees.map((e) => ({
-    id: e.id,
-    name: e.user ? `${e.user.first_name ?? ""} ${e.user.last_name ?? ""}`.trim() : e.employee_no,
-    role: e.job_title ?? "—",
-    department: e.department ?? "—",
-    avatar_url: e.user?.profile_picture_url ?? null,
-  }));
 
   const defaultEmployee: PickedEmployee | null = currentEmployee
     ? {

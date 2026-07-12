@@ -76,6 +76,7 @@ import type { PickedEmployee } from "@/components/ui/EmployeePicker";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
+import { useMemo } from "react";
 
 export default function AddDriverPage() {
   const router = useRouter();
@@ -85,7 +86,7 @@ export default function AddDriverPage() {
 
   const driverEmployeeIds = new Set(existingDrivers.map((d) => d.employee_id));
 
-  const employeeOptions: PickedEmployee[] = allEmployees
+  const employeeOptions: PickedEmployee[] = useMemo(() => allEmployees
     .filter((e) => !driverEmployeeIds.has(e.id))
     .map((e) => ({
       id: e.id,
@@ -93,7 +94,7 @@ export default function AddDriverPage() {
       role: e.job_title ?? "—",
       department: e.department ?? "—",
       avatar_url: e.user?.profile_picture_url ?? null,
-    }));
+    })), [allEmployees])
 
   async function handleSubmit(data: DriverFormValues) {
     await DriversService.createDriver({
