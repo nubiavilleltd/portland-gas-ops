@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface ProfilePicUploadProps {
   value?: File | null;
+  existingImageUrl?: string | null;
   onChange: (file: File | null) => void;
 
   /** width/height of avatar */
@@ -28,6 +29,7 @@ interface ProfilePicUploadProps {
 
 export default function ProfilePicUpload({
   value,
+  existingImageUrl,
   onChange,
   size = 96,
   shape = "circle",
@@ -37,8 +39,8 @@ export default function ProfilePicUpload({
   disabled,
 }: ProfilePicUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(
-    value ? URL.createObjectURL(value) : null
+ const [preview, setPreview] = useState<string | null>(
+    value ? URL.createObjectURL(value) : existingImageUrl ?? null
   );
 
   function handleFile(file: File | null) {
