@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
 import type {
   ApprovalWorkflow,
   ApprovalWorkflowListItem,
@@ -21,54 +20,41 @@ export const workflowKeys = {
 };
 
 export function useWorkflows() {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<ApprovalWorkflowListItem[]>({
     queryKey: workflowKeys.list(),
     queryFn:  () => get<ApprovalWorkflowListItem[]>("/api/workflow/"),
-    enabled: isAuthenticated,
     staleTime: 30 * 1000,
   });
 }
 
 export function useWorkflow(id: string) {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<ApprovalWorkflow>({
     queryKey: workflowKeys.detail(id),
     queryFn:  () => get<ApprovalWorkflow>(`/api/workflow/${id}`),
-    enabled:  isAuthenticated && !!id,
+    enabled:  !!id,
   });
 }
 
 export function useApproverGroups() {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<ApproverGroupListItem[]>({
     queryKey: workflowKeys.groups(),
     queryFn:  () => get<ApproverGroupListItem[]>("/api/workflow/groups/"),
-    enabled: isAuthenticated,
     staleTime: 30 * 1000,
   });
 }
 
 export function useApproverGroup(id: string) {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<ApproverGroup>({
     queryKey: workflowKeys.group(id),
     queryFn:  () => get<ApproverGroup>(`/api/workflow/groups/${id}`),
-    enabled:  isAuthenticated && !!id,
+    enabled:  !!id,
   });
 }
 
 export function useWorkflowAssignments() {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<WorkflowAssignment[]>({
     queryKey: workflowKeys.assignments(),
     queryFn:  () => get<WorkflowAssignment[]>("/api/workflow/assignments/"),
-    enabled: isAuthenticated,
     staleTime: 30 * 1000,
   });
 }
@@ -89,12 +75,9 @@ export interface WorkflowForType {
 }
 
 export function useWorkflowForType(requestType: string) {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<WorkflowForType | null>({
     queryKey: ["workflow-for-type", requestType],
     queryFn:  () => get<WorkflowForType | null>(`/api/workflow/for-type/${requestType}`),
-    enabled: isAuthenticated && Boolean(requestType),
     staleTime: 60 * 1000,
   });
 }
@@ -113,12 +96,9 @@ export interface MyRequest {
 }
 
 export function useMyRequests() {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<MyRequest[]>({
     queryKey: ["my-requests"],
     queryFn:  () => get<MyRequest[]>("/api/workflow/my-requests"),
-    enabled: isAuthenticated,
   });
 }
 
@@ -135,12 +115,9 @@ export interface MyApproval {
 }
 
 export function useMyApprovals() {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<MyApproval[]>({
     queryKey: ["my-approvals"],
     queryFn:  () => get<MyApproval[]>("/api/workflow/my-approvals"),
-    enabled: isAuthenticated,
   });
 }
 
@@ -167,23 +144,19 @@ export interface RequesterPick {
  * Only enabled when requestId is provided (i.e. edit/resubmit mode).
  */
 export function useRequesterPicks(requestType: string, requestId: string | undefined) {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<Record<string, RequesterPick>>({
     queryKey: ["requester-picks", requestType, requestId],
     queryFn:  () => get<Record<string, RequesterPick>>(`/api/workflow/picks/${requestType}/${requestId}`),
-    enabled:  isAuthenticated && !!requestId,
+    enabled:  !!requestId,
     staleTime: 30 * 1000,
   });
 }
 
 export function useAuditTrail(requestType: string, requestId: string) {
-  const { isAuthenticated } = useAuthStore();
-
   return useQuery<AuditEntry[]>({
     queryKey: ["audit-trail", requestType, requestId],
     queryFn:  () => get<AuditEntry[]>(`/api/workflow/audit/${requestType}/${requestId}`),
-    enabled:  isAuthenticated && !!requestId,
+    enabled:  !!requestId,
     staleTime: 10 * 1000,
   });
 }
