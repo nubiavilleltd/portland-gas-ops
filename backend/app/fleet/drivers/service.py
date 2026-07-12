@@ -136,7 +136,6 @@ class DriverService:
             db,
             driver,
             status=DriverStatus.assigned,
-            current_trip_id=trip_id,
         )
 
     def mark_in_transit(
@@ -165,7 +164,6 @@ class DriverService:
             db,
             driver,
             status=DriverStatus.available,
-            current_trip_id=None,
         )
 
     # ------------------------------------------------------------------

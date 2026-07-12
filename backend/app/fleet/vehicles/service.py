@@ -152,7 +152,6 @@ class VehicleService:
             db,
             vehicle,
             status=VehicleStatus.in_use,
-            current_trip_id=trip_id,
         )
 
     def mark_in_transit(
@@ -181,7 +180,6 @@ class VehicleService:
             db,
             vehicle,
             status=VehicleStatus.available,
-            current_trip_id=None,
         )
 
     # ------------------------------------------------------------------

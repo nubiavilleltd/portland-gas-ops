@@ -125,6 +125,7 @@ export default function VehicleForm({
           {/* IMAGE */}
           <ProfilePicUpload
             value={form.image ?? null}
+            existingImageUrl={form.existingImage ?? null}
             onChange={(file) => {
               setForm((prev) => ({
                 ...prev,
