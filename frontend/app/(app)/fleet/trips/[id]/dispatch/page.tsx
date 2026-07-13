@@ -41,7 +41,7 @@ export default function DispatchTripPage() {
   }
 
   // ── Guard: only assigned trips can be dispatched
-  if (trip.status !== "assigned" && trip.status !== "ready") {
+  if (trip.status !== "assigned" && trip.status !== "ready_for_dispatch") {
     return (
       <AppLayout pageTitle="Cannot Dispatch">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">

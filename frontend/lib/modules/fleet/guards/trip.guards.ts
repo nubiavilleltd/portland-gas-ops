@@ -61,7 +61,7 @@ export function canAssignResourcesToTrip(trip: Trip | undefined) {
 // ─────────────────────────────────────────────
 
 export function canDispatchTrip(trip: Trip): boolean {
-  return trip.status === "assigned" || trip.status === "ready";
+  return trip.status === "assigned" || trip.status === "ready_for_dispatch";
 }
 
 
@@ -84,7 +84,7 @@ export function canCompleteTrip(trip: Trip): boolean {
 
 export function canCancelTrip(trip: Trip): boolean {
   const cancellableStatuses: TripStatus[] = [
-    "pending", "assigned", "awaiting_inventory", "ready"
+    "pending", "assigned", "awaiting_inventory", "ready_for_dispatch"
   ];
   return cancellableStatuses.includes(trip.status);
 }
