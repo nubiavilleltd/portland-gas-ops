@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     if (!backendApiUrl) return [];
-
+    console.log(`Rewriting /api/* to ${backendApiUrl}/api/*`);
     return [
       {
         source: "/api/:path*",

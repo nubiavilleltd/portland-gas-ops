@@ -7,6 +7,8 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+console.log("API base URL:", API_URL, api);
+
 // ─── Request interceptor — attach Bearer token ────────────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Dynamically import to avoid SSR issues
@@ -71,6 +73,12 @@ api.interceptors.response.use(
           { withCredentials: true }
         );
 
+        console.log("Refresh token:", data)
+
+        if(!data.access_token){
+          console.error("No access token received during refresh.");
+        }
+
         const newToken: string = data.access_token;
 
         // Persist new token
@@ -121,6 +129,7 @@ api.interceptors.response.use(
 // ─── Typed helpers ─────────────────────────────────────────────────────────────
 export async function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
   const res = await api.get<T>(url, { params });
+  console.log("response from get:", res.data);
   return res.data;
 }
 
