@@ -28,7 +28,10 @@ import Avatar from "@/components/ui/Avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
-import { useIntranetNewsPublished, useIntranetNewsCategories, useIntranetEventsPublished, useIntranetSpotlightPublished, useIntranetLeadershipPublished } from "@/lib/modules/intranet/queries";
+import { useIntranetNewsPublished, useIntranetNewsCategories, useIntranetEventsPublished, useIntranetSpotlightPublished, useIntranetLeadershipPublished, usePodcastsPublished } from "@/lib/modules/intranet/queries";
+import { useSubmitFeedback } from "@/lib/modules/intranet/mutations";
+import { useWeekBirthdays, useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useSendBirthdayWishes } from "@/lib/modules/notifications/hooks";
 
 type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
 const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = [
@@ -53,14 +56,6 @@ const COLOR_BADGE_CLASS: Record<string, string> = {
   teal:   "bg-teal-100 text-teal-700",
   orange: "bg-orange-100 text-orange-700",
 };
-
-const BIRTHDAYS = [
-  { id: 1, name: "Chinyere Okafor",  dept: "Supply Chain", date: "Today"    },
-  { id: 2, name: "Emeka Adeyemi",    dept: "Engineering",  date: "Tomorrow" },
-  { id: 3, name: "Fatima Al-Hassan", dept: "Finance",      date: "Wed 11"   },
-  { id: 4, name: "Tunde Babangida",  dept: "HSE",          date: "Fri 13"   },
-  { id: 5, name: "Ngozi Eze",        dept: "HR",           date: "Sat 14"   },
-];
 
 // EVENTS, EMPLOYEE_OF_MONTH, SPOTLIGHTS are now derived from the API — see component below
 
@@ -97,18 +92,33 @@ function todayStr() {
 export default function IntranetHomePage() {
   const { user } = useCurrentUser();
   const toast = useToast();
-  const [tab,         setTab]         = useState("All");
-  const [q,           setQ]           = useState("");
-  const [slide,       setSlide]       = useState(0);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [mounted,     setMounted]     = useState(false);
+  const [tab,                setTab]                = useState("All");
+  const [q,                  setQ]                  = useState("");
+  const [slide,              setSlide]              = useState(0);
+  const [selectedDay,        setSelectedDay]        = useState<number | null>(null);
+  const [mounted,            setMounted]            = useState(false);
+  const [birthdayModalOpen,  setBirthdayModalOpen]  = useState(false);
+  const [wishesSent,         setWishesSent]         = useState<Set<string>>(new Set());
+  const [wishesLoading,      setWishesLoading]      = useState<Set<string>>(new Set());
+
+  const { data: myEmployee } = useMyEmployee();
+  const sendWishesMutation = useSendBirthdayWishes();
+  const submitFeedbackMutation = useSubmitFeedback();
 
   // News — pulled from API, mapped to the shape the feed UI expects
-  const { data: rawNews = [] }         = useIntranetNewsPublished();
-  const { data: categories = [] }      = useIntranetNewsCategories();
-  const { data: rawEvents = [] }       = useIntranetEventsPublished();
-  const { data: rawSpotlight = [] }    = useIntranetSpotlightPublished();
-  const { data: rawLeadership = [] }   = useIntranetLeadershipPublished();
+  const { data: birthdays = [],     isLoading: birthdaysLoading }  = useWeekBirthdays();
+  const { data: rawNews = [],       isLoading: newsLoading }       = useIntranetNewsPublished();
+  const { data: categories = [],    isLoading: catsLoading }       = useIntranetNewsCategories();
+  const { data: rawEvents = [],     isLoading: eventsLoading }     = useIntranetEventsPublished();
+  const { data: rawSpotlight = [],  isLoading: spotlightLoading }  = useIntranetSpotlightPublished();
+  const { data: rawLeadership = [], isLoading: leadershipLoading } = useIntranetLeadershipPublished();
+  const { data: podcasts = [] }                                    = usePodcastsPublished();
+  const featuredPodcast = podcasts.find((p) => p.is_featured) ?? podcasts[0] ?? null;
+
+  const peopleLoading    = spotlightLoading;
+  const leaderLoading    = leadershipLoading;
+  const newsFeedLoading  = newsLoading || catsLoading;
+  const calLoading       = eventsLoading;
 
   // Map backend events to the shape the calendar/events UI expects
   const EVENTS = rawEvents.map((ev) => {
@@ -197,10 +207,20 @@ export default function IntranetHomePage() {
     setFeedbackErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setFeedbackSubmitting(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setFeedbackSubmitting(false);
-    setFeedbackOpen(false);
-    toast.success("Feedback submitted. Thank you!");
+    try {
+      await submitFeedbackMutation.mutateAsync({
+        category:     feedbackCategory,
+        subject:      feedbackSubject,
+        message:      feedbackMessage,
+        is_anonymous: feedbackAnonymous,
+      });
+      setFeedbackOpen(false);
+      toast.success("Feedback submitted. Thank you!");
+    } catch {
+      toast.error("Could not submit feedback. Please try again.");
+    } finally {
+      setFeedbackSubmitting(false);
+    }
   }
 
   // Calendar navigation state — start at June 2026 on server, hydrate to real date
@@ -214,7 +234,48 @@ export default function IntranetHomePage() {
     setCalMonth(now.getMonth());
   }, []);
 
+  // Auto-open birthday modal once per day for the birthday person
+  const isMyBirthday = (() => {
+    if (!myEmployee?.birthday) return false;
+    const today = new Date();
+    const bday  = new Date(myEmployee.birthday + "T00:00:00");
+    return bday.getMonth() === today.getMonth() && bday.getDate() === today.getDate();
+  })();
+
+  useEffect(() => {
+    if (!mounted || !isMyBirthday) return;
+    const todayKey = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+    const shownKey = "portland-gas-birthday-shown";
+    if (localStorage.getItem(shownKey) !== todayKey) {
+      setBirthdayModalOpen(true);
+      localStorage.setItem(shownKey, todayKey);
+    }
+  }, [mounted, isMyBirthday]);
+
   const firstName = user?.first_name ?? user?.name?.split(" ")[0] ?? "";
+
+  // Format birthday label: "Today", "Tomorrow", or "Wed 11"
+  function birthdayLabel(daysUntil: number): string {
+    if (daysUntil === 0) return "Today";
+    if (daysUntil === 1) return "Tomorrow";
+    const d = new Date();
+    d.setDate(d.getDate() + daysUntil);
+    return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+  }
+
+  async function sendWishes(employeeId: string) {
+    if (wishesSent.has(employeeId) || wishesLoading.has(employeeId)) return;
+    setWishesLoading((prev) => new Set(prev).add(employeeId));
+    try {
+      await sendWishesMutation.mutateAsync(employeeId);
+      setWishesSent((prev) => new Set(prev).add(employeeId));
+      toast.success("Birthday wishes sent! 🎉");
+    } catch {
+      toast.error("Could not send wishes. Try again.");
+    } finally {
+      setWishesLoading((prev) => { const s = new Set(prev); s.delete(employeeId); return s; });
+    }
+  }
 
   // Carousel auto-advance
   const LEADERSHIP_MESSAGES = rawLeadership.map((m) => ({
@@ -338,7 +399,24 @@ export default function IntranetHomePage() {
             >
               &ldquo;
             </span>
-            {msg ? (
+            {leaderLoading ? (
+              <div className="flex flex-col flex-1 animate-pulse">
+                <div className="h-3 w-32 bg-white/10 rounded mb-5" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-3 w-full bg-white/10 rounded" />
+                  <div className="h-3 w-5/6 bg-white/10 rounded" />
+                  <div className="h-3 w-4/6 bg-white/10 rounded" />
+                  <div className="h-3 w-3/4 bg-white/10 rounded" />
+                </div>
+                <div className="flex items-center gap-3 mt-6">
+                  <div className="h-10 w-10 rounded-full bg-white/10 shrink-0" />
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-28 bg-white/10 rounded" />
+                    <div className="h-2.5 w-20 bg-white/10 rounded" />
+                  </div>
+                </div>
+              </div>
+            ) : msg ? (
               <>
                 <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-4">
                   {msg.dept} · {msg.date}
@@ -393,7 +471,21 @@ export default function IntranetHomePage() {
 
             {/* Employee of the Month */}
             <div className="rounded-2xl p-7 flex flex-col items-center text-center h-full" style={{ backgroundColor: "#1C043B" }}>
-              {EMPLOYEE_OF_MONTH ? (
+              {peopleLoading ? (
+                <div className="flex flex-col items-center w-full animate-pulse flex-1">
+                  <div className="h-3 w-32 bg-white/10 rounded mb-5" />
+                  <div className="h-20 w-20 rounded-xl bg-white/10 mb-4" />
+                  <div className="h-5 w-36 bg-white/10 rounded mb-2" />
+                  <div className="h-3 w-24 bg-white/10 rounded mb-1" />
+                  <div className="h-3 w-20 bg-white/10 rounded mb-6" />
+                  <div className="space-y-2 w-full flex-1">
+                    <div className="h-3 w-full bg-white/10 rounded" />
+                    <div className="h-3 w-5/6 bg-white/10 rounded" />
+                    <div className="h-3 w-4/6 bg-white/10 rounded" />
+                  </div>
+                  <div className="h-8 w-28 bg-white/10 rounded-xl mt-6" />
+                </div>
+              ) : EMPLOYEE_OF_MONTH ? (
                 <>
                   <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-4">
                     Employee of the Month · {EMPLOYEE_OF_MONTH.month}
@@ -430,10 +522,25 @@ export default function IntranetHomePage() {
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-[#1C043B] text-sm">Employee Spotlight</h3>
-                <button className="text-xs text-[#7234BD] font-semibold hover:underline">View all →</button>
+                <Link href="/people" className="text-xs text-[#7234BD] font-semibold hover:underline">View all →</Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-                {SPOTLIGHTS.length === 0 ? (
+                {peopleLoading ? (
+                  [1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col items-center animate-pulse h-full">
+                      <div className="h-16 w-16 rounded-xl bg-gray-100 mb-3" />
+                      <div className="h-5 w-20 bg-gray-100 rounded-full mb-3" />
+                      <div className="h-4 w-28 bg-gray-100 rounded mb-1" />
+                      <div className="h-3 w-20 bg-gray-100 rounded mb-1" />
+                      <div className="h-3 w-16 bg-gray-100 rounded mb-3" />
+                      <div className="space-y-1.5 w-full">
+                        <div className="h-3 w-full bg-gray-100 rounded" />
+                        <div className="h-3 w-4/5 bg-gray-100 rounded" />
+                        <div className="h-3 w-3/5 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+                  ))
+                ) : SPOTLIGHTS.length === 0 ? (
                   <div className="sm:col-span-3 flex items-center justify-center py-10 text-gray-400 text-xs">
                     No spotlight cards published yet.
                   </div>
@@ -468,34 +575,85 @@ export default function IntranetHomePage() {
                   <p className="text-[10px] text-gray-400 mt-0.5 hidden sm:block">This week</p>
                 </div>
               </div>
-              {/* "This week" on mobile moves inline; View all also moves to right on mobile */}
-              <button className="sm:hidden text-xs text-[#7234BD] font-semibold hover:underline whitespace-nowrap">View all →</button>
+              {/* "View all" on mobile */}
+              <Link href="/people" className="sm:hidden text-xs text-[#7234BD] font-semibold hover:underline whitespace-nowrap">View all →</Link>
             </div>
 
             {/* Birthday cards grid */}
             <div className="flex-1 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {BIRTHDAYS.map((b) => (
-                <div key={b.id} className="flex items-center gap-3 border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
-                  <Avatar name={b.name} size="xl" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-[#1C043B] leading-tight truncate">{b.name}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{b.dept}</p>
+              {birthdaysLoading ? (
+                [1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-3 border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50 animate-pulse">
+                    <div className="h-9 w-9 rounded-full bg-gray-200 shrink-0" />
+                    <div className="flex-1 space-y-1.5 min-w-0">
+                      <div className="h-3 w-24 bg-gray-200 rounded" />
+                      <div className="h-2.5 w-16 bg-gray-200 rounded" />
+                    </div>
+                    <div className="h-5 w-14 bg-gray-200 rounded-full shrink-0" />
                   </div>
-                  <span className={cn(
-                    "shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap",
-                    b.date === "Today"    ? "bg-[#FFBC00] text-[#1C043B]" :
-                    b.date === "Tomorrow" ? "bg-[#F3EEFF] text-[#7234BD]" :
-                                           "bg-gray-100 text-gray-500"
-                  )}>
-                    {b.date}
-                  </span>
+                ))
+              ) : birthdays.length === 0 ? (
+                <div className="col-span-4 flex items-center justify-center py-4 text-gray-400 text-xs">
+                  No birthdays this week 🎉
                 </div>
-              ))}
+              ) : birthdays.map((b) => {
+                const label   = birthdayLabel(b.days_until);
+                const isToday = b.days_until === 0;
+                const isMine  = myEmployee?.id === b.employee_id;
+                const sent    = wishesSent.has(b.employee_id);
+                const loading = wishesLoading.has(b.employee_id);
+                return (
+                  <div key={b.employee_id} className={cn(
+                    "flex flex-col gap-2 border rounded-xl px-3 py-2.5",
+                    isToday ? "border-[#FFBC00]/50 bg-[#FFFBEB]" : "border-gray-200 bg-gray-50/50"
+                  )}>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={b.name} src={b.avatar_url ?? undefined} size="xl" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-[#1C043B] leading-tight truncate">{b.name}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{b.department ?? ""}</p>
+                      </div>
+                      <span className={cn(
+                        "shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap",
+                        label === "Today"    ? "bg-[#FFBC00] text-[#1C043B]" :
+                        label === "Tomorrow" ? "bg-[#F3EEFF] text-[#7234BD]" :
+                                               "bg-gray-100 text-gray-500"
+                      )}>
+                        {label}
+                      </span>
+                    </div>
+                    {/* Send wishes — only for today's birthdays, not your own */}
+                    {isToday && !isMine && (
+                      <button
+                        onClick={() => sendWishes(b.employee_id)}
+                        disabled={sent || loading}
+                        className={cn(
+                          "w-full text-[10px] font-semibold py-1 rounded-lg transition-all",
+                          sent
+                            ? "bg-green-100 text-green-700 cursor-default"
+                            : "bg-[#FFBC00]/20 text-[#B45309] hover:bg-[#FFBC00]/40"
+                        )}
+                      >
+                        {loading ? "Sending…" : sent ? "Wishes sent ✓" : "🎂 Send wishes"}
+                      </button>
+                    )}
+                    {/* Re-open birthday modal for yourself */}
+                    {isToday && isMine && (
+                      <button
+                        onClick={() => setBirthdayModalOpen(true)}
+                        className="w-full text-[10px] font-semibold py-1 rounded-lg bg-[#FFBC00]/20 text-[#B45309] hover:bg-[#FFBC00]/40 transition-all"
+                      >
+                        🎉 View your birthday surprise
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* View all — hidden on mobile (shown above), visible on sm+ */}
             <div className="hidden sm:flex items-center">
-              <button className="text-xs text-[#7234BD] font-semibold hover:underline whitespace-nowrap">View all →</button>
+              <Link href="/people" className="text-xs text-[#7234BD] font-semibold hover:underline whitespace-nowrap">View all →</Link>
             </div>
           </div>
         </div>
@@ -531,7 +689,35 @@ export default function IntranetHomePage() {
 
             {/* Scrollable content area — grows to fill card height */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {feed.length === 0 ? (
+              {newsFeedLoading ? (
+                <div className="animate-pulse space-y-4">
+                  {/* Featured card skeleton */}
+                  <div className="flex rounded-2xl overflow-hidden border border-gray-100 mb-4">
+                    <div className="w-[240px] h-[200px] bg-gray-100 shrink-0" />
+                    <div className="flex-1 p-5 space-y-3">
+                      <div className="h-3 w-16 bg-gray-100 rounded-full" />
+                      <div className="h-5 w-4/5 bg-gray-100 rounded" />
+                      <div className="h-5 w-3/5 bg-gray-100 rounded" />
+                      <div className="space-y-1.5 pt-1">
+                        <div className="h-3 w-full bg-gray-100 rounded" />
+                        <div className="h-3 w-5/6 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* List row skeletons */}
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-start gap-3 py-3 border-b border-gray-100">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-14 bg-gray-100 rounded-full" />
+                          <div className="h-3 w-20 bg-gray-100 rounded" />
+                        </div>
+                        <div className="h-4 w-3/4 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : feed.length === 0 ? (
                 <div className="py-12 text-center text-gray-400">
                   <Search size={24} className="mx-auto mb-2 opacity-30" />
                   <p className="text-sm">{q ? <>No results for &ldquo;{q}&rdquo;</> : "No news articles published yet."}</p>
@@ -712,7 +898,20 @@ export default function IntranetHomePage() {
             <div className="mt-4 flex-1 min-h-0 flex flex-col">
               <p className="text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 mb-3">Upcoming Events</p>
 
-              {monthEvents.length === 0 ? (
+              {calLoading ? (
+                <div className="space-y-2 animate-pulse">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl">
+                      <div className="w-11 h-12 rounded-xl bg-gray-100 shrink-0" />
+                      <div className="flex-1 space-y-2 pt-1">
+                        <div className="h-2.5 w-12 bg-gray-100 rounded" />
+                        <div className="h-3.5 w-4/5 bg-gray-100 rounded" />
+                        <div className="h-2.5 w-3/5 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : monthEvents.length === 0 ? (
                 <p className="text-xs text-gray-400 py-4 text-center">No events this month.</p>
               ) : (
                 <div className="space-y-1.5 overflow-y-auto pr-0.5 flex-1 min-h-0">
@@ -774,17 +973,40 @@ export default function IntranetHomePage() {
           <div className="rounded-2xl p-6 flex flex-col justify-between" style={{ backgroundColor: "#1C043B" }}>
             <div>
               <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-2">Portland Gas Podcast</p>
-              <h3 className="text-white font-bold text-sm leading-snug mb-1">
-                &ldquo;Nigeria&apos;s Gas-to-Power Opportunity — EP. 12&rdquo;
-              </h3>
-              <p className="text-white/50 text-xs">The MD and Chief Engineer on CNG&apos;s expanding role. 38 min.</p>
+              {featuredPodcast ? (
+                <>
+                  <h3 className="text-white font-bold text-sm leading-snug mb-1 line-clamp-2">
+                    &ldquo;{featuredPodcast.title}&rdquo;
+                  </h3>
+                  <p className="text-white/50 text-xs line-clamp-2">
+                    {featuredPodcast.description
+                      ? featuredPodcast.description
+                      : featuredPodcast.guest_name
+                        ? `with ${featuredPodcast.guest_name}${featuredPodcast.duration ? ` · ${featuredPodcast.duration}` : ""}`
+                        : featuredPodcast.duration ?? ""}
+                  </p>
+                </>
+              ) : (
+                <p className="text-white/40 text-xs">No episodes published yet.</p>
+              )}
             </div>
-            <Link href="/podcast/1" className="mt-4 flex items-center gap-3 group self-start">
-              <div className="h-10 w-10 rounded-full bg-[#FFBC00] flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-                <Play size={14} className="text-[#1C043B] ml-0.5 fill-[#1C043B]" />
-              </div>
-              <span className="text-white/60 text-xs group-hover:text-white transition-colors">Play episode</span>
-            </Link>
+            {featuredPodcast ? (
+              <Link href={`/podcast/${featuredPodcast.id}`} className="mt-4 flex items-center gap-3 group self-start">
+                <div className="h-10 w-10 rounded-full bg-[#FFBC00] flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
+                  <Play size={14} className="text-[#1C043B] ml-0.5 fill-[#1C043B]" />
+                </div>
+                <span className="text-white/60 text-xs group-hover:text-white transition-colors">
+                  {featuredPodcast.is_featured ? "Play featured episode" : "Play episode"}
+                </span>
+              </Link>
+            ) : (
+              <Link href="/podcast" className="mt-4 flex items-center gap-3 group self-start">
+                <div className="h-10 w-10 rounded-full bg-[#FFBC00]/30 flex items-center justify-center">
+                  <Mic2 size={14} className="text-[#FFBC00]" />
+                </div>
+                <span className="text-white/40 text-xs">Browse episodes</span>
+              </Link>
+            )}
           </div>
 
           <div className="rounded-2xl p-6 flex flex-col gap-3" style={{ backgroundColor: "#7234BD" }}>
@@ -822,6 +1044,71 @@ export default function IntranetHomePage() {
           <p className="text-xs text-gray-400">The Clean Energy Standard</p>
         </div>
       </footer>
+
+      {/* ── Birthday Modal — only visible to the birthday person ─────────── */}
+      {mounted && isMyBirthday && birthdayModalOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(28, 4, 59, 0.93)", backdropFilter: "blur(6px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setBirthdayModalOpen(false); }}
+        >
+          <style>{`
+            @keyframes bday-float {
+              0%, 100% { transform: translateY(0) rotate(-6deg); }
+              50%       { transform: translateY(-18px) rotate(6deg); }
+            }
+            .bday-balloon { animation: bday-float 3.5s ease-in-out infinite; }
+            @keyframes bday-confetti {
+              0%   { transform: translateY(0) rotate(0deg);   opacity: 1; }
+              100% { transform: translateY(60px) rotate(180deg); opacity: 0; }
+            }
+          `}</style>
+
+          {/* Floating balloons */}
+          <span className="bday-balloon pointer-events-none absolute top-16 left-[8%]  text-5xl" style={{ animationDelay: "0s" }}>🎈</span>
+          <span className="bday-balloon pointer-events-none absolute top-24 right-[9%] text-4xl" style={{ animationDelay: "0.6s" }}>🎈</span>
+          <span className="bday-balloon pointer-events-none absolute top-10 left-[22%] text-3xl" style={{ animationDelay: "1.1s" }}>🎈</span>
+          <span className="bday-balloon pointer-events-none absolute top-32 right-[25%] text-4xl" style={{ animationDelay: "0.3s" }}>🎉</span>
+          <span className="bday-balloon pointer-events-none absolute bottom-20 left-[15%] text-3xl" style={{ animationDelay: "0.8s" }}>🎊</span>
+          <span className="bday-balloon pointer-events-none absolute bottom-16 right-[12%] text-4xl" style={{ animationDelay: "1.4s" }}>🎈</span>
+
+          {/* Card */}
+          <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <button
+              onClick={() => setBirthdayModalOpen(false)}
+              className="absolute top-4 right-4 h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="text-6xl mb-4 animate-bounce select-none">🎂</div>
+
+            <h2 className="text-2xl font-extrabold text-[#1C043B] mb-2 leading-tight">
+              Happy Birthday, {firstName}!
+            </h2>
+            <p className="text-gray-500 text-sm mb-5 leading-relaxed">
+              Portland Gas wishes you a wonderful day filled with joy, laughter, and everything you love. 🎉
+            </p>
+
+            <div className="flex items-center justify-center gap-2 text-2xl mb-6 select-none">
+              🎊&nbsp;🥳&nbsp;🎁&nbsp;🎀
+            </div>
+
+            <button
+              onClick={() => setBirthdayModalOpen(false)}
+              className="w-full bg-[#7234BD] text-white font-bold py-3 rounded-xl hover:bg-[#5b2699] transition-colors text-sm"
+            >
+              Thank you! 💜
+            </button>
+
+            <p className="text-[10px] text-gray-300 mt-4">
+              From the entire Portland Gas family
+            </p>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Feedback Modal — portalled to body to escape animate-page-enter transform ── */}
       {mounted && createPortal(<ActionModal

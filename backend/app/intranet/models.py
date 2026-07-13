@@ -103,3 +103,77 @@ class IntranetSpotlight(Base):
     published_at  = Column(DateTime,    nullable=True)
     created_at    = Column(DateTime,    nullable=False, server_default=func.now())
     updated_at    = Column(DateTime,    nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class IntranetFAQCategory(Base):
+    """Tracks category visibility on the intranet. Categories are fixed; this table stores is_visible per label."""
+    __tablename__ = "intranet_faq_categories"
+
+    id         = Column(Integer,    primary_key=True, autoincrement=True)
+    label      = Column(String(80), nullable=False, unique=True)
+    is_visible = Column(Boolean,    nullable=False, default=True)
+    sort_order = Column(Integer,    nullable=False, default=0)
+    created_at = Column(DateTime,   nullable=False, server_default=func.now())
+
+
+class IntranetFAQ(Base):
+    __tablename__ = "intranet_faq"
+
+    id          = Column(Integer,    primary_key=True, autoincrement=True)
+    question    = Column(Text,       nullable=False)
+    answer      = Column(Text,       nullable=False)
+    category    = Column(String(80), nullable=False)
+    order_index = Column(Integer,    nullable=False, default=0)
+    is_published = Column(Boolean,   nullable=False, default=True)
+    created_at  = Column(DateTime,   nullable=False, server_default=func.now())
+    updated_at  = Column(DateTime,   nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class IntranetPodcast(Base):
+    __tablename__ = "intranet_podcast"
+
+    id                = Column(Integer,     primary_key=True, autoincrement=True)
+    episode_number    = Column(Integer,     nullable=False)
+    title             = Column(String(255), nullable=False)
+    guest_name        = Column(String(200), nullable=True)
+    duration          = Column(String(30),  nullable=True)          # e.g. "38 min"
+    description       = Column(Text,        nullable=True)
+    cover_image_id    = Column(Integer,     ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    audio_document_id = Column(Integer,     ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    embed_url         = Column(Text,        nullable=True)          # YouTube / Vimeo embed URL
+    audio_url         = Column(Text,        nullable=True)          # External streaming link (Spotify, Anchor, direct MP3 etc.)
+    media_type        = Column(String(10),  nullable=False, default="audio")  # "audio" | "video"
+    is_published      = Column(Boolean,     nullable=False, default=False)
+    is_featured       = Column(Boolean,     nullable=False, default=False)
+    created_at        = Column(DateTime,    nullable=False, server_default=func.now())
+    updated_at        = Column(DateTime,    nullable=False, server_default=func.now(), onupdate=func.now())
+
+    cover_image    = relationship("Document", foreign_keys=[cover_image_id])
+    audio_document = relationship("Document", foreign_keys=[audio_document_id])
+
+    @property
+    def cover_image_url(self) -> str | None:
+        """Resolved Cloudinary URL from the joined documents row."""
+        return self.cover_image.file_path if self.cover_image else None
+
+    @property
+    def audio_file_url(self) -> str | None:
+        """Resolved Cloudinary URL for the uploaded audio/video file."""
+        return self.audio_document.file_path if self.audio_document else None
+
+
+class IntranetFeedback(Base):
+    __tablename__ = "intranet_feedback"
+
+    id                = Column(Integer,      primary_key=True, autoincrement=True)
+    submitted_by_id   = Column(String(36),   ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
+    submitted_by_name = Column(String(200),  nullable=True)   # denormalized — null if anonymous
+    submitted_by_dept = Column(String(100),  nullable=True)   # denormalized — null if anonymous
+    category          = Column(String(80),   nullable=False)
+    subject           = Column(String(200),  nullable=False)
+    message           = Column(Text,         nullable=False)
+    is_anonymous      = Column(Boolean,      nullable=False, default=False)
+    status            = Column(String(20),   nullable=False, default="open")
+    resolved_by_id    = Column(String(36),   ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
+    resolved_at       = Column(DateTime,     nullable=True)
+    created_at        = Column(DateTime,     nullable=False, server_default=func.now())

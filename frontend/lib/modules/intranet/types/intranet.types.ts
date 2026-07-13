@@ -1,7 +1,8 @@
 // ── News Categories  (DB: intranet_news_categories) ──────────────────────────
 
-export type NewsCategoryColor =
-  | "purple" | "yellow" | "gray" | "red" | "blue" | "green" | "teal" | "orange";
+// Stored as hex in DB (e.g. "#7234BD"). Legacy label values like "purple" are
+// mapped to hex on display. The type is string to support any valid color.
+export type NewsCategoryColor = string;
 
 export interface NewsCategory {
   id:         number;
@@ -59,14 +60,18 @@ export interface IntranetEvent {
   updated_at:   string;
 }
 
-// ── FAQs  (DB: intranet_faq) ─────────────────────────────────────────────────
+// ── FAQs  (DB: intranet_faq + intranet_faq_categories) ───────────────────────
 
-export type FAQCategoryLabel =
-  | "IT Support"
-  | "HR & Payroll"
-  | "HSE"
-  | "Procurement"
-  | "General";
+// Categories are now DB-driven — keep as string so new categories created via admin work without type changes
+export type FAQCategoryLabel = string;
+
+export interface FAQCategory {
+  id:         number;
+  label:      FAQCategoryLabel;
+  is_visible: boolean;
+  sort_order: number;
+  created_at: string;
+}
 
 export interface FAQItem {
   id: number;
@@ -132,7 +137,7 @@ export type FeedbackStatus = "open" | "in_review" | "resolved" | "closed";
 
 export interface FeedbackEntry {
   id: number;
-  submitted_by_id: number | null; // DB: submitted_by FK → employees.id (null if anonymous)
+  submitted_by_id: string | null; // DB: submitted_by FK → employees.id (null if anonymous)
   submitted_by_name: string | null; // denormalised — null if anonymous
   submitted_by_dept: string | null;
   category: FeedbackCategory;    // DB: category VARCHAR(80)
@@ -140,26 +145,31 @@ export interface FeedbackEntry {
   message: string;               // DB: message TEXT
   is_anonymous: boolean;         // DB: is_anonymous BOOLEAN
   status: FeedbackStatus;        // DB: status VARCHAR(20)
-  resolved_by_id: number | null;
+  resolved_by_id: string | null;
   resolved_at: string | null;
   created_at: string;            // DB: created_at TIMESTAMPTZ
 }
 
-// ── Podcast  (no DB table yet — planned addition) ─────────────────────────────
+// ── Podcast  (DB: intranet_podcast) ───────────────────────────────────────────
 
 export type PodcastMediaType = "audio" | "video";
 
 export interface PodcastEpisode {
-  id: number;
-  episode_number: number;
-  title: string;
-  guest_name: string;
-  duration: string;          // e.g. "38 min"
-  cover_image_url: string;
-  audio_url: string;         // URL for audio or video media
-  media_type: PodcastMediaType; // "audio" | "video"
-  is_published: boolean;
-  is_featured: boolean;      // Only one episode is featured on the intranet homepage
-  created_at: string;
-  updated_at: string;
+  id:                number;
+  episode_number:    number;
+  title:             string;
+  description:       string | null;
+  guest_name:        string | null;
+  duration:          string | null;          // e.g. "38 min"
+  cover_image_id:    number | null;          // FK → documents.id
+  cover_image_url:   string | null;          // resolved from documents join (Cloudinary URL)
+  audio_document_id: number | null;          // FK → documents.id (uploaded audio/video file)
+  audio_file_url:    string | null;          // resolved from documents join
+  embed_url:         string | null;          // YouTube / Vimeo embed URL
+  audio_url:         string | null;          // External streaming link (Spotify, Anchor, direct MP3 etc.)
+  media_type:        PodcastMediaType;
+  is_published:      boolean;
+  is_featured:       boolean;
+  created_at:        string;
+  updated_at:        string;
 }

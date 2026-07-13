@@ -5,18 +5,20 @@ import { Play, Clock, Mic2, Star } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
 import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import { useState } from "react";
-import { PODCAST_EPISODES } from "./_data";
+import { usePodcastsPublished } from "@/lib/modules/intranet/queries";
 
 export default function PodcastPage() {
   const [q, setQ] = useState("");
+  const { data: episodes = [] } = usePodcastsPublished();
 
-  const featured  = PODCAST_EPISODES.find((e) => e.is_featured) ?? PODCAST_EPISODES[0];
-  const rest       = PODCAST_EPISODES.filter((e) => e.is_published && e.id !== featured?.id);
-  const filtered   = rest.filter((e) => q === "" || e.title.toLowerCase().includes(q.toLowerCase()) || e.guest_name.toLowerCase().includes(q.toLowerCase()));
+  const featured = episodes.find((e) => e.is_featured) ?? episodes[0] ?? null;
+  const rest      = episodes.filter((e) => e.is_published && e.id !== featured?.id);
+  const filtered  = rest.filter((e) => q === "" || e.title.toLowerCase().includes(q.toLowerCase()) || (e.guest_name ?? "").toLowerCase().includes(q.toLowerCase()));
 
   return (
     <IntranetLayout>
-      <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-10 space-y-10">
+      <div className="flex flex-col min-h-[calc(100vh-64px)]">
+      <div className="flex-1 max-w-[1280px] w-full mx-auto px-4 lg:px-8 py-10 space-y-10">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -78,14 +80,17 @@ export default function PodcastPage() {
           </Link>
         )}
 
-        {/* All episodes */}
+        {/* All episodes — hidden entirely when no episodes exist and no search is active */}
+        {(episodes.length > 0 || q) && (
         <div>
+          {(q || rest.length > 0) && (
           <h2 className="text-sm font-bold text-[#1C043B] uppercase tracking-wider mb-4">
             {q ? `Results for "${q}"` : "All Episodes"}
           </h2>
-          {filtered.length === 0 ? (
+          )}
+          {filtered.length === 0 && q ? (
             <p className="text-sm text-gray-400 py-8 text-center">No episodes found.</p>
-          ) : (
+          ) : filtered.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map((ep) => (
                 <Link
@@ -121,15 +126,17 @@ export default function PodcastPage() {
                 </Link>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
+        )}
       </div>
 
-      <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-4">
+      <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-auto">
         <div className="max-w-[1280px] mx-auto">
           <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
         </div>
       </footer>
+      </div>
     </IntranetLayout>
   );
 }
