@@ -15,7 +15,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { BackButton } from "@/components/ui/BackButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Tip from "@/components/ui/Tip";
 import { useIntranetEventsAdmin } from "@/lib/modules/intranet/queries";
 import {
   useCreateEvent,
@@ -116,7 +116,7 @@ function isPast(dateStr: string) {
 }
 
 export default function IntranetEventsPage() {
-  const { data: events = [], isLoading } = useIntranetEventsAdmin();
+  const { data: events = [], isLoading, isFetching } = useIntranetEventsAdmin();
   const createMutation = useCreateEvent();
   const deleteMutation = useDeleteEvent();
   const toggleMutation = useToggleEventPublished();
@@ -164,7 +164,8 @@ export default function IntranetEventsPage() {
   }
 
   async function handleSave() {
-    if (!form.title.trim() || !form.event_date) return;
+    if (!form.title.trim()) { toast.error("Event title is required."); return; }
+    if (!form.event_date)   { toast.error("Event date is required."); return; }
     const payload = {
       title:        form.title,
       description:  form.description || null,
@@ -228,16 +229,14 @@ export default function IntranetEventsPage() {
       icon: (row) =>
         toggleMutation.isPending && toggleTarget === row._numId
           ? <Loader2 size={14} className="animate-spin" />
-          : row.is_published ? <EyeOff size={14} /> : <Eye size={14} />,
-      title: (row) => row.is_published ? "Unpublish" : "Publish",
+          : <Tip label={row.is_published ? "Unpublish Event" : "Publish Event"}>{row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}</Tip>,
       variant: "ghost",
       onClick: (row) => setToggleConfirmTarget(row),
     },
     {
       key: "edit",
       label: "",
-      icon: <Pencil size={14} />,
-      title: "Edit",
+      icon: <Tip label="Edit Event"><Pencil size={14} /></Tip>,
       variant: "ghost",
       hidden: (row) => isPast(row.event_date),
       onClick: (row) => openEdit(row),
@@ -245,8 +244,7 @@ export default function IntranetEventsPage() {
     {
       key: "delete",
       label: "",
-      icon: <Trash2 size={14} />,
-      title: "Delete",
+      icon: <Tip label="Delete Event"><Trash2 size={14} /></Tip>,
       variant: "ghost",
       className: "hover:bg-red-50 hover:text-red-600",
       onClick: (row) => setDeleteId(row._numId),
@@ -267,21 +265,18 @@ export default function IntranetEventsPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
-      ) : (
-        <DataTable<EventRow>
-          columns={columns}
-          data={rows}
-          showActions
-          actions={tableActions}
-          actionsLabel="Actions"
-          searchable
-          searchPlaceholder="Search events…"
-          emptyMessage="No events yet."
-          emptyDescription="Click 'New Event' to add one."
-        />
-      )}
+      <DataTable<EventRow>
+        columns={columns}
+        data={rows}
+        isLoading={isLoading || isFetching}
+        showActions
+        actions={tableActions}
+        actionsLabel="Actions"
+        searchable
+        searchPlaceholder="Search events…"
+        emptyMessage="No events yet."
+        emptyDescription="Click 'New Event' to add one."
+      />
 
       {/* Create / Edit panel */}
       <ActionModal

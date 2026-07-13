@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Plus, Pencil, PowerOff, Power } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Tip from "@/components/ui/Tip";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
 import { useVendors, useDeactivateVendor, useReactivateVendor, VENDOR_ERRORS } from "@/lib/modules/vendors";
@@ -160,29 +160,26 @@ export default function AdminVendorsPage() {
         <div className="flex items-center gap-1">
           <a
             href={`/admin/vendors/${v.id}/edit`}
-            title="Edit vendor"
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors cursor-pointer"
           >
-            <Pencil size={14} />
+            <Tip label="Edit Vendor"><Pencil size={14} /></Tip>
           </a>
           {v.is_active ? (
             <button
               type="button"
-              title="Deactivate vendor"
               onClick={(e) => { e.stopPropagation(); setDeactivateTarget(v); }}
               className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
             >
-              <PowerOff size={14} />
+              <Tip label="Deactivate Vendor"><PowerOff size={14} /></Tip>
             </button>
           ) : (
             <button
               type="button"
-              title="Reactivate vendor"
               onClick={(e) => { e.stopPropagation(); setReactivateTarget(v); }}
               className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-brand-text-secondary hover:bg-green-50 hover:text-green-600 transition-colors cursor-pointer"
             >
-              <Power size={14} />
+              <Tip label="Reactivate Vendor"><Power size={14} /></Tip>
             </button>
           )}
         </div>
@@ -202,14 +199,13 @@ export default function AdminVendorsPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
-      ) : isError ? (
+      {isError ? (
         <div className="text-center py-20 text-brand-text-secondary">Failed to load vendors.</div>
       ) : (
         <DataTable
           columns={TABLE_COLUMNS}
           data={vendors}
+          isLoading={isLoading}
           searchPlaceholder="Search vendors…"
           emptyMessage="No vendors found."
           emptyDescription="Add your first vendor to get started."

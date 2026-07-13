@@ -10,6 +10,7 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import FormSelect from "@/components/forms/FormSelect";
 import { BackButton } from "@/components/ui/BackButton";
+import Tip from "@/components/ui/Tip";
 import { useIntranetFeedback } from "@/lib/modules/intranet/hooks/useIntranetFeedback";
 import { useToast } from "@/hooks/useToast";
 import type { FeedbackEntry, FeedbackStatus } from "@/lib/modules/intranet/types/intranet.types";
@@ -84,7 +85,7 @@ const columns: Column<FeedbackRow>[] = [
 ];
 
 export default function FeedbackInboxPage() {
-  const { entries, updateStatus } = useIntranetFeedback();
+  const { entries, isLoading, isFetching, updateStatus } = useIntranetFeedback();
   const toast = useToast();
 
   const [viewTarget, setViewTarget]   = useState<FeedbackEntry | null>(null);
@@ -102,17 +103,22 @@ export default function FeedbackInboxPage() {
     open: "Open", in_review: "In Review", resolved: "Resolved", closed: "Closed",
   };
 
-  function handleStatusSave() {
+  async function handleStatusSave() {
     if (!viewTarget) return;
     const prevStatus = viewTarget.status;
-    updateStatus(viewTarget.id, statusEdit);
-    // Notify the submitter if not anonymous and status actually changed
-    if (!viewTarget.is_anonymous && viewTarget.submitted_by_name && statusEdit !== prevStatus) {
-      toast.success(
-        `Notification sent to ${viewTarget.submitted_by_name}: status updated to "${STATUS_LABELS_MAP[statusEdit]}".`
-      );
+    try {
+      await updateStatus(viewTarget.id, statusEdit);
+      if (!viewTarget.is_anonymous && viewTarget.submitted_by_name && statusEdit !== prevStatus) {
+        toast.success(
+          `Status updated to "${STATUS_LABELS_MAP[statusEdit]}". Notification sent to ${viewTarget.submitted_by_name}.`
+        );
+      } else {
+        toast.success("Status updated.");
+      }
+      setViewTarget(null);
+    } catch {
+      toast.error("Failed to update status. Please try again.");
     }
-    setViewTarget(null);
   }
 
   // Summary counts
@@ -124,8 +130,7 @@ export default function FeedbackInboxPage() {
     {
       key: "view",
       label: "",
-      icon: <Eye size={14} />,
-      title: "View",
+      icon: <Tip label="View & Update Status"><Eye size={14} /></Tip>,
       variant: "ghost",
       onClick: (row) => openView(row),
     },
@@ -160,6 +165,7 @@ export default function FeedbackInboxPage() {
       <DataTable<FeedbackRow>
         columns={columns}
         data={rows}
+        isLoading={isLoading || isFetching}
         showActions
         actions={tableActions}
         actionsLabel="Actions"
