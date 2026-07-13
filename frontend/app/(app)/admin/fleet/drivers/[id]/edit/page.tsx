@@ -4,8 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DriverForm, { type DriverFormValues } from "@/lib/modules/fleet/components/DriverForm";
-import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
-import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
+// import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
+import { useDriverById, useUpdateDriver } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useEmployees, useEmployee } from "@/lib/modules/employees/hooks";
 import type { PickedEmployee } from "@/components/ui/EmployeePicker";
 import { FLEET_ROUTES } from "@/lib/routes";
@@ -20,6 +20,7 @@ export default function EditDriverPage() {
   const { driver } = useDriverById(id);
   const { data: allEmployees = [] } = useEmployees({ limit: 200 });
   const { data: currentEmployee } = useEmployee(driver?.employee_id ?? "");
+  const { updateDriver } = useUpdateDriver();
   console.log("driver", {driver})
 
 
@@ -52,17 +53,20 @@ export default function EditDriverPage() {
       }
     : null;
 
-  async function handleSubmit(data: DriverFormValues) {
-    await DriversService.updateDriver(id, {
+async function handleSubmit(data: DriverFormValues) {
+  await updateDriver({
+    id,
+    input: {
       license_number: data.license_number,
       license_expiry_date: data.license_expiry_date,
       experience_years: Number(data.experience_years),
       address: data.address,
-    });
+    },
+  });
 
-    toast.success("Driver successfully updated");
-    router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`);
-  }
+  toast.success("Driver successfully updated");
+  router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`);
+}
 
   return (
     <AppLayout pageTitle="Edit Driver">

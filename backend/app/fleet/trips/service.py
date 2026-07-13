@@ -180,7 +180,7 @@ class TripService:
         next_status = (
             TripStatus.awaiting_inventory
             if awaiting_inventory
-            else TripStatus.ready
+            else TripStatus.ready_for_dispatch
         )
 
         return self.repo.update(
@@ -213,7 +213,7 @@ class TripService:
         return self.repo.update(
             db=db,
             trip=trip,
-            status=TripStatus.ready,
+            status=TripStatus.ready_for_dispatch,
         )
 
     def dispatch(

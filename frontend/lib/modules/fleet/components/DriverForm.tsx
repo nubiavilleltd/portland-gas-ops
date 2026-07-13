@@ -64,7 +64,7 @@ const selectedEmployee = pickedEmployee ?? defaultEmployee ?? null;
     e.preventDefault();
 
     if (
-      !pickedEmployee ||
+      !selectedEmployee ||
       !form.license_number ||
       !form.license_expiry_date ||
       !form.experience_years
