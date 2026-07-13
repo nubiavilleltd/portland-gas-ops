@@ -11,6 +11,7 @@ from app.employees.schemas import (
     EmployeeUpdate,
     EmployeeProfileUpdate,
     EmployeeResponse,
+    EmployeePublicResponse,
     EmployeeListItem,
     DocumentResponse,
 )
@@ -68,7 +69,7 @@ def get_my_profile(
     return employee_service.get_employee_by_user_id(current_user.id, db)
 
 
-@router.get("/{employee_id}", response_model=EmployeeResponse)
+@router.get("/{employee_id}", response_model=EmployeePublicResponse)
 def get_employee(
     employee_id: str,
     db: Session = Depends(get_db),

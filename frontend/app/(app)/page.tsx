@@ -17,19 +17,18 @@ import {
   User,
   FolderOpen,
   Receipt,
-  ExternalLink,
   MapPin,
-  Cake,
   Calendar,
   ArrowUpRight,
 } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
 import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import ActionModal from "@/components/ui/ActionModal";
+import Avatar from "@/components/ui/Avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
-import { useIntranetNewsPublished, useIntranetNewsCategories } from "@/lib/modules/intranet/queries";
+import { useIntranetNewsPublished, useIntranetNewsCategories, useIntranetEventsPublished, useIntranetSpotlightPublished, useIntranetLeadershipPublished } from "@/lib/modules/intranet/queries";
 
 type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
 const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = [
@@ -41,40 +40,7 @@ const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = 
 ];
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const PG  = "https://portlandgasltd.com/wp-content/uploads/2026/03";
-const AV  = "https://i.pravatar.cc/150";
 const HERO_BG = "/portland-hero.jpg";
-
-// ── Data ─────────────────────────────────────────────────────────────────────
-const LEADERSHIP_MESSAGES = [
-  {
-    id: 1,
-    from: "Adeola Ogunleye",
-    role: "Managing Director",
-    dept: "MD's Office",
-    date: "10 Jun 2026",
-    avatar: `${AV}?img=68`,
-    message: "As we close Q2 and look ahead to an ambitious second half of 2026, I want to personally thank every one of you. The commissioning of our 14th CNG station is a testament to what this team achieves together. Our pipeline expansion is on schedule, our safety record remains strong, and our culture is one I am proud of every single day.",
-  },
-  {
-    id: 2,
-    from: "Chidi Okonkwo",
-    role: "Chief Executive Officer",
-    dept: "CEO's Office",
-    date: "5 Jun 2026",
-    avatar: `${AV}?img=52`,
-    message: "Portland Gas is at an inflection point. The investments we are making today in infrastructure, people, and technology will define our next decade. I am proud to lead an organisation with this level of dedication. As we approach the second half of the year, let us maintain the momentum and continue to set the standard for clean energy in Nigeria.",
-  },
-  {
-    id: 3,
-    from: "Amaka Eze",
-    role: "Chief Operating Officer",
-    dept: "Operations",
-    date: "2 Jun 2026",
-    avatar: `${AV}?img=45`,
-    message: "Operational excellence is not a destination — it is a daily commitment. Our teams in the field continue to deliver safely and on time, and that does not happen by accident. It happens because each of you shows up prepared, trained, and focused. Thank you for holding the standard.",
-  },
-];
 
 // Tailwind-safe badge classes by color key — driven by category.color from DB
 const COLOR_BADGE_CLASS: Record<string, string> = {
@@ -96,37 +62,17 @@ const BIRTHDAYS = [
   { id: 5, name: "Ngozi Eze",        dept: "HR",           date: "Sat 14"   },
 ];
 
-// monthNum is 0-indexed (JS convention)
-const EVENTS = [
-  { id: 1, day: 12, month: "JUN", monthNum: 5, year: 2026, type: "Town Hall", title: "Q2 All-Staff Town Hall — MD Briefing",        location: "Head Office, Boardroom A",     color: "#7234BD", colorBg: "#F3EEFF" },
-  { id: 2, day: 18, month: "JUN", monthNum: 5, year: 2026, type: "Training",  title: "HSE Field Safety Refresher — Lagos Stations", location: "Portland Gas Training Centre", color: "#166534", colorBg: "#F0FDF4" },
-  { id: 3, day: 20, month: "JUN", monthNum: 5, year: 2026, type: "Deadline",  title: "Q2 Performance Appraisal Submissions Due",    location: "HR Portal (online)",           color: "#C2410C", colorBg: "#FFF7ED" },
-  { id: 4, day: 25, month: "JUN", monthNum: 5, year: 2026, type: "Workshop",  title: "Fleet Conversion Technology Symposium",       location: "Eko Hotel Convention Centre",  color: "#1E40AF", colorBg: "#EFF6FF" },
-  { id: 5, day: 28, month: "JUN", monthNum: 5, year: 2026, type: "Social",    title: "Annual Family Fun Day 2026",                  location: "Landmark Event Centre, VI",    color: "#B45309", colorBg: "#FFFBEB" },
-];
+// EVENTS, EMPLOYEE_OF_MONTH, SPOTLIGHTS are now derived from the API — see component below
 
 const QUICK_LINKS = [
   { icon: LayoutDashboard, label: "Workflow Portal",     href: "/home"                       },
   { icon: User,            label: "My Profile",          href: "/hr-management/my-profile"   },
   { icon: Receipt,         label: "My Payslips",         href: "/hr-management/my-payslips"  },
   { icon: FolderOpen,      label: "Document Repository", href: "#"                           },
-  { icon: Users,           label: "Employee Directory",  href: "#"                           },
+  { icon: Users,           label: "Employee Directory",  href: "/people"                     },
 ];
 
-const EMPLOYEE_OF_MONTH = {
-  name: "Adaeze Nwankwo",
-  role: "Procurement Manager",
-  dept: "Supply Chain",
-  month: "June 2026",
-  message: "Adaeze led our vendor rationalisation initiative, cutting procurement cycle time by 34% in Q2. Her process discipline and mentorship of junior colleagues embodies the Portland Gas standard.",
-  avatar: `${AV}?img=49`,
-};
-
-const SPOTLIGHTS = [
-  { id: 1, name: "Obinna Eze",    role: "Senior Field Engineer", dept: "Operations",       highlight: "Led the safe commissioning of three new CNG stations ahead of schedule in Q1.", avatar: `${AV}?img=33`, tag: "Safety Champion",   tagColor: "#166534", tagBg: "#F0FDF4" },
-  { id: 2, name: "Halima Musa",   role: "Finance Analyst",       dept: "Finance & Strategy", highlight: "Redesigned the monthly close process, reducing reporting time from 5 days to 2.", avatar: `${AV}?img=25`, tag: "Process Innovator", tagColor: "#1E40AF", tagBg: "#EFF6FF" },
-  { id: 3, name: "Tobi Adeyinka", role: "Fleet Coordinator",     dept: "Logistics",        highlight: "Achieved 98% on-time delivery rate for Q2, the highest in the department's history.", avatar: `${AV}?img=60`, tag: "Top Performer",     tagColor: "#7234BD", tagBg: "#F3EEFF" },
-];
+// EOM and Spotlight are derived from API — see component below
 
 // TABS now built dynamically from the database — see component
 
@@ -146,32 +92,6 @@ function todayStr() {
   return new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function getInitials(name: string): string {
-  const parts = name.trim().split(" ");
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "";
-  return ((parts[0][0] ?? "") + (parts[parts.length - 1][0] ?? "")).toUpperCase();
-}
-
-const AVATAR_COLORS = [
-  { bg: "#7234BD", text: "#FFFFFF" },
-  { bg: "#FFBC00", text: "#1C043B" },
-  { bg: "#166534", text: "#FFFFFF" },
-  { bg: "#1E40AF", text: "#FFFFFF" },
-  { bg: "#C2410C", text: "#FFFFFF" },
-];
-
-function InitialAvatar({ name, index, size = 36 }: { name: string; index: number; size?: number }) {
-  const s = AVATAR_COLORS[index % AVATAR_COLORS.length];
-  return (
-    <div
-      className="rounded-full flex items-center justify-center shrink-0 font-extrabold"
-      style={{ backgroundColor: s.bg, color: s.text, width: size, height: size, fontSize: Math.round(size * 0.33) }}
-    >
-      {getInitials(name)}
-    </div>
-  );
-}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function IntranetHomePage() {
@@ -184,8 +104,58 @@ export default function IntranetHomePage() {
   const [mounted,     setMounted]     = useState(false);
 
   // News — pulled from API, mapped to the shape the feed UI expects
-  const { data: rawNews = [] }    = useIntranetNewsPublished();
-  const { data: categories = [] } = useIntranetNewsCategories();
+  const { data: rawNews = [] }         = useIntranetNewsPublished();
+  const { data: categories = [] }      = useIntranetNewsCategories();
+  const { data: rawEvents = [] }       = useIntranetEventsPublished();
+  const { data: rawSpotlight = [] }    = useIntranetSpotlightPublished();
+  const { data: rawLeadership = [] }   = useIntranetLeadershipPublished();
+
+  // Map backend events to the shape the calendar/events UI expects
+  const EVENTS = rawEvents.map((ev) => {
+    const d = new Date(ev.event_date + "T00:00:00");
+    return {
+      id:       ev.id,
+      day:      d.getDate(),
+      month:    d.toLocaleString("en-GB", { month: "short" }).toUpperCase(),
+      monthNum: d.getMonth(),   // 0-indexed
+      year:     d.getFullYear(),
+      type:     ev.event_type,
+      title:    ev.title,
+      location: ev.location ?? ev.virtual_link ?? "Online",
+      color:    ev.color,
+      colorBg:  ev.color + "20",  // hex with 12.5% opacity for light bg tint
+    };
+  });
+
+  // Employee of the Month — most recent published entry with category employee_of_month
+  const eomEntry = rawSpotlight.find((s) => s.category === "employee_of_month") ?? null;
+  const EMPLOYEE_OF_MONTH = eomEntry
+    ? {
+        employeeId: eomEntry.employee_id,
+        name:    eomEntry.employee_name,
+        role:    eomEntry.employee_role ?? "",
+        dept:    eomEntry.employee_dept ?? "",
+        month:   [null,"January","February","March","April","May","June","July","August","September","October","November","December"][eomEntry.month ?? 0] + " " + (eomEntry.year ?? new Date().getFullYear()),
+        message: eomEntry.message,
+        avatar:  eomEntry.avatar_url ?? null,
+      }
+    : null;
+
+  // Spotlight cards — published non-EOM entries (max 3)
+  const SPOTLIGHTS = rawSpotlight
+    .filter((s) => s.category !== "employee_of_month")
+    .slice(0, 3)
+    .map((s) => ({
+      id:       s.id,
+      name:     s.employee_name,
+      role:     s.employee_role ?? "",
+      dept:     s.employee_dept ?? "",
+      highlight: s.message,
+      avatar:   s.avatar_url ?? null,
+      tag:      s.tag ?? "",
+      tagColor: s.tag_color ?? "#7234BD",
+      tagBg:    s.tag_bg ?? "#F3EEFF",
+    }));
   const TABS = ["All", ...categories.map((c) => c.name)];
   const colorByName = Object.fromEntries(categories.map((c) => [c.name, c.color]));
   const NEWS = rawNews.map((n) => ({
@@ -247,8 +217,21 @@ export default function IntranetHomePage() {
   const firstName = user?.first_name ?? user?.name?.split(" ")[0] ?? "";
 
   // Carousel auto-advance
-  const next = useCallback(() => setSlide((s) => (s + 1) % LEADERSHIP_MESSAGES.length), []);
-  const prev = () => setSlide((s) => (s - 1 + LEADERSHIP_MESSAGES.length) % LEADERSHIP_MESSAGES.length);
+  const LEADERSHIP_MESSAGES = rawLeadership.map((m) => ({
+    id:      m.id,
+    from:    m.author_name,
+    role:    m.author_role ?? "",
+    dept:    m.author_dept ?? "",
+    date:    m.published_at
+               ? new Date(m.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+               : "",
+    avatar:  m.avatar_url ?? null,
+    message: m.body,
+  }));
+
+  const carouselLength = LEADERSHIP_MESSAGES.length || 1;
+  const next = useCallback(() => setSlide((s) => (s + 1) % carouselLength), [carouselLength]);
+  const prev = () => setSlide((s) => (s - 1 + carouselLength) % carouselLength);
   useEffect(() => {
     const t = setInterval(next, 7000);
     return () => clearInterval(t);
@@ -292,7 +275,7 @@ export default function IntranetHomePage() {
     return true;
   });
 
-  const msg = LEADERSHIP_MESSAGES[slide];
+  const msg = LEADERSHIP_MESSAGES[slide] ?? null;
 
   return (
     <IntranetLayout>
@@ -355,21 +338,27 @@ export default function IntranetHomePage() {
             >
               &ldquo;
             </span>
-            <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-4">
-              {msg.dept} · {msg.date}
-            </p>
-            <p className="text-white/85 text-sm leading-relaxed flex-1">
-              &ldquo;{msg.message}&rdquo;
-            </p>
-            <div className="flex items-center gap-3 mt-6">
-              <Image src={msg.avatar} alt={msg.from} width={40} height={40} className="rounded-full ring-2 ring-white/20 shrink-0 object-cover" />
-              <div className="min-w-0 flex-1">
-                <p className="text-white font-bold text-sm">{msg.from}</p>
-                <p className="text-white/50 text-xs">{msg.role}</p>
-              </div>
-            </div>
+            {msg ? (
+              <>
+                <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-4">
+                  {msg.dept} · {msg.date}
+                </p>
+                <p className="text-white/85 text-sm leading-relaxed flex-1">
+                  &ldquo;{msg.message}&rdquo;
+                </p>
+                <div className="flex items-center gap-3 mt-6">
+                  <Avatar name={msg.from} src={msg.avatar} size="xl" className="ring-2 ring-white/20" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white font-bold text-sm">{msg.from}</p>
+                    <p className="text-white/50 text-xs">{msg.role}</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-white/40 text-sm flex-1 flex items-center justify-center">No messages published yet.</p>
+            )}
             <div className="flex items-center gap-1.5 mt-5">
-              {LEADERSHIP_MESSAGES.map((_, i) => (
+              {LEADERSHIP_MESSAGES.map((_m, i) => (
                 <button
                   key={i}
                   onClick={() => setSlide(i)}
@@ -404,19 +393,37 @@ export default function IntranetHomePage() {
 
             {/* Employee of the Month */}
             <div className="rounded-2xl p-7 flex flex-col items-center text-center h-full" style={{ backgroundColor: "#1C043B" }}>
-              <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-4">
-                Employee of the Month · {EMPLOYEE_OF_MONTH.month}
-              </p>
-              <Image src={EMPLOYEE_OF_MONTH.avatar} alt={EMPLOYEE_OF_MONTH.name} width={72} height={72} className="rounded-2xl ring-4 ring-[#FFBC00]/50 object-cover mb-4" />
-              <h3 className="text-xl font-extrabold text-white leading-tight mb-0.5">{EMPLOYEE_OF_MONTH.name}</h3>
-              <p className="text-white/50 text-xs mb-0.5">{EMPLOYEE_OF_MONTH.role}</p>
-              <p className="text-white/35 text-xs mb-4">{EMPLOYEE_OF_MONTH.dept}</p>
-              <p className="text-white/65 text-xs leading-relaxed line-clamp-4 my-4 flex-1">
-                &ldquo;{EMPLOYEE_OF_MONTH.message}&rdquo;
-              </p>
-              <button className="mt-auto bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors">
-                View Profile →
-              </button>
+              {EMPLOYEE_OF_MONTH ? (
+                <>
+                  <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-4">
+                    Employee of the Month · {EMPLOYEE_OF_MONTH.month}
+                  </p>
+                  <Avatar name={EMPLOYEE_OF_MONTH.name} src={EMPLOYEE_OF_MONTH.avatar} size="lg" rounded="xl" className="ring-4 ring-[#FFBC00]/50 mb-4" />
+                  <h3 className="text-xl font-extrabold text-white leading-tight mb-0.5">{EMPLOYEE_OF_MONTH.name}</h3>
+                  <p className="text-white/50 text-xs mb-0.5">{EMPLOYEE_OF_MONTH.role}</p>
+                  <p className="text-white/35 text-xs mb-4">{EMPLOYEE_OF_MONTH.dept}</p>
+                  <p className="text-white/65 text-xs leading-relaxed line-clamp-4 my-4 flex-1">
+                    &ldquo;{EMPLOYEE_OF_MONTH.message}&rdquo;
+                  </p>
+                  {EMPLOYEE_OF_MONTH.employeeId ? (
+                    <Link
+                      href={`/people/${EMPLOYEE_OF_MONTH.employeeId}`}
+                      className="mt-auto bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors"
+                    >
+                      View Profile →
+                    </Link>
+                  ) : (
+                    <button className="mt-auto bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors">
+                      View Profile →
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center flex-1 text-white/30">
+                  <User size={32} className="mb-3" />
+                  <p className="text-xs">Employee of the Month not yet configured</p>
+                </div>
+              )}
             </div>
 
             {/* Employee Spotlight — same height via flex-col + h-full */}
@@ -426,9 +433,13 @@ export default function IntranetHomePage() {
                 <button className="text-xs text-[#7234BD] font-semibold hover:underline">View all →</button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-                {SPOTLIGHTS.map((s) => (
+                {SPOTLIGHTS.length === 0 ? (
+                  <div className="sm:col-span-3 flex items-center justify-center py-10 text-gray-400 text-xs">
+                    No spotlight cards published yet.
+                  </div>
+                ) : SPOTLIGHTS.map((s) => (
                   <div key={s.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col items-center text-center hover:shadow-lg hover:-translate-y-0.5 transition-all h-full">
-                    <Image src={s.avatar} alt={s.name} width={52} height={52} className="rounded-xl object-cover mb-3" />
+                    <Avatar name={s.name} src={s.avatar} size="lg" rounded="xl" className="mb-3" />
                     <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-3" style={{ backgroundColor: s.tagBg, color: s.tagColor }}>
                       {s.tag}
                     </span>
@@ -463,9 +474,9 @@ export default function IntranetHomePage() {
 
             {/* Birthday cards grid */}
             <div className="flex-1 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {BIRTHDAYS.map((b, i) => (
+              {BIRTHDAYS.map((b) => (
                 <div key={b.id} className="flex items-center gap-3 border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
-                  <InitialAvatar name={b.name} index={i} size={40} />
+                  <Avatar name={b.name} size="xl" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-[#1C043B] leading-tight truncate">{b.name}</p>
                     <p className="text-[10px] text-gray-400 truncate">{b.dept}</p>
