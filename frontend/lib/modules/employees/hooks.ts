@@ -8,6 +8,7 @@ const KEYS = {
   detail: (id: string) => ["employees", "detail", id] as const,
   me: ["employees", "me"] as const,
   documents: (id: string) => ["employees", "documents", id] as const,
+  weekBirthdays: ["employees", "birthdays", "week"] as const,
 };
 
 export function useEmployees(params: ListEmployeesParams = {}) {
@@ -115,5 +116,14 @@ export function useDeleteEmployeeDocument(id: string) {
   return useMutation({
     mutationFn: (docId: number) => employeesApi.deleteDocument(id, docId),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.documents(id) }),
+  });
+}
+
+/** Employees with birthdays today through the next 6 days — for the intranet home page */
+export function useWeekBirthdays() {
+  return useQuery({
+    queryKey: KEYS.weekBirthdays,
+    queryFn: () => employeesApi.getWeekBirthdays(),
+    staleTime: 60 * 60 * 1000, // 1 hour — birthdays don't change mid-day
   });
 }

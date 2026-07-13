@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Plus, Package } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -70,13 +69,13 @@ export default function AssetsPage() {
         <Link href="/assets/requests" className="text-xs text-brand-purple hover:underline font-medium">My Requests →</Link>
       </div>
 
-      {isLoading ? <div className="flex justify-center py-20"><LoadingSpinner /></div>
-        : isError ? <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>
-        : assets.length === 0 ? (
-          <EmptyState title="No assets" description="There are no assets available to you right now" />
-        ) : (
-          <DataTable columns={TABLE_COLUMNS} data={assets} rowHref={(asset) => `/assets/${asset.id}`} emptyMessage="No assets found." searchPlaceholder="Search by name or tag…" />
-        )}
+      {isError ? (
+        <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>
+      ) : assets.length === 0 && !isLoading ? (
+        <EmptyState title="No assets" description="There are no assets available to you right now" />
+      ) : (
+        <DataTable columns={TABLE_COLUMNS} data={assets} isLoading={isLoading} rowHref={(asset) => `/assets/${asset.id}`} emptyMessage="No assets found." searchPlaceholder="Search by name or tag…" />
+      )}
     </AppLayout>
   );
 }

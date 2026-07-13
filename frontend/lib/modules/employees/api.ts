@@ -6,6 +6,7 @@ import type {
   CreateEmployeePayload,
   UpdateEmployeePayload,
   ListEmployeesParams,
+  BirthdayEntry,
 } from "./types";
 
 export const employeesApi = {
@@ -85,6 +86,11 @@ export const employeesApi = {
 
   deleteDocument: async (id: string, docId: number): Promise<{ message: string }> => {
     const { data } = await api.delete(`/api/employees/${id}/documents/${docId}`);
+    return data;
+  },
+
+  getWeekBirthdays: async (): Promise<BirthdayEntry[]> => {
+    const { data } = await api.get("/api/employees/birthdays/week");
     return data;
   },
 };

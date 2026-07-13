@@ -12,16 +12,19 @@ import {
   LayoutDashboard,
   LogOut,
   User,
-  Megaphone,
-  Cake,
   CheckSquare,
-  CalendarDays,
+  AlertCircle,
+  RotateCcw,
   Info,
+  Clock,
+  Cake,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import Avatar from "@/components/ui/Avatar";
+import { useNotifications, useMarkNotificationRead, useMarkAllRead } from "@/lib/modules/notifications/hooks";
+import type { AppNotification, NotificationType } from "@/lib/modules/notifications/types";
 
 const DEMO_NAME = "Portland Gas";
 
@@ -33,13 +36,33 @@ const NAV_LINKS = [
   { label: "FAQ",     href: "/faq" },
 ];
 
-const NOTIFICATIONS = [
-  { id: 1, icon: Megaphone,    color: "#7234BD", bg: "#F3EEFF", title: "New announcement posted", body: "Q2 All-Staff Town Hall — Thursday 12 June", time: "2 min ago",  read: false },
-  { id: 2, icon: Cake,         color: "#B45309", bg: "#FFFBEB", title: "Birthday today 🎂",        body: "Chinyere Okafor from Supply Chain",        time: "1 hr ago",  read: false },
-  { id: 3, icon: CheckSquare,  color: "#166534", bg: "#F0FDF4", title: "Approval needed",          body: "PR-2026-0042 is awaiting your review",     time: "3 hrs ago", read: true  },
-  { id: 4, icon: CalendarDays, color: "#1E40AF", bg: "#EFF6FF", title: "Event reminder",           body: "Family Fun Day registration closes in 10 days", time: "1 day ago", read: true },
-  { id: 5, icon: Info,         color: "#C2410C", bg: "#FFF7ED", title: "HSE alert",                body: "Mandatory refresher training by 30 Jun",  time: "1 day ago", read: true  },
-];
+// ── Icon + colour per notification type ────────────────────────────────────────
+const TYPE_META: Record<NotificationType, { icon: React.ElementType; color: string; bg: string }> = {
+  approval_required: { icon: Clock,       color: "#B45309", bg: "#FFFBEB" },
+  approved:          { icon: CheckSquare, color: "#166534", bg: "#F0FDF4" },
+  rejected:          { icon: AlertCircle, color: "#991B1B", bg: "#FEF2F2" },
+  returned:          { icon: RotateCcw,   color: "#1E40AF", bg: "#EFF6FF" },
+  info:              { icon: Info,        color: "#7234BD", bg: "#F3EEFF" },
+};
+
+// Birthday wishes look nicer with a cake icon
+function getTypeMeta(n: AppNotification) {
+  if (n.type === "info" && n.title.includes("🎂")) {
+    return { icon: Cake, color: "#B45309", bg: "#FFFBEB" };
+  }
+  return TYPE_META[n.type] ?? TYPE_META.info;
+}
+
+function timeAgo(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hr${hours > 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+}
 
 interface Props { children: React.ReactNode }
 
@@ -47,18 +70,25 @@ export default function IntranetLayout({ children }: Props) {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const { logout } = useAuth();
-  const [mobileOpen,   setMobileOpen]   = useState(false);
-  const [profileOpen,  setProfileOpen]  = useState(false);
-  const [notifOpen,    setNotifOpen]    = useState(false);
-  const [scrolled,     setScrolled]     = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notifOpen,   setNotifOpen]   = useState(false);
+  const [scrolled,    setScrolled]    = useState(false);
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Real notifications
+  const { data: notifications = [] } = useNotifications({ limit: 30 });
+  const markRead    = useMarkNotificationRead();
+  const markAllRead = useMarkAllRead();
+
+  const unread = notifications.filter((n) => !n.is_read).length;
 
   // Blend with hero when at top; solidify on scroll
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 30);
     window.addEventListener("scroll", handler, { passive: true });
-    handler(); // run once on mount
+    handler();
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
@@ -66,8 +96,6 @@ export default function IntranetLayout({ children }: Props) {
     ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.name || DEMO_NAME
     : DEMO_NAME;
   const firstName = displayName.split(" ")[0];
-
-  const unread = NOTIFICATIONS.filter((n) => !n.read).length;
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -79,11 +107,14 @@ export default function IntranetLayout({ children }: Props) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  function handleNotifClick(n: AppNotification) {
+    if (!n.is_read) markRead.mutate(n.id);
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F4F7]" style={{ fontFamily: "var(--font-mulish, var(--font-sans))" }}>
 
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
-      {/* Transparent only on home page at top — all other pages always solid */}
       <header className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
         pathname === "/" && !scrolled
@@ -129,7 +160,7 @@ export default function IntranetLayout({ children }: Props) {
           {/* Right actions */}
           <div className="flex items-center gap-2 ml-auto">
 
-            {/* ── Workflow CTA — always visible ── */}
+            {/* ── Workflow CTA ── */}
             <Link
               href="/home"
               className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#7234BD] text-[#c084fc] text-xs font-semibold hover:bg-[#7234BD] hover:text-white transition-all duration-150 btn-press"
@@ -147,7 +178,7 @@ export default function IntranetLayout({ children }: Props) {
                 <Bell size={17} />
                 {unread > 0 && (
                   <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-[#FFBC00] flex items-center justify-center text-[9px] font-extrabold text-[#1C043B]">
-                    {unread}
+                    {unread > 9 ? "9+" : unread}
                   </span>
                 )}
               </button>
@@ -156,41 +187,61 @@ export default function IntranetLayout({ children }: Props) {
                 <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-[68px] sm:top-full sm:mt-2 w-auto sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-fade-up">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-bold text-[#1C043B]">Notifications</p>
-                    <span className="text-[10px] text-[#7234BD] font-semibold bg-[#F3EEFF] px-2 py-0.5 rounded-full">
-                      {unread} new
-                    </span>
+                    {unread > 0 && (
+                      <span className="text-[10px] text-[#7234BD] font-semibold bg-[#F3EEFF] px-2 py-0.5 rounded-full">
+                        {unread} new
+                      </span>
+                    )}
                   </div>
+
                   <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
-                    {NOTIFICATIONS.map((n) => (
-                      <div
-                        key={n.id}
-                        className={cn(
-                          "flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer",
-                          !n.read && "bg-[#F3EEFF]/40"
-                        )}
-                      >
-                        <div
-                          className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                          style={{ backgroundColor: n.bg }}
-                        >
-                          <n.icon size={15} style={{ color: n.color }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={cn("text-sm leading-snug", !n.read ? "font-semibold text-[#1C043B]" : "font-medium text-gray-700")}>
-                            {n.title}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{n.body}</p>
-                          <p className="text-[10px] text-gray-300 mt-1">{n.time}</p>
-                        </div>
-                        {!n.read && <span className="h-2 w-2 rounded-full bg-[#7234BD] shrink-0 mt-2" />}
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-gray-400 text-xs">
+                        <Bell size={20} className="mx-auto mb-2 opacity-30" />
+                        No notifications yet
                       </div>
-                    ))}
+                    ) : notifications.map((n) => {
+                      const meta = getTypeMeta(n);
+                      const Icon = meta.icon;
+                      return (
+                        <button
+                          key={n.id}
+                          onClick={() => handleNotifClick(n)}
+                          className={cn(
+                            "w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left",
+                            !n.is_read && "bg-[#F3EEFF]/40"
+                          )}
+                        >
+                          <div
+                            className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                            style={{ backgroundColor: meta.bg }}
+                          >
+                            <Icon size={15} style={{ color: meta.color }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("text-sm leading-snug", !n.is_read ? "font-semibold text-[#1C043B]" : "font-medium text-gray-700")}>
+                              {n.title}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
+                            <p className="text-[10px] text-gray-300 mt-1">{timeAgo(n.created_at)}</p>
+                          </div>
+                          {!n.is_read && <span className="h-2 w-2 rounded-full bg-[#7234BD] shrink-0 mt-2" />}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="px-4 py-2.5 border-t border-gray-100 text-center">
-                    <button className="text-xs text-[#7234BD] font-semibold hover:underline">
-                      Mark all as read
-                    </button>
-                  </div>
+
+                  {notifications.length > 0 && (
+                    <div className="px-4 py-2.5 border-t border-gray-100 text-center">
+                      <button
+                        onClick={() => markAllRead.mutate()}
+                        disabled={unread === 0 || markAllRead.isPending}
+                        className="text-xs text-[#7234BD] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
+                      >
+                        {markAllRead.isPending ? "Marking…" : "Mark all as read"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -243,7 +294,7 @@ export default function IntranetLayout({ children }: Props) {
           </div>
         </div>
 
-        {/* Mobile nav — always rendered, slides open/shut */}
+        {/* Mobile nav */}
         <div
           className={cn(
             "lg:hidden bg-[#1C043B] px-4 overflow-hidden transition-all duration-300 ease-in-out",

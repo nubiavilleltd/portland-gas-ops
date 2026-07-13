@@ -1,16 +1,36 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
+from urllib.parse import urlparse
 
-# Valid color keys — map to Tailwind-safe classes on the frontend
-NEWS_CATEGORY_COLORS = ["purple", "yellow", "gray", "red", "blue", "green", "teal", "orange"]
+_HEX_COLOR_RE = r"^#[0-9A-Fa-f]{6}$"
+_SAFE_URL_SCHEMES = {"http", "https"}
+
+def _validate_url(v: Optional[str]) -> Optional[str]:
+    """Block javascript:, data:, vbscript: and other dangerous URL schemes."""
+    if v is None or v.strip() == "":
+        return v
+    try:
+        scheme = urlparse(v.strip()).scheme.lower()
+        if scheme and scheme not in _SAFE_URL_SCHEMES:
+            raise ValueError(f"URL scheme '{scheme}' is not allowed")
+    except ValueError:
+        raise
+    except Exception:
+        raise ValueError("Invalid URL")
+    return v
 
 
 # ── Category schemas ───────────────────────────────────────────────────────────
 
 class NewsCategoryCreate(BaseModel):
     name:  str = Field(..., min_length=1, max_length=60)
-    color: str = Field("gray", description=f"One of: {', '.join(NEWS_CATEGORY_COLORS)}")
+    color: str = Field("#6B7280", max_length=20, pattern=_HEX_COLOR_RE)
+
+
+class NewsCategoryUpdate(BaseModel):
+    name:  Optional[str] = Field(None, min_length=1, max_length=60)
+    color: Optional[str] = Field(None, max_length=20, pattern=_HEX_COLOR_RE)
 
 
 class NewsCategoryResponse(BaseModel):
@@ -122,6 +142,12 @@ class SpotlightTagCreate(BaseModel):
     bg:    str = Field(..., max_length=20)   # hex background colour
 
 
+class SpotlightTagUpdate(BaseModel):
+    label: Optional[str] = Field(None, min_length=1, max_length=80)
+    color: Optional[str] = Field(None, max_length=20)
+    bg:    Optional[str] = Field(None, max_length=20)
+
+
 class SpotlightTagResponse(BaseModel):
     id:         int
     label:      str
@@ -145,6 +171,11 @@ class EventCreate(BaseModel):
     color:        str            = Field("#7234BD", max_length=10)
     is_published: bool           = False
 
+    @field_validator("virtual_link")
+    @classmethod
+    def validate_virtual_link(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_url(v)
+
 
 class EventUpdate(BaseModel):
     title:        Optional[str]  = None
@@ -155,6 +186,11 @@ class EventUpdate(BaseModel):
     event_date:   Optional[str]  = None
     color:        Optional[str]  = None
     is_published: Optional[bool] = None
+
+    @field_validator("virtual_link")
+    @classmethod
+    def validate_virtual_link(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_url(v)
 
 
 class EventResponse(BaseModel):
@@ -169,6 +205,61 @@ class EventResponse(BaseModel):
     is_published: bool
     created_at:   datetime
     updated_at:   datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── FAQ category schemas ───────────────────────────────────────────────────────
+
+class FAQCategoryCreate(BaseModel):
+    label:      str = Field(..., min_length=1, max_length=80)
+    sort_order: int = 0
+
+
+class FAQCategoryUpdate(BaseModel):
+    label:      Optional[str] = Field(None, min_length=1, max_length=80)
+    sort_order: Optional[int] = None
+
+
+class FAQCategoryResponse(BaseModel):
+    id:         int
+    label:      str
+    is_visible: bool
+    sort_order: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── FAQ schemas ────────────────────────────────────────────────────────────────
+
+class FAQCreate(BaseModel):
+    question:    str  = Field(..., min_length=1)
+    answer:      str  = Field(..., min_length=1)
+    category:    str  = Field(..., min_length=1, max_length=80)
+    order_index: int  = 0
+    is_published: bool = True
+
+
+class FAQUpdate(BaseModel):
+    question:    Optional[str]  = None
+    answer:      Optional[str]  = None
+    category:    Optional[str]  = None
+    order_index: Optional[int]  = None
+    is_published: Optional[bool] = None
+
+
+class FAQResponse(BaseModel):
+    id:          int
+    question:    str
+    answer:      str
+    category:    str
+    order_index: int
+    is_published: bool
+    created_at:  datetime
+    updated_at:  datetime
 
     class Config:
         from_attributes = True
@@ -228,6 +319,102 @@ class SpotlightResponse(BaseModel):
     is_published:  bool
     published_at:  Optional[datetime]
     created_at:    datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Feedback schemas ───────────────────────────────────────────────────────────
+
+# ── Podcast schemas ────────────────────────────────────────────────────────────
+
+class PodcastCreate(BaseModel):
+    episode_number:    int           = Field(..., ge=1)
+    title:             str           = Field(..., min_length=1, max_length=255)
+    description:       Optional[str] = None
+    guest_name:        Optional[str] = Field(None, max_length=200)
+    duration:          Optional[str] = Field(None, max_length=30)
+    cover_image_id:    Optional[int] = None
+    audio_document_id: Optional[int] = None
+    embed_url:         Optional[str] = None   # YouTube / Vimeo embed URL
+    audio_url:         Optional[str] = None   # External streaming link
+    media_type:        str           = Field("audio", pattern="^(audio|video)$")
+    is_published:      bool          = False
+    is_featured:       bool          = False
+
+    @field_validator("embed_url", "audio_url")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_url(v)
+
+
+class PodcastUpdate(BaseModel):
+    episode_number:    Optional[int]  = None
+    title:             Optional[str]  = None
+    description:       Optional[str]  = None
+    guest_name:        Optional[str]  = None
+    duration:          Optional[str]  = None
+    cover_image_id:    Optional[int]  = None
+    audio_document_id: Optional[int]  = None
+    embed_url:         Optional[str]  = None
+    audio_url:         Optional[str]  = None
+    media_type:        Optional[str]  = None
+    is_published:      Optional[bool] = None
+    is_featured:       Optional[bool] = None
+
+    @field_validator("embed_url", "audio_url")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_url(v)
+
+
+class PodcastResponse(BaseModel):
+    id:                int
+    episode_number:    int
+    title:             str
+    description:       Optional[str]
+    guest_name:        Optional[str]
+    duration:          Optional[str]
+    cover_image_id:    Optional[int]
+    cover_image_url:   Optional[str]   # resolved via @property from documents join
+    audio_document_id: Optional[int]
+    audio_file_url:    Optional[str]   # resolved via @property from documents join
+    embed_url:         Optional[str]
+    audio_url:         Optional[str]
+    media_type:        str
+    is_published:      bool
+    is_featured:       bool
+    created_at:        datetime
+    updated_at:        datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FeedbackCreate(BaseModel):
+    category:     str  = Field(..., min_length=1, max_length=80)
+    subject:      str  = Field(..., min_length=1, max_length=200)
+    message:      str  = Field(..., min_length=1)
+    is_anonymous: bool = False
+
+
+class FeedbackStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(open|in_review|resolved|closed)$")
+
+
+class FeedbackResponse(BaseModel):
+    id:                int
+    submitted_by_id:   Optional[str]
+    submitted_by_name: Optional[str]
+    submitted_by_dept: Optional[str]
+    category:          str
+    subject:           str
+    message:           str
+    is_anonymous:      bool
+    status:            str
+    resolved_by_id:    Optional[str]
+    resolved_at:       Optional[datetime]
+    created_at:        datetime
 
     class Config:
         from_attributes = True

@@ -5,6 +5,19 @@ from decimal import Decimal
 from app.employees.models import Department, EmploymentType
 
 
+# ── Birthday response (intranet home page) ───────────────────────────────────
+
+class BirthdayResponse(BaseModel):
+    employee_id:  str
+    name:         str
+    department:   Optional[str]
+    avatar_url:   Optional[str]
+    days_until:   int            # 0 = today, 1 = tomorrow, 2-6 = later this week
+
+    class Config:
+        from_attributes = True
+
+
 # ── Document returned from employee's document list ───────────────────────────
 
 class DocumentResponse(BaseModel):

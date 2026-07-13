@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { post, patch, del, postForm } from "@/lib/api";
 import { intranetKeys } from "./queries";
-import type { NewsItem, NewsCategory, IntranetEvent, SpotlightEntry, SpotlightTag, LeadershipMessage } from "./types/intranet.types";
+import type { NewsItem, NewsCategory, IntranetEvent, SpotlightEntry, SpotlightTag, LeadershipMessage, FAQItem, FAQCategory, FeedbackEntry, FeedbackStatus, PodcastEpisode } from "./types/intranet.types";
 
 // cover_image_url is server-computed from the documents join — never sent in the payload
 type NewsCreatePayload = Omit<NewsItem, "id" | "created_at" | "updated_at" | "cover_image_url">;
@@ -18,6 +18,15 @@ export function useCreateNewsCategory() {
   return useMutation({
     mutationFn: (data: { name: string; color: string }) =>
       post<NewsCategory>("/api/intranet/news/categories/", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.newsCategories() }),
+  });
+}
+
+export function useUpdateNewsCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: number; name?: string; color?: string }) =>
+      patch<NewsCategory>(`/api/intranet/news/categories/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.newsCategories() }),
   });
 }
@@ -217,6 +226,15 @@ export function useCreateSpotlightTag() {
   });
 }
 
+export function useUpdateSpotlightTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: number; label?: string; color?: string; bg?: string }) =>
+      patch<SpotlightTag>(`/api/intranet/spotlight/tags/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.spotlightTags() }),
+  });
+}
+
 export function useDeleteSpotlightTag() {
   const qc = useQueryClient();
   return useMutation({
@@ -276,5 +294,202 @@ export function useReorderLeadership() {
     mutationFn: (updates: { id: number; sort_order: number }[]) =>
       post<void>("/api/intranet/leadership/reorder", updates),
     onSuccess: () => invalidateLeadership(qc),
+  });
+}
+
+// ── FAQ helpers ───────────────────────────────────────────────────────────────
+
+function invalidateFAQs(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: intranetKeys.faqs() });
+  qc.invalidateQueries({ queryKey: intranetKeys.faqsPublished() });
+}
+
+// ── FAQ category mutations ────────────────────────────────────────────────────
+
+export function useCreateFAQCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { label: string; sort_order?: number }) =>
+      post<FAQCategory>("/api/intranet/faqs/categories/", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.faqCategories() }),
+  });
+}
+
+export function useUpdateFAQCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: number; label?: string; sort_order?: number }) =>
+      patch<FAQCategory>(`/api/intranet/faqs/categories/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.faqCategories() }),
+  });
+}
+
+export function useDeleteFAQCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => del(`/api/intranet/faqs/categories/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.faqCategories() }),
+  });
+}
+
+export function useToggleFAQCategoryVisibility() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (categoryId: number) =>
+      patch<FAQCategory>(`/api/intranet/faqs/categories/${categoryId}/visibility`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.faqCategories() }),
+  });
+}
+
+// ── FAQ mutations ─────────────────────────────────────────────────────────────
+
+type FAQCreatePayload = Omit<FAQItem, "id" | "created_at" | "updated_at">;
+type FAQUpdatePayload = Partial<FAQCreatePayload>;
+
+export function useCreateFAQ() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: FAQCreatePayload) =>
+      post<FAQItem>("/api/intranet/faqs/", data),
+    onSuccess: () => invalidateFAQs(qc),
+  });
+}
+
+export function useUpdateFAQ() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: FAQUpdatePayload & { id: number }) =>
+      patch<FAQItem>(`/api/intranet/faqs/${id}`, data),
+    onSuccess: () => invalidateFAQs(qc),
+  });
+}
+
+export function useDeleteFAQ() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => del(`/api/intranet/faqs/${id}`),
+    onSuccess: () => invalidateFAQs(qc),
+  });
+}
+
+export function useToggleFAQPublished() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      patch<FAQItem>(`/api/intranet/faqs/${id}/publish`, {}),
+    onSuccess: () => invalidateFAQs(qc),
+  });
+}
+
+export function useReorderFAQs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (updates: { id: number; order_index: number }[]) =>
+      post<void>("/api/intranet/faqs/reorder", updates),
+    onSuccess: () => invalidateFAQs(qc),
+  });
+}
+
+// ── Feedback mutations ────────────────────────────────────────────────────────
+
+type FeedbackSubmitPayload = {
+  category: string;
+  subject: string;
+  message: string;
+  is_anonymous: boolean;
+};
+
+export function useSubmitFeedback() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: FeedbackSubmitPayload) =>
+      post<FeedbackEntry>("/api/intranet/feedback/", data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.feedbackAdmin() }),
+  });
+}
+
+export function useUpdateFeedbackStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: FeedbackStatus }) =>
+      patch<FeedbackEntry>(`/api/intranet/feedback/${id}/status`, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.feedbackAdmin() }),
+  });
+}
+
+// ── Podcast mutations ─────────────────────────────────────────────────────────
+
+type PodcastCreatePayload = Omit<PodcastEpisode, "id" | "created_at" | "updated_at" | "cover_image_url" | "audio_file_url">;
+type PodcastUpdatePayload = Partial<PodcastCreatePayload>;
+
+function invalidatePodcast(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: intranetKeys.podcast() });
+  qc.invalidateQueries({ queryKey: intranetKeys.podcastAdmin() });
+}
+
+export function useUploadPodcastCover() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return postForm<ImageUploadResult>("/api/intranet/podcast/upload-cover/", fd);
+    },
+  });
+}
+
+export function useUploadPodcastAudio() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return postForm<ImageUploadResult>("/api/intranet/podcast/upload-audio/", fd);
+    },
+  });
+}
+
+export function useCreatePodcast() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: PodcastCreatePayload) =>
+      post<PodcastEpisode>("/api/intranet/podcast/", data),
+    onSuccess: () => invalidatePodcast(qc),
+  });
+}
+
+export function useUpdatePodcast() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: PodcastUpdatePayload & { id: number }) =>
+      patch<PodcastEpisode>(`/api/intranet/podcast/${id}`, data),
+    onSuccess: (_data, { id }) => {
+      invalidatePodcast(qc);
+      qc.invalidateQueries({ queryKey: intranetKeys.podcastDetail(id) });
+    },
+  });
+}
+
+export function useDeletePodcast() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => del(`/api/intranet/podcast/${id}`),
+    onSuccess: () => invalidatePodcast(qc),
+  });
+}
+
+export function useTogglePodcastPublished() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      patch<PodcastEpisode>(`/api/intranet/podcast/${id}/publish`, {}),
+    onSuccess: () => invalidatePodcast(qc),
+  });
+}
+
+export function useSetPodcastFeatured() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      patch<PodcastEpisode>(`/api/intranet/podcast/${id}/feature`, {}),
+    onSuccess: () => invalidatePodcast(qc),
   });
 }

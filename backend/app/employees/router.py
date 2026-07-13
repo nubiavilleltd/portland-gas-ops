@@ -14,6 +14,7 @@ from app.employees.schemas import (
     EmployeePublicResponse,
     EmployeeListItem,
     DocumentResponse,
+    BirthdayResponse,
 )
 from app.employees import service as employee_service
 
@@ -67,6 +68,16 @@ def get_my_profile(
     current_user: User = Depends(get_current_user),
 ):
     return employee_service.get_employee_by_user_id(current_user.id, db)
+
+
+# Must come before /{employee_id} to avoid "birthdays" being captured as an ID
+@router.get("/birthdays/week", response_model=List[BirthdayResponse])
+def get_week_birthdays(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Returns employees with birthdays today through the next 6 days."""
+    return employee_service.get_week_birthdays(db)
 
 
 @router.get("/{employee_id}", response_model=EmployeePublicResponse)

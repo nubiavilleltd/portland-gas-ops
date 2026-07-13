@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Tag, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, X, Eye, EyeOff } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
@@ -12,13 +12,16 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import FormInput from "@/components/forms/FormInput";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { BackButton } from "@/components/ui/BackButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Tip from "@/components/ui/Tip";
+import Badge from "@/components/ui/Badge";
 import { useIntranetSpotlightAdmin, useIntranetSpotlightTags } from "@/lib/modules/intranet/queries";
 import {
   useCreateSpotlight,
   useUpdateSpotlight,
   useDeleteSpotlight,
+  useToggleSpotlightPublished,
   useCreateSpotlightTag,
+  useUpdateSpotlightTag,
   useDeleteSpotlightTag,
 } from "@/lib/modules/intranet/mutations";
 import { useToast } from "@/hooks/useToast";
@@ -84,10 +87,17 @@ const columns: Column<SpotlightRow>[] = [
       <p className="text-sm text-brand-text-secondary max-w-sm truncate">{row.message}</p>
     ),
   },
+  {
+    key: "is_published",
+    label: "Status",
+    render: (_, row) => (
+      <Badge variant={row.is_published ? "success" : "neutral"} label={row.is_published ? "Visible" : "Hidden"} />
+    ),
+  },
 ];
 
 export default function SpotlightPage() {
-  const { data: all = [], isLoading }  = useIntranetSpotlightAdmin();
+  const { data: all = [], isLoading, isFetching } = useIntranetSpotlightAdmin();
   const { data: tags = [] }            = useIntranetSpotlightTags();
   const { data: employeeList = [] }    = useEmployees();
   const toast = useToast();
@@ -103,9 +113,13 @@ export default function SpotlightPage() {
   // Spotlight cards exclude EOM entries
   const cards = all.filter((e) => e.category !== "employee_of_month");
 
-  const deleteMutation     = useDeleteSpotlight();
-  const createTagMutation  = useCreateSpotlightTag();
-  const deleteTagMutation  = useDeleteSpotlightTag();
+  const deleteMutation        = useDeleteSpotlight();
+  const togglePublishMutation = useToggleSpotlightPublished();
+  const createTagMutation     = useCreateSpotlightTag();
+  const updateTagMutation     = useUpdateSpotlightTag();
+  const deleteTagMutation     = useDeleteSpotlightTag();
+
+  const [toggleConfirm, setToggleConfirm] = useState<SpotlightEntry | null>(null);
 
   // Spotlight card modal state
   const [modalOpen,  setModalOpen]  = useState(false);
@@ -119,6 +133,7 @@ export default function SpotlightPage() {
   const [tagPanelOpen,  setTagPanelOpen]  = useState(false);
   const [newTagLabel,   setNewTagLabel]   = useState("");
   const [newTagColor,   setNewTagColor]   = useState("#166534");
+  const [editTag,       setEditTag]       = useState<{ id: number; label: string; color: string; bg: string } | null>(null);
   const [deleteTagId,   setDeleteTagId]   = useState<number | null>(null);
 
   const createMutation = useCreateSpotlight();
@@ -226,15 +241,32 @@ export default function SpotlightPage() {
     setDeleteId(null);
   }
 
+  function startEditTag(t: { id: number; label: string; color: string; bg: string }) {
+    setEditTag(t);
+    setNewTagLabel(t.label);
+    setNewTagColor(t.color);
+  }
+
+  function cancelEditTag() {
+    setEditTag(null);
+    setNewTagLabel("");
+    setNewTagColor("#166534");
+  }
+
   async function handleAddTag() {
     if (!newTagLabel.trim()) return;
     try {
-      await createTagMutation.mutateAsync({ label: newTagLabel.trim(), color: newTagColor, bg: deriveBg(newTagColor) });
-      toast.success("Tag added.");
-      setNewTagLabel("");
-      setNewTagColor("#166534");
+      if (editTag) {
+        const newColor = newTagColor;
+        await updateTagMutation.mutateAsync({ id: editTag.id, label: newTagLabel.trim(), color: newColor, bg: deriveBg(newColor) });
+        toast.success("Tag updated.");
+      } else {
+        await createTagMutation.mutateAsync({ label: newTagLabel.trim(), color: newTagColor, bg: deriveBg(newTagColor) });
+        toast.success("Tag added.");
+      }
+      cancelEditTag();
     } catch {
-      toast.error("Failed to add tag. Label may already exist.");
+      toast.error(editTag ? "Failed to update tag." : "Failed to add tag. Label may already exist.");
     }
   }
 
@@ -253,18 +285,30 @@ export default function SpotlightPage() {
 
   const tableActions: DataTableAction<SpotlightRow>[] = [
     {
+      key: "toggle",
+      label: "",
+      icon: (row) => (
+        <Tip label={row.is_published ? "Hide from Intranet" : "Show on Intranet"}>
+          {row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}
+        </Tip>
+      ),
+      variant: "ghost",
+      onClick: (row) => {
+        const item = cards.find((c) => c.id === row._numId)!;
+        setToggleConfirm(item);
+      },
+    },
+    {
       key: "edit",
       label: "",
-      icon: <Pencil size={14} />,
-      title: "Edit",
+      icon: <Tip label="Edit Spotlight"><Pencil size={14} /></Tip>,
       variant: "ghost",
       onClick: (row) => openEdit(row),
     },
     {
       key: "delete",
       label: "",
-      icon: <Trash2 size={14} />,
-      title: "Delete",
+      icon: <Tip label="Remove Spotlight"><Trash2 size={14} /></Tip>,
       variant: "ghost",
       className: "hover:bg-red-50 hover:text-red-600",
       onClick: (row) => setDeleteId(row._numId),
@@ -290,19 +334,16 @@ export default function SpotlightPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
-      ) : (
-        <DataTable<SpotlightRow>
-          columns={columns}
-          data={rows}
-          showActions
-          actions={tableActions}
-          actionsLabel="Actions"
-          emptyMessage="No spotlight cards yet."
-          emptyDescription="Add up to 3 employees to feature on the intranet homepage."
-        />
-      )}
+      <DataTable<SpotlightRow>
+        columns={columns}
+        data={rows}
+        isLoading={isLoading || isFetching}
+        showActions
+        actions={tableActions}
+        actionsLabel="Actions"
+        emptyMessage="No spotlight cards yet."
+        emptyDescription="Add up to 3 employees to feature on the intranet homepage."
+      />
 
       {/* ── Add / Edit spotlight card ─────────────────────────────────────── */}
       <ActionModal
@@ -391,9 +432,16 @@ export default function SpotlightPage() {
         }
       >
         <div className="space-y-6">
-          {/* Add new tag */}
+          {/* Add / Edit tag */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-brand-text-primary">Add Tag</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-brand-text-primary">{editTag ? "Edit Tag" : "Add Tag"}</p>
+              {editTag && (
+                <button type="button" onClick={cancelEditTag} className="text-xs text-brand-text-secondary hover:text-brand-text-primary transition-colors">
+                  Cancel
+                </button>
+              )}
+            </div>
             <FormInput
               label="Label"
               placeholder="e.g. Rising Star"
@@ -428,12 +476,12 @@ export default function SpotlightPage() {
 
             <Button
               onClick={handleAddTag}
-              loading={createTagMutation.isPending}
-              loadingText="Adding…"
-              leftIcon={<Plus size={14} />}
+              loading={createTagMutation.isPending || updateTagMutation.isPending}
+              loadingText={editTag ? "Saving…" : "Adding…"}
+              leftIcon={editTag ? undefined : <Plus size={14} />}
               className="w-full"
             >
-              Add Tag
+              {editTag ? "Save Changes" : "Add Tag"}
             </Button>
           </div>
 
@@ -457,13 +505,20 @@ export default function SpotlightPage() {
                     >
                       {t.label}
                     </span>
-                    <button
-                      onClick={() => setDeleteTagId(t.id)}
-                      className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
-                      title="Delete tag"
-                    >
-                      <X size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => startEditTag(t)}
+                        className="text-gray-400 hover:text-brand-purple transition-colors p-1 rounded"
+                      >
+                        <Tip label="Edit Tag"><Pencil size={13} /></Tip>
+                      </button>
+                      <button
+                        onClick={() => setDeleteTagId(t.id)}
+                        className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
+                      >
+                        <Tip label="Delete Tag"><X size={14} /></Tip>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -471,6 +526,30 @@ export default function SpotlightPage() {
           </div>
         </div>
       </ActionModal>
+
+      {/* Publish / hide toggle confirm */}
+      <ConfirmDialog
+        open={toggleConfirm !== null}
+        title={toggleConfirm?.is_published ? "Hide Spotlight Card" : "Show Spotlight Card"}
+        message={
+          toggleConfirm?.is_published
+            ? `"${toggleConfirm.employee_name}" will no longer appear in the intranet spotlight section.`
+            : `"${toggleConfirm?.employee_name}" will become visible in the intranet spotlight section.`
+        }
+        confirmLabel={toggleConfirm?.is_published ? "Hide" : "Show"}
+        destructive={toggleConfirm?.is_published ?? false}
+        onConfirm={async () => {
+          if (toggleConfirm) {
+            try {
+              await togglePublishMutation.mutateAsync(toggleConfirm.id);
+            } catch {
+              /* toast from hook or let it fail silently */
+            }
+            setToggleConfirm(null);
+          }
+        }}
+        onCancel={() => setToggleConfirm(null)}
+      />
 
       <ConfirmDialog
         open={deleteId !== null}

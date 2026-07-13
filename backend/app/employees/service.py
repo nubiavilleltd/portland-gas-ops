@@ -12,9 +12,9 @@ Onboarding flow:
 import secrets
 import string
 from sqlalchemy.orm import Session, joinedload, contains_eager
-from sqlalchemy import func
+from sqlalchemy import func, extract, or_, and_
 from fastapi import HTTPException, status, UploadFile
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date as date_type
 
 from app.shared.models.user import User, UserRole, AccountStatus
 from app.shared.models.document import Document
@@ -454,3 +454,60 @@ def delete_employee_document(employee_id: str, doc_id: int, db: Session) -> dict
     db.delete(doc)
     db.commit()
     return {"message": "Document deleted."}
+
+
+# ── Birthday week query ────────────────────────────────────────────────────────
+
+def get_week_birthdays(db: Session) -> list[dict]:
+    """
+    Returns employees whose birthday (month + day) falls within today through
+    today + 6 days. Handles year-end wrap-around correctly.
+    Only includes active and pending accounts with a birthday set.
+    """
+    today = date_type.today()
+
+    # Build OR conditions for each of the 7 days
+    conditions = []
+    for i in range(7):
+        d = today + timedelta(days=i)
+        conditions.append(and_(
+            extract("month", Employee.birthday) == d.month,
+            extract("day",   Employee.birthday) == d.day,
+        ))
+
+    rows = (
+        db.query(Employee)
+        .join(Employee.user)
+        .options(joinedload(Employee.user).joinedload(User.profile_picture))
+        .filter(
+            Employee.birthday.isnot(None),
+            User.account_status.in_([AccountStatus.active, AccountStatus.pending]),
+            or_(*conditions),
+        )
+        .all()
+    )
+
+    results = []
+    for emp in rows:
+        bday = emp.birthday
+        # Find the next occurrence of this birthday on or after today
+        this_year = bday.replace(year=today.year)
+        if this_year < today:
+            this_year = bday.replace(year=today.year + 1)
+        days_until = (this_year - today).days
+
+        name = emp.user.full_name if emp.user else ""
+        dept = emp.department.value if emp.department else None
+        avatar = emp.user.profile_picture_url if emp.user else None
+
+        results.append({
+            "employee_id": emp.id,
+            "name":        name,
+            "department":  dept,
+            "avatar_url":  avatar,
+            "days_until":  days_until,
+        })
+
+    # Sort by days_until so Today comes first
+    results.sort(key=lambda r: r["days_until"])
+    return results
