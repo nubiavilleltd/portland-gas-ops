@@ -12,6 +12,7 @@ const api = axios.create({
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Dynamically import to avoid SSR issues
   console.log("API base URL:", API_URL, api);
+  console.log("REQUEST", {     baseURL: config.baseURL,     url: config.url,     full: `${config.baseURL}${config.url}`,   });
   if (typeof window !== "undefined") {
     const { useAuthStore } = await import("@/store/authStore");
     const token = useAuthStore.getState().accessToken;
