@@ -20,6 +20,7 @@ service = CustomerService()
 order_service = OrderService()
 
 
+@router.get("", response_model=CustomerListResponse, include_in_schema=False)
 @router.get("/", response_model=CustomerListResponse)
 def list_customers(
     search:    Optional[str] = Query(None),

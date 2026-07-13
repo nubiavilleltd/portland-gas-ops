@@ -18,31 +18,31 @@ function shouldRetry(failureCount: number, error: unknown) {
 }
 
 export function useEmployees(params: ListEmployeesParams = {}) {
-  const { isAuthenticated } = useAuthStore();
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => employeesApi.list(params),
-    enabled: isAuthenticated,
+    enabled: Boolean(accessToken),
     retry: shouldRetry,
   });
 }
 
 export function useEmployee(id: string) {
-  const { isAuthenticated } = useAuthStore();
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.detail(id),
     queryFn: () => employeesApi.get(id),
-    enabled: isAuthenticated && !!id,
+    enabled: Boolean(accessToken) && !!id,
     retry: shouldRetry,
   });
 }
 
 export function useMyEmployee() {
-  const { isAuthenticated } = useAuthStore();
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.me,
     queryFn: () => employeesApi.getMe(),
-    enabled: isAuthenticated,
+    enabled: Boolean(accessToken),
     retry: shouldRetry,
   });
 }
@@ -108,11 +108,11 @@ export function useResendSetup() {
 }
 
 export function useEmployeeDocuments(id: string) {
-  const { isAuthenticated } = useAuthStore();
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.documents(id),
     queryFn: () => employeesApi.getDocuments(id),
-    enabled: isAuthenticated && !!id,
+    enabled: Boolean(accessToken) && !!id,
     retry: shouldRetry,
   });
 }

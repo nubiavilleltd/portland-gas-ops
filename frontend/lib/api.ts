@@ -1,4 +1,8 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, {
+  AxiosHeaders,
+  type InternalAxiosRequestConfig,
+  type AxiosResponse,
+} from "axios";
 import { API_URL } from "./constants";
 
 const api = axios.create({
@@ -17,7 +21,11 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     const { useAuthStore } = await import("@/store/authStore");
     const token = useAuthStore.getState().accessToken;
     if (token && config.headers) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+      if (config.headers instanceof AxiosHeaders) {
+        config.headers.set("Authorization", `Bearer ${token}`);
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
       console.log("Attached Bearer token to request:", token);
     }
 
@@ -95,10 +103,12 @@ api.interceptors.response.use(
           originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
         }
         return api(originalRequest);
-      } catch (refreshError: any) {
+      } catch (refreshError: unknown) {
         processQueue(refreshError, null);
 
-        const refreshStatus = refreshError?.response?.status;
+        const refreshStatus = (
+          refreshError as { response?: { status?: number } }
+        )?.response?.status;
 
         // Only clear session + redirect on a real auth failure (401).
         // A 429 rate-limit means the token is still valid — do NOT redirect,

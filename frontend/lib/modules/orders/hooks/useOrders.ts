@@ -20,11 +20,11 @@ function shouldRetry(failureCount: number, error: unknown) {
 }
 
 export function useOrders() {
-  const { isAuthenticated } = useAuthStore();
+  const { accessToken } = useAuthStore();
   const query = useQuery({
     queryKey: ORDER_KEYS.lists(),
     queryFn: OrdersService.getOrders,
-    enabled: isAuthenticated,
+    enabled: Boolean(accessToken),
     staleTime: 60 * 1000,
     retry: shouldRetry,
   });

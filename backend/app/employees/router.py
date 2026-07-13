@@ -26,6 +26,7 @@ router = APIRouter()
 
 # ── List ──────────────────────────────────────────────────────────────────────
 
+@router.get("", response_model=List[EmployeeListItem], include_in_schema=False)
 @router.get("/", response_model=List[EmployeeListItem])
 def list_employees(
     skip: int = Query(0, ge=0),

@@ -25,6 +25,7 @@ def _to_response(order) -> OrderResponse:
     return OrderResponse.model_validate(order)
 
 
+@router.get("", response_model=OrderListResponse, include_in_schema=False)
 @router.get("/", response_model=OrderListResponse)
 def list_orders(
     search:             Optional[str]              = Query(None),
