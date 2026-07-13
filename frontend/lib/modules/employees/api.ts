@@ -10,7 +10,7 @@ import type {
 
 export const employeesApi = {
   list: async (params: ListEmployeesParams = {}): Promise<EmployeeListItem[]> => {
-    const { data } = await api.get("/api/employees/", { params });
+    const { data } = await api.get("/api/employees", { params });
     return data;
   },
 
@@ -30,7 +30,7 @@ export const employeesApi = {
   },
 
   create: async (payload: CreateEmployeePayload): Promise<EmployeeDetail> => {
-    const { data } = await api.post("/api/employees/", payload);
+    const { data } = await api.post("/api/employees", payload);
     return data;
   },
 

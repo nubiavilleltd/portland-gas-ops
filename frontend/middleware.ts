@@ -7,9 +7,6 @@ const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", "/
 const ALWAYS_PUBLIC_PATHS = ["/setup-account"];
 
 export function middleware(request: NextRequest) {
-  // Dev bypass: uncomment the line below to skip auth checks during development
-  // return NextResponse.next();
-
   const { pathname } = request.nextUrl;
 
   const isAuthPath        = AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));

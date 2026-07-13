@@ -57,7 +57,7 @@ const columns: Column<NewsRow>[] = [
   {
     key: "title",
     label: "Title",
-    className: "max-w-xs w-full",
+    className: "max-w-xs",
     render: (_, row) => (
       <div className="min-w-0">
         <p className="font-medium text-brand-text-primary truncate max-w-xs">{row.title}</p>

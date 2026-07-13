@@ -34,7 +34,7 @@ def _to_response(payment) -> PaymentResponse:
     return data
 
 
-@router.get("/", response_model=PaymentListResponse)
+@router.get("", response_model=PaymentListResponse)
 def list_payments(
     invoice_id: Optional[str] = Query(None),
     page: int = Query(1, ge=1),

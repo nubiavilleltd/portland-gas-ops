@@ -9,7 +9,7 @@ export const customersApi = {
         page?: number;
         page_size?: number;
     } = {}) => {
-        const { data } = await api.get("/api/customers/", { params });
+        const { data } = await api.get("/api/customers", { params });
         return data;
     },
 
@@ -19,7 +19,7 @@ export const customersApi = {
     },
 
     create: async (input: CreateCustomerInput) => {
-        const { data } = await api.post("/api/customers/", {
+        const { data } = await api.post("/api/customers", {
             name: input.name,
             type: input.type,
             phone: input.phone,

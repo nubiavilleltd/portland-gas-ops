@@ -18,7 +18,7 @@ export const ordersApi = {
       page_size?: number;
     } = {},
   ) => {
-    const { data } = await api.get("/api/orders/", {
+    const { data } = await api.get("/api/orders", {
       params,
     });
 
@@ -37,7 +37,7 @@ export const ordersApi = {
     input: CreateOrderRequest,
   ) => {
     const { data } = await api.post(
-      "/api/orders/",
+      "/api/orders",
       input,
     );
 

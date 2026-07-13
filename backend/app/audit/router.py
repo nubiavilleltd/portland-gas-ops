@@ -11,7 +11,7 @@ from app.audit.schema import AuditLogResponse, AuditEntityType
 router = APIRouter()
 
 
-@router.get("/", response_model=List[AuditLogResponse])
+@router.get("", response_model=List[AuditLogResponse])
 def list_audit_log(
     entity_type: AuditEntityType = Query(...),
     entity_id:   str             = Query(...),

@@ -65,7 +65,7 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
         "lg:translate-x-0"
       )}
       style={{
-        backgroundImage: "linear-gradient(180deg, rgba(26,15,46,0.92) 0%, rgba(17,8,38,0.88) 45%, rgba(13,13,18,0.95) 100%), url('/portland-sidebar.png')",
+        backgroundImage: "linear-gradient(180deg, rgba(26,15,46,0.92) 0%, rgba(17,8,38,0.88) 45%, rgba(13,13,18,0.95) 100%), url('/Portland-sidebar.png')",
         backgroundSize: "auto, cover",
         backgroundPosition: "center, center 30%",
         backgroundRepeat: "no-repeat, no-repeat",

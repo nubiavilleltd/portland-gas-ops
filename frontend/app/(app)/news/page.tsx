@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Search, ArrowRight } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
-import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
+import IntranetPageHero from "@/components/ui/IntranetPageHero";
 import Pagination from "@/components/ui/Pagination";
 import { cn } from "@/lib/utils";
 import { useIntranetNewsPublished, useIntranetNewsCategories } from "@/lib/modules/intranet/queries";
@@ -73,26 +73,16 @@ export default function NewsPage() {
 
   return (
     <IntranetLayout>
-      {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="bg-[#1C043B] pt-12 pb-8 px-4 lg:px-8">
-        <div className="max-w-[1400px] mx-auto">
-          <p className="text-[#FFBC00] text-xs font-bold uppercase tracking-widest mb-2">Portland Gas Intranet</p>
-          <h1 className="text-3xl font-extrabold text-white mb-4" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
-            News & Announcements
-          </h1>
-          <IntranetSearchBar
-            value={q}
-            onChange={handleSearch}
-            placeholder="Search news…"
-            className="max-w-lg"
-          />
-        </div>
-      </div>
+      <IntranetPageHero
+        title="News & Announcements"
+        subtitle="Stay informed with the latest updates from across Portland Gas."
+        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/13TH-OF-AUGUST-52-scaled-1.jpg"
+      />
 
       <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-7">
+        {/* Category tabs LEFT — search RIGHT */}
+        <div className="flex items-center gap-2 mb-7">
           {TABS.map((t) => (
             <button
               key={t}
@@ -105,6 +95,17 @@ export default function NewsPage() {
               {t}
             </button>
           ))}
+          {/* Search — pushed to the right */}
+          <div className="relative ml-auto shrink-0">
+            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search news…"
+              className="py-2 w-72 pl-9 pr-5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[#7234BD]/20 focus:border-[#7234BD]/40 transition-all"
+            />
+          </div>
         </div>
 
         {/* Result count */}

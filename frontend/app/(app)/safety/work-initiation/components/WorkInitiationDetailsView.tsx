@@ -16,6 +16,7 @@ import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
+import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import {
   useWorkInitiation,
   useOperationsHodReviewWorkInitiation,
@@ -116,16 +117,7 @@ const contractorContactEmailByName: Record<string, string> = {
   "Electrical Support Contractors": "support@electricalcontractors.example",
 };
 const categoryOptions = toOptions(workCategoryOptions);
-const locationOptions = toOptions([
-  "Conversion Bay 1",
-  "Conversion Bay 2",
-  "Vehicle Yard",
-  "Gas Storage Area",
-  "Maintenance Workshop",
-  "Electrical Room",
-  "Loading Area",
-  "Inspection Bay",
-]);
+const locationOptions = toOptions(safetyLocationOptions);
 const contractorOptions = toOptions([
   "SafeWeld Engineering Ltd",
   "Prime Gas Services",
@@ -174,7 +166,6 @@ export default function WorkInitiationDetailsView({
   const auditTrailQuery = useAuditTrail("work_initiation", requestId);
   const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
   const request = requestQuery.data;
-  console.log("WorkInitiationDetailsView request:", request);
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
   const [editValuesById, setEditValuesById] = useState<

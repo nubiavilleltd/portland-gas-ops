@@ -11,6 +11,7 @@ from app.employees.schemas import (
     EmployeeUpdate,
     EmployeeProfileUpdate,
     EmployeeResponse,
+    EmployeePublicResponse,
     EmployeeListItem,
     DocumentResponse,
 )
@@ -25,7 +26,7 @@ router = APIRouter()
 
 # ── List ──────────────────────────────────────────────────────────────────────
 
-@router.get("/", response_model=List[EmployeeListItem])
+@router.get("", response_model=List[EmployeeListItem])
 def list_employees(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -49,7 +50,7 @@ def count_employees(
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
-@router.post("/", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
 def create_employee(
     data: EmployeeCreate,
     db: Session = Depends(get_db),
@@ -68,7 +69,7 @@ def get_my_profile(
     return employee_service.get_employee_by_user_id(current_user.id, db)
 
 
-@router.get("/{employee_id}", response_model=EmployeeResponse)
+@router.get("/{employee_id}", response_model=EmployeePublicResponse)
 def get_employee(
     employee_id: str,
     db: Session = Depends(get_db),

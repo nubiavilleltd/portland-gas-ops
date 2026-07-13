@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, X } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
@@ -9,36 +9,38 @@ import ActionModal from "@/components/ui/ActionModal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Button from "@/components/ui/Button";
 import FormTextarea from "@/components/forms/FormTextarea";
+import FormInput from "@/components/forms/FormInput";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { BackButton } from "@/components/ui/BackButton";
-import { useEmployeeSpotlight } from "@/lib/modules/intranet/hooks/useIntranetSpotlight";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useIntranetSpotlightAdmin, useIntranetSpotlightTags } from "@/lib/modules/intranet/queries";
+import {
+  useCreateSpotlight,
+  useUpdateSpotlight,
+  useDeleteSpotlight,
+  useCreateSpotlightTag,
+  useDeleteSpotlightTag,
+} from "@/lib/modules/intranet/mutations";
 import { useToast } from "@/hooks/useToast";
 import type { SpotlightEntry } from "@/lib/modules/intranet/types/intranet.types";
-import { EMPLOYEE_STORE } from "@/app/(app)/admin/_components/_data";
-
-const EMPLOYEES: PickedEmployee[] = EMPLOYEE_STORE.map((e) => ({
-  id: e.id,
-  name: `${e.firstName} ${e.lastName}`,
-  role: e.title,
-  department: e.department,
-  avatar_url: `https://i.pravatar.cc/150?img=${10 + Number(e.id)}`,
-}));
+import { useEmployees } from "@/lib/modules/employees/hooks";
 
 type SpotlightRow = Omit<SpotlightEntry, "id"> & { id: string; _numId: number };
 
-const TAG_PRESETS = [
-  { label: "Safety Champion",   color: "#166534", bg: "#F0FDF4" },
-  { label: "Process Innovator", color: "#1E40AF", bg: "#EFF6FF" },
-  { label: "Top Performer",     color: "#7234BD", bg: "#F3EEFF" },
-  { label: "Team Player",       color: "#B45309", bg: "#FFFBEB" },
-  { label: "Innovation Award",  color: "#C2410C", bg: "#FFF7ED" },
-];
+/** Given a hex colour, returns a light tinted background (12% colour + 88% white). */
+function deriveBg(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+  return `#${toHex(r * 0.12 + 255 * 0.88)}${toHex(g * 0.12 + 255 * 0.88)}${toHex(b * 0.12 + 255 * 0.88)}`;
+}
 
 const EMPTY_FORM = {
   message:      "",
-  tag:          TAG_PRESETS[0].label,
-  tag_color:    TAG_PRESETS[0].color,
-  tag_bg:       TAG_PRESETS[0].bg,
+  tag:          "",
+  tag_color:    "#166534",
+  tag_bg:       "#F0FDF4",
   is_published: true,
 };
 type FormState = typeof EMPTY_FORM;
@@ -69,9 +71,9 @@ const columns: Column<SpotlightRow>[] = [
     render: (_, row) => (
       <span
         className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-        style={{ backgroundColor: row.tag_bg, color: row.tag_color }}
+        style={{ backgroundColor: row.tag_bg ?? "#F3EEFF", color: row.tag_color ?? "#7234BD" }}
       >
-        {row.tag}
+        {row.tag ?? "—"}
       </span>
     ),
   },
@@ -85,18 +87,50 @@ const columns: Column<SpotlightRow>[] = [
 ];
 
 export default function SpotlightPage() {
-  const { cards, update, add, remove } = useEmployeeSpotlight();
+  const { data: all = [], isLoading }  = useIntranetSpotlightAdmin();
+  const { data: tags = [] }            = useIntranetSpotlightTags();
+  const { data: employeeList = [] }    = useEmployees();
   const toast = useToast();
 
+  const EMPLOYEES: PickedEmployee[] = employeeList.map((e) => ({
+    id:         e.id,
+    name:       `${e.user?.first_name ?? ""} ${e.user?.last_name ?? ""}`.trim(),
+    role:       e.job_title ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url ?? undefined,
+  }));
+
+  // Spotlight cards exclude EOM entries
+  const cards = all.filter((e) => e.category !== "employee_of_month");
+
+  const deleteMutation     = useDeleteSpotlight();
+  const createTagMutation  = useCreateSpotlightTag();
+  const deleteTagMutation  = useDeleteSpotlightTag();
+
+  // Spotlight card modal state
   const [modalOpen,  setModalOpen]  = useState(false);
   const [deleteId,   setDeleteId]   = useState<number | null>(null);
   const [editTarget, setEditTarget] = useState<SpotlightEntry | null>(null);
   const [employee,   setEmployee]   = useState<PickedEmployee | null>(null);
   const [form,       setForm]       = useState<FormState>(EMPTY_FORM);
   const [errors,     setErrors]     = useState<Record<string, string>>({});
-  const [saving,     setSaving]     = useState(false);
+
+  // Tag management panel state
+  const [tagPanelOpen,  setTagPanelOpen]  = useState(false);
+  const [newTagLabel,   setNewTagLabel]   = useState("");
+  const [newTagColor,   setNewTagColor]   = useState("#166534");
+  const [deleteTagId,   setDeleteTagId]   = useState<number | null>(null);
+
+  const createMutation = useCreateSpotlight();
+  const updateMutation = useUpdateSpotlight(editTarget?.id ?? 0);
 
   const rows: SpotlightRow[] = cards.map((c) => ({ ...c, id: String(c.id), _numId: c.id }));
+
+  // ── Defaults when form opens ──────────────────────────────────────────────
+  function defaultTag() {
+    if (tags.length === 0) return { tag: "", tag_color: "#166534", tag_bg: "#F0FDF4" };
+    return { tag: tags[0].label, tag_color: tags[0].color, tag_bg: tags[0].bg };
+  }
 
   function openCreate() {
     if (cards.length >= 3) {
@@ -105,7 +139,7 @@ export default function SpotlightPage() {
     }
     setEditTarget(null);
     setEmployee(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, ...defaultTag() });
     setErrors({});
     setModalOpen(true);
   }
@@ -115,18 +149,18 @@ export default function SpotlightPage() {
     setEditTarget(item);
     setEmployee(
       EMPLOYEES.find((e) => e.name === item.employee_name) ?? {
-        id: String(item.employee_id),
+        id: item.employee_id ?? "0",
         name: item.employee_name,
-        role: item.employee_role,
-        department: item.employee_dept,
-        avatar_url: item.avatar_url,
+        role: item.employee_role ?? "",
+        department: item.employee_dept ?? "",
+        avatar_url: item.avatar_url ?? undefined,
       }
     );
     setForm({
       message:      item.message,
-      tag:          item.tag,
-      tag_color:    item.tag_color,
-      tag_bg:       item.tag_bg,
+      tag:          item.tag ?? defaultTag().tag,
+      tag_color:    item.tag_color ?? defaultTag().tag_color,
+      tag_bg:       item.tag_bg ?? defaultTag().tag_bg,
       is_published: item.is_published,
     });
     setErrors({});
@@ -143,46 +177,79 @@ export default function SpotlightPage() {
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!employee)        e.employee = "Please select an employee";
-    if (!form.message.trim()) e.message = "Recognition message is required";
+    if (!employee)            e.employee = "Please select an employee";
+    if (!form.message.trim()) e.message  = "Recognition message is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
   async function handleSave() {
     if (!validate()) return;
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 300));
-    const ts = new Date().toISOString();
     const payload = {
-      employee_id:   Number(employee!.id),
+      employee_id:   employee!.id,
       employee_name: employee!.name,
-      employee_role: employee!.role,
-      employee_dept: employee!.department,
-      avatar_url:    employee!.avatar_url ?? "",
+      employee_role: employee!.role ?? null,
+      employee_dept: employee!.department ?? null,
+      avatar_url:    employee!.avatar_url ?? null,
       title:         `Spotlight — ${employee!.name}`,
       message:       form.message,
-      tag:           form.tag,
-      tag_color:     form.tag_color,
-      tag_bg:        form.tag_bg,
+      category:      "achievement" as const,
+      month:         null,
+      year:          null,
+      tag:           form.tag || null,
+      tag_color:     form.tag_color || null,
+      tag_bg:        form.tag_bg || null,
       is_published:  form.is_published,
-      month:         new Date().getMonth() + 1,
-      year:          new Date().getFullYear(),
-      published_at:  form.is_published ? ts : null,
     };
-    if (editTarget) {
-      update(editTarget.id, payload);
-    } else {
-      add(payload);
+    try {
+      if (editTarget) {
+        await updateMutation.mutateAsync(payload);
+        toast.success("Spotlight card updated.");
+      } else {
+        await createMutation.mutateAsync(payload);
+        toast.success("Spotlight card added.");
+      }
+      handleClose();
+    } catch {
+      toast.error("Failed to save spotlight card.");
     }
-    setSaving(false);
-    toast.success(editTarget ? "Spotlight card updated." : "Spotlight card added.");
-    handleClose();
   }
 
-  function applyTag(preset: typeof TAG_PRESETS[0]) {
-    setForm((prev) => ({ ...prev, tag: preset.label, tag_color: preset.color, tag_bg: preset.bg }));
+  async function handleDelete() {
+    if (deleteId === null) return;
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      toast.success("Spotlight card removed.");
+    } catch {
+      toast.error("Failed to remove card.");
+    }
+    setDeleteId(null);
   }
+
+  async function handleAddTag() {
+    if (!newTagLabel.trim()) return;
+    try {
+      await createTagMutation.mutateAsync({ label: newTagLabel.trim(), color: newTagColor, bg: deriveBg(newTagColor) });
+      toast.success("Tag added.");
+      setNewTagLabel("");
+      setNewTagColor("#166534");
+    } catch {
+      toast.error("Failed to add tag. Label may already exist.");
+    }
+  }
+
+  async function handleDeleteTag() {
+    if (deleteTagId === null) return;
+    try {
+      await deleteTagMutation.mutateAsync(deleteTagId);
+      toast.success("Tag removed.");
+    } catch {
+      toast.error("Failed to remove tag.");
+    }
+    setDeleteTagId(null);
+  }
+
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   const tableActions: DataTableAction<SpotlightRow>[] = [
     {
@@ -212,22 +279,32 @@ export default function SpotlightPage() {
         description={`Manage spotlight cards shown on the intranet homepage (max 3). Currently ${cards.length}/3.`}
         className="mb-6"
         action={
-          <Button leftIcon={<Plus size={16} />} onClick={openCreate}>
-            Add Spotlight
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" leftIcon={<Tag size={16} />} onClick={() => setTagPanelOpen(true)}>
+              Manage Tags
+            </Button>
+            <Button leftIcon={<Plus size={16} />} onClick={openCreate}>
+              Add Spotlight
+            </Button>
+          </div>
         }
       />
 
-      <DataTable<SpotlightRow>
-        columns={columns}
-        data={rows}
-        showActions
-        actions={tableActions}
-        actionsLabel="Actions"
-        emptyMessage="No spotlight cards yet."
-        emptyDescription="Add up to 3 employees to feature on the intranet homepage."
-      />
+      {isLoading ? (
+        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+      ) : (
+        <DataTable<SpotlightRow>
+          columns={columns}
+          data={rows}
+          showActions
+          actions={tableActions}
+          actionsLabel="Actions"
+          emptyMessage="No spotlight cards yet."
+          emptyDescription="Add up to 3 employees to feature on the intranet homepage."
+        />
+      )}
 
+      {/* ── Add / Edit spotlight card ─────────────────────────────────────── */}
       <ActionModal
         open={modalOpen}
         onClose={handleClose}
@@ -267,26 +344,28 @@ export default function SpotlightPage() {
             error={errors.message}
           />
 
-          <div>
-            <p className="text-sm font-medium text-brand-text-primary mb-2">Tag</p>
-            <div className="flex flex-wrap gap-2">
-              {TAG_PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => applyTag(p)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all"
-                  style={{
-                    backgroundColor: p.bg,
-                    color: p.color,
-                    borderColor: form.tag === p.label ? p.color : "transparent",
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
+          {tags.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-brand-text-primary mb-2">Tag</p>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, tag: t.label, tag_color: t.color, tag_bg: t.bg }))}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all"
+                    style={{
+                      backgroundColor: t.bg,
+                      color: t.color,
+                      borderColor: form.tag === t.label ? t.color : "transparent",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
@@ -300,14 +379,117 @@ export default function SpotlightPage() {
         </div>
       </ActionModal>
 
+      {/* ── Manage Tags panel ─────────────────────────────────────────────── */}
+      <ActionModal
+        open={tagPanelOpen}
+        onClose={() => setTagPanelOpen(false)}
+        title="Manage Tags"
+        variant="panel"
+        size="md"
+        footer={
+          <Button variant="outline" onClick={() => setTagPanelOpen(false)}>Close</Button>
+        }
+      >
+        <div className="space-y-6">
+          {/* Add new tag */}
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-brand-text-primary">Add Tag</p>
+            <FormInput
+              label="Label"
+              placeholder="e.g. Rising Star"
+              value={newTagLabel}
+              onChange={(e) => setNewTagLabel(e.target.value)}
+            />
+            <div>
+              <p className="text-xs font-medium text-brand-text-secondary mb-1.5">Colour</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={newTagColor}
+                  onChange={(e) => setNewTagColor(e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border border-brand-border"
+                />
+                <span className="text-xs text-brand-text-secondary font-mono">{newTagColor}</span>
+              </div>
+            </div>
+
+            {/* Live preview */}
+            {newTagLabel.trim() && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-brand-text-secondary">Preview:</span>
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ backgroundColor: deriveBg(newTagColor), color: newTagColor }}
+                >
+                  {newTagLabel.trim()}
+                </span>
+              </div>
+            )}
+
+            <Button
+              onClick={handleAddTag}
+              loading={createTagMutation.isPending}
+              loadingText="Adding…"
+              leftIcon={<Plus size={14} />}
+              className="w-full"
+            >
+              Add Tag
+            </Button>
+          </div>
+
+          {/* Existing tags */}
+          <div>
+            <p className="text-sm font-medium text-brand-text-primary mb-3">
+              Existing Tags ({tags.length})
+            </p>
+            {tags.length === 0 ? (
+              <p className="text-sm text-brand-text-secondary">No tags yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {tags.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-brand-border bg-white"
+                  >
+                    <span
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                      style={{ backgroundColor: t.bg, color: t.color }}
+                    >
+                      {t.label}
+                    </span>
+                    <button
+                      onClick={() => setDeleteTagId(t.id)}
+                      className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
+                      title="Delete tag"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </ActionModal>
+
       <ConfirmDialog
         open={deleteId !== null}
         title="Remove Spotlight Card"
         message="This will remove the employee from the intranet spotlight section."
         confirmLabel="Remove"
         destructive={true}
-        onConfirm={() => { if (deleteId !== null) { remove(deleteId); setDeleteId(null); } }}
+        onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteTagId !== null}
+        title="Delete Tag"
+        message="This will permanently delete this tag. Existing spotlight cards that use it will keep their tag text."
+        confirmLabel="Delete"
+        destructive={true}
+        onConfirm={handleDeleteTag}
+        onCancel={() => setDeleteTagId(null)}
       />
     </AppLayout>
   );

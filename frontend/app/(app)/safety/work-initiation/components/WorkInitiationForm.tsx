@@ -16,6 +16,7 @@ import {
   useIncidentReport,
   useIncidentReports,
 } from "@/lib/modules/safety/incidentReport";
+import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import {
   getSafetyEmployeeRequester,
   useSafetyActors,
@@ -116,16 +117,7 @@ const categoryByLabel: Record<string, WorkInitiationCategory> = {
   Other: "other",
 };
 
-const locationOptions = toOptions([
-  "Conversion Bay 1",
-  "Conversion Bay 2",
-  "Vehicle Yard",
-  "Gas Storage Area",
-  "Maintenance Workshop",
-  "Electrical Room",
-  "Loading Area",
-  "Inspection Bay",
-]);
+const locationOptions = toOptions(safetyLocationOptions);
 
 const contractorOptions = toOptions([
   "SafeWeld Engineering Ltd",

@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, UploadFile
 
-from app.intranet.models import IntranetNews, IntranetNewsCategory
-from app.intranet.schemas import NewsCreate, NewsUpdate, NewsCategoryCreate
+from app.intranet.models import IntranetNews, IntranetNewsCategory, IntranetEvent, IntranetSpotlight, IntranetSpotlightTag, IntranetLeadershipMessage
+from app.intranet.schemas import NewsCreate, NewsUpdate, NewsCategoryCreate, SpotlightTagCreate, LeadershipCreate, LeadershipUpdate, EventCreate, EventUpdate, SpotlightCreate, SpotlightUpdate
 from app.shared.models.document import Document
 from app.shared.services import cloudinary_service
 
@@ -199,3 +199,211 @@ class IntranetNewsService:
         self.db.add(doc)
         self.db.flush()
         return doc
+
+
+# ── Event service ──────────────────────────────────────────────────────────────
+
+class IntranetEventService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def _get_or_404(self, event_id: int) -> IntranetEvent:
+        item = self.db.query(IntranetEvent).filter(IntranetEvent.id == event_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Event not found")
+        return item
+
+    def list_published(self) -> list[IntranetEvent]:
+        return (
+            self.db.query(IntranetEvent)
+            .filter(IntranetEvent.is_published == True)
+            .order_by(IntranetEvent.event_date.asc())
+            .all()
+        )
+
+    def get_published(self, event_id: int) -> IntranetEvent:
+        item = self._get_or_404(event_id)
+        if not item.is_published:
+            raise HTTPException(status_code=404, detail="Event not found")
+        return item
+
+    def list_all(self) -> list[IntranetEvent]:
+        return (
+            self.db.query(IntranetEvent)
+            .order_by(IntranetEvent.event_date.asc())
+            .all()
+        )
+
+    def create(self, data: EventCreate) -> IntranetEvent:
+        item = IntranetEvent(**data.model_dump())
+        self.db.add(item)
+        self.db.flush()
+        return item
+
+    def update(self, event_id: int, data: EventUpdate) -> IntranetEvent:
+        item = self._get_or_404(event_id)
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(item, field, value)
+        return item
+
+    def delete(self, event_id: int) -> None:
+        item = self._get_or_404(event_id)
+        self.db.delete(item)
+
+    def toggle_published(self, event_id: int) -> IntranetEvent:
+        item = self._get_or_404(event_id)
+        item.is_published = not item.is_published
+        return item
+
+
+# ── Spotlight service (EOM + spotlight cards) ──────────────────────────────────
+
+class IntranetSpotlightService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def _get_or_404(self, spotlight_id: int) -> IntranetSpotlight:
+        item = self.db.query(IntranetSpotlight).filter(IntranetSpotlight.id == spotlight_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Spotlight entry not found")
+        return item
+
+    def list_published(self) -> list[IntranetSpotlight]:
+        """All published entries — frontend filters by category."""
+        return (
+            self.db.query(IntranetSpotlight)
+            .filter(IntranetSpotlight.is_published == True)
+            .order_by(IntranetSpotlight.published_at.desc())
+            .all()
+        )
+
+    def list_all(self) -> list[IntranetSpotlight]:
+        return (
+            self.db.query(IntranetSpotlight)
+            .order_by(IntranetSpotlight.created_at.desc())
+            .all()
+        )
+
+    def create(self, data: SpotlightCreate) -> IntranetSpotlight:
+        payload = data.model_dump()
+        if payload.get("is_published") and not payload.get("published_at"):
+            payload["published_at"] = datetime.now(timezone.utc)
+        item = IntranetSpotlight(**payload)
+        self.db.add(item)
+        self.db.flush()
+        return item
+
+    def update(self, spotlight_id: int, data: SpotlightUpdate) -> IntranetSpotlight:
+        item = self._get_or_404(spotlight_id)
+        patch = data.model_dump(exclude_unset=True)
+        if patch.get("is_published") and not item.published_at:
+            patch["published_at"] = datetime.now(timezone.utc)
+        for field, value in patch.items():
+            setattr(item, field, value)
+        return item
+
+    def delete(self, spotlight_id: int) -> None:
+        item = self._get_or_404(spotlight_id)
+        self.db.delete(item)
+
+    def toggle_published(self, spotlight_id: int) -> IntranetSpotlight:
+        item = self._get_or_404(spotlight_id)
+        item.is_published = not item.is_published
+        if item.is_published and not item.published_at:
+            item.published_at = datetime.now(timezone.utc)
+        return item
+
+
+# ── Spotlight tag service ──────────────────────────────────────────────────────
+
+class IntranetSpotlightTagService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list_all(self) -> list[IntranetSpotlightTag]:
+        return self.db.query(IntranetSpotlightTag).order_by(IntranetSpotlightTag.label).all()
+
+    def create(self, data: SpotlightTagCreate) -> IntranetSpotlightTag:
+        existing = self.db.query(IntranetSpotlightTag).filter(
+            IntranetSpotlightTag.label == data.label
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="A tag with this label already exists")
+        tag = IntranetSpotlightTag(label=data.label, color=data.color, bg=data.bg)
+        self.db.add(tag)
+        self.db.flush()
+        return tag
+
+    def delete(self, tag_id: int) -> None:
+        tag = self.db.query(IntranetSpotlightTag).filter(IntranetSpotlightTag.id == tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        self.db.delete(tag)
+
+
+# ── Leadership message service ─────────────────────────────────────────────────
+
+class IntranetLeadershipService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def _get_or_404(self, msg_id: int) -> IntranetLeadershipMessage:
+        item = self.db.query(IntranetLeadershipMessage).filter(IntranetLeadershipMessage.id == msg_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Leadership message not found")
+        return item
+
+    def list_published(self) -> list[IntranetLeadershipMessage]:
+        return (
+            self.db.query(IntranetLeadershipMessage)
+            .filter(IntranetLeadershipMessage.is_published == True)
+            .order_by(IntranetLeadershipMessage.sort_order.asc())
+            .all()
+        )
+
+    def list_all(self) -> list[IntranetLeadershipMessage]:
+        return (
+            self.db.query(IntranetLeadershipMessage)
+            .order_by(IntranetLeadershipMessage.sort_order.asc())
+            .all()
+        )
+
+    def create(self, data: LeadershipCreate) -> IntranetLeadershipMessage:
+        payload = data.model_dump()
+        if payload.get("is_published") and not payload.get("published_at"):
+            payload["published_at"] = datetime.now(timezone.utc)
+        item = IntranetLeadershipMessage(**payload)
+        self.db.add(item)
+        self.db.flush()
+        return item
+
+    def update(self, msg_id: int, data: LeadershipUpdate) -> IntranetLeadershipMessage:
+        item = self._get_or_404(msg_id)
+        patch = data.model_dump(exclude_unset=True)
+        if patch.get("is_published") and not item.published_at:
+            patch["published_at"] = datetime.now(timezone.utc)
+        for field, value in patch.items():
+            setattr(item, field, value)
+        return item
+
+    def delete(self, msg_id: int) -> None:
+        item = self._get_or_404(msg_id)
+        self.db.delete(item)
+
+    def toggle_published(self, msg_id: int) -> IntranetLeadershipMessage:
+        item = self._get_or_404(msg_id)
+        item.is_published = not item.is_published
+        if item.is_published and not item.published_at:
+            item.published_at = datetime.now(timezone.utc)
+        return item
+
+    def reorder(self, updates: list[dict]) -> None:
+        """Accepts [{id: int, sort_order: int}, ...] and bulk-updates sort_order."""
+        for u in updates:
+            item = self.db.query(IntranetLeadershipMessage).filter(IntranetLeadershipMessage.id == u["id"]).first()
+            if item:
+                item.sort_order = u["sort_order"]

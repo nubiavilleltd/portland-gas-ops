@@ -1,4 +1,8 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, {
+  AxiosHeaders,
+  type InternalAxiosRequestConfig,
+  type AxiosResponse,
+} from "axios";
 import { API_URL } from "./constants";
 
 const api = axios.create({
@@ -7,6 +11,7 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+
 // ─── Request interceptor — attach Bearer token ────────────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Dynamically import to avoid SSR issues
@@ -14,7 +19,9 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     const { useAuthStore } = await import("@/store/authStore");
     const token = useAuthStore.getState().accessToken;
     if (token && config.headers) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+      const headers = AxiosHeaders.from(config.headers);
+      headers.set("Authorization", `Bearer ${token}`);
+      config.headers = headers;
     }
   }
   return config;
@@ -71,6 +78,10 @@ api.interceptors.response.use(
           { withCredentials: true }
         );
 
+        if(!data.access_token){
+          console.error("No access token received during refresh.");
+        }
+
         const newToken: string = data.access_token;
 
         // Persist new token
@@ -83,10 +94,12 @@ api.interceptors.response.use(
           originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
         }
         return api(originalRequest);
-      } catch (refreshError: any) {
+      } catch (refreshError: unknown) {
         processQueue(refreshError, null);
 
-        const refreshStatus = refreshError?.response?.status;
+        const refreshStatus = (
+          refreshError as { response?: { status?: number } }
+        )?.response?.status;
 
         // Only clear session + redirect on a real auth failure (401).
         // A 429 rate-limit means the token is still valid — do NOT redirect,

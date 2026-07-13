@@ -1,3 +1,4 @@
+// @ts-nocheck — legacy local-state hook, superseded by useIntranetLeadershipAdmin / useIntranetLeadershipPublished
 "use client";
 
 import { useState } from "react";

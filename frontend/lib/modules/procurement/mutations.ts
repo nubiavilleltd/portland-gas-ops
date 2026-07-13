@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { post, patch, postForm, del } from "@/lib/api";
 import type {
   ProcurementRequest,
-  ProcurementCreateInput,
   ProcurementUpdateInput,
   IssuePOInput,
   PurchaseOrder,
@@ -15,7 +14,7 @@ export function useCreateProcurement() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (formData: FormData) =>
-      postForm<ProcurementRequest>("/api/procurement/", formData),
+      postForm<ProcurementRequest>("/api/procurement", formData),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }

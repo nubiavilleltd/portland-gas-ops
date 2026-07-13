@@ -10,10 +10,8 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import {
-  incidentLocationOptions,
-  reportTypeOptions,
-} from "@/lib/modules/safety/incidentReport/constants";
+import { reportTypeOptions } from "@/lib/modules/safety/incidentReport/constants";
+import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -278,7 +276,7 @@ export default function IncidentHazardForm() {
             required
             searchable
             creatable
-            options={toOptions(incidentLocationOptions)}
+            options={toOptions(safetyLocationOptions)}
             placeholder="Select or add location"
             value={locations}
             error={validationErrors.locations}
