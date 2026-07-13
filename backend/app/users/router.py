@@ -10,7 +10,7 @@ from app.core.security import hash_password, verify_password
 router = APIRouter()
 
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("", response_model=List[UserResponse])
 def list_users(
     skip: int = 0,
     limit: int = 20,
@@ -20,7 +20,7 @@ def list_users(
     return db.query(User).offset(skip).limit(limit).all()
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),

@@ -99,7 +99,7 @@ def _next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
 
 # ── Purchase orders (declared before /{id} to avoid path conflicts) ───────────
 
-@router.get("/purchase-orders/", response_model=List[PurchaseOrderResponse])
+@router.get("/purchase-orders", response_model=List[PurchaseOrderResponse])
 def list_purchase_orders(
     request_id: Optional[str] = Query(None, description="Filter POs by procurement request"),
     db: Session = Depends(get_db),
@@ -132,7 +132,7 @@ def update_po_status(
 
 # ── Procurement requests ──────────────────────────────────────────────────────
 
-@router.get("/", response_model=List[ProcurementListItem])
+@router.get("", response_model=List[ProcurementListItem])
 def list_requests(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -177,7 +177,7 @@ _ALLOWED_MIME_TYPES = {
 _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-@router.post("/", response_model=ProcurementResponse, status_code=201)
+@router.post("", response_model=ProcurementResponse, status_code=201)
 async def create_request(
     data: str = Form(..., description="JSON-encoded ProcurementCreate payload"),
     attachment: Optional[UploadFile] = File(None),

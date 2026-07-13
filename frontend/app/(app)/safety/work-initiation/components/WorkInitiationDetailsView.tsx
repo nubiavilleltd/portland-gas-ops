@@ -166,7 +166,6 @@ export default function WorkInitiationDetailsView({
   const auditTrailQuery = useAuditTrail("work_initiation", requestId);
   const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
   const request = requestQuery.data;
-  console.log("WorkInitiationDetailsView request:", request);
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
   const [editValuesById, setEditValuesById] = useState<

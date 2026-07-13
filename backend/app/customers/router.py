@@ -20,8 +20,7 @@ service = CustomerService()
 order_service = OrderService()
 
 
-@router.get("", response_model=CustomerListResponse, include_in_schema=False)
-@router.get("/", response_model=CustomerListResponse)
+@router.get("", response_model=CustomerListResponse)
 def list_customers(
     search:    Optional[str] = Query(None),
     type:      Optional[CustomerType] = Query(None),
@@ -44,7 +43,7 @@ def list_customers(
     )
 
 
-@router.post("/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 def create_customer(
     data:         CustomerCreate,
     db:           Session = Depends(get_db),

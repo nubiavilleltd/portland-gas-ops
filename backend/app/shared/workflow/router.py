@@ -78,8 +78,7 @@ def _employee_id(current_user: User, db: Session) -> str:
 
 # ── 1. Literal root routes ────────────────────────────────────────────────────
 
-@router.get("", response_model=List[WorkflowListItem], include_in_schema=False)
-@router.get("/", response_model=List[WorkflowListItem])
+@router.get("", response_model=List[WorkflowListItem])
 def list_workflows(
     db: Session = Depends(get_db),
     current_user: User = _admin,
@@ -87,7 +86,7 @@ def list_workflows(
     return svc.list_workflows(db)
 
 
-@router.post("/", response_model=WorkflowDetail, status_code=201)
+@router.post("", response_model=WorkflowDetail, status_code=201)
 def create_workflow(
     data: WorkflowCreate,
     db: Session = Depends(get_db),
@@ -110,7 +109,7 @@ def create_workflow(
 
 # ── 2. Approver Groups (literal prefix — must be before /{workflow_id}) ────────
 
-@router.get("/groups/", response_model=List[GroupListItem])
+@router.get("/groups", response_model=List[GroupListItem])
 def list_groups(
     db: Session = Depends(get_db),
     current_user: User = _admin,
@@ -118,7 +117,7 @@ def list_groups(
     return svc.list_groups(db)
 
 
-@router.post("/groups/", response_model=GroupDetail, status_code=201)
+@router.post("/groups", response_model=GroupDetail, status_code=201)
 def create_group(
     data: GroupCreate,
     db: Session = Depends(get_db),
@@ -184,7 +183,7 @@ def remove_group_member(
 
 # ── 3. Workflow Assignments (literal prefix — must be before /{workflow_id}) ───
 
-@router.get("/assignments/", response_model=List[AssignmentOut])
+@router.get("/assignments", response_model=List[AssignmentOut])
 def list_assignments(
     db: Session = Depends(get_db),
     current_user: User = _admin,
@@ -192,7 +191,7 @@ def list_assignments(
     return svc.list_assignments(db)
 
 
-@router.put("/assignments/", response_model=AssignmentOut)
+@router.put("/assignments", response_model=AssignmentOut)
 def set_assignment(
     data: AssignmentSet,
     db: Session = Depends(get_db),
@@ -358,7 +357,7 @@ def workflow_for_type(
 
 # ── 5. Admin: all requests view (literal — before /{workflow_id}) ────────────
 
-@router.get("/admin/requests/")
+@router.get("/admin/requests")
 def admin_all_requests(
     request_type: Optional[str] = Query(None),
     status: Optional[str] = Query(None),

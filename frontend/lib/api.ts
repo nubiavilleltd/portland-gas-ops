@@ -15,8 +15,6 @@ const api = axios.create({
 // ─── Request interceptor — attach Bearer token ────────────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Dynamically import to avoid SSR issues
-  console.log("API base URL:", API_URL, api);
-  console.log("REQUEST", {     baseURL: config.baseURL,     url: config.url,     full: `${config.baseURL}${config.url}`,   });
   if (typeof window !== "undefined") {
     const { useAuthStore } = await import("@/store/authStore");
     const token = useAuthStore.getState().accessToken;
@@ -24,10 +22,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
       const headers = AxiosHeaders.from(config.headers);
       headers.set("Authorization", `Bearer ${token}`);
       config.headers = headers;
-      console.log("Attached Bearer token to request:", token);
     }
-
-    console.log("token in request interceptor:", token);
   }
   return config;
 });
@@ -82,8 +77,6 @@ api.interceptors.response.use(
           {},
           { withCredentials: true }
         );
-
-        console.log("Refresh token:", data)
 
         if(!data.access_token){
           console.error("No access token received during refresh.");
@@ -141,7 +134,6 @@ api.interceptors.response.use(
 // ─── Typed helpers ─────────────────────────────────────────────────────────────
 export async function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
   const res = await api.get<T>(url, { params });
-  console.log("response from get:", res.data, url);
   return res.data;
 }
 

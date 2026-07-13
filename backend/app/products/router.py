@@ -64,7 +64,7 @@ def _validate_images(files: List[UploadFile]) -> List[tuple]:
     return result
 
 
-@router.get("/", response_model=ProductListResponse)
+@router.get("", response_model=ProductListResponse)
 def list_products(
     search:       Optional[str]           = Query(None),
     product_type: Optional[ProductType]   = Query(None),
@@ -96,7 +96,7 @@ def list_products(
     )
 
 
-@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     data:         str               = Form(...),
     images:       List[UploadFile]  = File(default=[]),

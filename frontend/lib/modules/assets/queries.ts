@@ -22,7 +22,7 @@ export function useAssets(params?: { category_id?: string; asset_type_id?: strin
   return useQuery<Asset[]>({
     queryKey: assetKeys.list(params),
     queryFn: async () => {
-      const { data } = await api.get("/api/assets/", { params });
+      const { data } = await api.get("/api/assets", { params });
       return data;
     },
     staleTime: 30_000,
@@ -44,7 +44,7 @@ export function useAssetCategories() {
   return useQuery<AssetCategory[]>({
     queryKey: assetKeys.categories,
     queryFn: async () => {
-      const { data } = await api.get("/api/assets/categories/");
+      const { data } = await api.get("/api/assets/categories");
       return data;
     },
     staleTime: 60_000,
@@ -55,7 +55,7 @@ export function useAssetTypes(categoryId?: string) {
   return useQuery<AssetType[]>({
     queryKey: assetKeys.types(categoryId),
     queryFn: async () => {
-      const { data } = await api.get("/api/assets/types/", categoryId ? { params: { category_id: categoryId } } : {});
+      const { data } = await api.get("/api/assets/types", categoryId ? { params: { category_id: categoryId } } : {});
       return data;
     },
     staleTime: 60_000,
@@ -88,7 +88,7 @@ export function useAllAssignmentLogs(params?: { asset_id?: string; event_type?: 
   return useQuery<AssetAssignmentLog[]>({
     queryKey: assetKeys.allAssignmentLogs(params),
     queryFn: async () => {
-      const { data } = await api.get("/api/assets/assignment-logs/", { params });
+      const { data } = await api.get("/api/assets/assignment-logs", { params });
       return data;
     },
     staleTime: 30_000,
@@ -101,7 +101,7 @@ export function useAssetRequests(statusFilter?: AssetRequestStatus) {
   return useQuery<AssetRequestListItem[]>({
     queryKey: assetKeys.requests({ status: statusFilter }),
     queryFn: async () => {
-      const { data } = await api.get("/api/assets/requests/", statusFilter ? { params: { status: statusFilter } } : {});
+      const { data } = await api.get("/api/assets/requests", statusFilter ? { params: { status: statusFilter } } : {});
       return data;
     },
     staleTime: 30_000,

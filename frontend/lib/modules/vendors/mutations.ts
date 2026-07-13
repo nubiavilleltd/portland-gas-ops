@@ -9,7 +9,7 @@ export function useCreateVendor() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Vendor> & { name: string; category: string }) =>
-      post<Vendor>("/api/vendors/", data),
+      post<Vendor>("/api/vendors", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: vendorKeys.all }),
   });
 }

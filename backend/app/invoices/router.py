@@ -34,7 +34,7 @@ def _to_response(invoice) -> InvoiceResponse:
     return InvoiceResponse.model_validate(invoice)
 
 
-@router.get("/", response_model=InvoiceListResponse)
+@router.get("", response_model=InvoiceListResponse)
 def list_invoices(
     order_id: Optional[str] = Query(None),
     status_filter: Optional[PaymentStatus] = Query(None, alias="status"),
