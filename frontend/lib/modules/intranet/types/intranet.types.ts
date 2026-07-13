@@ -10,6 +10,16 @@ export interface NewsCategory {
   created_at: string;
 }
 
+// ── Spotlight Tags  (DB: intranet_spotlight_tags) ─────────────────────────────
+
+export interface SpotlightTag {
+  id:         number;
+  label:      string;
+  color:      string;  // hex text colour
+  bg:         string;  // hex background colour
+  created_at: string;
+}
+
 // ── News & Announcements  (DB: intranet_news) ────────────────────────────────
 
 export interface NewsItem {
@@ -36,17 +46,17 @@ export type EventType =
   | "Social";
 
 export interface IntranetEvent {
-  id: number;
-  title: string;             // DB: title VARCHAR(255)
-  description: string;       // DB: description TEXT
-  event_type: EventType;     // DB: event_type VARCHAR(40)
-  location: string;          // DB: location VARCHAR(200)
-  virtual_link: string;      // DB: virtual_link VARCHAR(500) — meeting URL for virtual events
-  event_date: string;        // DB: event_date DATE — ISO "YYYY-MM-DD"
-  color: string;             // DB: color VARCHAR(10) — hex e.g. "#7234BD"
-  is_published: boolean;     // DB: is_published BOOLEAN
-  created_at: string;
-  updated_at: string;
+  id:           number;
+  title:        string;
+  description:  string | null;
+  event_type:   EventType;
+  location:     string | null;
+  virtual_link: string | null;
+  event_date:   string;        // ISO "YYYY-MM-DD"
+  color:        string;
+  is_published: boolean;
+  created_at:   string;
+  updated_at:   string;
 }
 
 // ── FAQs  (DB: intranet_faq) ─────────────────────────────────────────────────
@@ -78,44 +88,41 @@ export type SpotlightCategory =
   | "new_joiner";
 
 export interface SpotlightEntry {
-  id: number;
-  employee_id: number;       // DB: employee_id FK → employees.id
-  // Denormalised from employees table (API join)
+  id:            number;
+  employee_id:   string | null;
   employee_name: string;
-  employee_role: string;
-  employee_dept: string;
-  avatar_url: string;        // DB: photo_id FK → documents.id (URL denormalised)
-  title: string;             // DB: title VARCHAR(150) e.g. "Employee of the Month — June 2026"
-  message: string;           // DB: message TEXT
-  category: SpotlightCategory; // DB: category VARCHAR(40)
-  month: number | null;      // DB: month INT (1–12, for employee_of_month)
-  year: number | null;       // DB: year INT
-  // UI tag (not stored in DB — computed from category or manually set in CMS)
-  tag: string;
-  tag_color: string;
-  tag_bg: string;
-  is_published: boolean;     // DB: is_published BOOLEAN
-  published_at: string | null;
-  created_at: string;
+  employee_role: string | null;
+  employee_dept: string | null;
+  avatar_url:    string | null;
+  title:         string;
+  message:       string;
+  category:      SpotlightCategory;
+  month:         number | null;
+  year:          number | null;
+  tag:           string | null;
+  tag_color:     string | null;
+  tag_bg:        string | null;
+  is_published:  boolean;
+  published_at:  string | null;
+  created_at:    string;
 }
 
 // ── Leadership Messages  (DB: intranet_message_from) ─────────────────────────
 
 export interface LeadershipMessage {
-  id: number;
-  author_id: number;         // DB: author_id FK → employees.id
-  // Denormalised from employees table (API join)
-  author_name: string;
-  author_role: string;
-  author_dept: string;
-  avatar_url: string;        // DB: photo_id FK → documents.id (URL denormalised)
-  title: string;             // DB: title VARCHAR(200)
-  body: string;              // DB: body TEXT
-  is_published: boolean;     // DB: is_published BOOLEAN
+  id:           number;
+  author_id:    string | null;
+  author_name:  string;
+  author_role:  string | null;
+  author_dept:  string | null;
+  avatar_url:   string | null;
+  title:        string;
+  body:         string;
+  is_published: boolean;
   published_at: string | null;
-  order: number;             // UI ordering — maps to display position in carousel
-  created_at: string;
-  updated_at: string;
+  sort_order:   number;
+  created_at:   string;
+  updated_at:   string;
 }
 
 // ── Feedback  (DB: intranet_feedback) ────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, HelpCircle, Laptop, Users, ShieldCheck, Briefcase, Phone } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
+import IntranetPageHero from "@/components/ui/IntranetPageHero";
 import { cn } from "@/lib/utils";
 
 interface FAQ { q: string; a: string; }
@@ -96,16 +97,11 @@ export default function FAQPage() {
   return (
     <IntranetLayout>
 
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="bg-[#1C043B] pt-12 pb-8 px-4 lg:px-8">
-        <div className="max-w-[1400px] mx-auto">
-          <p className="text-[#FFBC00] text-xs font-bold uppercase tracking-widest mb-2">Portland Gas Intranet</p>
-          <h1 className="text-3xl font-extrabold text-white mb-1" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
-            Frequently Asked Questions
-          </h1>
-          <p className="text-white/50 text-sm">IT, HR, HSE, Procurement and more — all in one place.</p>
-        </div>
-      </div>
+      <IntranetPageHero
+        title="Frequently Asked Questions"
+        subtitle="IT, HR, HSE, Procurement and more — all in one place."
+        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/Portland-gas-70.png"
+      />
 
       <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
 

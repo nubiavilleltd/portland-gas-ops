@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
@@ -15,7 +15,14 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { BackButton } from "@/components/ui/BackButton";
-import { useIntranetEvents } from "@/lib/modules/intranet/hooks/useIntranetEvents";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useIntranetEventsAdmin } from "@/lib/modules/intranet/queries";
+import {
+  useCreateEvent,
+  useUpdateEvent,
+  useDeleteEvent,
+  useToggleEventPublished,
+} from "@/lib/modules/intranet/mutations";
 import { useToast } from "@/hooks/useToast";
 import type { IntranetEvent, EventType } from "@/lib/modules/intranet/types/intranet.types";
 
@@ -60,7 +67,7 @@ const columns: Column<EventRow>[] = [
         <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
         <div className="min-w-0">
           <p className="font-medium text-brand-text-primary truncate max-w-xs">{row.title}</p>
-          <p className="text-xs text-brand-text-secondary mt-0.5 truncate max-w-xs">{row.location}</p>
+          <p className="text-xs text-brand-text-secondary mt-0.5 truncate max-w-xs">{row.location ?? "Online"}</p>
         </div>
       </div>
     ),
@@ -75,7 +82,7 @@ const columns: Column<EventRow>[] = [
     label: "Date",
     render: (_, row) => (
       <span className="text-sm text-brand-text-secondary">
-        {new Date(row.event_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+        {new Date(row.event_date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
       </span>
     ),
   },
@@ -109,17 +116,23 @@ function isPast(dateStr: string) {
 }
 
 export default function IntranetEventsPage() {
-  const { items, create, update, remove, togglePublished } = useIntranetEvents();
+  const { data: events = [], isLoading } = useIntranetEventsAdmin();
+  const createMutation = useCreateEvent();
+  const deleteMutation = useDeleteEvent();
+  const toggleMutation = useToggleEventPublished();
   const toast = useToast();
 
-  const [modalOpen,  setModalOpen]  = useState(false);
-  const [deleteId,   setDeleteId]   = useState<number | null>(null);
-  const [editTarget, setEditTarget] = useState<IntranetEvent | null>(null);
-  const [form,       setForm]       = useState<FormState>(EMPTY_FORM);
-  const [saving,     setSaving]     = useState(false);
+  const [modalOpen,           setModalOpen]           = useState(false);
+  const [deleteId,            setDeleteId]            = useState<number | null>(null);
+  const [editTarget,          setEditTarget]          = useState<IntranetEvent | null>(null);
+  const [form,                setForm]                = useState<FormState>(EMPTY_FORM);
+  const [toggleTarget,        setToggleTarget]        = useState<number | null>(null);
+  const [toggleConfirmTarget, setToggleConfirmTarget] = useState<EventRow | null>(null);
 
-  // Map to string-id rows for DataTable
-  const rows: EventRow[] = items.map((e) => ({ ...e, id: String(e.id), _numId: e.id }));
+  // Per-edit-target update mutation (id changes per row)
+  const updateMutation = useUpdateEvent(editTarget?.id ?? 0);
+
+  const rows: EventRow[] = events.map((e) => ({ ...e, id: String(e.id), _numId: e.id }));
 
   function openCreate() {
     setEditTarget(null);
@@ -128,14 +141,14 @@ export default function IntranetEventsPage() {
   }
 
   function openEdit(row: EventRow) {
-    const item = items.find((e) => e.id === row._numId)!;
+    const item = events.find((e) => e.id === row._numId)!;
     setEditTarget(item);
     setForm({
       title:         item.title,
-      description:   item.description,
+      description:   item.description ?? "",
       event_type:    item.event_type,
       location_type: item.virtual_link ? "virtual" : "physical",
-      location:      item.location,
+      location:      item.location ?? "",
       virtual_link:  item.virtual_link ?? "",
       event_date:    item.event_date,
       color:         item.color,
@@ -152,42 +165,73 @@ export default function IntranetEventsPage() {
 
   async function handleSave() {
     if (!form.title.trim() || !form.event_date) return;
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 300));
-    const ts = new Date().toISOString();
-    const location = form.location_type === "virtual" ? (form.virtual_link || "Online") : form.location;
     const payload = {
       title:        form.title,
-      description:  form.description,
+      description:  form.description || null,
       event_type:   form.event_type,
-      location,
-      virtual_link: form.location_type === "virtual" ? form.virtual_link : "",
+      location:     form.location_type === "physical" ? (form.location || null) : null,
+      virtual_link: form.location_type === "virtual"  ? (form.virtual_link || null) : null,
       event_date:   form.event_date,
       color:        form.color,
       is_published: form.is_published,
     };
-    if (editTarget) {
-      update(editTarget.id, { ...payload, updated_at: ts });
-    } else {
-      create({ ...payload });
+    try {
+      if (editTarget) {
+        await updateMutation.mutateAsync(payload);
+        toast.success("Event updated.");
+      } else {
+        await createMutation.mutateAsync(payload);
+        toast.success("Event created.");
+      }
+      handleClose();
+    } catch {
+      toast.error("Failed to save event.");
     }
-    setSaving(false);
-    toast.success(editTarget ? "Event updated." : "Event created.");
-    handleClose();
+  }
+
+  async function handleToggle() {
+    if (!toggleConfirmTarget) return;
+    const row = toggleConfirmTarget;
+    setToggleConfirmTarget(null);
+    setToggleTarget(row._numId);
+    try {
+      await toggleMutation.mutateAsync(row._numId);
+      toast.success(row.is_published ? "Event unpublished." : "Event published.");
+    } catch {
+      toast.error("Failed to update status.");
+    } finally {
+      setToggleTarget(null);
+    }
+  }
+
+  async function handleDelete() {
+    if (deleteId === null) return;
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      toast.success("Event deleted.");
+    } catch {
+      toast.error("Failed to delete event.");
+    }
+    setDeleteId(null);
   }
 
   function field<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  const saving = createMutation.isPending || updateMutation.isPending;
+
   const tableActions: DataTableAction<EventRow>[] = [
     {
       key: "toggle",
       label: "",
-      icon: (row) => row.is_published ? <EyeOff size={14} /> : <Eye size={14} />,
+      icon: (row) =>
+        toggleMutation.isPending && toggleTarget === row._numId
+          ? <Loader2 size={14} className="animate-spin" />
+          : row.is_published ? <EyeOff size={14} /> : <Eye size={14} />,
       title: (row) => row.is_published ? "Unpublish" : "Publish",
       variant: "ghost",
-      onClick: (row) => togglePublished(row._numId),
+      onClick: (row) => setToggleConfirmTarget(row),
     },
     {
       key: "edit",
@@ -223,17 +267,21 @@ export default function IntranetEventsPage() {
         }
       />
 
-      <DataTable<EventRow>
-        columns={columns}
-        data={rows}
-        showActions
-        actions={tableActions}
-        actionsLabel="Actions"
-        searchable
-        searchPlaceholder="Search events…"
-        emptyMessage="No events yet."
-        emptyDescription="Click 'New Event' to add one."
-      />
+      {isLoading ? (
+        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+      ) : (
+        <DataTable<EventRow>
+          columns={columns}
+          data={rows}
+          showActions
+          actions={tableActions}
+          actionsLabel="Actions"
+          searchable
+          searchPlaceholder="Search events…"
+          emptyMessage="No events yet."
+          emptyDescription="Click 'New Event' to add one."
+        />
+      )}
 
       {/* Create / Edit panel */}
       <ActionModal
@@ -340,12 +388,26 @@ export default function IntranetEventsPage() {
       </ActionModal>
 
       <ConfirmDialog
+        open={toggleConfirmTarget !== null}
+        title={toggleConfirmTarget?.is_published ? "Unpublish Event" : "Publish Event"}
+        message={
+          toggleConfirmTarget?.is_published
+            ? "This event will be hidden from the intranet calendar and events page."
+            : "This event will become visible to all staff on the intranet."
+        }
+        confirmLabel={toggleConfirmTarget?.is_published ? "Unpublish" : "Publish"}
+        destructive={toggleConfirmTarget?.is_published ?? false}
+        onConfirm={handleToggle}
+        onCancel={() => setToggleConfirmTarget(null)}
+      />
+
+      <ConfirmDialog
         open={deleteId !== null}
         title="Delete Event"
         message="This will remove the event from the intranet calendar. This action cannot be undone."
         confirmLabel="Delete"
         destructive={true}
-        onConfirm={() => { if (deleteId !== null) { remove(deleteId); setDeleteId(null); } }}
+        onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
     </AppLayout>
