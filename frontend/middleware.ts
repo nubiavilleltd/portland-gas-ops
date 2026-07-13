@@ -6,7 +6,7 @@ const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", "/
 // These are public regardless of auth state — never redirect away from them
 const ALWAYS_PUBLIC_PATHS = ["/setup-account"];
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAuthPath        = AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
