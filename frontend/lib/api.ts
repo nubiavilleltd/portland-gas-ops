@@ -21,11 +21,9 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     const { useAuthStore } = await import("@/store/authStore");
     const token = useAuthStore.getState().accessToken;
     if (token && config.headers) {
-      if (config.headers instanceof AxiosHeaders) {
-        config.headers.set("Authorization", `Bearer ${token}`);
-      } else {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      const headers = AxiosHeaders.from(config.headers);
+      headers.set("Authorization", `Bearer ${token}`);
+      config.headers = headers;
       console.log("Attached Bearer token to request:", token);
     }
 
