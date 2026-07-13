@@ -78,6 +78,7 @@ def _employee_id(current_user: User, db: Session) -> str:
 
 # ── 1. Literal root routes ────────────────────────────────────────────────────
 
+@router.get("", response_model=List[WorkflowListItem], include_in_schema=False)
 @router.get("/", response_model=List[WorkflowListItem])
 def list_workflows(
     db: Session = Depends(get_db),
