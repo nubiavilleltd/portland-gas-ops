@@ -119,7 +119,7 @@ export default function DriverDetailPage() {
       />
       <PageHeader
         title={driver.full_name}
-        description={`${driver.phone_number} • ${driver.license_number}`}
+        description={`${driver.phone_number ?? "—"} • ${driver.license_number}`}
 
 
         action={
@@ -183,7 +183,7 @@ export default function DriverDetailPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 text-sm">
             <Info label="Full Name" value={driver.full_name} />
-            <Info label="Phone" value={driver.phone_number} />
+            <Info label="Phone" value={driver.phone_number ?? "—"} />
             <Info label="Email" value={driver.email} />
             <Info label="Address" value={driver.address ?? "—"} />
             <Info label="License Number" value={driver.license_number} />

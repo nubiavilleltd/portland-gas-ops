@@ -1,26 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormSection from "@/components/ui/FormSection";
 import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
-import { useToast } from "@/hooks/useToast";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormSelect from "@/components/forms/FormSelect";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { BackButton } from "@/components/ui/BackButton";
-import { useEmployeeOfMonth } from "@/lib/modules/intranet/hooks/useIntranetSpotlight";
-import { EMPLOYEE_STORE } from "@/app/(app)/admin/_components/_data";
-
-const EMPLOYEES: PickedEmployee[] = EMPLOYEE_STORE.map((e) => ({
-  id: e.id,
-  name: `${e.firstName} ${e.lastName}`,
-  role: e.title,
-  department: e.department,
-  avatar_url: `https://i.pravatar.cc/150?img=${10 + Number(e.id)}`,
-}));
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useIntranetSpotlightAdmin } from "@/lib/modules/intranet/queries";
+import { useCreateSpotlight, useUpdateSpotlight } from "@/lib/modules/intranet/mutations";
+import { useToast } from "@/hooks/useToast";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 
 const MONTH_OPTIONS = [
   { value: "1",  label: "January"   },
@@ -38,27 +32,58 @@ const MONTH_OPTIONS = [
 ];
 
 export default function EmployeeOfMonthPage() {
-  const { eom, update } = useEmployeeOfMonth();
+  const { data: all = [], isLoading } = useIntranetSpotlightAdmin();
+  const { data: employeeList = [] }   = useEmployees();
 
-  const initialEmp: PickedEmployee | null = eom.employee_name
-    ? EMPLOYEES.find((e) => e.name === eom.employee_name) ?? {
-        id: "0",
-        name: eom.employee_name,
-        role: eom.employee_role,
-        department: eom.employee_dept,
-        avatar_url: eom.avatar_url,
-      }
-    : null;
-
-  const [employee,    setEmployee]    = useState<PickedEmployee | null>(initialEmp);
-  const [title,       setTitle]       = useState(eom.title);
-  const [message,     setMessage]     = useState(eom.message);
-  const [month,       setMonth]       = useState(String(eom.month ?? new Date().getMonth() + 1));
-  const [year,        setYear]        = useState(String(eom.year ?? new Date().getFullYear()));
-  const [isPublished, setIsPublished] = useState(eom.is_published);
-  const [errors,  setErrors]  = useState<Record<string, string>>({});
-  const [saving,  setSaving]  = useState(false);
+  const EMPLOYEES: PickedEmployee[] = employeeList.map((e) => ({
+    id:         e.id,
+    name:       `${e.user?.first_name ?? ""} ${e.user?.last_name ?? ""}`.trim(),
+    role:       e.job_title ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url ?? undefined,
+  }));
   const toast = useToast();
+
+  // The current EOM = most recent entry with category employee_of_month
+  const eomEntries = all.filter((e) => e.category === "employee_of_month");
+  const existing   = eomEntries[0] ?? null;
+
+  const createMutation = useCreateSpotlight();
+  const updateMutation = useUpdateSpotlight(existing?.id ?? 0);
+
+  const [employee,    setEmployee]    = useState<PickedEmployee | null>(null);
+  const [title,       setTitle]       = useState("");
+  const [message,     setMessage]     = useState("");
+  const [month,       setMonth]       = useState(String(new Date().getMonth() + 1));
+  const [year,        setYear]        = useState(String(new Date().getFullYear()));
+  const [isPublished, setIsPublished] = useState(false);
+  const [errors,      setErrors]      = useState<Record<string, string>>({});
+  const [initialised, setInitialised] = useState(false);
+
+  // Pre-populate from existing entry once loaded
+  useEffect(() => {
+    if (initialised || isLoading) return;
+    setInitialised(true);
+    if (!existing) return;
+
+    setTitle(existing.title ?? "");
+    setMessage(existing.message ?? "");
+    setMonth(String(existing.month ?? new Date().getMonth() + 1));
+    setYear(String(existing.year ?? new Date().getFullYear()));
+    setIsPublished(existing.is_published);
+    if (existing.employee_name) {
+      const found = EMPLOYEES.find((e) => e.name === existing.employee_name);
+      setEmployee(
+        found ?? {
+          id: existing.employee_id ?? "0",
+          name: existing.employee_name,
+          role: existing.employee_role ?? "",
+          department: existing.employee_dept ?? "",
+          avatar_url: existing.avatar_url ?? undefined,
+        }
+      );
+    }
+  }, [isLoading, initialised, existing]);
 
   const monthLabel = MONTH_OPTIONS.find((m) => m.value === month)?.label ?? "";
   const preview = {
@@ -82,22 +107,42 @@ export default function EmployeeOfMonthPage() {
 
   async function handleSave() {
     if (!validate()) return;
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 300));
-    update({
-      employee_id:   Number(employee!.id),
+    const payload = {
+      employee_id:   employee!.id,
       employee_name: employee!.name,
-      employee_role: employee!.role,
-      employee_dept: employee!.department,
-      avatar_url:    employee!.avatar_url ?? undefined,
+      employee_role: employee!.role ?? null,
+      employee_dept: employee!.department ?? null,
+      avatar_url:    employee!.avatar_url ?? null,
       title,
       message,
+      category:      "employee_of_month" as const,
       month:         Number(month),
       year:          Number(year),
+      tag:           "Employee of the Month",
+      tag_color:     "#7234BD",
+      tag_bg:        "#F3EEFF",
       is_published:  isPublished,
-    });
-    setSaving(false);
-    toast.success("Employee of the Month saved.");
+    };
+    try {
+      if (existing) {
+        await updateMutation.mutateAsync(payload);
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+      toast.success("Employee of the Month saved.");
+    } catch {
+      toast.error("Failed to save.");
+    }
+  }
+
+  const saving = createMutation.isPending || updateMutation.isPending;
+
+  if (isLoading) {
+    return (
+      <AppLayout pageTitle="Employee of the Month">
+        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+      </AppLayout>
+    );
   }
 
   return (
@@ -176,7 +221,6 @@ export default function EmployeeOfMonthPage() {
             </div>
           </FormSection>
 
-          {/* Save at the bottom */}
           <div className="flex items-center justify-end pt-2">
             <Button onClick={handleSave} loading={saving} loadingText="Saving…">
               Save Changes

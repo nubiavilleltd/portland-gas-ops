@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
@@ -13,36 +13,35 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { BackButton } from "@/components/ui/BackButton";
-import { useLeadershipMessages } from "@/lib/modules/intranet/hooks/useLeadershipMessages";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Avatar from "@/components/ui/Avatar";
+import { useIntranetLeadershipAdmin } from "@/lib/modules/intranet/queries";
+import {
+  useCreateLeadership,
+  useUpdateLeadership,
+  useDeleteLeadership,
+  useToggleLeadershipPublished,
+  useReorderLeadership,
+} from "@/lib/modules/intranet/mutations";
 import { useToast } from "@/hooks/useToast";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 import type { LeadershipMessage } from "@/lib/modules/intranet/types/intranet.types";
-import { EMPLOYEE_STORE } from "@/app/(app)/admin/_components/_data";
-
-const EMPLOYEES: PickedEmployee[] = EMPLOYEE_STORE.map((e) => ({
-  id: e.id,
-  name: `${e.firstName} ${e.lastName}`,
-  role: e.title,
-  department: e.department,
-  avatar_url: `https://i.pravatar.cc/150?img=${10 + Number(e.id)}`,
-}));
 
 type MessageRow = Omit<LeadershipMessage, "id"> & { id: string; _numId: number };
 
 const EMPTY_FORM = {
-  title:        "",
-  body:         "",
+  title: "",
+  body:  "",
   is_published: true,
-  published_at: null as string | null,
-  order:        0,
 };
 type FormState = typeof EMPTY_FORM;
 
 const columns: Column<MessageRow>[] = [
   {
-    key: "order",
+    key: "sort_order",
     label: "#",
     render: (_, row) => (
-      <span className="text-sm font-medium text-brand-text-secondary">{row.order + 1}</span>
+      <span className="text-sm font-medium text-brand-text-secondary">{row.sort_order + 1}</span>
     ),
   },
   {
@@ -50,13 +49,7 @@ const columns: Column<MessageRow>[] = [
     label: "Author",
     render: (_, row) => (
       <div className="flex items-center gap-3 min-w-0">
-        {row.avatar_url ? (
-          <img src={row.avatar_url} alt={row.author_name} className="w-8 h-8 rounded-full object-cover shrink-0" />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple text-sm font-bold shrink-0">
-            {row.author_name[0]}
-          </div>
-        )}
+        <Avatar name={row.author_name} src={row.avatar_url} size="md" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-brand-text-primary truncate">{row.author_name}</p>
           <p className="text-xs text-brand-text-secondary truncate">{row.author_role} · {row.author_dept}</p>
@@ -81,24 +74,41 @@ const columns: Column<MessageRow>[] = [
 ];
 
 export default function LeadershipPage() {
-  const { messages, create, update, remove, togglePublished, move } = useLeadershipMessages();
+  const { data: messages = [], isLoading } = useIntranetLeadershipAdmin();
+  const { data: employeeList = [] }        = useEmployees();
   const toast = useToast();
 
-  const [modalOpen,  setModalOpen]  = useState(false);
-  const [deleteId,   setDeleteId]   = useState<number | null>(null);
-  const [editTarget, setEditTarget] = useState<LeadershipMessage | null>(null);
-  const [employee,   setEmployee]   = useState<PickedEmployee | null>(null);
-  const [form,       setForm]       = useState<FormState>(EMPTY_FORM);
-  const [errors,     setErrors]     = useState<Record<string, string>>({});
-  const [saving,     setSaving]     = useState(false);
+  const EMPLOYEES: PickedEmployee[] = employeeList.map((e) => ({
+    id:         e.id,
+    name:       `${e.user?.first_name ?? ""} ${e.user?.last_name ?? ""}`.trim(),
+    role:       e.job_title ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url ?? undefined,
+  }));
 
-  const sorted = [...messages].sort((a, b) => a.order - b.order);
+  const createMutation = useCreateLeadership();
+  const deleteMutation = useDeleteLeadership();
+  const toggleMutation = useToggleLeadershipPublished();
+  const reorderMutation = useReorderLeadership();
+
+  const [modalOpen,           setModalOpen]           = useState(false);
+  const [deleteId,            setDeleteId]            = useState<number | null>(null);
+  const [editTarget,          setEditTarget]          = useState<LeadershipMessage | null>(null);
+  const [employee,            setEmployee]            = useState<PickedEmployee | null>(null);
+  const [form,                setForm]                = useState<FormState>(EMPTY_FORM);
+  const [errors,              setErrors]              = useState<Record<string, string>>({});
+  const [toggleConfirmTarget, setToggleConfirmTarget] = useState<MessageRow | null>(null);
+  const [toggleSpinner,       setToggleSpinner]       = useState<number | null>(null);
+
+  const updateMutation = useUpdateLeadership(editTarget?.id ?? 0);
+
+  const sorted = [...messages].sort((a, b) => a.sort_order - b.sort_order);
   const rows: MessageRow[] = sorted.map((m) => ({ ...m, id: String(m.id), _numId: m.id }));
 
   function openCreate() {
     setEditTarget(null);
     setEmployee(null);
-    setForm({ ...EMPTY_FORM, order: messages.length });
+    setForm(EMPTY_FORM);
     setErrors({});
     setModalOpen(true);
   }
@@ -107,20 +117,18 @@ export default function LeadershipPage() {
     const item = messages.find((m) => m.id === row._numId)!;
     setEditTarget(item);
     setEmployee(
-      EMPLOYEES.find((e) => e.name === item.author_name) ?? {
-        id: String(item.author_id),
-        name: item.author_name,
-        role: item.author_role,
-        department: item.author_dept,
-        avatar_url: item.avatar_url,
+      EMPLOYEES.find((e) => e.id === item.author_id) ?? {
+        id:         item.author_id ?? "0",
+        name:       item.author_name,
+        role:       item.author_role ?? "",
+        department: item.author_dept ?? "",
+        avatar_url: item.avatar_url ?? undefined,
       }
     );
     setForm({
       title:        item.title,
       body:         item.body,
       is_published: item.is_published,
-      published_at: item.published_at,
-      order:        item.order,
     });
     setErrors({});
     setModalOpen(true);
@@ -136,43 +144,84 @@ export default function LeadershipPage() {
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!employee)         e.employee = "Please select an author";
-    if (!form.title.trim()) e.title   = "Headline is required";
-    if (!form.body.trim())  e.body    = "Message body is required";
+    if (!employee)           e.employee = "Please select an author";
+    if (!form.title.trim())  e.title    = "Headline is required";
+    if (!form.body.trim())   e.body     = "Message body is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
   async function handleSave() {
     if (!validate()) return;
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 300));
-    const ts = new Date().toISOString();
     const payload = {
-      author_id:   Number(employee!.id),
-      author_name: employee!.name,
-      author_role: employee!.role,
-      author_dept: employee!.department,
-      avatar_url:  employee!.avatar_url ?? "",
-      title:       form.title,
-      body:        form.body,
+      author_id:    employee!.id,
+      author_name:  employee!.name,
+      author_role:  employee!.role ?? null,
+      author_dept:  employee!.department ?? null,
+      avatar_url:   employee!.avatar_url ?? null,
+      title:        form.title,
+      body:         form.body,
       is_published: form.is_published,
-      published_at: form.is_published ? (form.published_at ?? ts) : null,
-      order:       form.order,
+      sort_order:   editTarget?.sort_order ?? messages.length,
     };
-    if (editTarget) {
-      update(editTarget.id, { ...payload, updated_at: ts });
-    } else {
-      create(payload);
+    try {
+      if (editTarget) {
+        await updateMutation.mutateAsync(payload);
+        toast.success("Message updated.");
+      } else {
+        await createMutation.mutateAsync(payload);
+        toast.success("Message created.");
+      }
+      handleClose();
+    } catch {
+      toast.error("Failed to save message.");
     }
-    setSaving(false);
-    toast.success(editTarget ? "Message updated." : "Message created.");
-    handleClose();
   }
 
-  function field(key: keyof FormState, value: string | boolean | number | null) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  async function handleToggle() {
+    if (!toggleConfirmTarget) return;
+    const row = toggleConfirmTarget;
+    setToggleConfirmTarget(null);
+    setToggleSpinner(row._numId);
+    try {
+      await toggleMutation.mutateAsync(row._numId);
+      toast.success(row.is_published ? "Message unpublished." : "Message published.");
+    } catch {
+      toast.error("Failed to update status.");
+    } finally {
+      setToggleSpinner(null);
+    }
   }
+
+  async function handleDelete() {
+    if (deleteId === null) return;
+    try {
+      await deleteMutation.mutateAsync(deleteId);
+      toast.success("Message deleted.");
+    } catch {
+      toast.error("Failed to delete message.");
+    }
+    setDeleteId(null);
+  }
+
+  async function handleMove(row: MessageRow, direction: "up" | "down") {
+    const idx     = sorted.findIndex((m) => m.id === row._numId);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+
+    const a = sorted[idx];
+    const b = sorted[swapIdx];
+    try {
+      await reorderMutation.mutateAsync([
+        { id: a.id, sort_order: b.sort_order },
+        { id: b.id, sort_order: a.sort_order },
+      ]);
+    } catch {
+      toast.error("Failed to reorder.");
+    }
+  }
+
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   const tableActions: DataTableAction<MessageRow>[] = [
     {
@@ -181,7 +230,7 @@ export default function LeadershipPage() {
       icon: <ChevronUp size={14} />,
       title: "Move Up",
       variant: "ghost",
-      onClick: (row) => move(row._numId, "up"),
+      onClick: (row) => handleMove(row, "up"),
     },
     {
       key: "down",
@@ -189,15 +238,18 @@ export default function LeadershipPage() {
       icon: <ChevronDown size={14} />,
       title: "Move Down",
       variant: "ghost",
-      onClick: (row) => move(row._numId, "down"),
+      onClick: (row) => handleMove(row, "down"),
     },
     {
       key: "toggle",
       label: "",
-      icon: (row) => row.is_published ? <EyeOff size={14} /> : <Eye size={14} />,
+      icon: (row) =>
+        toggleMutation.isPending && toggleSpinner === row._numId
+          ? <Loader2 size={14} className="animate-spin" />
+          : row.is_published ? <EyeOff size={14} /> : <Eye size={14} />,
       title: (row) => row.is_published ? "Unpublish" : "Publish",
       variant: "ghost",
-      onClick: (row) => togglePublished(row._numId),
+      onClick: (row) => setToggleConfirmTarget(row),
     },
     {
       key: "edit",
@@ -232,17 +284,21 @@ export default function LeadershipPage() {
         }
       />
 
-      <DataTable<MessageRow>
-        columns={columns}
-        data={rows}
-        showActions
-        actions={tableActions}
-        actionsLabel="Actions"
-        searchable
-        searchPlaceholder="Search messages…"
-        emptyMessage="No leadership messages yet."
-        emptyDescription="Click 'New Message' to add one."
-      />
+      {isLoading ? (
+        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+      ) : (
+        <DataTable<MessageRow>
+          columns={columns}
+          data={rows}
+          showActions
+          actions={tableActions}
+          actionsLabel="Actions"
+          searchable
+          searchPlaceholder="Search messages…"
+          emptyMessage="No leadership messages yet."
+          emptyDescription="Click 'New Message' to add one."
+        />
+      )}
 
       <ActionModal
         open={modalOpen}
@@ -269,13 +325,12 @@ export default function LeadershipPage() {
             required
             error={errors.employee}
           />
-
           <FormInput
             label="Headline"
             required
-            placeholder="e.g. Message from the MD — June 2026"
+            placeholder="e.g. Message from the MD — July 2026"
             value={form.title}
-            onChange={(e) => { field("title", e.target.value); setErrors((p) => ({ ...p, title: "" })); }}
+            onChange={(e) => { setForm((p) => ({ ...p, title: e.target.value })); setErrors((p) => ({ ...p, title: "" })); }}
             error={errors.title}
           />
           <FormTextarea
@@ -283,7 +338,7 @@ export default function LeadershipPage() {
             required
             placeholder="Write the leadership message…"
             value={form.body}
-            onChange={(e) => { field("body", e.target.value); setErrors((p) => ({ ...p, body: "" })); }}
+            onChange={(e) => { setForm((p) => ({ ...p, body: e.target.value })); setErrors((p) => ({ ...p, body: "" })); }}
             rows={5}
             error={errors.body}
           />
@@ -291,10 +346,7 @@ export default function LeadershipPage() {
             <input
               type="checkbox"
               checked={form.is_published}
-              onChange={(e) => {
-                field("is_published", e.target.checked);
-                if (e.target.checked) field("published_at", new Date().toISOString());
-              }}
+              onChange={(e) => setForm((p) => ({ ...p, is_published: e.target.checked }))}
               className="w-4 h-4 accent-brand-purple"
             />
             <span className="text-sm text-brand-text-primary">Publish immediately</span>
@@ -303,12 +355,26 @@ export default function LeadershipPage() {
       </ActionModal>
 
       <ConfirmDialog
+        open={toggleConfirmTarget !== null}
+        title={toggleConfirmTarget?.is_published ? "Unpublish Message" : "Publish Message"}
+        message={
+          toggleConfirmTarget?.is_published
+            ? "This message will be hidden from the intranet homepage carousel."
+            : "This message will become visible to all staff on the intranet homepage."
+        }
+        confirmLabel={toggleConfirmTarget?.is_published ? "Unpublish" : "Publish"}
+        destructive={toggleConfirmTarget?.is_published ?? false}
+        onConfirm={handleToggle}
+        onCancel={() => setToggleConfirmTarget(null)}
+      />
+
+      <ConfirmDialog
         open={deleteId !== null}
         title="Delete Message"
         message="This will permanently remove this leadership message from the intranet carousel."
         confirmLabel="Delete"
         destructive={true}
-        onConfirm={() => { if (deleteId !== null) { remove(deleteId); setDeleteId(null); } }}
+        onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
     </AppLayout>

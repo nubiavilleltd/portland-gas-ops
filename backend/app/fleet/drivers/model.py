@@ -35,6 +35,7 @@ class Driver(Base):
     license_number = Column(String(100), unique=True, nullable=False)
     license_expiry_date = Column(Date, nullable=False)
 
+    address = Column(String(500), nullable=True)
     experience_years = Column(Integer, nullable=False, default=0)
 
     profile_image_document_id = Column(
