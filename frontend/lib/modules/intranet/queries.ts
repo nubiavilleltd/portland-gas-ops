@@ -26,7 +26,7 @@ export const intranetKeys = {
 export function useIntranetNewsCategories() {
   return useQuery<NewsCategory[]>({
     queryKey: intranetKeys.newsCategories(),
-    queryFn:  () => get<NewsCategory[]>("/api/intranet/news/categories/"),
+    queryFn:  () => get<NewsCategory[]>("/api/intranet/news/categories"),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -37,7 +37,7 @@ export function useIntranetNewsCategories() {
 export function useIntranetNewsPublished() {
   return useQuery<NewsItem[]>({
     queryKey: intranetKeys.news(),
-    queryFn:  () => get<NewsItem[]>("/api/intranet/news/"),
+    queryFn:  () => get<NewsItem[]>("/api/intranet/news"),
     staleTime: 60 * 1000,
   });
 }
@@ -46,7 +46,7 @@ export function useIntranetNewsPublished() {
 export function useIntranetNewsAdmin() {
   return useQuery<NewsItem[]>({
     queryKey: intranetKeys.newsAdmin(),
-    queryFn:  () => get<NewsItem[]>("/api/intranet/news/admin/"),
+    queryFn:  () => get<NewsItem[]>("/api/intranet/news/admin"),
     staleTime: 30 * 1000,
   });
 }
@@ -66,7 +66,7 @@ export function useIntranetNewsDetail(id: number) {
 export function useIntranetEventsPublished() {
   return useQuery<IntranetEvent[]>({
     queryKey: intranetKeys.events(),
-    queryFn:  () => get<IntranetEvent[]>("/api/intranet/events/"),
+    queryFn:  () => get<IntranetEvent[]>("/api/intranet/events"),
     staleTime: 60 * 1000,
   });
 }
@@ -74,7 +74,7 @@ export function useIntranetEventsPublished() {
 export function useIntranetEventsAdmin() {
   return useQuery<IntranetEvent[]>({
     queryKey: intranetKeys.eventsAdmin(),
-    queryFn:  () => get<IntranetEvent[]>("/api/intranet/events/admin/"),
+    queryFn:  () => get<IntranetEvent[]>("/api/intranet/events/admin"),
     staleTime: 30 * 1000,
   });
 }
@@ -93,7 +93,7 @@ export function useIntranetEventDetail(id: number) {
 export function useIntranetSpotlightPublished() {
   return useQuery<SpotlightEntry[]>({
     queryKey: intranetKeys.spotlight(),
-    queryFn:  () => get<SpotlightEntry[]>("/api/intranet/spotlight/"),
+    queryFn:  () => get<SpotlightEntry[]>("/api/intranet/spotlight"),
     staleTime: 60 * 1000,
   });
 }
@@ -101,7 +101,7 @@ export function useIntranetSpotlightPublished() {
 export function useIntranetSpotlightAdmin() {
   return useQuery<SpotlightEntry[]>({
     queryKey: intranetKeys.spotlightAdmin(),
-    queryFn:  () => get<SpotlightEntry[]>("/api/intranet/spotlight/admin/"),
+    queryFn:  () => get<SpotlightEntry[]>("/api/intranet/spotlight/admin"),
     staleTime: 30 * 1000,
   });
 }
@@ -109,7 +109,7 @@ export function useIntranetSpotlightAdmin() {
 export function useIntranetLeadershipPublished() {
   return useQuery<LeadershipMessage[]>({
     queryKey: intranetKeys.leadership(),
-    queryFn:  () => get<LeadershipMessage[]>("/api/intranet/leadership/"),
+    queryFn:  () => get<LeadershipMessage[]>("/api/intranet/leadership"),
     staleTime: 60 * 1000,
   });
 }
@@ -117,7 +117,7 @@ export function useIntranetLeadershipPublished() {
 export function useIntranetLeadershipAdmin() {
   return useQuery<LeadershipMessage[]>({
     queryKey: intranetKeys.leadershipAdmin(),
-    queryFn:  () => get<LeadershipMessage[]>("/api/intranet/leadership/admin/"),
+    queryFn:  () => get<LeadershipMessage[]>("/api/intranet/leadership/admin"),
     staleTime: 30 * 1000,
   });
 }
@@ -125,7 +125,7 @@ export function useIntranetLeadershipAdmin() {
 export function useIntranetSpotlightTags() {
   return useQuery<SpotlightTag[]>({
     queryKey: intranetKeys.spotlightTags(),
-    queryFn:  () => get<SpotlightTag[]>("/api/intranet/spotlight/tags/"),
+    queryFn:  () => get<SpotlightTag[]>("/api/intranet/spotlight/tags"),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -23,7 +23,7 @@ export function useCreateAsset() {
       form.append("data", JSON.stringify(data));
       if (image) form.append("file", image);
       if (to_employee_name) form.append("to_employee_name", to_employee_name);
-      const { data: res } = await api.post("/api/assets/", form, {
+      const { data: res } = await api.post("/api/assets", form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return res;
@@ -88,7 +88,7 @@ export function useCreateAssetCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name: string; colour: string }) => {
-      const { data: res } = await api.post("/api/assets/categories/", data);
+      const { data: res } = await api.post("/api/assets/categories", data);
       return res;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.categories }),
@@ -122,7 +122,7 @@ export function useCreateAssetType() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name: string; category_id: string; prefix: string }) => {
-      const { data: res } = await api.post("/api/assets/types/", data);
+      const { data: res } = await api.post("/api/assets/types", data);
       return res;
     },
     onSuccess: () => {
@@ -179,7 +179,7 @@ export function useCreateAssetRequest() {
       return_date?: string;
       items: { asset_type_id?: string; asset_id?: string; quantity: number; notes?: string }[];
     }) => {
-      const { data: res } = await api.post("/api/assets/requests/", data);
+      const { data: res } = await api.post("/api/assets/requests", data);
       return res;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.requests() }),

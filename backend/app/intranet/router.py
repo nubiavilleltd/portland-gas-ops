@@ -76,7 +76,7 @@ def _employee_id(current_user: User, db: Session) -> str | None:
 
 # ── Category endpoints — must come before /news/{id} ──────────────────────────
 
-@router.get("/news/categories/", response_model=List[NewsCategoryResponse])
+@router.get("/news/categories", response_model=List[NewsCategoryResponse])
 def list_news_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -84,7 +84,7 @@ def list_news_categories(
     return _cat_svc(db).list_all()
 
 
-@router.post("/news/categories/", response_model=NewsCategoryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/news/categories", response_model=NewsCategoryResponse, status_code=status.HTTP_201_CREATED)
 def create_news_category(
     data: NewsCategoryCreate,
     db: Session = Depends(get_db),
@@ -108,7 +108,7 @@ def delete_news_category(
 
 # ── Upload endpoints — must come before /news/{id} ────────────────────────────
 
-@router.post("/news/upload-image/", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/news/upload-image", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_news_cover_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -144,7 +144,7 @@ class UploadFromUrlBody(BaseModel):
         return v
 
 
-@router.post("/news/upload-image-from-url/", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/news/upload-image-from-url", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_news_cover_image_from_url(
     body: UploadFromUrlBody,
     db: Session = Depends(get_db),
@@ -160,7 +160,7 @@ def upload_news_cover_image_from_url(
 
 # ── Public endpoints (any authenticated user) ──────────────────────────────────
 
-@router.get("/news/", response_model=List[NewsResponse])
+@router.get("/news", response_model=List[NewsResponse])
 def list_published_news(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -179,7 +179,7 @@ def get_news_article(
 
 # ── Admin endpoints ────────────────────────────────────────────────────────────
 
-@router.get("/news/admin/", response_model=List[NewsResponse])
+@router.get("/news/admin", response_model=List[NewsResponse])
 def list_all_news(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -187,7 +187,7 @@ def list_all_news(
     return _news_svc(db).list_all()
 
 
-@router.post("/news/", response_model=NewsResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/news", response_model=NewsResponse, status_code=status.HTTP_201_CREATED)
 def create_news(
     data: NewsCreate,
     db: Session = Depends(get_db),
@@ -236,7 +236,7 @@ def toggle_news_published(
 
 # ── Event endpoints ────────────────────────────────────────────────────────────
 
-@router.get("/events/", response_model=List[EventResponse])
+@router.get("/events", response_model=List[EventResponse])
 def list_published_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -244,7 +244,7 @@ def list_published_events(
     return _event_svc(db).list_published()
 
 
-@router.get("/events/admin/", response_model=List[EventResponse])
+@router.get("/events/admin", response_model=List[EventResponse])
 def list_all_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -261,7 +261,7 @@ def get_event(
     return _event_svc(db).get_published(event_id)
 
 
-@router.post("/events/", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/events", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 def create_event(
     data: EventCreate,
     db: Session = Depends(get_db),
@@ -308,7 +308,7 @@ def toggle_event_published(
 
 # ── Spotlight endpoints (EOM + spotlight cards) ────────────────────────────────
 
-@router.get("/spotlight/", response_model=List[SpotlightResponse])
+@router.get("/spotlight", response_model=List[SpotlightResponse])
 def list_published_spotlight(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -316,7 +316,7 @@ def list_published_spotlight(
     return _spotlight_svc(db).list_published()
 
 
-@router.get("/spotlight/admin/", response_model=List[SpotlightResponse])
+@router.get("/spotlight/admin", response_model=List[SpotlightResponse])
 def list_all_spotlight(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -324,7 +324,7 @@ def list_all_spotlight(
     return _spotlight_svc(db).list_all()
 
 
-@router.post("/spotlight/", response_model=SpotlightResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/spotlight", response_model=SpotlightResponse, status_code=status.HTTP_201_CREATED)
 def create_spotlight(
     data: SpotlightCreate,
     db: Session = Depends(get_db),
@@ -371,7 +371,7 @@ def toggle_spotlight_published(
 
 # ── Spotlight tag endpoints ─────────────────────────────────────────────────────
 
-@router.get("/spotlight/tags/", response_model=List[SpotlightTagResponse])
+@router.get("/spotlight/tags", response_model=List[SpotlightTagResponse])
 def list_spotlight_tags(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -379,7 +379,7 @@ def list_spotlight_tags(
     return _tag_svc(db).list_all()
 
 
-@router.post("/spotlight/tags/", response_model=SpotlightTagResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/spotlight/tags", response_model=SpotlightTagResponse, status_code=status.HTTP_201_CREATED)
 def create_spotlight_tag(
     data: SpotlightTagCreate,
     db: Session = Depends(get_db),
@@ -408,7 +408,7 @@ class ReorderItem(BaseModel):
     sort_order: int
 
 
-@router.get("/leadership/", response_model=List[LeadershipResponse])
+@router.get("/leadership", response_model=List[LeadershipResponse])
 def list_published_leadership(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -416,7 +416,7 @@ def list_published_leadership(
     return _leadership_svc(db).list_published()
 
 
-@router.get("/leadership/admin/", response_model=List[LeadershipResponse])
+@router.get("/leadership/admin", response_model=List[LeadershipResponse])
 def list_all_leadership(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -424,7 +424,7 @@ def list_all_leadership(
     return _leadership_svc(db).list_all()
 
 
-@router.post("/leadership/", response_model=LeadershipResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/leadership", response_model=LeadershipResponse, status_code=status.HTTP_201_CREATED)
 def create_leadership(
     data: LeadershipCreate,
     db: Session = Depends(get_db),

@@ -22,7 +22,7 @@ export const workflowKeys = {
 export function useWorkflows() {
   return useQuery<ApprovalWorkflowListItem[]>({
     queryKey: workflowKeys.list(),
-    queryFn:  () => get<ApprovalWorkflowListItem[]>("/api/workflow/"),
+    queryFn:  () => get<ApprovalWorkflowListItem[]>("/api/workflow"),
     staleTime: 30 * 1000,
   });
 }
@@ -38,7 +38,7 @@ export function useWorkflow(id: string) {
 export function useApproverGroups() {
   return useQuery<ApproverGroupListItem[]>({
     queryKey: workflowKeys.groups(),
-    queryFn:  () => get<ApproverGroupListItem[]>("/api/workflow/groups/"),
+    queryFn:  () => get<ApproverGroupListItem[]>("/api/workflow/groups"),
     staleTime: 30 * 1000,
   });
 }
@@ -54,7 +54,7 @@ export function useApproverGroup(id: string) {
 export function useWorkflowAssignments() {
   return useQuery<WorkflowAssignment[]>({
     queryKey: workflowKeys.assignments(),
-    queryFn:  () => get<WorkflowAssignment[]>("/api/workflow/assignments/"),
+    queryFn:  () => get<WorkflowAssignment[]>("/api/workflow/assignments"),
     staleTime: 30 * 1000,
   });
 }

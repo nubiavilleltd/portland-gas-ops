@@ -40,7 +40,7 @@ def _require_manager(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-@router.get("/", response_model=List[VendorResponse])
+@router.get("", response_model=List[VendorResponse])
 def list_vendors(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
@@ -54,7 +54,7 @@ def list_vendors(
     return _svc(db).list_vendors(skip=skip, limit=limit, search=search, include_inactive=include_inactive)
 
 
-@router.post("/", response_model=VendorResponse, status_code=201)
+@router.post("", response_model=VendorResponse, status_code=201)
 def create_vendor(
     data: VendorCreate,
     db: Session = Depends(get_db),

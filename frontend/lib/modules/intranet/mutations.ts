@@ -17,7 +17,7 @@ export function useCreateNewsCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string; color: string }) =>
-      post<NewsCategory>("/api/intranet/news/categories/", data),
+      post<NewsCategory>("/api/intranet/news/categories", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.newsCategories() }),
   });
 }
@@ -38,7 +38,7 @@ export function useUploadNewsImage() {
     mutationFn: (file: File) => {
       const fd = new FormData();
       fd.append("file", file);
-      return postForm<ImageUploadResult>("/api/intranet/news/upload-image/", fd);
+      return postForm<ImageUploadResult>("/api/intranet/news/upload-image", fd);
     },
   });
 }
@@ -47,7 +47,7 @@ export function useUploadNewsImage() {
 export function useUploadNewsImageFromUrl() {
   return useMutation({
     mutationFn: (url: string) =>
-      post<ImageUploadResult>("/api/intranet/news/upload-image-from-url/", { url }),
+      post<ImageUploadResult>("/api/intranet/news/upload-image-from-url", { url }),
   });
 }
 
@@ -57,7 +57,7 @@ export function useCreateNews() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: NewsCreatePayload) =>
-      post<NewsItem>("/api/intranet/news/", data),
+      post<NewsItem>("/api/intranet/news", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: intranetKeys.news() });
       qc.invalidateQueries({ queryKey: intranetKeys.newsAdmin() });
@@ -110,7 +110,7 @@ export function useCreateEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: EventCreatePayload) =>
-      post<IntranetEvent>("/api/intranet/events/", data),
+      post<IntranetEvent>("/api/intranet/events", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: intranetKeys.events() });
       qc.invalidateQueries({ queryKey: intranetKeys.eventsAdmin() });
@@ -163,7 +163,7 @@ export function useCreateSpotlight() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: SpotlightCreatePayload) =>
-      post<SpotlightEntry>("/api/intranet/spotlight/", data),
+      post<SpotlightEntry>("/api/intranet/spotlight", data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: intranetKeys.spotlight() });
       qc.invalidateQueries({ queryKey: intranetKeys.spotlightAdmin() });
@@ -212,7 +212,7 @@ export function useCreateSpotlightTag() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { label: string; color: string; bg: string }) =>
-      post<SpotlightTag>("/api/intranet/spotlight/tags/", data),
+      post<SpotlightTag>("/api/intranet/spotlight/tags", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.spotlightTags() }),
   });
 }
@@ -239,7 +239,7 @@ export function useCreateLeadership() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: LeadershipCreatePayload) =>
-      post<LeadershipMessage>("/api/intranet/leadership/", data),
+      post<LeadershipMessage>("/api/intranet/leadership", data),
     onSuccess: () => invalidateLeadership(qc),
   });
 }

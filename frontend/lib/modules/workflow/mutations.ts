@@ -10,7 +10,7 @@ export function useCreateWorkflow() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string; description?: string; reset_on_return?: boolean }) =>
-      post("/api/workflow/", data),
+      post("/api/workflow", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: workflowKeys.list() }),
   });
 }
@@ -94,7 +94,7 @@ export function useCreateApproverGroup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string; description?: string }) =>
-      post("/api/workflow/groups/", data),
+      post("/api/workflow/groups", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: workflowKeys.groups() }),
   });
 }
@@ -134,7 +134,7 @@ export function useSetWorkflowAssignment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { request_type: string; workflow_id: string }) =>
-      put("/api/workflow/assignments/", data),
+      put("/api/workflow/assignments", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: workflowKeys.assignments() }),
   });
 }

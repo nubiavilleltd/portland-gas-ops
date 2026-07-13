@@ -87,7 +87,7 @@ def _require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 # ── Categories ─────────────────────────────────────────────────────────────────
 
-@router.get("/categories/", response_model=List[AssetCategoryWithTypesResponse])
+@router.get("/categories", response_model=List[AssetCategoryWithTypesResponse])
 def list_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -95,7 +95,7 @@ def list_categories(
     return asset_service.list_categories(db)
 
 
-@router.post("/categories/", response_model=AssetCategoryResponse, status_code=201)
+@router.post("/categories", response_model=AssetCategoryResponse, status_code=201)
 def create_category(
     data: AssetCategoryCreate,
     db: Session = Depends(get_db),
@@ -125,7 +125,7 @@ def delete_category(
 
 # ── Asset Types ────────────────────────────────────────────────────────────────
 
-@router.get("/types/", response_model=List[AssetTypeResponse])
+@router.get("/types", response_model=List[AssetTypeResponse])
 def list_asset_types(
     category_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
@@ -134,7 +134,7 @@ def list_asset_types(
     return asset_service.list_asset_types(db, category_id=category_id)
 
 
-@router.post("/types/", response_model=AssetTypeResponse, status_code=201)
+@router.post("/types", response_model=AssetTypeResponse, status_code=201)
 def create_asset_type(
     data: AssetTypeCreate,
     db: Session = Depends(get_db),
@@ -155,7 +155,7 @@ def delete_asset_type(
 # ── Assignment Logs (all assets) ───────────────────────────────────────────────
 # NOTE: this route must come before /{asset_id} to avoid route collision
 
-@router.get("/assignment-logs/", response_model=List[AssignmentLogResponse])
+@router.get("/assignment-logs", response_model=List[AssignmentLogResponse])
 def list_all_assignment_logs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -175,7 +175,7 @@ def list_all_assignment_logs(
 
 # ── Assets ─────────────────────────────────────────────────────────────────────
 
-@router.get("/", response_model=List[AssetResponse])
+@router.get("", response_model=List[AssetResponse])
 def list_assets(
     skip: int = Query(0, ge=0),
     limit: int = Query(40, ge=1, le=100),
@@ -201,7 +201,7 @@ def list_assets(
     return [_build_asset_response(a, name_map) for a in assets]
 
 
-@router.post("/", response_model=AssetResponse, status_code=201)
+@router.post("", response_model=AssetResponse, status_code=201)
 async def create_asset(
     data: str = Form(...),
     file: Optional[UploadFile] = File(None),
@@ -243,7 +243,7 @@ async def create_asset(
     return _build_asset_response(asset, _resolve_assignee_names(db, [asset]))
 
 
-@router.get("/requests/", response_model=List[AssetRequestListItem])
+@router.get("/requests", response_model=List[AssetRequestListItem])
 def list_requests(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
@@ -261,7 +261,7 @@ def list_requests(
     return result
 
 
-@router.post("/requests/", response_model=AssetRequestResponse, status_code=201)
+@router.post("/requests", response_model=AssetRequestResponse, status_code=201)
 def create_request(
     data: AssetRequestCreate,
     db: Session = Depends(get_db),
@@ -314,7 +314,7 @@ def transfer_asset(
     return _build_asset_response(asset, _resolve_assignee_names(db, [asset]))
 
 
-@router.get("/{asset_id}/assignment-logs/", response_model=List[AssignmentLogResponse])
+@router.get("/{asset_id}/assignment-logs", response_model=List[AssignmentLogResponse])
 def list_assignment_logs(
     asset_id: str,
     db: Session = Depends(get_db),
@@ -329,7 +329,7 @@ def list_assignment_logs(
     return result
 
 
-@router.get("/{asset_id}/maintenance-logs/", response_model=List[MaintenanceLogResponse])
+@router.get("/{asset_id}/maintenance-logs", response_model=List[MaintenanceLogResponse])
 def list_maintenance_logs(
     asset_id: str,
     db: Session = Depends(get_db),
@@ -344,7 +344,7 @@ def list_maintenance_logs(
     return result
 
 
-@router.post("/{asset_id}/maintenance-logs/", response_model=MaintenanceLogResponse, status_code=201)
+@router.post("/{asset_id}/maintenance-logs", response_model=MaintenanceLogResponse, status_code=201)
 def create_maintenance_log(
     asset_id: str,
     data: MaintenanceLogCreate,

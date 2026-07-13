@@ -26,8 +26,7 @@ router = APIRouter()
 
 # ── List ──────────────────────────────────────────────────────────────────────
 
-@router.get("", response_model=List[EmployeeListItem], include_in_schema=False)
-@router.get("/", response_model=List[EmployeeListItem])
+@router.get("", response_model=List[EmployeeListItem])
 def list_employees(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -51,7 +50,7 @@ def count_employees(
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
-@router.post("/", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
 def create_employee(
     data: EmployeeCreate,
     db: Session = Depends(get_db),
