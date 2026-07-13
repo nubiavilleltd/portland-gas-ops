@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Optional
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.fleet.drivers.enums import DriverStatus
 
@@ -24,13 +23,14 @@ class DriverUpdate(BaseModel):
     status: Optional[DriverStatus] = None
 
 
+
 class DriverResponse(BaseModel):
-    id: int
+    id: str
     employee_id: str
 
-    full_name: str
-    email: str
-    phone_number: str
+    full_name: Optional[str]
+    email: Optional[str]
+    phone_number: Optional[str]
 
     license_number: str
     license_expiry_date: date
@@ -41,13 +41,11 @@ class DriverResponse(BaseModel):
     profile_image_url: Optional[str]
 
     status: DriverStatus
-    current_trip_id: Optional[int]
+    current_trip_id: Optional[str]
 
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class DriverListResponse(BaseModel):
     items: list[DriverResponse]

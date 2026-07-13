@@ -63,16 +63,4 @@ export class VehiclesService {
     throw new Error(getErrorMessage(err, "Failed to update vehicle"));
   }
 }
-
-  // No-ops — backend handles vehicle status automatically via trip operations
-  static async assignVehicleToTrip(
-    _vehicleId: string,
-    _tripId: string,
-  ): Promise<Vehicle> {
-    return VehiclesService.getVehicleById(_vehicleId) as Promise<Vehicle>;
-  }
-
-  static async releaseVehicle(_vehicleId: string): Promise<Vehicle> {
-    return VehiclesService.getVehicleById(_vehicleId) as Promise<Vehicle>;
-  }
 }

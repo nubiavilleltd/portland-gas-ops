@@ -17,10 +17,11 @@ export const fleetApi = {
     return data;
   },
 
-  createDriver: async (formData: FormData) => {
-    const { data } = await api.post("/api/fleet/drivers", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  createDriver: async (input: Record<string, unknown>) => {
+    // const { data } = await api.post("/api/fleet/drivers", formData, {
+    //   headers: { "Content-Type": "multipart/form-data" },
+    // });
+     const { data } = await api.post(`/api/fleet/drivers`, input);
     return data;
   },
 

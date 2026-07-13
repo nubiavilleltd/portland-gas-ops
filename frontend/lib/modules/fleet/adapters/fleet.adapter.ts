@@ -12,6 +12,7 @@ interface BackendDriver {
     full_name: string;
     email: string;
     phone_number: string;
+    address: string | null;
     license_number: string;
     license_expiry_date: string;
     experience_years: number;
@@ -118,9 +119,11 @@ interface BackendTrip {
 export function adaptDriver(raw: BackendDriver): Driver {
     return {
         id: String(raw.id),
+        employee_id: raw.employee_id,
         full_name: raw.full_name,
         email: raw.email,
         phone_number: raw.phone_number,
+        address: raw.address ?? undefined,
         license_number: raw.license_number,
         license_expiry_date: raw.license_expiry_date,
         experience_years: raw.experience_years,

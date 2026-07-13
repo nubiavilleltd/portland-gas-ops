@@ -21,6 +21,7 @@ interface EmployeePickerProps {
   required?: boolean;
   error?: string;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 
@@ -31,20 +32,21 @@ export default function EmployeePicker({
   label,
   required,
   error,
+  disabled,
   placeholder = "Search by name or department…",
 }: EmployeePickerProps) {
-  const [open,  setOpen]  = useState(false);
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef     = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = query.trim()
     ? employees.filter(
-        (e) =>
-          e.name.toLowerCase().includes(query.toLowerCase()) ||
-          e.department.toLowerCase().includes(query.toLowerCase()) ||
-          e.role.toLowerCase().includes(query.toLowerCase())
-      )
+      (e) =>
+        e.name.toLowerCase().includes(query.toLowerCase()) ||
+        e.department.toLowerCase().includes(query.toLowerCase()) ||
+        e.role.toLowerCase().includes(query.toLowerCase())
+    )
     : employees;
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function EmployeePicker({
   }, []);
 
   function handleOpen() {
+    if (disabled) return;
     setOpen(true);
     setQuery("");
     setTimeout(() => inputRef.current?.focus(), 50);
@@ -89,8 +92,11 @@ export default function EmployeePicker({
         value ? (
           <div
             className={cn(
-              "flex items-center gap-3 h-12 w-full rounded-lg border bg-white px-3 cursor-pointer hover:border-brand-purple/50 transition-colors",
-              error ? "border-red-400" : "border-brand-border"
+              "flex items-center gap-3 h-12 w-full rounded-lg border bg-white px-3 transition-colors",
+              error ? "border-red-400" : "border-brand-border",
+              disabled
+                ? "cursor-not-allowed opacity-60"
+                : "cursor-pointer hover:border-brand-purple/50"
             )}
             onClick={handleOpen}
           >
@@ -99,22 +105,26 @@ export default function EmployeePicker({
               <p className="text-sm font-medium text-brand-text-primary leading-tight truncate">{value.name}</p>
               <p className="text-xs text-brand-text-secondary truncate">{value.role} · {value.department}</p>
             </div>
-            <button
+            {disabled ? null : <button
               type="button"
               onClick={handleClear}
               className="p-1 rounded text-brand-text-secondary hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
               title="Clear selection"
             >
               <X size={13} />
-            </button>
+            </button>}
           </div>
         ) : (
           <button
             type="button"
             onClick={handleOpen}
+            disabled={disabled}
             className={cn(
-              "flex items-center gap-2 h-10 w-full rounded-lg border bg-white px-3 text-left transition-colors hover:border-brand-purple/50",
-              error ? "border-red-400" : "border-brand-border"
+              "flex items-center gap-2 h-10 w-full rounded-lg border bg-white px-3 text-left transition-colors",
+              error ? "border-red-400" : "border-brand-border",
+              disabled
+                ? "cursor-not-allowed opacity-60"
+                : "hover:border-brand-purple/50"
             )}
           >
             <Search size={14} className="text-brand-text-secondary shrink-0" />
