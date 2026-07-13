@@ -7,17 +7,20 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-console.log("API base URL:", API_URL, api);
 
 // ─── Request interceptor — attach Bearer token ────────────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Dynamically import to avoid SSR issues
+  console.log("API base URL:", API_URL, api);
   if (typeof window !== "undefined") {
     const { useAuthStore } = await import("@/store/authStore");
     const token = useAuthStore.getState().accessToken;
     if (token && config.headers) {
       config.headers["Authorization"] = `Bearer ${token}`;
+      console.log("Attached Bearer token to request:", token);
     }
+
+    console.log("token in request interceptor:", token);
   }
   return config;
 });
@@ -129,7 +132,7 @@ api.interceptors.response.use(
 // ─── Typed helpers ─────────────────────────────────────────────────────────────
 export async function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
   const res = await api.get<T>(url, { params });
-  console.log("response from get:", res.data);
+  console.log("response from get:", res.data, url);
   return res.data;
 }
 
