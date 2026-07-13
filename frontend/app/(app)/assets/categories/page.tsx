@@ -141,7 +141,7 @@ function AddTypeInline({ categoryId, onDone }: { categoryId: string; onDone: () 
     if (!typeName.trim()) { setError("Name is required"); return; }
     setError(null);
     try {
-      await createType.mutateAsync({ name: typeName.trim(), category_id: categoryId });
+      await createType.mutateAsync({ name: typeName.trim(), category_id: categoryId, prefix: "" });
       toast.success("Asset type added");
       setTypeName("");
       onDone();

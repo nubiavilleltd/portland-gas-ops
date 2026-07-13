@@ -24,113 +24,112 @@ class AddOrderToTripWorkflow:
     def execute(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         order_id: str,
         actor_id: str,
     ):
 
-        with db.begin():
+        #
+        # Load Trip
+        #
+        trip = self.trip_service.get_or_raise(
+            db=db,
+            trip_id=trip_id,
+        )
 
-            #
-            # Load Trip
-            #
-            trip = self.trip_service.get_or_raise(
-                db=db,
-                trip_id=trip_id,
+        #
+        # Load Order
+        #
+        order = self.order_service.get_or_raise(
+            db=db,
+            order_id=order_id,
+        )
+
+        #
+        # Ensure the order is not already assigned
+        #
+        self.trip_service.ensure_order_not_assigned(
+            db=db,
+            order_id=order.id,
+        )
+
+        #
+        # Order must still be pending
+        #
+        if order.fulfillment_status.value != "pending":
+            raise AppException(
+                status_code=400,
+                error_code=TripErrorCode.ORDER_CANNOT_BE_LINKED,
+                message=f"Order '{order.order_no}' cannot be assigned to a trip.",
             )
 
-            #
-            # Load Order
-            #
-            order = self.order_service.get_or_raise(
-                db=db,
-                order_id=order_id,
-            )
+        #
+        # Link Order
+        #
+        self.trip_service.add_order(
+            db=db,
+            trip_id=trip.id,
+            order_id=order.id,
+        )
 
-            #
-            # Ensure the order is not already assigned
-            #
-            self.trip_service.ensure_order_not_assigned(
-                db=db,
-                order_id=order.id,
-            )
+        self.order_service.set_trip(
+            db=db,
+            order_no=order.order_no,
+            trip_id=str(trip.id),
+        )
 
-            #
-            # Order must still be pending
-            #
-            if order.fulfillment_status.value != "pending":
-                raise AppException(
-                    status_code=400,
-                    error_code=TripErrorCode.ORDER_CANNOT_BE_LINKED,
-                    message=f"Order '{order.order_no}' cannot be assigned to a trip.",
-                )
+        #
+        # If the trip already has assigned resources,
+        # immediately assign the order as well.
+        #
+        if self.trip_service.has_assigned_resources(trip):
 
-            #
-            # Link Order
-            #
-            self.trip_service.add_order(
-                db=db,
-                trip_id=trip.id,
-                order_id=order.id,
-            )
-
-            self.order_service.set_trip(
+            self.order_service.update_fulfillment_status(
                 db=db,
                 order_no=order.order_no,
-                trip_id=str(trip.id),
+                status="assigned",
             )
 
             #
-            # If the trip already has assigned resources,
-            # immediately assign the order as well.
+            # If the newly-added order introduces tracked inventory,
+            # the trip must return to Awaiting Inventory.
             #
-            if self.trip_service.has_assigned_resources(trip):
+            if self.trip_service.requires_inventory(
+                db=db,
+                trip_id=trip.id,
+            ):
 
-                self.order_service.update_fulfillment_status(
+                self.trip_service.update(
                     db=db,
-                    order_no=order.order_no,
-                    status="assigned",
+                    trip=trip,
+                    status=TripStatus.awaiting_inventory,
                 )
 
-                #
-                # If the newly-added order introduces tracked inventory,
-                # the trip must return to Awaiting Inventory.
-                #
-                if self.trip_service.requires_inventory(
-                    db=db,
-                    trip_id=trip.id,
-                ):
+        #
+        # Audit Order
+        #
+        self.audit_service.record(
+            db=db,
+            entity_type=AuditEntityType.order,
+            entity_id=order.id,
+            action="assigned_to_trip",
+            description=f"Order assigned to trip {trip.trip_no}",
+            actor_type=AuditActorType.employee,
+            actor_employee_id=actor_id,
+        )
 
-                    self.trip_service.update(
-                        db=db,
-                        trip=trip,
-                        status=TripStatus.awaiting_inventory,
-                    )
+        #
+        # Audit Trip
+        #
+        self.audit_service.record(
+            db=db,
+            entity_type=AuditEntityType.trip,
+            entity_id=str(trip.id),
+            action="order_added",
+            description=f"Order {order.order_no} added to trip {trip.trip_no}",
+            actor_type=AuditActorType.employee,
+            actor_employee_id=actor_id,
+        )
 
-            #
-            # Audit Order
-            #
-            self.audit_service.record(
-                db=db,
-                entity_type=AuditEntityType.order,
-                entity_id=order.id,
-                action="assigned_to_trip",
-                description=f"Order assigned to trip {trip.trip_no}",
-                actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
-            )
-
-            #
-            # Audit Trip
-            #
-            self.audit_service.record(
-                db=db,
-                entity_type=AuditEntityType.trip,
-                entity_id=str(trip.id),
-                action="order_added",
-                description=f"Order {order.order_no} added to trip {trip.trip_no}",
-                actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
-            )
-
-            return trip
+        return trip
+    

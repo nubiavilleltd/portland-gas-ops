@@ -105,6 +105,15 @@ class IncidentResolveCreate(BaseModel):
     work_closeout_id: str
 
 
+class IncidentHseVerificationCreate(BaseModel):
+    notes: str = Field(..., min_length=3, max_length=5000)
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def strip_notes(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
 class IncidentHseReviewCreate(BaseModel):
     confirmed_report_type: IncidentReportType
     confirmed_severity: IncidentSeverityEstimate

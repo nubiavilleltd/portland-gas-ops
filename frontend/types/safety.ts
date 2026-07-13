@@ -235,6 +235,7 @@ export interface ApprovedWorkAuthorizationOption {
   workTypes: string[];
   supervisorId?: string;
   supervisor: string;
+  assignedWorkerIds?: string[];
   hseApprover: string;
 }
 
@@ -279,6 +280,7 @@ export interface WorkCloseOutApprovalResult {
 }
 
 export interface WorkCloseOutHseApproval {
+  id?: string;
   inspector: string;
   verifiedCloseOut: boolean;
   areaSafeForOperations: boolean;
@@ -312,6 +314,7 @@ export type IncidentHazardStatus =
   | "draft"
   | "submitted"
   | "recommended"
+  | "pending_hse_verification"
   | "resolved"
   | "closed"
   | "not_resolved";
@@ -336,6 +339,7 @@ export interface IncidentHazardAttachment {
 }
 
 export interface IncidentHazardHseReview {
+  id: string;
   inspector: string;
   confirmedReportType: string;
   confirmedSeverity: IncidentHazardSeverity;

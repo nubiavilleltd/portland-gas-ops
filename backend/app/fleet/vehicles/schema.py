@@ -4,7 +4,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
+
 
 from app.fleet.vehicles.enums import VehicleStatus, VehicleType
 
@@ -12,7 +13,7 @@ from app.fleet.vehicles.enums import VehicleStatus, VehicleType
 class VehicleCreate(BaseModel):
     name: str
     plate_number: str
-    type: VehicleType
+    vehicle_type: VehicleType
 
     make: Optional[str] = None
     model: Optional[str] = None
@@ -27,12 +28,13 @@ class VehicleCreate(BaseModel):
     last_service_date: Optional[date] = None
     next_service_date: Optional[date] = None
     insurance_expiry_date: Optional[date] = None
+    roadworthiness_expiry_date: Optional[date] = None
 
 
 class VehicleUpdate(BaseModel):
     name: Optional[str] = None
     plate_number: Optional[str] = None
-    type: Optional[VehicleType] = None
+    vehicle_type: Optional[VehicleType] = None
 
     make: Optional[str] = None
     model: Optional[str] = None
@@ -49,10 +51,12 @@ class VehicleUpdate(BaseModel):
     last_service_date: Optional[date] = None
     next_service_date: Optional[date] = None
     insurance_expiry_date: Optional[date] = None
+    roadworthiness_expiry_date: Optional[date] = None
+
 
 
 class VehicleResponse(BaseModel):
-    id: int
+    id: str
 
     vehicle_no: Optional[str]
 
@@ -60,7 +64,7 @@ class VehicleResponse(BaseModel):
 
     name: str
 
-    type: VehicleType
+    type: VehicleType = Field(validation_alias="vehicle_type", serialization_alias="type")
 
     make: Optional[str]
     model: Optional[str]
@@ -76,17 +80,16 @@ class VehicleResponse(BaseModel):
 
     status: VehicleStatus
 
-    current_trip_id: Optional[int]
+    current_trip_id: Optional[str]
 
     last_service_date: Optional[date]
     next_service_date: Optional[date]
     insurance_expiry_date: Optional[date]
+    roadworthiness_expiry_date: Optional[date]
 
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class VehicleListResponse(BaseModel):
     items: list[VehicleResponse]

@@ -1,18 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
 import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
 import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety";
+import SafetyRequestListFilters, {
+  type SafetyRequestListFilter,
+} from "./SafetyRequestListFilters";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
   recommended: "Recommended",
+  pending_hse_verification: "Pending HSE Verification",
   resolved: "Resolved",
   closed: "Closed",
   not_resolved: "Not Resolved",
@@ -78,48 +82,54 @@ export default function IncidentHazardReportsTable({
 }: {
   scope?: "user" | "admin";
 }) {
+  const [filter, setFilter] = useState<SafetyRequestListFilter>("all");
   const reportsQuery = useIncidentReports();
   const currentEmployee = useSafetyCurrentEmployee();
-  const myApprovals = useMyApprovals();
   const currentEmployeeId = currentEmployee.data?.id;
   const isHseEmployee = isHseDepartment(currentEmployee.data?.department);
-  const approvalRequestIds = new Set(
-    (myApprovals.data ?? [])
-      .filter((approval) => approval.request_type === "incident_hazard")
-      .map((approval) => approval.request_id),
-  );
+  const isRaisedByCurrentEmployee = (report: IncidentHazardReport) =>
+    Boolean(currentEmployeeId && report.reporterId === currentEmployeeId);
+  const isAssignedToCurrentEmployee = (report: IncidentHazardReport) =>
+    Boolean(currentEmployeeId && report.hseReview?.actionOwnerId === currentEmployeeId);
+  const isAwaitingCurrentEmployeeApproval = (report: IncidentHazardReport) =>
+    isHseEmployee &&
+    (report.status === "submitted" ||
+      report.status === "pending_hse_verification");
   const canSeeReport = (report: IncidentHazardReport) =>
     scope === "admin" ||
     isHseEmployee ||
-    approvalRequestIds.has(report.id) ||
-    Boolean(
-      currentEmployeeId &&
-        (report.reporterId === currentEmployeeId ||
-          report.hseReview?.actionOwnerId === currentEmployeeId),
-    );
+    isRaisedByCurrentEmployee(report) ||
+    isAssignedToCurrentEmployee(report);
+  const visibleReports = (reportsQuery.data ?? []).filter(
+    (report) => report.status !== "draft" && canSeeReport(report),
+  );
   const reports = sortByLatestSafetyActivity(
-    (reportsQuery.data ?? []).filter(
-      (report) => report.status !== "draft" && canSeeReport(report),
-    ),
+    visibleReports.filter((report) => {
+      if (filter === "raised") return isRaisedByCurrentEmployee(report);
+      if (filter === "assigned") return isAssignedToCurrentEmployee(report);
+      if (filter === "approval") return isAwaitingCurrentEmployeeApproval(report);
+      return true;
+    }),
     (report) => report.reportedAtRaw ?? report.reporter.reportDate,
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={reports}
-      isLoading={
-        reportsQuery.isLoading || currentEmployee.isLoading || myApprovals.isLoading
-      }
-      rowHref={(report) =>
-        scope === "admin" ? getAdminIncidentHref(report) : `/safety/incidents/${report.id}`
-      }
-      emptyMessage={
-        reportsQuery.isError
-          ? "Incident or hazard reports could not be loaded."
-          : "No incident or hazard reports found."
-      }
-    />
+    <div className="space-y-3">
+      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      <DataTable
+        columns={columns}
+        data={reports}
+        isLoading={reportsQuery.isLoading || currentEmployee.isLoading}
+        rowHref={(report) =>
+          scope === "admin" ? getAdminIncidentHref(report) : `/safety/incidents/${report.id}`
+        }
+        emptyMessage={
+          reportsQuery.isError
+            ? "Incident or hazard reports could not be loaded."
+            : "No incident or hazard reports found."
+        }
+      />
+    </div>
   );
 }
 

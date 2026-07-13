@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
-import type { Order, OrderKPIs } from "@/lib/modules/orders/types/orders.types";
+import type { OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
   getOrderById,
   getOrderByNumber,
@@ -10,13 +10,23 @@ import {
 } from "@/lib/modules/orders/selectors/orders.selectors";
 import { parseError } from "@/lib/errors";
 import { ORDER_KEYS } from "@/lib/query-keys";
+import { useAuthStore } from "@/store/authStore";
 
 // ── Base hook ─────────────────────────────────────────────
+function shouldRetry(failureCount: number, error: unknown) {
+  const status = (error as { response?: { status?: number } }).response?.status;
+  if (status === 401 || status === 403 || status === 404 || status === 429) return false;
+  return failureCount < 1;
+}
+
 export function useOrders() {
+  const { accessToken } = useAuthStore();
   const query = useQuery({
     queryKey: ORDER_KEYS.lists(),
     queryFn: OrdersService.getOrders,
+    enabled: Boolean(accessToken),
     staleTime: 60 * 1000,
+    retry: shouldRetry,
   });
 
   return {
@@ -76,4 +86,3 @@ export function useOrderKPIs() {
     refetch,
   };
 }
-

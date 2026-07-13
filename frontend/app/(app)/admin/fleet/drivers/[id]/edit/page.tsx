@@ -4,18 +4,33 @@ import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DriverForm, { type DriverFormValues } from "@/lib/modules/fleet/components/DriverForm";
-import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
-import { UploadService } from "@/lib/services/upload.service";
-import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
+// import { DriversService } from "@/lib/modules/fleet/services/drivers.service";
+import { useDriverById, useUpdateDriver } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useEmployees, useEmployee } from "@/lib/modules/employees/hooks";
+import type { PickedEmployee } from "@/components/ui/EmployeePicker";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
+import { useMemo } from "react";
 
 export default function EditDriverPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
   const { driver } = useDriverById(id);
+  const { data: allEmployees = [] } = useEmployees({ limit: 200 });
+  const { data: currentEmployee } = useEmployee(driver?.employee_id ?? "");
+  const { updateDriver } = useUpdateDriver();
+  console.log("driver", {driver})
+
+
+  const employeeOptions: PickedEmployee[] = useMemo(() => allEmployees.map((e) => ({
+    id: e.id,
+    name: e.user ? `${e.user.first_name ?? ""} ${e.user.last_name ?? ""}`.trim() : e.employee_no,
+    role: e.job_title ?? "—",
+    department: e.department ?? "—",
+    avatar_url: e.user?.profile_picture_url ?? null,
+  })), [allEmployees])
 
   if (!driver) {
     return (
@@ -25,46 +40,42 @@ export default function EditDriverPage() {
     );
   }
 
-  async function handleSubmit(data: DriverFormValues, profilePic: File | null) {
-    let profileImageUrl = driver?.profile_image;
 
-    if (profilePic) {
-      profileImageUrl = await UploadService.uploadImage(profilePic);
-    }
+  const defaultEmployee: PickedEmployee | null = currentEmployee
+    ? {
+        id: currentEmployee.id,
+        name: currentEmployee.user
+          ? `${currentEmployee.user.first_name ?? ""} ${currentEmployee.user.last_name ?? ""}`.trim()
+          : currentEmployee.employee_no,
+        role: currentEmployee.job_title ?? "—",
+        department: currentEmployee.department ?? "—",
+        avatar_url: currentEmployee.user?.profile_picture_url ?? null,
+      }
+    : null;
 
-    await DriversService.updateDriver(id, {
-      full_name: data.full_name,
-      email: data.email,
-      phone_number: data.phone_number,
+async function handleSubmit(data: DriverFormValues) {
+  await updateDriver({
+    id,
+    input: {
       license_number: data.license_number,
       license_expiry_date: data.license_expiry_date,
       experience_years: Number(data.experience_years),
       address: data.address,
-      profile_image: profileImageUrl,
-    });
+    },
+  });
 
-    toast.success("Driver successfully updated")
-
-    router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`);
-  }
+  toast.success("Driver successfully updated");
+  router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`);
+}
 
   return (
     <AppLayout pageTitle="Edit Driver">
-
-      <BackButton
-        href={`/admin/${FLEET_ROUTES.driverDetail(id)}`}
-        label="Back to Driver"
-      />
-      <PageHeader
-        title={`Edit — ${driver.full_name}`}
-        description={driver.license_number}
-        className="mb-6"
-      />
+      <BackButton href={`/admin/${FLEET_ROUTES.driverDetail(id)}`} label="Back to Driver" />
+      <PageHeader title={`Edit — ${driver.full_name}`} description={driver.license_number} className="mb-6" />
       <DriverForm
+        employees={employeeOptions}
+        defaultEmployee={defaultEmployee}
         defaultValues={{
-          full_name: driver.full_name,
-          email: driver.email,
-          phone_number: driver.phone_number,
           license_number: driver.license_number,
           license_expiry_date: driver.license_expiry_date,
           experience_years: String(driver.experience_years),

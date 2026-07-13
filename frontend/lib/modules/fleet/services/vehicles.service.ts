@@ -49,27 +49,18 @@ export class VehiclesService {
     }
   }
 
-  static async updateVehicle(id: string, input: UpdateVehicleRequest) {
-    try {
-      const raw = await fleetApi.updateVehicle(
-        id,
-        input as Record<string, unknown>,
-      );
-      return adaptVehicle(raw);
-    } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to update vehicle"));
+ static async updateVehicle(id: string, input: UpdateVehicleRequest): Promise<Vehicle> {
+  try {
+    const form = new FormData();
+    const { image, ...rest } = input;
+    form.append("data", JSON.stringify(rest));
+    if (image instanceof File) {
+      form.append("image", image);
     }
+    const raw = await fleetApi.updateVehicle(id, form);
+    return adaptVehicle(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to update vehicle"));
   }
-
-  // No-ops — backend handles vehicle status automatically via trip operations
-  static async assignVehicleToTrip(
-    _vehicleId: string,
-    _tripId: string,
-  ): Promise<Vehicle> {
-    return VehiclesService.getVehicleById(_vehicleId) as Promise<Vehicle>;
-  }
-
-  static async releaseVehicle(_vehicleId: string): Promise<Vehicle> {
-    return VehiclesService.getVehicleById(_vehicleId) as Promise<Vehicle>;
-  }
+}
 }

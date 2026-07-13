@@ -143,6 +143,25 @@ class EmployeeResponse(BaseModel):
         from_attributes = True
 
 
+# ── Public response (any authenticated user — no payroll fields) ──────────────
+
+class EmployeePublicResponse(BaseModel):
+    id:              str
+    employee_no:     str
+    job_title:       Optional[str]
+    department:      Optional[Department]
+    phone:           Optional[str]
+    birthday:        Optional[date]
+    employment_type: Optional[EmploymentType]
+    hire_date:       Optional[date]
+    operating_manager_id: Optional[str]
+    operating_manager:    Optional[OperatingManagerInfo]
+    user:            Optional[UserInEmployee]
+
+    class Config:
+        from_attributes = True
+
+
 # ── List item ─────────────────────────────────────────────────────────────────
 
 class EmployeeListItem(BaseModel):

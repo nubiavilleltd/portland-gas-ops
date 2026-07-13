@@ -25,7 +25,7 @@ def _to_response(order) -> OrderResponse:
     return OrderResponse.model_validate(order)
 
 
-@router.get("/", response_model=OrderListResponse)
+@router.get("", response_model=OrderListResponse)
 def list_orders(
     search:             Optional[str]              = Query(None),
     order_status:       Optional[OrderStatus]      = Query(None),
@@ -52,7 +52,7 @@ def list_orders(
     )
 
 
-@router.post("/", response_model=OrderResponse, status_code=http_status.HTTP_201_CREATED)
+@router.post("", response_model=OrderResponse, status_code=http_status.HTTP_201_CREATED)
 def create_draft(
     data:         OrderCreate,
     db:           Session = Depends(get_db),
@@ -64,6 +64,28 @@ def create_draft(
     db, AuditEntityType.order, order.id,
     "created", "Order created as draft",
     AuditActorType.employee, current_user.id)
+
+    db.commit()
+    db.refresh(order)
+    return _to_response(order)
+
+@router.post("/submit", response_model=OrderResponse, status_code=http_status.HTTP_201_CREATED)
+def create_and_submit_order(
+    data:         OrderCreate,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+):
+    order = service.create_and_submit(db, data, created_by=current_user.id)
+
+    AuditService.record(
+        db, AuditEntityType.order, order.id,
+        "created", "Order created",
+        AuditActorType.employee, current_user.id)
+
+    AuditService.record(
+        db, AuditEntityType.order, order.id,
+        "submitted", "Order submitted for processing",
+        AuditActorType.employee, current_user.id)
 
     db.commit()
     db.refresh(order)

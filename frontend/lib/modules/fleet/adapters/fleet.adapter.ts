@@ -7,11 +7,12 @@ import { Vehicle, VehicleType } from "../types/vehicle.types";
 import type { VehicleFormValues } from "../components/VehicleForm";
 
 interface BackendDriver {
-    id: number;
+    id: string;
     employee_id: string;
     full_name: string;
     email: string;
     phone_number: string;
+    address: string | null;
     license_number: string;
     license_expiry_date: string;
     experience_years: number;
@@ -32,7 +33,7 @@ interface BackendVehicle {
     year: number;
     capacity: string | number | null;
     fuel_type: string;
-    image_url: string | null;
+    primary_image_url: string | null
     mileage: number | null;
     status: string;
     current_trip_id: string;
@@ -47,7 +48,7 @@ export interface CreateVehicleRequest {
   name: string;
   plate_number: string;
 
-  type: VehicleType;
+  vehicle_type: VehicleType;
 
   make?: string;
   model?: string;
@@ -62,6 +63,7 @@ export interface CreateVehicleRequest {
   last_service_date?: string;
   next_service_date?: string;
   insurance_expiry_date?: string;
+  roadworthiness_expiry_date?: string;
 
   image?: File;
 }
@@ -70,7 +72,7 @@ export interface UpdateVehicleRequest {
   name?: string;
   plate_number?: string;
 
-  type?: VehicleType;
+  vehicle_type?: VehicleType;
 
   make?: string;
   model?: string;
@@ -85,17 +87,18 @@ export interface UpdateVehicleRequest {
   last_service_date?: string;
   next_service_date?: string;
   insurance_expiry_date?: string;
+  roadworthiness_expiry_date?: string;
 
   image?: File;
 }
 
 interface BackendTrip {
-    id: number;
+    id: string;
     trip_no: string | null;
     type: string;
-    driver_id: number | null;
+    driver_id: string | null;
     driver_name: string | null;
-    vehicle_id: number | null;
+    vehicle_id: string | null;
     vehicle_name: string | null;
     order_ids: string[];
     start_location: string;
@@ -116,9 +119,11 @@ interface BackendTrip {
 export function adaptDriver(raw: BackendDriver): Driver {
     return {
         id: String(raw.id),
+        employee_id: raw.employee_id,
         full_name: raw.full_name,
         email: raw.email,
         phone_number: raw.phone_number,
+        address: raw.address ?? undefined,
         license_number: raw.license_number,
         license_expiry_date: raw.license_expiry_date,
         experience_years: raw.experience_years,
@@ -141,7 +146,7 @@ export function adaptVehicle(raw: BackendVehicle): Vehicle {
         year: raw.year ?? undefined,
         capacity: raw.capacity != null ? Number(raw.capacity) : undefined,
         fuel_type: raw.fuel_type,
-        image: raw.image_url ?? undefined,
+        image: raw.primary_image_url ?? undefined,
         mileage: raw.mileage ?? undefined,
         status: raw.status as Vehicle["status"],
         current_trip_id: raw.current_trip_id != null ? String(raw.current_trip_id) : undefined,
@@ -183,7 +188,7 @@ export function adaptCreateVehicleRequest(
     name: input.name,
     plate_number: input.plate_number,
 
-    type: input.type,
+    vehicle_type: input.type,   // ← renamed from "type"
 
     make: input.make || undefined,
     model: input.model || undefined,
@@ -204,6 +209,7 @@ export function adaptCreateVehicleRequest(
     next_service_date: input.next_service_date || undefined,
     insurance_expiry_date:
       input.insurance_expiry_date || undefined,
+    roadworthiness_expiry_date: input.roadworthiness_expiry_date || undefined,
 
     image: input.image,
   };
@@ -217,7 +223,7 @@ export function adaptUpdateVehicleRequest(
     name: input.name,
     plate_number: input.plate_number,
 
-    type: input.type,
+    vehicle_type: input.type,
 
     make: input.make || undefined,
     model: input.model || undefined,
@@ -238,6 +244,7 @@ export function adaptUpdateVehicleRequest(
     next_service_date: input.next_service_date || undefined,
     insurance_expiry_date:
       input.insurance_expiry_date || undefined,
+      roadworthiness_expiry_date: input.roadworthiness_expiry_date || undefined,
 
     image: input.image || undefined,
   };

@@ -32,49 +32,47 @@ class CreateVehicleWorkflow:
         actor_id: str,
     ):
 
-        with db.begin():
+        vehicle = self.vehicle_service.create(
+            db=db,
+            data=data,
+        )
 
-            vehicle = self.vehicle_service.create(
-                db=db,
-                data=data,
+        if image:
+
+            file_bytes, filename, mime_type, file_size = image
+
+            result = self.storage.upload(
+                file_bytes=file_bytes,
+                filename=filename,
+                folder=f"vehicles/{vehicle.id}",
+                resource_type=ResourceType.IMAGE,
+                overwrite=False,
             )
 
-            if image:
-
-                file_bytes, filename, mime_type, file_size = image
-
-                result = self.storage.upload(
-                    file_bytes=file_bytes,
-                    filename=filename,
-                    folder=f"vehicles/{vehicle.id}",
-                    resource_type=ResourceType.IMAGE,
-                    overwrite=False,
-                )
-
-                document = self.vehicle_service.repo.create_image_document(
-                    db=db,
-                    vehicle_id=vehicle.id,
-                    filename=filename,
-                    url=result.url,
-                    file_size=result.file_size,
-                    mime_type=mime_type,
-                    uploaded_by=actor_id,
-                )
-
-                self.vehicle_service.repo.update(
-                    db=db,
-                    vehicle=vehicle,
-                    primary_image_document_id=document.id,
-                )
-
-            AuditService.record(
+            document = self.vehicle_service.repo.create_image_document(
                 db=db,
-                entity_type=AuditEntityType.vehicle,
-                entity_id=str(vehicle.id),
-                action="vehicle_created",
-                description=f"Vehicle '{vehicle.vehicle_no}' created.",
-                actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
+                vehicle_id=vehicle.id,
+                filename=filename,
+                url=result.url,
+                file_size=result.file_size,
+                mime_type=mime_type,
+                uploaded_by=actor_id,
             )
+
+            self.vehicle_service.repo.update(
+                db=db,
+                vehicle=vehicle,
+                primary_image_document_id=document.id,
+            )
+
+        AuditService.record(
+            db=db,
+            entity_type=AuditEntityType.vehicle,
+            entity_id=str(vehicle.id),
+            action="vehicle_created",
+            description=f"Vehicle '{vehicle.vehicle_no}' created.",
+            actor_type=AuditActorType.employee,
+            actor_employee_id=actor_id,
+        )
 
         return vehicle

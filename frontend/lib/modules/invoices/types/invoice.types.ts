@@ -19,8 +19,7 @@ export interface Invoice {
 
 export interface CreateInvoiceInput {
   order_id: string;
-  total_amount: number;
-  invoice_date: string;
+  issued_date: string;
   due_date: string;
   notes?: string;
 }

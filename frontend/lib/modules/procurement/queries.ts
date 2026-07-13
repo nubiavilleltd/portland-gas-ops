@@ -15,7 +15,7 @@ export const procurementKeys = {
 export function useProcurementList(status?: ProcurementStatus) {
   return useQuery<ProcurementListItem[]>({
     queryKey: procurementKeys.list(status),
-    queryFn:  () => get<ProcurementListItem[]>("/api/procurement/", status ? { status } : {}),
+    queryFn:  () => get<ProcurementListItem[]>("/api/procurement", status ? { status } : {}),
     staleTime: 30 * 1000,
   });
 }
@@ -31,7 +31,7 @@ export function useProcurement(id: string, options?: { enabled?: boolean }) {
 export function useProcurementByVendor(vendorId: string) {
   return useQuery<ProcurementListItem[]>({
     queryKey: [...procurementKeys.list(), "vendor", vendorId],
-    queryFn:  () => get<ProcurementListItem[]>("/api/procurement/", { vendor_id: vendorId }),
+    queryFn:  () => get<ProcurementListItem[]>("/api/procurement", { vendor_id: vendorId }),
     enabled:  !!vendorId,
   });
 }
@@ -42,7 +42,7 @@ export function usePurchaseOrders(requestId?: string) {
       ? [...procurementKeys.pos, "request", requestId]
       : procurementKeys.pos,
     queryFn: () =>
-      get<PurchaseOrder[]>("/api/procurement/purchase-orders/", requestId ? { request_id: requestId } : {}),
+      get<PurchaseOrder[]>("/api/procurement/purchase-orders", requestId ? { request_id: requestId } : {}),
   });
 }
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { employeesApi } from "./api";
 import type { CreateEmployeePayload, UpdateEmployeePayload, ListEmployeesParams } from "./types";
+import { useAuthStore } from "@/store/authStore";
 
 const KEYS = {
   all: ["employees"] as const,
@@ -10,26 +11,39 @@ const KEYS = {
   documents: (id: string) => ["employees", "documents", id] as const,
 };
 
+function shouldRetry(failureCount: number, error: unknown) {
+  const status = (error as { response?: { status?: number } }).response?.status;
+  if (status === 401 || status === 403 || status === 404 || status === 429) return false;
+  return failureCount < 1;
+}
+
 export function useEmployees(params: ListEmployeesParams = {}) {
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => employeesApi.list(params),
+    enabled: Boolean(accessToken),
+    retry: shouldRetry,
   });
 }
 
 export function useEmployee(id: string) {
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.detail(id),
     queryFn: () => employeesApi.get(id),
-    enabled: !!id,
+    enabled: Boolean(accessToken) && !!id,
+    retry: shouldRetry,
   });
 }
 
 export function useMyEmployee() {
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.me,
     queryFn: () => employeesApi.getMe(),
-    retry: false,
+    enabled: Boolean(accessToken),
+    retry: shouldRetry,
   });
 }
 
@@ -94,10 +108,12 @@ export function useResendSetup() {
 }
 
 export function useEmployeeDocuments(id: string) {
+  const { accessToken } = useAuthStore();
   return useQuery({
     queryKey: KEYS.documents(id),
     queryFn: () => employeesApi.getDocuments(id),
-    enabled: !!id,
+    enabled: Boolean(accessToken) && !!id,
+    retry: shouldRetry,
   });
 }
 

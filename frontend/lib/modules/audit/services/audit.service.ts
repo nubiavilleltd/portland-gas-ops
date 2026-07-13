@@ -1,43 +1,23 @@
 // // lib/modules/audit/services/audit.service.ts
-// import { auditLog } from "../mock/audit.mock";
-// import type { AuditLogEntry, RecordAuditInput, AuditEntityType } from "../types/audit.types";
-
-// export class AuditService {
-//   static async getAll(): Promise<AuditLogEntry[]> {
-//     return Promise.resolve([...auditLog]);
-//   }
-
-//   static async getByEntity(
-//     entityType: AuditEntityType,
-//     entityId: string
-//   ): Promise<AuditLogEntry[]> {
-//     return Promise.resolve(
-//       auditLog.filter(
-//         (e) => e.entity_type === entityType && e.entity_id === entityId
-//       )
-//     );
-//   }
-
-//   static async record(input: RecordAuditInput): Promise<AuditLogEntry> {
-//     const entry: AuditLogEntry = {
-//       ...input,
-//       id: `aud-${Date.now()}`,
-//       created_at: new Date().toISOString(),
-//     };
-//     auditLog.push(entry);
-//     return Promise.resolve(entry);
-//   }
-// }
-
-
-
-
 
 import api from "@/lib/api";
 import type { AuditLogEntry, AuditEntityType } from "../types/audit.types";
 
+interface BackendAuditEntry {
+  id: string | number;
+  entity_type: AuditLogEntry["entity_type"];
+  entity_id: string;
+  action: AuditLogEntry["action"];
+  description: string;
+  actor_type: "system" | "customer" | "employee";
+  actor_employee_id?: string | null;
+  actor_name?: string | null;
+  metadata?: AuditLogEntry["metadata"] | null;
+  created_at: string;
+}
+
 // Backend audit response → frontend AuditLogEntry
-function adaptAuditEntry(raw: any): AuditLogEntry {
+function adaptAuditEntry(raw: BackendAuditEntry): AuditLogEntry {
   return {
     id:          String(raw.id),
     entity_type: raw.entity_type,
@@ -64,17 +44,16 @@ export class AuditService {
     entityType: AuditEntityType,
     entityId:   string,
   ): Promise<AuditLogEntry[]> {
-    const { data } = await api.get("/api/audit/", {
+    const { data } = await api.get("/api/audit", {
       params: { entity_type: entityType, entity_id: entityId },
     });
-    return (data as any[]).map(adaptAuditEntry);
+    return (data as BackendAuditEntry[]).map(adaptAuditEntry);
   }
 
-  static async record(_input: any): Promise<any> {
+  static async record(): Promise<void> {
     // Frontend no longer records audit entries — backend does this
     // This method is kept as a no-op for backwards compatibility
     // during the transition period. Will be removed when all
     // workflow files are updated.
-    return Promise.resolve();
   }
 }

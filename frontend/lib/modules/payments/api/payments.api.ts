@@ -3,7 +3,7 @@ import type { PaymentMethod } from "../types/payments.types";
 
 export const paymentsApi = {
     list: async (params: { invoice_id?: string; page_size?: number } = {}) => {
-        const { data } = await api.get("/api/payments/", { params });
+        const { data } = await api.get("/api/payments", { params });
         return data;
     },
 
@@ -27,7 +27,7 @@ export const paymentsApi = {
         },
         idempotencyKey: string,
     ) => {
-        const { data } = await api.post("/api/payments/", input, {
+        const { data } = await api.post("/api/payments", input, {
             headers: { "Idempotency-Key": idempotencyKey },
         });
         return data;

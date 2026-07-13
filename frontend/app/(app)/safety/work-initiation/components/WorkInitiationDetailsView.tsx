@@ -16,6 +16,7 @@ import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import { useToast } from "@/hooks/useToast";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
 import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
+import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import {
   useWorkInitiation,
   useOperationsHodReviewWorkInitiation,
@@ -34,7 +35,10 @@ import {
 import {
   getDateTimeAfter,
   getEarliestPlannedStartDateTime,
+  MIN_SCHEDULE_DURATION_MINUTES,
 } from "@/lib/modules/safety/date-rules";
+import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
+import { useAuditTrail } from "@/lib/modules/workflow/queries";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
 import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type {
@@ -113,16 +117,7 @@ const contractorContactEmailByName: Record<string, string> = {
   "Electrical Support Contractors": "support@electricalcontractors.example",
 };
 const categoryOptions = toOptions(workCategoryOptions);
-const locationOptions = toOptions([
-  "Conversion Bay 1",
-  "Conversion Bay 2",
-  "Vehicle Yard",
-  "Gas Storage Area",
-  "Maintenance Workshop",
-  "Electrical Room",
-  "Loading Area",
-  "Inspection Bay",
-]);
+const locationOptions = toOptions(safetyLocationOptions);
 const contractorOptions = toOptions([
   "SafeWeld Engineering Ltd",
   "Prime Gas Services",
@@ -168,8 +163,9 @@ export default function WorkInitiationDetailsView({
   const supervisorReviewMutation = useSupervisorReviewWorkInitiation();
   const operationsHodReviewMutation = useOperationsHodReviewWorkInitiation();
   const updateWorkInitiationMutation = useUpdateWorkInitiation(requestId);
+  const auditTrailQuery = useAuditTrail("work_initiation", requestId);
+  const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
   const request = requestQuery.data;
-  console.log("WorkInitiationDetailsView request:", request);
   const currentEmployeeQuery = useSafetyCurrentEmployee();
   const currentEmployee = currentEmployeeQuery.data;
   const [editValuesById, setEditValuesById] = useState<
@@ -276,6 +272,7 @@ export default function WorkInitiationDetailsView({
   async function submitRequest() {
     if (!request) return;
     if (!editValues) return;
+    if (updateWorkInitiationMutation.isPending) return;
     const validationMessage = validateReturnedWorkInitiationEdit(editValues);
     if (validationMessage) {
       toast.error(validationMessage);
@@ -296,6 +293,7 @@ export default function WorkInitiationDetailsView({
 
   async function supervisorReview(decision: WorkAuthorizationDecision) {
     if (!request) return;
+    if (supervisorReviewMutation.isPending) return;
     if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) {
       toast.error("Add a supervisor comment before returning or denying.");
       return;
@@ -320,6 +318,7 @@ export default function WorkInitiationDetailsView({
 
   async function operationsHodReview(decision: WorkAuthorizationDecision) {
     if (!request) return;
+    if (operationsHodReviewMutation.isPending) return;
     if ((decision === "Return" || decision === "Deny") && !operationsHodComment.trim()) {
       toast.error("Add an Operations HOD comment before returning or denying.");
       return;
@@ -421,6 +420,7 @@ export default function WorkInitiationDetailsView({
           onReturn={() => supervisorReview("Return")}
           onReject={() => supervisorReview("Deny")}
           rejectLabel="Deny"
+          disabled={supervisorReviewMutation.isPending}
           returnDisabled={!supervisorComment.trim()}
           rejectDisabled={!supervisorComment.trim()}
           extraFields={
@@ -453,6 +453,7 @@ export default function WorkInitiationDetailsView({
           onReturn={() => operationsHodReview("Return")}
           onReject={() => operationsHodReview("Deny")}
           rejectLabel="Deny"
+          disabled={operationsHodReviewMutation.isPending}
           returnDisabled={!operationsHodComment.trim()}
           rejectDisabled={!operationsHodComment.trim()}
           extraFields={
@@ -467,7 +468,7 @@ export default function WorkInitiationDetailsView({
         <ReviewResult request={request} />
       ) : null}
 
-      {request.status !== "draft" ? <AuditTrail items={request.auditTrail} /> : null}
+      {request.status !== "draft" ? <AuditTrail items={workflowAuditTrail} /> : null}
     </div>
   );
 }
@@ -842,7 +843,7 @@ function AssignmentPlanning({
           value={values.plannedEndDateTime}
           min={
             editable && values.plannedStartDateTime
-              ? getDateTimeAfter(values.plannedStartDateTime)
+              ? getDateTimeAfter(values.plannedStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
               : undefined
           }
           disabled={!editable}
@@ -1056,8 +1057,11 @@ function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
   if (plannedEnd < now) {
     return "Planned end date/time cannot be in the past.";
   }
-  if (plannedEnd <= plannedStart) {
-    return "Planned end date/time must be after planned start date/time.";
+  const minimumEndTime = new Date(
+    plannedStart.getTime() + MIN_SCHEDULE_DURATION_MINUTES * 60 * 1000,
+  );
+  if (plannedEnd < minimumEndTime) {
+    return `Planned end date/time must be at least ${MIN_SCHEDULE_DURATION_MINUTES} minutes after planned start date/time.`;
   }
 
   return null;

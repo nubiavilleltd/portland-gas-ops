@@ -1,5 +1,6 @@
 export { workInitiationsApi } from "./api";
 export {
+  useCreateWorkInitiation,
   useUpdateWorkInitiation,
   useWorkInitiation,
   useWorkInitiations,

@@ -92,6 +92,14 @@ function mapWorkAuthorizationSummary(
   item: WorkCloseOutListItem | WorkCloseOutResponse,
 ): ApprovedWorkAuthorizationOption {
   const authorization = getCloseOutDetail(item)?.work_authorization;
+  const supervisorId =
+    authorization?.assigned_supervisor_id ??
+    item.assigned_supervisor_id ??
+    undefined;
+  const supervisor =
+    authorization?.assigned_supervisor ||
+    item.assigned_supervisor ||
+    "";
 
   return {
     id: item.work_authorization_id,
@@ -115,8 +123,12 @@ function mapWorkAuthorizationSummary(
     approvedEndDateTime: formatFriendlyDateTime(authorization?.planned_end_at),
     approvedEndDateTimeRaw: authorization?.planned_end_at ?? undefined,
     workTypes: authorization?.work_type ?? [],
-    supervisorId: authorization?.assigned_supervisor_id ?? undefined,
-    supervisor: authorization?.assigned_supervisor || "",
+    supervisorId,
+    supervisor,
+    assignedWorkerIds:
+      authorization?.assigned_worker_ids ??
+      item.assigned_worker_ids ??
+      [],
     hseApprover: authorization?.hse_approver || "HSE Inspector",
   };
 }
@@ -141,6 +153,7 @@ function mapHseReview(
   if (!review?.decision) return null;
 
   return {
+    id: review.id,
     inspector: review.inspector_name || "HSE Inspector",
     verifiedCloseOut: Boolean(review.verified_close_out),
     areaSafeForOperations: Boolean(review.area_safe_for_operations),

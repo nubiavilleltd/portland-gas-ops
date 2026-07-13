@@ -1,4 +1,8 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, {
+  AxiosHeaders,
+  type InternalAxiosRequestConfig,
+  type AxiosResponse,
+} from "axios";
 import { API_URL } from "./constants";
 
 const api = axios.create({
@@ -7,6 +11,7 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+
 // ─── Request interceptor — attach Bearer token ────────────────────────────────
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Dynamically import to avoid SSR issues
@@ -14,7 +19,9 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     const { useAuthStore } = await import("@/store/authStore");
     const token = useAuthStore.getState().accessToken;
     if (token && config.headers) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+      const headers = AxiosHeaders.from(config.headers);
+      headers.set("Authorization", `Bearer ${token}`);
+      config.headers = headers;
     }
   }
   return config;
@@ -22,6 +29,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 
 // ─── Response interceptor — silent refresh on 401 ────────────────────────────
 let isRefreshing = false;
+let isRedirectingToLogin = false;   // guard: only one logout+redirect per session
 let failedQueue: Array<{
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -70,6 +78,10 @@ api.interceptors.response.use(
           { withCredentials: true }
         );
 
+        if(!data.access_token){
+          console.error("No access token received during refresh.");
+        }
+
         const newToken: string = data.access_token;
 
         // Persist new token
@@ -82,16 +94,33 @@ api.interceptors.response.use(
           originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
         }
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: unknown) {
         processQueue(refreshError, null);
 
-        // Refresh failed — clear session and redirect to login
-        const { clearTokens } = await import("./auth");
-        await clearTokens();
+        const refreshStatus = (
+          refreshError as { response?: { status?: number } }
+        )?.response?.status;
 
-        if (typeof window !== "undefined") {
-          window.location.href = "/login";
+        // Only clear session + redirect on a real auth failure (401).
+        // A 429 rate-limit means the token is still valid — do NOT redirect,
+        // just let React Query surface the error naturally.
+        if (refreshStatus === 401 && !isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          const { clearTokens } = await import("./auth");
+          await clearTokens();
+          // Call logout to delete the HTTP-only refresh_token cookie.
+          // Without this the cookie persists and middleware keeps redirecting to /
+          // instead of allowing the login page to show.
+          try {
+            await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
+          } catch {
+            // ignore — we're logging out regardless
+          }
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
         }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

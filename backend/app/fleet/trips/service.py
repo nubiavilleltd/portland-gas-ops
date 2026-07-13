@@ -35,7 +35,7 @@ class TripService:
     def get_or_raise(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> Trip:
         trip = self.repo.get_by_id(db, trip_id)
 
@@ -47,10 +47,11 @@ class TripService:
             )
 
         return trip
+
     def get_order_ids(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> List[str]:
         return self.repo.get_order_ids(
             db=db,
@@ -82,7 +83,7 @@ class TripService:
         return self.repo.create(
             db=db,
             trip_no=trip_no,
-            type=data.type,
+            trip_type=data.type,
             start_location=data.start_location,
             end_location=data.end_location,
             scheduled_date=data.scheduled_date,
@@ -109,7 +110,7 @@ class TripService:
     def add_order(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         order_id: str,
     ) -> Trip:
 
@@ -133,7 +134,7 @@ class TripService:
     def remove_order(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         order_id: str,
     ) -> Trip:
 
@@ -161,9 +162,9 @@ class TripService:
     def assign_resources(
         self,
         db: Session,
-        trip_id: int,
-        driver_id: int,
-        vehicle_id: int,
+        trip_id: str,
+        driver_id: str,
+        vehicle_id: str,
         awaiting_inventory: bool,
     ) -> Trip:
 
@@ -179,7 +180,7 @@ class TripService:
         next_status = (
             TripStatus.awaiting_inventory
             if awaiting_inventory
-            else TripStatus.ready
+            else TripStatus.ready_for_dispatch
         )
 
         return self.repo.update(
@@ -197,7 +198,7 @@ class TripService:
     def mark_ready(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> Trip:
 
         trip = self.get_or_raise(db, trip_id)
@@ -212,12 +213,13 @@ class TripService:
         return self.repo.update(
             db=db,
             trip=trip,
-            status=TripStatus.ready,
+            status=TripStatus.ready_for_dispatch,
         )
+
     def dispatch(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> Trip:
 
         trip = self.get_or_raise(db, trip_id)
@@ -253,7 +255,7 @@ class TripService:
     def start(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> Trip:
 
         trip = self.get_or_raise(db, trip_id)
@@ -275,7 +277,7 @@ class TripService:
     def complete(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         proof_notes: Optional[str] = None,
     ) -> Trip:
 
@@ -308,7 +310,7 @@ class TripService:
     def cancel(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         reason: Optional[str] = None,
     ) -> Trip:
 
@@ -336,7 +338,7 @@ class TripService:
     def requires_inventory(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> bool:
         """
         Returns True if any order attached to the trip contains
@@ -380,7 +382,7 @@ class TripService:
                 error_code=TripErrorCode.VEHICLE_NOT_ASSIGNED,
                 message="Trip has no assigned vehicle.",
             )
-        
+
     def ensure_order_not_assigned(
         self,
         db: Session,
@@ -398,7 +400,7 @@ class TripService:
                 error_code=TripErrorCode.ORDER_ALREADY_ASSIGNED,
                 message="Order is already assigned to an active trip.",
             )
-        
+
     def has_assigned_resources(
         self,
         trip: Trip,

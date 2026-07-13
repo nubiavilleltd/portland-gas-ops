@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
@@ -11,6 +12,9 @@ import {
 } from "@/lib/safety-demo-routing";
 import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
 import type { WorkAuthorizationRequest } from "@/types/safety";
+import SafetyRequestListFilters, {
+  type SafetyRequestListFilter,
+} from "./SafetyRequestListFilters";
 
 const columns: Column<WorkAuthorizationRequest>[] = [
   {
@@ -27,6 +31,14 @@ const columns: Column<WorkAuthorizationRequest>[] = [
     key: "requester",
     label: "Requester",
     render: (_, row) => row.requester.name,
+  },
+  {
+    key: "requestDate",
+    label: "Request Date",
+    className: "whitespace-nowrap",
+    getSearchValue: (row) => row.requester.requestDate,
+    getSortValue: (row) => row.requestedAtRaw ?? row.requester.requestDate,
+    render: (_, row) => row.requester.requestDate || "-",
   },
   {
     key: "department",
@@ -67,6 +79,7 @@ export default function WorkAuthorizationRequestsTable({
 }: {
   scope?: "user" | "admin";
 }) {
+  const [filter, setFilter] = useState<SafetyRequestListFilter>("all");
   const requestsQuery = useWorkAuthorizations();
   const currentEmployee = useSafetyCurrentEmployee();
   const myApprovals = useMyApprovals();
@@ -76,49 +89,60 @@ export default function WorkAuthorizationRequestsTable({
       .filter((approval) => approval.request_type === "work_authorization")
       .map((approval) => approval.request_id),
   );
-  const isCurrentEmployeeRequest = (item: WorkAuthorizationRequest) =>
+  const isRaisedByCurrentEmployee = (item: WorkAuthorizationRequest) =>
+    Boolean(currentEmployeeId && item.requesterId === currentEmployeeId);
+  const isAssignedToCurrentEmployee = (item: WorkAuthorizationRequest) =>
     Boolean(
       currentEmployeeId &&
-        (item.requesterId === currentEmployeeId ||
-          item.workInitiation.assignedSupervisorId === currentEmployeeId ||
+        (item.workInitiation.assignedSupervisorId === currentEmployeeId ||
           item.workInitiation.assignedWorkerIds?.includes(currentEmployeeId)),
     );
   const isCurrentEmployeeApprover = (item: WorkAuthorizationRequest) =>
     approvalRequestIds.has(item.id);
+  const visibleRequests = (requestsQuery.data ?? []).filter(
+    (item) =>
+      item.status !== "draft" &&
+      (scope === "admin" ||
+        isRaisedByCurrentEmployee(item) ||
+        isAssignedToCurrentEmployee(item) ||
+        isCurrentEmployeeApprover(item)),
+  );
   const requests = sortByLatestSafetyActivity(
-    (requestsQuery.data ?? []).filter(
-      (item) =>
-        item.status !== "draft" &&
-        (scope === "admin" ||
-          isCurrentEmployeeRequest(item) ||
-          isCurrentEmployeeApprover(item)),
-    ),
+    visibleRequests.filter((item) => {
+      if (filter === "raised") return isRaisedByCurrentEmployee(item);
+      if (filter === "assigned") return isAssignedToCurrentEmployee(item);
+      if (filter === "approval") return isCurrentEmployeeApprover(item);
+      return true;
+    }),
     (item) => item.requestedAtRaw ?? item.requester.requestDate,
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={requests}
-      isLoading={
-        requestsQuery.isLoading || currentEmployee.isLoading || myApprovals.isLoading
-      }
-      rowHref={(request) =>
-        scope === "admin"
-          ? getAdminWorkAuthorizationHref(request)
-          : `/safety/work-authorization/${request.id}`
-      }
-      emptyMessage={
-        requestsQuery.isError
-          ? "Work authorization requests could not be loaded."
-          : "No work authorization requests found."
-      }
-      getSearchValues={(request) => [
-        request.reference,
-        request.workInitiation.title,
-        request.workInitiation.assignedSupervisor,
-        request.workInitiation.location,
-      ]}
-    />
+    <div className="space-y-3">
+      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      <DataTable
+        columns={columns}
+        data={requests}
+        isLoading={
+          requestsQuery.isLoading || currentEmployee.isLoading || myApprovals.isLoading
+        }
+        rowHref={(request) =>
+          scope === "admin"
+            ? getAdminWorkAuthorizationHref(request)
+            : `/safety/work-authorization/${request.id}`
+        }
+        emptyMessage={
+          requestsQuery.isError
+            ? "Work authorization requests could not be loaded."
+            : "No work authorization requests found."
+        }
+        getSearchValues={(request) => [
+          request.reference,
+          request.workInitiation.title,
+          request.workInitiation.assignedSupervisor,
+          request.workInitiation.location,
+        ]}
+      />
+    </div>
   );
 }

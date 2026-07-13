@@ -20,7 +20,7 @@ export const productsApi = {
       page_size?: number;
     } = {}
   ) => {
-    const { data } = await api.get("/api/products/", { params });
+    const { data } = await api.get("/api/products", { params });
     return data;
   },
 
@@ -39,7 +39,7 @@ export const productsApi = {
 
     imageFiles.forEach(file => form.append("images", file));
 
-    const { data } = await api.post("/api/products/", form, {
+    const { data } = await api.post("/api/products", form, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

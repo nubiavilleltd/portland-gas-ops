@@ -11,9 +11,9 @@
 export const INVOICE_ROUTES = {
   list:     ()           => "/invoices",
   new:      ()           => "/invoices/new",
-  detail:   (id: string) => `/invoices/${id}`,
-  edit:     (id: string) => `/invoices/${id}/edit`,
+  detail:   (invoiceNo: string) => `/invoices/${invoiceNo}`,
+  edit:     (invoiceNo: string) => `/invoices/${invoiceNo}/edit`,
 
   // Payments nested under invoice
-  payments: (id: string) => `/invoices/${id}/payments`,
+  payments: (invoiceNo: string) => `/invoices/${invoiceNo}/payments`,
 } as const;

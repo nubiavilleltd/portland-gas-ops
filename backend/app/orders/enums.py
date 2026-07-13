@@ -15,3 +15,8 @@ class FulfillmentStatus(str, Enum):
     in_transit = "in_transit"
     delivered  = "delivered"
     failed     = "failed"
+
+class DiscountType(str, Enum):
+    none = "none"
+    percentage = "percentage"
+    fixed = "fixed"

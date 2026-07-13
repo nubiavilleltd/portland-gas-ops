@@ -11,7 +11,7 @@ import FormSection from "@/components/ui/FormSection";
 import { BackButton } from "@/components/ui/BackButton";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { usePaymentById, usePaymentsByInvoice } from "@/lib/modules/payments/hooks/usePayments";
+import { usePaymentById, usePaymentByNo, usePaymentsByInvoice } from "@/lib/modules/payments/hooks/usePayments";
 import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
@@ -23,7 +23,7 @@ export default function PaymentReceiptPage() {
   const { id } = useParams<{ id: string }>();
   const [downloading, setDownloading] = useState(false);
 
-  const { payment, isLoading: paymentLoading, error } = usePaymentById(id);
+  const { payment, isLoading: paymentLoading, error } = usePaymentByNo(id);
   const { invoice, isLoading: invoiceLoading } = useInvoiceById(payment?.invoiceId ?? "");
   const { order } = useOrderById(invoice?.order_id ?? "");
   const { payments: allInvoicePayments } = usePaymentsByInvoice(payment?.invoiceId ?? "");
@@ -184,7 +184,7 @@ export default function PaymentReceiptPage() {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" href={`/invoices/${invoice.id}`}>
+          <Button variant="outline" size="sm" href={`/invoices/${invoice.invoice_number}`}>
             View Invoice →
           </Button>
         </FormSection>
@@ -229,7 +229,7 @@ export default function PaymentReceiptPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            href={`/payments/${p.id}/receipt`}
+                            href={`/payments/${p.paymentNo}/receipt`}
                           >
                             View
                           </Button>

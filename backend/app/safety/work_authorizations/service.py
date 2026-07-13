@@ -29,6 +29,7 @@ from app.shared.models.approval import (
     AllRequest,
     ApprovalOverallStatus,
     ApprovalRequest,
+    ApprovalStepAssignment,
 )
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
@@ -385,6 +386,7 @@ def list_eligible_work_initiations_for_authorization(
 
 def list_work_authorizations(
     db: Session,
+    current_user: User,
     skip: int = 0,
     limit: int = 20,
     cursor_created_at: Optional[datetime] = None,
@@ -392,6 +394,16 @@ def list_work_authorizations(
     status_filter: Optional[WorkAuthorizationStatus] = None,
     search: Optional[str] = None,
 ) -> list[SafetyWorkAuthorization]:
+    employee = get_employee_for_user(db, current_user)
+    current_approval_exists = exists().where(
+        ApprovalRequest.request_type == WORK_AUTHORIZATION_REQUEST_TYPE,
+        ApprovalRequest.request_id == SafetyWorkAuthorization.id,
+        ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        ApprovalStepAssignment.approval_request_id == ApprovalRequest.id,
+        ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+        ApprovalStepAssignment.assigned_to == employee.id,
+    )
+
     query = (
         db.query(SafetyWorkAuthorization)
         .options(
@@ -405,7 +417,21 @@ def list_work_authorizations(
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(SafetyWorkAuthorization.is_active == True)
+        .filter(
+            SafetyWorkAuthorization.is_active == True,
+            or_(
+                SafetyWorkAuthorization.requester_id == employee.id,
+                SafetyWorkAuthorization.work_initiation.has(
+                    or_(
+                        SafetyWorkInitiation.assigned_supervisor_id == employee.id,
+                        SafetyWorkInitiation.workers.any(
+                            SafetyWorkInitiationWorker.worker_id == employee.id,
+                        ),
+                    ),
+                ),
+                current_approval_exists,
+            ),
+        )
     )
 
     if status_filter:
@@ -440,6 +466,64 @@ def list_work_authorizations(
         query = query.offset(skip)
 
     return query.limit(limit).all()
+
+
+def get_work_authorization_for_current_user(
+    db: Session,
+    work_authorization_id: str,
+    current_user: User,
+) -> SafetyWorkAuthorization:
+    record = get_work_authorization(db, work_authorization_id)
+    employee = get_employee_for_user(db, current_user)
+
+    if not can_view_work_authorization(db, record, employee):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this work authorization.",
+        )
+
+    return record
+
+
+def can_view_work_authorization(
+    db: Session,
+    record: SafetyWorkAuthorization,
+    employee: Employee,
+) -> bool:
+    if record.requester_id == employee.id:
+        return True
+
+    initiation = record.work_initiation
+    if initiation:
+        if initiation.assigned_supervisor_id == employee.id:
+            return True
+        if any(worker.worker_id == employee.id for worker in initiation.workers):
+            return True
+
+    return is_current_work_authorization_approver(db, record.id, employee.id)
+
+
+def is_current_work_authorization_approver(
+    db: Session,
+    work_authorization_id: str,
+    employee_id: str,
+) -> bool:
+    return (
+        db.query(ApprovalStepAssignment.id)
+        .join(
+            ApprovalRequest,
+            ApprovalRequest.id == ApprovalStepAssignment.approval_request_id,
+        )
+        .filter(
+            ApprovalRequest.request_type == WORK_AUTHORIZATION_REQUEST_TYPE,
+            ApprovalRequest.request_id == work_authorization_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+            ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ApprovalStepAssignment.assigned_to == employee_id,
+        )
+        .first()
+        is not None
+    )
 
 
 def get_work_authorization(

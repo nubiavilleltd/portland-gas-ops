@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { getWorkInitiationNextActor } from "@/lib/safety-next-actor";
@@ -11,6 +12,9 @@ import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
 import { useWorkInitiations } from "@/lib/modules/safety/workInitiation";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import type { WorkInitiationRequest } from "@/types/safety";
+import SafetyRequestListFilters, {
+  type SafetyRequestListFilter,
+} from "../../components/SafetyRequestListFilters";
 
 const columns: Column<WorkInitiationRequest>[] = [
   {
@@ -20,6 +24,14 @@ const columns: Column<WorkInitiationRequest>[] = [
   },
   { key: "title", label: "Work Title" },
   { key: "requester", label: "Requester", render: (_, row) => row.requester.name },
+  {
+    key: "requestDate",
+    label: "Request Date",
+    className: "whitespace-nowrap",
+    getSearchValue: (row) => row.requester.requestDate,
+    getSortValue: (row) => row.requester.requestDate,
+    render: (_, row) => row.requester.requestDate || "-",
+  },
   { key: "workCategory", label: "Work Category" },
   {
     key: "workType",
@@ -45,6 +57,7 @@ export default function WorkInitiationRequestsTable({
 }: {
   scope?: "user" | "admin";
 }) {
+  const [filter, setFilter] = useState<SafetyRequestListFilter>("all");
   const requestsQuery = useWorkInitiations();
   const currentEmployee = useSafetyCurrentEmployee();
   const myApprovals = useMyApprovals();
@@ -54,10 +67,12 @@ export default function WorkInitiationRequestsTable({
       .filter((approval) => approval.request_type === "work_initiation")
       .map((approval) => approval.request_id),
   );
-  const isCurrentEmployeeRequest = (request: WorkInitiationRequest) =>
+  const isRaisedByCurrentEmployee = (request: WorkInitiationRequest) =>
+    Boolean(currentEmployeeId && request.requesterId === currentEmployeeId);
+  const isAssignedToCurrentEmployee = (request: WorkInitiationRequest) =>
     Boolean(
       currentEmployeeId &&
-        (request.requesterId === currentEmployeeId ||
+        (request.assignment.assignedSupervisorId === currentEmployeeId ||
           request.assignment.assignedWorkerIds?.includes(currentEmployeeId)),
     );
   const isCurrentEmployeeApprover = (request: WorkInitiationRequest) =>
@@ -65,27 +80,36 @@ export default function WorkInitiationRequestsTable({
   const requests = (requestsQuery.data ?? []).filter(
     (request) =>
       scope === "admin" ||
-      isCurrentEmployeeRequest(request) ||
+      isRaisedByCurrentEmployee(request) ||
+      isAssignedToCurrentEmployee(request) ||
       isCurrentEmployeeApprover(request),
   );
   const scopedRequests = sortByLatestSafetyActivity(
-    requests,
+    requests.filter((request) => {
+      if (filter === "raised") return isRaisedByCurrentEmployee(request);
+      if (filter === "assigned") return isAssignedToCurrentEmployee(request);
+      if (filter === "approval") return isCurrentEmployeeApprover(request);
+      return true;
+    }),
     (request) => request.requester.requestDate,
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={scopedRequests}
-      rowHref={(request) =>
-        scope === "admin"
-          ? getAdminWorkInitiationHref(request)
-          : `/safety/work-initiation/${request.id}`
-      }
-      isLoading={
-        requestsQuery.isLoading || currentEmployee.isLoading || myApprovals.isLoading
-      }
-      emptyMessage="No work initiation requests found."
-    />
+    <div className="space-y-3">
+      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      <DataTable
+        columns={columns}
+        data={scopedRequests}
+        rowHref={(request) =>
+          scope === "admin"
+            ? getAdminWorkInitiationHref(request)
+            : `/safety/work-initiation/${request.id}`
+        }
+        isLoading={
+          requestsQuery.isLoading || currentEmployee.isLoading || myApprovals.isLoading
+        }
+        emptyMessage="No work initiation requests found."
+      />
+    </div>
   );
 }

@@ -31,6 +31,7 @@ const statusMap: Record<IncidentReportStatus, IncidentHazardStatus> = {
   draft: "draft",
   submitted: "submitted",
   recommended: "recommended",
+  pending_hse_verification: "pending_hse_verification",
   resolved: "resolved",
   not_resolved: "not_resolved",
   closed: "closed",
@@ -106,6 +107,7 @@ function mapHseReviewToIncidentHazardReview(
   review: IncidentHseReviewResponse,
 ): IncidentHazardHseReview {
   return {
+    id: review.id,
     inspector: review.inspector_name || "HSE Inspector",
     confirmedReportType: reportTypeLabels[review.confirmed_report_type],
     confirmedSeverity: severityLabels[review.confirmed_severity],

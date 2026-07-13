@@ -73,3 +73,16 @@ class DriverRepository:
     def save(self, db: Session, driver: Driver) -> Driver:
         db.flush()
         return driver
+    def update(
+        self,
+        db: Session,
+        driver: Driver,
+        **fields,
+    ) -> Driver:
+
+        for key, value in fields.items():
+            setattr(driver, key, value)
+
+        db.flush()
+
+        return driver

@@ -151,23 +151,21 @@ def operations_hod_review_work_initiation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record, approval_request_id = (
-    work_initiation_service.operations_hod_review_work_initiation(
+    record, approval_request_id = work_initiation_service.operations_hod_review_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
         data=data,
         current_user=current_user,
     )
-)
-    
+
     if data.decision == WorkInitiationDecision.approve:
         workflow_email.notify_request_result(
-        db,
-        approval_request_id,
-        "approved",
-        comment=data.comment,
-    )
-        
+            db,
+            approval_request_id,
+            "approved",
+            comment=data.comment,
+        )
+
     elif data.decision == WorkInitiationDecision.return_:
         workflow_email.notify_request_result(
             db,

@@ -14,7 +14,7 @@ class VehicleRepository:
     def get_by_id(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Optional[Vehicle]:
         return (
             db.query(Vehicle)
@@ -111,7 +111,7 @@ class VehicleRepository:
         self,
         db: Session,
         *,
-        vehicle_id: int,
+        vehicle_id: str,
         filename: str,
         url: str,
         file_size: int,
@@ -120,14 +120,14 @@ class VehicleRepository:
     ) -> Document:
 
         document = Document(
-            parent_type="vehicle",
-            parent_id=str(vehicle_id),
-            type="image",
-            filename=filename,
+            type="file",
+            name=filename,
+            category=f"vehicle:{vehicle_id}",
             file_path=url,
             file_size=file_size,
             mime_type=mime_type,
             uploaded_by=uploaded_by,
+            parent_id=None,
         )
 
         db.add(document)

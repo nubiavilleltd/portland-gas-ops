@@ -35,6 +35,7 @@ class Driver(Base):
     license_number = Column(String(100), unique=True, nullable=False)
     license_expiry_date = Column(Date, nullable=False)
 
+    address = Column(String(500), nullable=True)
     experience_years = Column(Integer, nullable=False, default=0)
 
     profile_image_document_id = Column(
@@ -74,3 +75,24 @@ class Driver(Base):
         "Trip",
         back_populates="driver",
     )
+
+    @property
+    def full_name(self) -> str | None:
+        return self.employee.user.full_name if self.employee and self.employee.user else None
+
+    @property
+    def email(self) -> str | None:
+        return self.employee.user.email if self.employee and self.employee.user else None
+
+    @property
+    def phone_number(self) -> str | None:
+        return self.employee.user.phone if self.employee and self.employee.user else None
+    @property
+    def profile_image_url(self) -> str | None:
+        return self.profile_image.file_path if self.profile_image else None
+    @property
+    def current_trip_id(self) -> str | None:
+        for trip in self.trips:
+            if trip.status not in ("completed", "cancelled"):
+                return trip.id
+        return None

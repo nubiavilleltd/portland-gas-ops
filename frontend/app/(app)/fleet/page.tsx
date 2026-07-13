@@ -1,4 +1,5 @@
 
+export const dynamic = "force-dynamic";
 
 import FleetHomeClient from "@/lib/modules/fleet/components/FleetHomeClient";
 import { VehiclesService } from "@/lib/modules/fleet/services/vehicles.service";

@@ -24,10 +24,10 @@ import type {
   SafetyChecklistTemplate,
 } from "@/lib/modules/safety/checklists";
 import {
-  incidentReportsApi,
   useCloseIncident,
+  useCreateIncidentHseReview,
   useIncidentReport,
-  useResolveIncidentWithCloseout,
+  useMarkIncidentNotResolved,
   type IncidentHseDecision,
   type IncidentHseReviewCreate,
   type IncidentReportType,
@@ -40,11 +40,14 @@ import {
 } from "@/lib/modules/safety/people";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
+import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
 import {
   incidentSeverityOptions,
   reportTypeOptions,
 } from "@/lib/modules/safety/incidentReport/constants";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
+import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
+import { useAuditTrail } from "@/lib/modules/workflow/queries";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
 import type {
@@ -87,10 +90,21 @@ export default function IncidentHazardDetailsView({
   const toast = useToast();
   const reportQuery = useIncidentReport(reportId);
   const report = reportQuery.data;
+  const auditTrailQuery = useAuditTrail("incident_report", reportId);
+  const auditTrailItems = useMemo(() => {
+    const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
+    return workflowAuditTrail.length > 0
+      ? workflowAuditTrail
+      : report?.auditTrail ?? [];
+  }, [auditTrailQuery.data, report?.auditTrail]);
   const myEmployeeQuery = useMyEmployee();
   const impactResponsesQuery = useSafetyChecklistResponses(
     "incident_report",
     reportId,
+  );
+  const hseReviewResponsesQuery = useSafetyChecklistResponses(
+    "incident_hse_review",
+    report?.hseReview?.id ?? "",
   );
   const workCloseoutsQuery = useWorkCloseouts({ limit: 100 });
   const completedWork = useMemo(
@@ -102,9 +116,11 @@ export default function IncidentHazardDetailsView({
       ) ?? null,
     [report?.id, workCloseoutsQuery.data],
   );
-  const resolveIncident = useResolveIncidentWithCloseout(reportId);
   const closeIncidentMutation = useCloseIncident(reportId);
+  const markIncidentNotResolved = useMarkIncidentNotResolved(reportId);
+  const createIncidentHseReview = useCreateIncidentHseReview(reportId);
   const [hseComment, setHseComment] = useState("");
+  const [hseVerificationNotes, setHseVerificationNotes] = useState("");
   const [confirmedReportType, setConfirmedReportType] = useState("");
   const [confirmedSeverity, setConfirmedSeverity] = useState("");
   const [hseFindings, setHseFindings] = useState("");
@@ -152,7 +168,8 @@ export default function IncidentHazardDetailsView({
   const isActionOwnerContext =
     isAssignedActionOwner &&
     Boolean(
-      report?.status === "recommended" ||
+        report?.status === "recommended" ||
+        report?.status === "pending_hse_verification" ||
         report?.status === "resolved" ||
         report?.status === "closed",
     );
@@ -163,21 +180,24 @@ export default function IncidentHazardDetailsView({
       : "reporter";
   const canActAsActionOwner =
     isAssignedActionOwner && report?.status === "recommended";
+  const currentEmployeeName = formatEmployeeName(
+    myEmployeeQuery.data?.user?.first_name,
+    myEmployeeQuery.data?.user?.last_name,
+  );
 
   const permissions = useMemo(() => {
     const isDraft = report?.status === "draft";
     const isSubmitted = report?.status === "submitted";
     const isRecommended = report?.status === "recommended";
-    const isResolved = report?.status === "resolved";
+    const isPendingHseVerification =
+      report?.status === "pending_hse_verification";
     const isClosed = report?.status === "closed";
     return {
       canReporterEdit: false,
       canHseReview: isHseEmployee && isSubmitted,
-      canActionOwnerResolve:
-        isRecommended && isAssignedActionOwner && Boolean(completedWork),
-      canHseClose: isHseEmployee && isResolved,
+      canHseVerifyCorrectiveAction: isHseEmployee && isPendingHseVerification,
       showActionOwnerSection:
-        Boolean(isRecommended || isResolved || isClosed) &&
+        Boolean(isRecommended || isPendingHseVerification || isClosed) &&
         Boolean(isHseEmployee || isAssignedActionOwner),
       showHseReview: Boolean(
         (isHseEmployee && (isSubmitted || Boolean(report?.hseReview))) ||
@@ -186,7 +206,6 @@ export default function IncidentHazardDetailsView({
       showAuditTrail: Boolean(!isDraft),
     };
   }, [
-    completedWork,
     isHseEmployee,
     isAssignedActionOwner,
     report?.hseReview,
@@ -213,32 +232,39 @@ export default function IncidentHazardDetailsView({
     await saveHseReview("recommended");
   }
 
-  async function resolveRecommendedIncident() {
-    if (!completedWork) {
-      toast.error("No approved linked work close-out is available for this incident.");
+  async function closeIncident() {
+    if (closeIncidentMutation.isPending) return;
+    const notes = hseVerificationNotes.trim();
+    if (notes.length < 3) {
+      toast.error("Add HSE verification notes before closing this incident.");
       return;
     }
 
     try {
-      await resolveIncident.mutateAsync({
-        work_closeout_id: completedWork.id,
-      });
-      await reportQuery.refetch();
-      toast.success("Incident marked resolved.");
-    } catch (error) {
-      console.error("Failed to resolve incident", error);
-      toast.error(getApiErrorMessage(error, "Incident could not be resolved."));
-    }
-  }
-
-  async function closeIncident() {
-    try {
-      await closeIncidentMutation.mutateAsync();
+      await closeIncidentMutation.mutateAsync({ notes });
       await reportQuery.refetch();
       toast.success("Incident closed by HSE.");
     } catch (error) {
       console.error("Failed to close incident", error);
       toast.error(getApiErrorMessage(error, "Incident could not be closed."));
+    }
+  }
+
+  async function markNotResolved() {
+    if (markIncidentNotResolved.isPending) return;
+    const notes = hseVerificationNotes.trim();
+    if (notes.length < 3) {
+      toast.error("Add a reason before marking this incident not resolved.");
+      return;
+    }
+
+    try {
+      await markIncidentNotResolved.mutateAsync({ notes });
+      await reportQuery.refetch();
+      toast.success("Incident marked not resolved.");
+    } catch (error) {
+      console.error("Failed to mark incident not resolved", error);
+      toast.error(getApiErrorMessage(error, "Incident could not be updated."));
     }
   }
 
@@ -253,6 +279,7 @@ export default function IncidentHazardDetailsView({
 
   async function saveHseReview(decision: IncidentHseDecision) {
     if (!report) return;
+    if (isSavingHseReview || createIncidentHseReview.isPending) return;
 
     const validationMessage = validateHseReview(decision);
     if (validationMessage) {
@@ -290,10 +317,7 @@ export default function IncidentHazardDetailsView({
 
     try {
       setIsSavingHseReview(true);
-      const review = await incidentReportsApi.createHseReview(
-        report.id,
-        payload,
-      );
+      const review = await createIncidentHseReview.mutateAsync(payload);
       const checklistAnswers = buildHseChecklistAnswers(
         hseReviewChecklist.data,
         hseChecklistAnswers,
@@ -441,9 +465,13 @@ export default function IncidentHazardDetailsView({
             checklist={hseReviewChecklist.data}
             checklistError={hseReviewChecklist.isError}
             isSaving={isSavingHseReview}
+            hseInspectorName={currentEmployeeName || "Current HSE inspector"}
           />
         ) : report.hseReview ? (
-          <HseReviewResult review={report.hseReview} />
+          <HseReviewResult
+            review={report.hseReview}
+            checklistResponses={hseReviewResponsesQuery.data ?? []}
+          />
         ) : null
       ) : null}
 
@@ -458,25 +486,28 @@ export default function IncidentHazardDetailsView({
                   ? "Linked work completion"
                   : ""
             }
-            canResolve={permissions.canActionOwnerResolve}
             canCreateLinkedWork={canActAsActionOwner}
-            onResolve={resolveRecommendedIncident}
-            isResolving={resolveIncident.isPending}
           />
         ) : null
       ) : null}
 
-      {permissions.canHseClose ? (
+      {permissions.canHseVerifyCorrectiveAction ? (
         <HseClosureAction
           report={report}
+          notes={hseVerificationNotes}
+          onNotesChange={setHseVerificationNotes}
           onClose={closeIncident}
-          isClosing={closeIncidentMutation.isPending}
+          onNotResolved={markNotResolved}
+          isSaving={
+            closeIncidentMutation.isPending || markIncidentNotResolved.isPending
+          }
+          hseInspectorName={currentEmployeeName || "Current HSE inspector"}
         />
       ) : null}
 
       {permissions.showAuditTrail ? (
         <AuditTrail
-          items={report.auditTrail}
+          items={auditTrailItems}
           description="Recorded workflow actions and comments for this report."
         />
       ) : null}
@@ -587,11 +618,11 @@ function IncidentDetails({
           disabled={!editable}
           className="md:col-span-2"
         />
-        <FormInput
+        {/* <FormInput
           label="Severity Estimate"
           defaultValue={report.severityEstimate}
           disabled={!editable}
-        />
+        /> */}
         <div className="md:col-span-2">
           <SafetyChoiceTable
             options={yesNoOptions}
@@ -663,6 +694,7 @@ function HseReviewAction({
   checklist,
   checklistError,
   isSaving,
+  hseInspectorName,
 }: {
   comment: string;
   onCommentChange: (comment: string) => void;
@@ -697,6 +729,7 @@ function HseReviewAction({
   checklist?: SafetyChecklistTemplate;
   checklistError: boolean;
   isSaving: boolean;
+  hseInspectorName: string;
 }) {
   const requiresCorrectiveWork = correctiveActionRequired === "Yes";
   const canRecommendCorrectiveWork =
@@ -722,6 +755,7 @@ function HseReviewAction({
       showReturn={false}
       showReject={!requiresCorrectiveWork}
       showApprove={!requiresCorrectiveWork}
+      disabled={isSaving}
       approveDisabled={!canResolveWithoutCorrectiveWork || isSaving}
       rejectDisabled={!canDenyWithoutCorrectiveWork || isSaving}
       rejectLabel="Deny"
@@ -734,6 +768,7 @@ function HseReviewAction({
                 key: "recommend",
                 label: "Recommend Corrective Action",
                 variant: "approve",
+                loading: isSaving,
                 disabled: !canRecommendCorrectiveWork || isSaving,
                 onClick: onForward,
               },
@@ -743,7 +778,7 @@ function HseReviewAction({
       extraFields={
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <FormInput label="HSE Inspector" value="Samuel Bassey" disabled />
+            <FormInput label="HSE Inspector" value={hseInspectorName} disabled />
             <FormSelect
               label="Confirmed Report Type"
               required
@@ -863,11 +898,6 @@ function HseReviewAction({
                   }}
                 />
               ))}
-            <FormInput
-              label="HSE Review Date/Time"
-              value="2026-05-18 10:00 AM"
-              disabled
-            />
           </div>
           {correctiveActionRequired === "Yes" ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -885,7 +915,13 @@ function HseReviewAction({
   );
 }
 
-function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
+function HseReviewResult({
+  review,
+  checklistResponses,
+}: {
+  review: IncidentHazardHseReview;
+  checklistResponses: SafetyChecklistResponse[];
+}) {
   return (
     <FormSection
       title="HSE Review & Corrective Action"
@@ -904,17 +940,13 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
           disabled
         />
         <FormTextarea label="HSE Findings" value={review.findings} disabled />
-        {/* <FormTextarea label="Root Cause / Likely Cause" value={review.rootCause} disabled /> */}
-        <div className="md:col-span-2">
-          <SafetyChoiceTable
-            options={yesNoOptions}
-            disabled
-            rows={[
-              {
-                label: "Corrective Action Required?",
-                value: nullableBooleanToYesNo(review.correctiveActionRequired),
-              },
-            ]}
+        <div className="md:col-span-2 space-y-2">
+          <p className="text-sm font-medium text-brand-text-primary">
+            HSE Checklist Responses
+          </p>
+          <SafetyChecklistResponsesView
+            responses={checklistResponses}
+            emptyMessage="No HSE checklist responses recorded."
           />
         </div>
         {review.correctiveActionRequired ? (
@@ -960,17 +992,11 @@ function HseReviewResult({ review }: { review: IncidentHazardHseReview }) {
 function CorrectiveWorkResolution({
   report,
   completedWorkReference,
-  canResolve,
   canCreateLinkedWork,
-  onResolve,
-  isResolving,
 }: {
   report: IncidentHazardReport;
   completedWorkReference: string;
-  canResolve: boolean;
   canCreateLinkedWork: boolean;
-  onResolve: () => void;
-  isResolving: boolean;
 }) {
   return (
     <FormSection
@@ -1004,7 +1030,7 @@ function CorrectiveWorkResolution({
         <div className="mt-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-blue-800">
             Create and complete linked work using this incident before it can be
-            marked resolved.
+            submitted for HSE verification.
           </p>
           <Button
             href={`/safety/work-initiation/new?incidentId=${encodeURIComponent(report.id)}`}
@@ -1016,17 +1042,11 @@ function CorrectiveWorkResolution({
           </Button>
         </div>
       ) : null}
-      {canResolve ? (
-        <div className="mt-4">
-          <Button
-            type="button"
-            onClick={onResolve}
-            loading={isResolving}
-            loadingText="Resolving..."
-          >
-            Mark Incident Resolved
-          </Button>
-        </div>
+      {report.status === "pending_hse_verification" ? (
+        <p className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          Corrective action work has been completed and approved. This incident
+          is waiting for final HSE verification.
+        </p>
       ) : null}
     </FormSection>
   );
@@ -1034,29 +1054,49 @@ function CorrectiveWorkResolution({
 
 function HseClosureAction({
   report,
+  notes,
+  onNotesChange,
   onClose,
-  isClosing,
+  onNotResolved,
+  isSaving,
+  hseInspectorName,
 }: {
   report: IncidentHazardReport;
+  notes: string;
+  onNotesChange: (value: string) => void;
   onClose: () => void;
-  isClosing: boolean;
+  onNotResolved: () => void;
+  isSaving: boolean;
+  hseInspectorName: string;
 }) {
   return (
     <ApprovalPanel
-      title="HSE Final Closure"
-      description="Verify the completed corrective work and close this report."
-      showComment={false}
+      title="HSE Final Verification"
+      description="Confirm whether the completed corrective work resolved the original issue."
+      commentLabel="Verification Notes"
+      commentPlaceholder="Record what HSE verified and the basis for the decision"
+      commentValue={notes}
+      onCommentChange={onNotesChange}
       showReturn={false}
-      showReject={false}
-      approveLabel="Close Incident"
-      approveDisabled={isClosing}
+      showReject
+      showApprove
+      rejectLabel="Not Resolved"
+      approveLabel="Verify and Close"
+      disabled={isSaving}
+      rejectDisabled={isSaving || notes.trim().length < 3}
+      approveDisabled={isSaving || notes.trim().length < 3}
+      rejectLoading={isSaving}
+      approveLoading={isSaving}
+      rejectLoadingLabel="Saving..."
+      approveLoadingLabel="Closing..."
+      onReject={onNotResolved}
       onApprove={onClose}
       extraFields={
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <FormInput
               label="HSE Inspector"
-              value={report.hseReview?.inspector || "Samuel Bassey"}
+              value={report.hseReview?.inspector || hseInspectorName}
               disabled
             />
             <FormInput
@@ -1069,8 +1109,9 @@ function HseClosureAction({
             />
           </div>
           <p className="text-sm text-brand-text-secondary">
-            Confirm the reported issue has been resolved and close this incident
-            record.
+            Choose Verify and Close only if the original safety issue is
+            resolved. Choose Not Resolved if further corrective action is
+            required.
           </p>
         </div>
       }
@@ -1120,6 +1161,13 @@ function buildIncidentImpactRows(
 function emptyToNull(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function formatEmployeeName(
+  firstName?: string | null,
+  lastName?: string | null,
+) {
+  return [firstName, lastName].filter(Boolean).join(" ").trim();
 }
 
 function toIncidentReportType(value: string): IncidentReportType {
@@ -1285,6 +1333,11 @@ function StatusNote({
       currentRole === "action_owner"
         ? `Corrective work has been recommended to you in ${report.hseReview?.assignedDepartment || "the assigned department"}. Raise linked Work Initiation to continue.`
         : `Corrective action recommended to ${report.hseReview?.actionOwner || "the action owner"} in ${report.hseReview?.assignedDepartment || "the assigned department"}.`;
+  } else if (report.status === "pending_hse_verification") {
+    note =
+      currentRole === "hse"
+        ? "Corrective action completed. Pending your HSE verification."
+        : "Corrective action completed. Pending HSE verification.";
   } else if (report.status === "resolved") {
     note =
       currentRole === "hse"

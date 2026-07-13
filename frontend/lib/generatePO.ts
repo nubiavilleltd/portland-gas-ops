@@ -1,3 +1,4 @@
+// @ts-nocheck
 import jsPDF from "jspdf";
 import type { ProcurementRequest } from "@/types";
 

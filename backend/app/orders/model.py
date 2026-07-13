@@ -9,6 +9,7 @@ from app.core.database import Base
 from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.payments.enums import PaymentStatus
 from app.inventory.enums import DispositionStatus
+from app.orders.enums import DiscountType
 
 
 class Order(Base):
@@ -25,6 +26,22 @@ class Order(Base):
     delivery_date       = Column(Date, nullable=True)
     notes               = Column(Text, nullable=True)
     total_amount        = Column(Numeric(15, 2), nullable=False, default=0)
+    discount_type = Column(
+        SAEnum(DiscountType),
+        nullable=False,
+        default=DiscountType.none,
+    )
+    discount_value = Column(
+        Numeric(15, 2),
+        nullable=False,
+        default=0,
+    )
+
+    discount_amount = Column(
+        Numeric(15, 2),
+        nullable=False,
+        default=0,
+    )
     cancellation_reason = Column(Text, nullable=True)
     cancelled_at        = Column(DateTime(timezone=True), nullable=True)
     # trip_id — no FK yet, trips table doesn't exist. Added as plain string ref

@@ -59,6 +59,7 @@ class Vehicle(Base):
     next_service_date = Column(Date, nullable=True)
 
     insurance_expiry_date = Column(Date, nullable=True)
+    roadworthiness_expiry_date = Column(Date, nullable=True)
 
     created_at = Column(
         DateTime(timezone=True),
@@ -80,3 +81,13 @@ class Vehicle(Base):
         "Trip",
         back_populates="vehicle",
     )
+
+    @property
+    def primary_image_url(self) -> str | None:
+        return self.primary_image.file_path if self.primary_image else None
+    @property
+    def current_trip_id(self) -> str | None:
+        for trip in self.trips:
+            if trip.status not in ("completed", "cancelled"):
+                return trip.id
+        return None

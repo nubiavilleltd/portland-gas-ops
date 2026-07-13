@@ -23,72 +23,70 @@ class DispatchTripWorkflow:
     def execute(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         actor_id: str,
     ):
 
-        with db.begin():
+        #
+        # Dispatch Trip
+        #
+        trip = self.trip_service.dispatch(
+            db=db,
+            trip_id=trip_id,
+        )
 
-            #
-            # Dispatch Trip
-            #
-            trip = self.trip_service.dispatch(
+        #
+        # Update linked orders
+        #
+        order_ids = self.trip_service.repo.get_order_ids(
+            db=db,
+            trip_id=trip.id,
+        )
+
+        for order_id in order_ids:
+
+            order = self.order_service.get_or_raise(
                 db=db,
-                trip_id=trip_id,
+                order_id=order_id,
             )
 
-            #
-            # Update linked orders
-            #
-            order_ids = self.trip_service.repo.get_order_ids(
-                db=db,
-                trip_id=trip.id,
-            )
+            if order.fulfillment_status.value != "delivered":
 
-            for order_id in order_ids:
-
-                order = self.order_service.get_or_raise(
+                self.order_service.update_fulfillment_status(
                     db=db,
-                    order_id=order_id,
+                    order_no=order.order_no,
+                    status="dispatched",
                 )
 
-                if order.fulfillment_status.value != "delivered":
+                self.audit_service.record(
+                    db=db,
+                    entity_type=AuditEntityType.order,
+                    entity_id=order.id,
+                    action="dispatched",
+                    description=f"Order dispatched on trip {trip.trip_no}",
+                    actor_type=AuditActorType.system,
+                )
 
-                    self.order_service.update_fulfillment_status(
-                        db=db,
-                        order_no=order.order_no,
-                        status="dispatched",
-                    )
+        #
+        # Check out inventory (tracked products only)
+        #
+        self.inventory_service.check_out_for_trip(
+            db=db,
+            trip_id=trip.id,
+            recorded_by=actor_id,
+        )
 
-                    self.audit_service.record(
-                        db=db,
-                        entity_type=AuditEntityType.order,
-                        entity_id=order.id,
-                        action="dispatched",
-                        description=f"Order dispatched on trip {trip.trip_no}",
-                        actor_type=AuditActorType.system,
-                    )
+        #
+        # Trip Audit
+        #
+        self.audit_service.record(
+            db=db,
+            entity_type=AuditEntityType.trip,
+            entity_id=str(trip.id),
+            action="dispatched",
+            description=f"Trip dispatched with {len(order_ids)} order(s)",
+            actor_type=AuditActorType.employee,
+            actor_employee_id=actor_id,
+        )
 
-            #
-            # Check out inventory (tracked products only)
-            #
-            self.inventory_service.check_out_for_trip(
-                db=db,
-                trip_id=trip.id,
-                recorded_by=actor_id,
-            )
-
-            #
-            # Trip Audit
-            #
-            self.audit_service.record(
-                db=db,
-                entity_type=AuditEntityType.trip,
-                entity_id=str(trip.id),
-                action="dispatched",
-                description=f"Trip dispatched with {len(order_ids)} order(s)",
-                actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
-            )
-
-            return trip
+        return trip

@@ -17,10 +17,11 @@ export const fleetApi = {
     return data;
   },
 
-  createDriver: async (formData: FormData) => {
-    const { data } = await api.post("/api/fleet/drivers", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  createDriver: async (input: Record<string, unknown>) => {
+    // const { data } = await api.post("/api/fleet/drivers", formData, {
+    //   headers: { "Content-Type": "multipart/form-data" },
+    // });
+     const { data } = await api.post(`/api/fleet/drivers`, input);
     return data;
   },
 
@@ -52,10 +53,12 @@ export const fleetApi = {
     return data;
   },
 
-  updateVehicle: async (id: string | number, input: Record<string, unknown>) => {
-    const { data } = await api.put(`/api/fleet/vehicles/${id}`, input);
-    return data;
-  },
+ updateVehicle: async (id: string, formData: FormData) => {
+  const { data } = await api.put(`/api/fleet/vehicles/${id}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+},
 
   // ── Trips ─────────────────────────────────────────────────
   listTrips: async (params: { status?: string } = {}) => {
@@ -80,13 +83,13 @@ export const fleetApi = {
     return data;
   },
 
-  assignResources: async (tripId: string | number, driverId: string | number, vehicleId: string | number) => {
-    const { data } = await api.post(`/api/fleet/trips/${tripId}/assign`, {
-      driver_id: Number(driverId),
-      vehicle_id: Number(vehicleId),
-    });
-    return data;
-  },
+assignResources: async (tripId: string, driverId: string, vehicleId: string) => {
+  const { data } = await api.post(`/api/fleet/trips/${tripId}/assign`, {
+    driver_id: driverId,
+    vehicle_id: vehicleId,
+  });
+  return data;
+},
 
   markReady: async (tripId: string | number) => {
     const { data } = await api.post(`/api/fleet/trips/${tripId}/mark-ready`);

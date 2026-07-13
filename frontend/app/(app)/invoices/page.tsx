@@ -5,7 +5,6 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { invoices } from "@/lib/modules/invoices/mock/invoices.mock";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 
 // import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";

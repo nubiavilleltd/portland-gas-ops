@@ -27,7 +27,7 @@ interface ItemSectionProps {
 
 function ItemSection({ item, slots, selectedIds, onSlotChange }: ItemSectionProps) {
   const { data: assetsOfType = [] } = useAssets({
-    asset_type_id: item.asset_type_id,
+    asset_type_id: item.asset_type_id ?? undefined,
     status: "available",
   });
 

@@ -2,6 +2,7 @@ export type IncidentReportStatus =
   | "draft"
   | "submitted"
   | "recommended"
+  | "pending_hse_verification"
   | "resolved"
   | "not_resolved"
   | "closed";
@@ -39,6 +40,10 @@ export type IncidentReportUpdate = Partial<IncidentReportCreate>;
 
 export interface IncidentResolveCreate {
   work_closeout_id: string;
+}
+
+export interface IncidentHseVerificationCreate {
+  notes: string;
 }
 
 export interface IncidentHseReviewCreate {

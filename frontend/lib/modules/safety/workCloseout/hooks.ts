@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/store/authStore";
+import {
+  invalidateSafetyWorkflowCaches,
+  writeMappedRecordToSafetyCaches,
+} from "../query-cache";
 import { workCloseoutsApi } from "./api";
 import { mapWorkCloseOutToRequest } from "./mappers";
 import type {
@@ -30,13 +34,10 @@ function shouldRetry(failureCount: number, error: unknown) {
 export function useWorkCloseouts(params?: WorkCloseOutListParams) {
   const { isAuthenticated } = useAuthStore();
 
-  console.log("useWorkCloseouts params", params, isAuthenticated);
-
   return useQuery({
     queryKey: workCloseoutKeys.list(params),
     queryFn: async () => {
       const items = await workCloseoutsApi.list(params);
-      console.log("items", items);
       return items.map(mapWorkCloseOutToRequest);
     },
     enabled: isAuthenticated,
@@ -71,8 +72,22 @@ export function useCreateWorkCloseout() {
       payload: WorkCloseOutCreate;
       completionEvidence?: File[];
     }) => workCloseoutsApi.create(payload, completionEvidence),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() });
+    onSuccess: async (data) => {
+      const updated = mapWorkCloseOutToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workCloseoutKeys.detail(updated.id),
+        listKey: workCloseoutKeys.lists(),
+        updated,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(updated.id) }),
+        queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: ["safety", "work-authorizations", "list"],
+        }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_closeout", updated.id),
+      ]);
     },
   });
 }
@@ -88,10 +103,21 @@ export function useUpdateWorkCloseout(id: string) {
       payload: WorkCloseOutUpdate;
       completionEvidence?: File[];
     }) => workCloseoutsApi.update(id, payload, completionEvidence),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      const updated = mapWorkCloseOutToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workCloseoutKeys.detail(id),
+        listKey: workCloseoutKeys.lists(),
+        updated,
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: ["safety", "incident-reports"],
+        }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_closeout", id),
       ]);
     },
   });
@@ -111,10 +137,21 @@ export function useHseWorkCloseoutReview(id: string) {
   return useMutation({
     mutationFn: (payload: WorkCloseOutHseReviewCreate) =>
       workCloseoutsApi.hseReview(id, payload),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      const updated = mapWorkCloseOutToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workCloseoutKeys.detail(id),
+        listKey: workCloseoutKeys.lists(),
+        updated,
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: ["safety", "incident-reports"],
+        }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_closeout", id),
       ]);
     },
   });
@@ -125,16 +162,24 @@ function useWorkCloseoutDecisionMutation(
   action: (
     id: string,
     payload: WorkCloseOutDecisionCreate,
-  ) => Promise<unknown>,
+  ) => ReturnType<typeof workCloseoutsApi.supervisorReview>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (payload: WorkCloseOutDecisionCreate) => action(id, payload),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      const updated = mapWorkCloseOutToRequest(data);
+      writeMappedRecordToSafetyCaches({
+        queryClient,
+        detailKey: workCloseoutKeys.detail(id),
+        listKey: workCloseoutKeys.lists(),
+        updated,
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
+        invalidateSafetyWorkflowCaches(queryClient, "work_closeout", id),
       ]);
     },
   });

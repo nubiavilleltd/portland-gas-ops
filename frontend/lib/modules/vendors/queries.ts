@@ -14,7 +14,7 @@ export const vendorKeys = {
 export function useVendors(search?: string, includeInactive?: boolean) {
   return useQuery<Vendor[]>({
     queryKey: vendorKeys.list(search, includeInactive),
-    queryFn:  () => get<Vendor[]>("/api/vendors/", {
+    queryFn:  () => get<Vendor[]>("/api/vendors", {
       ...(search ? { search } : {}),
       ...(includeInactive ? { include_inactive: true } : {}),
     }),

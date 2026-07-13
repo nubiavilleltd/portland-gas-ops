@@ -1,31 +1,10 @@
-# from __future__ import annotations
-# from decimal import Decimal
-
-# def validate_order_items(items: list) -> list:
-#     if not items:
-#         raise ValueError("Order must have at least one item")
-#     for item in items:
-#         if item.get("quantity", 0) <= 0:
-#             raise ValueError("Item quantity must be greater than zero")
-#         if item.get("unit_price", 0) <= 0:
-#             raise ValueError("Item unit price must be greater than zero")
-#     return items
-
-# def validate_delivery_address(value: str) -> str:
-#     cleaned = value.strip()
-#     if not cleaned:
-#         raise ValueError("Delivery address cannot be empty")
-#     return cleaned
-
-
-
-
-
 
 from __future__ import annotations
 
 from decimal import Decimal
 from typing import Optional
+from app.orders.enums import DiscountType
+
 
 
 def validate_quantity(value: Decimal) -> Decimal:
@@ -72,3 +51,34 @@ def validate_delivery_address(
         raise ValueError("Delivery address cannot be empty")
 
     return cleaned
+
+
+def validate_discount_value(
+    value: Optional[Decimal],
+    required: bool = True,
+) -> Optional[Decimal]:
+    if value is None:
+        if required:
+            raise ValueError("Discount value is required.")
+        return None
+
+    if value < 0:
+        raise ValueError("Discount cannot be negative.")
+
+    return value
+
+
+def validate_discount(
+    discount_type: DiscountType,
+    discount_value: Decimal,
+) -> Decimal:
+    if discount_type == DiscountType.none:
+        return Decimal("0")
+
+    if (
+        discount_type == DiscountType.percentage
+        and discount_value > Decimal("100")
+    ):
+        raise ValueError("Percentage discount cannot exceed 100.")
+
+    return discount_value

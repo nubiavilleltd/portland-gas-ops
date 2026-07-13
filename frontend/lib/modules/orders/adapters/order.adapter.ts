@@ -14,12 +14,13 @@
  */
 
 import type {
-  CreateOrderInput,
-  FulfillmentStatus,
-  Order,
-  OrderLineItem,
-  OrderStatus,
-  UpdateOrderInput,
+    CreateOrderInput,
+    DiscountType,
+    FulfillmentStatus,
+    Order,
+    OrderLineItem,
+    OrderStatus,
+    UpdateOrderInput,
 } from "../types/orders.types";
 
 import type { PaymentStatus } from "../../payments/types/payments.types";
@@ -30,59 +31,63 @@ import { ItemDisposition } from "../../inventory/types/inventory.types";
 // ─────────────────────────────────────────────────────────────
 
 interface OrderItemResponse {
-  id: number;
+    id: number;
 
-  product_id: string;
-  product_name: string;
+    product_id: string;
+    product_name: string;
 
-  quantity: string | number;
-  unit_price: string | number;
-  total: string | number;
+    quantity: string | number;
+    unit_price: string | number;
+    total: string | number;
 
-  disposition: string | null;
+    disposition: string | null;
 }
 
 interface OrderResponse {
-  id: string;
+    id: string;
 
-  order_no: string | null;
+    order_no: string | null;
 
-  customer_id: string;
-  customer_name: string;
+    customer_id: string;
+    customer_name: string;
 
-  order_status: string;
-  fulfillment_status: string;
-  payment_status: string;
+    order_status: string;
+    fulfillment_status: string;
+    payment_status: string;
 
-  delivery_address: string;
-  delivery_date: string | null;
+    delivery_address: string;
+    delivery_date: string | null;
 
-  notes: string | null;
+    notes: string | null;
 
-  total_amount: string | number;
+    discount_type: string;
+    discount_value: string | number;
+    discount_amount: string | number;
 
-  order_items: OrderItemResponse[];
+    total_amount: string | number;
 
-  cancellation_reason: string | null;
+    order_items: OrderItemResponse[];
 
-  cancelled_at: string | null;
+    cancellation_reason: string | null;
 
-  trip_id: string | null;
-  invoice_id: string | null;
+    cancelled_at: string | null;
 
-  confirmed_at: string | null;
-  delivered_at: string | null;
+    trip_id: string | null;
+    invoice_id: string | null;
 
-  created_at: string;
-  updated_at: string;
+    confirmed_at: string | null;
+    delivered_at: string | null;
+
+    created_at: string;
+    updated_at: string;
 }
 
 interface OrderListResponse {
-  items: OrderResponse[];
-  total: number;
-  page: number;
-  page_size: number;
-  has_next: boolean;
+    items: OrderResponse[];
+    total: number;
+    page: number;
+    page_size: number;
+    has_next: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -90,46 +95,45 @@ interface OrderListResponse {
 // ─────────────────────────────────────────────────────────────
 
 export interface CreateOrderRequest {
-  customer_id: string;
+    customer_id: string;
+    discount_type: DiscountType;
+    discount_value: number;
 
-  delivery_address: string;
-  delivery_date?: string;
+    delivery_address: string;
+    delivery_date?: string;
 
-  notes?: string;
+    notes?: string;
 
-  order_items: {
-    product_id: string;
-    product_name: string;
+    order_items: {
+        product_id: string;
 
-    quantity: number;
-    unit_price: number;
-    total: number;
-  }[];
+        quantity: number;
+    }[];
 }
 
 export interface UpdateOrderRequest {
-  order_status?: OrderStatus;
-  fulfillment_status?: FulfillmentStatus;
-  payment_status?: PaymentStatus;
+    order_status?: OrderStatus;
+    fulfillment_status?: FulfillmentStatus;
+    payment_status?: PaymentStatus;
 
-  delivery_address?: string;
-  delivery_date?: string;
+    discount_type?: DiscountType;
+    discount_value?: number;
 
-  notes?: string;
+    delivery_address?: string;
+    delivery_date?: string;
 
-  cancellation_reason?: string;
+    notes?: string;
 
-  trip_id?: string | null;
-  invoice_id?: string;
+    cancellation_reason?: string;
 
-  order_items?: {
-    product_id: string;
-    product_name: string;
+    trip_id?: string | null;
+    invoice_id?: string;
 
-    quantity: number;
-    unit_price: number;
-    total: number;
-  }[];
+    order_items?: {
+        product_id: string;
+
+        quantity: number;
+    }[];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -137,58 +141,70 @@ export interface UpdateOrderRequest {
 // ─────────────────────────────────────────────────────────────
 
 function mapOrderStatus(value: string): OrderStatus {
-  switch (value) {
-    case "draft":
-    case "submitted":
-    case "confirmed":
-    case "completed":
-    case "cancelled":
-      return value;
+    switch (value) {
+        case "draft":
+        case "submitted":
+        case "confirmed":
+        case "completed":
+        case "cancelled":
+            return value;
 
-    default:
-      return "draft";
-  }
+        default:
+            return "draft";
+    }
+}
+
+function mapDiscountType(value: string): DiscountType {
+    switch (value) {
+        case "none":
+        case "fixed":
+        case "percentage":
+            return value;
+
+        default:
+            return "none";
+    }
 }
 
 function mapFulfillmentStatus(value: string): FulfillmentStatus {
-  switch (value) {
-    case "pending":
-    case "assigned":
-    case "dispatched":
-    case "in_transit":
-    case "delivered":
-    case "failed":
-      return value;
+    switch (value) {
+        case "pending":
+        case "assigned":
+        case "dispatched":
+        case "in_transit":
+        case "delivered":
+        case "failed":
+            return value;
 
-    default:
-      return "pending";
-  }
+        default:
+            return "pending";
+    }
 }
 
 function mapPaymentStatus(value: string): PaymentStatus {
-  switch (value) {
-    case "unpaid":
-    case "partially_paid":
-    case "paid":
-    case "overdue":
-      return value;
+    switch (value) {
+        case "unpaid":
+        case "partially_paid":
+        case "paid":
+        case "overdue":
+            return value;
 
-    default:
-      return "unpaid";
-  }
+        default:
+            return "unpaid";
+    }
 }
 
 function mapDisposition(
-  value: string | null,
+    value: string | null,
 ): ItemDisposition | undefined {
-  switch (value) {
-    case "sold":
-    case "loaned":
-      return value;
+    switch (value) {
+        case "sold":
+        case "loaned":
+            return value;
 
-    default:
-      return undefined;
-  }
+        default:
+            return undefined;
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -196,54 +212,59 @@ function mapDisposition(
 // ─────────────────────────────────────────────────────────────
 
 function adaptOrderItem(raw: OrderItemResponse): OrderLineItem {
-  return {
-    productId: raw.product_id,
-    productName: raw.product_name,
+    return {
+        productId: raw.product_id,
+        productName: raw.product_name,
 
-    quantity: Number(raw.quantity),
-    unitPrice: Number(raw.unit_price),
-    total: Number(raw.total),
+        quantity: Number(raw.quantity),
+        unitPrice: Number(raw.unit_price),
+        total: Number(raw.total),
 
-    disposition: mapDisposition(raw.disposition),
-  };
+        disposition: mapDisposition(raw.disposition),
+    };
 }
 
 export function adaptOrder(raw: OrderResponse): Order {
-  return {
-    id: raw.id,
+    return {
+        id: raw.id,
 
-    orderNumber: raw.order_no ?? raw.id,
+        orderNumber: raw.order_no ?? raw.id,
 
-    customerId: raw.customer_id,
-    customerName: raw.customer_name,
+        customerId: raw.customer_id,
+        customerName: raw.customer_name,
 
-    orderItems: raw.order_items.map(adaptOrderItem),
+        orderItems: raw.order_items.map(adaptOrderItem),
+        discountType: mapDiscountType(raw.discount_type),
 
-    totalAmount: Number(raw.total_amount),
+        discountValue: Number(raw.discount_value),
 
-    deliveryAddress: raw.delivery_address,
-    deliveryDate: raw.delivery_date,
+        discountAmount: Number(raw.discount_amount),
 
-    notes: raw.notes ?? undefined,
+        totalAmount: Number(raw.total_amount),
 
-    orderStatus: mapOrderStatus(raw.order_status),
-    fulfillmentStatus: mapFulfillmentStatus(raw.fulfillment_status),
-    paymentStatus: mapPaymentStatus(raw.payment_status),
+        deliveryAddress: raw.delivery_address,
+        deliveryDate: raw.delivery_date,
 
-    cancellationReason: raw.cancellation_reason ?? undefined,
+        notes: raw.notes ?? undefined,
 
-    tripId: raw.trip_id ?? undefined,
-    invoiceId: raw.invoice_id ?? undefined,
+        orderStatus: mapOrderStatus(raw.order_status),
+        fulfillmentStatus: mapFulfillmentStatus(raw.fulfillment_status),
+        paymentStatus: mapPaymentStatus(raw.payment_status),
 
-    createdAt: raw.created_at,
-    confirmedAt: raw.confirmed_at ?? undefined,
-    deliveredAt: raw.delivered_at ?? undefined,
-    cancelledAt: raw.cancelled_at ?? undefined,
-  };
+        cancellationReason: raw.cancellation_reason ?? undefined,
+
+        tripId: raw.trip_id ?? undefined,
+        invoiceId: raw.invoice_id ?? undefined,
+
+        createdAt: raw.created_at,
+        confirmedAt: raw.confirmed_at ?? undefined,
+        deliveredAt: raw.delivered_at ?? undefined,
+        cancelledAt: raw.cancelled_at ?? undefined,
+    };
 }
 
 export function adaptOrderList(raw: OrderListResponse): Order[] {
-  return raw.items.map(adaptOrder);
+    return raw.items.map(adaptOrder);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -261,13 +282,12 @@ export function adaptCreateOrderRequest(
 
     notes: input.notes,
 
+    discount_type: input.discountType,
+    discount_value: input.discountValue,
+
     order_items: input.orderItems.map((item) => ({
       product_id: item.productId,
-      product_name: item.productName,
-
       quantity: item.quantity,
-      unit_price: item.unitPrice,
-      total: item.total,
     })),
   };
 }
@@ -285,6 +305,9 @@ export function adaptUpdateOrderRequest(
 
     notes: input.notes,
 
+    discount_type: input.discountType,
+    discount_value: input.discountValue,
+
     cancellation_reason: input.cancellationReason,
 
     trip_id: input.tripId,
@@ -292,11 +315,7 @@ export function adaptUpdateOrderRequest(
 
     order_items: input.orderItems?.map((item) => ({
       product_id: item.productId,
-      product_name: item.productName,
-
       quantity: item.quantity,
-      unit_price: item.unitPrice,
-      total: item.total,
     })),
   };
 }

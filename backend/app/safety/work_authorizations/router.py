@@ -108,6 +108,7 @@ def list_work_authorizations(
 ):
     records = work_authorization_service.list_work_authorizations(
         db=db,
+        current_user=current_user,
         skip=skip,
         limit=limit,
         cursor_created_at=cursor_created_at,
@@ -163,9 +164,10 @@ def get_work_authorization(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record = work_authorization_service.get_work_authorization(
+    record = work_authorization_service.get_work_authorization_for_current_user(
         db=db,
         work_authorization_id=work_authorization_id,
+        current_user=current_user,
     )
     return WorkAuthorizationResponse.from_model(record)
 
