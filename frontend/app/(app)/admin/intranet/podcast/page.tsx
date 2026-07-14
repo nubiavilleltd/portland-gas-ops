@@ -217,6 +217,24 @@ export default function PodcastPage() {
   function validate(): boolean {
     const e: Record<string, string> = {};
     if (!form.title.trim()) e.title = "Episode title is required";
+
+    const AUDIO_EXTS = [".mp3", ".wav", ".ogg", ".aac", ".flac", ".m4a"];
+    const VIDEO_EXTS = [".mp4", ".webm", ".mov", ".avi", ".mkv"];
+
+    if (form.media_mode === "url" && form.audio_url.trim()) {
+      const url = form.audio_url.toLowerCase();
+      if (form.media_type === "audio" && VIDEO_EXTS.some((ext) => url.endsWith(ext))) {
+        e.audio_url = "This looks like a video file link. Switch Podcast Type to Video, or provide an audio link (MP3, WAV, etc.).";
+      }
+      if (form.media_type === "video" && AUDIO_EXTS.some((ext) => url.endsWith(ext))) {
+        e.audio_url = "This looks like an audio file link. Switch Podcast Type to Audio, or provide a video link (MP4, WebM, etc.).";
+      }
+    }
+
+    if (form.media_mode === "embed" && form.embed_url.trim() && form.media_type === "audio") {
+      e.embed_url = "Embed links (YouTube / Vimeo) are for video podcasts. Switch Podcast Type to Video, or use External Link for audio.";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -231,12 +249,28 @@ export default function PodcastPage() {
   }
 
   async function handleAudioUpload(file: File) {
+    const AUDIO_EXTS = [".mp3", ".wav", ".ogg", ".aac", ".flac", ".m4a"];
+    const VIDEO_EXTS = [".mp4", ".webm", ".mov", ".avi", ".mkv"];
+    const name = file.name.toLowerCase();
+    // Check MIME type first, fall back to file extension for unusual OS MIME assignments
+    const isAudioFile = file.type.startsWith("audio/") || AUDIO_EXTS.some((e) => name.endsWith(e));
+    const isVideoFile = file.type.startsWith("video/") || VIDEO_EXTS.some((e) => name.endsWith(e));
+
+    if (form.media_type === "audio" && !isAudioFile) {
+      toast.error("Wrong file type. You selected an Audio podcast — please upload an audio file (MP3, WAV, etc.).");
+      return;
+    }
+    if (form.media_type === "video" && !isVideoFile) {
+      toast.error("Wrong file type. You selected a Video podcast — please upload a video file (MP4, WebM, etc.).");
+      return;
+    }
+
     try {
       const result = await uploadAudioMutation.mutateAsync(file);
       setForm((prev) => ({ ...prev, audio_document_id: result.id }));
       toast.success("File uploaded successfully.");
     } catch {
-      toast.error("Audio/video upload failed.");
+      toast.error("Upload failed. Please try again.");
     }
   }
 
@@ -533,12 +567,13 @@ export default function PodcastPage() {
               <FormInput
                 label=""
                 placeholder={form.media_type === "video"
-                  ? "https://… (direct .mp4 link, Vimeo direct, etc.)"
-                  : "https://… (Spotify, Anchor, direct .mp3, etc.)"
+                  ? "https://… (direct .mp4, .webm, Vimeo direct, etc.)"
+                  : "https://… (Spotify, Anchor, direct .mp3, .wav, etc.)"
                 }
                 value={form.audio_url}
-                onChange={(e) => field("audio_url", e.target.value)}
+                onChange={(e) => { field("audio_url", e.target.value); setErrors((p) => ({ ...p, audio_url: "" })); }}
                 hint="Link opens in the native browser player."
+                error={errors.audio_url}
               />
             )}
 
@@ -547,8 +582,9 @@ export default function PodcastPage() {
                 label=""
                 placeholder="https://www.youtube.com/watch?v=SgbcghWXDiw"
                 value={form.embed_url}
-                onChange={(e) => field("embed_url", e.target.value)}
+                onChange={(e) => { field("embed_url", e.target.value); setErrors((p) => ({ ...p, embed_url: "" })); }}
                 hint="Paste the YouTube or Vimeo page URL — not an embed code. e.g. https://www.youtube.com/watch?v=…"
+                error={errors.embed_url}
               />
             )}
           </div>

@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Plus, Users2, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Plus, Users2, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { BackButton } from "@/components/ui/BackButton";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
@@ -23,6 +23,15 @@ import { useToast } from "@/hooks/useToast";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import type { ApproverGroupListItem } from "@/types/workflow";
+
+// ── Smart back button ─────────────────────────────────────────────────────────
+
+function GroupsBackButton() {
+  const from = useSearchParams().get("from");
+  return from === "admin"
+    ? <BackButton href="/admin" label="Back to Admin" />
+    : <BackButton href="/admin/workflows" label="Back to Workflows" />;
+}
 
 // ── Group List sidebar ────────────────────────────────────────────────────────
 
@@ -149,14 +158,7 @@ export default function ApproverGroupsPage() {
 
   return (
     <AppLayout pageTitle="Admin — Approver Groups">
-      <div className="mb-4">
-        <Link
-          href="/admin/workflows"
-          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-        >
-          <ArrowLeft size={14} /> Back to Workflows
-        </Link>
-      </div>
+      <Suspense fallback={null}><GroupsBackButton /></Suspense>
 
       <PageHeader
         title="Approver Groups"
@@ -165,7 +167,32 @@ export default function ApproverGroupsPage() {
       />
 
       {isLoading ? (
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden flex min-h-[500px] animate-pulse">
+          {/* Sidebar skeleton */}
+          <div className="w-72 shrink-0 border-r border-brand-border flex flex-col">
+            <div className="p-4 border-b border-brand-border">
+              <div className="h-3 w-16 bg-gray-200 rounded" />
+            </div>
+            <div className="flex-1 p-3 space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="px-3 py-3 rounded-lg border border-brand-border/50">
+                  <div className="h-3 w-3/4 bg-gray-200 rounded mb-2" />
+                  <div className="h-2.5 w-1/2 bg-gray-100 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Detail panel skeleton */}
+          <div className="flex-1 p-6 space-y-4">
+            <div className="h-5 w-40 bg-gray-200 rounded" />
+            <div className="h-3 w-64 bg-gray-100 rounded" />
+            <div className="mt-4 space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-14 bg-gray-100 rounded-lg border border-brand-border" />
+              ))}
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="bg-white border border-brand-border rounded-2xl overflow-hidden flex min-h-[500px]">
           <GroupList
