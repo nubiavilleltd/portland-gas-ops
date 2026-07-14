@@ -429,7 +429,7 @@ export default function IntranetFAQsPage() {
         open={catModalOpen}
         onClose={handleCatClose}
         title={editCatId !== null ? "Rename Category" : "Add Category"}
-        variant="modal"
+        variant="dialog"
         size="sm"
         footer={
           <>

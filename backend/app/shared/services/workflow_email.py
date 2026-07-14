@@ -235,6 +235,107 @@ def approved_result_message_for_request_type(
     return None
 
 
+def notify_step_progress(
+    db: Session,
+    approval_request_id: str,
+    approver_employee_id: str,
+) -> None:
+    """
+    Email the requester after a mid-flow step is approved, telling them which
+    step just passed and what's pending next.
+
+    Call AFTER db.commit(), with the approver's employee_id (captured before
+    the engine advances current_step_number).
+    """
+    try:
+        from app.shared.models.approval import (
+            ApprovalRequest, ApprovalStepAssignment,
+            AllRequest, WorkflowStep,
+        )
+        from app.employees.models import Employee
+
+        ar = (
+            db.query(ApprovalRequest)
+            .filter(ApprovalRequest.id == approval_request_id)
+            .first()
+        )
+        if not ar:
+            return
+
+        requester = (
+            db.query(Employee)
+            .options(joinedload(Employee.user))
+            .filter(Employee.id == ar.submitted_by)
+            .first()
+        )
+        if not requester or not requester.user or not requester.user.email:
+            return
+
+        approver = (
+            db.query(Employee)
+            .options(joinedload(Employee.user))
+            .filter(Employee.id == approver_employee_id)
+            .first()
+        )
+        approver_name = (
+            approver.user.full_name
+            if approver and approver.user and approver.user.full_name
+            else (approver.employee_no if approver else "Unknown")
+        )
+
+        all_req = (
+            db.query(AllRequest)
+            .filter(
+                AllRequest.request_type == ar.request_type,
+                AllRequest.request_id == ar.request_id,
+            )
+            .first()
+        )
+        title = (all_req.title if all_req else None) or ar.request_type
+
+        # The engine has already advanced current_step_number to the next step.
+        # So completed_step = current_step_number - 1, next_step = current_step_number.
+        completed_step_number = ar.current_step_number - 1
+
+        completed_step = (
+            db.query(WorkflowStep)
+            .filter(
+                WorkflowStep.workflow_id == ar.workflow_id,
+                WorkflowStep.step_number == completed_step_number,
+            )
+            .first()
+        )
+        next_step = (
+            db.query(WorkflowStep)
+            .filter(
+                WorkflowStep.workflow_id == ar.workflow_id,
+                WorkflowStep.step_number == ar.current_step_number,
+            )
+            .first()
+        )
+
+        step_name = completed_step.step_name if completed_step else f"Step {completed_step_number}"
+        next_step_name = next_step.step_name if next_step else f"Step {ar.current_step_number}"
+
+        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        subject = f"Request Update: {email_service.get_request_type_label(ar.request_type)} — Step {completed_step_number} Approved"
+
+        html = email_service._render("request_progress.html", {
+            "subject":            subject,
+            "requester_name":     requester.user.full_name or requester.employee_no,
+            "request_type_label": email_service.get_request_type_label(ar.request_type),
+            "request_title":      title,
+            "step_number":        str(completed_step_number),
+            "step_name":          step_name,
+            "approver_name":      approver_name,
+            "next_step_name":     next_step_name,
+            "action_url":         url,
+        })
+        email_service._send(requester.user.email, subject, html)
+    except Exception:
+        logger.exception("notify_step_progress failed for AR %s", approval_request_id)
+
+
 def notify_new_request(db: Session, request_type: str, request_id: str) -> None:
     """
     Convenience wrapper: look up the approval_request_id from AllRequest,
