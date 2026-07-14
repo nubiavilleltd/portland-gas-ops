@@ -16,7 +16,7 @@ import { canCancelTrip } from "@/lib/modules/fleet/guards/trip.guards";
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
 
 export default function CancelTripPage() {
-  const { id:tripNo } = useParams<{ id: string }>();
+  const { id: tripNo } = useParams<{ id: string }>();
   const router = useRouter();
   const { trip, isLoading } = useTripByNo(tripNo);
   const cancelTrip = useCancelTripWorkflow();
@@ -77,8 +77,14 @@ export default function CancelTripPage() {
           <div>
             <p className="font-medium mb-1">What happens when you cancel:</p>
             <ul className="list-disc list-inside space-y-0.5">
-              <li>Driver and vehicle will be released and made available</li>
-              <li>Any reserved inventory units will be returned to available stock</li>
+              {trip.driver_id && (
+                <li>Driver will be released and made available.</li>
+              )}
+
+              {trip.vehicle_id && (
+                <li>Vehicle will be released and made available.</li>
+              )}
+              <li>Reserved tracked inventory (if any) will be returned to available stock.</li>
               {trip.order_ids.length > 0 && (
                 <li>
                   {trip.order_ids.length} order(s) on this trip will return to
