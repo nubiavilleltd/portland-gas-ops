@@ -418,6 +418,7 @@ import { fleetApi } from "../api/fleet.api";
 import { adaptTrip } from "../adapters/fleet.adapter";
 import { getErrorMessage } from "@/lib/api/error";
 import type { Trip } from "../types/trip.types";
+import { InventoryAssignment } from "../../inventory/types/inventory.types";
 
 export class TripsService {
 
@@ -476,9 +477,9 @@ export class TripsService {
     }
   }
 
-  static async setReady(tripId: string): Promise<Trip> {
+  static async setReady(tripId: string, assignments:InventoryAssignment[]): Promise<Trip> {
     try {
-      const raw = await fleetApi.markReady(tripId);
+      const raw = await fleetApi.markReady(tripId, assignments)
       return adaptTrip(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to mark trip ready"));

@@ -73,7 +73,7 @@ class DispatchTripWorkflow:
         self.inventory_service.check_out_for_trip(
             db=db,
             trip_id=trip.id,
-            recorded_by=actor_id,
+            actor_id=actor_id,
         )
 
         #

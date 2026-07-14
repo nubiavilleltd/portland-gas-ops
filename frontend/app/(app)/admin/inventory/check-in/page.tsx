@@ -53,6 +53,8 @@ export default function CheckInPage() {
   const activeProducts    = getActiveProducts(products);
   const defaultLocationId = locations.find((l) => l.is_default)?.id ?? "";
 
+
+
   const locationOptions = locations.map((l) => ({
     value: l.id,
     label: l.name,
@@ -63,6 +65,9 @@ export default function CheckInPage() {
     label: p.name,
     description: isTracked(p) ? "Tracked Asset" : "Consumable",
   }));
+
+    console.log("locations", locations);
+console.log("locationOptions", locationOptions);
 
   // ── Tracked form ──────────────────────────────────────────
   const trackedForm = useForm<CheckInTrackedFormInput, unknown, CheckInTrackedFormOutput>({

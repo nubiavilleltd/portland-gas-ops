@@ -135,7 +135,7 @@ class InventoryService:
     ):
         from app.products.service import ProductService
 
-        product = ProductService().get_by_id_or_raise(db, data.product_id)
+        product = ProductService().get_or_raise(db, data.product_id)
 
         if product.product_type.value != "tracked":
             raise AppException(
@@ -171,10 +171,11 @@ class InventoryService:
             )
 
             created_items.append(item)
-
+        movement_no = self.repo.generate_movement_no(db)
         movement = self.repo.create_stock_movement(
             db,
             product_id=data.product_id,
+            movement_no=movement_no,
             movement_type=MovementType.check_in,
             quantity=Decimal(data.quantity),
             location_id=data.location_id,
@@ -212,7 +213,7 @@ class InventoryService:
     ) -> ConsumableStock:
         from app.products.service import ProductService
 
-        product = ProductService().get_by_id_or_raise(db, data.product_id)
+        product = ProductService().get_or_raise(db, data.product_id)
 
         if product.product_type.value != "consumable":
             raise AppException(
@@ -235,11 +236,13 @@ class InventoryService:
             location_id=data.location_id,
             quantity=data.quantity,
         )
+        movement_no = self.repo.generate_movement_no(db)
 
         self.repo.create_stock_movement(
             db,
             product_id=data.product_id,
             movement_type=MovementType.check_in,
+            movement_no=movement_no,
             quantity=data.quantity,
             location_id=data.location_id,
             recorded_by=recorded_by,
@@ -336,6 +339,65 @@ class InventoryService:
 # -------------------------------------------------------------------------
 
     def check_out_for_trip(
+        self,
+        db: Session,
+        trip_id: str,
+        actor_id: str,
+    ):
+        """
+        Checks out every tracked inventory item required for a trip.
+
+        - Trips may have no orders.
+        - Orders may contain tracked products, consumables, or both.
+        - Only tracked products require inventory checkout.
+        """
+
+        from app.fleet.trips.service import TripService
+        from app.orders.service import OrderService
+        from app.products.service import ProductService
+
+        trip_service = TripService()
+        order_service = OrderService()
+        product_service = ProductService()
+
+        order_ids = trip_service.get_order_ids(
+            db=db,
+            trip_id=trip_id,
+        )
+
+        for order_id in order_ids:
+
+            order_items = order_service.get_order_items(
+                db=db,
+                order_id=order_id,
+            )
+
+            for order_item in order_items:
+
+                product = product_service.get_or_raise(
+                    db=db,
+                    product_id=order_item.product_id,
+                )
+
+                # Consumables don't have inventory items to check out.
+                if product.product_type.value != "tracked":
+                    continue
+
+                self._check_out_order_item(
+                    db=db,
+                    trip_id=trip_id,
+                    order_item_id=order_item.id,
+                    product_id=order_item.product_id,
+                    quantity=int(order_item.quantity),
+                    order_id=order_id,
+                    disposition=order_item.disposition,
+                    actor_id=actor_id,
+                )
+
+
+
+
+    def _check_out_order_item(
     self,
     db: Session,
     trip_id: int,
@@ -395,6 +457,7 @@ class InventoryService:
                 status=InventoryItemStatus.checked_out,
                 disposition=disposition,
                 order_id=order_id,
+                trip_id=trip_id, 
                 checked_out_at=datetime.now(timezone.utc),
             )
 
@@ -424,6 +487,8 @@ class InventoryService:
 
         return checked_out_ids
     
+
+
     def release_trip_inventory(
         self,
         db: Session,

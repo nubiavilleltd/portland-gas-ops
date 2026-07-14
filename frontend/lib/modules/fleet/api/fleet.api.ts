@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { InventoryAssignment } from "../../inventory/types/inventory.types";
 
 export const fleetApi = {
   // ── Drivers ──────────────────────────────────────────────
@@ -91,10 +92,19 @@ assignResources: async (tripId: string, driverId: string, vehicleId: string) => 
   return data;
 },
 
-  markReady: async (tripId: string | number) => {
-    const { data } = await api.post(`/api/fleet/trips/${tripId}/mark-ready`);
+markReady: async (
+    tripId: string,
+    assignments: InventoryAssignment[],
+) => {
+    const { data } = await api.post(
+        `/api/fleet/trips/${tripId}/mark-ready`,
+        {
+            assignments,
+        },
+    );
+
     return data;
-  },
+},
 
   dispatch: async (tripId: string | number) => {
     const { data } = await api.post(`/api/fleet/trips/${tripId}/dispatch`);
