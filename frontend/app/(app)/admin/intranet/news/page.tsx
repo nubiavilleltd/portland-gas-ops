@@ -16,10 +16,11 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormFileUpload from "@/components/forms/FormFileUpload";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { BackButton } from "@/components/ui/BackButton";
+import Tip from "@/components/ui/Tip";
 import { useIntranetNewsAdmin, useIntranetNewsCategories } from "@/lib/modules/intranet/queries";
 import {
   useCreateNews, useUpdateNews, useDeleteNews, useToggleNewsPublished,
-  useCreateNewsCategory, useDeleteNewsCategory,
+  useCreateNewsCategory, useUpdateNewsCategory, useDeleteNewsCategory,
   useUploadNewsImage, useUploadNewsImageFromUrl,
 } from "@/lib/modules/intranet/mutations";
 import { useToast } from "@/hooks/useToast";
@@ -29,28 +30,39 @@ import type { NewsItem, NewsCategory, NewsCategoryColor } from "@/lib/modules/in
 // DataTable requires id: string
 type NewsRow = Omit<NewsItem, "id"> & { id: string; _numId: number };
 
-// Maps a color key to Tailwind-safe badge classes (all must be in source — not dynamic strings)
-const COLOR_BADGE_CLASS: Record<string, string> = {
-  purple: "bg-purple-100 text-purple-700",
-  yellow: "bg-yellow-100 text-yellow-800",
-  gray:   "bg-gray-100 text-gray-700",
-  red:    "bg-red-100 text-red-700",
-  blue:   "bg-blue-100 text-blue-700",
-  green:  "bg-green-100 text-green-700",
-  teal:   "bg-teal-100 text-teal-700",
-  orange: "bg-orange-100 text-orange-700",
+// Map legacy label-based colors to hex (for backward compat with old DB rows)
+const LEGACY_COLOR_MAP: Record<string, string> = {
+  purple: "#7C3AED", yellow: "#F59E0B", gray: "#6B7280", red: "#EF4444",
+  blue: "#3B82F6", green: "#22C55E", teal: "#14B8A6", orange: "#F97316",
 };
 
-// Swatch dot colours — inline styles so Tailwind purging doesn't affect them
-const COLOR_SWATCHES: { value: NewsCategoryColor; hex: string; label: string }[] = [
-  { value: "purple", hex: "#7C3AED", label: "Purple"  },
-  { value: "yellow", hex: "#F59E0B", label: "Yellow"  },
-  { value: "gray",   hex: "#6B7280", label: "Gray"    },
-  { value: "red",    hex: "#EF4444", label: "Red"     },
-  { value: "blue",   hex: "#3B82F6", label: "Blue"    },
-  { value: "green",  hex: "#22C55E", label: "Green"   },
-  { value: "teal",   hex: "#14B8A6", label: "Teal"    },
-  { value: "orange", hex: "#F97316", label: "Orange"  },
+/** Resolve any stored color value (hex or legacy label) to a hex string. */
+function resolveHex(color: string): string {
+  if (color.startsWith("#")) return color;
+  return LEGACY_COLOR_MAP[color] ?? "#6B7280";
+}
+
+/** Derive a light tinted background from a hex foreground color. */
+function deriveBg(hex: string): string {
+  const h = resolveHex(hex);
+  const r = parseInt(h.slice(1, 3), 16);
+  const g = parseInt(h.slice(3, 5), 16);
+  const b = parseInt(h.slice(5, 7), 16);
+  const toHex = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+  return `#${toHex(r * 0.12 + 255 * 0.88)}${toHex(g * 0.12 + 255 * 0.88)}${toHex(b * 0.12 + 255 * 0.88)}`;
+}
+
+// Preset swatches (stored as hex)
+const COLOR_SWATCHES: { hex: string; label: string }[] = [
+  { hex: "#7C3AED", label: "Purple"  },
+  { hex: "#F59E0B", label: "Amber"   },
+  { hex: "#6B7280", label: "Gray"    },
+  { hex: "#EF4444", label: "Red"     },
+  { hex: "#3B82F6", label: "Blue"    },
+  { hex: "#22C55E", label: "Green"   },
+  { hex: "#14B8A6", label: "Teal"    },
+  { hex: "#F97316", label: "Orange"  },
+  { hex: "#7234BD", label: "Brand"   },
 ];
 
 const columns: Column<NewsRow>[] = [
@@ -145,12 +157,13 @@ const EMPTY_FORM = {
 type FormState = typeof EMPTY_FORM;
 
 export default function IntranetNewsPage() {
-  const { data: items = [], isLoading }         = useIntranetNewsAdmin();
+  const { data: items = [], isLoading, isFetching } = useIntranetNewsAdmin();
   const { data: categories = [] }               = useIntranetNewsCategories();
   const createMutation        = useCreateNews();
   const deleteMutation        = useDeleteNews();
   const toggleMutation        = useToggleNewsPublished();
   const createCatMutation     = useCreateNewsCategory();
+  const updateCatMutation     = useUpdateNewsCategory();
   const deleteCatMutation     = useDeleteNewsCategory();
   const uploadFileMutation    = useUploadNewsImage();
   const uploadUrlMutation     = useUploadNewsImageFromUrl();
@@ -163,7 +176,8 @@ export default function IntranetNewsPage() {
   const [form,           setForm]           = useState<FormState>(EMPTY_FORM);
   const [formErrors,     setFormErrors]     = useState<ArticleErrors>({});
   const [newCatName,     setNewCatName]     = useState("");
-  const [newCatColor,    setNewCatColor]    = useState<NewsCategoryColor>("gray");
+  const [newCatColor,    setNewCatColor]    = useState<NewsCategoryColor>("#6B7280");
+  const [editCat,        setEditCat]        = useState<NewsCategory | null>(null);
   const [deleteCatId,    setDeleteCatId]    = useState<number | null>(null);
   const [toggleConfirm,  setToggleConfirm]  = useState<{ id: number; isPublished: boolean } | null>(null);
 
@@ -268,15 +282,31 @@ export default function IntranetNewsPage() {
     }
   }
 
+  function startEditCat(cat: NewsCategory) {
+    setEditCat(cat);
+    setNewCatName(cat.name);
+    setNewCatColor(resolveHex(cat.color));
+  }
+
+  function cancelEditCat() {
+    setEditCat(null);
+    setNewCatName("");
+    setNewCatColor("#6B7280");
+  }
+
   async function handleAddCategory() {
     if (!newCatName.trim()) return;
     try {
-      await createCatMutation.mutateAsync({ name: newCatName.trim(), color: newCatColor });
-      toast.success("Category added.");
-      setNewCatName("");
-      setNewCatColor("gray");
+      if (editCat) {
+        await updateCatMutation.mutateAsync({ id: editCat.id, name: newCatName.trim(), color: newCatColor });
+        toast.success("Category updated.");
+      } else {
+        await createCatMutation.mutateAsync({ name: newCatName.trim(), color: newCatColor });
+        toast.success("Category added.");
+      }
+      cancelEditCat();
     } catch {
-      toast.error("A category with this name may already exist.");
+      toast.error(editCat ? "Failed to update category." : "A category with this name may already exist.");
     }
   }
 
@@ -288,31 +318,30 @@ export default function IntranetNewsPage() {
         <div className="flex flex-row items-center gap-1">
           <button
             type="button"
-            title={row.is_published ? "Unpublish" : "Publish"}
             onClick={() => setToggleConfirm({ id: row._numId, isPublished: row.is_published })}
             disabled={toggleMutation.isPending && toggleConfirm?.id === row._numId}
             className="h-7 w-7 inline-flex items-center justify-center rounded-md text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {toggleMutation.isPending && toggleConfirm?.id === row._numId
               ? <Loader2 size={14} className="animate-spin" />
-              : row.is_published ? <EyeOff size={14} /> : <Eye size={14} />
+              : <Tip label={row.is_published ? "Unpublish Article" : "Publish Article"}>
+                  {row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}
+                </Tip>
             }
           </button>
           <button
             type="button"
-            title="Edit"
             onClick={() => openEdit(row)}
             className="h-7 w-7 inline-flex items-center justify-center rounded-md text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
           >
-            <Pencil size={14} />
+            <Tip label="Edit Article"><Pencil size={14} /></Tip>
           </button>
           <button
             type="button"
-            title="Delete"
             onClick={() => setDeleteId(row._numId)}
             className="h-7 w-7 inline-flex items-center justify-center rounded-md text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
           >
-            <Trash2 size={14} />
+            <Tip label="Delete Article"><Trash2 size={14} /></Tip>
           </button>
         </div>
       ),
@@ -338,27 +367,20 @@ export default function IntranetNewsPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl border border-brand-border bg-white" />
-          ))}
-        </div>
-      ) : (
-        <DataTable<NewsRow>
-          columns={columns}
-          data={rows}
-          showActions
-          actions={tableActions}
-          actionsLabel="Actions"
-          actionsHeaderClassName="w-28"
-          actionsContainerClassName="flex flex-nowrap items-center gap-2"
-          searchable
-          searchPlaceholder="Search articles…"
-          emptyMessage="No articles yet."
-          emptyDescription="Click 'New Article' to add one."
-        />
-      )}
+      <DataTable<NewsRow>
+        columns={columns}
+        data={rows}
+        isLoading={isLoading || isFetching}
+        showActions
+        actions={tableActions}
+        actionsLabel="Actions"
+        actionsHeaderClassName="w-28"
+        actionsContainerClassName="flex flex-nowrap items-center gap-2"
+        searchable
+        searchPlaceholder="Search articles…"
+        emptyMessage="No articles yet."
+        emptyDescription="Click 'New Article' to add one."
+      />
 
       {/* ── Create / Edit article panel ──────────────────────────────────── */}
       <ActionModal
@@ -519,48 +541,60 @@ export default function IntranetNewsPage() {
         }
       >
         <div className="space-y-6">
-          {/* Add new category */}
+          {/* Add / Edit category */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-brand-text-primary">Add Category</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-brand-text-primary">
+                {editCat ? "Edit Category" : "Add Category"}
+              </p>
+              {editCat && (
+                <button type="button" onClick={cancelEditCat} className="text-xs text-brand-text-secondary hover:text-brand-text-primary transition-colors">
+                  Cancel
+                </button>
+              )}
+            </div>
             <FormInput
               label="Name"
               placeholder="e.g. Project Update"
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
             />
-            {/* Colour swatch picker */}
+            {/* Colour picker */}
             <div className="space-y-2">
               <p className="text-sm font-medium text-brand-text-primary">Colour</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {COLOR_SWATCHES.map((s) => (
                   <button
-                    key={s.value}
+                    key={s.hex}
                     type="button"
                     title={s.label}
-                    onClick={() => setNewCatColor(s.value)}
-                    className="relative h-8 w-8 rounded-full transition-transform hover:scale-110 focus:outline-none"
-                    style={{ backgroundColor: s.hex }}
-                  >
-                    {newCatColor === s.value && (
-                      <span className="absolute inset-0 flex items-center justify-center">
-                        <svg viewBox="0 0 12 12" className="h-3.5 w-3.5 text-white drop-shadow" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="1.5,6 4.5,9.5 10.5,2.5" />
-                        </svg>
-                      </span>
-                    )}
-                    <span
-                      className={`absolute inset-0 rounded-full ring-2 ring-offset-2 transition-all ${newCatColor === s.value ? "ring-current opacity-100" : "opacity-0"}`}
-                      style={{ color: s.hex }}
-                    />
-                  </button>
+                    onClick={() => setNewCatColor(s.hex)}
+                    className="h-7 w-7 rounded-full border-2 transition-all hover:scale-110"
+                    style={{
+                      backgroundColor: s.hex,
+                      borderColor: resolveHex(newCatColor) === s.hex ? "#111" : "transparent",
+                      outline: resolveHex(newCatColor) === s.hex ? "2px solid #fff" : "none",
+                      outlineOffset: "-3px",
+                    }}
+                  />
                 ))}
+                <input
+                  type="color"
+                  value={resolveHex(newCatColor)}
+                  onChange={(e) => setNewCatColor(e.target.value)}
+                  className="h-7 w-7 rounded-full border border-brand-border cursor-pointer"
+                  title="Custom colour"
+                />
               </div>
 
               {/* Live badge preview */}
               {newCatName.trim() && (
                 <div className="flex items-center gap-2 pt-1">
                   <span className="text-xs text-brand-text-secondary">Preview:</span>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${COLOR_BADGE_CLASS[newCatColor]}`}>
+                  <span
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{ backgroundColor: deriveBg(newCatColor), color: resolveHex(newCatColor) }}
+                  >
                     {newCatName.trim()}
                   </span>
                 </div>
@@ -568,12 +602,12 @@ export default function IntranetNewsPage() {
             </div>
             <Button
               onClick={handleAddCategory}
-              loading={createCatMutation.isPending}
-              loadingText="Adding…"
-              leftIcon={<Plus size={14} />}
+              loading={createCatMutation.isPending || updateCatMutation.isPending}
+              loadingText={editCat ? "Saving…" : "Adding…"}
+              leftIcon={editCat ? undefined : <Plus size={14} />}
               className="w-full"
             >
-              Add Category
+              {editCat ? "Save Changes" : "Add Category"}
             </Button>
           </div>
 
@@ -593,18 +627,26 @@ export default function IntranetNewsPage() {
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded-full ${COLOR_BADGE_CLASS[cat.color] ?? "bg-gray-100 text-gray-700"}`}
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: deriveBg(cat.color), color: resolveHex(cat.color) }}
                       >
                         {cat.name}
                       </span>
                     </div>
-                    <button
-                      onClick={() => setDeleteCatId(cat.id)}
-                      className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
-                      title="Delete category"
-                    >
-                      <X size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => startEditCat(cat)}
+                        className="text-gray-400 hover:text-brand-purple transition-colors p-1 rounded"
+                      >
+                        <Tip label="Edit Category"><Pencil size={13} /></Tip>
+                      </button>
+                      <button
+                        onClick={() => setDeleteCatId(cat.id)}
+                        className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
+                      >
+                        <Tip label="Delete Category"><X size={14} /></Tip>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

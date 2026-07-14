@@ -39,7 +39,7 @@ const STATUS_ORDER = [
   "pending",
   "assigned",
   "awaiting_inventory",
-  "ready",
+  "ready_for_dispatch",
   "dispatched",
   "in_transit",
   "completed",
@@ -260,7 +260,7 @@ export default function TripDetailPage() {
                     >
                       {isActive && !isCurrent && <span>✓ </span>}
                       <span className="capitalize">
-                        {step.replace("_", " ")}
+                        {step.replaceAll("_", " ")}
                       </span>
                     </div>
                   </div>

@@ -12,10 +12,6 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
-import {
-  useIncidentReport,
-  useIncidentReports,
-} from "@/lib/modules/safety/incidentReport";
 import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import {
   getSafetyEmployeeRequester,
@@ -30,6 +26,7 @@ import {
 } from "@/lib/modules/safety/date-rules";
 import {
   useCreateWorkInitiation,
+  useEligibleIncidentsForWorkInitiation,
   type WorkInitiationCategory,
   type WorkInitiationCreate,
 } from "@/lib/modules/safety/workInitiation";
@@ -219,11 +216,7 @@ export default function WorkInitiationForm() {
     formatLocalDate(),
   );
 
-  const recommendedIncidentsQuery = useIncidentReports({
-    status: "recommended",
-  });
-
-  const linkedIncidentQuery = useIncidentReport(incidentIdFromQuery ?? "");
+  const recommendedIncidentsQuery = useEligibleIncidentsForWorkInitiation();
   const departmentsQuery = useSafetyDepartments();
   const departmentTeamOptions = useMemo(
     () =>
@@ -248,11 +241,7 @@ export default function WorkInitiationForm() {
 
   const recommendedIncidents = recommendedIncidentsQuery.data ?? [];
 
-  const incidentOptionsSource = mergeUniqueIncidents(
-    linkedIncidentQuery.data
-      ? [linkedIncidentQuery.data, ...recommendedIncidents]
-      : recommendedIncidents,
-  );
+  const incidentOptionsSource = mergeUniqueIncidents(recommendedIncidents);
 
   const incidentHazardRequestOptions = incidentOptionsSource
     .filter((report) => isActionRecommendedIncident(report))
@@ -264,9 +253,9 @@ export default function WorkInitiationForm() {
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
 
-  const selectedIncident =
-    linkedIncidentQuery.data ??
-    incidentOptionsSource.find((report) => report.id === relatedIncidentId);
+  const selectedIncident = incidentOptionsSource.find(
+    (report) => report.id === relatedIncidentId,
+  );
 
   const workTypeOptions = toOptions(
     workCategory ? workTypeOptionsByCategory[workCategory] ?? [] : [],
@@ -320,6 +309,14 @@ export default function WorkInitiationForm() {
       plannedStartDateTime,
       plannedEndDateTime,
     });
+    if (
+      workCategory === "Incident/Hazard" &&
+      relatedIncidentId &&
+      !selectedIncident
+    ) {
+      nextValidationErrors.relatedIncidentId =
+        "Select an eligible incident/hazard request.";
+    }
     setValidationErrors(nextValidationErrors);
 
     const firstInvalidField = getFirstInvalidField(
@@ -375,7 +372,10 @@ export default function WorkInitiationForm() {
     try {
       setIsSubmitting(true);
 
-      await createWorkInitiation.mutateAsync(payload);
+      await createWorkInitiation.mutateAsync({
+        payload,
+        attachments: files,
+      });
 
       toast.success("Work initiation request submitted successfully.");
 
@@ -426,16 +426,16 @@ export default function WorkInitiationForm() {
             <IncidentContextCard incident={selectedIncident} />
           ) : null}
 
-          {linkedIncidentQuery.isLoading && isIncidentLinkedFromQuery ? (
+          {recommendedIncidentsQuery.isLoading && isIncidentLinkedFromQuery ? (
             <div className="rounded-lg border border-brand-border bg-gray-50 px-4 py-3 text-sm text-brand-text-secondary md:col-span-2">
               Loading linked incident details...
             </div>
           ) : null}
 
-          {linkedIncidentQuery.isError && isIncidentLinkedFromQuery ? (
+          {recommendedIncidentsQuery.isError && isIncidentLinkedFromQuery ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
-              Could not load the linked incident report context. The incident
-              link from the URL is still attached to this request.
+              Could not load eligible incident report context. Please select an
+              eligible incident manually.
             </div>
           ) : null}
 

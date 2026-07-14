@@ -22,6 +22,7 @@ from app.safety.incidents.schemas import (
     IncidentResolveCreate,
 )
 from app.safety.incidents import service as incident_service
+from app.safety.work_authorizations.schemas import WorkAuthorizationResponse
 
 
 
@@ -101,6 +102,21 @@ def list_incident_reports(
     )
 
     return [IncidentReportResponse.from_model(report) for report in reports]
+
+
+@router.get(
+    "/eligible-work-authorizations",
+    response_model=List[WorkAuthorizationResponse],
+)
+def list_eligible_work_authorizations_for_incident(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    records = incident_service.list_eligible_work_authorizations_for_incident(
+        db=db,
+        current_user=current_user,
+    )
+    return [WorkAuthorizationResponse.from_model(record) for record in records]
 
 
 @router.post(

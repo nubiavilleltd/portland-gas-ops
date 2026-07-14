@@ -1,4 +1,12 @@
 export type AccountStatus = "pending" | "active" | "deactivated";
+
+export interface BirthdayEntry {
+  employee_id: string;
+  name:        string;
+  department:  string | null;
+  avatar_url:  string | null;
+  days_until:  number;  // 0 = today, 1 = tomorrow, 2-6 = later this week
+}
 export type EmploymentType = "Full-time" | "Part-time" | "Contract" | "Intern";
 export type Department =
   | "Operations" | "Finance" | "HSE" | "HR" | "IT"

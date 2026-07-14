@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
@@ -40,9 +41,9 @@ import {
 import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
 import { useAuditTrail } from "@/lib/modules/workflow/queries";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
+import SafetyAttachmentList from "../../components/SafetyAttachmentList";
 import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type {
-  WorkAuthorizationAttachment,
   WorkAuthorizationDecision,
   WorkInitiationRequest,
   WorkInitiationRole,
@@ -186,6 +187,9 @@ export default function WorkInitiationDetailsView({
     }));
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHodComment, setOperationsHodComment] = useState("");
+  const [requesterAttachments, setRequesterAttachments] = useState<File[]>([]);
+  const [retainedRequesterAttachmentIds, setRetainedRequesterAttachmentIds] =
+    useState<string[]>([]);
   const departmentsQuery = useSafetyDepartments();
   const departmentOptions = useMemo(
     () =>
@@ -209,6 +213,18 @@ export default function WorkInitiationDetailsView({
       })),
     [departmentEmployeesQuery.data],
   );
+
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!request) return;
+    setRequesterAttachments([]);
+    setRetainedRequesterAttachmentIds(
+      request.attachments
+        .map((attachment) => attachment.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+  }, [request?.id, request?.attachments]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   if (requestQuery.isLoading || currentEmployeeQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={4} />;
@@ -281,7 +297,13 @@ export default function WorkInitiationDetailsView({
 
     try {
       await updateWorkInitiationMutation.mutateAsync(
-        buildWorkInitiationUpdatePayload(editValues),
+        {
+          payload: {
+            ...buildWorkInitiationUpdatePayload(editValues),
+            retained_attachment_ids: retainedRequesterAttachmentIds,
+          },
+          attachments: requesterAttachments,
+        },
       );
       toast.success("Work initiation submitted.");
       routeBackToWorkInitiationRequests(router);
@@ -383,6 +405,10 @@ export default function WorkInitiationDetailsView({
         values={editValues ?? buildInitialEditValues(request)}
         onValuesChange={setEditValues}
         incidentHazardRequestOptions={incidentHazardRequestOptions}
+        retainedAttachmentIds={retainedRequesterAttachmentIds}
+        onRetainedAttachmentIdsChange={setRetainedRequesterAttachmentIds}
+        newAttachments={requesterAttachments}
+        onNewAttachmentsChange={setRequesterAttachments}
       />
       {/* <AssetDetails request={request} editable={canRequesterEdit} /> */}
       <AssignmentPlanning
@@ -492,6 +518,10 @@ function WorkDetails({
   values,
   onValuesChange,
   incidentHazardRequestOptions,
+  retainedAttachmentIds,
+  onRetainedAttachmentIdsChange,
+  newAttachments,
+  onNewAttachmentsChange,
 }: {
   request: WorkInitiationRequest;
   editable: boolean;
@@ -500,10 +530,20 @@ function WorkDetails({
     React.SetStateAction<WorkInitiationEditValues | null>
   >;
   incidentHazardRequestOptions: { value: string; label: string }[];
+  retainedAttachmentIds: string[];
+  onRetainedAttachmentIdsChange: (ids: string[]) => void;
+  newAttachments: File[];
+  onNewAttachmentsChange: (files: File[]) => void;
 }) {
   const workTypeOptions = toOptions(
     values.workCategory ? workTypeOptionsByCategory[values.workCategory] ?? [] : [],
   );
+  const visibleAttachments = editable
+    ? request.attachments.filter(
+        (attachment) =>
+          !attachment.id || retainedAttachmentIds.includes(attachment.id),
+      )
+    : request.attachments;
 
   function handleWorkCategoryChange(nextCategory: string) {
     onValuesChange((current) =>
@@ -640,7 +680,29 @@ function WorkDetails({
         />
       </div>
       <div className="mt-4">
-        <AttachmentList attachments={request.attachments} />
+        <SafetyAttachmentList
+          attachments={visibleAttachments}
+          onRemove={
+            editable
+              ? (attachmentId) =>
+                  onRetainedAttachmentIdsChange(
+                    retainedAttachmentIds.filter((id) => id !== attachmentId),
+                  )
+              : undefined
+          }
+        />
+        {editable ? (
+          <div className="mt-4">
+            <FileDropzone
+              label="Add Attachments"
+              value={newAttachments}
+              onChange={onNewAttachmentsChange}
+              accept="image/*,.pdf,.doc,.docx"
+              maxFiles={10}
+              hint="These files will be uploaded when the returned request is resubmitted."
+            />
+          </div>
+        ) : null}
       </div>
     </FormSection>
   );
@@ -910,25 +972,6 @@ function ApprovalResult({
         <FormTextarea label="Comment" value={comment} disabled />
       </div>
     </FormSection>
-  );
-}
-
-function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachment[] }) {
-  if (attachments.length === 0) return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <div key={attachment.name} className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? <ImageIcon size={18} /> : <FileText size={18} />}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">{attachment.name}</p>
-            <p className="text-xs capitalize text-brand-text-secondary">{attachment.type}</p>
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 

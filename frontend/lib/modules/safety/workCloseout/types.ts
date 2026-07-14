@@ -56,7 +56,9 @@ export interface WorkCloseOutCreate {
   area_condition_checklist_answers: WorkCloseOutChecklistAnswerCreate[];
 }
 
-export type WorkCloseOutUpdate = WorkCloseOutCreate;
+export interface WorkCloseOutUpdate extends WorkCloseOutCreate {
+  retained_completion_evidence_ids?: string[] | null;
+}
 
 export interface WorkCloseOutDecisionCreate {
   decision: WorkCloseOutDecision;

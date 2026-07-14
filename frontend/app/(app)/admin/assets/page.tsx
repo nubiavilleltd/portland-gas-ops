@@ -6,8 +6,8 @@ import { Plus, Search, Package, Pencil, Trash2 /*, LayoutGrid, Table2, MapPin, U
 import SelectInput from "@/components/forms/SelectInput";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
+import Tip from "@/components/ui/Tip";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
@@ -107,19 +107,17 @@ export default function AdminAssetsPage() {
         <div className="flex items-center gap-1">
           <a
             href={`/admin/assets/${asset.id}?edit=true`}
-            title="Edit asset"
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
           >
-            <Pencil size={14} />
+            <Tip label="Edit Asset"><Pencil size={14} /></Tip>
           </a>
           <button
             type="button"
-            title="Delete asset"
             onClick={(e) => { e.stopPropagation(); setDeleteTarget(asset); }}
             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
           >
-            <Trash2 size={14} />
+            <Tip label="Delete Asset"><Trash2 size={14} /></Tip>
           </button>
         </div>
       ),
@@ -167,29 +165,23 @@ export default function AdminAssetsPage() {
         */}
       </div>
 
-      {isLoading ? <div className="flex justify-center py-20"><LoadingSpinner /></div>
-        : isError ? <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>
-        : assets.length === 0 ? (
-          <EmptyState title="No assets found" description={search ? "Try a different search" : "No assets registered yet"} action={<Button href="/admin/assets/new" leftIcon={<Plus size={15} />}>Register First Asset</Button>} />
-        ) : (
-          /* Card view commented out — kept for future use
-          viewMode === "card" ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {assets.map((asset) => <AssetCard key={asset.id} asset={asset} />)}
-            </div>
-          ) :
-          */
-          <DataTable
-            columns={TABLE_COLUMNS}
-            data={assets}
-            rowHref={(asset) => `/admin/assets/${asset.id}`}
-            emptyMessage="No assets found."
-            searchable={false}
-            showActions
-            actions={tableActions}
-            minWidthClassName="min-w-[1100px]"
-          />
-        )}
+      {isError ? (
+        <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>
+      ) : assets.length === 0 && !isLoading ? (
+        <EmptyState title="No assets found" description={search ? "Try a different search" : "No assets registered yet"} action={<Button href="/admin/assets/new" leftIcon={<Plus size={15} />}>Register First Asset</Button>} />
+      ) : (
+        <DataTable
+          columns={TABLE_COLUMNS}
+          data={assets}
+          isLoading={isLoading}
+          rowHref={(asset) => `/admin/assets/${asset.id}`}
+          emptyMessage="No assets found."
+          searchable={false}
+          showActions
+          actions={tableActions}
+          minWidthClassName="min-w-[1100px]"
+        />
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}

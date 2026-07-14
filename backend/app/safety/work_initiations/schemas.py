@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core.schemas import UtcDateTimeModel
 from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
@@ -89,7 +90,7 @@ class WorkInitiationCreate(BaseModel):
 
 
 class WorkInitiationUpdate(WorkInitiationCreate):
-    pass
+    retained_attachment_ids: Optional[list[str]] = None
 
 class WorkInitiationReviewCreate(BaseModel):
     decision: WorkInitiationDecision
@@ -109,7 +110,7 @@ class WorkInitiationEmployeeSummary(BaseModel):
     job_title: Optional[str] = None
 
 
-class WorkInitiationReviewResponse(BaseModel):
+class WorkInitiationReviewResponse(UtcDateTimeModel):
     decision: WorkInitiationDecision
     reviewer_id: Optional[str] = None
     reviewer_name: Optional[str] = None
@@ -117,7 +118,16 @@ class WorkInitiationReviewResponse(BaseModel):
     decided_at: Optional[datetime] = None
 
 
-class WorkInitiationListItem(BaseModel):
+class WorkInitiationAttachmentResponse(BaseModel):
+    id: str
+    name: str
+    url: str
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    type: str
+
+
+class WorkInitiationListItem(UtcDateTimeModel):
     id: str
     reference: str
     status: WorkInitiationStatus
@@ -175,6 +185,7 @@ class WorkInitiationResponse(WorkInitiationListItem):
     assigned_workers: list[WorkInitiationEmployeeSummary]
     supervisor_review: Optional[WorkInitiationReviewResponse] = None
     operations_hod_review: Optional[WorkInitiationReviewResponse] = None
+    attachments: list[WorkInitiationAttachmentResponse] = Field(default_factory=list)
     is_active: bool
 
     @classmethod
@@ -206,6 +217,9 @@ class WorkInitiationResponse(WorkInitiationListItem):
                 work_initiation.operations_hod,
                 work_initiation.operations_hod_comment,
                 work_initiation.operations_hod_decided_at,
+            ),
+            attachments=attachment_responses(
+                getattr(work_initiation, "attachments", []) or [],
             ),
             is_active=work_initiation.is_active,
         )
@@ -258,3 +272,27 @@ def build_review(
         comment=comment,
         decided_at=decided_at,
     )
+
+
+def attachment_responses(documents) -> list[WorkInitiationAttachmentResponse]:
+    return [
+        WorkInitiationAttachmentResponse(
+            id=str(document.id),
+            name=document.name,
+            url=document.file_path or "",
+            mime_type=document.mime_type,
+            file_size=document.file_size,
+            type=attachment_type_for_mime_type(document.mime_type),
+        )
+        for document in documents
+    ]
+
+
+def attachment_type_for_mime_type(mime_type: Optional[str]) -> str:
+    if not mime_type:
+        return "document"
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("video/"):
+        return "video"
+    return "document"

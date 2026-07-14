@@ -13,7 +13,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { BackButton } from "@/components/ui/BackButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Tip from "@/components/ui/Tip";
 import Avatar from "@/components/ui/Avatar";
 import { useIntranetLeadershipAdmin } from "@/lib/modules/intranet/queries";
 import {
@@ -74,7 +74,7 @@ const columns: Column<MessageRow>[] = [
 ];
 
 export default function LeadershipPage() {
-  const { data: messages = [], isLoading } = useIntranetLeadershipAdmin();
+  const { data: messages = [], isLoading, isFetching } = useIntranetLeadershipAdmin();
   const { data: employeeList = [] }        = useEmployees();
   const toast = useToast();
 
@@ -227,16 +227,14 @@ export default function LeadershipPage() {
     {
       key: "up",
       label: "",
-      icon: <ChevronUp size={14} />,
-      title: "Move Up",
+      icon: <Tip label="Move Up"><ChevronUp size={14} /></Tip>,
       variant: "ghost",
       onClick: (row) => handleMove(row, "up"),
     },
     {
       key: "down",
       label: "",
-      icon: <ChevronDown size={14} />,
-      title: "Move Down",
+      icon: <Tip label="Move Down"><ChevronDown size={14} /></Tip>,
       variant: "ghost",
       onClick: (row) => handleMove(row, "down"),
     },
@@ -246,24 +244,21 @@ export default function LeadershipPage() {
       icon: (row) =>
         toggleMutation.isPending && toggleSpinner === row._numId
           ? <Loader2 size={14} className="animate-spin" />
-          : row.is_published ? <EyeOff size={14} /> : <Eye size={14} />,
-      title: (row) => row.is_published ? "Unpublish" : "Publish",
+          : <Tip label={row.is_published ? "Unpublish Message" : "Publish Message"}>{row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}</Tip>,
       variant: "ghost",
       onClick: (row) => setToggleConfirmTarget(row),
     },
     {
       key: "edit",
       label: "",
-      icon: <Pencil size={14} />,
-      title: "Edit",
+      icon: <Tip label="Edit Message"><Pencil size={14} /></Tip>,
       variant: "ghost",
       onClick: (row) => openEdit(row),
     },
     {
       key: "delete",
       label: "",
-      icon: <Trash2 size={14} />,
-      title: "Delete",
+      icon: <Tip label="Delete Message"><Trash2 size={14} /></Tip>,
       variant: "ghost",
       className: "hover:bg-red-50 hover:text-red-600",
       onClick: (row) => setDeleteId(row._numId),
@@ -284,21 +279,18 @@ export default function LeadershipPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
-      ) : (
-        <DataTable<MessageRow>
-          columns={columns}
-          data={rows}
-          showActions
-          actions={tableActions}
-          actionsLabel="Actions"
-          searchable
-          searchPlaceholder="Search messages…"
-          emptyMessage="No leadership messages yet."
-          emptyDescription="Click 'New Message' to add one."
-        />
-      )}
+      <DataTable<MessageRow>
+        columns={columns}
+        data={rows}
+        isLoading={isLoading || isFetching}
+        showActions
+        actions={tableActions}
+        actionsLabel="Actions"
+        searchable
+        searchPlaceholder="Search messages…"
+        emptyMessage="No leadership messages yet."
+        emptyDescription="Click 'New Message' to add one."
+      />
 
       <ActionModal
         open={modalOpen}

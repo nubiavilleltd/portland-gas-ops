@@ -69,3 +69,5 @@ CLAUDE_PROGRESS.md
 *.pid
 *.seed
 *.pid.lock
+.claude/
+.claude/

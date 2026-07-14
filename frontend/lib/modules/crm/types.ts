@@ -1,0 +1,233 @@
+// lib/modules/crm/types.ts
+
+export type CustomerEntityType = "company" | "individual";
+export type CustomerOnboardingStatus =
+  | "draft"
+  | "submitted"
+  | "acknowledged"
+  | "returned"
+  | "approved"
+  | "active"
+  | "inactive"
+  | "rejected";
+
+export interface CustomerOnboarding {
+  id: string;
+
+  onboarding_number: string;
+
+  // Customer Information
+  customer_name: string;
+  entity_type: CustomerEntityType;
+  category: CustomerCategory;
+
+  // Business Information
+  rc_number: string;
+  tin: string;
+  vat_number: string;
+  industry: string;
+
+  // Primary Contact
+  contact_person: string;
+  designation: string;
+  email: string;
+  phone: string;
+  alternate_phone: string;
+
+  // Address Information
+  country: string;
+  state: string;
+  city: string;
+  address_line1: string;
+  address_line2: string;
+  postal_code: string;
+
+  // Commercial Information
+  preferred_products: string[];
+  supply_method: string;
+  estimated_monthly_demand: string;
+
+  // Internal Notes
+  internal_notes: string;
+
+  // Submission
+  submitted_by: string;
+  submitted_at: string;
+
+  // Workflow
+  status: CustomerOnboardingStatus;
+  customer_status: CustomerOnboardingStatus;
+  activities: CustomerOnboardingActivity[];
+
+  // Documents
+  attachments: CustomerAttachment[];
+}
+
+export type CustomerStatus =
+  | "draft"
+  | "submitted"
+  | "returned"
+  | "active"
+  | "inactive";
+
+export type CustomerCategory =
+  | "retail"
+  | "commercial"
+  | "industrial"
+  | "government"
+  | "distributor";
+
+export type EntityType = "company" | "individual";
+
+export interface Customer {
+  id: string;
+
+  customerNumber: string;
+
+  customerName: string;
+
+  entityType: EntityType;
+
+  category: CustomerCategory;
+
+  status: CustomerStatus;
+
+  contactPerson: string;
+
+  designation?: string;
+
+  email: string;
+
+  phone: string;
+
+  alternatePhone?: string;
+
+  rcNumber?: string;
+
+  tin?: string;
+
+  vatNumber?: string;
+
+  industry?: string;
+
+  addressLine1: string;
+
+  addressLine2?: string;
+
+  city: string;
+
+  state: string;
+
+  country: string;
+
+  postalCode?: string;
+
+  preferredProducts: string[];
+
+  supplyMethod: "delivery" | "pickup";
+
+  estimatedMonthlyDemand?: string;
+
+  internalNotes?: string;
+
+  createdBy: string;
+
+  submittedBy?: string;
+
+  activatedBy?: string;
+
+  returnedReason?: string;
+
+  createdAt: string;
+
+  updatedAt: string;
+}
+interface CustomerRow {
+  id: string;
+
+  customerNumber: string;
+
+  customerName: string;
+
+  category: string;
+
+  contactPerson: string;
+
+  phone: string;
+
+  status: CustomerStatus;
+
+  createdAt: string;
+}
+export interface CustomerOnboardingActivity {
+  id: string;
+
+  action:
+    | "Draft_created"
+    | "Submitted"
+    | "Acknowledged"
+    | "Returned"
+    | "Approved"
+    | "Activated";
+
+  performedBy: string;
+
+  performedByRole: string;
+
+  performedAt: string;
+
+  comment?: string;
+}
+
+export interface CustomerAttachment {
+  id: string;
+
+  documentType:
+    | "cac_certificate"
+    | "tin_certificate"
+    | "vat_certificate"
+    | "business_logo"
+    | "other";
+
+  fileName: string;
+
+  fileUrl: string;
+
+  uploadedBy: string;
+
+  uploadedAt: string;
+}
+
+// lib/modules/crm/types.ts
+
+export interface CustomerForm {
+  customerName: string;
+  entityType: EntityType;
+  category: CustomerCategory;
+
+  rcNumber: string;
+  tin: string;
+  vatNumber: string;
+  industry: string;
+
+  contactPerson: string;
+  designation: string;
+  email: string;
+  phone: string;
+  alternatePhone: string;
+
+  country: string;
+  state: string;
+  city: string;
+  addressLine1: string;
+  addressLine2: string;
+  postalCode: string;
+
+  preferredProducts: string[];
+  supplyMethod: string;
+  estimatedMonthlyDemand: string;
+
+  attachments: CustomerAttachment;
+
+  internalNotes: string;
+}

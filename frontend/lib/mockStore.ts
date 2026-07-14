@@ -1137,7 +1137,6 @@ export function clearMockStore(): void {
     "mock_asset_requests_list", "mock_asset_requests_full",
   ];
   keys.forEach((k) => localStorage.removeItem(k));
-  console.log("Mock store cleared. Refresh the page to reload seed data.");
 }
 
 // Expose to browser console for easy reset during demo
