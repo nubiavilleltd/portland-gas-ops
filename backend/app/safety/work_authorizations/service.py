@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -212,6 +212,12 @@ def update_work_authorization(
     record.attachments_json = data.attachments or []
 
     clear_hse_review(record)
+    delete_removed_work_authorization_documents(
+        db=db,
+        work_authorization_id=record.id,
+        retained_attachment_ids=data.retained_attachment_ids,
+        hse_evidence=False,
+    )
 
     create_work_authorization_documents(
         db=db,
@@ -591,6 +597,37 @@ def list_work_authorization_documents(
     )
 
 
+def delete_removed_work_authorization_documents(
+    db: Session,
+    work_authorization_id: str,
+    retained_attachment_ids: Optional[list[str]],
+    hse_evidence: bool,
+) -> None:
+    if retained_attachment_ids is None:
+        return
+
+    retained_ids = {
+        int(attachment_id)
+        for attachment_id in retained_attachment_ids
+        if str(attachment_id).isdigit()
+    }
+    category = (
+        work_authorization_hse_document_category(work_authorization_id)
+        if hse_evidence
+        else work_authorization_document_category(work_authorization_id)
+    )
+    query = db.query(Document).filter(
+        Document.category == category,
+        Document.type == "file",
+    )
+
+    if retained_ids:
+        query = query.filter(~Document.id.in_(retained_ids))
+
+    for document in query.all():
+        db.delete(document)
+
+
 def create_work_authorization_documents(
     db: Session,
     work_authorization_id: str,
@@ -676,7 +713,7 @@ def create_hse_review(
         record.hse_evidence_json = []
         record.hse_decision = data.decision
         record.hse_decision_comment = data.decision_comment
-        record.hse_decided_at = datetime.utcnow()
+        record.hse_decided_at = datetime.now(timezone.utc)
         record.status = status_for_hse_decision(data.decision)
 
     if data.decision == WorkAuthorizationDecision.approve:
@@ -727,6 +764,37 @@ def validate_hse_decision(data: WorkAuthorizationHseReviewCreate) -> None:
             data.safety_controls_in_place,
         )
     )
+    has_incomplete_check = any(
+        check == WorkAuthorizationInspectionCheck.not_applicable
+        for check in (
+            data.work_area_safe,
+            data.emergency_equipment_available,
+            data.gas_pressure_check_completed,
+            data.ppe_and_safety_kits_available,
+            data.safety_controls_in_place,
+        )
+    )
+
+    if has_incomplete_check:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Complete all HSE inspection checks before submitting a decision.",
+        )
+
+    if data.hse_inspection_result == WorkAuthorizationInspectionResult.returned:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="HSE inspection result must be passed or failed. Use the return decision to send the request back.",
+        )
+
+    if (
+        data.hse_inspection_result == WorkAuthorizationInspectionResult.failed
+        and not data.hse_inspection_comment
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="HSE inspection comment is required when the inspection result is failed.",
+        )
 
     if data.decision == WorkAuthorizationDecision.approve:
         if has_failed_check or data.hse_inspection_result != WorkAuthorizationInspectionResult.passed:

@@ -6,7 +6,7 @@ const CONFIG: Record<TripStatus, { label: string; variant: BadgeVariant }> = {
   pending: { label: "Pending", variant: "neutral" },
   assigned: { label: "Assigned", variant: "info" },
   awaiting_inventory: { label: "Awaiting Inventory", variant: "orange" },
-  ready: { label: "Ready to Dispatch", variant: "teal" },
+  ready_for_dispatch: { label: "Ready for Dispatch", variant: "teal" },
   dispatched: { label: "Dispatched", variant: "purple" },
   in_transit: { label: "In Transit", variant: "warning" },
   completed: { label: "Completed", variant: "success" },

@@ -9,12 +9,20 @@ import type {
   IncidentReportUpdate,
   IncidentResolveCreate,
 } from "./types";
+import type { WorkAuthorizationResponse } from "../workAuthorization/types";
 
 export const incidentReportsApi = {
   list: async (
     params?: IncidentReportListParams,
   ): Promise<IncidentReportResponse[]> => {
     const { data } = await api.get("/api/safety/incidents", { params });
+    return data;
+  },
+
+  eligibleWorkAuthorizations: async (): Promise<WorkAuthorizationResponse[]> => {
+    const { data } = await api.get(
+      "/api/safety/incidents/eligible-work-authorizations",
+    );
     return data;
   },
 

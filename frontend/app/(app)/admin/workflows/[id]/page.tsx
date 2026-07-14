@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, AlertCircle, Plus, Trash2, GripVertical,
+  AlertCircle, Plus, Trash2, GripVertical,
   ChevronUp, ChevronDown, Pencil,
 } from "lucide-react";
+import { BackButton } from "@/components/ui/BackButton";
 import AppLayout from "@/components/layout/AppLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
@@ -312,14 +313,7 @@ export default function WorkflowDetailPage() {
 
   return (
     <AppLayout pageTitle="Admin — Workflows">
-      <div className="mb-4">
-        <Link
-          href="/admin/workflows"
-          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-        >
-          <ArrowLeft size={14} /> Back to Workflows
-        </Link>
-      </div>
+      <BackButton href="/admin/workflows" label="Back to Workflows" />
 
       {/* Header card */}
       <div className="bg-white border border-brand-border rounded-2xl px-6 py-5 mb-5">

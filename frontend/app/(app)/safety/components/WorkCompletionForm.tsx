@@ -19,9 +19,9 @@ import {
   getSafetyEmployeeRequester,
   useSafetyCurrentEmployee,
 } from "@/lib/modules/safety/people";
-import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
 import {
   useCreateWorkCloseout,
+  useEligibleWorkAuthorizationsForCloseout,
   type WorkCloseOutChecklistAnswerCreate,
 } from "@/lib/modules/safety/workCloseout";
 import {
@@ -82,10 +82,7 @@ export default function WorkCompletionForm() {
     ValidationErrors<WorkCompletionValidationField>
   >({});
   const currentEmployee = useSafetyCurrentEmployee();
-  const approvedAuthorizations = useWorkAuthorizations({
-    status: "approved",
-    limit: 100,
-  });
+  const approvedAuthorizations = useEligibleWorkAuthorizationsForCloseout();
   const createCloseout = useCreateWorkCloseout();
   const requester = getSafetyEmployeeRequester(
     currentEmployee.data,
@@ -98,10 +95,6 @@ export default function WorkCompletionForm() {
     "closeout_review",
   );
   const workAuthorizations: ApprovedWorkAuthorizationOption[] = (approvedAuthorizations.data ?? [])
-    .filter((request) =>
-      request.status === "approved" &&
-      canCurrentEmployeeCloseOutAuthorization(request, currentEmployee.data?.id),
-    )
     .map(mapApprovedAuthorizationOption);
   const [actualStartDateTime, setActualStartDateTime] = useState("");
   const [actualCompletionDateTime, setActualCompletionDateTime] = useState("");
@@ -258,7 +251,6 @@ export default function WorkCompletionForm() {
       }, 700);
     } catch (error) {
       console.error("Failed to submit work close-out", error);
-      console.error("Work close-out error detail", getApiErrorDetail(error));
       toast.error(
         getApiErrorMessage(
           error,
@@ -619,18 +611,6 @@ function mapApprovedAuthorizationOption(
     supervisor: request.workInitiation.assignedSupervisor,
     hseApprover: request.hseApproval?.approver ?? "HSE Inspector",
   };
-}
-
-function canCurrentEmployeeCloseOutAuthorization(
-  request: WorkAuthorizationRequest,
-  employeeId?: string,
-) {
-  if (!employeeId) return false;
-  return (
-    request.requesterId === employeeId ||
-    request.workInitiation.assignedSupervisorId === employeeId ||
-    Boolean(request.workInitiation.assignedWorkerIds?.includes(employeeId))
-  );
 }
 
 function toApiDateTime(value: string) {

@@ -24,6 +24,15 @@ export type InventoryItemStatus =
 // export type ItemDisposition = "sold" | "loaned" | "rented";
 export type ItemDisposition = "sold" | "loaned";
 
+// ── 4. TRIP INVENTORY ASSIGNMENT ─────────────────────────
+
+export interface InventoryAssignment {
+  orderId: string;
+  productId: string;
+  itemIds: string[];
+  disposition: ItemDisposition;
+}
+
 // ── 4. INVENTORY ITEM ────────────────────────────────────
 export interface InventoryItem {
   id: string;

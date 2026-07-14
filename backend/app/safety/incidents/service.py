@@ -4,13 +4,19 @@ import uuid
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, exists, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.employees.models import Department, Employee
 from app.safety.dependencies import get_employee_for_user
-from app.shared.models.approval import AuditAction, WorkflowAuditTrail
+from app.shared.models.approval import (
+    ApprovalOverallStatus,
+    ApprovalRequest,
+    ApprovalStepAssignment,
+    AuditAction,
+    WorkflowAuditTrail,
+)
 from app.shared.models.document import Document
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import AccountStatus, User
@@ -30,14 +36,25 @@ from app.safety.incidents.schemas import (
     IncidentReportUpdate,
     IncidentResolveCreate,
 )
-from app.safety.work_authorizations.models import SafetyWorkAuthorization
+from app.safety.work_authorizations.models import (
+    SafetyWorkAuthorization,
+    WorkAuthorizationStatus,
+)
 from app.safety.work_closeouts.models import SafetyWorkCloseOut, WorkCloseOutStatus
-from app.safety.work_initiations.models import SafetyWorkInitiation
+from app.safety.work_initiations.models import (
+    SafetyWorkInitiation,
+    SafetyWorkInitiationWorker,
+)
 
 INCIDENT_REFERENCE_ENTITY = "incident_report"
 INCIDENT_REFERENCE_PREFIX = "IH"
 INCIDENT_DOCUMENT_CATEGORY_PREFIX = "safety_incident"
 INCIDENT_AUDIT_REQUEST_TYPE = "incident_report"
+INCIDENT_RELATED_AUTHORIZATION_REQUEST_TYPE = "work_authorization"
+INCIDENT_RELATED_AUTHORIZATION_STATUSES = (
+    WorkAuthorizationStatus.submitted,
+    WorkAuthorizationStatus.returned,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +287,11 @@ def create_incident_report(
 ) -> SafetyIncidentReport:
     employee = get_employee_for_user(db, current_user)
     attachments = attachments or []
+    validate_related_work_authorization_for_incident(
+        db,
+        data.related_work_authorization_id,
+        employee,
+    )
 
     report = SafetyIncidentReport(
         reference=reserve_incident_reference(db),
@@ -606,6 +628,157 @@ def list_incident_reports(
     return query.limit(limit).all()
 
 
+def list_eligible_work_authorizations_for_incident(
+    db: Session,
+    current_user: User,
+) -> list[SafetyWorkAuthorization]:
+    employee = get_employee_for_user(db, current_user)
+    active_closeout_exists = exists().where(
+        SafetyWorkCloseOut.work_authorization_id == SafetyWorkAuthorization.id,
+        SafetyWorkCloseOut.is_active == True,
+        SafetyWorkCloseOut.status.in_(
+            (
+                WorkCloseOutStatus.draft,
+                WorkCloseOutStatus.submitted,
+                WorkCloseOutStatus.pending,
+                WorkCloseOutStatus.returned,
+                WorkCloseOutStatus.approved,
+                WorkCloseOutStatus.acknowledged,
+            )
+        ),
+    )
+
+    authorizations = (
+        db.query(SafetyWorkAuthorization)
+        .options(
+            joinedload(SafetyWorkAuthorization.requester).joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.hse_inspector).joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.assigned_supervisor)
+            .joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.workers)
+            .joinedload(SafetyWorkInitiationWorker.worker)
+            .joinedload(Employee.user),
+        )
+        .filter(
+            SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.status.in_(INCIDENT_RELATED_AUTHORIZATION_STATUSES),
+            ~active_closeout_exists,
+        )
+        .order_by(
+            SafetyWorkAuthorization.created_at.desc(),
+            SafetyWorkAuthorization.id.desc(),
+        )
+        .all()
+    )
+
+    return [
+        authorization
+        for authorization in authorizations
+        if can_view_related_work_authorization(db, authorization, employee)
+    ]
+
+
+def validate_related_work_authorization_for_incident(
+    db: Session,
+    work_authorization_id: Optional[str],
+    employee: Employee,
+) -> None:
+    if not work_authorization_id:
+        return
+
+    authorization = (
+        db.query(SafetyWorkAuthorization)
+        .options(
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.workers),
+        )
+        .filter(
+            SafetyWorkAuthorization.id == work_authorization_id,
+            SafetyWorkAuthorization.is_active == True,
+        )
+        .first()
+    )
+
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Related work authorization not found.",
+        )
+
+    if authorization.status not in INCIDENT_RELATED_AUTHORIZATION_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Related work authorization is not eligible for incident reporting.",
+        )
+
+    active_closeout = (
+        db.query(SafetyWorkCloseOut.id)
+        .filter(
+            SafetyWorkCloseOut.work_authorization_id == authorization.id,
+            SafetyWorkCloseOut.is_active == True,
+            SafetyWorkCloseOut.status.in_(
+                (
+                    WorkCloseOutStatus.draft,
+                    WorkCloseOutStatus.submitted,
+                    WorkCloseOutStatus.pending,
+                    WorkCloseOutStatus.returned,
+                    WorkCloseOutStatus.approved,
+                    WorkCloseOutStatus.acknowledged,
+                )
+            ),
+        )
+        .first()
+    )
+    if active_closeout:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Related work authorization already has an active close-out.",
+        )
+
+    if not can_view_related_work_authorization(db, authorization, employee):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this related work authorization.",
+        )
+
+
+def can_view_related_work_authorization(
+    db: Session,
+    authorization: SafetyWorkAuthorization,
+    employee: Employee,
+) -> bool:
+    if authorization.requester_id == employee.id:
+        return True
+
+    initiation = authorization.work_initiation
+    if initiation:
+        if initiation.requester_id == employee.id:
+            return True
+        if initiation.assigned_supervisor_id == employee.id:
+            return True
+        if any(worker.worker_id == employee.id for worker in initiation.workers):
+            return True
+
+    return (
+        db.query(ApprovalStepAssignment.id)
+        .join(
+            ApprovalRequest,
+            ApprovalRequest.id == ApprovalStepAssignment.approval_request_id,
+        )
+        .filter(
+            ApprovalRequest.request_type == INCIDENT_RELATED_AUTHORIZATION_REQUEST_TYPE,
+            ApprovalRequest.request_id == authorization.id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+            ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ApprovalStepAssignment.assigned_to == employee.id,
+        )
+        .first()
+        is not None
+    )
+
+
 def get_incident_report(
     db: Session,
     incident_id: str,
@@ -705,6 +878,12 @@ def update_incident_report(
     require_incident_reporter_edit_access(report, employee)
 
     update_data = data.model_dump(exclude_unset=True)
+    if "related_work_authorization_id" in update_data:
+        validate_related_work_authorization_for_incident(
+            db,
+            update_data["related_work_authorization_id"],
+            employee,
+        )
 
     for field, value in update_data.items():
         setattr(report, field, value)

@@ -77,12 +77,13 @@ const columns: Column<ApprovalRow>[] = [
   {
     key: "submitted_at",
     label: "Submitted",
+    getSortValue: (row) => new Date(row.submitted_at).getTime(),
     render: (v) => (
       <span className="text-xs text-brand-text-secondary">{formatDateTime(v as string)}</span>
     ),
   },
   {
-    key: "current_step_number",
+    key: "action_needed",
     label: "Action Needed",
     render: (_, row) => (
       <ApprovalBadge status={row.current_step_number === 4 ? "awaiting_confirmation" : "pending_approval"} />
@@ -92,7 +93,13 @@ const columns: Column<ApprovalRow>[] = [
 
 export default function MyApprovalsPage() {
   const { data: rawApprovals = [], isLoading } = useMyApprovals();
-  const approvals: ApprovalRow[] = rawApprovals.map((a) => ({ ...a, id: a.approval_request_id }));
+  const approvals: ApprovalRow[] = rawApprovals
+    .map((approval) => ({ ...approval, id: approval.approval_request_id }))
+    .sort(
+      (left, right) =>
+        new Date(right.submitted_at).getTime() -
+        new Date(left.submitted_at).getTime(),
+    );
 
   return (
     <AppLayout pageTitle="My Approvals">

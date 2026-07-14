@@ -382,6 +382,9 @@ def approve_and_issue_po(
     approval_request_id = all_req.approval_request_id
     svc_instance = _svc(db)
 
+    # Capture approver id before engine.approve() advances the step
+    approver_employee_id = employee.id
+
     # Approve step 4 — engine advances to step 5 (not final, so on_final_approval won't fire)
     result = engine.approve(approval_request_id, employee, comment=None)
 
@@ -398,8 +401,9 @@ def approve_and_issue_po(
     proc_req = svc_instance._get_or_404(request_id)
     db.refresh(proc_req)
 
-    # Notify the step 5 assignee (delivery confirmation)
+    # Notify the step 5 assignee (delivery confirmation) AND update the requester
     workflow_email.notify_step_assigned(db, approval_request_id)
+    workflow_email.notify_step_progress(db, approval_request_id, approver_employee_id)
 
     return proc_req
 

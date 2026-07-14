@@ -21,6 +21,7 @@ from app.fleet.trips.schema import (
     TripAssignResources,
     TripCancel,
     TripComplete,
+    TripMarkReady,
     TripAddOrder,
     TripResponse,
     TripListResponse,
@@ -192,6 +193,7 @@ def assign_resources(
 )
 def mark_ready(
     trip_id: str,
+    data: TripMarkReady,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -204,6 +206,7 @@ def mark_ready(
     trip = mark_ready_workflow.execute(
         db=db,
         trip_id=trip_id,
+        assignments=data.assignments,
         actor_id=current_user.id,
     )
 

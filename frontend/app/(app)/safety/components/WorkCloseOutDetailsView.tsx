@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
@@ -49,8 +49,8 @@ import {
 } from "@/lib/modules/safety/people";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
+import SafetyAttachmentList from "./SafetyAttachmentList";
 import type {
-  WorkAuthorizationAttachment,
   WorkCloseOutApprovalResult,
   WorkCloseOutDecision,
   WorkCloseOutHseApproval,
@@ -155,6 +155,8 @@ export default function WorkCloseOutDetailsView({
   const [deviationExplanation, setDeviationExplanation] = useState("");
   const [incidentNote, setIncidentNote] = useState("");
   const [completionEvidence, setCompletionEvidence] = useState<File[]>([]);
+  const [retainedCompletionEvidenceIds, setRetainedCompletionEvidenceIds] =
+    useState<string[]>([]);
   const [monitoredDuringExecution, setMonitoredDuringExecution] = useState("");
   const [stayedWithinScope, setStayedWithinScope] = useState("");
   const [ppeAndControlsMaintained, setPpeAndControlsMaintained] = useState("");
@@ -200,6 +202,11 @@ export default function WorkCloseOutDetailsView({
     setDeviationExplanation(request.completionDetails.deviationExplanation);
     setIncidentNote(request.completionDetails.incidentNote);
     setCompletionEvidence([]);
+    setRetainedCompletionEvidenceIds(
+      request.completionDetails.completionEvidence
+        .map((attachment) => attachment.id)
+        .filter((id): id is string => Boolean(id)),
+    );
     setMonitoredDuringExecution(
       booleanToYesNo(request.monitoring.monitoredDuringExecution),
     );
@@ -335,6 +342,7 @@ export default function WorkCloseOutDetailsView({
             areaConditionChecklist.data?.items ?? [],
             { workAreaCleaned, toolsRemoved, systemSafe, remainingHazard },
           ),
+          retained_completion_evidence_ids: retainedCompletionEvidenceIds,
         },
         completionEvidence,
       });
@@ -493,6 +501,8 @@ export default function WorkCloseOutDetailsView({
           setIncidentNote,
           setCompletionEvidence,
         }}
+        retainedCompletionEvidenceIds={retainedCompletionEvidenceIds}
+        onRetainedCompletionEvidenceIdsChange={setRetainedCompletionEvidenceIds}
       />
       <MonitoringSection
         editable={permissions.canRequesterEdit}
@@ -735,6 +745,8 @@ function CompletionDetails({
   editable,
   values,
   onChange,
+  retainedCompletionEvidenceIds,
+  onRetainedCompletionEvidenceIdsChange,
 }: {
   request: WorkCloseOutRequest;
   editable: boolean;
@@ -760,8 +772,16 @@ function CompletionDetails({
     setIncidentNote: (value: string) => void;
     setCompletionEvidence: (files: File[]) => void;
   };
+  retainedCompletionEvidenceIds: string[];
+  onRetainedCompletionEvidenceIdsChange: (ids: string[]) => void;
 }) {
   const details = request.completionDetails;
+  const visibleEvidence = editable
+    ? details.completionEvidence.filter(
+        (attachment) =>
+          !attachment.id || retainedCompletionEvidenceIds.includes(attachment.id),
+      )
+    : details.completionEvidence;
   const requiresDeviationExplanation =
     values.completedAsApproved === "No" ||
     hasScheduleDeviation({
@@ -851,7 +871,20 @@ function CompletionDetails({
         {/* <FormTextarea label="Completion Notes" value={details.completionNotes} disabled={!editable} className="md:col-span-2" /> */}
       </div>
       <div className="mt-4">
-        <AttachmentList attachments={details.completionEvidence} />
+        <SafetyAttachmentList
+          attachments={visibleEvidence}
+          emptyMessage="No completion evidence."
+          onRemove={
+            editable
+              ? (attachmentId) =>
+                  onRetainedCompletionEvidenceIdsChange(
+                    retainedCompletionEvidenceIds.filter(
+                      (id) => id !== attachmentId,
+                    ),
+                  )
+              : undefined
+          }
+        />
         {editable ? (
           <div className="mt-4">
             <FileDropzone
@@ -1320,28 +1353,6 @@ function ExceptionCloseOutNotice() {
     <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
       This is an exception close-out because it was not completed as approved or it has a remaining hazard. It can be acknowledged for audit, returned, or denied, but it cannot be approved as successful.
     </p>
-  );
-}
-
-function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachment[] }) {
-  if (attachments.length === 0) {
-    return <p className="text-sm text-brand-text-secondary">No completion evidence.</p>;
-  }
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <div key={attachment.name} className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? <ImageIcon size={18} /> : <FileText size={18} />}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">{attachment.name}</p>
-            <p className="text-xs capitalize text-brand-text-secondary">{attachment.type}</p>
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 

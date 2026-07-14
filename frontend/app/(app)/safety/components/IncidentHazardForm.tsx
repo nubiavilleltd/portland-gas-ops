@@ -24,13 +24,13 @@ import {
   incidentReportsApi,
   type IncidentReportCreate,
   type IncidentReportType,
+  useEligibleWorkAuthorizationsForIncident,
 } from "@/lib/modules/safety/incidentReport";
 import { getLatestIncidentObservedDateTime } from "@/lib/modules/safety/date-rules";
 import {
   getSafetyEmployeeRequester,
   useSafetyCurrentEmployee,
 } from "@/lib/modules/safety/people";
-import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
 import { getValidationScrollTarget } from "@/lib/modules/safety/form-validation";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyValidationSummary from "./SafetyValidationSummary";
@@ -79,7 +79,7 @@ export default function IncidentHazardForm() {
   const [locations, setLocations] = useState<string[]>([]);
   const [observedAt, setObservedAt] = useState("");
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
-  const workAuthorizationsQuery = useWorkAuthorizations({ limit: 100 });
+  const workAuthorizationsQuery = useEligibleWorkAuthorizationsForIncident();
   const currentEmployee = useSafetyCurrentEmployee();
   const reporter = getSafetyEmployeeRequester(
     currentEmployee.data,
@@ -89,13 +89,17 @@ export default function IncidentHazardForm() {
     "incident_report",
     "risk_assessment",
   );
-  const relatedAuthorizationOptions = (workAuthorizationsQuery.data ?? []).map((request) => ({
-    value: request.id,
-    label: request.reference
-      ? `${request.reference} - ${request.workInitiation.title}`
-      : request.workInitiation.title,
-    description: `${request.requester.name} | ${request.requester.requestDate}`,
-  }));
+  const relatedAuthorizationOptions = (workAuthorizationsQuery.data ?? []).map((request) => {
+    const authorizationTitle = request.requestDetails.title;
+
+    return {
+      value: request.id,
+      label: request.reference
+        ? `${request.reference} - ${authorizationTitle}`
+        : authorizationTitle,
+      description: `${request.requester.name} | ${request.requester.requestDate}`,
+    };
+  });
   const [description, setDescription] = useState("");
   // const [severity, setSeverity] = useState("");
   const [anyoneInjured, setAnyoneInjured] = useState("");

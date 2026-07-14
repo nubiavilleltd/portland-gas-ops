@@ -7,6 +7,7 @@ import type {
   WorkCloseOutResponse,
   WorkCloseOutUpdate,
 } from "./types";
+import type { WorkAuthorizationResponse } from "../workAuthorization/types";
 
 export const workCloseoutsApi = {
   list: async (
@@ -18,6 +19,13 @@ export const workCloseoutsApi = {
 
   getById: async (id: string): Promise<WorkCloseOutResponse> => {
     const { data } = await api.get(`/api/safety/work-closeouts/${id}`);
+    return data;
+  },
+
+  eligibleWorkAuthorizations: async (): Promise<WorkAuthorizationResponse[]> => {
+    const { data } = await api.get(
+      "/api/safety/work-closeouts/eligible-work-authorizations",
+    );
     return data;
   },
 
