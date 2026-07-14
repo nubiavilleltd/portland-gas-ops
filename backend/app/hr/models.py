@@ -108,7 +108,7 @@ class LeaveRequest(Base):
 
     @property
     def employee_department(self) -> Optional[str]:
-        return self.department or (self.employee.department if self.employee else None)
+        return self.department
 
     @property
     def requester_name(self) -> Optional[str]:
@@ -120,14 +120,17 @@ class LeaveRequest(Base):
     def requester_job_title(self) -> Optional[str]:
         # Get requester's job title through their employee record
         if self.requester:
-            # Query the employee record for this user
-            from sqlalchemy.orm import object_session
-            from app.employees.models import Employee
-            session = object_session(self)
-            if session:
-                employee = session.query(Employee).filter(Employee.user_id == self.requester.id).first()
-                if employee:
-                    return employee.job_title
+            try:
+                from sqlalchemy.orm import object_session
+                from app.employees.models import Employee
+                session = object_session(self)
+                if session:
+                    employee = session.query(Employee).filter(Employee.user_id == self.requester.id).first()
+                    if employee:
+                        return employee.job_title
+            except Exception:
+                # Gracefully handle database errors if employee table is missing columns
+                pass
         return None
 
 
