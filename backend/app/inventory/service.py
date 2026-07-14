@@ -338,6 +338,12 @@ class InventoryService:
 # Trip Check Out
 # -------------------------------------------------------------------------
 
+  
+
+# -------------------------------------------------------------------------
+# Trip Check Out
+# -------------------------------------------------------------------------
+
     def check_out_for_trip(
         self,
         db: Session,
@@ -345,11 +351,10 @@ class InventoryService:
         actor_id: str,
     ):
         """
-        Checks out every tracked inventory item required for a trip.
+        Checks out every tracked inventory item already reserved for a trip.
 
-        - Trips may have no orders.
-        - Orders may contain tracked products, consumables, or both.
-        - Only tracked products require inventory checkout.
+        Reservation happens during Mark Ready.
+        Dispatch only converts reserved inventory into checked-out inventory.
         """
 
         from app.fleet.trips.service import TripService
@@ -379,7 +384,7 @@ class InventoryService:
                     product_id=order_item.product_id,
                 )
 
-                # Consumables don't have inventory items to check out.
+                # Consumables don't require inventory checkout.
                 if product.product_type.value != "tracked":
                     continue
 
@@ -387,84 +392,88 @@ class InventoryService:
                     db=db,
                     trip_id=trip_id,
                     order_item_id=order_item.id,
-                    product_id=order_item.product_id,
-                    quantity=int(order_item.quantity),
-                    order_id=order_id,
-                    disposition=order_item.disposition,
                     actor_id=actor_id,
                 )
 
 
-
-
     def _check_out_order_item(
-    self,
-    db: Session,
-    trip_id: int,
-    order_item_id: int,
-    product_id: str,
-    quantity: int,
-    order_id: str,
-    disposition,
-    actor_id: str,
-):
+        self,
+        db: Session,
+        trip_id: str,
+        order_item_id: int,
+        actor_id: str,
+    ):
         """
-        Checks out tracked inventory items for a trip.
+        Checks out inventory already allocated to an order item.
 
-        NOTE:
-        This implementation is intentionally simple.
-        We can later move the OrderItem lookup out of InventoryService
-        when we refactor the Orders module.
+        Inventory allocation must already exist from Mark Ready.
         """
 
-        available_items = self.repo.get_available_inventory_items(
+        allocations = self.repo.get_allocated_inventory_for_order_item(
             db=db,
-            product_id=product_id,
-            limit=quantity,
+            order_item_id=order_item_id,
         )
 
-        if len(available_items) < quantity:
+        if not allocations:
             raise AppException(
                 status_code=400,
-                error_code=InventoryErrorCode.INSUFFICIENT_STOCK,
-                message=(
-                    f"Not enough inventory available "
-                    f"(required {quantity}, found {len(available_items)})."
-                ),
+                error_code=InventoryErrorCode.NO_INVENTORY_ASSIGNED,
+                message="No inventory has been assigned to this order item.",
             )
+        
+        checked_out_at = datetime.now(timezone.utc)
+        checked_out_ids = []
+
+        #
+        # Validate every allocated item is still reserved.
+        #
+        for allocation in allocations:
+
+            item = allocation.inventory_item
+
+            if item.status is not InventoryItemStatus.reserved:
+                raise AppException(
+                    status_code=400,
+                    error_code=InventoryErrorCode.INVALID_INVENTORY_STATUS,
+                    message=(
+                        f"Inventory item {item.tag_number} "
+                        f"is {item.status.value}, not reserved."
+                    ),
+                )
+
+        first_item = allocations[0].inventory_item
+
         movement_no = self.repo.generate_movement_no(db)
 
         movement = self.repo.create_stock_movement(
             db=db,
             movement_no=movement_no,
-            product_id=product_id,
+            product_id=first_item.product_id,
             movement_type=MovementType.check_out,
-            quantity=Decimal(quantity),
-            location_id=available_items[0].location_id,
+            quantity=Decimal(len(allocations)),
+            location_id=first_item.location_id,
             recorded_by=actor_id,
             reference_type="trip",
             reference_id=str(trip_id),
-            notes=f"Checked out for trip {trip_id}",
+            notes=(
+                f"Checked out {len(allocations)} reserved inventory item(s) "
+                f"for trip {trip_id}"
+            ),
         )
 
-        checked_out_ids = []
+        #
+        # Check out every reserved item.
+        #
+        for allocation in allocations:
 
-        for item in available_items:
+            item = allocation.inventory_item
 
             self.repo.update_inventory_item(
                 db=db,
                 item=item,
                 status=InventoryItemStatus.checked_out,
-                disposition=disposition,
-                order_id=order_id,
-                trip_id=trip_id, 
                 checked_out_at=datetime.now(timezone.utc),
-            )
-
-            self.repo.assign_inventory_to_order_item(
-                db=db,
-                order_item_id=order_item_id,
-                inventory_item_id=item.id,
+                trip_id=trip_id,
             )
 
             checked_out_ids.append(item.id)
@@ -478,21 +487,25 @@ class InventoryService:
         AuditService.record(
             db=db,
             entity_type=AuditEntityType.inventory_item,
-            entity_id=str(checked_out_ids[0]),
+            entity_id=str(first_item.id),
             action="checked_out",
-            description=f"{quantity} inventory item(s) checked out for trip {trip_id}",
+            description=(
+                f"{len(checked_out_ids)} inventory item(s) "
+                f"checked out for trip {trip_id}"
+            ),
             actor_type=AuditActorType.employee,
             actor_employee_id=actor_id,
         )
 
         return checked_out_ids
-    
+
+
 
 
     def release_trip_inventory(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> None:
         """
         Releases every inventory item that was checked out for a trip
@@ -534,3 +547,5 @@ class InventoryService:
                     checked_out_at=None,
                     expected_return_date=None,
                 )
+
+

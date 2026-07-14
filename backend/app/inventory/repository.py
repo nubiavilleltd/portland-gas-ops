@@ -71,7 +71,7 @@ class InventoryRepository:
     def get_location_by_id(
         self,
         db: Session,
-        location_id: int,
+        location_id: str,
     ) -> Optional[WarehouseLocation]:
         return (
             db.query(WarehouseLocation)
@@ -158,7 +158,7 @@ class InventoryRepository:
         db: Session,
         product_id: Optional[str] = None,
         status: Optional[InventoryItemStatus] = None,
-        location_id: Optional[int] = None,
+        location_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ) -> Tuple[List[InventoryItem], int]:
@@ -247,7 +247,7 @@ class InventoryRepository:
         self,
         db: Session,
         order_item_id: int,
-        inventory_item_id: int,
+        inventory_item_id: str,
     ) -> OrderItemInventory:
 
         allocation = OrderItemInventory(
@@ -319,7 +319,7 @@ class InventoryRepository:
         self,
         db: Session,
         product_id: str,
-        location_id: int,
+        location_id: str,
     ) -> Optional[ConsumableStock]:
 
         return (
@@ -349,7 +349,7 @@ class InventoryRepository:
         self,
         db: Session,
         product_id: str,
-        location_id: int,
+        location_id: str,
         quantity: Decimal,
     ) -> ConsumableStock:
 
@@ -399,8 +399,8 @@ class InventoryRepository:
     def add_stock_movement_items(
         self,
         db: Session,
-        movement_id: int,
-        inventory_item_ids: List[int],
+        movement_id: str,
+        inventory_item_ids: List[str],
     ) -> None:
 
         db.add_all(
@@ -441,7 +441,7 @@ class InventoryRepository:
     def list_stock_movements_for_item(
         self,
         db: Session,
-        inventory_item_id: int,
+        inventory_item_id: str,
     ) -> List[StockMovement]:
 
         return (
@@ -495,7 +495,7 @@ class InventoryRepository:
     def get_trip_checkout_movements(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> List[StockMovement]:
 
         return (
@@ -511,7 +511,7 @@ class InventoryRepository:
     def get_inventory_item_ids_for_movement(
         self,
         db: Session,
-        movement_id: int,
+        movement_id: str,
     ) -> List[int]:
 
         rows = (
