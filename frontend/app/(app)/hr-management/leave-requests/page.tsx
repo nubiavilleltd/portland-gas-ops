@@ -21,6 +21,7 @@ import { useCreateLeaveRequest, useLeaveRequests } from "@/lib/modules/leave-req
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAuthStore } from "@/store/authStore";
 import leaveRequestsApi from "@/lib/modules/leave-requests/api";
 import {
   LEAVE_TYPE_OPTIONS,
@@ -191,7 +192,41 @@ export default function LeaveRequestsPage() {
         }
       }
 
-      toast.success("Leave request submitted successfully!");
+      // Submit leave request for approval via workflow engine
+      if (leaveRequest?.id) {
+        try {
+          console.log("Submitting leave request for approval:", leaveRequest.id);
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/hr/leave-requests/${leaveRequest.id}/submit-for-approval`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${useAuthStore.getState().accessToken}`,
+              },
+              credentials: "include",
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Submission failed with status ${response.status}`);
+          }
+
+          const submissionResult = await response.json();
+          console.log("Leave request submitted for approval:", submissionResult);
+          toast.success("Leave request submitted for approval!");
+        } catch (submissionError: unknown) {
+          console.error("Workflow submission error:", submissionError);
+          let errorMessage = "Unknown error";
+          if (submissionError instanceof Error) {
+            errorMessage = submissionError.message;
+          }
+          toast.error(`Could not submit for approval: ${errorMessage}`);
+          return;
+        }
+      }
+
       form.reset();
       setSupportingFiles([]);
       setView("list");
