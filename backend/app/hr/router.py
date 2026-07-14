@@ -269,8 +269,8 @@ def create_leave_request(
 def list_leave_requests(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
-    sort_by: str = Query("created_at", regex="^(created_at|start_date|end_date|days|status)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    sort_by: str = Query("created_at", pattern="^(created_at|start_date|end_date|days|status)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
