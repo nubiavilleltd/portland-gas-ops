@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.schemas import UtcDateTimeModel
 from app.safety.checklists.models import (
     SafetyChecklistInputType,
     SafetyChecklistParentType,
@@ -82,7 +83,7 @@ class ChecklistTemplateResponse(BaseModel):
         )
 
 
-class ChecklistResponseRead(BaseModel):
+class ChecklistResponseRead(UtcDateTimeModel):
     id: str
     template_id: str
     template_code_snapshot: str

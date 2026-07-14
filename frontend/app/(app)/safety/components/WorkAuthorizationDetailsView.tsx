@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
-import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import AuditTrail from "@/components/forms/AuditTrail";
@@ -43,9 +42,10 @@ import {
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
+import SafetyAttachmentList from "./SafetyAttachmentList";
+import SafetyChoiceTable from "./SafetyChoiceTable";
 import type {
   WorkAuthorizationApprovalResult,
-  WorkAuthorizationAttachment,
   WorkAuthorizationHseInspection,
   WorkAuthorizationRequest,
   WorkAuthorizationRole,
@@ -66,12 +66,10 @@ const riskIndicatorOptions = [
 const inspectionCheckOptions = [
   { value: "Pass", label: "Pass" },
   { value: "Fail", label: "Fail" },
-  { value: "N/A", label: "N/A" },
 ];
 
 const inspectionResultOptions = [
   { value: "Passed", label: "Passed" },
-  { value: "Returned", label: "Returned" },
   { value: "Failed", label: "Failed" },
 ];
 const workAuthorizationRoles: { value: WorkAuthorizationRole; label: string }[] = [
@@ -99,8 +97,7 @@ type EditableInspectionCheckValue =
   | InspectionCheckValue
   | BackendInspectionCheckValue
   | "";
-type HseInspectionResult = WorkAuthorizationHseInspection["result"];
-type EditableHseInspectionResult = HseInspectionResult | "";
+type EditableHseInspectionResult = "Passed" | "Failed" | "";
 type EditableHseInspectionCheckState = Record<
   keyof HseInspectionCheckState,
   EditableInspectionCheckValue
@@ -125,9 +122,8 @@ function toApiInspectionCheck(
 function toApiInspectionResult(
   value: EditableHseInspectionResult,
 ): WorkAuthorizationInspectionResult {
-  if (value === "Passed") return "passed";
   if (value === "Failed") return "failed";
-  return "returned";
+  return "passed";
 }
 
 function toApiDecision(
@@ -157,11 +153,13 @@ function getSelectedRiskIndicators(request: WorkAuthorizationRequest) {
 
 function toChecklistOptions(item: SafetyChecklistItem) {
   if (!Array.isArray(item.options_json)) return inspectionCheckOptions;
-  return item.options_json.map((option) =>
-    typeof option === "string"
-      ? { value: option, label: option }
-      : { value: option.value, label: option.label },
-  );
+  return item.options_json
+    .map((option) =>
+      typeof option === "string"
+        ? { value: option, label: option }
+        : { value: option.value, label: option.label },
+    )
+    .filter((option) => !["N/A", "not_applicable"].includes(option.value));
 }
 
 const hseInspectionItemKeyMap: Partial<
@@ -234,6 +232,8 @@ export default function WorkAuthorizationDetailsView({
   const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
   const [additionalSafetyNote, setAdditionalSafetyNote] = useState("");
   const [requesterAttachments, setRequesterAttachments] = useState<File[]>([]);
+  const [retainedRequesterAttachmentIds, setRetainedRequesterAttachmentIds] =
+    useState<string[]>([]);
   const hseInspectionChecklist = useActiveSafetyChecklist(
     "work_authorization",
     "inspection",
@@ -264,6 +264,11 @@ export default function WorkAuthorizationDetailsView({
     setRiskIndicators(getSelectedRiskIndicators(request));
     setAdditionalSafetyNote(request.riskIndicators.additionalSafetyNote);
     setRequesterAttachments([]);
+    setRetainedRequesterAttachmentIds(
+      request.attachments
+        .map((attachment) => attachment.id)
+        .filter((id): id is string => Boolean(id)),
+    );
   }, [request?.id, request?.status]);
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   const isRequester = Boolean(
@@ -288,8 +293,13 @@ export default function WorkAuthorizationDetailsView({
     (value) => value === "Fail" || value === "fail",
   );
   const hasFailedHseInspectionResult = hseInspectionResult === "Failed";
+  const hseChecklistIncomplete =
+    Object.values(hseInspectionChecks).some((value) => !value) ||
+    !hseInspectionResult;
   const shouldDisableHseApproval =
-    hasFailedHseInspectionCheck || hasFailedHseInspectionResult;
+    hseChecklistIncomplete ||
+    hasFailedHseInspectionCheck ||
+    hasFailedHseInspectionResult;
 
   const isDraft = request?.status === "draft";
   const isSubmitted = request?.status === "submitted";
@@ -350,6 +360,7 @@ export default function WorkAuthorizationDetailsView({
           additional_safety_note: additionalSafetyNote || null,
           attachment_notes: null,
           attachments: [],
+          retained_attachment_ids: retainedRequesterAttachmentIds,
         },
         attachments: requesterAttachments,
       });
@@ -368,17 +379,19 @@ export default function WorkAuthorizationDetailsView({
     if (decision === "Approve" && shouldDisableHseApproval) {
       return;
     }
+    if (hseChecklistIncomplete) {
+      toast.error("Complete all HSE inspection checks before submitting a decision.");
+      return;
+    }
     if ((decision === "Return" || decision === "Deny") && !hseComment.trim()) {
       return;
     }
+    if (hasFailedHseInspectionResult && !hseComment.trim()) {
+      toast.error("Add HSE inspection comments when the inspection result is failed.");
+      return;
+    }
 
-    const result =
-      hseInspectionResult ||
-      (decision === "Approve"
-        ? "Passed"
-        : decision === "Return"
-          ? "Returned"
-          : "Failed");
+    const result = hseInspectionResult;
     const payload: WorkAuthorizationHseReviewCreate = {
       work_area_safe: toApiInspectionCheck(hseInspectionChecks.workAreaSafe),
       emergency_equipment_available: toApiInspectionCheck(
@@ -501,10 +514,11 @@ export default function WorkAuthorizationDetailsView({
         editable={permissions.canEditDraft}
         newAttachments={requesterAttachments}
         onNewAttachmentsChange={setRequesterAttachments}
+        retainedAttachmentIds={retainedRequesterAttachmentIds}
+        onRetainedAttachmentIdsChange={setRetainedRequesterAttachmentIds}
       />
 
-      {currentRole === "requester" &&
-      (request.status === "draft" || request.status === "returned") ? (
+      {permissions.canEditDraft ? (
         <div className="flex justify-end">
           <Button
             onClick={handleRequesterSubmit}
@@ -540,6 +554,7 @@ export default function WorkAuthorizationDetailsView({
               onDecision={handleHseDecision}
               disableApprove={shouldDisableHseApproval}
               reasonMissing={!hseComment.trim()}
+              checklistIncomplete={hseChecklistIncomplete}
               isPending={hseReviewWorkAuthorization.isPending}
             />
           </>
@@ -669,6 +684,25 @@ function RiskIndicatorsSection({
   onAdditionalSafetyNoteChange: (value: string) => void;
   checklistResponses: SafetyChecklistResponse[];
 }) {
+  const riskRows = riskIndicatorOptions.map((option) => ({
+    label: option.label,
+    required: true,
+    value: selectedRiskIndicators.includes(option.value) ? "Yes" : "No",
+    onValueChange: (value: string) => {
+      if (value === "Yes") {
+        onRiskIndicatorsChange(
+          selectedRiskIndicators.includes(option.value)
+            ? selectedRiskIndicators
+            : [...selectedRiskIndicators, option.value],
+        );
+        return;
+      }
+      onRiskIndicatorsChange(
+        selectedRiskIndicators.filter((current) => current !== option.value),
+      );
+    },
+  }));
+
   return (
     <FormSection title="Risk & Safety Indicators" description="Safety considerations identified for this work activity.">
       {!editable && checklistResponses.length > 0 ? (
@@ -683,15 +717,14 @@ function RiskIndicatorsSection({
           ) : null}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-[minmax(300px,420px)_1fr] md:items-start">
-          <FormMultiSelect
-            label="Risk Indicators"
-            options={riskIndicatorOptions}
-            value={selectedRiskIndicators}
-            onValueChange={onRiskIndicatorsChange}
+        <div className="space-y-4">
+          <SafetyChoiceTable
+            options={[
+              { value: "Yes", label: "Yes" },
+              { value: "No", label: "No" },
+            ]}
+            rows={riskRows}
             disabled={!editable}
-            searchable
-            placeholder="Select all risk indicators that apply"
           />
           <FormTextarea
             label="Additional Safety Note"
@@ -710,15 +743,36 @@ function AttachmentsSection({
   editable,
   newAttachments,
   onNewAttachmentsChange,
+  retainedAttachmentIds,
+  onRetainedAttachmentIdsChange,
 }: {
   request: WorkAuthorizationRequest;
   editable: boolean;
   newAttachments: File[];
   onNewAttachmentsChange: (files: File[]) => void;
+  retainedAttachmentIds: string[];
+  onRetainedAttachmentIdsChange: (ids: string[]) => void;
 }) {
+  const visibleAttachments = editable
+    ? request.attachments.filter(
+        (attachment) =>
+          !attachment.id || retainedAttachmentIds.includes(attachment.id),
+      )
+    : request.attachments;
+
   return (
     <FormSection title="Attachments" description="Supporting safety documents and evidence attached to this request.">
-      <AttachmentList attachments={request.attachments} />
+      <SafetyAttachmentList
+        attachments={visibleAttachments}
+        onRemove={
+          editable
+            ? (attachmentId) =>
+                onRetainedAttachmentIdsChange(
+                  retainedAttachmentIds.filter((id) => id !== attachmentId),
+                )
+            : undefined
+        }
+      />
       {editable ? (
         <div className="mt-4">
           <FileDropzone
@@ -732,74 +786,6 @@ function AttachmentsSection({
         </div>
       ) : null}
     </FormSection>
-  );
-}
-
-function AttachmentList({
-  attachments,
-}: {
-  attachments: WorkAuthorizationAttachment[];
-}) {
-  if (attachments.length === 0) {
-    return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
-  }
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <AttachmentItem
-          key={attachment.id ?? attachment.name}
-          attachment={attachment}
-        />
-      ))}
-    </div>
-  );
-}
-
-function AttachmentItem({
-  attachment,
-}: {
-  attachment: WorkAuthorizationAttachment;
-}) {
-  const content = (
-    <>
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-        {attachment.type === "image" ? (
-          <ImageIcon size={18} />
-        ) : (
-          <FileText size={18} />
-        )}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-brand-text-primary">
-          {attachment.name}
-        </p>
-        <p className="text-xs capitalize text-brand-text-secondary">
-          {attachment.type}
-        </p>
-      </div>
-    </>
-  );
-
-  if (attachment.url) {
-    return (
-      <a
-        href={attachment.url}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3 transition-colors hover:border-brand-purple hover:bg-brand-purple-faint"
-      >
-        {content}
-      </a>
-    );
-  }
-
-  return (
-    <div
-      className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
-    >
-      {content}
-    </div>
   );
 }
 
@@ -917,11 +903,13 @@ function HseFinalActionSection({
   onDecision,
   disableApprove,
   reasonMissing,
+  checklistIncomplete,
   isPending,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
   disableApprove: boolean;
   reasonMissing: boolean;
+  checklistIncomplete: boolean;
   isPending: boolean;
 }) {
   return (
@@ -932,14 +920,19 @@ function HseFinalActionSection({
       rejectLabel="Deny"
       disabled={isPending}
       approveDisabled={disableApprove}
-      returnDisabled={reasonMissing}
-      rejectDisabled={reasonMissing}
+      returnDisabled={reasonMissing || checklistIncomplete}
+      rejectDisabled={reasonMissing || checklistIncomplete}
       onApprove={() => onDecision("Approve")}
       onReturn={() => onDecision("Return")}
       onReject={() => onDecision("Deny")}
       extraFields={
         <div className="space-y-3">
-          {disableApprove ? (
+          {checklistIncomplete ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Complete all HSE inspection checks and select an inspection result before submitting a decision.
+            </p>
+          ) : null}
+          {disableApprove && !checklistIncomplete ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               Approval is disabled because one or more inspection checks failed.
             </p>
@@ -1011,7 +1004,7 @@ function HseInspectionResultSection({
         </div>
       </div>
       <div className="mt-4">
-        <AttachmentList attachments={inspection.evidence} />
+        <SafetyAttachmentList attachments={inspection.evidence} />
       </div>
     </FormSection>
   );

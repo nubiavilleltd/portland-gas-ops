@@ -7,6 +7,7 @@ import {
 } from "../query-cache";
 import { workCloseoutsApi } from "./api";
 import { mapWorkCloseOutToRequest } from "./mappers";
+import { mapWorkAuthorizationToRequest } from "../workAuthorization/mappers";
 import type {
   WorkCloseOutCreate,
   WorkCloseOutDecisionCreate,
@@ -21,6 +22,8 @@ export const workCloseoutKeys = {
   list: (params?: WorkCloseOutListParams) =>
     [...workCloseoutKeys.lists(), params ?? {}] as const,
   detail: (id: string) => [...workCloseoutKeys.all, "detail", id] as const,
+  eligibleWorkAuthorizations: () =>
+    [...workCloseoutKeys.all, "eligible-work-authorizations"] as const,
 };
 
 function shouldRetry(failureCount: number, error: unknown) {
@@ -61,6 +64,21 @@ export function useWorkCloseout(id: string) {
   });
 }
 
+export function useEligibleWorkAuthorizationsForCloseout() {
+  const { isAuthenticated } = useAuthStore();
+
+  return useQuery({
+    queryKey: workCloseoutKeys.eligibleWorkAuthorizations(),
+    queryFn: async () => {
+      const items = await workCloseoutsApi.eligibleWorkAuthorizations();
+      return items.map(mapWorkAuthorizationToRequest);
+    },
+    enabled: isAuthenticated,
+    staleTime: 60 * 1000,
+    retry: shouldRetry,
+  });
+}
+
 export function useCreateWorkCloseout() {
   const queryClient = useQueryClient();
 
@@ -85,6 +103,9 @@ export function useCreateWorkCloseout() {
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
         queryClient.invalidateQueries({
           queryKey: ["safety", "work-authorizations", "list"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: workCloseoutKeys.eligibleWorkAuthorizations(),
         }),
         invalidateSafetyWorkflowCaches(queryClient, "work_closeout", updated.id),
       ]);

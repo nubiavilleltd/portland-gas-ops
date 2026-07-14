@@ -43,6 +43,7 @@ from app.shared.models.approval import (
     NotificationType,
     AssigneeType,
 )
+from app.core.datetime_utils import utc_isoformat
 from app.employees.models import Employee
 from app.shared.services import notification_service
 
@@ -687,7 +688,7 @@ class WorkflowEngine:
                 "department":          all_req.department if all_req else None,
                 "current_step_number": ar.current_step_number,
                 "attempt_number":      ar.attempt_number,
-                "submitted_at":        ar.created_at,
+                "submitted_at":        utc_isoformat(ar.created_at),
             })
         return result
 
@@ -712,8 +713,8 @@ class WorkflowEngine:
                 "status":              row.status.value,
                 "department":          row.department,
                 "approval_request_id": row.approval_request_id,
-                "created_at":          row.created_at,
-                "updated_at":          row.updated_at,
+                "created_at":          utc_isoformat(row.created_at),
+                "updated_at":          utc_isoformat(row.updated_at),
             })
         return result
 
@@ -746,7 +747,7 @@ class WorkflowEngine:
                 "raised_by_name":      raiser.user.full_name if raiser and raiser.user else None,
                 "raised_by_no":        raiser.employee_no if raiser else None,
                 "approval_request_id": row.approval_request_id,
-                "created_at":          row.created_at,
+                "created_at":          utc_isoformat(row.created_at),
             })
         return result
 
@@ -771,6 +772,6 @@ class WorkflowEngine:
                 "actor_role":  row.actor_role,
                 "step_number": row.step_number,
                 "comment":     row.comment,
-                "acted_at":    row.acted_at,
+                "acted_at":    utc_isoformat(row.acted_at),
             })
         return result

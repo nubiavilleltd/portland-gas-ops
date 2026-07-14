@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -41,6 +41,7 @@ import {
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
+import SafetyAttachmentList from "./SafetyAttachmentList";
 import {
   incidentSeverityOptions,
   reportTypeOptions,
@@ -51,7 +52,6 @@ import { useAuditTrail } from "@/lib/modules/workflow/queries";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
 import type {
-  IncidentHazardAttachment,
   IncidentHazardHseReview,
   IncidentHazardReport,
   IncidentHazardRole,
@@ -657,7 +657,7 @@ function EvidenceSection({ report }: { report: IncidentHazardReport }) {
       title="Evidence / Attachments"
       description="Supporting photos, videos, or documents for this report."
     >
-      <AttachmentList attachments={report.attachments} />
+      <SafetyAttachmentList attachments={report.attachments} />
     </FormSection>
   );
 }
@@ -1248,69 +1248,6 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
-}
-
-function AttachmentList({
-  attachments,
-}: {
-  attachments?: IncidentHazardAttachment[];
-}) {
-  const safeAttachments = attachments ?? [];
-
-  if (safeAttachments.length === 0) {
-    return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
-  }
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {safeAttachments.map((attachment) => (
-        <AttachmentItem key={attachment.id ?? attachment.name} attachment={attachment} />
-      ))}
-    </div>
-  );
-}
-
-function AttachmentItem({
-  attachment,
-}: {
-  attachment: IncidentHazardAttachment;
-}) {
-  const content = (
-    <>
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-        {attachment.type === "image" ? (
-          <ImageIcon size={18} />
-        ) : (
-          <FileText size={18} />
-        )}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-brand-text-primary">
-          {attachment.name}
-        </p>
-        <p className="text-xs capitalize text-brand-text-secondary">
-          {attachment.type}
-        </p>
-      </div>
-    </>
-  );
-
-  const className = "flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3";
-
-  if (!attachment.url) {
-    return <div className={className}>{content}</div>;
-  }
-
-  return (
-    <a
-      href={attachment.url}
-      target="_blank"
-      rel="noreferrer"
-      className={`${className} transition-colors hover:border-brand-purple/40 hover:bg-white`}
-    >
-      {content}
-    </a>
-  );
 }
 
 function StatusNote({

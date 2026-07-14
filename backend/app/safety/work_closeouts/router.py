@@ -19,6 +19,7 @@ from app.safety.work_closeouts.schemas import (
     WorkCloseOutResponse,
     WorkCloseOutUpdate,
 )
+from app.safety.work_authorizations.schemas import WorkAuthorizationResponse
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 from app.shared.services import workflow_email
@@ -122,6 +123,21 @@ def list_work_closeouts(
     )
 
     return [WorkCloseOutListItem.from_model(record) for record in records]
+
+
+@router.get(
+    "/eligible-work-authorizations",
+    response_model=List[WorkAuthorizationResponse],
+)
+def list_eligible_work_authorizations_for_closeout(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    records = work_closeout_service.list_eligible_work_authorizations_for_closeout(
+        db=db,
+        current_user=current_user,
+    )
+    return [WorkAuthorizationResponse.from_model(record) for record in records]
 
 
 @router.post(

@@ -1,4 +1,5 @@
 import type {
+  WorkAuthorizationAttachment,
   WorkAuthorizationDecision,
   WorkInitiationRequest,
   WorkInitiationReview,
@@ -60,7 +61,14 @@ export function mapWorkInitiationToRequest(
     workType: item.work_type,
     location: item.location,
     exactWorkArea: item.exact_work_area || "",
-    attachments: [],
+    attachments: (item.attachments ?? []).map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      url: attachment.url,
+      type: attachmentType(attachment.type),
+      mimeType: attachment.mime_type ?? undefined,
+      fileSize: attachment.file_size ?? undefined,
+    })),
     assetDetails: {
       assetInvolved: false,
       assetType: "",
@@ -88,6 +96,12 @@ export function mapWorkInitiationToRequest(
     operationalReview,
     auditTrail: buildAuditTrail(item, supervisorApproval, operationalReview),
   };
+}
+
+function attachmentType(type: string): WorkAuthorizationAttachment["type"] {
+  if (type.startsWith("image")) return "image";
+  if (type.startsWith("video")) return "video";
+  return "document";
 }
 
 function mapReview(review: {

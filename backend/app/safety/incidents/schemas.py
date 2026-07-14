@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core.schemas import UtcDateTimeModel
 from app.safety.incidents.models import (
     IncidentHseDecision,
     IncidentReportStatus,
@@ -149,7 +150,7 @@ class IncidentHseReviewCreate(BaseModel):
         return self
 
 
-class IncidentHseReviewResponse(BaseModel):
+class IncidentHseReviewResponse(UtcDateTimeModel):
     id: str
     incident_report_id: str
     inspector_id: str
@@ -192,7 +193,7 @@ class IncidentAttachmentResponse(BaseModel):
     type: str
 
 
-class IncidentReportListItem(BaseModel):
+class IncidentReportListItem(UtcDateTimeModel):
     id: str
     reference: str
     status: IncidentReportStatus
