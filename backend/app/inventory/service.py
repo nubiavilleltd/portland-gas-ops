@@ -52,7 +52,7 @@ class InventoryService:
     # Retrieval
     # -------------------------------------------------------------------------
 
-    def get_item_or_raise(self, db: Session, item_id: int) -> InventoryItem:
+    def get_item_or_raise(self, db: Session, item_id: str) -> InventoryItem:
         item = self.repo.get_inventory_item_by_id(db, item_id)
         if not item:
             raise AppException(

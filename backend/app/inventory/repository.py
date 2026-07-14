@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import func
+from sqlalchemy import func, exists
 from sqlalchemy.orm import Session, joinedload
 from app.shared.utils.number_generator import generate_entity_no
 
@@ -106,7 +106,7 @@ class InventoryRepository:
     def get_inventory_item_by_id(
         self,
         db: Session,
-        item_id: int,
+        item_id: str,
     ) -> Optional[InventoryItem]:
         return (
             db.query(InventoryItem)
@@ -523,3 +523,16 @@ class InventoryRepository:
         )
 
         return [row.inventory_item_id for row in rows]
+    
+
+
+    def is_inventory_item_assigned(
+        self,
+        db: Session,
+        inventory_item_id: str,
+    ) -> bool:
+        return db.query(
+            exists().where(
+                OrderItemInventory.inventory_item_id == inventory_item_id
+            )
+        ).scalar()
