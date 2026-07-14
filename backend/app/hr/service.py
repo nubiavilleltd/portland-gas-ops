@@ -7,6 +7,8 @@ from datetime import datetime
 from app.hr.models import LeaveTypeSetup, LeaveRequest, LeaveRequestStatus
 from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveRequestCreate
 from app.employees.models import Employee
+from app.shared.services.workflow_engine import WorkflowEngine
+from app.shared.models.approval import ApprovalRequest
 
 
 # ── CREATE ──────────────────────────────────────────────────────────────────
@@ -271,3 +273,54 @@ def get_leave_request_by_reference(db: Session, reference: str) -> LeaveRequest:
         )
 
     return leave_request
+
+
+def submit_leave_request_for_approval(
+    db: Session,
+    leave_request_id: str,
+) -> ApprovalRequest:
+    """
+    Submit a leave request for approval by entering the workflow engine.
+
+    Creates ApprovalRequest and AllRequest entries.
+    The requester must have already specified reliever_id on the leave request.
+
+    Returns the ApprovalRequest created by the workflow engine.
+    """
+    leave_request = db.query(LeaveRequest).filter(LeaveRequest.id == leave_request_id).first()
+    if not leave_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leave request not found",
+        )
+
+    # Get requester's employee record (they must be an employee to submit)
+    requester = db.query(Employee).filter(Employee.user_id == leave_request.requester_id).first()
+    if not requester:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Requester must have an employee record",
+        )
+
+    # Build title for the approval tracking
+    leave_type_name = leave_request.leave_type.leave_type_name if leave_request.leave_type else "Leave"
+    title = f"{leave_type_name} - {leave_request.days} days"
+
+    # Submit to workflow engine
+    engine = WorkflowEngine(db)
+
+    # The workflow step 1 expects requester_pick (reliever selection)
+    # The reliever is already specified on the leave_request
+    picked_approvers = {
+        1: leave_request.reliever_id  # Step 1: Reliever approval
+    } if leave_request.reliever_id else None
+
+    approval_request = engine.start(
+        request_type="leave_request",
+        request_id=leave_request_id,
+        title=title,
+        requester=requester,
+        picked_approvers=picked_approvers,
+    )
+
+    return approval_request

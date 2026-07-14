@@ -421,3 +421,47 @@ def upload_leave_request_document(
         "file_name": file.filename or "document",
         "file_url": url,
     }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# SUBMIT FOR APPROVAL - POST /api/hr/leave-requests/{id}/submit-for-approval
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/leave-requests/{leave_request_id}/submit-for-approval",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+)
+def submit_leave_request_for_approval(
+    leave_request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Submit a leave request for approval via the workflow engine.
+
+    Creates ApprovalRequest and AllRequest entries to start the approval workflow.
+
+    **Path Parameters:**
+    - leave_request_id: str (UUID)
+
+    **Response:**
+    ```json
+    {
+        "approval_request_id": "uuid",
+        "reference": "LRQ-2026-0001",
+        "status": "pending"
+    }
+    ```
+    """
+    approval_request = service.submit_leave_request_for_approval(db, leave_request_id)
+    db.commit()
+    db.refresh(approval_request)
+
+    return {
+        "approval_request_id": approval_request.id,
+        "request_type": approval_request.request_type,
+        "request_id": approval_request.request_id,
+        "status": approval_request.overall_status,
+        "current_step_number": approval_request.current_step_number,
+    }
