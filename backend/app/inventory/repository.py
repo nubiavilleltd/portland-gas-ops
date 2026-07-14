@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from app.shared.utils.number_generator import generate_entity_no
 
-from app.inventory.enums import InventoryItemStatus, MovementType
+from app.inventory.enums import InventoryItemStatus, MovementType, DispositionStatus
 from app.inventory.model import (
     ConsumableStock,
     InventoryItem,
@@ -44,6 +44,18 @@ class InventoryRepository:
             model=StockMovement,
             field_name="movement_no",
             prefix="MOV",
+        )
+    
+    def generate_tag_number(
+        self,
+        db: Session,
+        product_code: str,
+    ) -> str:
+        return generate_entity_no(
+            db=db,
+            model=InventoryItem,
+            field_name="tag_number",
+            prefix=product_code,
         )
 
     def list_locations(self, db: Session) -> List[WarehouseLocation]:
@@ -107,6 +119,20 @@ class InventoryRepository:
             )
             .filter(InventoryItem.id == item_id)
             .first()
+        )
+    
+    def get_inventory_items(
+        self,
+        db: Session,
+        item_ids: list[str],
+    ) -> list[InventoryItem]:
+
+        return (
+            db.query(InventoryItem)
+            .filter(
+                InventoryItem.id.in_(item_ids),
+            )
+            .all()
         )
 
     def get_inventory_item_by_tag(
@@ -255,11 +281,18 @@ class InventoryRepository:
         self,
         db: Session,
         item: InventoryItem,
+        *,
+        order_id: str,
+        trip_id: str,
+        disposition: DispositionStatus,
     ) -> None:
 
         item.status = InventoryItemStatus.reserved
-        db.flush()
+        item.order_id = order_id
+        item.trip_id = trip_id
+        item.disposition = disposition
 
+        db.flush()
     def release_inventory_item(
         self,
         db: Session,

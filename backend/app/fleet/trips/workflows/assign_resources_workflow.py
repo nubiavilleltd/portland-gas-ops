@@ -25,11 +25,12 @@ class AssignResourcesWorkflow:
     def execute(
         self,
         db: Session,
-        trip_id: str,
-        driver_id: str,
-        vehicle_id: str,
+        trip_id: int,
+        driver_id: int,
+        vehicle_id: int,
         actor_id: str,
     ):
+
 
         #
         # Validate trip
@@ -114,7 +115,7 @@ class AssignResourcesWorkflow:
             entity_id=str(trip.id),
             action="resources_assigned",
             description=(
-                f"Driver '{driver.employee.full_name}' "
+                f"Driver '{driver.employee.user.full_name}' "
                 f"and vehicle '{vehicle.name}' assigned."
             ),
             actor_type=AuditActorType.employee,

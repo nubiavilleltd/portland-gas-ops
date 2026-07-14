@@ -42,6 +42,18 @@ class OrderService:
         if not order:
             raise AppException(404, OrderErrorCode.ORDER_NOT_FOUND, f"Order {order_id} not found")
         return order
+    
+    def get_order_items(
+        self,
+        db: Session,
+        order_id: str,
+    ):
+        order = self.get_or_raise(
+            db=db,
+            order_id=order_id,
+        )
+
+        return order.order_items
 
     def list(self, db: Session, filters: OrderFilters):
         return self.repo.list(

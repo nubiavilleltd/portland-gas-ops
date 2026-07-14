@@ -15,7 +15,7 @@ export type TripStatus =
   | "pending"     // Created, awaiting driver + vehicle assignment
   | "assigned"    // Driver and vehicle selected, not yet departed
   | "awaiting_inventory"
-  | "ready"
+  | "ready_for_dispatch"
   | "dispatched"  // Formally dispatched from depot (departure recorded)
   | "in_transit"  // Physically on the road
   | "completed"   // All orders delivered, trip closed
