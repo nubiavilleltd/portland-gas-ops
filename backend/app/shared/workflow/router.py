@@ -277,7 +277,7 @@ def get_requester_picks(
                 "employee_id": emp.id,
                 "name":        emp.user.full_name if emp.user else "Unknown",
                 "job_title":   emp.job_title,
-                "department":  emp.department.value if emp.department else None,
+                "department":  emp.department_rel.name if emp.department_rel else None,
             }
     return result
 
@@ -344,7 +344,7 @@ def workflow_for_type(
                         "id":         m.employee_id,
                         "name":       m.employee.user.full_name if m.employee and m.employee.user else "—",
                         "job_title":  m.employee.job_title if m.employee else None,
-                        "department": m.employee.department.value if m.employee and m.employee.department else None,
+                        "department": m.employee.department_rel.name if m.employee and m.employee.department_rel else None,
                         "avatar_url": m.employee.user.profile_picture_url if m.employee and m.employee.user else None,
                     }
                     for m in (s.group.members if s.group else [])

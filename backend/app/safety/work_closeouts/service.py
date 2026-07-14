@@ -1103,7 +1103,7 @@ def move_linked_incident_to_hse_verification(
             request_type="incident_report",
             actor_id=actor.id,
             actor_role=actor.job_title
-            or (actor.department.value if actor.department else None),
+            or (actor.department_rel.name if actor.department_rel else None),
             step_number=None,
             action=AuditAction.resolved,
             comment=(

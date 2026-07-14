@@ -14,7 +14,6 @@ import {
   EMPLOYEE_STORE,
   SEED_EMPLOYEE_RECORDS,
   LEAVE_TYPES,
-  HR_DEPT_OPTIONS,
   CATEGORY_OPTIONS,
   GRADE_OPTIONS,
   calcLeaveBalance,
@@ -22,6 +21,7 @@ import {
   type Employee,
   type EmployeeRecord,
 } from "../../_components/_data";
+import { useDepartments } from "@/lib/modules/setups";
 
 const YEAR = new Date().getFullYear();
 
@@ -88,6 +88,9 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const [emp, setEmp] = useState<Employee | undefined>(() => EMPLOYEE_STORE.find((e) => e.id === id));
   const [isEditing, setIsEditing] = useState(false);
   const [empForm, setEmpForm] = useState<EmployeeFormState>({});
+
+  const { data: departments = [] } = useDepartments();
+  const deptOptions = departments.map((d) => ({ value: d.name, label: d.name }));
 
   const empName = emp ? `${emp.firstName} ${emp.lastName}` : "";
   const [docs, setDocs] = useState<EmployeeRecord[]>(() =>
@@ -307,7 +310,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <>
                   <FormInput label="Job Title / Role" required placeholder="e.g. Software Developer"
                     value={empForm.title ?? ""} onChange={(e) => ue("title", e.target.value)} />
-                  <FormSelect label="Department" required options={HR_DEPT_OPTIONS} placeholder="Select department"
+                  <FormSelect label="Department" required options={deptOptions} placeholder="Select department"
                     value={empForm.department ?? ""} onValueChange={(v) => ue("department", v)} />
                   <FormSelect label="Category" required options={CATEGORY_OPTIONS} placeholder="Select category"
                     value={empForm.category ?? ""} onValueChange={(v) => ue("category", v)} />

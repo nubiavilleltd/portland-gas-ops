@@ -9,17 +9,13 @@ import Pagination from "@/components/ui/Pagination";
 import Avatar from "@/components/ui/Avatar";
 import FormSelect from "@/components/forms/FormSelect";
 import { useEmployees } from "@/lib/modules/employees/hooks";
-import type { Department } from "@/lib/modules/employees/types";
+import { useDepartments } from "@/lib/modules/setups";
 
 const PAGE_SIZE = 12;
 
-const DEPARTMENTS: Department[] = [
-  "Operations", "Finance", "HSE", "HR", "IT",
-  "Logistics", "Executive", "Engineering", "Procurement", "Admin",
-];
-
 export default function PeoplePage() {
   const { data: employees = [], isLoading } = useEmployees();
+  const { data: departments = [] } = useDepartments();
 
   const [q,    setQ]    = useState("");
   const [dept, setDept] = useState("");
@@ -60,7 +56,7 @@ export default function PeoplePage() {
               placeholder="All Departments"
               options={[
                 { value: "", label: "All Departments" },
-                ...DEPARTMENTS.map((d) => ({ value: d, label: d })),
+                ...departments.map((d) => ({ value: d.name, label: d.name })),
               ]}
               onValueChange={handleDept}
             />

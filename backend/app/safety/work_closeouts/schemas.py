@@ -408,9 +408,9 @@ def employee_name(employee) -> Optional[str]:
 
 
 def employee_department(employee) -> Optional[str]:
-    if not employee or not employee.department:
+    if not employee or not employee.department_rel:
         return None
-    return employee.department.value
+    return employee.department_rel.name
 
 
 def employee_role(employee) -> Optional[str]:

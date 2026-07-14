@@ -362,7 +362,7 @@ def get_group(group_id: str, db: Session) -> dict:
             "employee_name": emp.user.full_name if emp and emp.user else "—",
             "employee_no":   emp.employee_no if emp else "—",
             "job_title":     emp.job_title if emp else None,
-            "department":    emp.department.value if emp and emp.department else None,
+            "department":    emp.department_rel.name if emp and emp.department_rel else None,
         })
 
     return {
@@ -423,7 +423,7 @@ def add_group_member(group_id: str, data: AddMember, db: Session) -> dict:
         "employee_name": emp.user.full_name if emp.user else "—",
         "employee_no":   emp.employee_no,
         "job_title":     emp.job_title,
-        "department":    emp.department.value if emp.department else None,
+        "department":    emp.department_rel.name if emp.department_rel else None,
     }
 
 

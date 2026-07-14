@@ -12,11 +12,11 @@ import Button from "@/components/ui/Button";
 import { formatNumber } from "@/lib/utils/format-number";
 import {
   LEAVE_TYPES,
-  HR_DEPT_OPTIONS,
   CATEGORY_OPTIONS,
   GRADE_OPTIONS,
   fmtDate,
 } from "../../_components/_data";
+import { useDepartments } from "@/lib/modules/setups";
 import {
   useEmployee,
   useUpdateEmployee,
@@ -25,7 +25,7 @@ import {
   useUploadEmployeeDocument,
   useDeleteEmployeeDocument,
 } from "@/lib/modules/employees/hooks";
-import type { Department, EmploymentType } from "@/lib/modules/employees/types";
+import type { EmploymentType } from "@/lib/modules/employees/types";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { useToast } from "@/hooks/useToast";
 
@@ -95,7 +95,7 @@ const EMPLOYMENT_TYPE_OPTIONS = [
 
 type EditForm = Partial<{
   firstName: string; lastName: string; email: string; birthday: string;
-  title: string; department: string; category: string; grade: string;
+  title: string; departmentId: string; category: string; grade: string;
   basicSalary: number; housingAllowance: number; transportAllowance: number;
   mealAllowance: number; loanRepayment: number;
 }>;
@@ -109,6 +109,9 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const [isEditing, setIsEditing] = useState(false);
   const [empForm, setEmpForm] = useState<EditForm>({});
   const [pickedManager, setPickedManager] = useState<PickedEmployee | null>(null);
+
+  const { data: departments = [] } = useDepartments();
+  const deptOptions = departments.map((d) => ({ value: d.id, label: d.name }));
 
   const { data: docs = [] } = useEmployeeDocuments(id);
   const uploadDoc  = useUploadEmployeeDocument(id);
@@ -151,7 +154,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       email:            emp.user?.email         ?? "",
       birthday:         emp.birthday            ?? "",
       title:            emp.job_title           ?? "",
-      department:       emp.department          ?? "",
+      departmentId:     emp.department_id       ?? "",
       category:         emp.employment_type     ?? "",
       basicSalary:      emp.basic_salary        ? Number(emp.basic_salary)        : undefined,
       housingAllowance: emp.housing_allowance   ? Number(emp.housing_allowance)   : undefined,
@@ -191,7 +194,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         first_name:           empForm.firstName                    || undefined,
         last_name:            empForm.lastName                     || undefined,
         job_title:            empForm.title                        || undefined,
-        department:           (empForm.department as Department)   || undefined,
+        department_id:        empForm.departmentId                 || undefined,
         employment_type:      (empForm.category as EmploymentType) || undefined,
         birthday:             empForm.birthday                     || undefined,
         operating_manager_id: pickedManager?.id                   ?? null,
@@ -285,7 +288,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 </h1>
                 <p className="text-sm text-brand-text-secondary mt-0.5">
                   {isEditing
-                    ? `${empForm.title || emp.job_title} · ${empForm.department || emp.department}`
+                    ? `${empForm.title || emp.job_title} · ${departments.find(d => d.id === empForm.departmentId)?.name || emp.department}`
                     : `${emp.job_title ?? "—"} · ${emp.department ?? "—"}`}
                 </p>
               </div>
@@ -344,7 +347,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
             {isEditing ? (
               <>
                 <FormInput label="Job Title / Role" required placeholder="e.g. Software Developer" value={empForm.title ?? ""} onChange={(e) => ue("title", e.target.value)} />
-                <FormSelect label="Department" required options={HR_DEPT_OPTIONS} placeholder="Select department" value={empForm.department ?? ""} onValueChange={(v) => ue("department", v)} />
+                <FormSelect label="Department" required options={deptOptions} placeholder="Select department" value={empForm.departmentId ?? ""} onValueChange={(v) => ue("departmentId", v)} />
                 <FormSelect label="Employment Type" options={EMPLOYMENT_TYPE_OPTIONS} placeholder="Select type" value={empForm.category ?? ""} onValueChange={(v) => ue("category", v)} />
                 <EmployeePicker
                   label="Operations Manager"

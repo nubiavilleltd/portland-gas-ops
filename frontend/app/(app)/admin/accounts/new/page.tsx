@@ -12,23 +12,11 @@ import Button from "@/components/ui/Button";
 import { formatNumber } from "@/lib/utils/format-number";
 import { useToast } from "@/hooks/useToast";
 import { useCreateEmployee, useEmployees } from "@/lib/modules/employees/hooks";
-import type { CreateEmployeePayload, Department, EmploymentType } from "@/lib/modules/employees/types";
+import type { CreateEmployeePayload, EmploymentType } from "@/lib/modules/employees/types";
+import { useDepartments } from "@/lib/modules/setups";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 
 // ── Options ────────────────────────────────────────────────────────────────────
-
-const DEPARTMENT_OPTIONS: { value: Department; label: string }[] = [
-  { value: "Operations",   label: "Operations"   },
-  { value: "Finance",      label: "Finance"      },
-  { value: "HSE",          label: "HSE"          },
-  { value: "HR",           label: "HR"           },
-  { value: "IT",           label: "IT"           },
-  { value: "Logistics",    label: "Logistics"    },
-  { value: "Executive",    label: "Executive"    },
-  { value: "Engineering",  label: "Engineering"  },
-  { value: "Procurement",  label: "Procurement"  },
-  { value: "Admin",        label: "Admin"        },
-];
 
 const EMPLOYMENT_TYPE_OPTIONS: { value: EmploymentType; label: string }[] = [
   { value: "Full-time", label: "Full-time" },
@@ -95,6 +83,9 @@ export default function NewAccountPage() {
 
   const [form, setForm] = useState<FormState>({ role: "staff" });
   const [pickedManager, setPickedManager] = useState<PickedEmployee | null>(null);
+
+  const { data: departments = [] } = useDepartments();
+  const deptOptions = departments.map((d) => ({ value: d.id, label: d.name }));
   const f = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((p) => ({ ...p, [k]: v }));
   const fNum = (k: keyof FormState, raw: string) =>
     setForm((p) => ({ ...p, [k]: raw === "" ? undefined : Number(raw.replace(/,/g, "")) }));
@@ -210,9 +201,9 @@ export default function NewAccountPage() {
               onChange={(e) => f("job_title", e.target.value)}
             />
             <FormSelect
-              label="Department" required options={DEPARTMENT_OPTIONS} placeholder="Select department"
-              value={form.department ?? ""}
-              onValueChange={(v) => f("department", v as Department)}
+              label="Department" required options={deptOptions} placeholder="Select department"
+              value={form.department_id ?? ""}
+              onValueChange={(v) => f("department_id", v)}
             />
             <FormSelect
               label="Employment Type" options={EMPLOYMENT_TYPE_OPTIONS} placeholder="Select type"
