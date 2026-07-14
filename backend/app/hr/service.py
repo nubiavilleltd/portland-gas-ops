@@ -238,9 +238,7 @@ def get_all_leave_requests(
 ) -> Tuple[list[LeaveRequest], int]:
     """Get all leave requests with pagination and sorting."""
     query = db.query(LeaveRequest).options(
-        joinedload(LeaveRequest.employee).joinedload(Employee.user),
         joinedload(LeaveRequest.leave_type),
-        joinedload(LeaveRequest.reliever),
         joinedload(LeaveRequest.document),
     )
 
@@ -260,9 +258,7 @@ def get_all_leave_requests(
 def get_leave_request_by_reference(db: Session, reference: str) -> LeaveRequest:
     """Get a single leave request by reference (e.g., LRQ-2026-0001)."""
     leave_request = db.query(LeaveRequest).options(
-        joinedload(LeaveRequest.employee).joinedload(Employee.user),
         joinedload(LeaveRequest.leave_type),
-        joinedload(LeaveRequest.reliever),
         joinedload(LeaveRequest.document),
     ).filter(LeaveRequest.reference == reference).first()
 
