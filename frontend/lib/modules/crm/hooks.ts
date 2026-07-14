@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import type { CustomerOnboarding } from "./types";
+import type { CustomerOnboarding, CustomerContact } from "./types";
 
 const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
   {
@@ -302,5 +302,190 @@ export function useCustomerOnboardingDetails(id: string) {
 
     queryFn: async () =>
       MOCK_CUSTOMER_ONBOARDING.find((customer) => customer.id === id),
+  });
+}
+
+export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
+  {
+    id: "1",
+    contact_number: "CNT-000001",
+
+    customer_id: "1",
+    customer_name: "Dangote Cement Plc",
+
+    primary_contact: {
+      id: "P1",
+      status: "active",
+      first_name: "Ahmed",
+      last_name: "Musa",
+      is_primary: true,
+      email: "ahmed@dangote.com",
+      phone: "+2348012345678",
+      alternate_phone: "+2348099999999",
+      department: "Procurement",
+      preferred_channel: "Email",
+    },
+
+    additional_contacts: [
+      {
+        id: "A1",
+
+        first_name: "Fatima",
+        last_name: "Ibrahim",
+        is_primary: false,
+        status: "active",
+        email: "fatima@dangote.com",
+
+        phone: "+2348011111111",
+        alternate_phone: "",
+
+        department: "Finance",
+
+        preferred_channel: "Email",
+      },
+      {
+        id: "A2",
+
+        first_name: "Peter",
+        last_name: "Okoro",
+        is_primary: false,
+        status: "active",
+        email: "peter.okoro@dangote.com",
+
+        phone: "+2348022222222",
+        alternate_phone: "+2348033333333",
+
+        department: "Operations",
+
+        preferred_channel: "Phone",
+      },
+    ],
+
+    submitted_by: "Magdalene Princess",
+    submitted_at: "2026-07-15",
+
+    status: "active",
+
+    attachments: [],
+
+    activities: [
+      {
+        id: "1",
+        action: "Submitted",
+        performedBy: "Magdalene Princess",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-15 09:10",
+      },
+      {
+        id: "2",
+        action: "Updated",
+        performedBy: "CRM Administrator",
+        performedByRole: "CRM Administrator",
+        performedAt: "2026-07-15 11:45",
+      },
+    ],
+  },
+
+  {
+    id: "2",
+    contact_number: "CNT-000002",
+
+    customer_id: "2",
+    customer_name: "Nestle Nigeria Plc",
+
+    primary_contact: {
+      id: "P1",
+
+      first_name: "Grace",
+      last_name: "Okafor",
+      status: "active",
+      is_primary: true,
+      email: "grace@nestle.com",
+
+      phone: "+2348033334444",
+      alternate_phone: "",
+
+      department: "Supply Chain",
+
+      preferred_channel: "Phone",
+    },
+
+    additional_contacts: [],
+
+    submitted_by: "John Doe",
+    submitted_at: "2026-07-12",
+
+    status: "active",
+
+    attachments: [],
+
+    activities: [
+      {
+        id: "1",
+        action: "Submitted",
+        performedBy: "John Doe",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-12 10:00",
+      },
+    ],
+  },
+
+  {
+    id: "3",
+    contact_number: "CNT-000002",
+
+    customer_id: "3",
+    customer_name: "Cadbury Nigeria Plc",
+
+    primary_contact: {
+      id: "P1",
+
+      first_name: "Peace",
+      last_name: "Okafor",
+      status: "inactive",
+      is_primary: true,
+      email: "peace@cadbury.com",
+
+      phone: "+2348033334444",
+      alternate_phone: "",
+
+      department: "Supply Chain",
+
+      preferred_channel: "Phone",
+    },
+
+    additional_contacts: [],
+
+    submitted_by: "John Doe",
+    submitted_at: "2026-07-12",
+
+    status: "inactive",
+
+    attachments: [],
+
+    activities: [
+      {
+        id: "1",
+        action: "Submitted",
+        performedBy: "John Doe",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-12 10:00",
+      },
+    ],
+  },
+];
+
+export function useCustomerContactDetails(id: string) {
+  return useQuery({
+    queryKey: ["crm", "customer-contact", id],
+    queryFn: async () =>
+      MOCK_CUSTOMER_CONTACTS.find((contact) => contact.id === id),
+  });
+}
+
+export function useCustomerContacts() {
+  return useQuery({
+    queryKey: ["crm", "customer-contacts"],
+    queryFn: async () => MOCK_CUSTOMER_CONTACTS,
   });
 }

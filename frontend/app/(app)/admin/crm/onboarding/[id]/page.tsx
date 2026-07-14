@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import CustomerInformationCard from "@/lib/modules/crm/components/CustomerInformationCard";
 import BusinessInformationCard from "@/lib/modules/crm/components/BusinessInformationCard";
 import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard";
@@ -26,11 +26,13 @@ import { useToast } from "@/hooks/useToast";
 
 export default function CustomerOnboardingDetailsPage() {
   const { id } = useParams<{ id: string }>();
+
   const toast = useToast();
 
   const { data: customer } = useCustomerOnboardingDetails(id);
   const isReturned = customer?.status?.toLowerCase() === "returned";
   const isDraft = customer?.status?.toLowerCase() === "draft";
+  const isAcknowledged = customer?.status?.toLowerCase() === "acknowledged";
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const [form, setForm] = useState({
@@ -84,11 +86,17 @@ export default function CustomerOnboardingDetailsPage() {
 
   return (
     <AppLayout pageTitle="Customer Onboarding Details">
-      <BackButton
-        href="/admin/crm/onboarding"
-        label="Back to Customer Onboarding"
-      />
-
+      <div className="flex justify-between mb-2">
+        <BackButton
+          href="/admin/crm/onboarding"
+          label="Back to Customer Onboarding"
+        />
+        {isAcknowledged && (
+          <Button href={`/admin/crm/contacts/${customer.id}`}>
+            Manage Contacts
+          </Button>
+        )}
+      </div>
       <div className="space-y-6">
         <RoleBasedRecordHeader
           id={customer.onboarding_number}

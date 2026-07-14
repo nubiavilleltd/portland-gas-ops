@@ -231,3 +231,74 @@ export interface CustomerForm {
 
   internalNotes: string;
 }
+
+export interface CustomerContact {
+  id: string;
+
+  contact_number: string;
+
+  customer_id: string;
+  customer_name: string;
+
+  primary_contact: ContactPerson;
+
+  additional_contacts: ContactPerson[];
+
+  status: ContactStatus;
+
+  submitted_by: string;
+  submitted_at: string;
+
+  activities: ContactActivity[];
+
+  attachments: ContactAttachment[];
+}
+
+export interface ContactPerson {
+  id: string;
+
+  is_primary: boolean;
+
+  first_name: string;
+  last_name: string;
+
+  email: string;
+
+  phone: string;
+  alternate_phone: string;
+
+  department: string;
+
+  preferred_channel: PreferredChannel;
+
+  status: ContactPersonStatus;
+}
+
+export type ContactStatus =
+  | "active"
+  | "submitted"
+  | "approved"
+  | "returned"
+  | "inactive";
+
+export interface ContactAttachment {
+  id: string;
+  documentType: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+export interface ContactActivity {
+  id: string;
+  action: string;
+  performedBy: string;
+  performedByRole: string;
+  performedAt: string;
+  comment?: string;
+}
+
+export type PreferredChannel = "Email" | "Phone" | "WhatsApp";
+
+export type ContactPersonStatus = "active" | "inactive";
