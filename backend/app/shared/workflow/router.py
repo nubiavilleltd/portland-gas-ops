@@ -56,7 +56,6 @@ from app.shared.workflow import service as svc
 from app.shared.workflow.schemas import (
     WorkflowCreate, WorkflowUpdate, WorkflowListItem, WorkflowDetail,
     StepCreate, StepUpdate, StepOut, ReorderSteps,
-    GroupCreate, GroupUpdate, GroupListItem, GroupDetail, AddMember, MemberOut,
     AssignmentSet, AssignmentOut,
 )
 from app.shared.services.workflow_engine import WorkflowEngine
@@ -105,80 +104,6 @@ def create_workflow(
         "steps":            [],
         "assignment_count": 0,
     }
-
-
-# ── 2. Approver Groups (literal prefix — must be before /{workflow_id}) ────────
-
-@router.get("/groups", response_model=List[GroupListItem])
-def list_groups(
-    db: Session = Depends(get_db),
-    current_user: User = _admin,
-):
-    return svc.list_groups(db)
-
-
-@router.post("/groups", response_model=GroupDetail, status_code=201)
-def create_group(
-    data: GroupCreate,
-    db: Session = Depends(get_db),
-    current_user: User = _admin,
-):
-    emp_id = _employee_id(current_user, db)
-    g = svc.create_group(data, emp_id, db)
-    db.commit()
-    db.refresh(g)
-    return {
-        "id":          g.id,
-        "name":        g.name,
-        "description": g.description,
-        "is_active":   g.is_active,
-        "created_at":  g.created_at,
-        "members":     [],
-    }
-
-
-@router.get("/groups/{group_id}", response_model=GroupDetail)
-def get_group(
-    group_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = _admin,
-):
-    return svc.get_group(group_id, db)
-
-
-@router.patch("/groups/{group_id}", response_model=GroupDetail)
-def update_group(
-    group_id: str,
-    data: GroupUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = _admin,
-):
-    svc.update_group(group_id, data, db)
-    db.commit()
-    return svc.get_group(group_id, db)
-
-
-@router.post("/groups/{group_id}/members", response_model=MemberOut, status_code=201)
-def add_group_member(
-    group_id: str,
-    data: AddMember,
-    db: Session = Depends(get_db),
-    current_user: User = _admin,
-):
-    result = svc.add_group_member(group_id, data, db)
-    db.commit()
-    return result
-
-
-@router.delete("/groups/{group_id}/members/{member_id}", status_code=204)
-def remove_group_member(
-    group_id: str,
-    member_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = _admin,
-):
-    svc.remove_group_member(group_id, member_id, db)
-    db.commit()
 
 
 # ── 3. Workflow Assignments (literal prefix — must be before /{workflow_id}) ───
@@ -298,10 +223,9 @@ def workflow_for_type(
     """
     from app.shared.models.approval import (
         WorkflowAssignment, ApprovalWorkflow, WorkflowStep,
-        ApproverGroup, ApproverGroupMember,
     )
+    from app.setups.models import Group, GroupMember
     from app.employees.models import Employee
-    from app.shared.models.user import User as UserModel
     from sqlalchemy.orm import joinedload
 
     assignment = (
@@ -317,8 +241,8 @@ def workflow_for_type(
         .options(
             joinedload(ApprovalWorkflow.steps)
             .joinedload(WorkflowStep.group)
-            .joinedload(ApproverGroup.members)
-            .joinedload(ApproverGroupMember.employee)
+            .joinedload(Group.members)
+            .joinedload(GroupMember.employee)
             .joinedload(Employee.user)
         )
         .filter(ApprovalWorkflow.id == assignment.workflow_id, ApprovalWorkflow.is_active == True)  # noqa: E712

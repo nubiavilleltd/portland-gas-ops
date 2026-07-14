@@ -111,7 +111,7 @@ class WorkflowStep(Base):
     # Populated based on assignee_type:
     role        = Column(String(80), nullable=True)   # when assignee_type = role
     employee_id = Column(CHAR(36), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)   # when specific
-    group_id    = Column(CHAR(36), ForeignKey("approver_groups.id", ondelete="SET NULL"), nullable=True)  # when requester_pick
+    group_id    = Column(CHAR(36), ForeignKey("groups.id", ondelete="SET NULL"), nullable=True)  # when requester_pick
 
     # Button visibility on the ApprovalPanel for this step
     can_approve = Column(Boolean, nullable=False, default=True)
@@ -122,35 +122,7 @@ class WorkflowStep(Base):
 
     workflow = relationship("ApprovalWorkflow", back_populates="steps")
     employee = relationship("Employee", foreign_keys=[employee_id])
-    group    = relationship("ApproverGroup", foreign_keys=[group_id])
-
-
-# ── Approver Groups (for requester_pick steps) ─────────────────────────────────
-
-class ApproverGroup(Base):
-    __tablename__ = "approver_groups"
-
-    id          = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name        = Column(String(100), nullable=False)
-    description = Column(Text, nullable=True)
-    is_active   = Column(Boolean, nullable=False, default=True)
-    created_by  = Column(CHAR(36), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
-
-    members = relationship("ApproverGroupMember", back_populates="group")
-
-
-class ApproverGroupMember(Base):
-    __tablename__ = "approver_group_members"
-
-    id          = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    group_id    = Column(CHAR(36), ForeignKey("approver_groups.id", ondelete="CASCADE"), nullable=False)
-    employee_id = Column(CHAR(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
-    added_at    = Column(DateTime(timezone=True), server_default=func.now())
-
-    group    = relationship("ApproverGroup", back_populates="members")
-    employee = relationship("Employee", foreign_keys=[employee_id])
+    group    = relationship("Group", foreign_keys=[group_id])
 
 
 # ── Workflow Assignments (request_type → workflow_id) ─────────────────────────

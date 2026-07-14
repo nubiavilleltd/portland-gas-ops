@@ -99,59 +99,6 @@ class WorkflowDetail(BaseModel):
         from_attributes = True
 
 
-# ── Approver Groups ────────────────────────────────────────────────────────────
-
-class GroupCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = None
-
-
-class GroupUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
-
-
-class AddMember(BaseModel):
-    employee_id: str
-
-
-class MemberOut(BaseModel):
-    id: str
-    employee_id: str
-    employee_name: str
-    employee_no: str
-    job_title: Optional[str]
-    department: Optional[str]
-
-    class Config:
-        from_attributes = True
-
-
-class GroupListItem(BaseModel):
-    id: str
-    name: str
-    description: Optional[str]
-    is_active: bool
-    member_count: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class GroupDetail(BaseModel):
-    id: str
-    name: str
-    description: Optional[str]
-    is_active: bool
-    created_at: datetime
-    members: List[MemberOut] = []
-
-    class Config:
-        from_attributes = True
-
-
 # ── Workflow Assignments ───────────────────────────────────────────────────────
 
 class AssignmentSet(BaseModel):
