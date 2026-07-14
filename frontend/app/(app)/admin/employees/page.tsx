@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import DataTable from "@/components/data-table/data-table";
 import { createEmployeeColumns } from "../_components/columns";
 import type { Employee } from "../_components/_data";
@@ -45,6 +46,7 @@ export default function EmployeesPage() {
 
   return (
     <AppLayout pageTitle="Employee Profile">
+      <BackButton href="/admin" label="Back to Admin" />
       <PageHeader
         title="Employee Profiles"
         description="View and manage employee profiles and records"

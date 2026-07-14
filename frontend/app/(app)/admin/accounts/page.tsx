@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus, RefreshCw, UserX, UserCheck, Mail, Eye, ShieldCheck, X } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import DataTable from "@/components/data-table/data-table";
@@ -308,6 +309,7 @@ export default function AccountsPage() {
 
   return (
     <AppLayout pageTitle="Account Management">
+      <BackButton href="/admin" label="Back to Admin" />
       <PageHeader
         title="Account Management"
         description="Create and manage employee system accounts"

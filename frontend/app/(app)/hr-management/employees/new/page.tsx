@@ -16,12 +16,12 @@ import { useEmployees } from "@/lib/modules/employees/hooks";
 import {
   EMPLOYEE_STORE,
   SEED_EMPLOYEE_RECORDS,
-  HR_DEPT_OPTIONS,
   CATEGORY_OPTIONS,
   GRADE_OPTIONS,
   type Employee,
   type EmployeeRecord,
 } from "../../_components/_data";
+import { useDepartments } from "@/lib/modules/setups";
 
 type EmployeeFormState = Partial<Employee>;
 
@@ -66,6 +66,10 @@ export default function NewEmployeePage() {
   const router = useRouter();
   const [empForm, setEmpForm] = useState<EmployeeFormState>({});
   const [pickedManager, setPickedManager] = useState<PickedEmployee | null>(null);
+
+  const { data: departments = [] } = useDepartments();
+  const deptOptions = departments.map((d) => ({ value: d.id, label: d.name }));
+  const [departmentId, setDepartmentId] = useState("");
 
   const ue = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v }));
   const un = (k: keyof Employee, v: string) =>
@@ -176,9 +180,13 @@ export default function NewEmployeePage() {
               onChange={(e) => ue("title", e.target.value)}
             />
             <FormSelect
-              label="Department" required options={HR_DEPT_OPTIONS} placeholder="Select department"
-              value={empForm.department ?? ""}
-              onValueChange={(v) => ue("department", v)}
+              label="Department" required options={deptOptions} placeholder="Select department"
+              value={departmentId}
+              onValueChange={(id) => {
+                setDepartmentId(id);
+                const name = departments.find((d) => d.id === id)?.name ?? "";
+                ue("department", name);
+              }}
             />
             <FormSelect
               label="Category" required options={CATEGORY_OPTIONS} placeholder="Select category"

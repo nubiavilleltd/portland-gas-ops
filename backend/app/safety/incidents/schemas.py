@@ -231,8 +231,8 @@ class IncidentReportListItem(UtcDateTimeModel):
             data.reporter_name = report.reporter.user.full_name or report.reporter.user.email
         if report.reporter:
             data.reporter_department = (
-                report.reporter.department.value
-                if report.reporter.department
+                report.reporter.department_rel.name
+                if report.reporter.department_rel
                 else None
             )
             data.reporter_role = report.reporter.job_title
@@ -269,8 +269,8 @@ class IncidentReportResponse(IncidentReportListItem):
             data.reporter_name = report.reporter.user.full_name or report.reporter.user.email
         if report.reporter:
             data.reporter_department = (
-                report.reporter.department.value
-                if report.reporter.department
+                report.reporter.department_rel.name
+                if report.reporter.department_rel
                 else None
             )
             data.reporter_role = report.reporter.job_title

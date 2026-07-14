@@ -1,39 +1,21 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Plus, Users2, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { useState } from "react";
+import { Plus, Users2, UserMinus, UserPlus } from "lucide-react";
 import { BackButton } from "@/components/ui/BackButton";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
-import EmptyState from "@/components/ui/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import {
-  useApproverGroups,
-  useApproverGroup,
-  useCreateApproverGroup,
-  useAddGroupMember,
-  useRemoveGroupMember,
-} from "@/lib/modules/workflow";
-import { useToast } from "@/hooks/useToast";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
+import { useGroups, useGroup, useCreateGroup, useAddGroupMember, useRemoveGroupMember } from "@/lib/modules/setups";
 import { useEmployees } from "@/lib/modules/employees/hooks";
-import type { ApproverGroupListItem } from "@/types/workflow";
+import { useToast } from "@/hooks/useToast";
+import type { GroupListItem } from "@/types/setups";
 
-// ── Smart back button ─────────────────────────────────────────────────────────
-
-function GroupsBackButton() {
-  const from = useSearchParams().get("from");
-  return from === "admin"
-    ? <BackButton href="/admin" label="Back to Admin" />
-    : <BackButton href="/admin/workflows" label="Back to Workflows" />;
-}
-
-// ── Group List sidebar ────────────────────────────────────────────────────────
+// ── Group list sidebar ────────────────────────────────────────────────────────
 
 function GroupList({
   groups,
@@ -41,7 +23,7 @@ function GroupList({
   onSelect,
   onAdd,
 }: {
-  groups: ApproverGroupListItem[];
+  groups: GroupListItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onAdd: () => void;
@@ -74,6 +56,7 @@ function GroupList({
               <p className="text-xs text-brand-text-secondary mt-0.5">
                 {g.member_count} member{g.member_count !== 1 ? "s" : ""}
                 {!g.is_active && " · Inactive"}
+                {g.group_type !== "general" && ` · ${g.group_type}`}
               </p>
             </button>
           ))
@@ -85,24 +68,23 @@ function GroupList({
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export default function ApproverGroupsPage() {
+export default function GroupsPage() {
   const toast = useToast();
-  const { data: groups = [], isLoading } = useApproverGroups();
-  const createGroup = useCreateApproverGroup();
+  const { data: groups = [], isLoading } = useGroups();
+  const createGroup = useCreateGroup();
 
-  const [selectedId, setSelectedId]           = useState<string | null>(null);
-  const [showNewGroupForm, setShowNewGroupForm] = useState(false);
-  const [newGroupName, setNewGroupName]         = useState("");
-  const [newGroupDesc, setNewGroupDesc]         = useState("");
-  const [removeMemberId, setRemoveMemberId]     = useState<string | null>(null);
-  const [pickedMember, setPickedMember]         = useState<PickedEmployee | null>(null);
+  const [selectedId, setSelectedId]             = useState<string | null>(null);
+  const [showNewGroupForm, setShowNewGroupForm]  = useState(false);
+  const [newGroupName, setNewGroupName]           = useState("");
+  const [newGroupDesc, setNewGroupDesc]           = useState("");
+  const [removeMemberId, setRemoveMemberId]       = useState<string | null>(null);
+  const [pickedMember, setPickedMember]           = useState<PickedEmployee | null>(null);
 
-  const { data: selectedGroup } = useApproverGroup(selectedId ?? "");
+  const { data: selectedGroup } = useGroup(selectedId ?? "");
   const addMember    = useAddGroupMember(selectedId ?? "");
   const removeMember = useRemoveGroupMember(selectedId ?? "");
 
   const { data: allEmployeeList = [] } = useEmployees();
-  // Exclude already-added members from the picker
   const existingMemberIds = new Set((selectedGroup?.members ?? []).map((m) => m.employee_id));
   const availableEmployees: PickedEmployee[] = allEmployeeList
     .filter((e) => !existingMemberIds.has(e.id))
@@ -118,10 +100,7 @@ export default function ApproverGroupsPage() {
     e.preventDefault();
     if (!newGroupName.trim()) { toast.error("Group name is required"); return; }
     try {
-      const res = await createGroup.mutateAsync({
-        name: newGroupName.trim(),
-        description: newGroupDesc.trim() || undefined,
-      });
+      const res = await createGroup.mutateAsync({ name: newGroupName.trim(), description: newGroupDesc.trim() || undefined });
       toast.success("Group created");
       setShowNewGroupForm(false);
       setNewGroupName("");
@@ -157,18 +136,17 @@ export default function ApproverGroupsPage() {
   }
 
   return (
-    <AppLayout pageTitle="Admin — Approver Groups">
-      <Suspense fallback={null}><GroupsBackButton /></Suspense>
+    <AppLayout pageTitle="Setups — Groups">
+      <BackButton href="/admin" label="Back to Admin" />
 
       <PageHeader
-        title="Approver Groups"
-        description="Named lists of people used in 'Requester Picks' workflow steps."
+        title="Groups"
+        description="Named lists of people used in workflow approval steps and other processes."
         className="mb-5"
       />
 
       {isLoading ? (
         <div className="bg-white border border-brand-border rounded-2xl overflow-hidden flex min-h-[500px] animate-pulse">
-          {/* Sidebar skeleton */}
           <div className="w-72 shrink-0 border-r border-brand-border flex flex-col">
             <div className="p-4 border-b border-brand-border">
               <div className="h-3 w-16 bg-gray-200 rounded" />
@@ -182,7 +160,6 @@ export default function ApproverGroupsPage() {
               ))}
             </div>
           </div>
-          {/* Detail panel skeleton */}
           <div className="flex-1 p-6 space-y-4">
             <div className="h-5 w-40 bg-gray-200 rounded" />
             <div className="h-3 w-64 bg-gray-100 rounded" />
@@ -206,7 +183,7 @@ export default function ApproverGroupsPage() {
             {/* New group form */}
             {showNewGroupForm && (
               <div>
-                <h2 className="text-lg font-semibold text-brand-text-primary mb-4">New Approver Group</h2>
+                <h2 className="text-lg font-semibold text-brand-text-primary mb-4">New Group</h2>
                 <form onSubmit={handleCreateGroup} className="space-y-4">
                   <FormInput
                     label="Group Name"

@@ -80,11 +80,11 @@ def get_week_birthdays(
     return employee_service.get_week_birthdays(db)
 
 
-@router.get("/{employee_id}", response_model=EmployeePublicResponse)
+@router.get("/{employee_id}", response_model=EmployeeResponse)
 def get_employee(
     employee_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("super_admin", "admin")),
 ):
     return employee_service.get_employee(employee_id, db)
 
