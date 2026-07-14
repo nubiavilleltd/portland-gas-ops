@@ -29,6 +29,12 @@ const STATUS_STEP: Record<string, number> = {
   denied:      1,
 };
 
+const WORKFLOW_STEPS = [
+  { step: 1, name: "Reliever", description: "Approval from reliever" },
+  { step: 2, name: "Operations Manager", description: "Approval from operations manager" },
+  { step: 3, name: "Human Resource", description: "Final approval from HR" },
+];
+
 type ActionResult = "approved" | "denied" | "draft" | "in_progress";
 type PageRole = "requester" | "reliever" | "approver" | "admin";
 
@@ -129,6 +135,44 @@ export default function LeaveRequestDetailPage({
             recordLabel="Leave Request"
             title={`${record.employee} — ${record.type}`}
           />
+
+          {/* Workflow Progress */}
+          {record.status !== "draft" && (
+            <div className="rounded-2xl border border-brand-border bg-white p-5">
+              <p className="text-sm font-semibold text-brand-text-primary mb-4">Approval Progress</p>
+              <div className="space-y-3">
+                {WORKFLOW_STEPS.map((step, idx) => {
+                  const isCompleted = record.status === "approved" ||
+                    (record.status === "in_progress" && step.step < 2) ||
+                    (record.status === "pending" && step.step === 1);
+                  const isCurrent = (record.status === "pending" && step.step === 1) ||
+                    (record.status === "in_progress" && step.step === 2);
+
+                  return (
+                    <div key={step.step} className="flex items-start gap-3">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full font-semibold text-sm shrink-0 ${
+                        isCompleted ? "bg-green-100 text-green-700" :
+                        isCurrent ? "bg-brand-purple text-white" :
+                        "bg-gray-100 text-gray-500"
+                      }`}>
+                        {isCompleted ? "✓" : step.step}
+                      </div>
+                      <div className="min-w-0 pt-0.5">
+                        <p className={`text-sm font-medium ${
+                          isCompleted ? "text-green-700" :
+                          isCurrent ? "text-brand-purple" :
+                          "text-brand-text-secondary"
+                        }`}>
+                          {step.name}
+                        </p>
+                        <p className="text-xs text-brand-text-secondary">{step.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Requester Details — mirrors form Requester Details section */}
           <ViewSection title="Requester Details" description="Your employee information for this leave request.">
