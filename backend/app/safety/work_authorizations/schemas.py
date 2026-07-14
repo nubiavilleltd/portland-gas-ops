@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.schemas import UtcDateTimeModel
 from app.safety.work_authorizations.models import (
     WorkAuthorizationDecision,
     WorkAuthorizationInspectionCheck,
@@ -58,6 +59,7 @@ class WorkAuthorizationUpdate(BaseModel):
     additional_safety_note: Optional[str] = Field(None, max_length=5000)
     attachment_notes: Optional[str] = Field(None, max_length=5000)
     attachments: list[WorkAuthorizationAttachment] = Field(default_factory=list)
+    retained_attachment_ids: Optional[list[str]] = None
 
     @field_validator("additional_safety_note", "attachment_notes", mode="before")
     @classmethod
@@ -91,7 +93,7 @@ class WorkAuthorizationEmployeeSummary(BaseModel):
     job_title: Optional[str] = None
 
 
-class WorkAuthorizationWorkInitiationSummary(BaseModel):
+class WorkAuthorizationWorkInitiationSummary(UtcDateTimeModel):
     id: str
     reference: str
     title: str
@@ -114,7 +116,7 @@ class WorkAuthorizationWorkInitiationSummary(BaseModel):
     materials_required: Optional[str]
 
 
-class WorkAuthorizationHseReviewResponse(BaseModel):
+class WorkAuthorizationHseReviewResponse(UtcDateTimeModel):
     hse_inspector_id: Optional[str]
     hse_inspector_name: Optional[str]
     work_area_safe: Optional[WorkAuthorizationInspectionCheck]
@@ -130,7 +132,7 @@ class WorkAuthorizationHseReviewResponse(BaseModel):
     decided_at: Optional[datetime]
 
 
-class WorkAuthorizationListItem(BaseModel):
+class WorkAuthorizationListItem(UtcDateTimeModel):
     id: str
     reference: str
     status: WorkAuthorizationStatus

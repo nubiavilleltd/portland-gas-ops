@@ -1,10 +1,12 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
 from datetime import datetime
 from urllib.parse import urlparse
 
 _HEX_COLOR_RE = r"^#[0-9A-Fa-f]{6}$"
 _SAFE_URL_SCHEMES = {"http", "https"}
+_AUDIO_EXTS = {".mp3", ".wav", ".ogg", ".aac", ".flac", ".m4a"}
+_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
 
 def _validate_url(v: Optional[str]) -> Optional[str]:
     """Block javascript:, data:, vbscript: and other dangerous URL schemes."""
@@ -347,6 +349,17 @@ class PodcastCreate(BaseModel):
     def validate_urls(cls, v: Optional[str]) -> Optional[str]:
         return _validate_url(v)
 
+    @model_validator(mode="after")
+    def validate_media_type_consistency(self) -> "PodcastCreate":
+        url = (self.audio_url or "").lower()
+        if url:
+            if self.media_type == "audio" and any(url.endswith(ext) for ext in _VIDEO_EXTS):
+                raise ValueError("The external link looks like a video file. Switch Podcast Type to Video or provide an audio link.")
+            if self.media_type == "video" and any(url.endswith(ext) for ext in _AUDIO_EXTS):
+                raise ValueError("The external link looks like an audio file. Switch Podcast Type to Audio or provide a video link.")
+        if self.embed_url and self.media_type == "audio":
+            raise ValueError("Embed links (YouTube / Vimeo) are for video podcasts. Switch Podcast Type to Video or use an External Link instead.")
+        return self
 
 class PodcastUpdate(BaseModel):
     episode_number:    Optional[int]  = None
@@ -367,6 +380,17 @@ class PodcastUpdate(BaseModel):
     def validate_urls(cls, v: Optional[str]) -> Optional[str]:
         return _validate_url(v)
 
+    @model_validator(mode="after")
+    def validate_media_type_consistency(self) -> "PodcastUpdate":
+        url = (self.audio_url or "").lower()
+        if url and self.media_type:
+            if self.media_type == "audio" and any(url.endswith(ext) for ext in _VIDEO_EXTS):
+                raise ValueError("The external link looks like a video file. Switch Podcast Type to Video or provide an audio link.")
+            if self.media_type == "video" and any(url.endswith(ext) for ext in _AUDIO_EXTS):
+                raise ValueError("The external link looks like an audio file. Switch Podcast Type to Audio or provide a video link.")
+        if self.embed_url and self.media_type == "audio":
+            raise ValueError("Embed links (YouTube / Vimeo) are for video podcasts. Switch Podcast Type to Video or use an External Link instead.")
+        return self
 
 class PodcastResponse(BaseModel):
     id:                int

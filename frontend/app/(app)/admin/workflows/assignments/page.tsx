@@ -1,14 +1,23 @@
 "use client";
 
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { GitBranch, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { ArrowLeft, GitBranch, AlertCircle } from "lucide-react";
+import { BackButton } from "@/components/ui/BackButton";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormSection from "@/components/ui/FormSection";
 import SelectInput from "@/components/forms/SelectInput";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useWorkflows, useWorkflowAssignments, useSetWorkflowAssignment } from "@/lib/modules/workflow";
 import { useToast } from "@/hooks/useToast";
+
+function AssignmentsBackButton() {
+  const from = useSearchParams().get("from");
+  return from === "admin"
+    ? <BackButton href="/admin" label="Back to Admin" />
+    : <BackButton href="/admin/workflows" label="Back to Workflows" />;
+}
 
 const REQUEST_TYPES = [
   { value: "procurement",        label: "Procurement Requests",   description: "Purchase requests raised by employees" },
@@ -56,14 +65,7 @@ export default function WorkflowAssignmentsPage() {
 
   return (
     <AppLayout pageTitle="Admin — Workflows">
-      <div className="mb-4">
-        <Link
-          href="/admin/workflows"
-          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-        >
-          <ArrowLeft size={14} /> Back to Workflows
-        </Link>
-      </div>
+      <Suspense fallback={null}><AssignmentsBackButton /></Suspense>
 
       <PageHeader
         title="Workflow Assignments"
@@ -72,7 +74,19 @@ export default function WorkflowAssignmentsPage() {
       />
 
       {isLoading ? (
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        <div className="bg-white border border-brand-border rounded-2xl p-6 animate-pulse space-y-5">
+          <div className="h-4 w-48 bg-gray-200 rounded mb-6" />
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+            <div key={i} className="flex items-start gap-4">
+              <div className="h-9 w-9 rounded-lg bg-gray-100 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-40 bg-gray-200 rounded" />
+                <div className="h-2.5 w-64 bg-gray-100 rounded" />
+                <div className="h-9 w-full bg-gray-100 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : activeWorkflows.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-brand-text-secondary">
           <AlertCircle size={32} />

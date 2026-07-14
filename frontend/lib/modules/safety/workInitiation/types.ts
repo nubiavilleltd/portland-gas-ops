@@ -37,7 +37,9 @@ export interface WorkInitiationCreate {
   materials_required?: string | null;
 }
 
-export type WorkInitiationUpdate = WorkInitiationCreate;
+export interface WorkInitiationUpdate extends WorkInitiationCreate {
+  retained_attachment_ids?: string[] | null;
+}
 
 export interface WorkInitiationEmployeeSummary {
   id: string;
@@ -53,6 +55,15 @@ export interface WorkInitiationReviewResponse {
   reviewer_name?: string | null;
   comment?: string | null;
   decided_at?: string | null;
+}
+
+export interface WorkInitiationAttachmentResponse {
+  id: string;
+  name: string;
+  url: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  type: string;
 }
 
 export interface WorkInitiationListItem {
@@ -88,6 +99,7 @@ export interface WorkInitiationResponse extends WorkInitiationListItem {
   assigned_workers: WorkInitiationEmployeeSummary[];
   supervisor_review?: WorkInitiationReviewResponse | null;
   operations_hod_review?: WorkInitiationReviewResponse | null;
+  attachments: WorkInitiationAttachmentResponse[];
   is_active: boolean;
 }
 

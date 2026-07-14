@@ -7,6 +7,7 @@ import {
 } from "../query-cache";
 import { mapWorkInitiationToRequest } from "./mappers";
 import { workInitiationsApi } from "./api";
+import { mapIncidentReportToHazardReport } from "../incidentReport/mappers";
 import type {
   WorkInitiationCreate,
   WorkInitiationListParams,
@@ -20,6 +21,8 @@ export const workInitiationKeys = {
   list: (params?: WorkInitiationListParams) =>
     [...workInitiationKeys.lists(), params ?? {}] as const,
   detail: (id: string) => [...workInitiationKeys.all, "detail", id] as const,
+  eligibleIncidents: () =>
+    [...workInitiationKeys.all, "eligible-incidents"] as const,
 };
 
 function shouldRetry(failureCount: number, error: unknown) {
@@ -58,12 +61,32 @@ export function useWorkInitiation(id: string) {
   });
 }
 
+export function useEligibleIncidentsForWorkInitiation() {
+  const { isAuthenticated } = useAuthStore();
+
+  return useQuery({
+    queryKey: workInitiationKeys.eligibleIncidents(),
+    queryFn: async () => {
+      const items = await workInitiationsApi.eligibleIncidents();
+      return items.map(mapIncidentReportToHazardReport);
+    },
+    enabled: isAuthenticated,
+    staleTime: 60 * 1000,
+    retry: shouldRetry,
+  });
+}
+
 export function useCreateWorkInitiation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: WorkInitiationCreate) =>
-      workInitiationsApi.create(payload),
+    mutationFn: ({
+      payload,
+      attachments = [],
+    }: {
+      payload: WorkInitiationCreate;
+      attachments?: File[];
+    }) => workInitiationsApi.create(payload, attachments),
     onSuccess: async (data) => {
       const updated = mapWorkInitiationToRequest(data);
       writeMappedRecordToSafetyCaches({
@@ -150,8 +173,13 @@ export function useUpdateWorkInitiation(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: WorkInitiationUpdate) =>
-      workInitiationsApi.update(id, payload),
+    mutationFn: ({
+      payload,
+      attachments = [],
+    }: {
+      payload: WorkInitiationUpdate;
+      attachments?: File[];
+    }) => workInitiationsApi.update(id, payload, attachments),
     onSuccess: async (data) => {
       const updated = mapWorkInitiationToRequest(data);
       writeMappedRecordToSafetyCaches({

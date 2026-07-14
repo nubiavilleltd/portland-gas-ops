@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, GitBranch, CheckCircle2 } from "lucide-react";
+import { GitBranch, CheckCircle2 } from "lucide-react";
+import { BackButton } from "@/components/ui/BackButton";
 import { createPortal } from "react-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import FormSection from "@/components/ui/FormSection";
@@ -156,14 +156,7 @@ export default function NewWorkflowPage() {
         />
       )}
 
-      <div className="mb-4">
-        <Link
-          href="/admin/workflows"
-          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-        >
-          <ArrowLeft size={14} /> Back to Workflows
-        </Link>
-      </div>
+      <BackButton href="/admin/workflows" label="Back to Workflows" />
 
       <div className="bg-white border border-brand-border rounded-2xl px-6 py-5 mb-5">
         <p className="text-xs font-semibold uppercase tracking-widest text-brand-text-secondary mb-1">New Workflow</p>

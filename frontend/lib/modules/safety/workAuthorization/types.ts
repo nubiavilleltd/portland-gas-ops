@@ -45,7 +45,9 @@ export interface WorkAuthorizationCreate {
 export type WorkAuthorizationUpdate = Omit<
   WorkAuthorizationCreate,
   "work_initiation_id"
->;
+> & {
+  retained_attachment_ids?: string[] | null;
+};
 
 export interface WorkAuthorizationHseReviewCreate {
   work_area_safe: WorkAuthorizationInspectionCheck;
