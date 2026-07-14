@@ -272,7 +272,18 @@ class InventoryRepository:
             .filter(OrderItemInventory.order_item_id == order_item_id)
             .all()
         )
+    
+    def get_allocated_inventory_for_trip(
+        self,
+        db: Session,
+        trip_id: str,
+    ) -> List[InventoryItem]:
 
+        return (
+            db.query(InventoryItem)
+            .filter(InventoryItem.trip_id == trip_id)
+            .all()
+        )
     # -------------------------------------------------------------------------
     # Inventory Status Updates
     # -------------------------------------------------------------------------

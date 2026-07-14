@@ -508,44 +508,38 @@ class InventoryService:
         trip_id: str,
     ) -> None:
         """
-        Releases every inventory item that was checked out for a trip
-        back into available inventory.
+        Releases every inventory item allocated to a trip.
 
-        Used when a dispatched/in-transit trip is cancelled.
+        If the trip was cancelled before dispatch,
+        reserved items become available.
+
+        If the trip was cancelled after dispatch,
+        checked-out items become available.
+
+        Other statuses are ignored.
         """
 
-        movements = self.repo.get_trip_checkout_movements(
+        items = self.repo.get_allocated_inventory_for_trip(
             db=db,
             trip_id=trip_id,
         )
 
-        for movement in movements:
+        for item in items:
 
-            item_ids = self.repo.get_inventory_item_ids_for_movement(
+            if item.status not in (
+                InventoryItemStatus.reserved,
+                InventoryItemStatus.checked_out,
+            ):
+                continue
+
+            self.repo.update_inventory_item(
                 db=db,
-                movement_id=movement.id,
+                item=item,
+                status=InventoryItemStatus.available,
+                disposition=None,
+                order_id=None,
+                trip_id=None,
+                customer_id=None,
+                checked_out_at=None,
+                expected_return_date=None,
             )
-
-            for item_id in item_ids:
-
-                item = self.get_item_or_raise(
-                    db=db,
-                    item_id=item_id,
-                )
-
-                if item.status != InventoryItemStatus.checked_out:
-                    continue
-
-                self.repo.update_inventory_item(
-                    db=db,
-                    item=item,
-                    status=InventoryItemStatus.available,
-                    disposition=None,
-                    order_id=None,
-                    trip_id=None,
-                    customer_id=None,
-                    checked_out_at=None,
-                    expected_return_date=None,
-                )
-
-
