@@ -1,3 +1,7 @@
+"""
+Setups service — CRUD for Departments, Groups and Group Members.
+"""
+
 import uuid
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
@@ -54,8 +58,24 @@ def update_department(dept_id: str, data: DepartmentUpdate, db: Session) -> Depa
 
 # ── Groups ─────────────────────────────────────────────────────────────────────
 
-def list_groups(db: Session) -> list[dict]:
-    groups = db.query(Group).options(joinedload(Group.members)).order_by(Group.name.asc()).all()
+def _get_group_or_404(group_id: str, db: Session) -> Group:
+    g = db.query(Group).filter(Group.id == group_id).first()
+    if not g:
+        raise HTTPException(404, "Group not found")
+    return g
+
+
+def list_groups(db: Session) -> list:
+    rows = (
+        db.query(
+            Group,
+            func.count(GroupMember.id).label("member_count"),
+        )
+        .outerjoin(GroupMember, GroupMember.group_id == Group.id)
+        .group_by(Group.id)
+        .order_by(Group.name)
+        .all()
+    )
     return [
         {
             "id":           g.id,
@@ -63,11 +83,23 @@ def list_groups(db: Session) -> list[dict]:
             "description":  g.description,
             "group_type":   g.group_type,
             "is_active":    g.is_active,
-            "member_count": len(g.members),
+            "member_count": count,
             "created_at":   g.created_at,
         }
-        for g in groups
+        for g, count in rows
     ]
+
+
+def create_group(data: GroupCreate, actor_employee_id: str, db: Session) -> Group:
+    g = Group(
+        id=str(uuid.uuid4()),
+        name=data.name,
+        description=data.description,
+        group_type=data.group_type,
+        created_by=actor_employee_id,
+    )
+    db.add(g)
+    return g
 
 
 def get_group(group_id: str, db: Session) -> dict:
@@ -85,18 +117,25 @@ def get_group(group_id: str, db: Session) -> dict:
         .first()
     )
     if not g:
-        raise HTTPException(status_code=404, detail="Group not found")
+        raise HTTPException(404, "Group not found")
 
     members = []
     for m in g.members:
         emp = m.employee
+        if not emp:
+            continue
+        name = (
+            emp.user.full_name
+            if emp.user and emp.user.full_name
+            else emp.employee_no
+        )
         members.append({
             "id":            m.id,
             "employee_id":   m.employee_id,
-            "employee_name": emp.user.full_name if emp and emp.user else "—",
-            "employee_no":   emp.employee_no if emp else "—",
-            "job_title":     emp.job_title if emp else None,
-            "department":    emp.department_rel.name if emp and emp.department_rel else None,
+            "employee_name": name,
+            "employee_no":   emp.employee_no,
+            "job_title":     emp.job_title,
+            "department":    emp.department_rel.name if emp.department_rel else None,
         })
 
     return {
@@ -110,67 +149,59 @@ def get_group(group_id: str, db: Session) -> dict:
     }
 
 
-def _get_group_or_404(group_id: str, db: Session) -> Group:
-    g = db.query(Group).filter(Group.id == group_id).first()
-    if not g:
-        raise HTTPException(status_code=404, detail="Group not found")
-    return g
-
-
-def create_group(data: GroupCreate, db: Session) -> Group:
-    g = Group(
-        id=str(uuid.uuid4()),
-        name=data.name,
-        description=data.description,
-        group_type=data.group_type,
-    )
-    db.add(g)
-    db.commit()
-    db.refresh(g)
-    return g
-
-
 def update_group(group_id: str, data: GroupUpdate, db: Session) -> Group:
     g = _get_group_or_404(group_id, db)
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(g, field, value)
-    db.commit()
-    db.refresh(g)
+    if data.name        is not None: g.name        = data.name
+    if data.description is not None: g.description = data.description
+    if data.group_type  is not None: g.group_type  = data.group_type
+    if data.is_active   is not None: g.is_active   = data.is_active
     return g
 
 
 def add_group_member(group_id: str, data: AddMember, db: Session) -> dict:
     _get_group_or_404(group_id, db)
 
-    emp = db.query(Employee).filter(Employee.id == data.employee_id).first()
+    # Accept employee_id (UUID) or employee_no
+    emp = (
+        db.query(Employee)
+        .filter(
+            (Employee.id == data.employee_id)
+            | (Employee.employee_no == data.employee_id)
+        )
+        .options(joinedload(Employee.user), joinedload(Employee.department_rel))
+        .first()
+    )
     if not emp:
-        emp = db.query(Employee).filter(Employee.employee_no == data.employee_id).first()
-    if not emp:
-        raise HTTPException(status_code=404, detail="Employee not found")
+        raise HTTPException(404, "Employee not found")
 
     existing = (
         db.query(GroupMember)
-        .filter(GroupMember.group_id == group_id, GroupMember.employee_id == emp.id)
+        .filter(
+            GroupMember.group_id    == group_id,
+            GroupMember.employee_id == emp.id,
+        )
         .first()
     )
     if existing:
-        raise HTTPException(status_code=409, detail="Employee is already a member of this group")
+        raise HTTPException(409, "Employee is already a member of this group")
 
-    member = GroupMember(
+    m = GroupMember(
         id=str(uuid.uuid4()),
         group_id=group_id,
         employee_id=emp.id,
     )
-    db.add(member)
+    db.add(m)
     db.flush()
 
-    # Load department_rel
-    db.refresh(emp)
-
+    name = (
+        emp.user.full_name
+        if emp.user and emp.user.full_name
+        else emp.employee_no
+    )
     return {
-        "id":            member.id,
+        "id":            m.id,
         "employee_id":   emp.id,
-        "employee_name": emp.user.full_name if emp.user else "—",
+        "employee_name": name,
         "employee_no":   emp.employee_no,
         "job_title":     emp.job_title,
         "department":    emp.department_rel.name if emp.department_rel else None,
@@ -184,5 +215,5 @@ def remove_group_member(group_id: str, member_id: str, db: Session) -> None:
         .first()
     )
     if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
+        raise HTTPException(404, "Member not found")
     db.delete(member)

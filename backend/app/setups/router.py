@@ -1,9 +1,29 @@
+"""
+Setups router — /api/setups
+
+Departments (any authenticated user can read; admin to write):
+  GET    /departments               list all departments
+  GET    /departments/{id}          department detail
+  POST   /departments               create department
+  PATCH  /departments/{id}          update department
+
+Groups (admin only):
+  GET    /groups                    list all groups
+  POST   /groups                    create group
+  GET    /groups/{group_id}         group detail + members
+  PATCH  /groups/{group_id}         update group
+  POST   /groups/{group_id}/members       add member
+  DELETE /groups/{group_id}/members/{id}  remove member
+"""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from typing import List
 
 from app.core.database import get_db
-from app.shared.dependencies import get_current_user, require_admin
+from app.shared.dependencies import get_current_user, require_admin, require_roles
 from app.shared.models.user import User
+from app.employees.service import get_employee_by_user_id
 from app.setups import service
 from app.setups.schemas import (
     DepartmentCreate, DepartmentUpdate, DepartmentListItem, DepartmentDetail,
@@ -12,13 +32,14 @@ from app.setups.schemas import (
 
 router = APIRouter()
 
-_admin = Depends(require_admin)
-_user  = Depends(get_current_user)
+_admin     = Depends(require_admin)
+_any_admin = Depends(require_roles("admin", "super_admin"))
+_user      = Depends(get_current_user)
 
 
 # ── Departments ────────────────────────────────────────────────────────────────
 
-@router.get("/departments", response_model=list[DepartmentListItem])
+@router.get("/departments", response_model=List[DepartmentListItem])
 def list_departments(
     active_only: bool = False,
     db: Session = Depends(get_db),
@@ -57,10 +78,10 @@ def update_department(
 
 # ── Groups ─────────────────────────────────────────────────────────────────────
 
-@router.get("/groups", response_model=list[GroupListItem])
+@router.get("/groups", response_model=List[GroupListItem])
 def list_groups(
     db: Session = Depends(get_db),
-    current_user: User = _admin,
+    current_user: User = _any_admin,
 ):
     return service.list_groups(db)
 
@@ -69,16 +90,28 @@ def list_groups(
 def create_group(
     data: GroupCreate,
     db: Session = Depends(get_db),
-    current_user: User = _admin,
+    current_user: User = _any_admin,
 ):
-    return service.create_group(data, db)
+    emp = get_employee_by_user_id(current_user.id, db)
+    g = service.create_group(data, emp.id, db)
+    db.commit()
+    db.refresh(g)
+    return {
+        "id":          g.id,
+        "name":        g.name,
+        "description": g.description,
+        "group_type":  g.group_type,
+        "is_active":   g.is_active,
+        "created_at":  g.created_at,
+        "members":     [],
+    }
 
 
 @router.get("/groups/{group_id}", response_model=GroupDetail)
 def get_group(
     group_id: str,
     db: Session = Depends(get_db),
-    current_user: User = _admin,
+    current_user: User = _any_admin,
 ):
     return service.get_group(group_id, db)
 
@@ -88,27 +121,31 @@ def update_group(
     group_id: str,
     data: GroupUpdate,
     db: Session = Depends(get_db),
-    current_user: User = _admin,
+    current_user: User = _any_admin,
 ):
-    svc_result = service.update_group(group_id, data, db)
-    return service.get_group(svc_result.id, db)
+    service.update_group(group_id, data, db)
+    db.commit()
+    return service.get_group(group_id, db)
 
 
 @router.post("/groups/{group_id}/members", response_model=MemberOut, status_code=201)
-def add_member(
+def add_group_member(
     group_id: str,
     data: AddMember,
     db: Session = Depends(get_db),
-    current_user: User = _admin,
+    current_user: User = _any_admin,
 ):
-    return service.add_group_member(group_id, data, db)
+    result = service.add_group_member(group_id, data, db)
+    db.commit()
+    return result
 
 
 @router.delete("/groups/{group_id}/members/{member_id}", status_code=204)
-def remove_member(
+def remove_group_member(
     group_id: str,
     member_id: str,
     db: Session = Depends(get_db),
-    current_user: User = _admin,
+    current_user: User = _any_admin,
 ):
     service.remove_group_member(group_id, member_id, db)
+    db.commit()

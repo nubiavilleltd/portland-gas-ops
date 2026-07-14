@@ -38,7 +38,7 @@ export function useCreateGroup() {
 export function useUpdateGroup(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name?: string; description?: string; is_active?: boolean }) =>
+    mutationFn: (data: { name?: string; description?: string; group_type?: string; is_active?: boolean }) =>
       patch(`/api/setups/groups/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: setupsKeys.groups() });
@@ -59,8 +59,7 @@ export function useAddGroupMember(groupId: string) {
 export function useRemoveGroupMember(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (memberId: string) =>
-      del(`/api/setups/groups/${groupId}/members/${memberId}`),
+    mutationFn: (memberId: string) => del(`/api/setups/groups/${groupId}/members/${memberId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: setupsKeys.group(groupId) }),
   });
 }
