@@ -269,6 +269,8 @@ def create_leave_request(
 def list_leave_requests(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=200),
+    sort_by: str = Query("created_at", regex="^(created_at|start_date|end_date|days|status)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -303,7 +305,9 @@ def list_leave_requests(
     }
     ```
     """
-    leave_requests, total = service.get_all_leave_requests(db, skip=skip, limit=limit)
+    leave_requests, total = service.get_all_leave_requests(
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order
+    )
 
     return {
         "data": [LeaveRequestRead.model_validate(lr) for lr in leave_requests],

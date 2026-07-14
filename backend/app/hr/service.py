@@ -231,13 +231,23 @@ def get_all_leave_requests(
     db: Session,
     skip: int = 0,
     limit: int = 100,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
 ) -> Tuple[list[LeaveRequest], int]:
-    """Get all leave requests with pagination."""
+    """Get all leave requests with pagination and sorting."""
     query = db.query(LeaveRequest).options(
         joinedload(LeaveRequest.employee).joinedload(Employee.user),
         joinedload(LeaveRequest.leave_type),
         joinedload(LeaveRequest.reliever),
+        joinedload(LeaveRequest.document),
     )
+
+    # Apply sorting
+    sort_column = getattr(LeaveRequest, sort_by, LeaveRequest.created_at)
+    if sort_order.lower() == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
 
     total = query.count()
     leave_requests = query.offset(skip).limit(limit).all()
@@ -251,6 +261,7 @@ def get_leave_request_by_reference(db: Session, reference: str) -> LeaveRequest:
         joinedload(LeaveRequest.employee).joinedload(Employee.user),
         joinedload(LeaveRequest.leave_type),
         joinedload(LeaveRequest.reliever),
+        joinedload(LeaveRequest.document),
     ).filter(LeaveRequest.reference == reference).first()
 
     if not leave_request:

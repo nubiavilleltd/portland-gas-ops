@@ -67,7 +67,11 @@ export default function LeaveRequestsPage() {
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 
   const createLeaveRequest = useCreateLeaveRequest();
-  const { data: leaveRequestsResponse, isLoading: isLoadingRequests } = useLeaveRequests({ limit: 100 });
+  const { data: leaveRequestsResponse, isLoading: isLoadingRequests } = useLeaveRequests({
+    limit: 100,
+    sort_by: "created_at",
+    sort_order: "desc"
+  });
   const items = leaveRequestsResponse?.data || [];
 
   const { data: employees = [] } = useEmployees({ limit: 200 });
@@ -260,7 +264,7 @@ export default function LeaveRequestsPage() {
             <DataTable
               columns={leaveRequestColumns}
               data={items}
-              rowHref={(row) => `/hr-management/leave-requests/${row.id}`}
+              rowHref={(row) => `/hr-management/leave-requests/${row.ref}`}
               emptyMessage="No leave requests yet"
               emptyDescription="Submit your first leave request to get started"
             />

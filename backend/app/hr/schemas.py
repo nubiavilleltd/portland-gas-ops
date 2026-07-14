@@ -3,6 +3,16 @@ from typing import Optional, List
 from datetime import datetime, date
 
 
+class DocumentInfo(BaseModel):
+    id: int
+    name: str
+    file_path: Optional[str] = None
+    mime_type: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # ── Leave Type Schemas ───────────────────────────────────────────────────────
 
 # ── Create (HR admin submits this) ───────────────────────────────────────────
@@ -59,13 +69,16 @@ class LeaveRequestRead(BaseModel):
     employee_no: Optional[str] = None
     requester_id: Optional[str] = None
     requester_name: Optional[str] = None
+    requester_job_title: Optional[str] = None
     leave_type_id: int
     leave_type_name: Optional[str] = None
     reliever_id: Optional[str] = None
     reliever_name: Optional[str] = None
     request_type: Optional[str] = None
     department: Optional[str] = None
+    job_title: Optional[str] = None
     employee_department: Optional[str] = None
+    document: Optional[DocumentInfo] = None
     start_date: date
     end_date: date
     days: int

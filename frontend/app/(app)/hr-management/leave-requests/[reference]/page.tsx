@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Paperclip, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -9,9 +9,10 @@ import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
 import { useToast } from "@/hooks/useToast";
+import { useLeaveRequest } from "@/lib/modules/leave-requests/hooks";
 import { LEAVE_STORE, type LeaveRequest } from "../../_components/_data";
 
 const CURRENT_USER = {
@@ -40,13 +41,41 @@ const ROLE_OPTIONS: { value: PageRole; label: string }[] = [
 export default function LeaveRequestDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ reference: string }>;
 }) {
-  const { id } = use(params);
+  const { reference } = use(params);
+  const { data: apiRecord, isLoading } = useLeaveRequest(reference);
 
   const [record, setRecord] = useState<LeaveRequest | undefined>(
-    () => LEAVE_STORE.find((r) => r.id === id)
+    () => LEAVE_STORE.find((r) => r.ref === reference)
   );
+
+  // Update record when API data loads
+  useEffect(() => {
+    if (apiRecord) {
+      // Adapt API response to LeaveRequest format
+      const adaptedRecord: LeaveRequest = {
+        id: apiRecord.id,
+        ref: apiRecord.reference,
+        employee: apiRecord.employee_name || "—",
+        requester: apiRecord.requester_name || "—",
+        requesterJobTitle: apiRecord.requester_job_title,
+        type: apiRecord.leave_type_name || "—",
+        department: apiRecord.department || "—",
+        startDate: apiRecord.start_date,
+        endDate: apiRecord.end_date,
+        days: apiRecord.days,
+        reliever: apiRecord.reliever_name || "—",
+        reason: apiRecord.reason,
+        status: (apiRecord.status.toLowerCase() as any) || "draft",
+        date: formatDateTime(apiRecord.created_at),
+        requestType: apiRecord.request_type || "self",
+        jobTitle: apiRecord.job_title,
+        supportingDocuments: apiRecord.document ? [apiRecord.document.name] : [],
+      };
+      setRecord(adaptedRecord);
+    }
+  }, [apiRecord]);
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
@@ -72,10 +101,19 @@ export default function LeaveRequestDetailPage({
 
       {!record ? (
         <div className="bg-brand-card border border-brand-border rounded-2xl p-8 text-center max-w-lg">
-          <p className="text-brand-text-primary font-semibold">Record not found</p>
-          <p className="text-brand-text-secondary text-sm mt-1">
-            No leave request found for ID <span className="font-mono">{id}</span>.
-          </p>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border border-brand-purple border-t-transparent"></div>
+              <p className="text-brand-text-secondary text-sm mt-4">Loading leave request...</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-brand-text-primary font-semibold">Record not found</p>
+              <p className="text-brand-text-secondary text-sm mt-1">
+                No leave request found for <span className="font-mono">{reference}</span>.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-5">
@@ -96,8 +134,8 @@ export default function LeaveRequestDetailPage({
           <ViewSection title="Requester Details" description="Your employee information for this leave request.">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormInput label="Requester Name"  value={record.requester ?? record.employee} />
-              <FormInput label="Department"       value={CURRENT_USER.department} />
-              <FormInput label="Job Title / Role" value={CURRENT_USER.title}      />
+              <FormInput label="Department"       value={record.department} />
+              <FormInput label="Job Title / Role" value={record.requesterJobTitle || "—"}      />
               <FormInput label="Request Date"     value={record.date}             />
             </div>
           </ViewSection>

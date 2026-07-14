@@ -116,6 +116,20 @@ class LeaveRequest(Base):
             return f"{self.requester.first_name} {self.requester.last_name}".strip()
         return None
 
+    @property
+    def requester_job_title(self) -> Optional[str]:
+        # Get requester's job title through their employee record
+        if self.requester:
+            # Query the employee record for this user
+            from sqlalchemy.orm import object_session
+            from app.employees.models import Employee
+            session = object_session(self)
+            if session:
+                employee = session.query(Employee).filter(Employee.user_id == self.requester.id).first()
+                if employee:
+                    return employee.job_title
+        return None
+
 
 class LeaveBalance(Base):
     __tablename__ = "leave_balance"

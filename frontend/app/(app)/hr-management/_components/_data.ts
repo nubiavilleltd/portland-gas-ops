@@ -86,6 +86,7 @@ export interface LeaveRequest {
   ref: string;
   requestType?: "self" | "others";
   requester?: string;
+  requesterJobTitle?: string;
   employee: string;
   jobTitle?: string;
   type: string;

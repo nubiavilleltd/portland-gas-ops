@@ -1,3 +1,10 @@
+export interface DocumentInfo {
+  id: number;
+  name: string;
+  file_path?: string;
+  mime_type?: string;
+}
+
 export interface LeaveRequestListItem {
   id: string;
   reference: string;
@@ -6,12 +13,15 @@ export interface LeaveRequestListItem {
   employee_no?: string;
   requester_id?: string;
   requester_name?: string;
+  requester_job_title?: string;
   leave_type_id: number;
   leave_type_name?: string;
   reliever_id?: string;
   reliever_name?: string;
   request_type?: string;
   department?: string;
+  job_title?: string;
+  document?: DocumentInfo;
   start_date: string;
   end_date: string;
   days: number;
@@ -44,4 +54,6 @@ export interface LeaveRequestListResponse {
 export interface ListLeaveRequestsParams {
   skip?: number;
   limit?: number;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
 }
