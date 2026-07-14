@@ -156,7 +156,7 @@ def forgot_password(email: str, db: Session) -> dict:
         user.setup_token_expires_at = expires_at
         db.commit()
 
-        frontend_url = settings.ALLOWED_ORIGINS[0]
+        frontend_url = settings.FRONTEND_URL.rstrip("/")
         reset_link   = f"{frontend_url}/reset-password?user_id={user.id}&token={token}"
         name = user.first_name or user.name or user.email
         send_forgot_password(user.email, name, reset_link)

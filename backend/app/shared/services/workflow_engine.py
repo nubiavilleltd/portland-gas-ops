@@ -380,6 +380,20 @@ class WorkflowEngine:
             reference_id=request_id,
         )
 
+        # Notify the requester that their submission is now in the approval queue
+        notification_service.create_notification(
+            db=self.db,
+            recipient_id=requester.id,
+            type=NotificationType.approval_required,
+            title="Request Submitted",
+            message=(
+                f"Your {request_type} request \"{title}\" has been submitted "
+                f"and is pending approval at Step {first_step.step_number}: {first_step.step_name}."
+            ),
+            reference_type=request_type,
+            reference_id=request_id,
+        )
+
         self._audit(
             workflow_id=wf.id,
             request_id=request_id,
@@ -475,6 +489,27 @@ class WorkflowEngine:
                 reference_type=approval_req.request_type,
                 reference_id=approval_req.request_id,
             )
+
+            # Notify the requester of mid-flow progress
+            requester_emp_mid = (
+                self.db.query(Employee)
+                .filter(Employee.id == approval_req.submitted_by)
+                .first()
+            )
+            if requester_emp_mid:
+                notification_service.create_notification(
+                    db=self.db,
+                    recipient_id=requester_emp_mid.id,
+                    type=NotificationType.approval_required,
+                    title="Request Update",
+                    message=(
+                        f"Your {approval_req.request_type} request has been approved at "
+                        f"Step {current_step.step_number} ({current_step.step_name}) "
+                        f"and is now pending Step {next_step.step_number}: {next_step.step_name}."
+                    ),
+                    reference_type=approval_req.request_type,
+                    reference_id=approval_req.request_id,
+                )
         else:
             # Final step approved — workflow complete
             approval_req.overall_status = ApprovalOverallStatus.approved

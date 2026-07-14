@@ -6,10 +6,11 @@ import { Plus, GitBranch, Pencil, ToggleLeft, ToggleRight, Trash2 } from "lucide
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import EmptyState from "@/components/ui/EmptyState";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
+import Tip from "@/components/ui/Tip";
+import { BackButton } from "@/components/ui/BackButton";
 import { useWorkflows, useUpdateWorkflow, useDeleteWorkflow } from "@/lib/modules/workflow";
 import { useToast } from "@/hooks/useToast";
 import { formatDate } from "@/lib/utils";
@@ -114,30 +115,33 @@ export default function WorkflowsPage() {
       label: "",
       render: (wf) => (
         <div className="flex items-center gap-1">
-          <Link
-            href={`/admin/workflows/${wf.id}`}
-            title="Edit workflow"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
-          >
-            <Pencil size={14} />
-          </Link>
-          <button
-            type="button"
-            title={wf.is_active ? "Deactivate" : "Activate"}
-            onClick={(e) => { e.stopPropagation(); setToggleTarget(wf); }}
-            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
-          >
-            {wf.is_active ? <ToggleRight size={16} className="text-green-600" /> : <ToggleLeft size={16} />}
-          </button>
-          <button
-            type="button"
-            title="Delete workflow"
-            onClick={(e) => { e.stopPropagation(); setDeleteTarget(wf); }}
-            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
-          >
-            <Trash2 size={14} />
-          </button>
+          <Tip label="Edit Workflow">
+            <Link
+              href={`/admin/workflows/${wf.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+            >
+              <Pencil size={14} />
+            </Link>
+          </Tip>
+          <Tip label={wf.is_active ? "Deactivate" : "Activate"}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setToggleTarget(wf); }}
+              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+            >
+              {wf.is_active ? <ToggleRight size={16} className="text-green-600" /> : <ToggleLeft size={16} />}
+            </button>
+          </Tip>
+          <Tip label="Delete Workflow">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setDeleteTarget(wf); }}
+              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <Trash2 size={14} />
+            </button>
+          </Tip>
         </div>
       ),
     },
@@ -145,23 +149,22 @@ export default function WorkflowsPage() {
 
   return (
     <AppLayout pageTitle="Admin — Workflows">
+      <BackButton href="/admin" label="Back to Admin" />
       <PageHeader
         title="Approval Workflows"
         description="Create and manage multi-step approval chains for procurement, assets, and more"
         action={
           <div className="flex items-center gap-2">
-            <Button href="/admin/workflows/assignments" variant="outline" size="sm">Assignments</Button>
-            <Button href="/admin/workflows/groups" variant="outline" size="sm">Approver Groups</Button>
+            <Button href="/admin/workflows/assignments?from=workflows" variant="outline" size="sm">Assignments</Button>
+            <Button href="/admin/workflows/groups?from=workflows" variant="outline" size="sm">Approver Groups</Button>
             <Button href="/admin/workflows/new" leftIcon={<Plus size={15} />} size="sm">New Workflow</Button>
           </div>
         }
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
-      ) : isError ? (
+      {isError ? (
         <div className="text-center py-20 text-brand-text-secondary">Failed to load workflows.</div>
-      ) : workflows.length === 0 ? (
+      ) : !isLoading && workflows.length === 0 ? (
         <EmptyState
           title="No workflows yet"
           description="Create your first approval workflow to start routing requests through approvers."
@@ -171,6 +174,7 @@ export default function WorkflowsPage() {
         <DataTable
           columns={COLUMNS}
           data={workflows}
+          isLoading={isLoading}
           rowHref={(wf) => `/admin/workflows/${wf.id}`}
           emptyMessage="No workflows found."
           searchable={false}

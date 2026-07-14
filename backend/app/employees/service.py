@@ -113,7 +113,7 @@ def create_employee(data: EmployeeCreate, db: Session) -> Employee:
     db.refresh(employee)
 
     # 5. Send setup email
-    frontend_url = settings.ALLOWED_ORIGINS[0]
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
     setup_link   = f"{frontend_url}/setup-account?user_id={user.id}&token={token}"
     send_account_setup(
         to_email   = user.email,
@@ -352,7 +352,7 @@ def resend_setup_email(employee_id: str, db: Session) -> dict:
     emp.user.setup_token_expires_at = expires_at
     db.commit()
 
-    frontend_url = settings.ALLOWED_ORIGINS[0]
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
     setup_link   = f"{frontend_url}/setup-account?user_id={emp.user_id}&token={token}"
     send_account_setup(
         to_email   = emp.user.email,
