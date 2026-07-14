@@ -88,13 +88,13 @@ export function useReorderSteps(workflowId: string) {
   });
 }
 
-// ── Approver Groups ────────────────────────────────────────────────────────────
+// ── Approver Groups (now backed by /api/setups/groups) ────────────────────────
 
 export function useCreateApproverGroup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string; description?: string }) =>
-      post("/api/workflow/groups", data),
+      post("/api/setups/groups", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: workflowKeys.groups() }),
   });
 }
@@ -103,7 +103,7 @@ export function useUpdateApproverGroup(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name?: string; description?: string; is_active?: boolean }) =>
-      patch(`/api/workflow/groups/${id}`, data),
+      patch(`/api/setups/groups/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: workflowKeys.groups() });
       qc.invalidateQueries({ queryKey: workflowKeys.group(id) });
@@ -115,7 +115,7 @@ export function useAddGroupMember(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (employeeId: string) =>
-      post(`/api/workflow/groups/${groupId}/members`, { employee_id: employeeId }),
+      post(`/api/setups/groups/${groupId}/members`, { employee_id: employeeId }),
     onSuccess: () => qc.invalidateQueries({ queryKey: workflowKeys.group(groupId) }),
   });
 }
@@ -123,7 +123,7 @@ export function useAddGroupMember(groupId: string) {
 export function useRemoveGroupMember(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (memberId: string) => del(`/api/workflow/groups/${groupId}/members/${memberId}`),
+    mutationFn: (memberId: string) => del(`/api/setups/groups/${groupId}/members/${memberId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: workflowKeys.group(groupId) }),
   });
 }

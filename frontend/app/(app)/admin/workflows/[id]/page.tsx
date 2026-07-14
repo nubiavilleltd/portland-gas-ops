@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { BackButton } from "@/components/ui/BackButton";
 import AppLayout from "@/components/layout/AppLayout";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
@@ -295,7 +294,30 @@ export default function WorkflowDetailPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  if (isLoading) return <AppLayout pageTitle="Admin — Workflows"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
+  if (isLoading) return (
+    <AppLayout pageTitle="Admin — Workflows">
+      <div className="h-8 w-24 bg-gray-200 rounded-lg mb-5 animate-pulse" />
+      {/* Header card skeleton */}
+      <div className="bg-white border border-brand-border rounded-2xl px-6 py-5 mb-5 animate-pulse">
+        <div className="h-3 w-32 bg-gray-200 rounded mb-3" />
+        <div className="h-7 w-64 bg-gray-200 rounded mb-2" />
+        <div className="h-3 w-48 bg-gray-100 rounded" />
+      </div>
+      {/* Steps skeleton */}
+      <div className="bg-white border border-brand-border rounded-2xl p-6 animate-pulse space-y-3">
+        <div className="h-4 w-40 bg-gray-200 rounded mb-4" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-4 border border-brand-border rounded-xl">
+            <div className="h-7 w-7 rounded-full bg-gray-200 shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-48 bg-gray-200 rounded" />
+              <div className="h-2.5 w-24 bg-gray-100 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </AppLayout>
+  );
 
   if (isError || !wf) {
     return (

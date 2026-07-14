@@ -1,11 +1,12 @@
 from fastapi import HTTPException, status
 
-from app.employees.models import Department, Employee
+from app.employees.models import Employee
 
 
 def require_safety_operations_approver(employee: Employee) -> Employee:
     if (
-        employee.department == Department.operations
+        employee.department_rel
+        and employee.department_rel.code == "operations"
         and (employee.job_title or "").strip() == "Process Manager"
     ):
         return employee
@@ -20,7 +21,7 @@ def require_safety_operations_approver(employee: Employee) -> Employee:
 
 
 def require_safety_hse_reviewer(employee: Employee) -> Employee:
-    if employee.department == Department.safety:
+    if employee.department_rel and employee.department_rel.code == "safety":
         return employee
 
     raise HTTPException(

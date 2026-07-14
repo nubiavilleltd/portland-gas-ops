@@ -323,7 +323,7 @@ class WorkflowEngine:
                 request_id=request_id,
                 title=title,
                 raised_by=requester.id,
-                department=requester.department.value if requester.department else None,
+                department=requester.department_rel.name if requester.department_rel else None,
                 status=AllRequestStatus.pending,
             )
             self.db.add(all_req)
