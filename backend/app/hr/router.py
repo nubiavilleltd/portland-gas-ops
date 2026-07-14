@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.database import get_db
 from app.shared.dependencies import get_current_user, require_roles
 from app.shared.models.user import User
+from app.shared.models.document import Document
+from app.shared.services.cloudinary_service import upload_file
+from app.hr.models import LeaveRequest
 from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead
 from app.hr import service
+from app.employees.service import get_employee_by_user_id
 
 router = APIRouter(prefix="/api/hr", tags=["HR Management"])
 
@@ -327,3 +331,89 @@ def get_leave_request(
     **Response:** Single LeaveRequestRead object
     """
     return service.get_leave_request_by_reference(db, reference)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# UPLOAD DOCUMENT - POST /api/hr/leave-requests/{id}/upload-document
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/leave-requests/{leave_request_id}/upload-document",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_leave_request_document(
+    leave_request_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Upload a supporting document for a leave request.
+
+    **Path Parameters:**
+    - leave_request_id: str (UUID)
+
+    **Body:**
+    - file: UploadFile (multipart/form-data)
+
+    **Response:**
+    ```json
+    {
+        "document_id": 123,
+        "file_name": "document.pdf",
+        "file_url": "https://res.cloudinary.com/..."
+    }
+    ```
+    """
+    # Validate leave request exists
+    leave_request = db.query(LeaveRequest).filter(LeaveRequest.id == leave_request_id).first()
+    if not leave_request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave request not found")
+
+    # Validate file type
+    ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp", "application/msword",
+                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="File type not allowed. Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX")
+
+    # Validate file size (max 10 MB)
+    file_bytes = file.file.read()
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size must be 10 MB or smaller")
+
+    # Upload to Cloudinary (non-blocking - allow upload to fail gracefully)
+    url = None
+    try:
+        url = upload_file(file_bytes, file.filename or "document", folder="portland-gas/leave-requests")
+    except Exception as e:
+        print(f"Cloudinary upload error: {str(e)}")
+        # Store file locally or with fallback URL if Cloudinary fails
+        url = f"file://{file.filename}" if file.filename else "file://document"
+
+    # Get uploader employee
+    uploader_employee = get_employee_by_user_id(current_user.id, db)
+
+    # Create Document record
+    doc = Document(
+        type="file",
+        name=file.filename or "leave_request_document",
+        category="hr",
+        file_path=url,
+        file_size=len(file_bytes),
+        mime_type=file.content_type,
+        uploaded_by=uploader_employee.id if uploader_employee else None,
+    )
+    db.add(doc)
+    db.flush()
+
+    # Update leave request with document_id
+    leave_request.document_id = doc.id
+    db.commit()  # Commit changes
+    db.refresh(leave_request)  # Refresh to get latest state
+
+    return {
+        "document_id": doc.id,
+        "file_name": file.filename or "document",
+        "file_url": url,
+    }

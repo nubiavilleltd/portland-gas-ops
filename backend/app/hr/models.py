@@ -5,6 +5,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from typing import Optional
 import uuid
 import enum
 
@@ -46,6 +47,11 @@ class LeaveRequestStatus(str, enum.Enum):
     denied = "denied"
 
 
+class LeaveRequestType(str, enum.Enum):
+    self = "self"
+    others = "others"
+
+
 class LeaveRequest(Base):
     __tablename__ = "leave_requests"
 
@@ -60,6 +66,7 @@ class LeaveRequest(Base):
     document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
 
     # Leave details
+    request_type = Column(SAEnum(LeaveRequestType), default=LeaveRequestType.self, nullable=False)
     department = Column(String(100), nullable=True)
     job_title = Column(String(150), nullable=True)
     start_date = Column(Date, nullable=False)
@@ -78,6 +85,36 @@ class LeaveRequest(Base):
     leave_type = relationship("LeaveTypeSetup")
     reliever = relationship("Employee", foreign_keys=[reliever_id])
     document = relationship("Document", foreign_keys=[document_id])
+
+    @property
+    def employee_name(self) -> Optional[str]:
+        if self.employee and self.employee.user:
+            return f"{self.employee.user.first_name} {self.employee.user.last_name}".strip()
+        return None
+
+    @property
+    def employee_no(self) -> Optional[str]:
+        return self.employee.employee_no if self.employee else None
+
+    @property
+    def leave_type_name(self) -> Optional[str]:
+        return self.leave_type.leave_type_name if self.leave_type else None
+
+    @property
+    def reliever_name(self) -> Optional[str]:
+        if self.reliever and self.reliever.user:
+            return f"{self.reliever.user.first_name} {self.reliever.user.last_name}".strip()
+        return None
+
+    @property
+    def employee_department(self) -> Optional[str]:
+        return self.department or (self.employee.department if self.employee else None)
+
+    @property
+    def requester_name(self) -> Optional[str]:
+        if self.requester and self.requester.first_name:
+            return f"{self.requester.first_name} {self.requester.last_name}".strip()
+        return None
 
 
 class LeaveBalance(Base):

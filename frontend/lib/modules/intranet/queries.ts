@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api";
-import type { NewsItem, NewsCategory, IntranetEvent, SpotlightEntry, SpotlightTag, LeadershipMessage } from "./types/intranet.types";
+import type { NewsItem, NewsCategory, IntranetEvent, SpotlightEntry, SpotlightTag, LeadershipMessage, FAQItem, FAQCategory, FeedbackEntry, PodcastEpisode } from "./types/intranet.types";
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 
@@ -19,6 +19,13 @@ export const intranetKeys = {
   spotlightTags:     () => ["intranet", "spotlight", "tags"] as const,
   leadership:        () => ["intranet", "leadership"] as const,
   leadershipAdmin:   () => ["intranet", "leadership", "admin"] as const,
+  faqCategories:     () => ["intranet", "faq", "categories"] as const,
+  faqs:              () => ["intranet", "faq"] as const,
+  faqsPublished:     () => ["intranet", "faq", "published"] as const,
+  feedbackAdmin:     () => ["intranet", "feedback", "admin"] as const,
+  podcast:           () => ["intranet", "podcast"] as const,
+  podcastAdmin:      () => ["intranet", "podcast", "admin"] as const,
+  podcastDetail:     (id: number) => ["intranet", "podcast", id] as const,
 };
 
 // ── Category queries ──────────────────────────────────────────────────────────
@@ -127,5 +134,73 @@ export function useIntranetSpotlightTags() {
     queryKey: intranetKeys.spotlightTags(),
     queryFn:  () => get<SpotlightTag[]>("/api/intranet/spotlight/tags"),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ── FAQ queries ───────────────────────────────────────────────────────────────
+
+/** Category list with visibility — used in admin sidebar and public intranet */
+export function useIntranetFAQCategories() {
+  return useQuery<FAQCategory[]>({
+    queryKey: intranetKeys.faqCategories(),
+    queryFn:  () => get<FAQCategory[]>("/api/intranet/faqs/categories/"),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** All FAQs including unpublished — admin only */
+export function useIntranetFAQsAdmin() {
+  return useQuery<FAQItem[]>({
+    queryKey: intranetKeys.faqs(),
+    queryFn:  () => get<FAQItem[]>("/api/intranet/faqs/"),
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Published FAQs only — intranet page */
+export function useIntranetFAQsPublished() {
+  return useQuery<FAQItem[]>({
+    queryKey: intranetKeys.faqsPublished(),
+    queryFn:  () => get<FAQItem[]>("/api/intranet/faqs/published/"),
+    staleTime: 60 * 1000,
+  });
+}
+
+/** All feedback submissions — admin only */
+export function useIntranetFeedbackAdmin() {
+  return useQuery<FeedbackEntry[]>({
+    queryKey: intranetKeys.feedbackAdmin(),
+    queryFn:  () => get<FeedbackEntry[]>("/api/intranet/feedback/"),
+    staleTime: 30 * 1000,
+  });
+}
+
+// ── Podcast queries ───────────────────────────────────────────────────────────
+
+/** Published episodes — used on the intranet podcast page */
+export function usePodcastsPublished() {
+  return useQuery<PodcastEpisode[]>({
+    queryKey: intranetKeys.podcast(),
+    queryFn:  () => get<PodcastEpisode[]>("/api/intranet/podcast/"),
+    staleTime: 60 * 1000,
+  });
+}
+
+/** All episodes including drafts — used on the admin page */
+export function usePodcastsAdmin() {
+  return useQuery<PodcastEpisode[]>({
+    queryKey: intranetKeys.podcastAdmin(),
+    queryFn:  () => get<PodcastEpisode[]>("/api/intranet/podcast/admin/"),
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Single published episode by id — used on the player page */
+export function usePodcastDetail(id: number) {
+  return useQuery<PodcastEpisode>({
+    queryKey: intranetKeys.podcastDetail(id),
+    queryFn:  () => get<PodcastEpisode>(`/api/intranet/podcast/${id}`),
+    enabled:  !!id,
+    staleTime: 60 * 1000,
   });
 }

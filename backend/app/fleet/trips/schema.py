@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 from app.fleet.trips.enums import TripType, TripStatus
+from app.inventory.enums import DispositionStatus
 
 
 class TripCreate(BaseModel):
@@ -25,6 +26,16 @@ class TripCreate(BaseModel):
 class TripAssignResources(BaseModel):
     driver_id: str
     vehicle_id: str
+
+class TripInventoryAssignment(BaseModel):
+    order_id: str
+    product_id: str
+    item_ids: list[str] = Field(min_length=1)
+    disposition: DispositionStatus
+
+
+class TripMarkReady(BaseModel):
+    assignments: list[TripInventoryAssignment] = Field(default_factory=list)
 
 
 class TripCancel(BaseModel):

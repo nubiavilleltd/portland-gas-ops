@@ -4,10 +4,14 @@ export interface LeaveRequestListItem {
   employee_id: string;
   employee_name?: string;
   employee_no?: string;
+  requester_id?: string;
+  requester_name?: string;
   leave_type_id: number;
   leave_type_name?: string;
   reliever_id?: string;
   reliever_name?: string;
+  request_type?: string;
+  department?: string;
   start_date: string;
   end_date: string;
   days: number;
@@ -25,6 +29,7 @@ export interface LeaveRequestCreatePayload {
   reliever_id: string;
   start_date: string;
   end_date: string;
+  request_type?: string;
   reason?: string;
   document_id?: number;
 }

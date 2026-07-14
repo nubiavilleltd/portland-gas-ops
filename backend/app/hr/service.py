@@ -212,13 +212,14 @@ def create_leave_request(
         leave_type_id=payload.leave_type_id,
         reliever_id=payload.reliever_id,
         document_id=payload.document_id,
+        request_type=payload.request_type,
         department=employee.department.value if employee.department else None,
         job_title=employee.job_title,
         start_date=payload.start_date,
         end_date=payload.end_date,
         days=days,
         reason=payload.reason,
-        status=LeaveRequestStatus.awaiting_approval,
+        status=LeaveRequestStatus.pending,
     )
 
     db.add(leave_request)

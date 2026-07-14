@@ -1,11 +1,12 @@
 import time
 import bleach
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, UploadFile
 
-from app.intranet.models import IntranetNews, IntranetNewsCategory, IntranetEvent, IntranetSpotlight, IntranetSpotlightTag, IntranetLeadershipMessage
-from app.intranet.schemas import NewsCreate, NewsUpdate, NewsCategoryCreate, SpotlightTagCreate, LeadershipCreate, LeadershipUpdate, EventCreate, EventUpdate, SpotlightCreate, SpotlightUpdate
+from app.intranet.models import IntranetNews, IntranetNewsCategory, IntranetEvent, IntranetSpotlight, IntranetSpotlightTag, IntranetLeadershipMessage, IntranetFAQ, IntranetFAQCategory, IntranetFeedback, IntranetPodcast
+from app.intranet.schemas import NewsCreate, NewsUpdate, NewsCategoryCreate, NewsCategoryUpdate, SpotlightTagCreate, SpotlightTagUpdate, LeadershipCreate, LeadershipUpdate, EventCreate, EventUpdate, SpotlightCreate, SpotlightUpdate, FAQCreate, FAQUpdate, FAQCategoryCreate, FAQCategoryUpdate, FeedbackCreate, PodcastCreate, PodcastUpdate
 from app.shared.models.document import Document
 from app.shared.services import cloudinary_service
 
@@ -22,8 +23,20 @@ _ALLOWED_TAGS = [
     "a", "hr", "span",
 ]
 
+_SAFE_HREF_SCHEMES = {"http", "https", ""}
+
+def _safe_href(tag: str, name: str, value: str) -> bool:
+    """Allow href only for safe URL schemes — blocks javascript:, data:, vbscript:, etc."""
+    if name == "href":
+        try:
+            scheme = urlparse(value).scheme.lower()
+            return scheme in _SAFE_HREF_SCHEMES or value.startswith("/") or value.startswith("#")
+        except Exception:
+            return False
+    return name in ("target", "rel")
+
 _ALLOWED_ATTRS: dict = {
-    "a":    ["href", "target", "rel"],
+    "a":    _safe_href,
     "span": ["style"],   # TipTap uses inline style for text colour/highlight
     "p":    ["style"],
 }
@@ -58,6 +71,22 @@ class IntranetNewsCategoryService:
         cat = IntranetNewsCategory(name=data.name, color=data.color)
         self.db.add(cat)
         self.db.flush()
+        return cat
+
+    def update(self, category_id: int, data: NewsCategoryUpdate) -> IntranetNewsCategory:
+        cat = self.db.query(IntranetNewsCategory).filter(IntranetNewsCategory.id == category_id).first()
+        if not cat:
+            raise HTTPException(status_code=404, detail="Category not found")
+        patch = data.model_dump(exclude_unset=True)
+        if "name" in patch:
+            conflict = self.db.query(IntranetNewsCategory).filter(
+                IntranetNewsCategory.name == patch["name"],
+                IntranetNewsCategory.id != category_id,
+            ).first()
+            if conflict:
+                raise HTTPException(status_code=400, detail="A category with this name already exists")
+        for field, value in patch.items():
+            setattr(cat, field, value)
         return cat
 
     def delete(self, category_id: int) -> None:
@@ -337,6 +366,22 @@ class IntranetSpotlightTagService:
         self.db.flush()
         return tag
 
+    def update(self, tag_id: int, data: SpotlightTagUpdate) -> IntranetSpotlightTag:
+        tag = self.db.query(IntranetSpotlightTag).filter(IntranetSpotlightTag.id == tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        patch = data.model_dump(exclude_unset=True)
+        if "label" in patch:
+            conflict = self.db.query(IntranetSpotlightTag).filter(
+                IntranetSpotlightTag.label == patch["label"],
+                IntranetSpotlightTag.id != tag_id,
+            ).first()
+            if conflict:
+                raise HTTPException(status_code=400, detail="A tag with this label already exists")
+        for field, value in patch.items():
+            setattr(tag, field, value)
+        return tag
+
     def delete(self, tag_id: int) -> None:
         tag = self.db.query(IntranetSpotlightTag).filter(IntranetSpotlightTag.id == tag_id).first()
         if not tag:
@@ -376,6 +421,8 @@ class IntranetLeadershipService:
         payload = data.model_dump()
         if payload.get("is_published") and not payload.get("published_at"):
             payload["published_at"] = datetime.now(timezone.utc)
+        if payload.get("body"):
+            payload["body"] = _sanitize_body(payload["body"])
         item = IntranetLeadershipMessage(**payload)
         self.db.add(item)
         self.db.flush()
@@ -386,6 +433,8 @@ class IntranetLeadershipService:
         patch = data.model_dump(exclude_unset=True)
         if patch.get("is_published") and not item.published_at:
             patch["published_at"] = datetime.now(timezone.utc)
+        if "body" in patch and patch["body"]:
+            patch["body"] = _sanitize_body(patch["body"])
         for field, value in patch.items():
             setattr(item, field, value)
         return item
@@ -407,3 +456,309 @@ class IntranetLeadershipService:
             item = self.db.query(IntranetLeadershipMessage).filter(IntranetLeadershipMessage.id == u["id"]).first()
             if item:
                 item.sort_order = u["sort_order"]
+
+
+# ── FAQ category service ───────────────────────────────────────────────────────
+
+class IntranetFAQCategoryService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list_all(self) -> list[IntranetFAQCategory]:
+        return (
+            self.db.query(IntranetFAQCategory)
+            .order_by(IntranetFAQCategory.sort_order.asc())
+            .all()
+        )
+
+    def _get_or_404(self, category_id: int) -> IntranetFAQCategory:
+        cat = self.db.query(IntranetFAQCategory).filter(IntranetFAQCategory.id == category_id).first()
+        if not cat:
+            raise HTTPException(status_code=404, detail="FAQ category not found")
+        return cat
+
+    def create(self, data: FAQCategoryCreate) -> IntranetFAQCategory:
+        existing = self.db.query(IntranetFAQCategory).filter(
+            IntranetFAQCategory.label == data.label
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="A category with this name already exists")
+        # Default sort_order to end of list if not specified
+        if data.sort_order == 0:
+            max_order = self.db.query(IntranetFAQCategory).count()
+            sort_order = max_order
+        else:
+            sort_order = data.sort_order
+        cat = IntranetFAQCategory(label=data.label, is_visible=True, sort_order=sort_order)
+        self.db.add(cat)
+        self.db.flush()
+        return cat
+
+    def update(self, category_id: int, data: FAQCategoryUpdate) -> IntranetFAQCategory:
+        cat = self._get_or_404(category_id)
+        patch = data.model_dump(exclude_unset=True)
+        if "label" in patch:
+            existing = self.db.query(IntranetFAQCategory).filter(
+                IntranetFAQCategory.label == patch["label"],
+                IntranetFAQCategory.id != category_id,
+            ).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="A category with this name already exists")
+        for field, value in patch.items():
+            setattr(cat, field, value)
+        return cat
+
+    def delete(self, category_id: int) -> None:
+        cat = self._get_or_404(category_id)
+        self.db.delete(cat)
+
+    def toggle_visibility(self, category_id: int) -> IntranetFAQCategory:
+        cat = self._get_or_404(category_id)
+        cat.is_visible = not cat.is_visible
+        return cat
+
+
+# ── FAQ service ────────────────────────────────────────────────────────────────
+
+class IntranetFAQService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def _get_or_404(self, faq_id: int) -> IntranetFAQ:
+        item = self.db.query(IntranetFAQ).filter(IntranetFAQ.id == faq_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="FAQ not found")
+        return item
+
+    def list_all(self) -> list[IntranetFAQ]:
+        return (
+            self.db.query(IntranetFAQ)
+            .order_by(IntranetFAQ.category.asc(), IntranetFAQ.order_index.asc())
+            .all()
+        )
+
+    def list_published(self) -> list[IntranetFAQ]:
+        return (
+            self.db.query(IntranetFAQ)
+            .filter(IntranetFAQ.is_published == True)
+            .order_by(IntranetFAQ.category.asc(), IntranetFAQ.order_index.asc())
+            .all()
+        )
+
+    def create(self, data: FAQCreate) -> IntranetFAQ:
+        item = IntranetFAQ(**data.model_dump())
+        self.db.add(item)
+        self.db.flush()
+        return item
+
+    def update(self, faq_id: int, data: FAQUpdate) -> IntranetFAQ:
+        item = self._get_or_404(faq_id)
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(item, field, value)
+        return item
+
+    def delete(self, faq_id: int) -> None:
+        item = self._get_or_404(faq_id)
+        self.db.delete(item)
+
+    def toggle_published(self, faq_id: int) -> IntranetFAQ:
+        item = self._get_or_404(faq_id)
+        item.is_published = not item.is_published
+        return item
+
+    def reorder(self, updates: list[dict]) -> None:
+        """Accepts [{id: int, order_index: int}, ...] and bulk-updates order_index."""
+        for u in updates:
+            item = self.db.query(IntranetFAQ).filter(IntranetFAQ.id == u["id"]).first()
+            if item:
+                item.order_index = u["order_index"]
+
+
+# ── Feedback service ───────────────────────────────────────────────────────────
+
+class IntranetFeedbackService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def list_all(self) -> list[IntranetFeedback]:
+        return self.db.query(IntranetFeedback).order_by(IntranetFeedback.created_at.desc()).all()
+
+    def create(
+        self,
+        data: FeedbackCreate,
+        submitted_by_id: str | None,
+        submitted_by_name: str | None,
+        submitted_by_dept: str | None,
+    ) -> IntranetFeedback:
+        entry = IntranetFeedback(
+            submitted_by_id=None if data.is_anonymous else submitted_by_id,
+            submitted_by_name=None if data.is_anonymous else submitted_by_name,
+            submitted_by_dept=None if data.is_anonymous else submitted_by_dept,
+            category=data.category,
+            subject=data.subject,
+            message=data.message,
+            is_anonymous=data.is_anonymous,
+            status="open",
+        )
+        self.db.add(entry)
+        self.db.flush()
+        return entry
+
+    def _get_or_404(self, feedback_id: int) -> IntranetFeedback:
+        entry = self.db.query(IntranetFeedback).filter(IntranetFeedback.id == feedback_id).first()
+        if not entry:
+            raise HTTPException(status_code=404, detail="Feedback not found.")
+        return entry
+
+    def update_status(self, feedback_id: int, status: str, resolved_by_id: str | None) -> IntranetFeedback:
+        entry = self._get_or_404(feedback_id)
+        entry.status = status
+        if status == "resolved":
+            entry.resolved_by_id = resolved_by_id
+            entry.resolved_at = datetime.now(timezone.utc)
+        elif entry.resolved_at and status != "resolved":
+            entry.resolved_at = None
+            entry.resolved_by_id = None
+        return entry
+
+
+# ── Podcast service ────────────────────────────────────────────────────────────
+
+class IntranetPodcastService:
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def _base_query(self):
+        """Eagerly load document relationships to resolve @property URLs outside session."""
+        return (
+            self.db.query(IntranetPodcast)
+            .options(
+                joinedload(IntranetPodcast.cover_image),
+                joinedload(IntranetPodcast.audio_document),
+            )
+        )
+
+    def _get_or_404(self, episode_id: int) -> IntranetPodcast:
+        item = self._base_query().filter(IntranetPodcast.id == episode_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Podcast episode not found")
+        return item
+
+    def list_published(self) -> list[IntranetPodcast]:
+        return (
+            self._base_query()
+            .filter(IntranetPodcast.is_published == True)
+            .order_by(IntranetPodcast.episode_number.desc())
+            .all()
+        )
+
+    def get_published(self, episode_id: int) -> IntranetPodcast:
+        item = self._get_or_404(episode_id)
+        if not item.is_published:
+            raise HTTPException(status_code=404, detail="Podcast episode not found")
+        return item
+
+    def list_all(self) -> list[IntranetPodcast]:
+        return (
+            self._base_query()
+            .order_by(IntranetPodcast.episode_number.desc())
+            .all()
+        )
+
+    def create(self, data: PodcastCreate) -> IntranetPodcast:
+        payload = data.model_dump()
+        is_featured = payload.get("is_featured", False)
+        item = IntranetPodcast(**payload)
+        self.db.add(item)
+        self.db.flush()
+        # If this episode is featured, unfeat all others
+        if is_featured:
+            self.db.query(IntranetPodcast).filter(IntranetPodcast.id != item.id).update(
+                {"is_featured": False}, synchronize_session=False
+            )
+        return item
+
+    def update(self, episode_id: int, data: PodcastUpdate) -> IntranetPodcast:
+        item = self._get_or_404(episode_id)
+        patch = data.model_dump(exclude_unset=True)
+        for field, value in patch.items():
+            setattr(item, field, value)
+        # If featuring this episode, unfeat all others
+        if patch.get("is_featured"):
+            self.db.query(IntranetPodcast).filter(IntranetPodcast.id != episode_id).update(
+                {"is_featured": False}, synchronize_session=False
+            )
+        return item
+
+    def delete(self, episode_id: int) -> None:
+        item = self._get_or_404(episode_id)
+        self.db.delete(item)
+
+    def toggle_published(self, episode_id: int) -> IntranetPodcast:
+        item = self._get_or_404(episode_id)
+        item.is_published = not item.is_published
+        return item
+
+    def set_featured(self, episode_id: int) -> IntranetPodcast:
+        item = self._get_or_404(episode_id)
+        # Unfeat all others first
+        self.db.query(IntranetPodcast).filter(IntranetPodcast.id != episode_id).update(
+            {"is_featured": False}, synchronize_session=False
+        )
+        item.is_featured = True
+        return item
+
+    # ── Cover image upload ─────────────────────────────────────────────────────
+
+    def upload_cover_image(self, file: UploadFile, uploaded_by: str | None = None) -> Document:
+        """Upload a cover image file → Cloudinary → documents table."""
+        file_bytes = file.file.read()
+        filename   = file.filename or f"podcast_cover_{int(time.time())}"
+        url = cloudinary_service.upload(
+            file_bytes,
+            public_id=f"intranet-podcast/cover_{int(time.time())}",
+            folder="portland-gas/intranet/podcast",
+            resource_type="image",
+        )
+        doc = Document(
+            type="file",
+            name=filename,
+            category="intranet",
+            file_path=url,
+            file_size=len(file_bytes),
+            mime_type=file.content_type,
+            uploaded_by=uploaded_by,
+        )
+        self.db.add(doc)
+        self.db.flush()
+        return doc
+
+    # ── Audio / video file upload ──────────────────────────────────────────────
+
+    def upload_audio_file(self, file: UploadFile, uploaded_by: str | None = None) -> Document:
+        """Upload an audio/video file → Cloudinary → documents table."""
+        file_bytes = file.file.read()
+        filename   = file.filename or f"podcast_audio_{int(time.time())}"
+        # Cloudinary uses resource_type="video" for both audio and video files
+        url = cloudinary_service.upload(
+            file_bytes,
+            public_id=f"intranet-podcast/audio_{int(time.time())}",
+            folder="portland-gas/intranet/podcast",
+            resource_type="video",
+        )
+        doc = Document(
+            type="file",
+            name=filename,
+            category="intranet",
+            file_path=url,
+            file_size=len(file_bytes),
+            mime_type=file.content_type,
+            uploaded_by=uploaded_by,
+        )
+        self.db.add(doc)
+        self.db.flush()
+        return doc

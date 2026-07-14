@@ -21,25 +21,18 @@ import { useCreateLeaveRequest, useLeaveRequests } from "@/lib/modules/leave-req
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import leaveRequestsApi from "@/lib/modules/leave-requests/api";
 import {
-  LEAVE_STORE,
   LEAVE_TYPE_OPTIONS,
   LEAVE_TYPES,
   genHRRef,
   SEED_EMPLOYEES,
   calcLeaveBalance,
-  type LeaveRequest,
 } from "../_components/_data";
 
 const YEAR = new Date().getFullYear();
 
 const TODAY = new Date().toISOString().split("T")[0];
-
-const CURRENT_USER = {
-  name: "Joseph Chika",
-  department: "Operations",
-  title: "Operations Manager",
-};
 
 const REQUEST_TYPE_OPTIONS = [
   { value: "self",   label: "Self"   },
@@ -71,12 +64,12 @@ export default function LeaveRequestsPage() {
   const router = useRouter();
   const { user: currentUser } = useCurrentUser();
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<LeaveRequest[]>(() =>
-    LEAVE_STORE.filter((item) => item.requester === CURRENT_USER.name)
-  );
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 
   const createLeaveRequest = useCreateLeaveRequest();
+  const { data: leaveRequestsResponse, isLoading: isLoadingRequests } = useLeaveRequests({ limit: 100 });
+  const items = leaveRequestsResponse?.data || [];
+
   const { data: employees = [] } = useEmployees({ limit: 200 });
   const { data: leaveTypesResponse, isLoading: isLoadingLeaveTypes, error: leaveTypesError } = useLeaveTypes({ limit: 100, is_active: true });
   const leaveTypes = leaveTypesResponse?.data || [];
@@ -153,14 +146,46 @@ export default function LeaveRequestsPage() {
       const leaveTypeId = parseInt(data.leave_type, 10);
       console.log("Leave type ID parsed:", { raw: data.leave_type, parsed: leaveTypeId });
 
-      await createLeaveRequest.mutateAsync({
+      // Create leave request first
+      const leaveRequest = await createLeaveRequest.mutateAsync({
         employee_id: employeeId,
         leave_type_id: leaveTypeId,
         reliever_id: reliever_id,
         start_date: startDateISO,
         end_date: endDateISO,
+        request_type: data.request_type,
         reason: data.reason,
       });
+
+      // Upload supporting files if any
+      if (supportingFiles.length > 0 && leaveRequest?.id) {
+        console.log("Uploading files:", supportingFiles.length, supportingFiles);
+        for (const file of supportingFiles) {
+          try {
+            console.log("Uploading file:", {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              leaveRequestId: leaveRequest.id,
+            });
+            const result = await leaveRequestsApi.uploadDocument(leaveRequest.id, file);
+            console.log("File uploaded successfully:", result);
+          } catch (uploadError: unknown) {
+            console.error("File upload failed:", uploadError);
+            let errorMessage = "Unknown error";
+            if (uploadError instanceof Error) {
+              errorMessage = uploadError.message;
+            } else if (typeof uploadError === "object" && uploadError !== null) {
+              const err = uploadError as Record<string, unknown>;
+              if (err.response && typeof err.response === "object") {
+                const resp = err.response as Record<string, unknown>;
+                errorMessage = resp.data ? String(resp.data) : String(resp);
+              }
+            }
+            toast.warning(`Could not upload ${file.name}: ${errorMessage}. Your leave request was saved.`);
+          }
+        }
+      }
 
       toast.success("Leave request submitted successfully!");
       form.reset();

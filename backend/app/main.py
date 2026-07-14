@@ -65,6 +65,7 @@ from app.fleet.drivers.router import router as drivers_router
 from app.fleet.vehicles.router import router as vehicles_router
 from app.fleet.trips.router import router as trips_router
 from app.intranet.router import router as intranet_router
+from app.notifications.router import router as notifications_router
 
 
 
@@ -154,6 +155,7 @@ app.include_router(drivers_router, prefix="/api/fleet/drivers", tags=["Drivers"]
 app.include_router(vehicles_router, prefix="/api/fleet/vehicles", tags=["Vehicles"])
 app.include_router(trips_router, prefix="/api/fleet/trips", tags=["Trips"])
 app.include_router(intranet_router, prefix="/api/intranet", tags=["Intranet"])
+app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
 
 
 @app.get("/api/health")

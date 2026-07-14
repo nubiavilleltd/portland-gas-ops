@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 
 
@@ -46,6 +46,7 @@ class LeaveRequestCreate(BaseModel):
     reliever_id: str
     start_date: date
     end_date: date
+    request_type: str = "self"  # "self" or "others"
     reason: Optional[str] = None
     document_id: Optional[int] = None
 
@@ -56,10 +57,15 @@ class LeaveRequestRead(BaseModel):
     employee_id: str
     employee_name: Optional[str] = None
     employee_no: Optional[str] = None
+    requester_id: Optional[str] = None
+    requester_name: Optional[str] = None
     leave_type_id: int
     leave_type_name: Optional[str] = None
     reliever_id: Optional[str] = None
     reliever_name: Optional[str] = None
+    request_type: Optional[str] = None
+    department: Optional[str] = None
+    employee_department: Optional[str] = None
     start_date: date
     end_date: date
     days: int
