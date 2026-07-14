@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Paperclip, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Paperclip, CheckCircle2, XCircle, RotateCcw, ExternalLink } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
@@ -182,15 +182,17 @@ export default function LeaveRequestDetailPage({
               {/* Supporting Documents */}
               <div className="sm:col-span-2">
                 <p className="text-sm font-medium text-brand-text-primary mb-2">Supporting Documents</p>
-                {record.supportingDocuments && record.supportingDocuments.length > 0 ? (
-                  <ul className="space-y-2">
-                    {record.supportingDocuments.map((name) => (
-                      <li key={name} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-brand-border bg-gray-50">
-                        <Paperclip size={14} className="text-brand-text-secondary shrink-0" />
-                        <span className="text-sm text-brand-text-primary truncate">{name}</span>
-                      </li>
-                    ))}
-                  </ul>
+                {apiRecord?.document ? (
+                  <a
+                    href={apiRecord.document.file_path || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-brand-border bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
+                  >
+                    <Paperclip size={14} className="text-brand-text-secondary shrink-0" />
+                    <span className="text-sm text-brand-text-primary truncate group-hover:text-brand-purple">{apiRecord.document.name}</span>
+                    <ExternalLink size={14} className="text-brand-text-secondary shrink-0 ml-auto group-hover:text-brand-purple" />
+                  </a>
                 ) : (
                   <p className="text-sm text-brand-text-secondary px-3 py-2.5 rounded-lg border border-brand-border bg-gray-50">
                     No documents attached
