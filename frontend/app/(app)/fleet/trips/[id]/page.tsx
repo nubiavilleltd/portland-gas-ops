@@ -61,6 +61,11 @@ export default function TripDetailPage() {
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
+
+  console.log("trip", trip);
+console.log("trip.order_ids", trip?.order_ids);
+console.log("orders", orders);
+
   if (!trip) {
     return (
       <AppLayout pageTitle="Trip Not Found">

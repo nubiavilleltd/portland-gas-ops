@@ -27,7 +27,7 @@ class TripRepository:
             .options(
                 joinedload(Trip.driver),
                 joinedload(Trip.vehicle),
-                joinedload(Trip.trip_orders),
+                joinedload(Trip.trip_orders).joinedload(TripOrder.order),
             )
             .filter(Trip.id == trip_id)
             .first()
@@ -44,7 +44,7 @@ class TripRepository:
             .options(
                 joinedload(Trip.driver),
                 joinedload(Trip.vehicle),
-                joinedload(Trip.trip_orders),
+                joinedload(Trip.trip_orders).joinedload(TripOrder.order),
             )
         )
 
