@@ -26,6 +26,7 @@ class DepartmentListItem(BaseModel):
     hod_id: Optional[str]
     parent_dept_id: Optional[str]
     created_at: datetime
+    employee_count: int = 0
 
     class Config:
         from_attributes = True

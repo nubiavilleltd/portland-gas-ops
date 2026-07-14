@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart2,
   BookOpen,
+  Building2,
   CalendarDays,
   CreditCard,
   DollarSign,
@@ -291,6 +292,13 @@ export const moduleGroups: readonly ModuleGroup[] = [
     title: "Setups",
     routePrefixes: ["/admin/setups"],
     processes: [
+      {
+        name: "Departments",
+        description: "Manage company departments linked to employee profiles",
+        icon: Building2,
+        href: "/admin/setups/departments",
+        routePrefixes: ["/admin/setups/departments"],
+      },
       {
         name: "Groups",
         description: "Named lists of people for workflow steps and other processes",

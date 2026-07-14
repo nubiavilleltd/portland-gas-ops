@@ -109,6 +109,10 @@ export default function NewAccountPage() {
       toast.error("First name, last name and email are required");
       return;
     }
+    if (!form.hire_date) {
+      toast.error("Hire date is required");
+      return;
+    }
 
     const payload: CreateEmployeePayload = {
       ...form,
@@ -212,6 +216,7 @@ export default function NewAccountPage() {
             />
             <FormDatePicker
               label="Hire Date"
+              required
               value={form.hire_date ?? ""}
               onValueChange={(v) => f("hire_date", v)}
             />

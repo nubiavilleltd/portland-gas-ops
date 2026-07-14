@@ -22,6 +22,7 @@ import enum
 
 from sqlalchemy import (
     Column, String, Integer, Boolean, Text, DateTime, Enum as SAEnum, ForeignKey,
+    quoted_name,
 )
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
@@ -109,9 +110,9 @@ class WorkflowStep(Base):
     assignee_type = Column(SAEnum(AssigneeType), nullable=False)
 
     # Populated based on assignee_type:
-    role        = Column(String(80), nullable=True)   # when assignee_type = role
+    role        = Column(quoted_name("role", False), String(80), nullable=True)   # when assignee_type = role
     employee_id = Column(CHAR(36), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)   # when specific
-    group_id    = Column(CHAR(36), ForeignKey("groups.id", ondelete="SET NULL"), nullable=True)  # when requester_pick
+    group_id    = Column(CHAR(36), ForeignKey("org_groups.id", ondelete="SET NULL"), nullable=True)  # when requester_pick
 
     # Button visibility on the ApprovalPanel for this step
     can_approve = Column(Boolean, nullable=False, default=True)

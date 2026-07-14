@@ -1,3 +1,16 @@
+// ── Setups — Departments ───────────────────────────────────────────────────────
+
+export interface DepartmentListItem {
+  id: string;
+  name: string;
+  code: string;
+  is_active: boolean;
+  hod_id: string | null;
+  parent_dept_id: string | null;
+  created_at: string;
+  employee_count: number;
+}
+
 // ── Setups — Groups ────────────────────────────────────────────────────────────
 
 export interface GroupMember {

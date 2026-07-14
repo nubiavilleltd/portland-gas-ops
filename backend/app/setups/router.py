@@ -76,6 +76,15 @@ def update_department(
     return service.update_department(dept_id, data, db)
 
 
+@router.delete("/departments/{dept_id}", status_code=204)
+def delete_department(
+    dept_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = _admin,
+):
+    service.delete_department(dept_id, db)
+
+
 # ── Groups ─────────────────────────────────────────────────────────────────────
 
 @router.get("/groups", response_model=List[GroupListItem])

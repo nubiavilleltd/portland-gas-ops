@@ -18,8 +18,16 @@ export function useCreateDepartment() {
 export function useUpdateDepartment(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name?: string; code?: string; is_active?: boolean; hod_id?: string }) =>
+    mutationFn: (data: { name?: string; code?: string; is_active?: boolean; hod_id?: string | null }) =>
       patch(`/api/setups/departments/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: setupsKeys.departments() }),
+  });
+}
+
+export function useDeleteDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/api/setups/departments/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: setupsKeys.departments() }),
   });
 }

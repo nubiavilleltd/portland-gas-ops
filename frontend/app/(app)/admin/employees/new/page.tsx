@@ -67,7 +67,8 @@ export default function NewEmployeePage() {
   const [empForm, setEmpForm] = useState<EmployeeFormState>({});
 
   const { data: departments = [] } = useDepartments();
-  const deptOptions = departments.map((d) => ({ value: d.name, label: d.name }));
+  const deptOptions = departments.map((d) => ({ value: d.id, label: d.name }));
+  const [departmentId, setDepartmentId] = useState("");
 
   const ue = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v }));
   const un = (k: keyof Employee, v: string) =>
@@ -176,8 +177,12 @@ export default function NewEmployeePage() {
             />
             <FormSelect
               label="Department" required options={deptOptions} placeholder="Select department"
-              value={empForm.department ?? ""}
-              onValueChange={(v) => ue("department", v)}
+              value={departmentId}
+              onValueChange={(id) => {
+                setDepartmentId(id);
+                const name = departments.find((d) => d.id === id)?.name ?? "";
+                ue("department", name);
+              }}
             />
             <FormSelect
               label="Category" required options={CATEGORY_OPTIONS} placeholder="Select category"

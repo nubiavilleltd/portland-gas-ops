@@ -30,7 +30,7 @@ class Department(Base):
 
 
 class Group(Base):
-    __tablename__ = "groups"
+    __tablename__ = "org_groups"
 
     id          = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name        = Column(String(100), nullable=False)
@@ -48,7 +48,7 @@ class GroupMember(Base):
     __tablename__ = "group_members"
 
     id          = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    group_id    = Column(CHAR(36), ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
+    group_id    = Column(CHAR(36), ForeignKey("org_groups.id", ondelete="CASCADE"), nullable=False)
     employee_id = Column(CHAR(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
     added_at    = Column(DateTime(timezone=True), server_default=func.now())
 

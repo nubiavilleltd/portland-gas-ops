@@ -17,11 +17,29 @@ from app.setups.schemas import (
 
 # ── Departments ────────────────────────────────────────────────────────────────
 
-def list_departments(db: Session, active_only: bool = False) -> list[Department]:
-    q = db.query(Department)
+def list_departments(db: Session, active_only: bool = False) -> list[dict]:
+    q = (
+        db.query(Department, func.count(Employee.id).label("employee_count"))
+        .outerjoin(Employee, Employee.department_id == Department.id)
+        .group_by(Department.id)
+    )
     if active_only:
         q = q.filter(Department.is_active == True)
-    return q.order_by(Department.name.asc()).all()
+    rows = q.order_by(Department.name.asc()).all()
+    return [
+        {
+            "id":             d.id,
+            "name":           d.name,
+            "code":           d.code,
+            "is_active":      d.is_active,
+            "hod_id":         d.hod_id,
+            "parent_dept_id": d.parent_dept_id,
+            "created_at":     d.created_at,
+            "updated_at":     d.updated_at,
+            "employee_count": count,
+        }
+        for d, count in rows
+    ]
 
 
 def get_department(dept_id: str, db: Session) -> Department:
@@ -54,6 +72,22 @@ def update_department(dept_id: str, data: DepartmentUpdate, db: Session) -> Depa
     db.commit()
     db.refresh(dept)
     return dept
+
+
+def delete_department(dept_id: str, db: Session) -> None:
+    dept = get_department(dept_id, db)
+    employee_count = (
+        db.query(func.count(Employee.id))
+        .filter(Employee.department_id == dept_id)
+        .scalar()
+    ) or 0
+    if employee_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete: {employee_count} employee(s) are assigned to this department. Reassign them first.",
+        )
+    db.delete(dept)
+    db.commit()
 
 
 # ── Groups ─────────────────────────────────────────────────────────────────────

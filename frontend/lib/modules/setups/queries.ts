@@ -11,6 +11,7 @@ export interface DepartmentListItem {
   hod_id: string | null;
   parent_dept_id: string | null;
   created_at: string;
+  employee_count: number;
 }
 
 export interface GroupListItem {
