@@ -44,6 +44,12 @@ const ROLE_OPTIONS: { value: PageRole; label: string }[] = [
   { value: "approver",  label: "Operations Manager/HR"  },
 ];
 
+function getRoleLabel(role: PageRole): string {
+  if (role === "reliever") return "Reliever";
+  if (role === "approver") return "Operations Manager/HR";
+  return "Requester";
+}
+
 export default function LeaveRequestDetailPage({
   params,
 }: {
@@ -85,20 +91,27 @@ export default function LeaveRequestDetailPage({
   }, [apiRecord]);
 
   // Auto-detect current user's role
+  const isRequester = apiRecord && currentEmployee && apiRecord.requester_id === currentEmployee.id;
+  const isReliever = apiRecord && currentEmployee && apiRecord.reliever_id === currentEmployee.id;
+  const isApprover = apiRecord && currentEmployee && apiRecord.approval_request_id && !isRequester && !isReliever;
+  const hasWorkflowAccess = isRequester || isReliever || isApprover;
+
   useEffect(() => {
     if (!apiRecord || !currentEmployee) return;
 
-    const isRequester = apiRecord.requester_id === currentEmployee.id;
-    const isReleiver = apiRecord.reliever_id === currentEmployee.id;
+    // Debug logging
+    console.log("API Record:", {
+      requester_id: apiRecord.requester_id,
+      reliever_id: apiRecord.reliever_id,
+      approval_request_id: apiRecord.approval_request_id,
+    });
+    console.log("Current Employee:", { id: currentEmployee.id, name: currentEmployee.full_name });
+    console.log("Role Detection:", { isRequester, isReliever, isApprover });
 
-    if (apiRecord.approval_request_id) {
-      if (isReleiver) {
-        setCurrentRole("reliever");
-      } else if (!isRequester) {
-        setCurrentRole("approver");
-      } else {
-        setCurrentRole("requester");
-      }
+    if (isReliever) {
+      setCurrentRole("reliever");
+    } else if (isApprover) {
+      setCurrentRole("approver");
     } else {
       setCurrentRole("requester");
     }
@@ -195,13 +208,23 @@ export default function LeaveRequestDetailPage({
           <RoleBasedRecordHeader
             id={record.ref}
             currentRole={currentRole}
-            onRoleChange={currentEmployee ? undefined : setCurrentRole}
-            roleLabel={currentRole === "approver" ? "Operations Manager/HR" : currentRole === "admin" ? "Admin" : "Requester"}
-            roles={currentEmployee ? undefined : ROLE_OPTIONS}
+            onRoleChange={() => undefined}
+            roleLabel={hasWorkflowAccess ? getRoleLabel(currentRole) : "Viewer"}
+            roles={ROLE_OPTIONS}
             status={<ApprovalBadge status={record.status} />}
             recordLabel="Leave Request"
             title={`${record.employee} — ${record.type}`}
+            showRoleSwitcher={false}
           />
+
+          {/* Access note */}
+          <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
+            <p className="text-sm text-brand-text-secondary">
+              {hasWorkflowAccess
+                ? `Viewing as ${getRoleLabel(currentRole)}`
+                : "You do not have direct access to this request. Available actions are based on the current employee profile and record assignment."}
+            </p>
+          </div>
 
           {/* Workflow Progress */}
           {record.status !== "draft" && (
