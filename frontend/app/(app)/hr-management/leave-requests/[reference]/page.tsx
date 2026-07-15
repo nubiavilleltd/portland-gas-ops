@@ -85,9 +85,55 @@ export default function LeaveRequestDetailPage({
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
 
   const isOthers = record?.requestType === "others";
+
+  async function submitApprovalAction(
+    action: "approve" | "reject" | "return",
+    comment: string
+  ) {
+    if (!apiRecord?.approval_request_id) {
+      toast.error("Cannot process approval: request not in workflow");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(
+        `/api/workflow/requests/${apiRecord.approval_request_id}/${action}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: comment || null }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || `Failed to ${action} request`);
+      }
+
+      const resultMap: Record<string, ActionResult> = {
+        approve: "approved",
+        reject: "denied",
+        return: "draft",
+      };
+
+      setRecord((prev) =>
+        prev ? { ...prev, status: resultMap[action] } : prev
+      );
+      setActionDone(resultMap[action]);
+      setActionComment(comment);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : `Failed to ${action} request`;
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   function handleApprovalAction(action: ActionResult, comment: string) {
     setRecord((prev) => (prev ? { ...prev, status: action } : prev));
@@ -269,8 +315,9 @@ export default function LeaveRequestDetailPage({
               rejectLabel="Decline"
               approveLabel="Accept"
               requireCommentForRejectReturn
-              onReject={(comment) => { toast.error("Reliever declined the request"); handleApprovalAction("draft", comment); }}
-              onApprove={(comment) => { toast.success("Reliever accepted — awaiting manager approval"); handleApprovalAction("in_progress", comment); }}
+              isSubmitting={isSubmitting}
+              onReject={(comment) => submitApprovalAction("reject", comment)}
+              onApprove={(comment) => submitApprovalAction("approve", comment)}
             />
           )}
 
@@ -285,9 +332,10 @@ export default function LeaveRequestDetailPage({
               rejectLabel="Deny"
               approveLabel="Approve"
               requireCommentForRejectReturn
-              onReturn={(comment) => { toast.info("Leave request returned to requester"); handleApprovalAction("draft", comment); }}
-              onReject={(comment) => { toast.error("Leave request denied"); handleApprovalAction("denied", comment); }}
-              onApprove={(comment) => { toast.success("Leave request approved successfully"); handleApprovalAction("approved", comment); }}
+              isSubmitting={isSubmitting}
+              onReturn={(comment) => submitApprovalAction("return", comment)}
+              onReject={(comment) => submitApprovalAction("reject", comment)}
+              onApprove={(comment) => submitApprovalAction("approve", comment)}
             />
           )}
 

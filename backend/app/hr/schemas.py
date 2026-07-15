@@ -84,6 +84,7 @@ class LeaveRequestRead(BaseModel):
     days: int
     reason: Optional[str] = None
     status: str
+    approval_request_id: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -27,6 +27,7 @@ export interface LeaveRequestListItem {
   days: number;
   reason?: string;
   status: string;
+  approval_request_id?: string;
   created_at: string;
   updated_at?: string;
 }

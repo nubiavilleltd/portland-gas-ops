@@ -133,6 +133,24 @@ class LeaveRequest(Base):
                 pass
         return None
 
+    @property
+    def approval_request_id(self) -> Optional[str]:
+        # Get the approval_request_id if this request is in the workflow
+        try:
+            from sqlalchemy.orm import object_session
+            from app.shared.models.approval import ApprovalRequest
+            session = object_session(self)
+            if session:
+                approval_req = session.query(ApprovalRequest).filter(
+                    ApprovalRequest.request_type == "leave_request",
+                    ApprovalRequest.request_id == self.id,
+                ).first()
+                if approval_req:
+                    return approval_req.id
+        except Exception:
+            pass
+        return None
+
 
 class LeaveBalance(Base):
     __tablename__ = "leave_balance"

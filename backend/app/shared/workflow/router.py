@@ -325,6 +325,16 @@ def _update_source_status(request_type: str, request_id: str, status: str, db: S
         row = db.query(ProcurementRequest).filter(ProcurementRequest.id == request_id).first()
         if row:
             row.status = status
+    elif request_type == "leave_request":
+        from app.hr.models import LeaveRequest, LeaveRequestStatus
+        row = db.query(LeaveRequest).filter(LeaveRequest.id == request_id).first()
+        if row:
+            if status == "approved":
+                row.status = LeaveRequestStatus.approved
+            elif status == "rejected":
+                row.status = LeaveRequestStatus.denied
+            elif status == "returned":
+                row.status = LeaveRequestStatus.draft
 
 
 @router.post("/requests/{approval_request_id}/approve")
