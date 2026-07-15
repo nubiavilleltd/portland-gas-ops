@@ -52,35 +52,6 @@ export interface ApprovalWorkflowListItem {
   created_at: string;
 }
 
-// ── Approver Groups ────────────────────────────────────────────────────────────
-
-export interface ApproverGroupMember {
-  id: string;
-  employee_id: string;
-  employee_name: string;
-  employee_no: string;
-  job_title: string | null;
-  department: string | null;
-}
-
-export interface ApproverGroup {
-  id: string;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-  created_at: string;
-  members: ApproverGroupMember[];
-}
-
-export interface ApproverGroupListItem {
-  id: string;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-  member_count: number;
-  created_at: string;
-}
-
 // ── Workflow Assignments ───────────────────────────────────────────────────────
 
 export interface WorkflowAssignment {

@@ -136,6 +136,19 @@ class OrderRepository:
 
         self.create_items(db, order_id, items)
 
+    def update_order_item(
+        self,
+        db: Session,
+        order_item: OrderItem,
+        **fields,
+    ):
+        for key, value in fields.items():
+            setattr(order_item, key, value)
+
+        db.flush()
+
+        return order_item
+
     def update(
         self,
         db: Session,
@@ -161,3 +174,5 @@ class OrderRepository:
             .order_by(Order.created_at.desc())
             .all()
         )
+    
+    

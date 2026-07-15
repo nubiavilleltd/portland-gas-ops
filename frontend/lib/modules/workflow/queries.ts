@@ -5,10 +5,9 @@ import { get } from "@/lib/api";
 import type {
   ApprovalWorkflow,
   ApprovalWorkflowListItem,
-  ApproverGroup,
-  ApproverGroupListItem,
   WorkflowAssignment,
 } from "@/types/workflow";
+import type { Group, GroupListItem } from "@/types/setups";
 
 export const workflowKeys = {
   all:         ["workflows"] as const,
@@ -35,18 +34,19 @@ export function useWorkflow(id: string) {
   });
 }
 
+// These hooks now point to /api/setups/groups (Groups moved to Setups module)
 export function useApproverGroups() {
-  return useQuery<ApproverGroupListItem[]>({
+  return useQuery<GroupListItem[]>({
     queryKey: workflowKeys.groups(),
-    queryFn:  () => get<ApproverGroupListItem[]>("/api/workflow/groups"),
+    queryFn:  () => get<GroupListItem[]>("/api/setups/groups"),
     staleTime: 30 * 1000,
   });
 }
 
 export function useApproverGroup(id: string) {
-  return useQuery<ApproverGroup>({
+  return useQuery<Group>({
     queryKey: workflowKeys.group(id),
-    queryFn:  () => get<ApproverGroup>(`/api/workflow/groups/${id}`),
+    queryFn:  () => get<Group>(`/api/setups/groups/${id}`),
     enabled:  !!id,
   });
 }

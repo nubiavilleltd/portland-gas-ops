@@ -8,7 +8,8 @@ from sqlalchemy import and_, exists, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.employees.models import Department, Employee
+from app.employees.models import Employee
+from app.setups.models import Department as DepartmentModel
 from app.safety.dependencies import get_employee_for_user
 from app.shared.models.approval import (
     ApprovalOverallStatus,
@@ -73,7 +74,7 @@ def actor_role(employee: Employee | None) -> str | None:
     if not employee:
         return None
     return employee.job_title or (
-        employee.department.value if employee.department else None
+        employee.department_rel.name if employee.department_rel else None
     )
 
 
@@ -111,8 +112,9 @@ def get_primary_hse_inspector(db: Session) -> Employee | None:
     query = (
         db.query(Employee)
         .join(User, User.id == Employee.user_id)
+        .join(DepartmentModel, Employee.department_id == DepartmentModel.id)
         .filter(
-            Employee.department == Department.safety,
+            DepartmentModel.code == "safety",
             User.account_status == AccountStatus.active,
         )
     )
@@ -338,7 +340,7 @@ def create_incident_report(
 
 
 def is_hse_employee(employee: Employee) -> bool:
-    return employee.department == Department.safety
+    return bool(employee.department_rel and employee.department_rel.code == "safety")
 
 
 def can_employee_view_incident(
@@ -462,8 +464,8 @@ def create_hse_review(
         if (
             data.assigned_department
             and (
-                not action_owner.department
-                or action_owner.department.value != data.assigned_department
+                not action_owner.department_rel
+                or action_owner.department_rel.name != data.assigned_department
             )
         ):
             raise HTTPException(

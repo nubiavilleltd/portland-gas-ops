@@ -127,3 +127,7 @@ class TripOrder(Base):
         "Order",
         foreign_keys=[order_id],
     )
+
+    @property
+    def order_no(self) -> str | None:
+        return self.order.order_no if self.order else None

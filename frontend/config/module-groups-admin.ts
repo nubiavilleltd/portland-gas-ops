@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart2,
   BookOpen,
+  Building2,
   CalendarDays,
   CreditCard,
   DollarSign,
@@ -22,6 +23,7 @@ import {
   Users,
   Users2,
   Warehouse,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -260,18 +262,31 @@ export const moduleGroups: readonly ModuleGroup[] = [
         routePrefixes: ["/admin/workflows"],
       },
       {
-        name: "Approver Groups",
-        description: "Named lists of approvers for picker steps",
-        icon: Users2,
-        href: "/admin/workflows/groups?from=admin",
-        routePrefixes: ["/admin/workflows/groups"],
-      },
-      {
         name: "Workflow Assignments",
         description: "Map each request type to its active workflow",
         icon: Settings,
         href: "/admin/workflows/assignments?from=admin",
         routePrefixes: ["/admin/workflows/assignments"],
+      },
+    ],
+  },
+  {
+    title: "Setups",
+    routePrefixes: ["/admin/setups"],
+    processes: [
+      {
+        name: "Departments",
+        description: "Manage company departments linked to employee profiles",
+        icon: Building2,
+        href: "/admin/setups/departments",
+        routePrefixes: ["/admin/setups/departments"],
+      },
+      {
+        name: "Groups",
+        description: "Named lists of people for workflow steps and other processes",
+        icon: Users2,
+        href: "/admin/setups/groups",
+        routePrefixes: ["/admin/setups/groups"],
       },
     ],
   },

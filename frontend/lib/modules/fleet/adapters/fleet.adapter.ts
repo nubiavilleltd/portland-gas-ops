@@ -100,7 +100,7 @@ interface BackendTrip {
     driver_name: string | null;
     vehicle_id: string | null;
     vehicle_name: string | null;
-    order_ids: string[];
+    orders: { order_id: string; order_no: string }[];
     start_location: string;
     end_location: string;
     scheduled_date: string;
@@ -165,7 +165,7 @@ export function adaptTrip(raw: BackendTrip): Trip {
         type: raw.type as Trip["type"],
         driver_id: raw.driver_id != null ? String(raw.driver_id) : null,
         vehicle_id: raw.vehicle_id != null ? String(raw.vehicle_id) : null,
-        order_ids: raw.order_ids ?? [],
+        order_ids: raw.orders?.map((o) => o.order_id) ?? [],
         start_location: raw.start_location,
         end_location: raw.end_location,
         scheduled_date: raw.scheduled_date,

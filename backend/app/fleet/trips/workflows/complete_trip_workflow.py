@@ -12,6 +12,10 @@ from app.fleet.drivers.service import DriverService
 from app.fleet.vehicles.service import VehicleService
 from app.fleet.trips.service import TripService
 
+from app.fleet.trips.error_codes import TripErrorCode
+from app.core.exceptions import AppException
+from app.fleet.trips.model import Trip
+
 
 class CompleteTripWorkflow:
 
@@ -52,8 +56,13 @@ class CompleteTripWorkflow:
             )
 
             if order.order_status.value != "completed":
-                raise ValueError(
-                    f"Order '{order.order_no}' must be completed before the trip can be completed."
+                raise AppException(
+                    status_code=400,
+                    error_code=TripErrorCode.TRIP_HAS_INCOMPLETE_ORDERS,
+                    message=(
+                        f"Order '{order.order_no}' must be completed "
+                        "before the trip can be completed."
+                    ),
                 )
 
         #
@@ -61,7 +70,7 @@ class CompleteTripWorkflow:
         #
         trip = self.trip_service.complete(
             db=db,
-            trip_id=trip.id,
+            trip=trip,
             proof_notes=proof_notes,
         )
 

@@ -70,7 +70,7 @@ class TripResponse(BaseModel):
     vehicle_id: Optional[str]
     vehicle_name: Optional[str]
 
-    orders: list[TripOrderResponse] = []
+    orders: list[TripOrderResponse] = Field(default=[], validation_alias="trip_orders")
 
     start_location: str
     end_location: str

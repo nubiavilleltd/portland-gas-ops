@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone, date as date_type
 from app.shared.models.user import User, UserRole, AccountStatus
 from app.shared.models.document import Document
 from app.employees.models import Employee
+from app.setups.models import Department as DepartmentModel
 from app.core.security import hash_password
 from app.shared.services.cloudinary_service import upload
 from app.shared.services.email_service import send_account_setup
@@ -87,7 +88,7 @@ def create_employee(data: EmployeeCreate, db: Session) -> Employee:
         user_id         = user.id,
         employee_no     = employee_no,
         job_title       = data.job_title,
-        department      = data.department,
+        department_id   = data.department_id,
         phone           = data.phone,
         birthday        = data.birthday,
         employment_type = data.employment_type,
@@ -158,7 +159,9 @@ def list_employees(
         )
 
     if department:
-        q = q.filter(Employee.department == department)
+        q = q.join(DepartmentModel, Employee.department_id == DepartmentModel.id).filter(
+            DepartmentModel.name == department
+        )
 
     return q.order_by(Employee.created_at.desc()).offset(skip).limit(limit).all()
 
@@ -174,7 +177,9 @@ def count_employees(db: Session, search: str = "", department: str = "") -> int:
             Employee.employee_no.ilike(like)
         )
     if department:
-        q = q.filter(Employee.department == department)
+        q = q.join(DepartmentModel, Employee.department_id == DepartmentModel.id).filter(
+            DepartmentModel.name == department
+        )
     return q.scalar()
 
 
@@ -497,7 +502,7 @@ def get_week_birthdays(db: Session) -> list[dict]:
         days_until = (this_year - today).days
 
         name = emp.user.full_name if emp.user else ""
-        dept = emp.department.value if emp.department else None
+        dept = emp.department_rel.name if emp.department_rel else None
         avatar = emp.user.profile_picture_url if emp.user else None
 
         results.append({

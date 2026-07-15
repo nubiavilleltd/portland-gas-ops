@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import date, datetime
 from decimal import Decimal
-from app.employees.models import Department, EmploymentType
+from app.employees.models import EmploymentType
 
 
 # ── Birthday response (intranet home page) ───────────────────────────────────
@@ -61,7 +61,7 @@ class EmployeeCreate(BaseModel):
 
     # Employee fields
     job_title:        Optional[str]           = None
-    department:       Optional[Department]    = None
+    department_id:    Optional[str]           = None
     phone:            Optional[str]           = None
     birthday:         Optional[date]          = None
     employment_type:  Optional[EmploymentType] = None
@@ -85,7 +85,7 @@ class EmployeeUpdate(BaseModel):
     first_name:       Optional[str]           = None
     last_name:        Optional[str]           = None
     job_title:        Optional[str]           = None
-    department:       Optional[Department]    = None
+    department_id:    Optional[str]           = None
     phone:            Optional[str]           = None
     birthday:         Optional[date]          = None
     employment_type:  Optional[EmploymentType] = None
@@ -115,7 +115,7 @@ class OperatingManagerInfo(BaseModel):
     id:          str
     employee_no: str
     job_title:   Optional[str]
-    department:  Optional[Department]
+    department:  Optional[str]
     user:        Optional[UserInEmployee]
 
     class Config:
@@ -129,7 +129,8 @@ class EmployeeResponse(BaseModel):
     user_id:         str
     employee_no:     str
     job_title:       Optional[str]
-    department:      Optional[Department]
+    department:      Optional[str]   # display name via Employee.department property
+    department_id:   Optional[str]   # FK UUID — used by forms for dropdown selection
     phone:           Optional[str]
     birthday:        Optional[date]
     employment_type: Optional[EmploymentType]
@@ -162,7 +163,8 @@ class EmployeePublicResponse(BaseModel):
     id:              str
     employee_no:     str
     job_title:       Optional[str]
-    department:      Optional[Department]
+    department:      Optional[str]
+    department_id:   Optional[str]
     phone:           Optional[str]
     birthday:        Optional[date]
     employment_type: Optional[EmploymentType]
@@ -181,7 +183,8 @@ class EmployeeListItem(BaseModel):
     id:              str
     employee_no:     str
     job_title:       Optional[str]
-    department:      Optional[Department]
+    department:      Optional[str]
+    department_id:   Optional[str]
     phone:           Optional[str]
     birthday:        Optional[date]
     employment_type: Optional[EmploymentType]
