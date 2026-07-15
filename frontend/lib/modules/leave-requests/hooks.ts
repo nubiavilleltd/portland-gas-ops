@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import leaveRequestsApi from "./api";
+import { useToast } from "@/hooks/useToast";
 import { LeaveRequestCreatePayload, ListLeaveRequestsParams } from "./types";
 
 const QUERY_KEYS = {
@@ -62,5 +63,54 @@ export function useApprovalAssignments(approvalRequestId?: string) {
     },
     enabled: !!approvalRequestId,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useApproveLeaveRequest() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      approvalRequestId,
+      action,
+      comment,
+    }: {
+      approvalRequestId: string;
+      action: "approve" | "reject" | "return";
+      comment?: string;
+    }) => {
+      const response = await fetch(
+        `/api/workflow/requests/${approvalRequestId}/${action}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: comment || null }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || `Failed to ${action} request`);
+      }
+
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate all leave request queries to refetch updated data
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all });
+
+      const actionMessages = {
+        approve: "Request approved successfully",
+        reject: "Request denied",
+        return: "Request returned to requester",
+      };
+
+      toast.success(actionMessages[variables.action]);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to process approval";
+      toast.error(message);
+    },
   });
 }

@@ -12,7 +12,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
 import { useToast } from "@/hooks/useToast";
-import { useLeaveRequest, useCurrentEmployee } from "@/lib/modules/leave-requests/hooks";
+import { useLeaveRequest, useCurrentEmployee, useApproveLeaveRequest } from "@/lib/modules/leave-requests/hooks";
 import { LEAVE_STORE, type LeaveRequest } from "../../_components/_data";
 
 const CURRENT_USER = {
@@ -118,8 +118,8 @@ export default function LeaveRequestDetailPage({
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
+  const approveMutation = useApproveLeaveRequest();
 
   const isOthers = record?.requestType === "others";
 
@@ -132,40 +132,23 @@ export default function LeaveRequestDetailPage({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(
-        `/api/workflow/requests/${apiRecord.approval_request_id}/${action}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ comment: comment || null }),
-        }
-      );
+    await approveMutation.mutateAsync({
+      approvalRequestId: apiRecord.approval_request_id,
+      action,
+      comment,
+    });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || `Failed to ${action} request`);
-      }
+    const resultMap: Record<string, ActionResult> = {
+      approve: "approved",
+      reject: "denied",
+      return: "draft",
+    };
 
-      const resultMap: Record<string, ActionResult> = {
-        approve: "approved",
-        reject: "denied",
-        return: "draft",
-      };
-
-      setRecord((prev) =>
-        prev ? { ...prev, status: resultMap[action] } : prev
-      );
-      setActionDone(resultMap[action]);
-      setActionComment(comment);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : `Failed to ${action} request`;
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    setRecord((prev) =>
+      prev ? { ...prev, status: resultMap[action] } : prev
+    );
+    setActionDone(resultMap[action]);
+    setActionComment(comment);
   }
 
   function handleApprovalAction(action: ActionResult, comment: string) {
@@ -358,7 +341,7 @@ export default function LeaveRequestDetailPage({
               rejectLabel="Decline"
               approveLabel="Accept"
               requireCommentForRejectReturn
-              isSubmitting={isSubmitting}
+              isSubmitting={approveMutation.isPending}
               onReject={(comment) => submitApprovalAction("reject", comment)}
               onApprove={(comment) => submitApprovalAction("approve", comment)}
             />
@@ -375,7 +358,7 @@ export default function LeaveRequestDetailPage({
               rejectLabel="Deny"
               approveLabel="Approve"
               requireCommentForRejectReturn
-              isSubmitting={isSubmitting}
+              isSubmitting={approveMutation.isPending}
               onReturn={(comment) => submitApprovalAction("return", comment)}
               onReject={(comment) => submitApprovalAction("reject", comment)}
               onApprove={(comment) => submitApprovalAction("approve", comment)}
