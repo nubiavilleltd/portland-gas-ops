@@ -45,7 +45,7 @@ from app.shared.models.approval import (
 )
 from app.core.datetime_utils import utc_isoformat
 from app.employees.models import Employee
-from app.shared.services import notification_service
+from app.shared.services import notification_service, email_service
 
 logger = logging.getLogger(__name__)
 
@@ -490,6 +490,16 @@ class WorkflowEngine:
                 reference_id=approval_req.request_id,
             )
 
+            # Send approval email to next assignee
+            self._send_approval_email(
+                approver_id=next_assignee_id,
+                requester_id=approval_req.submitted_by,
+                request_type=approval_req.request_type,
+                request_id=approval_req.request_id,
+                request_title=None,
+                step_name=next_step.step_name,
+            )
+
             # Notify the requester of mid-flow progress
             requester_emp_mid = (
                 self.db.query(Employee)
@@ -679,6 +689,43 @@ class WorkflowEngine:
             on_returned()
 
         return approval_req
+
+    def _send_approval_email(
+        self,
+        approver_id: str,
+        requester_id: str,
+        request_type: str,
+        request_id: str,
+        request_title: str | None,
+        step_name: str,
+    ) -> None:
+        """Send approval email to the assigned approver."""
+        try:
+            approver = self.db.query(Employee).filter(Employee.id == approver_id).first()
+            requester = self.db.query(Employee).filter(Employee.id == requester_id).first()
+
+            if not approver or not approver.user or not approver.user.email:
+                logger.warning(f"Cannot send approval email: approver {approver_id} has no email")
+                return
+
+            if not requester or not requester.user:
+                logger.warning(f"Cannot send approval email: requester {requester_id} not found")
+                return
+
+            # Build approval URL
+            action_url = f"http://localhost:3000/approvals/{request_type}/{request_id}"
+
+            email_service.send_approval_required(
+                to_email=approver.user.email,
+                approver_name=f"{approver.user.first_name} {approver.user.last_name}".strip(),
+                requester_name=f"{requester.user.first_name} {requester.user.last_name}".strip(),
+                request_type_label=request_type.replace("_", " ").title(),
+                request_title=request_title or f"{request_type.replace('_', ' ').title()} Request",
+                step_name=step_name,
+                action_url=action_url,
+            )
+        except Exception as e:
+            logger.error(f"Failed to send approval email: {str(e)}")
 
     # ── Query helpers (used by /my-approvals and /my-requests endpoints) ──────
 
