@@ -29,7 +29,7 @@ export interface CustomerOnboarding {
 
   // Primary Contact
   contact_person: string;
-  designation: string;
+  department: string;
   email: string;
   phone: string;
   alternate_phone: string;
@@ -94,7 +94,7 @@ export interface Customer {
 
   contactPerson: string;
 
-  designation?: string;
+  department?: string;
 
   email: string;
 
@@ -211,7 +211,7 @@ export interface CustomerForm {
   industry: string;
 
   contactPerson: string;
-  designation: string;
+  department: string;
   email: string;
   phone: string;
   alternatePhone: string;

@@ -17,7 +17,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
     industry: "Food Manufacturing",
 
     contact_person: "Chinedu Eze",
-    designation: "Procurement Officer",
+    department: "Procurement Officer",
     email: "chinedu.eze@buafoods.com",
     phone: "+2348123456789",
     alternate_phone: "+2348091122334",
@@ -86,7 +86,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
     industry: "Manufacturing",
 
     contact_person: "Ahmed Musa",
-    designation: "Procurement Manager",
+    department: "Procurement Manager",
     email: "ahmed.musa@dangote.com",
     phone: "+2348012345678",
     alternate_phone: "+2348098765432",
@@ -177,7 +177,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
     industry: "Food & Beverage",
 
     contact_person: "Grace Okafor",
-    designation: "Supply Chain Manager",
+    department: "Supply Chain Manager",
     email: "grace.okafor@nestle.com",
     phone: "+2348033334444",
     alternate_phone: "+2348055556666",
@@ -244,7 +244,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
     industry: "Transportation",
 
     contact_person: "Samuel Ade",
-    designation: "Managing Director",
+    department: "Managing Director",
     email: "samuel@abclogistics.com",
     phone: "+2347012345678",
     alternate_phone: "",
@@ -315,7 +315,7 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
 
     primary_contact: {
       id: "P1",
-      status: "active",
+      status: "inactive",
       first_name: "Ahmed",
       last_name: "Musa",
       is_primary: true,
@@ -327,44 +327,36 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
     },
 
     additional_contacts: [
-      {
-        id: "A1",
-
-        first_name: "Fatima",
-        last_name: "Ibrahim",
-        is_primary: false,
-        status: "active",
-        email: "fatima@dangote.com",
-
-        phone: "+2348011111111",
-        alternate_phone: "",
-
-        department: "Finance",
-
-        preferred_channel: "Email",
-      },
-      {
-        id: "A2",
-
-        first_name: "Peter",
-        last_name: "Okoro",
-        is_primary: false,
-        status: "active",
-        email: "peter.okoro@dangote.com",
-
-        phone: "+2348022222222",
-        alternate_phone: "+2348033333333",
-
-        department: "Operations",
-
-        preferred_channel: "Phone",
-      },
+      // {
+      //   id: "A1",
+      //   first_name: "Fatima",
+      //   last_name: "Ibrahim",
+      //   is_primary: false,
+      //   status: "active",
+      //   email: "fatima@dangote.com",
+      //   phone: "+2348011111111",
+      //   alternate_phone: "",
+      //   department: "Finance",
+      //   preferred_channel: "Email",
+      // },
+      // {
+      //   id: "A2",
+      //   first_name: "Peter",
+      //   last_name: "Okoro",
+      //   is_primary: false,
+      //   status: "active",
+      //   email: "peter.okoro@dangote.com",
+      //   phone: "+2348022222222",
+      //   alternate_phone: "+2348033333333",
+      //   department: "Operations",
+      //   preferred_channel: "Phone",
+      // },
     ],
 
     submitted_by: "Magdalene Princess",
     submitted_at: "2026-07-15",
 
-    status: "active",
+    status: "inactive",
 
     attachments: [],
 
@@ -410,7 +402,56 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
       preferred_channel: "Phone",
     },
 
-    additional_contacts: [],
+    additional_contacts: [
+      {
+        id: "Z1",
+
+        first_name: "Oluwaseun",
+        last_name: "Ibrahim",
+        is_primary: false,
+        status: "active",
+        email: "ibrahim@nestle.com",
+
+        phone: "+2348011111111",
+        alternate_phone: "",
+
+        department: "Finance",
+
+        preferred_channel: "Email",
+      },
+      {
+        id: "Y1",
+
+        first_name: "Omololu",
+        last_name: "Ibrahim",
+        is_primary: false,
+        status: "active",
+        email: "ibrahim@nestle.com",
+
+        phone: "+2348011111111",
+        alternate_phone: "",
+
+        department: "Finance",
+
+        preferred_channel: "Email",
+      },
+      {
+        id: "F1",
+
+        first_name: "Felix",
+        last_name: "Ibrahim",
+        is_primary: false,
+        status: "active",
+        email: "ibrahim@nestle.com",
+
+        phone: "+2348011111111",
+        alternate_phone: "",
+
+        department: "Finance",
+
+        preferred_channel: "Email",
+      },
+    ],
 
     submitted_by: "John Doe",
     submitted_at: "2026-07-12",
@@ -487,5 +528,32 @@ export function useCustomerContacts() {
   return useQuery({
     queryKey: ["crm", "customer-contacts"],
     queryFn: async () => MOCK_CUSTOMER_CONTACTS,
+  });
+}
+
+export function useCustomers() {
+  return useQuery({
+    queryKey: ["crm", "customers"],
+
+    queryFn: async () =>
+      MOCK_CUSTOMER_ONBOARDING.filter(
+        (customer) =>
+          customer.status === "acknowledged" ||
+          customer.customer_status === "active",
+      ),
+  });
+}
+
+export function useCustomerDetails(id: string) {
+  return useQuery({
+    queryKey: ["crm", "customers", id],
+
+    queryFn: async () =>
+      MOCK_CUSTOMER_ONBOARDING.find(
+        (customer) =>
+          customer.id === id &&
+          (customer.status === "acknowledged" ||
+            customer.customer_status === "active"),
+      ),
   });
 }

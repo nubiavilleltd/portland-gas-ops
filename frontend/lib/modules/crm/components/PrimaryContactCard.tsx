@@ -6,7 +6,7 @@ import FormInput from "@/components/forms/FormInput";
 interface Props {
   values: {
     contactPerson: string;
-    designation: string;
+    department: string;
     email: string;
     phone: string;
     alternatePhone: string;
@@ -42,11 +42,11 @@ export default function PrimaryContactCard({
         />
 
         <FormInput
-          label="Designation"
-          value={values.designation}
-          error={errors?.designation}
+          label="Department"
+          value={values.department}
+          error={errors?.department}
           readOnly={readOnly}
-          onChange={(e) => onChange?.("designation", e.target.value)}
+          onChange={(e) => onChange?.("department", e.target.value)}
         />
 
         <FormInput

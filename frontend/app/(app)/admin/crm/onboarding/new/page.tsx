@@ -32,7 +32,7 @@ export default function NewCustomerPage() {
     industry: "",
 
     contactPerson: "",
-    designation: "",
+    department: "",
     email: "",
     phone: "",
     alternatePhone: "",
@@ -193,7 +193,7 @@ export default function NewCustomerPage() {
         <PrimaryContactCard
           values={{
             contactPerson: form.contactPerson,
-            designation: form.designation,
+            department: form.department,
             email: form.email,
             phone: form.phone,
             alternatePhone: form.alternatePhone,

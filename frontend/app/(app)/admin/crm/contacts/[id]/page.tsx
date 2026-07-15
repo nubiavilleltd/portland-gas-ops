@@ -57,48 +57,76 @@ export default function ContactDetailsPage() {
     setIsEditing(false);
   }
 
-  function deactivateContact() {
-    const payload = {
-      id,
-      action: "deactivate",
-      status: "deactivated",
-    };
+  function togglePersonStatus(isPrimary: boolean, index?: number) {
+    setForm((prev) => {
+      if (!prev) return prev;
 
-    console.log("DEACTIVATE CONTACT", payload);
+      if (isPrimary) {
+        return {
+          ...prev,
+          primary_contact: {
+            ...prev.primary_contact,
+            status:
+              prev.primary_contact.status === "active" ? "inactive" : "active",
+          },
+        };
+      }
 
-    // await deactivateContactApi(payload)
+      const contacts = [...prev.additional_contacts];
 
-    toast.success("Customer contact has been deactivated successfully.");
+      contacts[index!] = {
+        ...contacts[index!],
+        status: contacts[index!].status === "active" ? "inactive" : "active",
+      };
 
-    setTimeout(() => {
-      router.push("/admin/crm/contacts");
-    }, 1000);
+      return {
+        ...prev,
+        additional_contacts: contacts,
+      };
+    });
+
+    toast.success("Contact status updated successfully.");
   }
   if (!contact || !form) return null;
   console.log(form);
 
   return (
     <AppLayout pageTitle="Customer Contact Details">
-      <BackButton href="/admin/crm/contacts" label="Back to Contacts" />
-
+      <div className="flex gap-3 justify-between mb-2">
+        <BackButton href="/admin/crm/contacts" label="Back to Contacts" />
+        {!isEditing && form.status == "active" && (
+          <Button variant="outline" onClick={() => setIsEditing(true)}>
+            Edit
+          </Button>
+        )}
+      </div>
       <div className="space-y-6">
         <RoleBasedRecordHeader
-          id={form.contact_number}
+          id={form.customer_name}
           currentRole="crm_admin"
           onRoleChange={() => {}}
           roleLabel="CRM Administrator"
           roles={crmRoles}
           recordLabel="Customer Contact"
-          status={<ApprovalBadge status={contact.primary_contact.status} />}
+          status={<></>}
           showRoleSwitcher={false}
         />
 
         {/* Primary Contact */}
 
-        <FormSection
-          title="Primary Contact"
-          description={`Primary contact for ${form.customer_name}.`}
-        >
+        <FormSection title="Primary Contact">
+          <div className="flex items-center gap-3 justify-between">
+            <ApprovalBadge status={form.primary_contact.status} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => togglePersonStatus(true)}
+            >
+              {form.primary_contact.status === "active"
+                ? "Deactivate"
+                : "Activate"}
+            </Button>
+          </div>
           <ContactInformationCard
             readOnly={!isEditing}
             values={{
@@ -165,31 +193,44 @@ export default function ContactDetailsPage() {
               >
                 <div className="pb-3 border-b">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Contact #{index + 2}</h3>
-
-                    {isEditing && (
+                    <div className="flex">
+                      <h3 className="font-semibold mr-2">
+                        Contact #{index + 2}
+                      </h3>
+                      <ApprovalBadge status={person.status} />
+                    </div>
+                    <div className="flex items-center gap-3">
                       <Button
-                        variant="ghost"
-                        onClick={() =>
-                          setForm((prev) => {
-                            if (!prev) return prev;
-
-                            return {
-                              ...prev,
-                              additional_contacts:
-                                prev.additional_contacts.filter(
-                                  (_, i) => i !== index,
-                                ),
-                            };
-                          })
-                        }
+                        variant="outline"
+                        size="sm"
+                        onClick={() => togglePersonStatus(false, index)}
                       >
-                        <Trash2
-                          size={16}
-                          className="text-red-600 hover:text-red-700"
-                        />
+                        {person.status === "active" ? "Deactivate" : "Activate"}
                       </Button>
-                    )}
+                      {isEditing && (
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            setForm((prev) => {
+                              if (!prev) return prev;
+
+                              return {
+                                ...prev,
+                                additional_contacts:
+                                  prev.additional_contacts.filter(
+                                    (_, i) => i !== index,
+                                  ),
+                              };
+                            })
+                          }
+                        >
+                          <Trash2
+                            size={16}
+                            className="text-red-600 hover:text-red-700"
+                          />
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   <p className="mt-1 text-sm text-brand-text-secondary">
@@ -288,15 +329,8 @@ export default function ContactDetailsPage() {
         </FormSection>
 
         <div className="flex justify-between pb-10">
-          <Button variant="outline" onClick={deactivateContact}>
-            {form.status === "inactive" ||
-            form.primary_contact.status === "inactive"
-              ? "Activate Contact"
-              : "Deactivate Contact"}
-          </Button>
-
           <div className="flex gap-3">
-            {isEditing ? (
+            {isEditing && (
               <>
                 <Button variant="outline" onClick={cancelEdit}>
                   Cancel
@@ -304,10 +338,6 @@ export default function ContactDetailsPage() {
 
                 <Button onClick={updateContact}>Update</Button>
               </>
-            ) : (
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                Edit
-              </Button>
             )}
           </div>
         </div>
