@@ -8,9 +8,8 @@ export interface BirthdayEntry {
   days_until:  number;  // 0 = today, 1 = tomorrow, 2-6 = later this week
 }
 export type EmploymentType = "Full-time" | "Part-time" | "Contract" | "Intern";
-export type Department =
-  | "Operations" | "Finance" | "HSE" | "HR" | "IT"
-  | "Logistics" | "Executive" | "Engineering" | "Procurement" | "Admin";
+/** Department is now a plain string (the display name from the departments table). */
+export type Department = string;
 
 export interface EmployeeUser {
   id: string;
@@ -37,7 +36,8 @@ export interface EmployeeListItem {
   id: string;
   employee_no: string;
   job_title: string | null;
-  department: Department | null;
+  department: Department | null;    // display name (e.g. "HSE")
+  department_id: string | null;     // FK UUID — use this for dropdowns
   phone: string | null;
   birthday: string | null;
   employment_type: EmploymentType | null;
@@ -70,7 +70,7 @@ export interface CreateEmployeePayload {
   email: string;
   role?: string;
   job_title?: string;
-  department?: Department;
+  department_id?: string;
   phone?: string;
   birthday?: string;
   employment_type?: EmploymentType;
@@ -91,7 +91,7 @@ export interface UpdateEmployeePayload {
   first_name?: string;
   last_name?: string;
   job_title?: string;
-  department?: Department;
+  department_id?: string;
   employment_type?: EmploymentType;
   phone?: string;
   birthday?: string;

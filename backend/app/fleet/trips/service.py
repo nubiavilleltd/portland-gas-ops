@@ -277,11 +277,11 @@ class TripService:
     def complete(
         self,
         db: Session,
-        trip_id: str,
+        trip:Trip,
         proof_notes: Optional[str] = None,
     ) -> Trip:
 
-        trip = self.get_or_raise(db, trip_id)
+        # trip = self.get_or_raise(db, trip_id)
 
         if not can_complete(trip):
             raise AppException(

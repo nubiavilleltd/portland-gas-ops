@@ -170,13 +170,13 @@ class StockMovementResponse(BaseModel):
     reference_id: Optional[str]
     reference_type: Optional[ReferenceType]
 
-    location_id: int
+    location_id: str
     location_name: Optional[str] = None
 
     recorded_by: str
     recorded_by_name: Optional[str] = None
 
-    item_ids: List[int] = []
+    item_ids: List[str] = []
 
     notes: Optional[str]
 

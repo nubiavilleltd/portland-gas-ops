@@ -1,7 +1,7 @@
 """
-Workflow admin service — CRUD for workflows, steps, approver groups, assignments.
+Workflow admin service — CRUD for workflows, steps, and assignments.
 
-This is the management layer (admin builds workflows here).
+Groups have been moved to app.setups.service (Phase 1 migration).
 WorkflowEngine (the runtime that runs requests through steps) lives in workflow_engine.py.
 """
 
@@ -13,8 +13,6 @@ from fastapi import HTTPException, status
 from app.shared.models.approval import (
     ApprovalWorkflow,
     WorkflowStep,
-    ApproverGroup,
-    ApproverGroupMember,
     WorkflowAssignment,
 )
 from app.employees.models import Employee
@@ -22,7 +20,6 @@ from app.shared.models.user import User
 from app.shared.workflow.schemas import (
     WorkflowCreate, WorkflowUpdate,
     StepCreate, StepUpdate, ReorderSteps,
-    GroupCreate, GroupUpdate, AddMember,
     AssignmentSet,
 )
 
@@ -45,13 +42,6 @@ def _get_step_or_404(workflow_id: str, step_id: str, db: Session) -> WorkflowSte
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
     return step
-
-
-def _get_group_or_404(group_id: str, db: Session) -> ApproverGroup:
-    g = db.query(ApproverGroup).filter(ApproverGroup.id == group_id).first()
-    if not g:
-        raise HTTPException(status_code=404, detail="Approver group not found")
-    return g
 
 
 def _count_assignments(workflow_id: str, db: Session) -> int:
@@ -304,141 +294,6 @@ def reorder_steps(workflow_id: str, data: ReorderSteps, db: Session) -> list:
 
     db.flush()
     return [_build_step_out(step_map[sid]) for sid in data.step_ids]
-
-
-# ── Approver Groups ────────────────────────────────────────────────────────────
-
-def list_groups(db: Session) -> list:
-    groups = (
-        db.query(ApproverGroup)
-        .order_by(ApproverGroup.created_at.desc())
-        .all()
-    )
-    return [
-        {
-            "id":           g.id,
-            "name":         g.name,
-            "description":  g.description,
-            "is_active":    g.is_active,
-            "member_count": len(g.members),
-            "created_at":   g.created_at,
-        }
-        for g in groups
-    ]
-
-
-def create_group(data: GroupCreate, actor_employee_id: str, db: Session) -> ApproverGroup:
-    g = ApproverGroup(
-        id=str(uuid.uuid4()),
-        name=data.name,
-        description=data.description,
-        is_active=True,
-        created_by=actor_employee_id,
-    )
-    db.add(g)
-    return g
-
-
-def get_group(group_id: str, db: Session) -> dict:
-    g = (
-        db.query(ApproverGroup)
-        .options(
-            joinedload(ApproverGroup.members)
-            .joinedload(ApproverGroupMember.employee)
-            .joinedload(Employee.user)
-        )
-        .filter(ApproverGroup.id == group_id)
-        .first()
-    )
-    if not g:
-        raise HTTPException(status_code=404, detail="Approver group not found")
-
-    members = []
-    for m in g.members:
-        emp = m.employee
-        members.append({
-            "id":            m.id,
-            "employee_id":   m.employee_id,
-            "employee_name": emp.user.full_name if emp and emp.user else "—",
-            "employee_no":   emp.employee_no if emp else "—",
-            "job_title":     emp.job_title if emp else None,
-            "department":    emp.department.value if emp and emp.department else None,
-        })
-
-    return {
-        "id":          g.id,
-        "name":        g.name,
-        "description": g.description,
-        "is_active":   g.is_active,
-        "created_at":  g.created_at,
-        "members":     members,
-    }
-
-
-def update_group(group_id: str, data: GroupUpdate, db: Session) -> ApproverGroup:
-    g = _get_group_or_404(group_id, db)
-    if data.name is not None:
-        g.name = data.name
-    if data.description is not None:
-        g.description = data.description
-    if data.is_active is not None:
-        g.is_active = data.is_active
-    return g
-
-
-def add_group_member(group_id: str, data: AddMember, db: Session) -> dict:
-    g = _get_group_or_404(group_id, db)
-
-    # Check employee exists
-    emp = db.query(Employee).filter(Employee.id == data.employee_id).first()
-    if not emp:
-        # Also try by employee_no
-        emp = db.query(Employee).filter(Employee.employee_no == data.employee_id).first()
-    if not emp:
-        raise HTTPException(status_code=404, detail="Employee not found")
-
-    # Check not already a member
-    existing = (
-        db.query(ApproverGroupMember)
-        .filter(
-            ApproverGroupMember.group_id == group_id,
-            ApproverGroupMember.employee_id == emp.id,
-        )
-        .first()
-    )
-    if existing:
-        raise HTTPException(status_code=409, detail="Employee is already a member of this group")
-
-    member = ApproverGroupMember(
-        id=str(uuid.uuid4()),
-        group_id=group_id,
-        employee_id=emp.id,
-    )
-    db.add(member)
-    db.flush()
-
-    return {
-        "id":            member.id,
-        "employee_id":   emp.id,
-        "employee_name": emp.user.full_name if emp.user else "—",
-        "employee_no":   emp.employee_no,
-        "job_title":     emp.job_title,
-        "department":    emp.department.value if emp.department else None,
-    }
-
-
-def remove_group_member(group_id: str, member_id: str, db: Session) -> None:
-    member = (
-        db.query(ApproverGroupMember)
-        .filter(
-            ApproverGroupMember.id == member_id,
-            ApproverGroupMember.group_id == group_id,
-        )
-        .first()
-    )
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found in this group")
-    db.delete(member)
 
 
 # ── Workflow Assignments ───────────────────────────────────────────────────────
