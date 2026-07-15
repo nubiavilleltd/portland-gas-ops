@@ -380,6 +380,16 @@ class WorkflowEngine:
             reference_id=request_id,
         )
 
+        # Send approval email to first approver
+        self._send_approval_email(
+            approver_id=assignee_id,
+            requester_id=requester.id,
+            request_type=request_type,
+            request_id=request_id,
+            request_title=title,
+            step_name=first_step.step_name,
+        )
+
         # Notify the requester that their submission is now in the approval queue
         notification_service.create_notification(
             db=self.db,
