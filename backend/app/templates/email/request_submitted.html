@@ -1,13 +1,13 @@
 <!-- Injected into base.html {{body_content}} -->
-<!-- Sent to the requester after each mid-flow step is approved, to keep them updated -->
+<!-- Sent to the requester immediately after they submit a request -->
 
-<h1>Request Update</h1>
+<h1>Request Submitted</h1>
 
 <p>Hi {{requester_name}},</p>
 
 <p>
-  Your <strong>{{request_type_label}}</strong> request has been approved
-  at <strong>{{step_name}}</strong> by <strong>{{approver_name}}</strong>.
+  Your <strong>{{request_type_label}}</strong> request has been successfully submitted
+  and is now pending approval.
 </p>
 
 <table style="width:100%; border:1px solid #e5e7eb; border-radius:8px; border-collapse:collapse; margin:20px 0;">
@@ -16,18 +16,17 @@
     <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{request_title}}</td>
   </tr>
   <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Step Approved</td>
-    <td style="padding:10px 14px; font-size:13px; color:#16a34a; font-weight:600; border-bottom:1px solid #e5e7eb;">{{step_name}} ✓</td>
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Status</td>
+    <td style="padding:10px 14px; font-size:13px; color:#d97706; font-weight:600; border-bottom:1px solid #e5e7eb;">Pending Approval</td>
   </tr>
   <tr>
-    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600;">Now Pending</td>
-    <td style="padding:10px 14px; font-size:13px; color:#111118;">{{next_step_name}}</td>
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600;">Pending With</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118;">{{step_name}}</td>
   </tr>
 </table>
 
 <p style="color:#6b7280; font-size:13px;">
-  Your request is progressing through the approval chain. You will be notified
-  when each step is completed.
+  You will be notified by email as your request progresses through each approval step.
 </p>
 
 <a href="{{action_url}}" class="btn">View Request</a>

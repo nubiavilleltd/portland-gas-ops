@@ -412,6 +412,27 @@ def list_requests(
     return query.order_by(AssetRequest.created_at.desc()).offset(skip).limit(limit).all()
 
 
+def _is_current_workflow_approver(db: Session, request_id: str, user_id: str) -> bool:
+    """Return True if this user is the assigned approver on the current pending workflow step."""
+    from app.employees.models import Employee
+    from app.shared.models.approval import ApprovalRequest, ApprovalStepAssignment, ApprovalOverallStatus
+    emp = db.query(Employee).filter(Employee.user_id == user_id).first()
+    if not emp:
+        return False
+    return (
+        db.query(ApprovalStepAssignment.id)
+        .join(ApprovalRequest, ApprovalRequest.id == ApprovalStepAssignment.approval_request_id)
+        .filter(
+            ApprovalRequest.request_type == "asset",
+            ApprovalRequest.request_id == request_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+            ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ApprovalStepAssignment.assigned_to == emp.id,
+        )
+        .first() is not None
+    )
+
+
 def get_request(db: Session, request_id: str, current_user: User) -> AssetRequest:
     req = db.query(AssetRequest).filter(
         AssetRequest.id == request_id,
@@ -421,7 +442,11 @@ def get_request(db: Session, request_id: str, current_user: User) -> AssetReques
     if not req:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
 
-    if current_user.role not in ("admin", "super_admin") and req.requested_by != current_user.id:
+    is_admin = current_user.role in ("admin", "super_admin")
+    is_requester = req.requested_by == current_user.id
+    is_approver = _is_current_workflow_approver(db, request_id, current_user.id)
+
+    if not (is_admin or is_requester or is_approver):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     return req
@@ -458,6 +483,15 @@ def create_request(db: Session, data: AssetRequestCreate, current_user: User) ->
                     detail=f"Insufficient quantity for '{asset.name}'. Available: {asset.available_quantity}",
                 )
 
+    # Resolve the requester's Employee record — required by the workflow engine
+    from app.employees.models import Employee
+    requester_emp = db.query(Employee).filter(Employee.user_id == current_user.id).first()
+    if not requester_emp:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Your employee profile is not set up. Contact HR before submitting a request.",
+        )
+
     req = AssetRequest(
         reference=generate_reference("AR", db, AssetRequest, AssetRequest.reference),
         request_type=data.request_type,
@@ -478,6 +512,16 @@ def create_request(db: Session, data: AssetRequestCreate, current_user: User) ->
             notes=item_data.notes,
         )
         db.add(item)
+
+    # Start the approval workflow — emails fire automatically after commit
+    from app.shared.services.workflow_engine import WorkflowEngine
+    engine = WorkflowEngine(db)
+    engine.start(
+        request_type="asset",
+        request_id=req.id,
+        title=f"{req.reference} — {data.request_type.value.title()} Request",
+        requester=requester_emp,
+    )
 
     db.commit()
     db.refresh(req)
@@ -530,6 +574,17 @@ def update_request_status(
         requester_emp = db.query(Employee).filter(Employee.user_id == req.requested_by).first()
         if requester_emp:
             for item in req.items:
+                # If a specific asset was allocated to this item, free it directly
+                if item.asset_id and not item.asset_type_id:
+                    specific = db.query(Asset).filter(
+                        Asset.id == item.asset_id,
+                        Asset.assigned_to == requester_emp.id,
+                        Asset.status == AssetStatus.assigned,
+                    ).first()
+                    if specific:
+                        specific.status = AssetStatus.available
+                        specific.assigned_to = None
+                    continue
                 type_id = item.asset_type_id or (item.asset.asset_type_id if item.asset else None)
                 if not type_id:
                     continue

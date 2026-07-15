@@ -153,23 +153,34 @@ function NewAssetRequestForm() {
                 key: "asset_type_id",
                 label: "Asset Type",
                 width: "3fr",
-                render: (value, onChange) => (
-                  <select
-                    value={value as string}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="w-full text-sm bg-transparent outline-none"
-                  >
-                    <option value="">Select asset type…</option>
-                    {availableAssetTypes.map((t) => {
-                      const avail = availability[t.id] ?? 0;
-                      return (
-                        <option key={t.id} value={t.id}>
-                          {t.name} — {avail} available
-                        </option>
-                      );
-                    })}
-                  </select>
-                ),
+                render: (value, onChange) => {
+                  // Exclude types already selected in other rows
+                  const selectedElsewhere = new Set(
+                    items
+                      .filter((item) => item.asset_type_id && item.asset_type_id !== value)
+                      .map((item) => item.asset_type_id)
+                  );
+                  const options = availableAssetTypes.filter(
+                    (t) => !selectedElsewhere.has(t.id)
+                  );
+                  return (
+                    <select
+                      value={value as string}
+                      onChange={(e) => onChange(e.target.value)}
+                      className="w-full text-sm bg-transparent outline-none"
+                    >
+                      <option value="">Select asset type…</option>
+                      {options.map((t) => {
+                        const avail = availability[t.id] ?? 0;
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.name} — {avail} available
+                          </option>
+                        );
+                      })}
+                    </select>
+                  );
+                },
               },
               {
                 key: "quantity",

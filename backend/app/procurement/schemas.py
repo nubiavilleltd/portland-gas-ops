@@ -179,7 +179,8 @@ class ProcurementListItem(BaseModel):
     next_actor_name: Optional[str] = None
     current_step_name: Optional[str] = None
 
-    # PO document URL — set when a PO with a document exists
+    # PO info — po_number is set whenever a PO exists; po_document_url only when the PDF is ready
+    po_number: Optional[str] = None
     po_document_url: Optional[str] = None
 
     class Config:

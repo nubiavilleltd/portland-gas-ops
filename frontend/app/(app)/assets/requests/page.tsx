@@ -9,7 +9,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import SelectInput from "@/components/forms/SelectInput";
 import { useAssetRequests } from "@/lib/modules/assets";
-import { formatDate, capitalize } from "@/lib/utils";
+import { formatDate, formatDateTime, capitalize } from "@/lib/utils";
 import type { AssetRequestListItem, AssetRequestStatus } from "@/types";
 
 const STATUS_OPTIONS = [
@@ -44,8 +44,15 @@ const columns: Column<AssetRequestListItem>[] = [
   },
   {
     key: "requester_name",
-    label: "Requested By",
-    render: (v) => <span className="text-brand-text-primary">{v ? String(v) : "—"}</span>,
+    label: "Requester",
+    render: (_, row) => row.requester_name ? (
+      <div>
+        <p className="text-sm text-brand-text-primary">{row.requester_name}</p>
+        {row.requester_department && (
+          <p className="text-xs text-brand-text-secondary">{row.requester_department}</p>
+        )}
+      </div>
+    ) : <span className="text-brand-text-secondary">—</span>,
   },
   {
     key: "request_type",
@@ -79,23 +86,34 @@ const columns: Column<AssetRequestListItem>[] = [
       ),
   },
   {
+    key: "created_at",
+    label: "Submitted",
+    render: (v) => <span className="text-brand-text-secondary text-xs">{formatDateTime(v as string)}</span>,
+  },
+  {
     key: "status",
     label: "Status",
     render: (v) => <ApprovalBadge status={String(v)} />,
   },
   {
-    key: "next_actor",
+    key: "next_actor_name",
     label: "Next Actor",
-    render: (_, row) => {
-      if (row.status === "pending" || row.status === "approved") return <span className="text-sm text-brand-text-primary">Asset Admin</span>;
-      if (row.status === "allocated" && row.request_type === "loan") return <span className="text-sm text-brand-text-primary">Requester</span>;
-      return <span className="text-brand-text-secondary">—</span>;
-    },
-  },
-  {
-    key: "created_at",
-    label: "Submitted",
-    render: (v) => <span className="text-brand-text-secondary text-xs">{formatDate(v as string)}</span>,
+    render: (_, row) =>
+      row.next_actor_name ? (
+        <div>
+          <p className="text-sm text-brand-text-primary">{row.next_actor_name}</p>
+          {row.current_step_name && (
+            <p className="text-xs text-brand-text-secondary">{row.current_step_name}</p>
+          )}
+        </div>
+      ) : row.status === "allocated" && row.request_type === "loan" ? (
+        <div>
+          <p className="text-sm text-brand-text-primary">{row.requester_name ?? "Requester"}</p>
+          <p className="text-xs text-brand-text-secondary">Return asset</p>
+        </div>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
   },
 ];
 
@@ -131,6 +149,7 @@ export default function AssetRequestsPage() {
         columns={columns}
         data={data ?? []}
         isLoading={isLoading}
+        minWidthClassName="min-w-max"
         rowHref={(row) => `/assets/requests/${row.id}`}
         emptyMessage={isError ? "Could not load requests" : "No asset requests"}
         emptyDescription={

@@ -110,6 +110,8 @@ export interface MyApproval {
   title:               string | null;
   department:          string | null;
   current_step_number: number;
+  total_steps:         number;
+  is_final_step:       boolean;
   attempt_number:      number;
   submitted_at:        string;
 }

@@ -24,6 +24,7 @@ import logging
 from datetime import datetime, date
 from typing import Callable
 
+from sqlalchemy import event as sa_event
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -46,6 +47,7 @@ from app.shared.models.approval import (
 from app.core.datetime_utils import utc_isoformat
 from app.employees.models import Employee
 from app.shared.services import notification_service
+from app.shared.services import workflow_email
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +163,25 @@ def _next_all_request_reference(request_type: str, db: Session) -> str:
 class WorkflowEngine:
     def __init__(self, db: Session):
         self.db = db
+
+    def _queue_email(self, fn: Callable[["Session"], None]) -> None:
+        """
+        Schedule fn(db) to run once AFTER the current transaction commits.
+        If the transaction is rolled back, fn() is never called.
+
+        fn receives a FRESH Session so it is never affected by the committed
+        state of the request session. The fresh session is closed when done.
+        """
+        @sa_event.listens_for(self.db, "after_commit", once=True)
+        def _run(_session: "Session") -> None:
+            from app.core.database import SessionLocal
+            new_db = SessionLocal()
+            try:
+                fn(new_db)
+            except Exception:
+                logger.exception("Post-commit email notification failed")
+            finally:
+                new_db.close()
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 
@@ -403,6 +424,12 @@ class WorkflowEngine:
             action=AuditAction.submitted,
         )
 
+        # Queue emails to fire only after the transaction commits successfully.
+        # If the commit rolls back, these are never sent.
+        _ar_id = approval_req.id
+        self._queue_email(lambda db: workflow_email.notify_submitted(db, _ar_id))
+        self._queue_email(lambda db: workflow_email.notify_step_assigned(db, _ar_id))
+
         return approval_req
 
     def approve(
@@ -474,6 +501,11 @@ class WorkflowEngine:
                     .filter(Employee.id == approval_req.submitted_by)
                     .first()
                 )
+                if not requester:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Cannot advance workflow: the requester's employee record no longer exists.",
+                    )
                 next_assignee_id = _resolve_assignee(next_step, requester, self.db)
                 self._create_step_assignment(approval_req.id, next_step.step_number, next_assignee_id)
 
@@ -510,6 +542,13 @@ class WorkflowEngine:
                     reference_type=approval_req.request_type,
                     reference_id=approval_req.request_id,
                 )
+
+            # Queue emails — fire only after successful commit
+            _ar_id = approval_req.id
+            _actor_id = actor.id
+            self._queue_email(lambda db: workflow_email.notify_step_progress(db, _ar_id, _actor_id))
+            self._queue_email(lambda db: workflow_email.notify_step_assigned(db, _ar_id))
+
         else:
             # Final step approved — workflow complete
             approval_req.overall_status = ApprovalOverallStatus.approved
@@ -535,6 +574,11 @@ class WorkflowEngine:
 
             if on_final_approval:
                 on_final_approval()
+
+            # Queue email — fire only after successful commit
+            _ar_id = approval_req.id
+            _comment = comment
+            self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "approved", _comment))
 
         return approval_req
 
@@ -605,6 +649,11 @@ class WorkflowEngine:
 
         if on_rejected:
             on_rejected()
+
+        # Queue email — fire only after successful commit
+        _ar_id = approval_req.id
+        _comment = comment
+        self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "rejected", _comment))
 
         return approval_req
 
@@ -678,6 +727,11 @@ class WorkflowEngine:
         if on_returned:
             on_returned()
 
+        # Queue email — fire only after successful commit
+        _ar_id = approval_req.id
+        _comment = comment
+        self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "returned", _comment))
+
         return approval_req
 
     # ── Query helpers (used by /my-approvals and /my-requests endpoints) ──────
@@ -714,6 +768,13 @@ class WorkflowEngine:
                 )
                 .first()
             )
+                # Determine total steps in this workflow so the frontend can
+            # tell if this is the final step without knowing the step number.
+            total_steps = (
+                self.db.query(WorkflowStep)
+                .filter(WorkflowStep.workflow_id == ar.workflow_id)
+                .count()
+            )
             result.append({
                 "approval_request_id": ar.id,
                 "request_type":        ar.request_type,
@@ -722,6 +783,8 @@ class WorkflowEngine:
                 "title":               all_req.title if all_req else None,
                 "department":          all_req.department if all_req else None,
                 "current_step_number": ar.current_step_number,
+                "total_steps":         total_steps,
+                "is_final_step":       ar.current_step_number == total_steps,
                 "attempt_number":      ar.attempt_number,
                 "submitted_at":        utc_isoformat(ar.created_at),
             })

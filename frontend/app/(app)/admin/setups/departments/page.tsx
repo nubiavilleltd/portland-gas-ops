@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { Plus, Pencil, Trash2, Building2, X } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Pencil, Trash2, Building2, X, ToggleLeft, ToggleRight } from "lucide-react";
 import Tip from "@/components/ui/Tip";
 import { BackButton } from "@/components/ui/BackButton";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
+import DataTable from "@/components/ui/DataTable";
+import type { Column, DataTableAction } from "@/components/ui/DataTable";
 import FormInput from "@/components/forms/FormInput";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
@@ -20,6 +21,8 @@ import {
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useToast } from "@/hooks/useToast";
 import type { DepartmentListItem } from "@/types/setups";
+import { createPortal } from "react-dom";
+import { useEffect } from "react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,7 +70,6 @@ function DeptModal({ mode, dept, initialHod, employees, onSave, onClose }: DeptM
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-fade-up"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-brand-text-primary">
             {mode === "add" ? "Add Department" : "Edit Department"}
@@ -142,7 +144,7 @@ export default function DepartmentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<DepartmentListItem | null>(null);
   const [toggleTarget, setToggleTarget] = useState<DepartmentListItem | null>(null);
 
-  // Employee list for picker
+  // Employee list for the picker modal (only loaded when opening a modal)
   const employeeOptions: PickedEmployee[] = useMemo(() =>
     allEmployees.map((e) => ({
       id:         e.id,
@@ -153,12 +155,6 @@ export default function DepartmentsPage() {
     })),
     [allEmployees],
   );
-
-  const employeeById = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const e of employeeOptions) map[e.id] = e.name;
-    return map;
-  }, [employeeOptions]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -227,8 +223,8 @@ export default function DepartmentsPage() {
         title={dept.is_active ? "Deactivate Department" : "Activate Department"}
         message={
           dept.is_active
-            ? `Deactivate "${dept.name}"? It won't appear in dropdowns for new assignments.`
-            : `Reactivate "${dept.name}"?`
+            ? `Deactivate "${dept.name}"? It will be hidden from dropdowns and no new employees can be assigned to it. Existing employees remain unaffected.`
+            : `Reactivate "${dept.name}"? It will appear in dropdowns again for new assignments.`
         }
         confirmLabel={dept.is_active ? "Deactivate" : "Activate"}
         destructive={dept.is_active}
@@ -251,6 +247,42 @@ export default function DepartmentsPage() {
     }
   }
 
+  // ── Table columns ────────────────────────────────────────────────────────────
+
+  const columns: Column<DepartmentListItem>[] = [
+    {
+      key:      "name",
+      label:    "Department",
+      sortable: true,
+      render:   (_, row) => (
+        <p className="text-sm font-medium text-brand-text-primary">{row.name}</p>
+      ),
+    },
+    {
+      key:   "hod_name",
+      label: "Head of Department",
+      render: (_, row) =>
+        row.hod_name ? (
+          <p className="text-sm text-brand-text-primary">{row.hod_name}</p>
+        ) : (
+          <p className="text-sm text-brand-text-secondary italic">Not set</p>
+        ),
+    },
+    {
+      key:   "is_active",
+      label: "Status",
+      render: (_, row) => (
+        <span className={[
+          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+          row.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500",
+        ].join(" ")}>
+          {row.is_active ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+  ];
+
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -272,119 +304,63 @@ export default function DepartmentsPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden animate-pulse">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-brand-border bg-gray-50">
-                <th className="px-4 py-3"><div className="h-3 w-20 bg-gray-200 rounded" /></th>
-                <th className="px-4 py-3"><div className="h-3 w-32 bg-gray-200 rounded" /></th>
-                <th className="px-4 py-3"><div className="h-3 w-12 bg-gray-200 rounded" /></th>
-                <th className="px-4 py-3 w-20" />
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <tr key={i} className="border-b border-brand-border/50 last:border-0">
-                  <td className="px-4 py-3.5">
-                    <div className="h-3.5 w-36 bg-gray-200 rounded" />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="h-3.5 w-28 bg-gray-200 rounded" />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="h-5 w-14 bg-gray-100 rounded-full" />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex gap-1.5">
-                      <div className="h-7 w-7 bg-gray-100 rounded-lg" />
-                      <div className="h-7 w-7 bg-gray-100 rounded-lg" />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : departments.length === 0 ? (
-        <div className="bg-white border border-brand-border rounded-2xl flex flex-col items-center justify-center py-20 gap-3 text-brand-text-secondary">
-          <Building2 size={32} className="text-gray-300" />
-          <p className="text-sm">No departments yet.</p>
-          <Button size="sm" leftIcon={<Plus size={14} />} onClick={() => setModal({ mode: "add" })}>
-            Add Department
-          </Button>
-        </div>
-      ) : (
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-brand-border bg-gray-50">
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-brand-text-secondary">Department</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-brand-text-secondary">Head of Department</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-brand-text-secondary">Status</th>
-                <th className="px-4 py-3 w-24" />
-              </tr>
-            </thead>
-            <tbody>
-              {departments.map((dept) => (
-                <tr key={dept.id} className="border-b border-brand-border last:border-0 hover:bg-gray-50/60 transition-colors">
-                  <td className="px-4 py-3.5">
-                    <p className="text-sm font-medium text-brand-text-primary">{dept.name}</p>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    {dept.hod_id && employeeById[dept.hod_id] ? (
-                      <p className="text-sm text-brand-text-primary">{employeeById[dept.hod_id]}</p>
-                    ) : (
-                      <p className="text-sm text-brand-text-secondary italic">Not set</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <Tip label={dept.is_active ? "Click to deactivate" : "Click to activate"}>
-                      <button
-                        onClick={() => setToggleTarget(dept)}
-                        className={[
-                          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium hover:opacity-75 transition-opacity",
-                          dept.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500",
-                        ].join(" ")}
-                      >
-                        {dept.is_active ? "Active" : "Inactive"}
-                      </button>
+      <DataTable
+        columns={columns}
+        data={departments}
+        isLoading={isLoading}
+        searchable
+        searchPlaceholder="Search departments…"
+        getSearchValues={(row) => [row.name, row.hod_name ?? ""]}
+        emptyMessage="No departments yet."
+        emptyDescription="Add your first department to get started."
+        showActions
+        actions={[
+          {
+            key: "row-actions",
+            label: "",
+            render: (dept) => (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setModal({ mode: "edit", dept }); }}
+                  className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+                >
+                  <Tip label="Edit department"><Pencil size={14} /></Tip>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setToggleTarget(dept); }}
+                  className={[
+                    "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-colors",
+                    dept.is_active
+                      ? "text-brand-text-secondary hover:bg-amber-50 hover:text-amber-600"
+                      : "text-brand-text-secondary hover:bg-green-50 hover:text-green-600",
+                  ].join(" ")}
+                >
+                  <Tip label={dept.is_active ? "Deactivate department" : "Reactivate department"}>
+                    {dept.is_active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                  </Tip>
+                </button>
+                {dept.employee_count === 0 ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(dept); }}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
+                    <Tip label="Delete department"><Trash2 size={14} /></Tip>
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-300 cursor-not-allowed">
+                    <Tip label={`Cannot delete — ${dept.employee_count} employee(s) assigned.\nDeactivate the department instead.`}>
+                      <Trash2 size={14} />
                     </Tip>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1">
-                      <Tip label="Edit department">
-                        <button
-                          onClick={() => setModal({ mode: "edit", dept })}
-                          className="h-7 w-7 inline-flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-gray-100 transition-colors"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                      </Tip>
-                      {dept.employee_count === 0 ? (
-                        <Tip label="Delete department">
-                          <button
-                            onClick={() => setDeleteTarget(dept)}
-                            className="h-7 w-7 inline-flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </Tip>
-                      ) : (
-                        <Tip label={`${dept.employee_count} employee(s) assigned — deactivate to retire`}>
-                          <span className="h-7 w-7 inline-flex items-center justify-center rounded-lg text-gray-300 cursor-not-allowed">
-                            <Trash2 size={13} />
-                          </span>
-                        </Tip>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  </span>
+                )}
+              </div>
+            ),
+          } satisfies DataTableAction<DepartmentListItem>,
+        ]}
+      />
 
       {/* Add modal */}
       {modal?.mode === "add" && (

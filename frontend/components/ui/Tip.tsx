@@ -50,7 +50,7 @@ export default function Tip({ label, children }: TipProps) {
       {mounted && visible && createPortal(
         <span
           style={{ top: coords.top, left: coords.left }}
-          className="fixed z-[9999] -translate-x-1/2 -translate-y-full pointer-events-none whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[10px] font-medium text-white shadow-sm"
+          className="fixed z-[9999] -translate-x-1/2 -translate-y-full pointer-events-none whitespace-pre-line max-w-[200px] text-center rounded-md bg-gray-900 px-2 py-1 text-[10px] font-medium text-white shadow-sm"
         >
           {label}
         </span>,

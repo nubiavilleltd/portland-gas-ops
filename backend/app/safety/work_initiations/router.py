@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
-from app.shared.services import workflow_email
 from app.safety.work_initiations import service as work_initiation_service
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
