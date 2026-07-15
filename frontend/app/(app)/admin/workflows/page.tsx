@@ -156,7 +156,6 @@ export default function WorkflowsPage() {
         action={
           <div className="flex items-center gap-2">
             <Button href="/admin/workflows/assignments?from=workflows" variant="outline" size="sm">Assignments</Button>
-            <Button href="/admin/workflows/groups?from=workflows" variant="outline" size="sm">Approver Groups</Button>
             <Button href="/admin/workflows/new" leftIcon={<Plus size={15} />} size="sm">New Workflow</Button>
           </div>
         }

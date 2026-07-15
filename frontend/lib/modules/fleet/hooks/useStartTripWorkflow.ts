@@ -27,16 +27,16 @@ export function useStartTripWorkflow() {
       );
 
       // ✅ Sync trip lists
-       queryClient.setQueriesData(
-  { queryKey: FLEET_KEYS.trips() },
-  (old: Trip[] | undefined) => {
-    if (!Array.isArray(old)) return old;
+      queryClient.setQueriesData(
+        { queryKey: FLEET_KEYS.trips() },
+        (old: Trip[] | undefined) => {
+          if (!Array.isArray(old)) return old;
 
-    return old.map((trip) =>
-      trip.id === updatedTrip.id ? updatedTrip : trip
-    );
-  }
-);
+          return old.map((trip) =>
+            trip.id === updatedTrip.id ? updatedTrip : trip
+          );
+        }
+      );
 
       // ❗ Orders changed (in_transit status)
       queryClient.invalidateQueries({
@@ -50,17 +50,17 @@ export function useStartTripWorkflow() {
       );
 
       // ✅ Driver status changed to in_transit
-queryClient.invalidateQueries({
-  queryKey: FLEET_KEYS.drivers(),
-});
+      queryClient.invalidateQueries({
+        queryKey: FLEET_KEYS.drivers(),
+      });
 
-// ✅ Vehicle status changed to in_transit
-queryClient.invalidateQueries({
-  queryKey: FLEET_KEYS.vehicles(),
-});
+      // ✅ Vehicle status changed to in_transit
+      queryClient.invalidateQueries({
+        queryKey: FLEET_KEYS.vehicles(),
+      });
     },
 
-    
+
 
     onError: (err: any) => {
       toast.error(err?.message ?? "Failed to start trip");

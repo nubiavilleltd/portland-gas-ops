@@ -27,9 +27,9 @@ export type ItemDisposition = "sold" | "loaned";
 // ── 4. TRIP INVENTORY ASSIGNMENT ─────────────────────────
 
 export interface InventoryAssignment {
-  orderId: string;
-  productId: string;
-  itemIds: string[];
+  order_id: string;
+  product_id: string;
+  item_ids: string[];
   disposition: ItemDisposition;
 }
 

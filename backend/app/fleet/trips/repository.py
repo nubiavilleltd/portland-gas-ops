@@ -19,7 +19,7 @@ class TripRepository:
     def get_by_id(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> Optional[Trip]:
 
         return (
@@ -27,7 +27,7 @@ class TripRepository:
             .options(
                 joinedload(Trip.driver),
                 joinedload(Trip.vehicle),
-                joinedload(Trip.trip_orders),
+                joinedload(Trip.trip_orders).joinedload(TripOrder.order),
             )
             .filter(Trip.id == trip_id)
             .first()
@@ -44,7 +44,7 @@ class TripRepository:
             .options(
                 joinedload(Trip.driver),
                 joinedload(Trip.vehicle),
-                joinedload(Trip.trip_orders),
+                joinedload(Trip.trip_orders).joinedload(TripOrder.order),
             )
         )
 
@@ -102,7 +102,7 @@ class TripRepository:
     def trip_requires_inventory(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> bool:
 
         order_ids = self.get_order_ids(
@@ -137,7 +137,7 @@ class TripRepository:
     def add_order(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         order_id: str,
     ) -> TripOrder:
 
@@ -154,7 +154,7 @@ class TripRepository:
     def remove_order(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
         order_id: str,
     ) -> None:
 
@@ -172,7 +172,7 @@ class TripRepository:
     def get_order_ids(
         self,
         db: Session,
-        trip_id: int,
+        trip_id: str,
     ) -> List[str]:
 
         rows = (
@@ -186,7 +186,7 @@ class TripRepository:
     def get_active_trip_for_driver(
         self,
         db: Session,
-        driver_id: int,
+        driver_id: str,
     ) -> Optional[Trip]:
 
         return (
@@ -209,7 +209,7 @@ class TripRepository:
     def get_active_trip_for_vehicle(
         self,
         db: Session,
-        vehicle_id: int,
+        vehicle_id: str,
     ) -> Optional[Trip]:
 
         return (

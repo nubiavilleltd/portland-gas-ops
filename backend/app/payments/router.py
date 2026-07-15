@@ -59,7 +59,7 @@ def list_payments(
 
 
 @router.post(
-    "/",
+    "",
     response_model=PaymentResponse,
     status_code=http_status.HTTP_201_CREATED,
 )

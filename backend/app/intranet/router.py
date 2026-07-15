@@ -683,7 +683,7 @@ def submit_feedback(
         emp = get_employee_by_user_id(current_user.id, db)
         emp_id   = emp.id
         emp_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or emp_id
-        emp_dept = emp.department
+        emp_dept = emp.department_rel.name if emp.department_rel else None
     except Exception:
         emp_id = emp_name = emp_dept = None
 

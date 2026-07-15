@@ -296,7 +296,7 @@ class AssetRequestResponse(BaseModel):
             from sqlalchemy.orm import object_session
             db = object_session(req)
             emp = db.query(Employee).filter(Employee.user_id == req.requester.id).first() if db else None
-            obj.requester_department = emp.department.value if emp and emp.department else None
+            obj.requester_department = emp.department_rel.name if emp and emp.department_rel else None
             obj.requester_job_title  = emp.job_title if emp else None
         obj.allocated_by_name = req.allocator.full_name if req.allocator else None
         return obj

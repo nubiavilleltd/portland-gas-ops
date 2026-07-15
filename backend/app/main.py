@@ -42,6 +42,7 @@ from app.fleet.drivers.model import Driver # noqa: F401
 from app.fleet.vehicles.model import Vehicle # noqa: F401
 from app.fleet.trips.model import Trip, TripOrder  # noqa: F401
 from app.intranet import models as _intranet_models  # noqa: F401
+from app.setups import models as _setups_models  # noqa: F401
 
 
 
@@ -66,6 +67,7 @@ from app.fleet.vehicles.router import router as vehicles_router
 from app.fleet.trips.router import router as trips_router
 from app.intranet.router import router as intranet_router
 from app.notifications.router import router as notifications_router
+from app.setups.router import router as setups_router
 
 
 
@@ -156,6 +158,7 @@ app.include_router(vehicles_router, prefix="/api/fleet/vehicles", tags=["Vehicle
 app.include_router(trips_router, prefix="/api/fleet/trips", tags=["Trips"])
 app.include_router(intranet_router, prefix="/api/intranet", tags=["Intranet"])
 app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
+app.include_router(setups_router, prefix="/api/setups", tags=["Setups"])
 
 
 @app.get("/api/health")

@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, String, Date, Numeric, DateTime, Enum as SAEnum,
-    ForeignKey, Integer,
+    ForeignKey,
 )
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
@@ -8,19 +8,6 @@ from sqlalchemy.orm import relationship
 import uuid
 import enum
 from app.core.database import Base
-
-
-class Department(str, enum.Enum):
-    operations   = "Operations"
-    finance      = "Finance"
-    safety       = "HSE"
-    hr           = "HR"
-    it           = "IT"
-    logistics    = "Logistics"
-    executive    = "Executive"
-    engineering  = "Engineering"
-    procurement  = "Procurement"
-    admin        = "Admin"
 
 
 class EmploymentType(str, enum.Enum):
@@ -39,7 +26,7 @@ class Employee(Base):
 
     # Job info
     job_title        = Column(String(150), nullable=True)
-    department       = Column(SAEnum(Department), nullable=True)
+    department_id    = Column(CHAR(36), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     phone            = Column(String(20), nullable=True)
     birthday         = Column(Date, nullable=True)
     employment_type  = Column(SAEnum(EmploymentType), nullable=True)
@@ -60,7 +47,13 @@ class Employee(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    user         = relationship("User", back_populates="employee")
+    user             = relationship("User", back_populates="employee")
+    department_rel   = relationship("Department", foreign_keys=[department_id])
     operating_manager = relationship("Employee", remote_side="Employee.id", foreign_keys=[operating_manager_id])
     direct_reports = relationship("Employee", foreign_keys=[operating_manager_id], back_populates="operating_manager")
     documents    = relationship("Document", back_populates="uploaded_by_employee", foreign_keys="Document.uploaded_by")
+
+    @property
+    def department(self) -> str | None:
+        """Convenience accessor — returns the department display name (for serializers)."""
+        return self.department_rel.name if self.department_rel else None

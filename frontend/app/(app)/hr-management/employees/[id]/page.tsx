@@ -14,7 +14,6 @@ import {
   EMPLOYEE_STORE,
   SEED_EMPLOYEE_RECORDS,
   LEAVE_TYPES,
-  HR_DEPT_OPTIONS,
   CATEGORY_OPTIONS,
   GRADE_OPTIONS,
   calcLeaveBalance,
@@ -22,6 +21,7 @@ import {
   type Employee,
   type EmployeeRecord,
 } from "../../_components/_data";
+import { useDepartments } from "@/lib/modules/setups";
 
 const YEAR = new Date().getFullYear();
 
@@ -89,6 +89,10 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const [isEditing, setIsEditing] = useState(false);
   const [empForm, setEmpForm] = useState<EmployeeFormState>({});
 
+  const { data: departments = [] } = useDepartments();
+  const deptOptions = departments.map((d) => ({ value: d.id, label: d.name }));
+  const [departmentId, setDepartmentId] = useState("");
+
   const empName = emp ? `${emp.firstName} ${emp.lastName}` : "";
   const [docs, setDocs] = useState<EmployeeRecord[]>(() =>
     SEED_EMPLOYEE_RECORDS.filter((r) => r.employee === empName)
@@ -110,8 +114,13 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const ue = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v }));
   const un = (k: keyof Employee, v: string) => setEmpForm((p) => ({ ...p, [k]: v === "" ? undefined : Number(v) }));
 
-  const openEdit  = () => { setEmpForm(emp ? { ...emp } : {}); setIsEditing(true); };
-  const cancelEdit = () => { setIsEditing(false); setEmpForm({}); setPendingDocs([]); };
+  const openEdit  = () => {
+    setEmpForm(emp ? { ...emp } : {});
+    const matchId = emp?.department ? (departments.find((d) => d.name === emp.department)?.id ?? "") : "";
+    setDepartmentId(matchId);
+    setIsEditing(true);
+  };
+  const cancelEdit = () => { setIsEditing(false); setEmpForm({}); setPendingDocs([]); setDepartmentId(""); };
 
   const computed = calcDeductions(
     empForm.basicSalary,
@@ -307,8 +316,13 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <>
                   <FormInput label="Job Title / Role" required placeholder="e.g. Software Developer"
                     value={empForm.title ?? ""} onChange={(e) => ue("title", e.target.value)} />
-                  <FormSelect label="Department" required options={HR_DEPT_OPTIONS} placeholder="Select department"
-                    value={empForm.department ?? ""} onValueChange={(v) => ue("department", v)} />
+                  <FormSelect label="Department" required options={deptOptions} placeholder="Select department"
+                    value={departmentId}
+                    onValueChange={(id) => {
+                      setDepartmentId(id);
+                      const name = departments.find((d) => d.id === id)?.name ?? "";
+                      ue("department", name);
+                    }} />
                   <FormSelect label="Category" required options={CATEGORY_OPTIONS} placeholder="Select category"
                     value={empForm.category ?? ""} onValueChange={(v) => ue("category", v)} />
                   <FormSelect label="Grade Level" required options={GRADE_OPTIONS} placeholder="Select grade level"
