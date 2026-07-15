@@ -215,7 +215,7 @@ def create_leave_request(
         reliever_id=payload.reliever_id,
         document_id=payload.document_id,
         request_type=payload.request_type,
-        department=employee.department.value if employee.department else None,
+        department=employee.department,
         job_title=employee.job_title,
         start_date=payload.start_date,
         end_date=payload.end_date,
