@@ -49,8 +49,8 @@ class ProcurementItemCreate(BaseModel):
     description: str = Field(..., min_length=1, max_length=255)
     quantity: int = Field(..., gt=0)
     unit: Optional[str] = None
-    unit_price: Optional[Decimal] = None
-    total_price: Optional[Decimal] = None
+    unit_price: Optional[Decimal] = Field(None, ge=0)
+    total_price: Optional[Decimal] = Field(None, ge=0)
 
     @field_validator("description")
     @classmethod
@@ -88,7 +88,7 @@ class AttachmentResponse(BaseModel):
 class ProcurementCreate(BaseModel):
     category: Optional[str] = None
     description: Optional[str] = Field(None, max_length=2000)
-    estimated_amount: Optional[Decimal] = None
+    estimated_amount: Optional[Decimal] = Field(None, ge=0)
     currency: str = "NGN"
     required_by: Optional[str] = None
     vendor_id: str = Field(..., min_length=1, description="Vendor is required")
@@ -113,7 +113,7 @@ class ProcurementCreate(BaseModel):
 class ProcurementUpdate(BaseModel):
     category: Optional[str] = None
     description: Optional[str] = None
-    estimated_amount: Optional[Decimal] = None
+    estimated_amount: Optional[Decimal] = Field(None, ge=0)
     required_by: Optional[str] = None
     vendor_id: Optional[str] = None
     items: Optional[List[ProcurementItemCreate]] = None
