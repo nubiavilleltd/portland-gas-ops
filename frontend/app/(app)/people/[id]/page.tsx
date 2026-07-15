@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import {
   ChevronLeft, Mail, Phone, Briefcase, Building2,
-  Users, MapPin, Cake, CalendarDays, Hash,
+  Users, Cake, CalendarDays, Hash,
 } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
 import Avatar from "@/components/ui/Avatar";
@@ -64,7 +64,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         <div className="absolute left-0 right-0 h-px pointer-events-none" style={{ background:"linear-gradient(90deg,transparent 0%,rgba(255,188,0,0.5) 40%,rgba(255,188,0,0.8) 50%,rgba(255,188,0,0.5) 60%,transparent 100%)", animation:"pg-scan 7s ease-in-out infinite", animationDelay:"0.8s" }} />
 
         {/* Content */}
-        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 pt-24 pb-16 relative z-10">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 pt-8 pb-10 relative z-10">
           <Link href="/people" className="inline-flex items-center gap-1.5 text-white/35 hover:text-[#FFBC00] text-xs font-semibold mb-10 transition-colors">
             <ChevronLeft size={13} />
             Employee Directory
@@ -182,7 +182,6 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
                 <div className="space-y-4">
                   <InfoItem icon={Mail}  label="Work Email" value={emp.user?.email} />
                   <InfoItem icon={Phone} label="Phone"      value={emp.phone} />
-                  <InfoItem icon={MapPin} label="Location"  value={null} />
                 </div>
               </div>
             </div>

@@ -220,8 +220,8 @@ def generate_purchase_order(
         if fill:
             pdf.set_fill_color(249, 250, 251)
 
-        unit_cost   = Decimal(str(item["unit_cost"]))
-        total_cost  = Decimal(str(item["total_cost"]))
+        unit_cost   = Decimal(str(item["unit_cost"]  or 0))
+        total_cost  = Decimal(str(item["total_cost"] or 0))
         grand_total += total_cost
 
         row_h    = 7
@@ -233,7 +233,7 @@ def generate_purchase_order(
 
         pdf.set_xy(x_before + 78, y_before)
         pdf.cell(18, row_height, str(item["quantity"]),                              border=1, fill=fill, align="C")
-        pdf.cell(18, row_height, str(item["unit"]).replace("_", " ").title(),        border=1, fill=fill, align="C")
+        pdf.cell(18, row_height, str(item.get("unit") or "").replace("_", " ").title(), border=1, fill=fill, align="C")
         pdf.cell(32, row_height, f"{unit_cost:,.2f}",                                border=1, fill=fill, align="R")
         pdf.cell(32, row_height, f"{total_cost:,.2f}",                               border=1, fill=fill, align="R", ln=True)
 

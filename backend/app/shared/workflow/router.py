@@ -59,7 +59,6 @@ from app.shared.workflow.schemas import (
     AssignmentSet, AssignmentOut,
 )
 from app.shared.services.workflow_engine import WorkflowEngine
-from app.shared.services import workflow_email
 
 router = APIRouter()
 
@@ -326,6 +325,15 @@ def _update_source_status(request_type: str, request_id: str, status: str, db: S
         if row:
             row.status = status
 
+    elif request_type == "asset":
+        from app.assets.models import AssetRequest, AssetRequestStatus
+        row = db.query(AssetRequest).filter(AssetRequest.id == request_id).first()
+        if row:
+            try:
+                row.status = AssetRequestStatus(status)
+            except ValueError:
+                pass
+
 
 @router.post("/requests/{approval_request_id}/approve")
 def approve_request(
@@ -338,22 +346,11 @@ def approve_request(
     engine = WorkflowEngine(db)
     ar = engine.get_approval_request(approval_request_id)
 
-    # Capture approver id before engine.approve() advances the step
-    approver_employee_id = employee.id
-
     def on_final_approval():
         _update_source_status(ar.request_type, ar.request_id, "approved", db)
 
     result = engine.approve(approval_request_id, employee, body.comment, on_final_approval=on_final_approval)
     db.commit()
-
-    # Send email after commit — failures are swallowed inside the helpers
-    if result.overall_status.value == "approved":
-        workflow_email.notify_request_result(db, approval_request_id, "approved", comment=body.comment)
-    else:
-        # Mid-flow: email the next approver AND update the requester on progress
-        workflow_email.notify_step_assigned(db, approval_request_id)
-        workflow_email.notify_step_progress(db, approval_request_id, approver_employee_id)
 
     return {"id": result.id, "overall_status": result.overall_status.value, "current_step_number": result.current_step_number}
 
@@ -374,7 +371,6 @@ def reject_request(
 
     result = engine.reject(approval_request_id, employee, body.comment, on_rejected=on_rejected)
     db.commit()
-    workflow_email.notify_request_result(db, approval_request_id, "rejected", comment=body.comment)
     return {"id": result.id, "overall_status": result.overall_status.value}
 
 
@@ -394,7 +390,6 @@ def return_request(
 
     result = engine.return_(approval_request_id, employee, body.comment, on_returned=on_returned)
     db.commit()
-    workflow_email.notify_request_result(db, approval_request_id, "returned", comment=body.comment)
     return {"id": result.id, "overall_status": result.overall_status.value}
 
 

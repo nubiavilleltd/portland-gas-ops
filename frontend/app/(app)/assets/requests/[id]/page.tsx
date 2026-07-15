@@ -10,23 +10,16 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import AuditTrail from "@/components/forms/AuditTrail";
+import AssetRequestDetailSkeleton from "./AssetRequestDetailSkeleton";
 import { useAssetRequest, useUpdateAssetRequestStatus } from "@/lib/modules/assets";
+import { useMyApprovals, useAuditTrail } from "@/lib/modules/workflow/queries";
+import {
+  useWorkflowApprove,
+  useWorkflowReject,
+} from "@/lib/modules/workflow/mutations";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, capitalize } from "@/lib/utils";
-import type { AssetRequestStatus } from "@/types";
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-const ASSET_ADMIN_ACTOR      = "Chinyere Okafor";
-const ASSET_ADMIN_ACTOR_ROLE = "Asset Admin";
-
-function nowStr() {
-  return new Date().toLocaleString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
@@ -38,49 +31,42 @@ export default function AssetRequestDetailPage() {
   const { data: req, isLoading, isError } = useAssetRequest(id);
   const updateStatus = useUpdateAssetRequestStatus(id);
 
-  async function handleAdminAction(status: AssetRequestStatus, comment: string) {
-    const actionLabel =
-      status === "approved" ? "Approved" :
-      status === "rejected" ? "Rejected" :
-      "Returned to Requester";
+  // Workflow: check if logged-in user is the current step's approver
+  const { data: myApprovals = [] } = useMyApprovals();
+  const myApprovalEntry = myApprovals.find(
+    (a) => a.request_type === "asset" && a.request_id === id
+  );
+  const approvalRequestId = myApprovalEntry?.approval_request_id ?? null;
+  const isFinalStep =
+    !!myApprovalEntry &&
+    myApprovalEntry.current_step_number === myApprovalEntry.total_steps;
 
+  const workflowApprove = useWorkflowApprove();
+  const workflowReject  = useWorkflowReject();
+
+  const { data: auditTrail = [] } = useAuditTrail("asset", id);
+
+  async function handleApprovalAction(action: "approve" | "reject", comment: string) {
+    if (!approvalRequestId) return;
     try {
-      await updateStatus.mutateAsync({
-        status,
-        rejection_reason: status === "rejected" ? comment || undefined : undefined,
-        auditEntry: {
-          action: actionLabel,
-          actor: ASSET_ADMIN_ACTOR,
-          role: ASSET_ADMIN_ACTOR_ROLE,
-          dateTime: nowStr(),
-          comment: comment || "",
-        },
-      });
-      toast.success(
-        status === "approved" ? "Request approved" :
-        status === "rejected" ? "Request rejected" :
-        "Returned to requester"
-      );
-      if (status === "approved") {
-        router.push(`/assets/allocations/new?requestId=${id}`);
+      if (action === "approve") {
+        await workflowApprove.mutateAsync({ approvalRequestId, comment: comment || undefined });
+        toast.success("Request approved");
+        if (isFinalStep) {
+          router.push(`/assets/allocations/new?requestId=${id}`);
+        }
+      } else {
+        await workflowReject.mutateAsync({ approvalRequestId, comment: comment || undefined });
+        toast.success("Request denied");
       }
-    } catch {
-      toast.error("Failed to update request");
+    } catch (err) {
+      toast.error((err as { detail?: string })?.detail ?? "Failed to update request");
     }
   }
 
   async function handleMarkReturned() {
     try {
-      await updateStatus.mutateAsync({
-        status: "returned",
-        auditEntry: {
-          action: "Returned",
-          actor: req?.requester_name ?? "Requester",
-          role: "Requester",
-          dateTime: nowStr(),
-          comment: "",
-        },
-      });
+      await updateStatus.mutateAsync({ status: "returned" });
       toast.success("Marked as returned");
     } catch {
       toast.error("Failed to update");
@@ -90,7 +76,7 @@ export default function AssetRequestDetailPage() {
   if (isLoading) {
     return (
       <AppLayout pageTitle="Assets">
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        <AssetRequestDetailSkeleton />
       </AppLayout>
     );
   }
@@ -107,17 +93,16 @@ export default function AssetRequestDetailPage() {
     );
   }
 
-  const showApprovalPanel  = req.status === "pending";
+  const showApprovalPanel  = !!approvalRequestId && req.status === "pending";
   const showAllocateBanner = req.status === "approved";
   const canMarkReturn =
-    (req.status === "approved" || req.status === "allocated") &&
+    req.status === "allocated" &&
     req.request_type === "loan";
 
-  const nextActor =
-    req.status === "pending"   ? "Asset Admin" :
-    req.status === "approved"  ? "Asset Admin" :
-    req.status === "allocated" && req.request_type === "loan" ? "Requester" :
-    undefined;
+  const isBusy =
+    workflowApprove.isPending ||
+    workflowReject.isPending  ||
+    updateStatus.isPending;
 
   return (
     <AppLayout pageTitle="Assets">
@@ -143,10 +128,13 @@ export default function AssetRequestDetailPage() {
           </p>
           <p className="text-xs text-brand-text-secondary mt-1">
             {capitalize(req.status)} · Submitted {formatDate(req.created_at)}
-            {nextActor && (
-              <> · Next actor <span className="font-medium text-brand-text-primary">{nextActor}</span></>
-            )}
           </p>
+          {req.next_actor_name && (
+            <p className="text-xs text-brand-text-secondary mt-1">
+              Next Actor: <span className="font-medium text-brand-text-primary">{req.next_actor_name}</span>
+              {req.current_step_name && <span className="text-brand-text-secondary"> · {req.current_step_name}</span>}
+            </p>
+          )}
         </div>
         <div className="shrink-0 pt-1">
           <ApprovalBadge status={req.status} />
@@ -222,19 +210,21 @@ export default function AssetRequestDetailPage() {
           </div>
         )}
 
-        {/* ── Asset Admin — Approval Panel ──────────────────────────────────── */}
+        {/* ── Approval Panel (only visible to the current step's approver) ──── */}
         {showApprovalPanel && (
           <ApprovalPanel
             title="Approval Decision"
-            reviewingAs={ASSET_ADMIN_ACTOR_ROLE}
+            description="Review the request details above and make your decision."
             showReturn={false}
             showReject
             showApprove
             rejectLabel="Deny"
             approveLabel="Approve"
-            onReject={(comment)  => handleAdminAction("rejected", comment)}
-            onApprove={(comment) => handleAdminAction("approved", comment)}
-            disabled={updateStatus.isPending}
+            onReject={(comment)  => handleApprovalAction("reject",  comment)}
+            onApprove={(comment) => handleApprovalAction("approve", comment)}
+            rejectLoading={workflowReject.isPending}
+            approveLoading={workflowApprove.isPending}
+            disabled={isBusy}
           />
         )}
 
@@ -295,6 +285,19 @@ export default function AssetRequestDetailPage() {
           />
         )}
 
+        {/* ── Audit Trail ──────────────────────────────────────────────────── */}
+        <AuditTrail
+          title="Approval History"
+          description="A full record of every action taken on this request."
+          emptyMessage="No actions recorded yet."
+          items={auditTrail.map((entry) => ({
+            action:   entry.action.charAt(0).toUpperCase() + entry.action.slice(1).replace(/_/g, " "),
+            actor:    entry.actor_name ?? "System",
+            role:     entry.actor_role ?? "",
+            dateTime: formatDate(entry.acted_at),
+            comment:  entry.comment ?? "",
+          }))}
+        />
 
       </div>
     </AppLayout>

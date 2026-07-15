@@ -4,6 +4,15 @@ Workflow email notifications — sends emails at key points in the approval life
 Always call AFTER db.commit() so the data is stable. All functions swallow
 their own exceptions — email failures must never block the API response.
 
+Email content (subject, copy, button labels) is resolved via a two-level
+registry:
+  1. Per-module content file registered in _CONTENT_REGISTRY
+     (e.g. app.procurement.email_content)
+  2. Generic fallback: app.shared.services.generic_email_content
+
+Each content file exposes hooks (on_submitted, on_step_assigned, etc.) that
+return a dict of overrides, or None to fall back.
+
 Usage:
     result = engine.approve(...)
     db.commit()
@@ -13,12 +22,176 @@ Usage:
         notify_step_assigned(db, approval_request_id)
 """
 
+import importlib
 import logging
+from dataclasses import dataclass
+
 from sqlalchemy.orm import Session, joinedload
 
 from app.shared.services import email_service
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# StepContext
+# ---------------------------------------------------------------------------
+
+@dataclass
+class StepContext:
+    step_number: int
+    step_name: str
+    total_steps: int
+
+
+# ---------------------------------------------------------------------------
+# Content registry
+# ---------------------------------------------------------------------------
+
+_CONTENT_REGISTRY: dict[str, str] = {
+    "procurement": "app.procurement.email_content",
+    "asset":       "app.assets.email_content",
+    # Uncomment as each module creates its content file:
+    # "work_initiation":    "app.safety.work_initiation_email_content",
+    # "work_authorization": "app.safety.work_authorization_email_content",
+    # "leave":              "app.leave.email_content",
+}
+
+_GENERIC_MODULE = "app.shared.services.generic_email_content"
+
+
+# ---------------------------------------------------------------------------
+# Hook dispatcher
+# ---------------------------------------------------------------------------
+
+def _call_hook(request_type: str, hook_name: str, ctx: dict) -> dict | None:
+    """
+    Try the registered per-module content file first; fall back to the generic
+    module if the hook is absent or the module is not registered.
+
+    Returns the hook's dict result, or None.
+    """
+    module_path = _CONTENT_REGISTRY.get(request_type)
+    if module_path:
+        try:
+            mod = importlib.import_module(module_path)
+            hook = getattr(mod, hook_name, None)
+            if hook is not None:
+                return hook(ctx)
+        except Exception:
+            logger.exception(
+                "_call_hook: %s.%s failed for request_type=%s",
+                module_path, hook_name, request_type,
+            )
+
+    # Generic fallback
+    try:
+        generic_mod = importlib.import_module(_GENERIC_MODULE)
+        hook = getattr(generic_mod, hook_name, None)
+        if hook is not None:
+            return hook(ctx)
+    except Exception:
+        logger.exception(
+            "_call_hook: generic %s.%s failed for request_type=%s",
+            _GENERIC_MODULE, hook_name, request_type,
+        )
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+def _load_total_steps(db: Session, workflow_id: str) -> int:
+    from app.shared.models.approval import WorkflowStep
+    return db.query(WorkflowStep).filter(WorkflowStep.workflow_id == workflow_id).count()
+
+
+def _load_step_ctx(db: Session, workflow_id: str, step_number: int, total_steps: int) -> StepContext:
+    from app.shared.models.approval import WorkflowStep
+    step = (
+        db.query(WorkflowStep)
+        .filter(
+            WorkflowStep.workflow_id == workflow_id,
+            WorkflowStep.step_number == step_number,
+        )
+        .first()
+    )
+    step_name = step.step_name if step else f"Step {step_number}"
+    return StepContext(step_number=step_number, step_name=step_name, total_steps=total_steps)
+
+
+# ---------------------------------------------------------------------------
+# Public notify functions
+# ---------------------------------------------------------------------------
+
+def notify_submitted(db: Session, approval_request_id: str) -> None:
+    """
+    Email the requester immediately after they submit a request.
+    Tells them it is now pending approval at Step 1.
+    Call AFTER db.commit() (or after flush, inside engine).
+    """
+    try:
+        from app.shared.models.approval import ApprovalRequest, AllRequest, WorkflowStep
+        from app.employees.models import Employee
+
+        ar = (
+            db.query(ApprovalRequest)
+            .filter(ApprovalRequest.id == approval_request_id)
+            .first()
+        )
+        if not ar:
+            return
+
+        requester = (
+            db.query(Employee)
+            .options(joinedload(Employee.user))
+            .filter(Employee.id == ar.submitted_by)
+            .first()
+        )
+        if not requester or not requester.user or not requester.user.email:
+            return
+
+        all_req = (
+            db.query(AllRequest)
+            .filter(
+                AllRequest.request_type == ar.request_type,
+                AllRequest.request_id == ar.request_id,
+            )
+            .first()
+        )
+        title = (all_req.title if all_req else None) or ar.request_type
+
+        total_steps = _load_total_steps(db, ar.workflow_id)
+        step = _load_step_ctx(db, ar.workflow_id, ar.current_step_number, total_steps)
+
+        ctx = {
+            "db": db,
+            "ar": ar,
+            "requester_name": requester.user.full_name or requester.employee_no,
+            "step": step,
+            "request_title": title,
+        }
+        override = _call_hook(ar.request_type, "on_submitted", ctx)
+
+        subject = (override or {}).get("subject") or (
+            f"{email_service.get_request_type_label(ar.request_type)} Request Submitted"
+        )
+        url = email_service.get_request_url(ar.request_type, ar.request_id)
+
+        html = email_service._render("request_submitted.html", {
+            "subject":            subject,
+            "requester_name":     ctx["requester_name"],
+            "request_type_label": email_service.get_request_type_label(ar.request_type),
+            "request_title":      title,
+            "step_number":        str(ar.current_step_number),
+            "step_name":          step.step_name,
+            "action_url":         url,
+        })
+        email_service._send(requester.user.email, subject, html)
+    except Exception:
+        logger.exception("notify_submitted failed for AR %s", approval_request_id)
 
 
 def notify_step_assigned(db: Session, approval_request_id: str) -> None:
@@ -78,161 +251,41 @@ def notify_step_assigned(db: Session, approval_request_id: str) -> None:
         )
         title = (all_req.title if all_req else None) or ar.request_type
 
-        step = (
-            db.query(WorkflowStep)
-            .filter(
-                WorkflowStep.workflow_id == ar.workflow_id,
-                WorkflowStep.step_number == ar.current_step_number,
-            )
-            .first()
-        )
-        step_name = step.step_name if step else ""
-
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
         requester_name = (
             requester.user.full_name
             if requester and requester.user and requester.user.full_name
             else (requester.employee_no if requester else "Unknown")
         )
-        approval_email_copy = approval_required_copy_for_step(
-            request_type=ar.request_type,
-            request_title=title,
-            step_name=step_name,
-            step_number=ar.current_step_number,
-        )
+
+        total_steps = _load_total_steps(db, ar.workflow_id)
+        step = _load_step_ctx(db, ar.workflow_id, ar.current_step_number, total_steps)
+
+        ctx = {
+            "db": db,
+            "ar": ar,
+            "approver_name": approver.user.full_name or approver.employee_no,
+            "requester_name": requester_name,
+            "step": step,
+            "request_title": title,
+        }
+        override = _call_hook(ar.request_type, "on_step_assigned", ctx)
+
+        url = email_service.get_request_url(ar.request_type, ar.request_id)
 
         email_service.send_approval_required(
             to_email=approver.user.email,
-            approver_name=approver.user.full_name or approver.employee_no,
+            approver_name=ctx["approver_name"],
             requester_name=requester_name,
             request_type_label=email_service.get_request_type_label(ar.request_type),
             request_title=title,
-            step_name=step_name,
+            step_name=step.step_name,
             action_url=url,
-            intro_message=approval_email_copy["intro_message"],
-            action_message=approval_email_copy["action_message"],
-            button_label=approval_email_copy["button_label"],
+            intro_message=(override or {}).get("intro_message"),
+            action_message=(override or {}).get("action_message"),
+            button_label=(override or {}).get("button_label", "Review & Approve"),
         )
     except Exception:
         logger.exception("notify_step_assigned failed for AR %s", approval_request_id)
-
-
-def approval_required_copy_for_step(
-    request_type: str,
-    request_title: str,
-    step_name: str,
-    step_number: int,
-) -> dict[str, str | None]:
-    if (
-        request_type == "work_initiation"
-        and (
-            step_number == 1
-            or "supervisor" in (step_name or "").lower()
-        )
-    ):
-        return {
-            "intro_message": (
-                f"You were selected as the supervisor for {request_title} "
-                "Work Initiation."
-            ),
-            "action_message": (
-                "Click the button above to view the work details and take the "
-                "necessary supervisor action."
-            ),
-            "button_label": "View Details & Take Action",
-        }
-
-    return {
-        "intro_message": None,
-        "action_message": None,
-        "button_label": "Review & Approve",
-    }
-
-
-def notify_request_result(
-    db: Session,
-    approval_request_id: str,
-    action: str,
-    comment: str | None = None,
-) -> None:
-    """
-    Email the requester when their request is fully approved, rejected, or returned.
-    Call AFTER db.commit().
-
-    action: "approved" | "rejected" | "returned"
-    """
-    try:
-        from app.shared.models.approval import ApprovalRequest, AllRequest
-        from app.employees.models import Employee
-
-        ar = (
-            db.query(ApprovalRequest)
-            .filter(ApprovalRequest.id == approval_request_id)
-            .first()
-        )
-        if not ar:
-            return
-
-        requester = (
-            db.query(Employee)
-            .options(joinedload(Employee.user))
-            .filter(Employee.id == ar.submitted_by)
-            .first()
-        )
-        if not requester or not requester.user or not requester.user.email:
-            return
-
-        all_req = (
-            db.query(AllRequest)
-            .filter(
-                AllRequest.request_type == ar.request_type,
-                AllRequest.request_id == ar.request_id,
-            )
-            .first()
-        )
-        title = (all_req.title if all_req else None) or ar.request_type
-
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
-        result_message_override = approved_result_message_for_request_type(
-            ar.request_type,
-            action,
-        )
-
-        email_service.send_approval_result(
-            to_email=requester.user.email,
-            requester_name=requester.user.full_name or requester.employee_no,
-            request_type_label=email_service.get_request_type_label(ar.request_type),
-            request_title=title,
-            action=action,
-            comment=comment,
-            action_url=url,
-            result_message_override=result_message_override,
-        )
-    except Exception:
-        logger.exception("notify_request_result failed for AR %s", approval_request_id)
-
-
-def approved_result_message_for_request_type(
-    request_type: str,
-    action: str,
-) -> str | None:
-    if action != "approved":
-        return None
-
-    if request_type == "work_initiation":
-        return (
-            "Your Work Initiation has been fully approved. You can now raise "
-            "a Work Authorization request from the Safety Work Authorization page."
-        )
-
-    if request_type == "work_authorization":
-        return (
-            "Your Work Authorization has been fully approved. Once the work "
-            "has been inspected and completed, you can raise a Work Completion "
-            "and Close-Out request from the Safety Work Completion page."
-        )
-
-    return None
 
 
 def notify_step_progress(
@@ -296,29 +349,26 @@ def notify_step_progress(
         # The engine has already advanced current_step_number to the next step.
         # So completed_step = current_step_number - 1, next_step = current_step_number.
         completed_step_number = ar.current_step_number - 1
+        total_steps = _load_total_steps(db, ar.workflow_id)
 
-        completed_step = (
-            db.query(WorkflowStep)
-            .filter(
-                WorkflowStep.workflow_id == ar.workflow_id,
-                WorkflowStep.step_number == completed_step_number,
-            )
-            .first()
+        completed_step = _load_step_ctx(db, ar.workflow_id, completed_step_number, total_steps)
+        next_step = _load_step_ctx(db, ar.workflow_id, ar.current_step_number, total_steps)
+
+        ctx = {
+            "db": db,
+            "ar": ar,
+            "completed_step": completed_step,
+            "next_step": next_step,
+            "approver_name": approver_name,
+            "request_title": title,
+        }
+        override = _call_hook(ar.request_type, "on_step_progress", ctx)
+
+        subject = (override or {}).get("subject") or (
+            f"{email_service.get_request_type_label(ar.request_type)} Request — Approved"
         )
-        next_step = (
-            db.query(WorkflowStep)
-            .filter(
-                WorkflowStep.workflow_id == ar.workflow_id,
-                WorkflowStep.step_number == ar.current_step_number,
-            )
-            .first()
-        )
-
-        step_name = completed_step.step_name if completed_step else f"Step {completed_step_number}"
-        next_step_name = next_step.step_name if next_step else f"Step {ar.current_step_number}"
-
+        resolved_approver_name = (override or {}).get("approver_name") or approver_name
         url = email_service.get_request_url(ar.request_type, ar.request_id)
-        subject = f"Request Update: {email_service.get_request_type_label(ar.request_type)} — Step {completed_step_number} Approved"
 
         html = email_service._render("request_progress.html", {
             "subject":            subject,
@@ -326,14 +376,87 @@ def notify_step_progress(
             "request_type_label": email_service.get_request_type_label(ar.request_type),
             "request_title":      title,
             "step_number":        str(completed_step_number),
-            "step_name":          step_name,
-            "approver_name":      approver_name,
-            "next_step_name":     next_step_name,
+            "step_name":          completed_step.step_name,
+            "approver_name":      resolved_approver_name,
+            "next_step_name":     next_step.step_name,
             "action_url":         url,
         })
         email_service._send(requester.user.email, subject, html)
     except Exception:
         logger.exception("notify_step_progress failed for AR %s", approval_request_id)
+
+
+def notify_request_result(
+    db: Session,
+    approval_request_id: str,
+    action: str,
+    comment: str | None = None,
+) -> None:
+    """
+    Email the requester when their request is fully approved, rejected, or returned.
+    Call AFTER db.commit().
+
+    action: "approved" | "rejected" | "returned"
+    """
+    try:
+        from app.shared.models.approval import ApprovalRequest, AllRequest
+        from app.employees.models import Employee
+
+        ar = (
+            db.query(ApprovalRequest)
+            .filter(ApprovalRequest.id == approval_request_id)
+            .first()
+        )
+        if not ar:
+            return
+
+        requester = (
+            db.query(Employee)
+            .options(joinedload(Employee.user))
+            .filter(Employee.id == ar.submitted_by)
+            .first()
+        )
+        if not requester or not requester.user or not requester.user.email:
+            return
+
+        all_req = (
+            db.query(AllRequest)
+            .filter(
+                AllRequest.request_type == ar.request_type,
+                AllRequest.request_id == ar.request_id,
+            )
+            .first()
+        )
+        title = (all_req.title if all_req else None) or ar.request_type
+
+        ctx = {
+            "db": db,
+            "ar": ar,
+            "request_title": title,
+            "comment": comment,
+        }
+        hook_name = {
+            "approved": "on_approved",
+            "rejected": "on_rejected",
+            "returned": "on_returned",
+        }.get(action, "on_approved")
+        override = _call_hook(ar.request_type, hook_name, ctx)
+        result_message_override = (override or {}).get("result_message")
+
+        url = email_service.get_request_url(ar.request_type, ar.request_id)
+
+        email_service.send_approval_result(
+            to_email=requester.user.email,
+            requester_name=requester.user.full_name or requester.employee_no,
+            request_type_label=email_service.get_request_type_label(ar.request_type),
+            request_title=title,
+            action=action,
+            comment=comment,
+            action_url=url,
+            result_message_override=result_message_override,
+        )
+    except Exception:
+        logger.exception("notify_request_result failed for AR %s", approval_request_id)
 
 
 def notify_new_request(db: Session, request_type: str, request_id: str) -> None:

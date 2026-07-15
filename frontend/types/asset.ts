@@ -116,6 +116,8 @@ export interface AssetRequest {
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
+  next_actor_name: string | null;
+  current_step_name: string | null;
 }
 
 export interface AssetRequestListItem {
@@ -127,8 +129,11 @@ export interface AssetRequestListItem {
   status: AssetRequestStatus;
   requested_by: string;
   requester_name: string | null;
+  requester_department: string | null;
   item_count: number;
   created_at: string;
+  next_actor_name: string | null;
+  current_step_name: string | null;
 }
 
 export interface AssetCreateInput {
