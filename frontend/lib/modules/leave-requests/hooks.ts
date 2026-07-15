@@ -42,10 +42,25 @@ export function useCurrentEmployee() {
   return useQuery({
     queryKey: ["current-employee"],
     queryFn: async () => {
+      // Try to get employee by user_id
       const response = await fetch("/api/employees/me");
       if (!response.ok) throw new Error("Failed to fetch current employee");
       return response.json();
     },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useApprovalAssignments(approvalRequestId?: string) {
+  return useQuery({
+    queryKey: ["approval-assignments", approvalRequestId],
+    queryFn: async () => {
+      if (!approvalRequestId) return null;
+      const response = await fetch(`/api/workflow/requests/${approvalRequestId}`);
+      if (!response.ok) throw new Error("Failed to fetch approval assignments");
+      return response.json();
+    },
+    enabled: !!approvalRequestId,
     staleTime: 5 * 60 * 1000,
   });
 }

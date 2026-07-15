@@ -91,22 +91,21 @@ export default function LeaveRequestDetailPage({
   }, [apiRecord]);
 
   // Auto-detect current user's role
-  const isRequester = apiRecord && currentEmployee && apiRecord.requester_id === currentEmployee.id;
-  const isReliever = apiRecord && currentEmployee && apiRecord.reliever_id === currentEmployee.id;
+  // Note: Comparing by name as workaround since /api/employees/me returns user data instead of employee data
+  const currentUserName = currentEmployee?.name || currentEmployee?.full_name || "";
+  const isRequester = apiRecord && currentEmployee && apiRecord.requester_name === currentUserName;
+  const isReliever = apiRecord && currentEmployee && apiRecord.reliever_name === currentUserName;
   const isApprover = apiRecord && currentEmployee && apiRecord.approval_request_id && !isRequester && !isReliever;
   const hasWorkflowAccess = isRequester || isReliever || isApprover;
 
   useEffect(() => {
     if (!apiRecord || !currentEmployee) return;
 
-    // Debug logging
-    console.log("API Record:", {
-      requester_id: apiRecord.requester_id,
-      reliever_id: apiRecord.reliever_id,
-      approval_request_id: apiRecord.approval_request_id,
+    console.log("Comparing names for role detection:", {
+      currentUserName,
+      requester_name: apiRecord.requester_name,
+      reliever_name: apiRecord.reliever_name,
     });
-    console.log("Current Employee:", { id: currentEmployee.id, name: currentEmployee.full_name });
-    console.log("Role Detection:", { isRequester, isReliever, isApprover });
 
     if (isReliever) {
       setCurrentRole("reliever");
@@ -115,7 +114,7 @@ export default function LeaveRequestDetailPage({
     } else {
       setCurrentRole("requester");
     }
-  }, [apiRecord, currentEmployee]);
+  }, [apiRecord, currentEmployee, isReliever, isApprover, isRequester]);
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
