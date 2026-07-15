@@ -41,6 +41,14 @@ class CancelTripWorkflow:
         )
 
         #
+        # Capture linked orders before any state changes
+        #
+        order_ids = self.trip_service.get_order_ids(
+            db=db,
+            trip_id=trip.id,
+        )
+
+        #
         # Cancel Trip
         #
         trip = self.trip_service.cancel(
@@ -53,7 +61,6 @@ class CancelTripWorkflow:
         # Release Driver
         #
         if trip.driver_id:
-
             self.driver_service.release(
                 db=db,
                 driver_id=trip.driver_id,
@@ -63,51 +70,49 @@ class CancelTripWorkflow:
         # Release Vehicle
         #
         if trip.vehicle_id:
-
             self.vehicle_service.release(
                 db=db,
                 vehicle_id=trip.vehicle_id,
             )
 
         #
-        # Update Orders
+        # Update Orders (if this trip has any)
         #
-        for order_id in self.trip_service.get_order_ids(
-            db=db,
-            trip_id=trip.id,
-        ):
+        if order_ids:
 
-            order = self.order_service.get_or_raise(
-                db=db,
-                order_id=order_id,
-            )
+            for order_id in order_ids:
 
-            #
-            # Delivered orders stay untouched.
-            #
-            if order.fulfillment_status.value == "delivered":
-                continue
+                order = self.order_service.get_or_raise(
+                    db=db,
+                    order_id=order_id,
+                )
 
-            self.order_service.update_fulfillment_status(
-                db=db,
-                order_no=order.order_no,
-                status="pending",
-            )
+                #
+                # Delivered orders stay untouched.
+                #
+                if order.fulfillment_status.value == "delivered":
+                    continue
 
-            self.order_service.set_trip(
-                db=db,
-                order_no=order.order_no,
-                trip_id=None,
-            )
+                self.order_service.update_fulfillment_status(
+                    db=db,
+                    order_no=order.order_no,
+                    status="pending",
+                )
 
-            self.audit_service.record(
-                db=db,
-                entity_type=AuditEntityType.order,
-                entity_id=order.id,
-                action="removed_from_trip",
-                description=f"Order removed from cancelled trip {trip.trip_no}",
-                actor_type=AuditActorType.system,
-            )
+                self.order_service.set_trip(
+                    db=db,
+                    order_no=order.order_no,
+                    trip_id=None,
+                )
+
+                self.audit_service.record(
+                    db=db,
+                    entity_type=AuditEntityType.order,
+                    entity_id=order.id,
+                    action="removed_from_trip",
+                    description=f"Order removed from cancelled trip {trip.trip_no}",
+                    actor_type=AuditActorType.system,
+                )
 
         #
         # Return checked-out inventory
@@ -135,4 +140,3 @@ class CancelTripWorkflow:
         )
 
         return trip
-    

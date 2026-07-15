@@ -17,6 +17,7 @@ from app.payments.enums import PaymentStatus
 from app.core.exceptions import AppException, ErrorCode
 from app.products.service import ProductService
 from app.orders.enums import DiscountType
+from app.orders.model import OrderItem
 
 
 class OrderService:
@@ -54,6 +55,18 @@ class OrderService:
         )
 
         return order.order_items
+    
+    def update_order_item(
+        self,
+        db: Session,
+        order_item:OrderItem,
+        **fields,
+    ):
+        return self.repo.update_order_item(
+            db=db,
+            order_item=order_item,
+            **fields,
+        )
 
     def list(self, db: Session, filters: OrderFilters):
         return self.repo.list(

@@ -38,7 +38,7 @@ class DispatchTripWorkflow:
         #
         # Update linked orders
         #
-        order_ids = self.trip_service.repo.get_order_ids(
+        order_ids = self.trip_service.get_order_ids(
             db=db,
             trip_id=trip.id,
         )
