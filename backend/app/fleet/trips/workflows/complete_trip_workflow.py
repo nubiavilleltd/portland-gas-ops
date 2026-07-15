@@ -70,7 +70,7 @@ class CompleteTripWorkflow:
         #
         trip = self.trip_service.complete(
             db=db,
-            trip=Trip,
+            trip=trip,
             proof_notes=proof_notes,
         )
 
