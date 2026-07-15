@@ -339,6 +339,9 @@ class OrderItemInventory(Base):
         nullable=False,
     )
 
-    order_item = relationship("OrderItem")
+    order_item = relationship(
+        "OrderItem",
+        back_populates="inventory_assignments",
+    )
     inventory_item = relationship("InventoryItem")
 

@@ -75,4 +75,8 @@ class OrderItem(Base):
     # Relationships
     order   = relationship("Order", back_populates="order_items")
     product = relationship("Product", foreign_keys=[product_id])
-    inventory_assignments = relationship("OrderItemInventory", cascade="all, delete-orphan")
+    inventory_assignments = relationship(
+        "OrderItemInventory",
+        back_populates="order_item",
+        cascade="all, delete-orphan",
+    )
