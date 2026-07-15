@@ -312,7 +312,7 @@ def submit_leave_request_for_approval(
     } if leave_request.reliever_id else None
 
     approval_request = engine.start(
-        request_type="leave_request",
+        request_type="leave",
         request_id=leave_request_id,
         title=title,
         requester=requester,
