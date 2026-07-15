@@ -46,6 +46,7 @@ from app.shared.models.approval import (
 from app.core.datetime_utils import utc_isoformat
 from app.employees.models import Employee
 from app.shared.services import notification_service, email_service
+from app.hr.models import LeaveRequest
 
 logger = logging.getLogger(__name__)
 
@@ -722,8 +723,14 @@ class WorkflowEngine:
                 logger.warning(f"Cannot send approval email: requester {requester_id} not found")
                 return
 
-            # Build approval URL
+            # Build approval URL (use request reference for better UX)
             action_url = f"http://localhost:3000/approvals/{request_type}/{request_id}"
+
+            # For leave requests, use the reference instead of UUID
+            if request_type == "leave_request":
+                leave_req = self.db.query(LeaveRequest).filter(LeaveRequest.id == request_id).first()
+                if leave_req and leave_req.reference:
+                    action_url = f"http://localhost:3000/hr-management/leave-requests/{leave_req.reference}"
 
             email_service.send_approval_required(
                 to_email=approver.user.email,
