@@ -9,12 +9,10 @@ import AddressInformationCard from "@/lib/modules/crm/components/AddressInformat
 import CommercialInformationCard from "@/lib/modules/crm/components/CommercialInformationCard";
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
 import CustomerAttachmentsSection from "@/lib/modules/crm/components/CustomerAttachmentsSection";
-import AuditTrail from "@/components/forms/AuditTrail";
-import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import { BackButton } from "@/components/ui/BackButton";
 import {
-  useCustomerOnboarding,
   useCustomerOnboardingDetails,
+  useCustomerContactDetails,
 } from "@/lib/modules/crm";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
@@ -22,14 +20,14 @@ import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetai
 import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import Button from "@/components/ui/Button";
 import CustomerAttachmentsCard from "@/lib/modules/crm/components/CustomerAttachmentsCard";
-import { useToast } from "@/hooks/useToast";
+import FormSection from "@/components/ui/FormSection";
 
-export default function CustomerOnboardingDetailsPage() {
+export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
 
-  const toast = useToast();
-
   const { data: customer } = useCustomerOnboardingDetails(id);
+  const { data: contacts } = useCustomerContactDetails(id);
+
   const isReturned = customer?.status?.toLowerCase() === "returned";
   const isDraft = customer?.status?.toLowerCase() === "draft";
   const isAcknowledged = customer?.status?.toLowerCase() === "acknowledged";
@@ -85,17 +83,24 @@ export default function CustomerOnboardingDetailsPage() {
   if (!customer) return null;
 
   return (
-    <AppLayout pageTitle="Customer Onboarding Details">
+    <AppLayout pageTitle="Customer Details">
       <div className="flex justify-between mb-2">
-        <BackButton
-          href="/admin/crm/onboarding"
-          label="Back to Customer Onboarding"
-        />
-        {isAcknowledged && (
-          <Button href={`/admin/crm/contacts/${customer.id}`}>
-            Manage Contacts
+        <BackButton href="/admin/crm/customers" label="Back to Customers" />
+
+        <div>
+          <Button
+            variant="outline"
+            className="mr-2"
+            href={`/admin/crm/onboarding/${customer.id}/edit`}
+          >
+            Edit Customer
           </Button>
-        )}
+          {isAcknowledged && (
+            <Button href={`/admin/crm/contacts/${customer.id}`}>
+              Manage Contacts
+            </Button>
+          )}
+        </div>
       </div>
       <div className="space-y-6">
         <RoleBasedRecordHeader
@@ -104,7 +109,7 @@ export default function CustomerOnboardingDetailsPage() {
           onRoleChange={() => {}}
           roleLabel="CRM Administrator"
           roles={crmRoles}
-          recordLabel="Customer Onboarding"
+          recordLabel="Customer Detail"
           status={<ApprovalBadge status={customer.status} />}
           //nextActor="Sales Manager"
           showRoleSwitcher={false}
@@ -144,6 +149,62 @@ export default function CustomerOnboardingDetailsPage() {
             alternatePhone: customer.alternate_phone,
           }}
         />
+        <FormSection
+          title="Additional Contacts"
+          description="Other contacts assigned to this customer."
+        >
+          {contacts?.additional_contacts.length ? (
+            <div className="overflow-x-auto rounded-lg border border-brand-border">
+              <table className="min-w-full divide-y divide-brand-border">
+                <thead className="bg-brand-surface">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
+                      Department
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
+                      Email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
+                      Phone
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
+                      Preferred Channel
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-brand-border bg-white">
+                  {contacts.additional_contacts.map((contact) => (
+                    <tr key={contact.id} className="hover:bg-brand-surface/40">
+                      <td className="px-4 py-3 font-medium text-sm">
+                        {contact.first_name} {contact.last_name}
+                      </td>
+
+                      <td className="px-4 py-3 text-sm">
+                        {contact.department || "-"}
+                      </td>
+
+                      <td className="px-4 py-3 text-sm">{contact.email}</td>
+
+                      <td className="px-4 py-3 text-sm">{contact.phone}</td>
+
+                      <td className="px-4 py-3 text-sm">
+                        {contact.preferred_channel}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed py-8 text-center text-sm text-brand-text-secondary">
+              No additional contacts available.
+            </div>
+          )}
+        </FormSection>
         <AddressInformationCard
           readOnly={readOnly}
           values={{
@@ -177,55 +238,6 @@ export default function CustomerOnboardingDetailsPage() {
           value={customer.internal_notes}
           onChange={() => {}}
         />
-        {customer.status === "submitted" && (
-          <ApprovalPanel
-            reviewingAs="CRM Administrator"
-            showReject={false}
-            approveLabel="Acknowledge"
-            onApprove={() => {
-              toast.success(
-                "Customer onboarding request has been acknowledged successfully.",
-              );
-
-              setTimeout(() => {
-                router.push("/admin/crm/onboarding");
-              }, 1000);
-            }}
-            onReturn={() => {
-              toast.success(
-                "Customer onboarding request has been returned successfully.",
-              );
-
-              setTimeout(() => {
-                router.push("/admin/crm/onboarding");
-              }, 1000);
-            }}
-          />
-        )}
-        {(isReturned || isDraft) && (
-          <div className="flex justify-end">
-            <Button
-              onClick={() => {
-                toast.success(
-                  "Customer onboarding request has been resubmitted successfully.",
-                );
-
-                router.push("/admin/crm/onboarding");
-              }}
-            >
-              Resubmit
-            </Button>
-          </div>
-        )}
-        <AuditTrail
-          items={customer.activities.map((activity) => ({
-            action: activity.action.replaceAll("_", " "),
-            actor: activity.performedBy,
-            role: activity.performedByRole,
-            dateTime: activity.performedAt,
-            comment: activity.comment ?? "-",
-          }))}
-        />{" "}
       </div>
     </AppLayout>
   );
