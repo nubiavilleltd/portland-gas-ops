@@ -459,6 +459,58 @@ def notify_request_result(
         logger.exception("notify_request_result failed for AR %s", approval_request_id)
 
 
+def notify_asset_allocation_needed(
+    db: Session,
+    request_id: str,
+    actor_employee_id: str,
+) -> None:
+    """
+    Email the approver who just gave final approval on an asset request,
+    reminding them to allocate the specific assets now.
+    Called AFTER db.commit() from the workflow approve endpoint.
+    """
+    try:
+        from app.assets.models import AssetRequest
+        from app.employees.models import Employee
+
+        req = db.query(AssetRequest).filter(AssetRequest.id == request_id).first()
+        if not req:
+            return
+
+        actor = (
+            db.query(Employee)
+            .options(joinedload(Employee.user))
+            .filter(Employee.id == actor_employee_id)
+            .first()
+        )
+        if not actor or not actor.user or not actor.user.email:
+            return
+
+        actor_name = actor.user.full_name or actor.employee_no
+        req_url = email_service.get_request_url("asset", request_id)
+
+        email_service.send_approval_required(
+            to_email=actor.user.email,
+            approver_name=actor_name,
+            requester_name="",
+            request_type_label="Asset",
+            request_title=req.reference,
+            step_name="Asset Allocation",
+            action_url=req_url,
+            intro_message=(
+                f"Asset request {req.reference} has been fully approved. "
+                "Please log in and allocate the specific assets to the requester now."
+            ),
+            action_message=(
+                "Open the request using the button below, then click 'Allocate Assets' "
+                "to assign assets from the registry to the requester."
+            ),
+            button_label="Allocate Assets Now",
+        )
+    except Exception:
+        logger.exception("notify_asset_allocation_needed failed for request %s", request_id)
+
+
 def notify_new_request(db: Session, request_type: str, request_id: str) -> None:
     """
     Convenience wrapper: look up the approval_request_id from AllRequest,

@@ -394,6 +394,57 @@ def list_all_assignment_logs(
 
 # ── Asset Requests ─────────────────────────────────────────────────────────────
 
+def check_asset_availability_for_approval(db: Session, request_id: str) -> None:
+    """
+    Re-validate availability for every item in the request at the moment of final approval.
+
+    Called from the workflow engine's on_final_approval callback — BEFORE db.commit() —
+    so raising HTTPException here aborts the approval and rolls back the transaction.
+    This prevents approving a request when stock has been consumed by another request
+    since submission.
+    """
+    req = db.query(AssetRequest).filter(
+        AssetRequest.id == request_id,
+        AssetRequest.is_active == True,  # noqa: E712
+    ).first()
+    if not req:
+        return
+
+    for item in req.items:
+        if item.asset_type_id:
+            available = db.query(Asset).filter(
+                Asset.asset_type_id == item.asset_type_id,
+                Asset.status == AssetStatus.available,
+                Asset.is_active == True,  # noqa: E712
+            ).count()
+            if available < item.quantity:
+                asset_type = db.query(AssetType).filter(AssetType.id == item.asset_type_id).first()
+                name = asset_type.name if asset_type else "the requested item"
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Cannot approve: only {available} unit(s) of '{name}' are currently "
+                        f"available, but {item.quantity} were requested. Stock may have been "
+                        "allocated to another request. Deny this request and ask the requester "
+                        "to resubmit when inventory is replenished."
+                    ),
+                )
+        elif item.asset_id:
+            asset_obj = db.query(Asset).filter(
+                Asset.id == item.asset_id,
+                Asset.is_active == True,  # noqa: E712
+            ).first()
+            if not asset_obj or asset_obj.status != AssetStatus.available:
+                name = asset_obj.name if asset_obj else str(item.asset_id)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Cannot approve: asset '{name}' is no longer available. "
+                        "Deny this request."
+                    ),
+                )
+
+
 def list_requests(
     db: Session,
     current_user: User,
@@ -607,8 +658,39 @@ def update_request_status(
         req.allocated_by = current_user.id
         req.allocated_at = datetime.utcnow()
 
+    _req_id        = req.id
+    _req_ref       = req.reference
+    _requested_by  = req.requested_by
+    _is_loan_return = data.status == AssetRequestStatus.returned
+
     db.commit()
     db.refresh(req)
+
+    # Email the requester confirming their loan was returned
+    if _is_loan_return:
+        try:
+            from app.shared.models.user import User as _User
+            from app.shared.services import email_service as _email
+            from app.core.config import settings as _settings
+            requester_user = db.query(_User).filter(_User.id == _requested_by).first()
+            if requester_user and requester_user.email:
+                req_url = f"{_settings.FRONTEND_URL}/assets/requests/{_req_id}"
+                _email.send_approval_result(
+                    to_email=requester_user.email,
+                    requester_name=requester_user.full_name or requester_user.email,
+                    request_type_label="Asset",
+                    request_title=_req_ref,
+                    action="approved",
+                    comment=None,
+                    action_url=req_url,
+                    result_message_override=(
+                        f"Your loan return for asset request {_req_ref} has been recorded. "
+                        "Thank you for returning the asset(s). The item(s) are now back in the registry."
+                    ),
+                )
+        except Exception:
+            logger.exception("Failed to send loan return email for request %s", _req_id)
+
     return req
 
 
@@ -657,6 +739,32 @@ def allocate_request(db: Session, request_id: str, data, current_user: User) -> 
     req.allocated_at = datetime.utcnow()
     db.commit()
     db.refresh(req)
+
+    # Email the requester confirming their assets have been allocated
+    try:
+        from app.shared.models.user import User as _User
+        from app.shared.services import email_service as _email
+        from app.core.config import settings as _settings
+        requester_user = db.query(_User).filter(_User.id == req.requested_by).first()
+        if requester_user and requester_user.email:
+            req_url = f"{_settings.FRONTEND_URL}/assets/requests/{req.id}"
+            _email.send_approval_result(
+                to_email=requester_user.email,
+                requester_name=requester_user.full_name or requester_user.email,
+                request_type_label="Asset",
+                request_title=req.reference,
+                action="approved",
+                comment=None,
+                action_url=req_url,
+                result_message_override=(
+                    f"Your asset request {req.reference} has been approved and the assets "
+                    "have been allocated to you. Please contact the Asset Management team "
+                    "to arrange collection."
+                ),
+            )
+    except Exception:
+        logger.exception("Failed to send allocation email for request %s", req.id)
+
     return req
 
 

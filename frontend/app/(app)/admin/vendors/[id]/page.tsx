@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2, PowerOff, Power } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import VendorDetailSkeleton from "./VendorDetailSkeleton";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -14,7 +14,7 @@ import { useVendor, useDeleteVendor, useDeactivateVendor, useReactivateVendor, V
 import { useProcurementByVendor } from "@/lib/modules/procurement";
 import { useToast } from "@/hooks/useToast";
 import { getErrorMessage } from "@/lib/errors";
-import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCurrency, capitalize } from "@/lib/utils";
 import type { VendorCategory, ProcurementListItem } from "@/types";
 
 const CATEGORY_COLOURS: Record<VendorCategory, string> = {
@@ -71,8 +71,8 @@ const STATUS_BADGE: Record<string, string> = {
 
 const REQUEST_COLUMNS: Column<ProcurementListItem>[] = [
   { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
-  { key: "title", label: "Title", render: (v) => <span className="text-sm">{String(v)}</span> },
-  { key: "created_at", label: "Date", render: (v) => <span className="text-brand-text-secondary text-xs">{formatDate(v as string)}</span> },
+  { key: "category", label: "Category", render: (v) => v ? <span className="text-sm capitalize">{String(v).replace(/_/g, " ")}</span> : <span className="text-brand-text-secondary">—</span> },
+  { key: "created_at", label: "Date", render: (v) => <span className="text-brand-text-secondary text-xs">{formatDateTime(v as string)}</span> },
   { key: "estimated_amount", label: "Est. Value", render: (v) => v ? <span className="text-sm font-medium">{formatCurrency(Number(v))}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "status", label: "Status", render: (v) => <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[String(v)] ?? "bg-gray-100 text-gray-600"}`}>{capitalize(String(v).replace(/_/g, " "))}</span> },
 ];
@@ -92,7 +92,7 @@ export default function AdminVendorDetailPage() {
   const reactivateVendor = useReactivateVendor();
 
   if (isLoading) {
-    return <AppLayout pageTitle="Admin — Vendors"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
+    return <AppLayout pageTitle="Admin — Vendors"><VendorDetailSkeleton /></AppLayout>;
   }
 
   if (isError || !vendor) {
