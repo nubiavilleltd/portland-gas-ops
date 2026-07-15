@@ -72,9 +72,16 @@ export default function VendorForm({ title, description, initial, loading, onSub
 
   function validate() {
     const e: typeof errors = {};
-    if (!form.name.trim()) e.name = "Vendor name is required";
-    if (!form.category) e.category = "Category is required";
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email address";
+    if (!form.name.trim())           e.name           = "Vendor name is required";
+    if (!form.category)              e.category       = "Category is required";
+    if (!form.contact_person.trim()) e.contact_person = "Contact person is required";
+    if (!form.phone.trim())          e.phone          = "Phone number is required";
+    if (!form.email.trim())          e.email          = "Email address is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email address";
+    if (!form.address.trim())        e.address        = "Address is required";
+    if (!form.bank_name.trim())      e.bank_name      = "Bank name is required";
+    if (!form.account_name.trim())   e.account_name   = "Account name is required";
+    if (!form.account_number.trim()) e.account_number = "Account number is required";
     return e;
   }
 
@@ -168,19 +175,24 @@ export default function VendorForm({ title, description, initial, loading, onSub
             />
             <FormInput
               label="Contact Person"
+              required
               placeholder="e.g. Emeka Okafor"
               value={form.contact_person}
               onChange={(e) => set("contact_person", e.target.value)}
+              error={errors.contact_person}
             />
             <FormInput
               label="Phone"
+              required
               placeholder="+234 (0) 800 000 0000"
               value={form.phone}
               onChange={(e) => set("phone", e.target.value)}
+              error={errors.phone}
             />
             <FormInput
               label="Email"
               type="email"
+              required
               placeholder="vendor@example.com"
               value={form.email}
               onChange={(e) => set("email", e.target.value)}
@@ -189,11 +201,13 @@ export default function VendorForm({ title, description, initial, loading, onSub
             <div className="sm:col-span-2">
               <FormTextarea
                 label="Address"
+                required
                 placeholder="Street, City, State"
                 rows={2}
                 maxLength={300}
                 value={form.address}
                 onChange={(e) => set("address", e.target.value)}
+                error={errors.address}
               />
             </div>
           </div>
@@ -204,21 +218,27 @@ export default function VendorForm({ title, description, initial, loading, onSub
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <FormInput
               label="Bank Name"
+              required
               placeholder="e.g. First Bank"
               value={form.bank_name}
               onChange={(e) => set("bank_name", e.target.value)}
+              error={errors.bank_name}
             />
             <FormInput
               label="Account Name"
+              required
               placeholder="e.g. Persianas Furniture Ltd"
               value={form.account_name}
               onChange={(e) => set("account_name", e.target.value)}
+              error={errors.account_name}
             />
             <FormInput
               label="Account Number"
+              required
               placeholder="10-digit account number"
               value={form.account_number}
               onChange={(e) => set("account_number", e.target.value)}
+              error={errors.account_number}
             />
           </div>
         </FormSection>
