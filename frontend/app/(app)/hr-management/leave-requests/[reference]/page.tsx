@@ -99,13 +99,33 @@ export default function LeaveRequestDetailPage({
   const hasWorkflowAccess = isRequester || isReliever || isApprover;
 
   useEffect(() => {
-    if (!apiRecord || !currentEmployee) return;
+    if (!apiRecord || !currentEmployee) {
+      console.log("Missing data for role detection:", {
+        apiRecord: !!apiRecord,
+        currentEmployee: !!currentEmployee,
+        currentEmployeeData: currentEmployee,
+      });
+      return;
+    }
 
-    console.log("Comparing names for role detection:", {
-      currentUserName,
+    console.log("=== ROLE DETECTION DEBUG ===");
+    console.log("Current User:", {
+      name: currentUserName,
+      fullData: currentEmployee,
+    });
+    console.log("Leave Request:", {
       requester_name: apiRecord.requester_name,
       reliever_name: apiRecord.reliever_name,
+      status: apiRecord.status,
+      approval_request_id: apiRecord.approval_request_id,
     });
+    console.log("Detection Results:", {
+      isRequester,
+      isReliever,
+      isApprover,
+      hasWorkflowAccess,
+    });
+    console.log("================");
 
     if (isReliever) {
       setCurrentRole("reliever");
@@ -114,7 +134,7 @@ export default function LeaveRequestDetailPage({
     } else {
       setCurrentRole("requester");
     }
-  }, [apiRecord, currentEmployee, isReliever, isApprover, isRequester]);
+  }, [apiRecord, currentEmployee, isReliever, isApprover, isRequester, currentUserName]);
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
