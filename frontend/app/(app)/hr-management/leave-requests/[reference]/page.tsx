@@ -12,7 +12,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
 import { useToast } from "@/hooks/useToast";
-import { useLeaveRequest } from "@/lib/modules/leave-requests/hooks";
+import { useLeaveRequest, useCurrentEmployee } from "@/lib/modules/leave-requests/hooks";
 import { LEAVE_STORE, type LeaveRequest } from "../../_components/_data";
 
 const CURRENT_USER = {
@@ -51,6 +51,7 @@ export default function LeaveRequestDetailPage({
 }) {
   const { reference } = use(params);
   const { data: apiRecord, isLoading } = useLeaveRequest(reference);
+  const { data: currentEmployee } = useCurrentEmployee();
 
   const [record, setRecord] = useState<LeaveRequest | undefined>(
     () => LEAVE_STORE.find((r) => r.ref === reference)
@@ -82,6 +83,26 @@ export default function LeaveRequestDetailPage({
       setRecord(adaptedRecord);
     }
   }, [apiRecord]);
+
+  // Auto-detect current user's role
+  useEffect(() => {
+    if (!apiRecord || !currentEmployee) return;
+
+    const isRequester = apiRecord.requester_id === currentEmployee.id;
+    const isReleiver = apiRecord.reliever_id === currentEmployee.id;
+
+    if (apiRecord.approval_request_id) {
+      if (isReleiver) {
+        setCurrentRole("reliever");
+      } else if (!isRequester) {
+        setCurrentRole("approver");
+      } else {
+        setCurrentRole("requester");
+      }
+    } else {
+      setCurrentRole("requester");
+    }
+  }, [apiRecord, currentEmployee]);
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
@@ -174,9 +195,9 @@ export default function LeaveRequestDetailPage({
           <RoleBasedRecordHeader
             id={record.ref}
             currentRole={currentRole}
-            onRoleChange={setCurrentRole}
+            onRoleChange={currentEmployee ? undefined : setCurrentRole}
             roleLabel={currentRole === "approver" ? "Operations Manager/HR" : currentRole === "admin" ? "Admin" : "Requester"}
-            roles={ROLE_OPTIONS}
+            roles={currentEmployee ? undefined : ROLE_OPTIONS}
             status={<ApprovalBadge status={record.status} />}
             recordLabel="Leave Request"
             title={`${record.employee} — ${record.type}`}

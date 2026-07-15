@@ -37,3 +37,15 @@ export function useCreateLeaveRequest() {
     },
   });
 }
+
+export function useCurrentEmployee() {
+  return useQuery({
+    queryKey: ["current-employee"],
+    queryFn: async () => {
+      const response = await fetch("/api/employees/me");
+      if (!response.ok) throw new Error("Failed to fetch current employee");
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
