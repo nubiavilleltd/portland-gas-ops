@@ -10,6 +10,7 @@ Rules:
 import secrets
 import string
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.vendors.models import Vendor
 from app.shared.models.document import Document
 
@@ -39,6 +40,18 @@ class VendorRepository:
 
     def code_exists(self, code: str) -> bool:
         return self.db.query(Vendor).filter(Vendor.vendor_code == code).first() is not None
+
+    def name_exists(self, name: str, exclude_id: str | None = None) -> bool:
+        q = self.db.query(Vendor).filter(func.lower(Vendor.name) == name.strip().lower())
+        if exclude_id:
+            q = q.filter(Vendor.id != exclude_id)
+        return q.first() is not None
+
+    def email_exists(self, email: str, exclude_id: str | None = None) -> bool:
+        q = self.db.query(Vendor).filter(func.lower(Vendor.email) == email.strip().lower())
+        if exclude_id:
+            q = q.filter(Vendor.id != exclude_id)
+        return q.first() is not None
 
     def add(self, vendor: Vendor) -> Vendor:
         """Stage a new vendor for insert. Does NOT commit — caller commits."""
