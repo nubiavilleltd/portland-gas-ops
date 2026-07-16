@@ -310,7 +310,7 @@ export function useCreateFAQCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { label: string; sort_order?: number }) =>
-      post<FAQCategory>("/api/intranet/faqs/categories/", data),
+      post<FAQCategory>("/api/intranet/faqs/categories", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.faqCategories() }),
   });
 }
@@ -350,7 +350,7 @@ export function useCreateFAQ() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: FAQCreatePayload) =>
-      post<FAQItem>("/api/intranet/faqs/", data),
+      post<FAQItem>("/api/intranet/faqs", data),
     onSuccess: () => invalidateFAQs(qc),
   });
 }
@@ -403,7 +403,7 @@ export function useSubmitFeedback() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: FeedbackSubmitPayload) =>
-      post<FeedbackEntry>("/api/intranet/feedback/", data),
+      post<FeedbackEntry>("/api/intranet/feedback", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: intranetKeys.feedbackAdmin() }),
   });
 }
@@ -432,7 +432,7 @@ export function useUploadPodcastCover() {
     mutationFn: (file: File) => {
       const fd = new FormData();
       fd.append("file", file);
-      return postForm<ImageUploadResult>("/api/intranet/podcast/upload-cover/", fd);
+      return postForm<ImageUploadResult>("/api/intranet/podcast/upload-cover", fd);
     },
   });
 }
@@ -442,7 +442,7 @@ export function useUploadPodcastAudio() {
     mutationFn: (file: File) => {
       const fd = new FormData();
       fd.append("file", file);
-      return postForm<ImageUploadResult>("/api/intranet/podcast/upload-audio/", fd);
+      return postForm<ImageUploadResult>("/api/intranet/podcast/upload-audio", fd);
     },
   });
 }
@@ -451,7 +451,7 @@ export function useCreatePodcast() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: PodcastCreatePayload) =>
-      post<PodcastEpisode>("/api/intranet/podcast/", data),
+      post<PodcastEpisode>("/api/intranet/podcast", data),
     onSuccess: () => invalidatePodcast(qc),
   });
 }

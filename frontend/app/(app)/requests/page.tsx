@@ -40,7 +40,18 @@ const REQUEST_TYPE_LABEL: Record<string, string> = {
 };
 
 function resolveTitle(row: MyRequest): string {
-  if (row.title && row.title !== "undefined" && row.title.trim()) return row.title;
+  if (row.title && row.title !== "undefined" && row.title.trim()) {
+    // Procurement titles arrive as "category — PR-REF". Flip to "PR-REF — Category".
+    if (row.request_type === "procurement") {
+      const parts = row.title.split(" — ");
+      if (parts.length === 2) {
+        const [category, reference] = parts;
+        const label = category.trim().charAt(0).toUpperCase() + category.trim().slice(1).replace(/_/g, " ");
+        return `${reference.trim()} — ${label}`;
+      }
+    }
+    return row.title;
+  }
   return REQUEST_TYPE_LABEL[row.request_type] ?? "Request";
 }
 
@@ -101,9 +112,12 @@ const COLUMNS: Column<MyRequest>[] = [
 function resolveHref(row: MyRequest): string {
   const id = row.request_id;
   switch (row.request_type) {
-    case "procurement": return `/procurement/${id}`;
-    case "asset":       return `/assets/requests/${id}`;
-    default:            return "#";
+    case "procurement":       return `/procurement/${id}`;
+    case "asset":             return `/assets/requests/${id}`;
+    case "work_initiation":   return `/safety/work-initiation/${id}`;
+    case "work_authorization":return `/safety/work-authorization/${id}`;
+    case "work_closeout":     return `/safety/work-close-out/${id}`;
+    default:                  return "#";
   }
 }
 

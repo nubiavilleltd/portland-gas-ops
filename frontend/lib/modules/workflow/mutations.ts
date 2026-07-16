@@ -147,8 +147,8 @@ function invalidateAfterAction(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["my-approvals"] });
   qc.invalidateQueries({ queryKey: ["my-requests"] });
   qc.invalidateQueries({ queryKey: ["audit-trail"] });
-  // Invalidate all module queries so detail pages reflect the new status immediately
   qc.invalidateQueries({ queryKey: ["procurement"] });
+  qc.invalidateQueries({ queryKey: ["asset-requests"] });
 }
 
 export function useWorkflowApprove() {
