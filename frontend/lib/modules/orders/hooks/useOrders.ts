@@ -31,7 +31,7 @@ export function useOrders() {
 
   return {
     orders: query.data ?? [],
-    isLoading: query.isLoading,
+    isLoading: !accessToken || query.isLoading,
     error: query.error ? parseError(query.error) : null,
     refetch: query.refetch,
   };

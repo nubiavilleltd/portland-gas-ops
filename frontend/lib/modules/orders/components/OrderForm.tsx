@@ -269,27 +269,37 @@ export default function OrderForm({
   }
 
   async function handleSaveDraftClick() {
-    const values = form.getValues();
-    const result = saveDraftSchema.safeParse(values);
+  form.clearErrors();
+  const values = form.getValues();
 
-    if (!result.success) {
-      result.error.issues.forEach((issue) => {
-        const path = issue.path.join(".") as any;
-        form.setError(path, { message: issue.message });
-      });
-      return;
-    }
+  const cleanedValues = {
+    ...values,
+    orderItems: values.orderItems?.filter(
+      (item) => item.productId && item.productId.trim() !== ""
+    ),
+  };
 
-    try {
-      setIsSavingDraft(true);
-      await onSaveDraft?.(result.data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save draft.";
-      setError("root", { message });
-    } finally {
-      setIsSavingDraft(false);
-    }
+  const result = saveDraftSchema.safeParse(cleanedValues);
+
+  if (!result.success) {
+    result.error.issues.forEach((issue) => {
+      const path = issue.path.join(".") as any;
+      form.setError(path, { message: issue.message });
+    });
+    return;
   }
+
+  try {
+    setIsSavingDraft(true);
+    await onSaveDraft?.(result.data);
+    // toast.success("Draft saved");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to save draft.";
+    setError("root", { message });
+  } finally {
+    setIsSavingDraft(false);
+  }
+}
 
   // ── Render ────────────────────────────────────────────────
   return (

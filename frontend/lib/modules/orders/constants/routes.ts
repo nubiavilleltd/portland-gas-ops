@@ -11,7 +11,6 @@
 
 export const ORDER_ROUTES = {
   home: () => "/orders",
-  list: () => "/orders/list",
 
   new: () => "/orders/new",
   detail: (orderNo: string) => `/orders/${orderNo}`,

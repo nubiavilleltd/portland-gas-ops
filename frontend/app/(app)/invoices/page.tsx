@@ -77,14 +77,10 @@ export default function InvoicesPage() {
       <PageHeader
         title="Invoices"
         description="Manage all invoices and track payments"
-        // action={
-        //   <Button href="/orders/list">
-        //     Create From Order
-        //   </Button>
-        // }
+    
       />
 
-      {/* TABLE WRAPPER */}
+      
       <DataTable<Invoice>
         columns={columns}
         data={invoices}

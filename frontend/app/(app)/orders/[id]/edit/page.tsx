@@ -55,7 +55,7 @@ export default function EditOrderPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => router.push(ORDER_ROUTES.list())}
+          onClick={() => router.push(ORDER_ROUTES.home())}
         >
           Back to Orders
         </Button>

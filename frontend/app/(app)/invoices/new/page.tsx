@@ -90,7 +90,7 @@ function CreateInvoicePageContent() {
             No order was specified. Please go back and use the &quot;Generate Invoice&quot;
             button from the order detail page.
           </p>
-          <Button href="/orders/list" variant="outline">
+          <Button href="/orders" variant="outline">
             Back to Orders
           </Button>
         </div>

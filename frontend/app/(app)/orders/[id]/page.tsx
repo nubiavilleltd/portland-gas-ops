@@ -123,7 +123,7 @@ export default function OrderDetailPage() {
   return (
     <AppLayout pageTitle="Order Details">
       <BackButton
-        href={`${ORDER_ROUTES.list()}`}
+        href={`${ORDER_ROUTES.home()}`}
         label="Back to Orders"
       />
       <PageHeader

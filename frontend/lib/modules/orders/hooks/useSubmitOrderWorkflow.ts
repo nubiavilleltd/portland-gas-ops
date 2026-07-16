@@ -34,7 +34,7 @@ export function useSubmitOrderWorkflow() {
       );
       toast.success("Order submitted successfully");
      router.push(
-          ORDER_ROUTES.list()
+          ORDER_ROUTES.home()
         );
     },
 

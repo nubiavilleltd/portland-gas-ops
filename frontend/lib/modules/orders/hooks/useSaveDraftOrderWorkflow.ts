@@ -34,7 +34,7 @@ export function useSaveDraftOrderWorkflow() {
       );
       toast.success("Draft saved successfully");
       router.push(
-          ORDER_ROUTES.list()
+          ORDER_ROUTES.home()
         );
     },
 

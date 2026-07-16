@@ -29,6 +29,8 @@ export const OrdersService = {
   async getOrders(): Promise<Order[]> {
     const raw = await ordersApi.list({ page_size: 200 });
 
+    console.log("raw", {raw, adapt:adaptOrderList(raw)})
+
     return adaptOrderList(raw);
   },
 

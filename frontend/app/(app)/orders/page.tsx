@@ -18,23 +18,13 @@ import { useOrderKPIs, useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { ORDER_ROUTES } from "@/lib/routes";
 import { ORDER_DASHBOARD_KPIS } from "@/lib/modules/orders/constants/order-dashboard.constants";
 import { KpiCard } from "@/lib/modules/orders/components/KpiCard";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 
 
 export default function OrdersListPage() {
 
-  const { orders } = useOrders()
-  const { customers } = useCustomers()
-  const { kpis } = useOrderKPIs()
-
-
-  const customerMap = Object.fromEntries(
-    customers.map((customer) => [
-      customer.id,
-      customer,
-    ])
-  );
+  const { orders, isLoading } = useOrders()
+  const { kpis, isLoading: isLoadingKPIs } = useOrderKPIs()
 
 
 
@@ -42,9 +32,7 @@ export default function OrdersListPage() {
     { key: "orderNumber", label: "ORDER NO." },
 
     {
-      key: "cutstomerId", label: "CUSTOMER", render: (value) =>
-        customerMap[value as string]
-          ?.name ?? "—"
+      key: "customerName", label: "CUSTOMER"
     },
     {
       key: "totalAmount",
@@ -75,7 +63,7 @@ export default function OrdersListPage() {
     },
 
     {
-      key: "fulfillment_status",
+      key: "fulfillmentStatus",
       label: "DELIVERY STATUS",
       render: (value) => (
         <FulfillmentStatusBadge
@@ -87,7 +75,7 @@ export default function OrdersListPage() {
     },
 
     {
-      key: "payment_status",
+      key: "paymentStatus",
       label: "PAYMENT STATUS",
       render: (value) => (
         <PaymentStatusBadge
@@ -125,8 +113,8 @@ export default function OrdersListPage() {
                 ? formatCurrency(kpis[item.key])
                 : kpis[item.key]
             }
-
             variant={item.variant}
+            isLoading={isLoadingKPIs}
           />
         ))}
       </div>
@@ -135,6 +123,7 @@ export default function OrdersListPage() {
         columns={columns}
         data={orders}
         rowHref={(order) => ORDER_ROUTES.detail(order.orderNumber)}
+        isLoading={isLoading || isLoadingKPIs}
         emptyMessage="No orders found."
       />
     </AppLayout>

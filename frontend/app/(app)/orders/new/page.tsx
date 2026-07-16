@@ -43,7 +43,7 @@ const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
     <AppLayout pageTitle="Create Order">
 
       <BackButton
-        href={`${ORDER_ROUTES.list()}`}
+        href={`${ORDER_ROUTES.home()}`}
         label="Back to Orders"
       />
       <PageHeader
