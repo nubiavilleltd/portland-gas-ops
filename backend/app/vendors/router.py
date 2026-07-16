@@ -46,12 +46,19 @@ def list_vendors(
     limit: int = Query(100, ge=1, le=200),
     search: Optional[str] = Query(None, description="Search vendors by name"),
     include_inactive: bool = Query(False, description="Include inactive vendors — admin only"),
+    vendor_type: Optional[VendorType] = Query(None, description="Filter by vendor type: permanent or temporary"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     if include_inactive and current_user.role not in (UserRole.admin, UserRole.super_admin):
         include_inactive = False
-    return _svc(db).list_vendors(skip=skip, limit=limit, search=search, include_inactive=include_inactive)
+    return _svc(db).list_vendors(
+        skip=skip,
+        limit=limit,
+        search=search,
+        include_inactive=include_inactive,
+        vendor_type=vendor_type.value if vendor_type else None,
+    )
 
 
 @router.post("", response_model=VendorResponse, status_code=201)

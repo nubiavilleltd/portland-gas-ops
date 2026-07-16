@@ -283,6 +283,8 @@ class AssetRequestResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime]
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -311,8 +313,11 @@ class AssetRequestListItem(BaseModel):
     status: AssetRequestStatus
     requested_by: str
     requester_name: Optional[str] = None
+    requester_department: Optional[str] = None
     item_count: int = 0
     created_at: datetime
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     class Config:
         from_attributes = True

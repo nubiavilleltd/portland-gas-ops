@@ -43,7 +43,7 @@ Employee endpoints (any authenticated user):
   GET    /audit/{request_type}/{request_id}  audit trail for a source request
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -59,7 +59,6 @@ from app.shared.workflow.schemas import (
     AssignmentSet, AssignmentOut,
 )
 from app.shared.services.workflow_engine import WorkflowEngine
-from app.shared.services import workflow_email
 
 router = APIRouter()
 
@@ -326,6 +325,15 @@ def _update_source_status(request_type: str, request_id: str, status: str, db: S
         if row:
             row.status = status
 
+    elif request_type == "asset":
+        from app.assets.models import AssetRequest, AssetRequestStatus
+        row = db.query(AssetRequest).filter(AssetRequest.id == request_id).first()
+        if row:
+            try:
+                row.status = AssetRequestStatus(status)
+            except ValueError:
+                pass
+
 
 @router.post("/requests/{approval_request_id}/approve")
 def approve_request(
@@ -338,22 +346,25 @@ def approve_request(
     engine = WorkflowEngine(db)
     ar = engine.get_approval_request(approval_request_id)
 
-    # Capture approver id before engine.approve() advances the step
-    approver_employee_id = employee.id
+    # Capture before engine mutates the approval request
+    _request_type = ar.request_type
+    _request_id   = ar.request_id
 
     def on_final_approval():
-        _update_source_status(ar.request_type, ar.request_id, "approved", db)
+        _update_source_status(_request_type, _request_id, "approved", db)
+        # Asset requests: re-validate availability at the moment of final approval
+        # to catch inventory that was consumed between submission and approval.
+        if _request_type == "asset":
+            from app.assets.service import check_asset_availability_for_approval
+            check_asset_availability_for_approval(db, _request_id)
 
     result = engine.approve(approval_request_id, employee, body.comment, on_final_approval=on_final_approval)
     db.commit()
 
-    # Send email after commit — failures are swallowed inside the helpers
-    if result.overall_status.value == "approved":
-        workflow_email.notify_request_result(db, approval_request_id, "approved", comment=body.comment)
-    else:
-        # Mid-flow: email the next approver AND update the requester on progress
-        workflow_email.notify_step_assigned(db, approval_request_id)
-        workflow_email.notify_step_progress(db, approval_request_id, approver_employee_id)
+    # After commit: notify the approver (asset admin) to perform allocation
+    if result.overall_status.value == "approved" and _request_type == "asset":
+        from app.shared.services import workflow_email as _wf_email
+        _wf_email.notify_asset_allocation_needed(db, _request_id, employee.id)
 
     return {"id": result.id, "overall_status": result.overall_status.value, "current_step_number": result.current_step_number}
 
@@ -374,7 +385,6 @@ def reject_request(
 
     result = engine.reject(approval_request_id, employee, body.comment, on_rejected=on_rejected)
     db.commit()
-    workflow_email.notify_request_result(db, approval_request_id, "rejected", comment=body.comment)
     return {"id": result.id, "overall_status": result.overall_status.value}
 
 
@@ -389,12 +399,18 @@ def return_request(
     engine = WorkflowEngine(db)
     ar = engine.get_approval_request(approval_request_id)
 
+    # Asset requests have no return-for-revision path — only Approve or Deny
+    if ar.request_type == "asset":
+        raise HTTPException(
+            status_code=400,
+            detail="Asset requests cannot be returned for revision. Use Approve or Deny only.",
+        )
+
     def on_returned():
         _update_source_status(ar.request_type, ar.request_id, "returned", db)
 
     result = engine.return_(approval_request_id, employee, body.comment, on_returned=on_returned)
     db.commit()
-    workflow_email.notify_request_result(db, approval_request_id, "returned", comment=body.comment)
     return {"id": result.id, "overall_status": result.overall_status.value}
 
 

@@ -33,6 +33,7 @@ Endpoints:
 import json
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Form, HTTPException, status
 from pydantic import ValidationError
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -243,6 +244,63 @@ async def create_asset(
     return _build_asset_response(asset, _resolve_assignee_names(db, [asset]))
 
 
+def _next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
+    """
+    Given a list of asset request IDs (expected to be pending),
+    returns a dict mapping each request_id to its current step actor:
+        { request_id: {"name": str, "step_name": str} }
+
+    Single JOIN query — no N+1. Mirrors the procurement router pattern.
+    """
+    if not request_ids:
+        return {}
+
+    from app.shared.models.approval import (
+        AllRequest, ApprovalRequest, ApprovalStepAssignment,
+        ApprovalOverallStatus, WorkflowStep,
+    )
+    from app.employees.models import Employee as EmpModel
+    from app.shared.models.user import User as UserModel
+
+    rows = (
+        db.query(
+            AllRequest.request_id,
+            UserModel.first_name,
+            UserModel.last_name,
+            WorkflowStep.step_name,
+        )
+        .join(ApprovalRequest, ApprovalRequest.id == AllRequest.approval_request_id)
+        .join(
+            ApprovalStepAssignment,
+            and_(
+                ApprovalStepAssignment.approval_request_id == ApprovalRequest.id,
+                ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ),
+        )
+        .join(EmpModel, EmpModel.id == ApprovalStepAssignment.assigned_to)
+        .join(UserModel, UserModel.id == EmpModel.user_id)
+        .join(
+            WorkflowStep,
+            and_(
+                WorkflowStep.workflow_id == ApprovalRequest.workflow_id,
+                WorkflowStep.step_number == ApprovalRequest.current_step_number,
+            ),
+        )
+        .filter(
+            AllRequest.request_type == "asset",
+            AllRequest.request_id.in_(request_ids),
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .all()
+    )
+
+    result: dict[str, dict] = {}
+    for row in rows:
+        name = " ".join(p for p in [row.first_name, row.last_name] if p) or "—"
+        result[row.request_id] = {"name": name, "step_name": row.step_name}
+    return result
+
+
 @router.get("/requests", response_model=List[AssetRequestListItem])
 def list_requests(
     skip: int = Query(0, ge=0),
@@ -251,12 +309,40 @@ def list_requests(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.employees.models import Employee as EmpModel
+    from sqlalchemy.orm import joinedload as _jl
+
     requests = asset_service.list_requests(db, current_user, skip=skip, limit=limit, status_filter=status_filter)
+
+    # Single query to get department for all requesters — avoids N+1
+    requester_ids = list({r.requested_by for r in requests if r.requested_by})
+    emp_map: dict[str, EmpModel] = {}
+    if requester_ids:
+        emps = (
+            db.query(EmpModel)
+            .options(_jl(EmpModel.department_rel))
+            .filter(EmpModel.user_id.in_(requester_ids))
+            .all()
+        )
+        emp_map = {e.user_id: e for e in emps}
+
+    # Single JOIN query to get next actor for all pending requests
+    pending_ids = [r.id for r in requests if r.status == AssetRequestStatus.pending]
+    actor_map = _next_actors(db, pending_ids)
+
     result = []
     for r in requests:
         item = AssetRequestListItem.model_validate(r)
         item.requester_name = r.requester.full_name if r.requester else None
+        emp = emp_map.get(r.requested_by)
+        item.requester_department = (
+            emp.department_rel.name if emp and emp.department_rel else None
+        )
         item.item_count = len(r.items)
+        info = actor_map.get(r.id)
+        if info:
+            item.next_actor_name = info["name"]
+            item.current_step_name = info["step_name"]
         result.append(item)
     return result
 
@@ -278,7 +364,13 @@ def get_request(
     current_user: User = Depends(get_current_user),
 ):
     req = asset_service.get_request(db, request_id, current_user)
-    return AssetRequestResponse.from_orm_with_names(req)
+    response = AssetRequestResponse.from_orm_with_names(req)
+    actor_map = _next_actors(db, [request_id])
+    info = actor_map.get(request_id)
+    if info:
+        response.next_actor_name = info["name"]
+        response.current_step_name = info["step_name"]
+    return response
 
 
 @router.patch("/requests/{request_id}/status", response_model=AssetRequestResponse)

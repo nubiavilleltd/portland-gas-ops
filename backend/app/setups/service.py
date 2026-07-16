@@ -18,6 +18,10 @@ from app.setups.schemas import (
 # ── Departments ────────────────────────────────────────────────────────────────
 
 def list_departments(db: Session, active_only: bool = False) -> list[dict]:
+    from app.shared.models.user import User
+    # Alias Employee so the hod join doesn't clash with the employee_count join
+    HodEmployee = db.query(Employee).subquery()
+
     q = (
         db.query(Department, func.count(Employee.id).label("employee_count"))
         .outerjoin(Employee, Employee.department_id == Department.id)
@@ -26,6 +30,23 @@ def list_departments(db: Session, active_only: bool = False) -> list[dict]:
     if active_only:
         q = q.filter(Department.is_active == True)
     rows = q.order_by(Department.name.asc()).all()
+
+    # Batch-load HoD names in one query to avoid N+1
+    # Note: User.full_name is a @property — query first_name + last_name as columns
+    hod_ids = [d.hod_id for d, _ in rows if d.hod_id]
+    hod_name_map: dict[str, str] = {}
+    if hod_ids:
+        hod_rows = (
+            db.query(Employee.id, User.first_name, User.last_name)
+            .join(User, User.id == Employee.user_id)
+            .filter(Employee.id.in_(hod_ids))
+            .all()
+        )
+        hod_name_map = {
+            emp_id: f"{first or ''} {last or ''}".strip()
+            for emp_id, first, last in hod_rows
+        }
+
     return [
         {
             "id":             d.id,
@@ -33,6 +54,7 @@ def list_departments(db: Session, active_only: bool = False) -> list[dict]:
             "code":           d.code,
             "is_active":      d.is_active,
             "hod_id":         d.hod_id,
+            "hod_name":       hod_name_map.get(d.hod_id) if d.hod_id else None,
             "parent_dept_id": d.parent_dept_id,
             "created_at":     d.created_at,
             "updated_at":     d.updated_at,

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import AppLayout from "@/components/layout/AppLayout";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import AdminAssetDetailSkeleton from "./AdminAssetDetailSkeleton";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   useAsset,
@@ -819,9 +819,7 @@ export default function AdminAssetDetailPage() {
   if (isLoading)
     return (
       <AppLayout pageTitle="Admin — Assets">
-        <div className="flex justify-center py-20">
-          <LoadingSpinner />
-        </div>
+        <AdminAssetDetailSkeleton />
       </AppLayout>
     );
   if (isError || !asset) {
