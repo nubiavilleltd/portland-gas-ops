@@ -61,6 +61,15 @@ const columns: Column<ApprovalRow>[] = [
     },
   },
   {
+    key: "requester_name",
+    label: "Requester",
+    render: (v) => (
+      <span className="text-sm text-brand-text-primary">
+        {v ? String(v) : "—"}
+      </span>
+    ),
+  },
+  {
     key: "department",
     label: "Department",
     render: (v) => (

@@ -135,6 +135,8 @@ export interface WorkCloseOutListItem {
   submitted_at: string;
   created_at: string;
   updated_at: string;
+  next_actor_name?: string | null;
+  current_step_name?: string | null;
 }
 
 export interface WorkCloseOutResponse extends WorkCloseOutListItem {

@@ -76,6 +76,7 @@ export interface WorkAuthorizationWorkInitiationSummary {
   title: string;
   status: string;
   work_category: string;
+  other_work_category?: string | null;
   related_incident_report_id?: string | null;
   work_type: string[];
   location: string;
@@ -126,6 +127,8 @@ export interface WorkAuthorizationListItem {
   requested_at: string;
   created_at: string;
   updated_at: string;
+  next_actor_name?: string | null;
+  current_step_name?: string | null;
 }
 
 export interface WorkAuthorizationResponse extends WorkAuthorizationListItem {

@@ -15,6 +15,7 @@ import type { WorkCloseOutRequest } from "@/types/safety";
 import SafetyRequestListFilters, {
   type SafetyRequestListFilter,
 } from "./SafetyRequestListFilters";
+import SafetyTruncatedTableText from "./SafetyTruncatedTableText";
 
 const columns: Column<WorkCloseOutRequest>[] = [
   {
@@ -44,7 +45,9 @@ const columns: Column<WorkCloseOutRequest>[] = [
   {
     key: "location",
     label: "Location",
-    render: (_, row) => row.workAuthorization.location,
+    render: (_, row) => (
+      <SafetyTruncatedTableText value={row.workAuthorization.location} />
+    ),
   },
   {
     key: "supervisor",

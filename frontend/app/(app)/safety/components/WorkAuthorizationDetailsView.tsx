@@ -490,8 +490,11 @@ export default function WorkAuthorizationDetailsView({
         }
         roles={workAuthorizationRoles}
         recordLabel="Work Authorization Details"
+        title={request.workInitiation.title}
         status={<ApprovalBadge status={request.status} />}
         nextActor={getWorkAuthorizationNextActor(request)}
+        nextApproverName={request.nextApproverName}
+        nextApproverRole={request.nextApproverRole}
         showRoleSwitcher={false}
       />
 
@@ -776,7 +779,7 @@ function AttachmentsSection({
       {editable ? (
         <div className="mt-4">
           <FileDropzone
-            label="Add Attachments"
+            label="Safety-related Images/Documents"
             value={newAttachments}
             onChange={onNewAttachmentsChange}
             accept="image/*,.pdf,.doc,.docx"

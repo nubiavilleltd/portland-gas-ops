@@ -760,6 +760,14 @@ class WorkflowEngine:
             ar = self.db.query(ApprovalRequest).filter(ApprovalRequest.id == asa.approval_request_id).first()
             if not ar:
                 continue
+            submitter = ar.submitter
+            requester_name = None
+            if submitter:
+                requester_name = (
+                    (submitter.user.full_name or submitter.user.email)
+                    if submitter.user
+                    else None
+                ) or submitter.employee_no
             all_req = (
                 self.db.query(AllRequest)
                 .filter(
@@ -781,6 +789,7 @@ class WorkflowEngine:
                 "request_id":          ar.request_id,
                 "reference":           all_req.reference if all_req else None,
                 "title":               all_req.title if all_req else None,
+                "requester_name":      requester_name,
                 "department":          all_req.department if all_req else None,
                 "current_step_number": ar.current_step_number,
                 "total_steps":         total_steps,
@@ -863,11 +872,16 @@ class WorkflowEngine:
         result = []
         for row in rows:
             actor = row.actor
+            actor_role = None
+            if actor:
+                actor_role = actor.job_title
+                if not actor_role and actor.user and actor.user.role:
+                    actor_role = actor.user.role.value
             result.append({
                 "id":          row.id,
                 "action":      row.action.value,
                 "actor_name":  actor.user.full_name if actor and actor.user else None,
-                "actor_role":  row.actor_role,
+                "actor_role":  actor_role,
                 "step_number": row.step_number,
                 "comment":     row.comment,
                 "acted_at":    utc_isoformat(row.acted_at),

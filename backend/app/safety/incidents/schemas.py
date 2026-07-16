@@ -33,7 +33,7 @@ class IncidentReportCreate(BaseModel):
 
     description: str = Field(..., min_length=5, max_length=5000)
 
-    severity_estimate: Optional[IncidentSeverityEstimate] = None
+    severity_estimate: IncidentSeverityEstimate
 
     anyone_injured: bool = False
     property_damaged: bool = False
