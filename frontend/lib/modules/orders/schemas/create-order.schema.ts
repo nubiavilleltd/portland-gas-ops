@@ -99,6 +99,33 @@ export const createOrderSchema = z.object({
   notes: z.string().optional(),
 });
 
+
+
+
+export const saveDraftSchema = z.object({
+  customerId: z.string().optional(),
+  orderItems: z
+    .array(
+      orderLineItemSchema.partial().extend({
+        // keep quantity correctness even when optional
+        quantity: z.number().min(0.01, "Quantity must be greater than 0").optional(),
+      })
+    )
+    .optional(),
+  discountType: z.enum(["none", "fixed", "percentage"]).optional(),
+  discountValue: z.number().min(0).optional(),
+  deliveryAddress: z.string().optional(),
+  deliveryDate: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val) return true; // empty is fine for drafts
+      const today = new Date().toISOString().split("T")[0];
+      return val >= today;
+    }, "Delivery date cannot be in the past"),
+  notes: z.string().optional(),
+});
+
 // `z.infer` is an alias for `z.output` — it reflects the shape *after*
 // defaults are applied (discountType/discountValue required). That's not
 // what the form actually holds while the user is filling it out.
@@ -109,3 +136,4 @@ export const createOrderSchema = z.object({
 // (output, defaults applied) — use this for onSubmit/onSaveDraft callbacks.
 export type CreateOrderFormValues = z.input<typeof createOrderSchema>;
 export type CreateOrderFormOutput = z.output<typeof createOrderSchema>;
+export type SaveDraftPayload = z.infer<typeof saveDraftSchema>;

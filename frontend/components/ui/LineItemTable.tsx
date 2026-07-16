@@ -29,7 +29,8 @@ export interface LineItemColumn<TRow> {
   renderCell: (
     row: TRow,
     index: number,
-    onChange: (patch: Partial<TRow>) => void
+    onChange: (patch: Partial<TRow>) => void,
+    cellError?: string
   ) => React.ReactNode;
   /** Optional header class override */
   headerClassName?: string;
@@ -74,6 +75,8 @@ interface LineItemTableProps<TRow> {
   className?: string;
   /** Disable the whole table (no add/remove) */
   disabled?: boolean;
+  /** rowErrors[rowIndex][columnKey] = error message */
+  rowErrors?: Record<number, Record<string, string>>;
 }
 
 // ── Component ─────────────────────────────────────────────
@@ -89,6 +92,7 @@ export default function LineItemTable<TRow>({
   minRows = 1,
   error,
   className,
+  rowErrors,
   disabled = false,
 }: LineItemTableProps<TRow>) {
   // Build the CSS grid template: columns + 40px remove button
@@ -135,7 +139,7 @@ export default function LineItemTable<TRow>({
             )}
             style={{ gridTemplateColumns: gridTemplate }}
           >
-            {columns.map((col, colIndex) => (
+            {/* {columns.map((col, colIndex) => (
               <div
                 key={col.key}
                 className={cn(
@@ -148,7 +152,24 @@ export default function LineItemTable<TRow>({
                   onChange(rowIndex, patch)
                 )}
               </div>
-            ))}
+            ))} */}
+
+            {columns.map((col, colIndex) => {
+  const cellError = rowErrors?.[rowIndex]?.[col.key];
+  return (
+    <div
+      key={col.key}
+      className={cn(
+        "px-3 py-2",
+        colIndex > 0 && "border-l border-brand-border/50",
+        cellError && "bg-red-50/40",
+        col.cellClassName
+      )}
+    >
+      {col.renderCell(row, rowIndex, (patch) => onChange(rowIndex, patch), cellError)}
+    </div>
+  );
+})}
 
             {/* Remove button */}
             <div className="flex items-center justify-center border-l border-brand-border/50">

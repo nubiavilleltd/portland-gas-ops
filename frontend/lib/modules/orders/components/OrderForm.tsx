@@ -19,10 +19,12 @@ import {
   useCreateOrderForm,
   DEFAULT_LINE_ITEM,
 } from "@/lib/modules/orders/hooks/useCreateOrderForm";
-import type {
-  OrderLineItem,
-  CreateOrderFormValues,
-  CreateOrderFormOutput,
+import {
+  type OrderLineItem,
+  type CreateOrderFormValues,
+  type CreateOrderFormOutput,
+  saveDraftSchema,
+  SaveDraftPayload,
 } from "@/lib/modules/orders/schemas/create-order.schema";
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
@@ -50,11 +52,10 @@ interface OrderFormProps {
   defaultValues?: Partial<CreateOrderFormValues>;
   onSubmit: (data: CreateOrderFormOutput) => Promise<void>;
   onCancel?: () => void;
-  // onSaveDraft?: () => void;
   submitLabel?: string;
   submitLoadingLabel?: string;
   showDraft?: boolean;
-  onSaveDraft?: (data: CreateOrderFormValues) => void;
+  onSaveDraft?: (data: SaveDraftPayload) => Promise<void> | void;
 }
 
 // ── Summary row ───────────────────────────────────────────
@@ -79,6 +80,7 @@ export default function OrderForm({
 }: OrderFormProps) {
   const { form } = useCreateOrderForm({ defaultValues });
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const {
     control,
@@ -104,6 +106,16 @@ export default function OrderForm({
     control,
     name: "orderItems",
   });
+
+
+  const rowErrors: Record<number, Record<string, string>> = {};
+  Array.isArray(errors.orderItems) ? errors.orderItems?.forEach?.((itemError, index) => {
+    if (!itemError) return;
+    const fieldErrors: Record<string, string> = {};
+    if (itemError.productId?.message) fieldErrors.productId = itemError.productId.message;
+    if (itemError.quantity?.message) fieldErrors.quantity = itemError.quantity.message;
+    if (Object.keys(fieldErrors).length) rowErrors[index] = fieldErrors;
+  }) : undefined;
 
   const orderItems = watch("orderItems") ?? [];
   const discountType = watch("discountType");
@@ -138,27 +150,31 @@ export default function OrderForm({
       key: "productId",
       label: "Product",
       width: "2fr",
-      renderCell: (row, index) => {
+      renderCell: (row, index, _onChange, cellError) => {
         const selected = getProductById(products, row.productId);
         return (
-          <button
-            type="button"
-            onClick={() => setPickerIndex(index)}
-            className={cn(
-              "w-full text-left text-sm py-0.5 transition-colors",
-              selected
-                ? "text-brand-text-primary font-medium"
-                : "text-brand-text-secondary",
-            )}
-          >
-            {selected ? (
-              <span>{selected.name}</span>
-            ) : (
-              <span className="text-brand-text-secondary">
-                {productsLoading ? "Loading…" : "Click to select product"}
-              </span>
-            )}
-          </button>
+          <div>
+            <button
+              type="button"
+              onClick={() => setPickerIndex(index)}
+              className={cn(
+                "w-full text-left text-sm py-0.5 transition-colors rounded",
+                cellError && "ring-1 ring-red-400",
+                selected
+                  ? "text-brand-text-primary font-medium"
+                  : "text-brand-text-secondary",
+              )}
+            >
+              {selected ? (
+                <span>{selected.name}</span>
+              ) : (
+                <span className="text-brand-text-secondary">
+                  {productsLoading ? "Loading…" : "Click to select product"}
+                </span>
+              )}
+            </button>
+            {cellError && <p className="text-xs text-red-600 mt-0.5">{cellError}</p>}
+          </div>
         );
       },
     },
@@ -167,29 +183,34 @@ export default function OrderForm({
       key: "quantity",
       label: "Quantity",
       width: "130px",
-
-      renderCell: (row, index, onChange) => {
+      renderCell: (row, index, onChange, cellError) => {
         const product = getProductById(products, row.productId);
         const unitLabel = product ? getUnitLabel(product) : "";
         return (
-          <div className="flex items-center gap-1">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={row.quantity ? row.quantity.toLocaleString() : ""}
-              placeholder="0"
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, "");
-                if (!/^\d*\.?\d*$/.test(raw)) return;
-                onChange({ quantity: parseFloat(raw) || 0 });
-              }}
-              className="w-full text-sm outline-none bg-transparent"
-            />
-            {unitLabel && (
-              <span className="text-xs text-brand-text-secondary shrink-0">
-                {unitLabel}
-              </span>
-            )}
+          <div>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={row.quantity ? row.quantity.toLocaleString() : ""}
+                placeholder="0"
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/,/g, "");
+                  if (!/^\d*\.?\d*$/.test(raw)) return;
+                  onChange({ quantity: parseFloat(raw) || 0 });
+                }}
+                className={cn(
+                  "w-full text-sm outline-none bg-transparent",
+                  cellError && "text-red-600"
+                )}
+              />
+              {unitLabel && (
+                <span className="text-xs text-brand-text-secondary shrink-0">
+                  {unitLabel}
+                </span>
+              )}
+            </div>
+            {cellError && <p className="text-xs text-red-600 mt-0.5">{cellError}</p>}
           </div>
         );
       },
@@ -247,10 +268,34 @@ export default function OrderForm({
     }
   }
 
+  async function handleSaveDraftClick() {
+    const values = form.getValues();
+    const result = saveDraftSchema.safeParse(values);
+
+    if (!result.success) {
+      result.error.issues.forEach((issue) => {
+        const path = issue.path.join(".") as any;
+        form.setError(path, { message: issue.message });
+      });
+      return;
+    }
+
+    try {
+      setIsSavingDraft(true);
+      await onSaveDraft?.(result.data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save draft.";
+      setError("root", { message });
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────
   return (
     <form
       onSubmit={handleSubmit(handleFormSubmit)}
+      noValidate
       className="space-y-6"
     >
       {/* CUSTOMER INFORMATION */}
@@ -301,6 +346,7 @@ export default function OrderForm({
           totals={totals}
           minRows={1}
           error={errors.orderItems?.message}
+          rowErrors={rowErrors}
         />
       </FormSection>
 
@@ -449,21 +495,32 @@ export default function OrderForm({
         {/* <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button> */}
-        {showDraft && onSaveDraft && (
+        {/* {showDraft && onSaveDraft && (
           <Button
-            type="button"
+            type="submit"
             variant="outline"
-            disabled={isSubmitting}
-            loading={isSubmitting}
-            loadingText={submitLoadingLabel}
-            onClick={() => onSaveDraft?.(form.getValues())}
+            disabled={isSubmitting || isSavingDraft}
+            loading={isSavingDraft}
+            loadingText="Saving…"
+            onClick={handleSaveDraftClick}
           >
             Save Draft
           </Button>
-        )}
+        )} */}
+
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting || isSavingDraft}
+          loading={isSavingDraft}
+          loadingText="Saving…"
+          onClick={handleSaveDraftClick}
+        >
+          Save Draft
+        </Button>
         <Button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isSavingDraft}
           loading={isSubmitting}
           loadingText={submitLoadingLabel}
         >

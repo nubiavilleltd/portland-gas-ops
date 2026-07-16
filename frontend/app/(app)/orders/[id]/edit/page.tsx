@@ -11,7 +11,7 @@ import ErrorBanner from "@/components/ui/ErrorBanner";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
 import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
-import type { CreateOrderFormOutput, CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
+import type { CreateOrderFormOutput, CreateOrderFormValues, SaveDraftPayload } from "@/lib/modules/orders/schemas/create-order.schema";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { ORDER_ROUTES } from "@/lib/routes";
 import { parseError } from "@/lib/errors";
@@ -112,9 +112,15 @@ export default function EditOrderPage() {
   async function handleSubmit(data: CreateOrderFormOutput) {
     await submitOrder({ input: buildOrderPayload(data), existingDraftNo: orderNo });
   }
-  async function handleSaveDraft(data: CreateOrderFormValues) {
+  async function handleSaveDraft(data: SaveDraftPayload) {
     await saveDraft({ input: buildOrderPayload(data), existingDraftNo: orderNo });
+    // toast.success("Draft saved");
   }
+
+//   async function handleSaveDraft(data: CreateOrderFormValues) {
+//   const saved = await saveDraft({ input: buildOrderPayload(data), existingDraftNo: draftId ?? undefined });
+//   toast.success("Draft saved");
+// }
 
   return (
     <AppLayout pageTitle="Edit Order">
