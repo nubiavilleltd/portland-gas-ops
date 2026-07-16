@@ -67,7 +67,37 @@ def get_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return employee_service.get_employee_by_user_id(current_user.id, db)
+    from app.employees.schemas import EmployeeResponse, UserInEmployee
+
+    emp = employee_service.get_employee_by_user_id(current_user.id, db)
+
+    # Explicitly construct EmployeeResponse to ensure proper serialization
+    # This prevents Pydantic from flattening the User relationship
+    return EmployeeResponse(
+        id=emp.id,
+        user_id=emp.user_id,
+        employee_no=emp.employee_no,
+        job_title=emp.job_title,
+        department=emp.department,
+        department_id=emp.department_id,
+        phone=emp.phone,
+        birthday=emp.birthday,
+        employment_type=emp.employment_type,
+        hire_date=emp.hire_date,
+        operating_manager_id=emp.operating_manager_id,
+        operating_manager=emp.operating_manager,
+        basic_salary=emp.basic_salary,
+        housing_allowance=emp.housing_allowance,
+        transport_allowance=emp.transport_allowance,
+        meal_allowance=emp.meal_allowance,
+        paye=emp.paye,
+        pension=emp.pension,
+        nhf=emp.nhf,
+        loan_repayment=emp.loan_repayment,
+        created_at=emp.created_at,
+        updated_at=emp.updated_at,
+        user=UserInEmployee.model_validate(emp.user) if emp.user else None,
+    )
 
 
 # Must come before /{employee_id} to avoid "birthdays" being captured as an ID
