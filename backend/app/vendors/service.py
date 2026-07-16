@@ -47,8 +47,9 @@ class VendorService:
         limit: int = 100,
         search: str | None = None,
         include_inactive: bool = False,
+        vendor_type: str | None = None,
     ) -> list[Vendor]:
-        return self.repo.list(skip=skip, limit=limit, search=search, include_inactive=include_inactive)
+        return self.repo.list(skip=skip, limit=limit, search=search, include_inactive=include_inactive, vendor_type=vendor_type)
 
     def get_vendor(self, vendor_id: str) -> Vendor:
         """Fetch a single vendor by ID regardless of active status. Raises 404 if not found."""
