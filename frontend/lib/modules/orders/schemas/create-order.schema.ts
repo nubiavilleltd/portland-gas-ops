@@ -88,7 +88,13 @@ export const createOrderSchema = z.object({
     .string()
     .min(3, "Enter a valid delivery address"),
 
-  deliveryDate: z.string().optional(),
+  deliveryDate: z
+  .string()
+  .min(1, "Delivery date is required")
+  .refine((val) => {
+    const today = new Date().toISOString().split("T")[0];
+    return val >= today; // safe since both are YYYY-MM-DD strings
+  }, "Delivery date cannot be in the past"),
 
   notes: z.string().optional(),
 });
