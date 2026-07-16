@@ -92,40 +92,14 @@ export default function LeaveRequestDetailPage({
 
   // Auto-detect current user's role
   // Note: Comparing by name as workaround since /api/employees/me returns user data instead of employee data
-  const currentUserName = currentEmployee?.name || currentEmployee?.full_name || "";
-  const isRequester = apiRecord && currentEmployee && apiRecord.requester_name === currentUserName;
-  const isReliever = apiRecord && currentEmployee && apiRecord.reliever_name === currentUserName;
+  // Role detection using employee ID comparison (matching Safety & Compliance pattern)
+  const isRequester = apiRecord && currentEmployee ? apiRecord.requester_id === currentEmployee.id : false;
+  const isReliever = apiRecord && currentEmployee ? apiRecord.reliever_id === currentEmployee.id : false;
   const isApprover = apiRecord && currentEmployee && apiRecord.approval_request_id && !isRequester && !isReliever;
   const hasWorkflowAccess = isRequester || isReliever || isApprover;
 
   useEffect(() => {
-    if (!apiRecord || !currentEmployee) {
-      console.log("Missing data for role detection:", {
-        apiRecord: !!apiRecord,
-        currentEmployee: !!currentEmployee,
-        currentEmployeeData: currentEmployee,
-      });
-      return;
-    }
-
-    console.log("=== ROLE DETECTION DEBUG ===");
-    console.log("Current User:", {
-      name: currentUserName,
-      fullData: currentEmployee,
-    });
-    console.log("Leave Request:", {
-      requester_name: apiRecord.requester_name,
-      reliever_name: apiRecord.reliever_name,
-      status: apiRecord.status,
-      approval_request_id: apiRecord.approval_request_id,
-    });
-    console.log("Detection Results:", {
-      isRequester,
-      isReliever,
-      isApprover,
-      hasWorkflowAccess,
-    });
-    console.log("================");
+    if (!apiRecord || !currentEmployee) return;
 
     if (isReliever) {
       setCurrentRole("reliever");
@@ -134,7 +108,7 @@ export default function LeaveRequestDetailPage({
     } else {
       setCurrentRole("requester");
     }
-  }, [apiRecord, currentEmployee, isReliever, isApprover, isRequester, currentUserName]);
+  }, [apiRecord, currentEmployee, isReliever, isApprover, isRequester]);
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");

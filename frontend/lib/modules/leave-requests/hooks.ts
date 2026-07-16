@@ -5,6 +5,23 @@ import leaveRequestsApi from "./api";
 import { useToast } from "@/hooks/useToast";
 import { LeaveRequestCreatePayload, ListLeaveRequestsParams } from "./types";
 
+// Match the backend's EmployeeResponse structure
+export interface CurrentEmployee {
+  id: string;  // Employee ID (what we need for comparison)
+  user_id: string;
+  employee_no: string;
+  job_title?: string | null;
+  department?: string | null;
+  department_id?: string | null;
+  user?: {
+    id: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    email: string;
+    role: string;
+  } | null;
+}
+
 const QUERY_KEYS = {
   all: ["leave-requests"],
   list: (params?: ListLeaveRequestsParams) => [...QUERY_KEYS.all, "list", params],
@@ -40,13 +57,15 @@ export function useCreateLeaveRequest() {
 }
 
 export function useCurrentEmployee() {
-  return useQuery({
+  return useQuery<CurrentEmployee | null, Error>({
     queryKey: ["current-employee"],
     queryFn: async () => {
-      // Try to get employee by user_id
       const response = await fetch("/api/employees/me");
-      if (!response.ok) throw new Error("Failed to fetch current employee");
-      return response.json();
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error("Failed to fetch current employee");
+      }
+      return response.json() as Promise<CurrentEmployee>;
     },
     staleTime: 5 * 60 * 1000,
   });
