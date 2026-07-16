@@ -111,6 +111,7 @@ export interface WorkInitiationRequest {
   workDescription: string;
   reasonForWork: string;
   workCategory: string;
+  otherWorkCategory?: string;
   relatedIncidentHazardId: string;
   workType: string[];
   location: string;
@@ -121,6 +122,8 @@ export interface WorkInitiationRequest {
   supervisorApproval?: WorkAuthorizationApprovalResult | null;
   operationalReview: WorkInitiationReview | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
+  nextApproverName?: string;
+  nextApproverRole?: string;
 }
 
 export interface WorkAuthorizationRequestDetails {
@@ -206,6 +209,8 @@ export interface WorkAuthorizationRequest {
   hseInspection: WorkAuthorizationHseInspection | null;
   hseApproval: WorkAuthorizationApprovalResult | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
+  nextApproverName?: string;
+  nextApproverRole?: string;
 }
 
 export type WorkCloseOutStatus =
@@ -306,6 +311,8 @@ export interface WorkCloseOutRequest {
   operationsHeadApproval: WorkCloseOutApprovalResult | null;
   hseApproval: WorkCloseOutHseApproval | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
+  nextApproverName?: string;
+  nextApproverRole?: string;
 }
 
 export type WorkCloseOutRole = "requester" | "supervisor" | "operations_head" | "hse";

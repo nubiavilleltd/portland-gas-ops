@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { Eye } from "lucide-react";
-
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -52,15 +52,17 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
   {
     key: "actions",
     label: "",
+    sortable: false,
+    searchable: false,
     render: (_, customer) => (
-      <Button
-        size="sm"
-        variant="outline"
+      <Link
         href={`/admin/crm/customers/${customer.id}`}
-        leftIcon={<Eye size={14} />}
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
+        title="View Customer"
       >
-        View
-      </Button>
+        <Eye size={18} />
+      </Link>
     ),
   },
 ];

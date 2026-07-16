@@ -72,7 +72,10 @@ export default function WorkAuthorizationForm() {
       reference: request.reference,
       title: request.title,
       status: "approved",
-      workCategory: request.workCategory,
+      workCategory:
+        request.workCategory === "Other" && request.otherWorkCategory
+          ? `Other - ${request.otherWorkCategory}`
+          : request.workCategory,
       relatedIncidentHazardId: request.relatedIncidentHazardId,
       workType: request.workType,
       location: request.location,

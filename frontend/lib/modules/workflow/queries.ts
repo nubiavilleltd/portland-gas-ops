@@ -108,6 +108,7 @@ export interface MyApproval {
   request_id:          string;
   reference:           string | null;
   title:               string | null;
+  requester_name:      string | null;
   department:          string | null;
   current_step_number: number;
   total_steps:         number;

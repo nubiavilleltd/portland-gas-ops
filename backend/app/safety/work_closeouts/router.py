@@ -23,6 +23,7 @@ from app.safety.work_authorizations.schemas import WorkAuthorizationResponse
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 from app.shared.services import workflow_email
+from app.safety.workflow import enrich_next_workflow_actors
 
 
 router = APIRouter(
@@ -43,6 +44,16 @@ ALLOWED_ATTACHMENT_TYPES = {
 }
 MAX_ATTACHMENT_SIZE_MB = 10
 MAX_ATTACHMENTS = 10
+
+
+def work_closeout_responses(db: Session, records, *, detail: bool):
+    response_type = WorkCloseOutResponse if detail else WorkCloseOutListItem
+    responses = [response_type.from_model(record) for record in records]
+    return enrich_next_workflow_actors(db, "work_closeout", responses)
+
+
+def work_closeout_response(db: Session, record):
+    return work_closeout_responses(db, [record], detail=True)[0]
 
 
 async def validate_attachments(files: List[UploadFile]) -> list[tuple[bytes, str, str, int]]:
@@ -122,7 +133,7 @@ def list_work_closeouts(
         search=search,
     )
 
-    return [WorkCloseOutListItem.from_model(record) for record in records]
+    return work_closeout_responses(db, records, detail=False)
 
 
 @router.get(
@@ -162,7 +173,7 @@ async def create_work_closeout(
     )
     workflow_email.notify_new_request(db, "work_closeout", record.id)
 
-    return WorkCloseOutResponse.from_model(record)
+    return work_closeout_response(db, record)
 
 
 @router.get("/{work_closeout_id}", response_model=WorkCloseOutResponse)
@@ -177,7 +188,7 @@ def get_work_closeout(
         current_user=current_user,
     )
 
-    return WorkCloseOutResponse.from_model(record)
+    return work_closeout_response(db, record)
 
 
 @router.put("/{work_closeout_id}", response_model=WorkCloseOutResponse)
@@ -200,7 +211,7 @@ async def update_work_closeout(
     )
     workflow_email.notify_new_request(db, "work_closeout", record.id)
 
-    return WorkCloseOutResponse.from_model(record)
+    return work_closeout_response(db, record)
 
 
 @router.post("/{work_closeout_id}/supervisor-review", response_model=WorkCloseOutResponse)
@@ -224,7 +235,7 @@ def supervisor_review(
         is_final_step=False,
     )
 
-    return WorkCloseOutResponse.from_model(record)
+    return work_closeout_response(db, record)
 
 
 @router.post("/{work_closeout_id}/operations-head-review", response_model=WorkCloseOutResponse)
@@ -248,7 +259,7 @@ def operations_head_review(
         is_final_step=False,
     )
 
-    return WorkCloseOutResponse.from_model(record)
+    return work_closeout_response(db, record)
 
 
 @router.post("/{work_closeout_id}/hse-review", response_model=WorkCloseOutResponse)
@@ -272,7 +283,7 @@ def hse_review(
         is_final_step=True,
     )
 
-    return WorkCloseOutResponse.from_model(record)
+    return work_closeout_response(db, record)
 
 
 def notify_closeout_decision_result(

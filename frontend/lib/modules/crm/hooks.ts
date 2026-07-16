@@ -6,7 +6,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
   {
     id: "0",
     onboarding_number: "ONB-000000",
-
+    company_email: "buafoods@email.com",
     customer_name: "BUA Foods Plc",
     entity_type: "company",
     category: "industrial",
@@ -75,6 +75,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
   {
     id: "1",
     onboarding_number: "ONB-000001",
+    company_email: "dangote@email.com",
     customer_status: "inactive",
     customer_name: "Dangote Cement Plc",
     entity_type: "company",
@@ -171,6 +172,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
     entity_type: "company",
     category: "retail",
 
+    company_email: "nestlenigeria@email.com",
     rc_number: "RC5566778",
     tin: "TIN-12345678",
     vat_number: "VAT-66778899",
@@ -237,6 +239,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
     customer_name: "ABC Logistics Ltd",
     entity_type: "company",
     category: "government",
+    company_email: "nestlenigeria@email.com",
 
     rc_number: "RC9001122",
     tin: "TIN-88112233",

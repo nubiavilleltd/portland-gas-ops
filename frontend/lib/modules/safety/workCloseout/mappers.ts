@@ -85,6 +85,21 @@ export function mapWorkCloseOutToRequest(
       operationsHeadApproval,
       hseApproval,
     }),
+    nextApproverName:
+      item.next_actor_name ??
+      (item.status === "returned"
+        ? item.requester_name
+        : item.status === "submitted"
+          ? item.assigned_supervisor
+          : undefined) ??
+      undefined,
+    nextApproverRole:
+      item.current_step_name ??
+      (item.status === "returned"
+        ? "Requester"
+        : item.status === "submitted"
+          ? "Supervisor"
+          : undefined),
   };
 }
 

@@ -33,6 +33,7 @@ export default function BusinessInformationCard({
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <FormInput
           label="Registered Company Number"
+          placeholder="Enter Registered Company Number"
           value={values.rcNumber}
           error={errors?.rcNumber}
           readOnly={readOnly}
@@ -41,6 +42,7 @@ export default function BusinessInformationCard({
 
         <FormInput
           label="TIN"
+          placeholder="Enter Tax Identification Number"
           value={values.tin}
           error={errors?.tin}
           readOnly={readOnly}
@@ -49,6 +51,7 @@ export default function BusinessInformationCard({
 
         <FormInput
           label="VAT Number"
+          placeholder="Enter VAT Number"
           value={values.vatNumber}
           error={errors?.vatNumber}
           readOnly={readOnly}
@@ -57,6 +60,7 @@ export default function BusinessInformationCard({
 
         <FormInput
           label="Industry"
+          placeholder="Enter Industry"
           value={values.industry}
           error={errors?.industry}
           readOnly={readOnly}

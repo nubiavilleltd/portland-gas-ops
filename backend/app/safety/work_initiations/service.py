@@ -152,6 +152,7 @@ def create_work_initiation(
         requester_id=requester.id,
         title=data.title,
         work_category=data.work_category,
+        other_work_category=data.other_work_category,
         related_incident_report_id=data.related_incident_report_id,
         work_type=", ".join(data.work_type),
         location=data.location,
@@ -240,6 +241,7 @@ def update_work_initiation(
     record.status = WorkInitiationStatus.submitted
     record.title = data.title
     record.work_category = data.work_category
+    record.other_work_category = data.other_work_category
     record.related_incident_report_id = data.related_incident_report_id
     record.work_type = ", ".join(data.work_type)
     record.location = data.location

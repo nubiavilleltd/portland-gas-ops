@@ -57,6 +57,7 @@ export function mapWorkInitiationToRequest(
     workDescription: item.work_description,
     reasonForWork: item.reason_for_work,
     workCategory: workCategoryLabels[item.work_category],
+    otherWorkCategory: item.other_work_category || "",
     relatedIncidentHazardId: item.related_incident_report_id || "",
     workType: item.work_type,
     location: item.location,
@@ -95,6 +96,21 @@ export function mapWorkInitiationToRequest(
     supervisorApproval,
     operationalReview,
     auditTrail: buildAuditTrail(item, supervisorApproval, operationalReview),
+    nextApproverName:
+      item.next_actor_name ??
+      (item.status === "returned"
+        ? item.requester_name
+        : item.status === "submitted"
+          ? item.assigned_supervisor_name
+          : undefined) ??
+      undefined,
+    nextApproverRole:
+      item.current_step_name ??
+      (item.status === "returned"
+        ? "Requester"
+        : item.status === "submitted"
+          ? "Supervisor"
+          : undefined),
   };
 }
 

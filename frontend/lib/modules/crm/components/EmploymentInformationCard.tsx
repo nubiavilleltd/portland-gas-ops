@@ -31,6 +31,7 @@ export default function EmploymentInformationCard({
         <FormInput
           label="Department"
           value={values.department}
+          placeholder="Enter Department"
           disabled={readOnly}
           error={errors.department}
           onChange={(e) => onChange?.("department", e.target.value)}

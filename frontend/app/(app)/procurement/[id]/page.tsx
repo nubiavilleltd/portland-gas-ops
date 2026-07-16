@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle, FileText, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -52,7 +52,12 @@ export default function ProcurementDetailPage() {
   const router  = useRouter();
   const toast   = useToast();
 
-  const { data: req, isLoading, isError } = useProcurement(id);
+  const { data: req, isLoading, isFetching, isError } = useProcurement(id);
+  const [isActioning, setIsActioning] = useState(false);
+
+  useEffect(() => {
+    if (isActioning && !isFetching) setIsActioning(false);
+  }, [isFetching, isActioning]);
   const approveAndIssuePO  = useApproveAndIssuePO();
   const confirmDelivery    = useConfirmDelivery();
   const regeneratePOPDF    = useRegeneratePOPDF();
@@ -94,6 +99,7 @@ export default function ProcurementDetailPage() {
 
   async function handleAction(action: "approve" | "reject" | "return", comment: string) {
     if (!approvalRequestId) return;
+    setIsActioning(true);
     try {
       if (action === "approve") {
         await workflowApprove.mutateAsync({ approvalRequestId, comment: comment || undefined });
@@ -106,6 +112,7 @@ export default function ProcurementDetailPage() {
         toast.success("Returned to requester for revision");
       }
     } catch (err) {
+      setIsActioning(false);
       toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
     }
   }
@@ -118,7 +125,7 @@ export default function ProcurementDetailPage() {
     confirmDelivery.isPending;
 
 
-  if (isLoading) {
+  if (isLoading || isActioning) {
     return (
       <AppLayout pageTitle="Procurement">
         <ProcurementDetailSkeleton />
