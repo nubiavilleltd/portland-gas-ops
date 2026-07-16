@@ -174,6 +174,10 @@ export default function NewCustomerContactPage() {
     console.log(payload);
 
     toast.success("Customer contact has been saved as draft.");
+
+    setTimeout(() => {
+      router.push("/admin/crm/contacts");
+    }, 1000);
   }
 
   function submit() {
@@ -302,14 +306,14 @@ export default function NewCustomerContactPage() {
               </Button>
             </div>
 
-            <div className="flex justify-end gap-3 pb-10">
+            <div className="flex justify-start gap-3 pb-10">
               <Button variant="outline" onClick={() => router.back()}>
                 Cancel
               </Button>
 
-              <Button variant="secondary" onClick={saveDraft}>
+              {/* <Button variant="secondary" onClick={saveDraft}>
                 Save Draft
-              </Button>
+              </Button> */}
 
               <Button onClick={submit}>Submit</Button>
             </div>

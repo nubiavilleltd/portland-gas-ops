@@ -95,7 +95,7 @@ export default function ContactDetailsPage() {
       <div className="flex gap-3 justify-between mb-2">
         <BackButton href="/admin/crm/contacts" label="Back to Contacts" />
         {!isEditing && form.status == "active" && (
-          <Button variant="outline" onClick={() => setIsEditing(true)}>
+          <Button variant="primary" onClick={() => setIsEditing(true)}>
             Edit
           </Button>
         )}
@@ -224,10 +224,10 @@ export default function ContactDetailsPage() {
                             })
                           }
                         >
-                          <Trash2
+                          {/* <Trash2
                             size={16}
                             className="text-red-600 hover:text-red-700"
-                          />
+                          /> */}
                         </Button>
                       )}
                     </div>

@@ -8,8 +8,8 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import EmptyState from "@/components/ui/EmptyState";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PageHeader from "@/components/ui/PageHeader";
-import { Eye } from "lucide-react";
-
+import Link from "next/link";
+import { Eye, Pencil } from "lucide-react";
 import {
   useCustomerOnboarding,
   type CustomerOnboarding,
@@ -93,33 +93,33 @@ const TABLE_COLUMNS: Column<CustomerOnboarding>[] = [
       </span>
     ),
   },
+
   {
     key: "actions",
     label: "",
-    // align: "right",
+    sortable: false,
+    searchable: false,
     render: (_, customer) => (
       <div
         className="flex items-center justify-end gap-2"
         onClick={(e) => e.stopPropagation()}
       >
-        <Button
-          size="sm"
-          variant="ghost"
+        <Link
           href={`/admin/crm/onboarding/${customer.id}`}
-          leftIcon={<Eye size={14} />}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
+          title="View"
         >
-          View
-        </Button>
+          <Eye size={18} />
+        </Link>
 
         {customer.status?.toLowerCase() === "acknowledged" && (
-          <Button
-            size="sm"
-            variant="outline"
+          <Link
             href={`/admin/crm/onboarding/${customer.id}/edit`}
-            leftIcon={icons.edit}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
+            title="Edit"
           >
-            Edit
-          </Button>
+            <Pencil size={18} />
+          </Link>
         )}
       </div>
     ),

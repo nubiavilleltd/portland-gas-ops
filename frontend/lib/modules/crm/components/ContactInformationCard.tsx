@@ -32,6 +32,7 @@ export default function ContactInformationCard({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput
           label="First Name"
+          placeholder="Enter First Name"
           value={values.firstName}
           disabled={readOnly}
           error={errors.firstName}
@@ -41,6 +42,7 @@ export default function ContactInformationCard({
         <FormInput
           label="Last Name"
           value={values.lastName}
+          placeholder="Enter Last Name"
           disabled={readOnly}
           error={errors.lastName}
           onChange={(e) => onChange?.("lastName", e.target.value)}
@@ -49,6 +51,7 @@ export default function ContactInformationCard({
         <FormInput
           label="Email Address"
           value={values.email}
+          placeholder="Enter Email Address"
           disabled={readOnly}
           error={errors.email}
           onChange={(e) => onChange?.("email", e.target.value)}
@@ -56,6 +59,7 @@ export default function ContactInformationCard({
 
         <FormInput
           label="Phone Number"
+          placeholder="Enter Phone Number"
           value={values.phone}
           disabled={readOnly}
           error={errors.phone}
@@ -65,6 +69,7 @@ export default function ContactInformationCard({
         <FormInput
           label="Alternate Phone"
           value={values.alternatePhone}
+          placeholder="Enter Alternate Phone Number"
           disabled={readOnly}
           error={errors.alternatePhone}
           onChange={(e) => onChange?.("alternatePhone", e.target.value)}

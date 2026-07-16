@@ -128,6 +128,7 @@ export default function CustomerDetailsPage() {
             customerName: customer.customer_name,
             entityType: customer.entity_type,
             category: customer.category,
+            companyEmail: customer.company_email,
           }}
         />
         <BusinessInformationCard
