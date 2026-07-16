@@ -25,7 +25,7 @@ export default function NewCustomerPage() {
     customerName: "",
     entityType: "company",
     category: "",
-
+    companyEmail: "",
     rcNumber: "",
     tin: "",
     vatNumber: "",
@@ -93,7 +93,8 @@ export default function NewCustomerPage() {
 
     if (!form.customerName.trim())
       nextErrors.customerName = "Customer name is required.";
-
+    if (!form.companyEmail.trim())
+      nextErrors.companyEmail = "Company email is required.";
     if (!form.category) nextErrors.category = "Customer category is required.";
 
     if (!form.contactPerson.trim())
@@ -172,6 +173,7 @@ export default function NewCustomerPage() {
             customerName: form.customerName,
             entityType: form.entityType,
             category: form.category,
+            companyEmail: form.companyEmail,
           }}
           errors={errors}
           onChange={handleChange}
@@ -234,7 +236,7 @@ export default function NewCustomerPage() {
           onChange={(value) => handleChange("internalNotes", value)}
         />
 
-        <div className="flex justify-end gap-3 pb-10">
+        <div className="flex justify-start gap-3 pb-10">
           <Button variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>

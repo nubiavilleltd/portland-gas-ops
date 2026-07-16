@@ -9,7 +9,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import EmptyState from "@/components/ui/EmptyState";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-
+import Link from "next/link";
 import { useCustomerContacts, type CustomerContact } from "@/lib/modules/crm";
 
 const COLUMNS: Column<CustomerContact>[] = [
@@ -63,15 +63,17 @@ const COLUMNS: Column<CustomerContact>[] = [
   {
     key: "actions",
     label: "",
+    sortable: false,
+    searchable: false,
     render: (_, record) => (
-      <Button
-        size="sm"
-        variant="ghost"
+      <Link
         href={`/admin/crm/contacts/${record.id}`}
-        leftIcon={<Eye size={14} />}
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
+        title="View Contact"
       >
-        View
-      </Button>
+        <Eye size={18} />
+      </Link>
     ),
   },
 ];

@@ -203,6 +203,7 @@ export default function EditCustomerPage() {
           values={{
             customerName: form.customerName,
             entityType: form.entityType,
+            companyEmail: customer.company_email,
             category: form.category,
           }}
           errors={errors}

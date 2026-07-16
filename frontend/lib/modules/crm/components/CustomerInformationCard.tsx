@@ -11,6 +11,7 @@ interface Props {
     customerName: string;
     entityType: string;
     category: string;
+    companyEmail: string;
   };
 
   errors?: Partial<Record<keyof Props["values"], string>>;
@@ -38,6 +39,7 @@ export default function CustomerInformationCard({
           required
           value={values.customerName}
           error={errors?.customerName}
+          placeholder="Enter Customer Name"
           readOnly={readOnly}
           onChange={(e) => onChange?.("customerName", e.target.value)}
         />
@@ -66,6 +68,15 @@ export default function CustomerInformationCard({
             value: category,
           }))}
           onValueChange={(value) => onChange?.("category", value)}
+        />
+        <FormInput
+          label="Company Email"
+          required
+          value={values.companyEmail}
+          error={errors?.companyEmail}
+          placeholder="Enter Company Email"
+          readOnly={readOnly}
+          onChange={(e) => onChange?.("companyEmail", e.target.value)}
         />
       </div>
     </Card>

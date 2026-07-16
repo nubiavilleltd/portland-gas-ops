@@ -5,11 +5,12 @@ import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 import { useCustomerOnboarding, useCustomerContacts } from "@/lib/modules/crm";
-
+import { Users, UserCheck, Clock3, Contact } from "lucide-react";
 import CRMStatCards from "@/lib/modules/crm/components/CRMStatCards";
 import ActiveCustomersTable from "@/lib/modules/crm/components/ActiveCustomersTable";
 import RecentContactsTable from "@/lib/modules/crm/components/RecentContactsTable";
 import CRMQuickActions from "@/lib/modules/crm/components/CRMQuickActions";
+import Card from "@/components/ui/Card";
 
 export default function CRMDashboardPage() {
   const {
@@ -64,16 +65,55 @@ export default function CRMDashboardPage() {
       />
 
       <div className="space-y-8">
-        <CRMStatCards
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card
+            icon={<Users className="h-5 w-5" />}
+            title="Total Customers"
+            description={
+              <span className="text-3xl font-bold text-brand-text-primary">
+                {customers.length}
+              </span>
+            }
+          />
+
+          <Card
+            icon={<UserCheck className="h-5 w-5" />}
+            title="Active Customers"
+            description={
+              <span className="text-3xl font-bold text-brand-text-primary">
+                {activeCustomers.length}
+              </span>
+            }
+          />
+
+          <Card
+            icon={<Clock3 className="h-5 w-5" />}
+            title="Pending Customers"
+            description={
+              <span className="text-3xl font-bold text-brand-text-primary">
+                {pendingCustomers.length}
+              </span>
+            }
+          />
+
+          <Card
+            icon={<Contact className="h-5 w-5" />}
+            title="Total Contacts"
+            description={
+              <span className="text-3xl font-bold text-brand-text-primary">
+                {contacts.length}
+              </span>
+            }
+          />
+        </div>
+        {/* <CRMStatCards
           totalCustomers={customers.length}
           activeCustomers={activeCustomers.length}
           pendingCustomers={pendingCustomers.length}
           totalContacts={contacts.length}
-        />
+        /> */}
         <CRMQuickActions />
-
         <ActiveCustomersTable customers={activeCustomers.slice(0, 5)} />
-
         <RecentContactsTable
           contacts={contacts
             .filter((item) => item?.status?.toLowerCase() == "active")

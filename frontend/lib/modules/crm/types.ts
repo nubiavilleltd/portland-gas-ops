@@ -15,7 +15,7 @@ export interface CustomerOnboarding {
   id: string;
 
   onboarding_number: string;
-
+  company_email: string;
   // Customer Information
   customer_name: string;
   entity_type: CustomerEntityType;

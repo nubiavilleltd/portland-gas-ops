@@ -15,18 +15,18 @@ interface Props {
 export default function RequesterDetailsSection({ requester }: Props) {
   return (
     <FormSection
-      title="Requester Details"
-      description="Employee information for the requester who raised this request."
+      title="Record Information"
+      description="Information about the user who created this onboarding record."
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Requester Name" value={requester.name} disabled />
+        <FormInput label="Created By" value={requester.name} disabled />
 
         <FormInput label="Department" value={requester.department} disabled />
 
         <FormInput label="Job Title / Role" value={requester.role} disabled />
 
         <FormInput
-          label="Request Date"
+          label="Date Created"
           value={requester.requestDate}
           disabled
         />

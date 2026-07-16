@@ -4,6 +4,7 @@ import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { Eye } from "lucide-react";
+import Link from "next/link";
 
 import type { CustomerContact } from "@/lib/modules/crm";
 
@@ -33,6 +34,9 @@ const COLUMNS: Column<CustomerContact>[] = [
   {
     key: "department",
     label: "Department",
+    render: (_, contact) => (
+      <td className="">{contact.primary_contact.department}</td>
+    ),
   },
 
   {
@@ -44,15 +48,17 @@ const COLUMNS: Column<CustomerContact>[] = [
   {
     key: "actions",
     label: "",
+    sortable: false,
+    searchable: false,
     render: (_, contact) => (
-      <Button
-        size="sm"
-        variant="outline"
+      <Link
         href={`/admin/crm/contacts/${contact.id}`}
-        leftIcon={<Eye size={14} />}
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
+        title="View Customer"
       >
-        View
-      </Button>
+        <Eye size={18} />
+      </Link>
     ),
   },
 ];

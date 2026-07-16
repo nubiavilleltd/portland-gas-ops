@@ -81,7 +81,18 @@ export default function CustomerOnboardingDetailsPage() {
       }));
     }
   }
+  function saveDraft() {
+    console.log({
+      ...form,
+      status: "draft",
+    });
 
+    toast.success("Customer onboarding request has been saved as a draft.");
+
+    setTimeout(() => {
+      router.push("/admin/crm/onboarding");
+    }, 1000);
+  }
   if (!customer) return null;
 
   return (
@@ -123,6 +134,7 @@ export default function CustomerOnboardingDetailsPage() {
             customerName: customer.customer_name,
             entityType: customer.entity_type,
             category: customer.category,
+            companyEmail: customer.company_email,
           }}
         />
         <BusinessInformationCard
@@ -202,8 +214,8 @@ export default function CustomerOnboardingDetailsPage() {
             }}
           />
         )}
-        {(isReturned || isDraft) && (
-          <div className="flex justify-end">
+        {isReturned && (
+          <div className="flex justify-start">
             <Button
               onClick={() => {
                 toast.success(
@@ -214,6 +226,24 @@ export default function CustomerOnboardingDetailsPage() {
               }}
             >
               Resubmit
+            </Button>
+          </div>
+        )}
+        {isDraft && (
+          <div className="flex justify-start">
+            <Button variant="secondary" onClick={saveDraft}>
+              Save Draft
+            </Button>
+            <Button
+              onClick={() => {
+                toast.success(
+                  "Customer onboarding request has been submitted successfully.",
+                );
+
+                router.push("/admin/crm/onboarding");
+              }}
+            >
+              Submit
             </Button>
           </div>
         )}
