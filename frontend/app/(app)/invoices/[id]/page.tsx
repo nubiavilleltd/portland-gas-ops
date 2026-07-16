@@ -27,7 +27,7 @@ import {
   usePaymentsByInvoice,
   usePaymentSummary,
 } from "@/lib/modules/payments/hooks/usePayments";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { useCustomerById, useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
@@ -43,32 +43,38 @@ export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
   const invoiceNo = params.id as string;
-  const { customers } = useCustomers()
+
+    const { invoice } = useInvoiceByNo(invoiceNo);
+
+  const { order } = useOrderById(
+    invoice?.order_id ?? ""
+  );
+  const { customer } = useCustomerById(order?.customerId as string)
   const { products } = useProducts();
+
+    const { summary: paymentSummary } =
+    usePaymentSummary(invoice?.id);
+
+  const { payments: invoicePayments } =
+    usePaymentsByInvoice(invoice?.id as string);
+
+
   const [downloading, setDownloading] = useState(false);
 
-  const customerMap = Object.fromEntries(
-    customers.map((customer) => [
-      customer.customerNo,
-      customer,
-    ])
-  );
+  // const customerMap = Object.fromEntries(
+  //   customers.map((customer) => [
+  //     customer.customerNo,
+  //     customer,
+  //   ])
+  // );
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
 
 
-  const { invoice } = useInvoiceByNo(invoiceNo);
 
-  const { order } = useOrderById(
-    invoice?.order_id ?? ""
-  );
 
-  const { summary: paymentSummary } =
-    usePaymentSummary(invoice?.id);
 
-  const { payments: invoicePayments } =
-    usePaymentsByInvoice(invoice?.id as string);
 
 
 
@@ -161,7 +167,7 @@ export default function InvoiceDetailPage() {
       await generateInvoicePdf({
         invoice,
         order,
-        customer: order ? customerMap[order.customerId] : undefined,
+        customer,
         payments: invoicePayments,
         amountPaid,
         productUnitMap,
@@ -282,7 +288,7 @@ export default function InvoiceDetailPage() {
               <InfoRow label="Order Number" value={order.orderNumber} />
               <InfoRow
                 label="Customer"
-                value={customerMap[order.customerId]?.name ?? "—"}
+                value={order.customerName ?? "—"}
               />
             </div>
 

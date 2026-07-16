@@ -49,7 +49,7 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
   const col2 = PAGE.width / 2 + 4;
   const colW = PAGE.width / 2 - ml - 4;
 
-  drawLabelValue(doc, "Bill To", customer?.name ?? "—", col1, y, colW);
+  drawLabelValue(doc, "Bill To", order?.customerName ?? "—", col1, y, colW);
   drawLabelValue(doc, "Due Date", fmtDate(invoice.due_date), col2, y, colW);
   y += 15;
 
