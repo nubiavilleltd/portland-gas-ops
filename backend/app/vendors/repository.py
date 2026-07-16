@@ -30,12 +30,15 @@ class VendorRepository:
         limit: int = 100,
         search: str | None = None,
         include_inactive: bool = False,
+        vendor_type: str | None = None,
     ) -> list[Vendor]:
         query = self.db.query(Vendor)
         if not include_inactive:
             query = query.filter(Vendor.is_active == True)  # noqa: E712
         if search:
             query = query.filter(Vendor.name.ilike(f"%{search}%"))
+        if vendor_type:
+            query = query.filter(Vendor.vendor_type == vendor_type)
         return query.order_by(Vendor.name).offset(skip).limit(limit).all()
 
     def code_exists(self, code: str) -> bool:
