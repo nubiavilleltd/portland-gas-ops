@@ -6,6 +6,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useMyApprovals, type MyApproval } from "@/lib/modules/workflow/queries";
+import ApprovalsSkeleton from "./ApprovalsSkeleton";
 
 // DataTable requires T extends { id: string } — map approval_request_id → id
 type ApprovalRow = MyApproval & { id: string };
@@ -70,11 +71,6 @@ const columns: Column<ApprovalRow>[] = [
     ),
   },
   {
-    key: "current_step_number",
-    label: "Step",
-    render: (v) => <span className="text-sm text-brand-text-secondary">Step {String(v)}</span>,
-  },
-  {
     key: "submitted_at",
     label: "Submitted",
     render: (v) => (
@@ -103,11 +99,7 @@ export default function MyApprovalsPage() {
       />
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl border border-brand-border bg-white" />
-          ))}
-        </div>
+        <ApprovalsSkeleton />
       ) : approvals.length > 0 ? (
         <DataTable
           columns={columns}

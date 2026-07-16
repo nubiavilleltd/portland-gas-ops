@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, AlertCircle, Package, Boxes, CheckCircle, RotateCcw } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -28,7 +29,13 @@ export default function AssetRequestDetailPage() {
   const router = useRouter();
   const toast  = useToast();
 
-  const { data: req, isLoading, isError } = useAssetRequest(id);
+  const { data: req, isLoading, isFetching, isError } = useAssetRequest(id);
+  const [isActioning, setIsActioning] = useState(false);
+
+  // Clear isActioning once the background refetch triggered by the action completes
+  useEffect(() => {
+    if (isActioning && !isFetching) setIsActioning(false);
+  }, [isFetching, isActioning]);
   const updateStatus = useUpdateAssetRequestStatus(id);
 
   // Workflow: check if logged-in user is the current step's approver
@@ -48,6 +55,7 @@ export default function AssetRequestDetailPage() {
 
   async function handleApprovalAction(action: "approve" | "reject", comment: string) {
     if (!approvalRequestId) return;
+    setIsActioning(true);
     try {
       if (action === "approve") {
         await workflowApprove.mutateAsync({ approvalRequestId, comment: comment || undefined });
@@ -60,6 +68,7 @@ export default function AssetRequestDetailPage() {
         toast.success("Request denied");
       }
     } catch (err) {
+      setIsActioning(false);
       toast.error((err as { detail?: string })?.detail ?? "Failed to update request");
     }
   }
@@ -73,7 +82,7 @@ export default function AssetRequestDetailPage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || isActioning) {
     return (
       <AppLayout pageTitle="Assets">
         <AssetRequestDetailSkeleton />
