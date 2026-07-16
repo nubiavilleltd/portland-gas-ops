@@ -15,6 +15,8 @@ import {
 import { parseError } from "@/lib/errors";
 import { PRODUCT_KEYS } from "../constants/query-keys";
 
+
+
 export function useProducts() {
   const query = useQuery({
     queryKey: PRODUCT_KEYS.lists(),
@@ -25,27 +27,30 @@ export function useProducts() {
   return {
     products: query.data ?? [],
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     error: query.error ? parseError(query.error) : null,
     refetch: query.refetch,
   };
 }
 
 export function useProductByNo(productNo: string) {
-  const { products, isLoading, error, refetch } = useProducts();
+  const { products, isLoading, isFetching, error, refetch } = useProducts();
   return {
     product: getProductByNo(products, productNo),
     isLoading,
+    isFetching,
     error,
     refetch,
   };
 }
 
 export function useProductById(id: string) {
-  const { products, isLoading, error, refetch } = useProducts();
+  const { products, isLoading, isFetching, error, refetch } = useProducts();
 
   return {
     product: getProductById(products, id),
     isLoading,
+    isFetching,
     error,
     refetch,
   };
@@ -53,11 +58,11 @@ export function useProductById(id: string) {
 
 // ── Derived: active products only ────────────────────────
 export function useActiveProducts() {
-  const { products, isLoading, error, refetch } = useProducts();
-  return { products: getActiveProducts(products), isLoading, error, refetch };
+  const { products, isLoading, isFetching, error, refetch } = useProducts();
+  return { products: getActiveProducts(products), isLoading, isFetching, error, refetch };
 }
 
 export function useProductSelectOptions() {
-  const { products, isLoading, error, refetch } = useProducts();
-  return { options: getProductSelectOptions(products), isLoading, error, refetch };
+  const { products, isLoading, isFetching, error, refetch } = useProducts();
+  return { options: getProductSelectOptions(products), isLoading, isFetching, error, refetch };
 }

@@ -14,5 +14,7 @@ export function useAuditByEntity(entityType: AuditEntityType, entityId: string) 
   return {
     entries:   query.data ?? [],
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
+
   };
 }

@@ -32,7 +32,6 @@ import {
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { BackButton } from "@/components/ui/BackButton";
@@ -41,48 +40,51 @@ import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
 import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
+import { ActivitySkeleton, DispatchSkeleton, InvoiceSkeleton, OrderSummarySkeleton, PaymentsSkeleton } from "@/lib/modules/orders/components/OrderDetailSkeleton";
+
+
+
 
 export default function OrderDetailPage() {
   const params = useParams();
   const orderNumber = params.id as string;
 
-  const { customers } = useCustomers();
-  const { products } = useProducts();
-  const { order, isLoading, error } = useOrderByNumber(orderNumber);
-  const { entries } = useAuditByEntity("order", order?.id as string);
+  const { products, isFetching: isFetchingProducts } = useProducts();
+  const { order, isLoading, isFetching, error } = useOrderByNumber(orderNumber);
+  const { entries, isFetching:isFetchingEntries } = useAuditByEntity("order", order?.id as string);
 
-  const { invoice } = useInvoiceByOrderId(order?.id as string);
-  const { summary: paymentSummary } = usePaymentSummary(invoice?.id);
-
-  const { trip } = useTripById(order?.tripId as string);
-
-  const customerMap = Object.fromEntries(
-    customers.map((customer) => [customer.id, customer]),
-  );
+  const { invoice, isFetching: isFetchingInvoice } = useInvoiceByOrderId(order?.id as string);
+  const { summary: paymentSummary,  isFetching:isFetchingPayment} = usePaymentSummary(invoice?.id);
+  const { trip, isFetching: isFetchingTrip } = useTripById(order?.tripId as string);
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  // ── loading / error
-  if (isLoading) {
+  // ── loading / error ──
+  // Only show full page skeleton when order is loading
+  if (isLoading || !order) {
     return (
       <AppLayout pageTitle="Order Details">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-100 rounded-lg w-1/4" />
-          <div className="h-48 bg-gray-100 rounded-2xl" />
+        <div className="space-y-6">
+          <BackButton href={`${ORDER_ROUTES.home()}`} label="Back to Orders" />
+          <PageHeader 
+            title="Loading..." 
+            description="Loading order details" 
+          />
+          <OrderSummarySkeleton />
+          <DispatchSkeleton />
+          <InvoiceSkeleton />
+          <PaymentsSkeleton />
+          <ActivitySkeleton />
         </div>
       </AppLayout>
     );
   }
 
-  if (error || !order) {
-    return (
-      <AppLayout pageTitle="Order Not Found">
-        <ErrorBanner message={error ?? "Order not found"} />
-      </AppLayout>
-    );
+  if (error) {
+    return <ErrorBanner message={error ?? "Something went wrong"} />;
   }
 
-  // ── guards (pure UI decisions)
+  // ── guards (pure UI decisions) ──
   const canEdit = canEditOrder(order);
   const canAssign = canAssignToTrip(order);
   const canInvoice = canGenerateInvoice(order);
@@ -94,7 +96,7 @@ export default function OrderDetailPage() {
     ? invoice.total_amount - paymentSummary.amountPaid
     : 0;
 
-  const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
       label: "Product",
       render: (item) => (
@@ -107,6 +109,7 @@ export default function OrderDetailPage() {
         const unit = productMap.get(item.productId)?.unit ?? "unit";
         // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
         return `${item.quantity.toLocaleString()} ${unit}`;
+        // return `${item.quantity.toLocaleString()} ${unit}`;
       },
     },
     {
@@ -132,46 +135,38 @@ export default function OrderDetailPage() {
         action={
           <div className="flex gap-2 flex-wrap justify-end">
             {canEdit && (
-              <Button
-                href={ORDER_ROUTES.edit(orderNumber)}
-                variant="outline"
-              >
+              <Button href={ORDER_ROUTES.edit(orderNumber)} variant="outline">
                 Edit
               </Button>
             )}
-
-
             {canDeliver && (
               <Button href={ORDER_ROUTES.deliveryConfirm(orderNumber)}>
                 Confirm Delivery →
               </Button>
             )}
-
             {canCancel && (
               <Button variant="danger" href={`/orders/${orderNumber}/cancel`}>
                 Cancel Order →
               </Button>
             )}
-
-
           </div>
         }
       />
 
       <div className="space-y-6">
-        {/* ORDER SUMMARY */}
+        {/* ORDER SUMMARY - Always show since we have order */}
         <FormSection
           title="Order Summary"
           description="Overview of customer, order, delivery, and payment details"
         >
-          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-start justify-between mb-6">
             <div>
               <p className="text-xs font-mono text-brand-text-secondary">
                 {order.orderNumber}
               </p>
 
               <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
-                {customerMap[order.customerId]?.name ?? "—"}
+                {order.customerName ?? "—"}
               </h2>
 
             </div>
@@ -230,156 +225,161 @@ export default function OrderDetailPage() {
           )}
         </FormSection>
 
-        {/* TRIP / DISPATCH */}
+        {/* DISPATCH / TRIP - Show skeleton if loading */}
         <FormSection
           title="Dispatch / Trip"
           description="View trip assignment and delivery route details"
         >
-          {canAssign ? (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                href={FLEET_ROUTES.tripNew({ orderNo: orderNumber })}
-              >
-                Assign to Trip →
-              </Button>
-            </div>
-          ) : order.tripId ? (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                variant="outline"
-                href={FLEET_ROUTES.tripDetail(trip?.trip_number as string)}
-              >
-                View Trip →
-              </Button>
-            </div>
-          ) : undefined}
-          {trip ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              <InfoRow
-                label="Trip Number"
-                value={trip.trip_number}
-              />
-              <InfoRow
-                label="From"
-                value={trip.start_location}
-              />
-              <InfoRow
-                label="To"
-                value={trip.end_location}
-              />
-              <InfoRow
-                label="Scheduled"
-                value={formatDate(trip.scheduled_date)}
-              />
-            </div>
+          {isFetchingTrip ? (
+            <DispatchSkeleton />
           ) : (
-            <p className="text-sm text-brand-text-secondary">
-              {order.fulfillmentStatus === "pending"
-                ? "This order has not been assigned to a trip yet."
-                : "Trip information not available."}
-            </p>
+            <>
+              {canAssign ? (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    href={FLEET_ROUTES.tripNew({ orderNo: orderNumber })}
+                  >
+                    Assign to Trip →
+                  </Button>
+                </div>
+              ) : order.tripId ? (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    href={FLEET_ROUTES.tripDetail(trip?.trip_number as string)}
+                  >
+                    View Trip →
+                  </Button>
+                </div>
+              ) : undefined}
+              
+              {trip ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                  <InfoRow label="Trip Number" value={trip.trip_number} />
+                  <InfoRow label="From" value={trip.start_location} />
+                  <InfoRow label="To" value={trip.end_location} />
+                  <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
+                </div>
+              ) : (
+                <p className="text-sm text-brand-text-secondary">
+                  {order.fulfillmentStatus === "pending"
+                    ? "This order has not been assigned to a trip yet."
+                    : "Trip information not available."}
+                </p>
+              )}
+            </>
           )}
         </FormSection>
 
-        {/* INVOICE */}
+        {/* INVOICE - Show skeleton if loading */}
         <FormSection
           title="Invoice"
           description="Manage invoice generation and view invoice details"
         >
-          {canInvoice ? (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                href={`${INVOICE_ROUTES.new()}?orderNo=${orderNumber}`}
-              >
-                Create Invoice →
-              </Button>
-            </div>
-          ) : invoice ? (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                variant="outline"
-                href={INVOICE_ROUTES.detail(invoice.invoice_number)}
-              >
-                View Invoice →
-              </Button>
-            </div>
-          ) : undefined}
-
-          {invoice ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              <InfoRow
-                label="Invoice No"
-                value={invoice.invoice_number}
-              />
-              <InfoRow label="Status">
-                <PaymentStatusBadge status={invoice.status} />
-              </InfoRow>
-              <InfoRow
-                label="Issued"
-                value={formatDate(invoice.issued_date)}
-              />
-              <InfoRow
-                label="Due"
-                value={formatDate(invoice.due_date)}
-              />
-            </div>
+          {isFetchingInvoice ? (
+            <InvoiceSkeleton />
           ) : (
-            <p className="text-sm text-brand-text-secondary">
-              {order.orderStatus === "draft"
-                ? "Submit the order before generating an invoice."
-                : order.orderStatus === "submitted"
-                  ? "Generate an invoice so the customer can make payment."
-                  : "No invoice generated yet."}
-            </p>
+            <>
+              {canInvoice ? (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    href={`${INVOICE_ROUTES.new()}?orderNo=${orderNumber}`}
+                  >
+                    Create Invoice →
+                  </Button>
+                </div>
+              ) : invoice ? (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    href={INVOICE_ROUTES.detail(invoice.invoice_number)}
+                  >
+                    View Invoice →
+                  </Button>
+                </div>
+              ) : undefined}
+
+              {invoice ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                  <InfoRow label="Invoice No" value={invoice.invoice_number} />
+                  <InfoRow label="Status">
+                    <PaymentStatusBadge status={invoice.status} />
+                  </InfoRow>
+                  <InfoRow label="Issued" value={formatDate(invoice.issued_date)} />
+                  <InfoRow label="Due" value={formatDate(invoice.due_date)} />
+                </div>
+              ) : (
+                <p className="text-sm text-brand-text-secondary">
+                  {order.orderStatus === "draft"
+                    ? "Submit the order before generating an invoice."
+                    : order.orderStatus === "submitted"
+                    ? "Generate an invoice so the customer can make payment."
+                    : "No invoice generated yet."}
+                </p>
+              )}
+            </>
           )}
         </FormSection>
 
-        {/* PAYMENTS */}
+        {/* PAYMENTS - Show skeleton if loading */}
         <FormSection
           title="Payments"
           description="Track invoice payments, amounts received, and outstanding balance"
         >
-          {canPay ? (
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice?.invoice_number || ""}`}
-              >
-                Make Payment →
-              </Button>
-            </div>
-          ) : undefined}
+          {isFetchingPayment ? (
+            <PaymentsSkeleton />
+          ) : (
+            <>
+              {canPay && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice?.invoice_number || ""}`}
+                  >
+                    Make Payment →
+                  </Button>
+                </div>
+              )}
 
-          <div className="grid grid-cols-3 gap-5">
-            <InfoRow
-              label="Invoice Amount"
-              value={invoice ? formatCurrency(invoice.total_amount) : "—"}
-            />
-            <InfoRow
-              label="Amount Paid"
-              value={formatCurrency(paymentSummary.amountPaid)}
-            />
-            <InfoRow
-              label="Balance"
-              value={invoice ? formatCurrency(balance) : "—"}
-              valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
-            />
-          </div>
+              <div className="grid grid-cols-3 gap-5">
+                <InfoRow
+                  label="Invoice Amount"
+                  value={invoice ? formatCurrency(invoice.total_amount) : "—"}
+                />
+                <InfoRow
+                  label="Amount Paid"
+                  value={formatCurrency(paymentSummary.amountPaid)}
+                />
+                <InfoRow
+                  label="Balance"
+                  value={invoice ? formatCurrency(balance) : "—"}
+                  valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
+                />
+              </div>
+            </>
+          )}
         </FormSection>
 
+        {/* ACTIVITY - Show skeleton if loading */}
         <FormSection title="Activity" description="Timeline of actions taken on this order">
-          <AuditTimeline entries={entries} />
+          {!entries || isFetchingEntries ? (
+            <ActivitySkeleton />
+          ) : (
+            <AuditTimeline entries={entries} />
+          )}
         </FormSection>
       </div>
     </AppLayout>
   );
 }
 
-// ── InfoRow ───────────────────────────────────────────────
+
+
+
 function InfoRow({
   label,
   value,

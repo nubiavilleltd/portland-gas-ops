@@ -32,6 +32,7 @@ export function useOrders() {
   return {
     orders: query.data ?? [],
     isLoading: !accessToken || query.isLoading,
+    isFetching: query.isFetching,
     error: query.error ? parseError(query.error) : null,
     refetch: query.refetch,
   };
@@ -39,26 +40,28 @@ export function useOrders() {
 
 // ── Derived: single order by id ───────────────────────────
 export function useOrderById(id: string) {
-  const { orders, isLoading, error, refetch } = useOrders();
+  const { orders, isLoading,isFetching, error, refetch } = useOrders();
 
   const order = getOrderById(orders, id);
 
   return {
     order,
     isLoading,
+    isFetching,
     error,
     refetch,
   };
 }
 
 export function useOrderByNumber(orderNo: string) {
-  const { orders, isLoading, error, refetch } = useOrders();
+  const { orders, isLoading, isFetching, error, refetch } = useOrders();
 
   const order = getOrderByNumber(orders, orderNo);
 
   return {
     order,
     isLoading,
+    isFetching,
     error,
     refetch,
   };
@@ -75,13 +78,14 @@ const EMPTY_KPIS: OrderKPIs = {
 };
 
 export function useOrderKPIs() {
-  const { orders, isLoading, error, refetch } = useOrders();
+  const { orders, isLoading, isFetching, error, refetch } = useOrders();
 
   const kpis = isLoading ? EMPTY_KPIS : getOrderKPIs(orders);
 
   return {
     kpis,
     isLoading,
+    isFetching,
     error,
     refetch,
   };
