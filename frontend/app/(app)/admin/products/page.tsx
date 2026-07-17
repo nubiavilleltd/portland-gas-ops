@@ -14,6 +14,17 @@ import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { formatCurrency } from "@/lib/utils";
 import { ProductStatusBadge } from "@/lib/modules/products/badges/ProductStatusBadge";
 
+type TruncateParams = {
+  text:string;
+  maxChar:number
+}
+
+function truncateText({text, maxChar}: TruncateParams){
+  if(!text || typeof text !== "string") return "-";
+  if(text.length < maxChar) return text
+  return `${text.slice(0, maxChar)}...`
+}
+
 
 export default function ProductsPage() {
   const { products, isLoading, error } = useProducts();
@@ -39,7 +50,7 @@ export default function ProductsPage() {
     {
       key:   "description",
       label: "Description",
-      render: (value) => (value as string) || "—",
+      render: (value) => (truncateText({text:value as string, maxChar:200})) || "—",
     },
     {
       key:   "status",
