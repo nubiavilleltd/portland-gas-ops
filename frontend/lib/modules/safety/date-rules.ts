@@ -4,6 +4,7 @@ function pad(value: number) {
 
 export const MIN_SCHEDULE_DURATION_MINUTES = 3;
 export const SCHEDULE_DEVIATION_TOLERANCE_MINUTES = 3;
+export const DATE_TIME_INPUT_BUFFER_MINUTES = 1;
 
 export function toLocalDateInputValue(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -18,11 +19,15 @@ export function addMinutes(date: Date, minutes: number) {
 }
 
 export function getLatestIncidentObservedDateTime() {
-  return toLocalDateTimeInputValue(addMinutes(new Date(), -5));
+  return toLocalDateTimeInputValue(
+    addMinutes(new Date(), -(5 + DATE_TIME_INPUT_BUFFER_MINUTES)),
+  );
 }
 
 export function getEarliestPlannedStartDateTime() {
-  return toLocalDateTimeInputValue(addMinutes(new Date(), 10));
+  return toLocalDateTimeInputValue(
+    addMinutes(new Date(), 10 + DATE_TIME_INPUT_BUFFER_MINUTES),
+  );
 }
 
 export function getLatestActualWorkDateTime() {
@@ -36,5 +41,7 @@ export function getTodayDateInputValue() {
 export function getDateTimeAfter(value: string, minutes = 1) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "";
-  return toLocalDateTimeInputValue(addMinutes(parsed, minutes));
+  return toLocalDateTimeInputValue(
+    addMinutes(parsed, minutes + DATE_TIME_INPUT_BUFFER_MINUTES),
+  );
 }

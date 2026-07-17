@@ -130,6 +130,7 @@ const yesNoOptions = toOptions(["Yes", "No"]);
 type WorkInitiationEditValues = {
   title: string;
   workCategory: string;
+  otherWorkCategory: string;
   relatedIncidentHazardId: string;
   workType: string[];
   location: string;
@@ -394,6 +395,8 @@ export default function WorkInitiationDetailsView({
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
         nextActor={getWorkInitiationNextActor(request)}
+        nextApproverName={request.nextApproverName}
+        nextApproverRole={request.nextApproverRole}
         showRoleSwitcher={false}
       />
 
@@ -551,6 +554,8 @@ function WorkDetails({
         ? {
             ...current,
             workCategory: nextCategory,
+            otherWorkCategory:
+              nextCategory === "Other" ? current.otherWorkCategory : "",
             relatedIncidentHazardId:
               nextCategory === "Incident/Hazard"
                 ? current.relatedIncidentHazardId
@@ -583,8 +588,28 @@ function WorkDetails({
             placeholder="Select work category"
           />
         ) : (
-          <FormInput label="Work Category" value={request.workCategory} disabled />
+          <FormInput
+            label="Work Category"
+            value={formatWorkCategory(request)}
+            disabled
+          />
         )}
+        {editable && values.workCategory === "Other" ? (
+          <FormInput
+            label="Specify Work Category"
+            required
+            maxLength={255}
+            placeholder="Enter the work category"
+            value={values.otherWorkCategory}
+            onChange={(event) =>
+              onValuesChange((current) =>
+                current
+                  ? { ...current, otherWorkCategory: event.target.value }
+                  : current,
+              )
+            }
+          />
+        ) : null}
         {values.workCategory === "Incident/Hazard" ? (
           editable ? (
             <FormSelect
@@ -694,7 +719,7 @@ function WorkDetails({
         {editable ? (
           <div className="mt-4">
             <FileDropzone
-              label="Add Attachments"
+              label="Supporting Images/Documents"
               value={newAttachments}
               onChange={onNewAttachmentsChange}
               accept="image/*,.pdf,.doc,.docx"
@@ -977,7 +1002,7 @@ function ApprovalResult({
 
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
-  if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your supervisor review." : "Waiting for supervisor approval.";
+  if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your review as supervisor." : "Waiting for supervisor approval.";
   if (request.status === "pending") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
   if (request.status === "approved") note = "Work approved by Operations HOD. Its assigned team is eligible for Work Authorization.";
   if (request.status === "returned") note = currentRole === "requester" ? "This request was returned. Update and resubmit." : "This request was returned to the requester.";
@@ -1020,6 +1045,7 @@ function buildInitialEditValues(
   return {
     title: request.title,
     workCategory: request.workCategory,
+    otherWorkCategory: request.otherWorkCategory ?? "",
     relatedIncidentHazardId: request.relatedIncidentHazardId,
     workType: request.workType,
     location: request.location,
@@ -1051,6 +1077,8 @@ function buildWorkInitiationUpdatePayload(
   return {
     title: values.title,
     work_category: workCategory,
+    other_work_category:
+      workCategory === "other" ? values.otherWorkCategory.trim() || null : null,
     related_incident_report_id:
       workCategory === "incident_hazard"
         ? values.relatedIncidentHazardId || null
@@ -1077,6 +1105,14 @@ function buildWorkInitiationUpdatePayload(
 }
 
 function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
+  if (values.workDescription.trim().length < 5) {
+    return "Work description must be at least 5 characters.";
+  }
+
+  if (values.workCategory === "Other" && !values.otherWorkCategory.trim()) {
+    return "Specify the work category.";
+  }
+
   const now = new Date();
   const minimumStartTime = new Date(now.getTime() + 10 * 60 * 1000);
   const plannedStart = new Date(values.plannedStartDateTime);
@@ -1108,6 +1144,14 @@ function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
   }
 
   return null;
+}
+
+function formatWorkCategory(request: WorkInitiationRequest) {
+  if (request.workCategory === "Other" && request.otherWorkCategory) {
+    return `Other - ${request.otherWorkCategory}`;
+  }
+
+  return request.workCategory;
 }
 
 function toApiDateTime(value: string) {

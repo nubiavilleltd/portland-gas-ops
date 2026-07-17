@@ -99,6 +99,7 @@ class WorkAuthorizationWorkInitiationSummary(UtcDateTimeModel):
     title: str
     status: str
     work_category: str
+    other_work_category: Optional[str]
     related_incident_report_id: Optional[str]
     work_type: list[str]
     location: str
@@ -149,6 +150,8 @@ class WorkAuthorizationListItem(UtcDateTimeModel):
     requested_at: datetime
     created_at: datetime
     updated_at: datetime
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     @classmethod
     def from_model(cls, authorization):
@@ -252,6 +255,7 @@ def work_initiation_summary(work_initiation) -> Optional[WorkAuthorizationWorkIn
         title=work_initiation.title,
         status=work_initiation.status.value,
         work_category=work_initiation.work_category.value,
+        other_work_category=work_initiation.other_work_category,
         related_incident_report_id=work_initiation.related_incident_report_id,
         work_type=split_list(work_initiation.work_type),
         location=work_initiation.location,

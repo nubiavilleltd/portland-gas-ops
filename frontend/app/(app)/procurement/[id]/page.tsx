@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle, FileText, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -10,6 +10,7 @@ import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import ProcurementDetailSkeleton from "./ProcurementDetailSkeleton";
 import AuditTrail from "@/components/forms/AuditTrail";
 import { getErrorMessage } from "@/lib/errors";
 import { PROCUREMENT_ERRORS } from "@/lib/modules/procurement";
@@ -51,13 +52,15 @@ export default function ProcurementDetailPage() {
   const router  = useRouter();
   const toast   = useToast();
 
-  const { data: req, isLoading, isError } = useProcurement(id);
+  const { data: req, isLoading, isFetching, isError } = useProcurement(id);
+  const [isActioning, setIsActioning] = useState(false);
+
+  useEffect(() => {
+    if (isActioning && !isFetching) setIsActioning(false);
+  }, [isFetching, isActioning]);
   const approveAndIssuePO  = useApproveAndIssuePO();
   const confirmDelivery    = useConfirmDelivery();
   const regeneratePOPDF    = useRegeneratePOPDF();
-
-  // Procurement workflow constants — step 4 = Issue PO, step 5 = Delivery Confirmation
-  const ISSUE_PO_STEP = 4;
 
   // Workflow: check if I'm the current step's approver for this request
   const { data: myApprovals = [] } = useMyApprovals();
@@ -65,6 +68,12 @@ export default function ProcurementDetailPage() {
     (a) => a.request_type === "procurement" && a.request_id === id
   );
   const approvalRequestId = myApprovalEntry?.approval_request_id ?? null;
+  // The Issue PO step is always the second-to-last step in the procurement
+  // workflow (the last step is Confirm Delivery). Using total_steps from the
+  // backend means this stays correct if the admin adds or removes steps.
+  const isIssuePOStep =
+    myApprovalEntry?.request_type === "procurement" &&
+    myApprovalEntry.current_step_number === myApprovalEntry.total_steps - 1;
 
   // Workflow approval actions (wired to engine, not direct admin bypass)
   const workflowApprove = useWorkflowApprove();
@@ -90,6 +99,7 @@ export default function ProcurementDetailPage() {
 
   async function handleAction(action: "approve" | "reject" | "return", comment: string) {
     if (!approvalRequestId) return;
+    setIsActioning(true);
     try {
       if (action === "approve") {
         await workflowApprove.mutateAsync({ approvalRequestId, comment: comment || undefined });
@@ -102,6 +112,7 @@ export default function ProcurementDetailPage() {
         toast.success("Returned to requester for revision");
       }
     } catch (err) {
+      setIsActioning(false);
       toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
     }
   }
@@ -114,10 +125,10 @@ export default function ProcurementDetailPage() {
     confirmDelivery.isPending;
 
 
-  if (isLoading) {
+  if (isLoading || isActioning) {
     return (
       <AppLayout pageTitle="Procurement">
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        <ProcurementDetailSkeleton />
       </AppLayout>
     );
   }
@@ -369,8 +380,15 @@ export default function ProcurementDetailPage() {
                       <button
                         onClick={async () => {
                           try {
-                            await regeneratePOPDF.mutateAsync({ requestId: id, poId: p.id });
-                            toast.success("PO PDF generated — click Download PO to get it");
+                            const result = await regeneratePOPDF.mutateAsync({ requestId: id, poId: p.id });
+                            const updatedPO = result.purchase_orders?.find((x) => x.id === p.id);
+                            const poUrl = updatedPO?.document?.file_path;
+                            if (poUrl) {
+                              window.open(poUrl, "_blank", "noopener,noreferrer");
+                              toast.success("PDF generated — opened in a new tab");
+                            } else {
+                              toast.error("PDF generation failed. Check Cloudinary configuration.");
+                            }
                           } catch {
                             toast.error("Failed to generate PDF. Check Cloudinary configuration.");
                           }
@@ -390,6 +408,16 @@ export default function ProcurementDetailPage() {
               ))}
             </div>
           </FormSection>
+        )}
+
+        {/* ── Awaiting confirmation — info banner for non-assigned viewers ─── */}
+        {!approvalRequestId && req.status === "awaiting_confirmation" && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+            <p className="text-sm font-semibold text-blue-800">Awaiting delivery confirmation</p>
+            <p className="text-xs text-blue-700 mt-0.5">
+              The purchase order has been issued. The assigned officer must confirm goods received to complete this request.
+            </p>
+          </div>
         )}
 
         {/* ── Step 5: Delivery Confirmation (procurement officer assigned to step 5) ── */}
@@ -440,14 +468,20 @@ export default function ProcurementDetailPage() {
             showReject
             showApprove
             returnLabel="Return for Revision"
-            approveLabel={myApprovalEntry?.current_step_number === ISSUE_PO_STEP ? "Issue PO" : "Approve"}
+            approveLabel={isIssuePOStep ? "Issue PO" : "Approve"}
             onReturn={(comment)  => handleAction("return",  comment)}
             onReject={(comment)  => handleAction("reject",  comment)}
             onApprove={async (comment) => {
-              if (myApprovalEntry?.current_step_number === ISSUE_PO_STEP) {
+              if (isIssuePOStep) {
                 try {
-                  await approveAndIssuePO.mutateAsync({ id });
-                  toast.success("PO issued — awaiting delivery confirmation");
+                  const result = await approveAndIssuePO.mutateAsync({ id });
+                  const poUrl = result.purchase_orders?.[0]?.document?.file_path;
+                  if (poUrl) {
+                    window.open(poUrl, "_blank", "noopener,noreferrer");
+                    toast.success("PO issued — PDF opened in a new tab");
+                  } else {
+                    toast.success("PO issued — awaiting delivery confirmation");
+                  }
                 } catch (err) {
                   toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
                 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -72,6 +72,7 @@ interface StepFormData {
   step_name:     string;
   assignee_type: AssigneeType | "";
   employee_id:   string;        // for "specific"
+  employee_name: string;        // for "specific" — pre-fill display name on edit
   group_id:      string;        // for "requester_pick"
 }
 
@@ -79,6 +80,7 @@ const EMPTY_STEP: StepFormData = {
   step_name:     "",
   assignee_type: "",
   employee_id:   "",
+  employee_name: "",
   group_id:      "",
 };
 
@@ -94,7 +96,14 @@ function StepForm({
   saving: boolean;
 }) {
   const [form, setForm] = useState<StepFormData>(initial ?? EMPTY_STEP);
-  const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
+
+  // Pre-fill with a stub from the saved name so the field isn't blank on edit.
+  // Gets replaced with full data (role, dept, avatar) once employee list loads.
+  const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(
+    initial?.employee_id && initial?.employee_name
+      ? { id: initial.employee_id, name: initial.employee_name, role: "", department: "" }
+      : null
+  );
 
   const { data: employeeList = [] } = useEmployees();
   const { data: groups = [] } = useApproverGroups();
@@ -106,6 +115,19 @@ function StepForm({
     department:  e.department ?? "",
     avatar_url:  e.user?.profile_picture_url,
   }));
+
+  // Once the full employee list loads, enrich the stub with real role/dept/avatar.
+  // Use a ref so this only runs once — employees is remapped on every render.
+  const enrichedRef = useRef(false);
+  useEffect(() => {
+    if (enrichedRef.current || !initial?.employee_id || employeeList.length === 0) return;
+    const found = employees.find((e) => e.id === initial.employee_id);
+    if (found) {
+      setPickedEmployee(found);
+      enrichedRef.current = true;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeList]);
 
   const groupOptions = groups.map((g) => ({ value: g.id, label: g.name }));
 
@@ -407,6 +429,7 @@ export default function WorkflowDetailPage() {
                   step_name:     step.step_name,
                   assignee_type: step.assignee_type,
                   employee_id:   step.employee_id ?? "",
+                  employee_name: step.employee_name ?? "",
                   group_id:      step.group_id ?? "",
                 }}
                 onSave={handleEditStep}

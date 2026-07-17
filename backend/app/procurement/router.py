@@ -25,7 +25,7 @@ from app.core.database import get_db
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 from app.procurement.schemas import (
-    ProcurementCreate, ProcurementUpdate, ActionRequest,
+    ProcurementCreate, ProcurementUpdate,
     IssuePORequest, POStatusUpdate,
     ProcurementResponse, ProcurementListItem, PurchaseOrderResponse,
 )
@@ -155,12 +155,11 @@ def list_requests(
         if info:
             item.next_actor_name = info["name"]
             item.current_step_name = info["step_name"]
-        po_url = next(
-            (po.document.file_path for po in r.purchase_orders if po.document and po.document.file_path),
-            None,
-        )
-        if po_url:
-            item.po_document_url = po_url
+        first_po = r.purchase_orders[0] if r.purchase_orders else None
+        if first_po:
+            item.po_number = first_po.po_number
+            if first_po.document and first_po.document.file_path:
+                item.po_document_url = first_po.document.file_path
         result.append(item)
     return result
 
@@ -217,10 +216,6 @@ async def create_request(
     req = _svc(db).create_request(parsed, employee, file_bytes=file_bytes, filename=filename)
     db.commit()
     db.refresh(req)
-
-    # Email the step 1 approver after commit — failure is swallowed inside the helper
-    from app.shared.services.workflow_email import notify_new_request
-    notify_new_request(db, "procurement", req.id)
 
     return req
 
@@ -313,43 +308,9 @@ def submit_request(
     return req
 
 
-@router.post("/{request_id}/approve", response_model=ProcurementResponse)
-def approve_request(
-    request_id: str,
-    body: ActionRequest = ActionRequest(),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    req = _svc(db).approve_request(request_id, body, current_user)
-    db.commit()
-    db.refresh(req)
-    return req
-
-
-@router.post("/{request_id}/reject", response_model=ProcurementResponse)
-def reject_request(
-    request_id: str,
-    body: ActionRequest = ActionRequest(),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    req = _svc(db).reject_request(request_id, body, current_user)
-    db.commit()
-    db.refresh(req)
-    return req
-
-
-@router.post("/{request_id}/return", response_model=ProcurementResponse)
-def return_request(
-    request_id: str,
-    body: ActionRequest = ActionRequest(),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    req = _svc(db).return_request(request_id, body, current_user)
-    db.commit()
-    db.refresh(req)
-    return req
+# /approve, /reject, /return removed — all approval actions must go through
+# the workflow engine at /api/workflow/requests/{approval_request_id}/approve|reject|return
+# which enforces step assignment, fires notifications, and writes the audit trail.
 
 
 @router.post("/{request_id}/approve-and-issue-po", response_model=ProcurementResponse)
@@ -363,7 +324,6 @@ def approve_and_issue_po(
     Advances the workflow to step 5 (delivery confirmation) and sets status to awaiting_confirmation."""
     from app.shared.models.approval import AllRequest
     from app.shared.services.workflow_engine import WorkflowEngine
-    from app.shared.services import workflow_email
 
     employee = get_employee_by_user_id(current_user.id, db)
     engine = WorkflowEngine(db)
@@ -382,9 +342,6 @@ def approve_and_issue_po(
     approval_request_id = all_req.approval_request_id
     svc_instance = _svc(db)
 
-    # Capture approver id before engine.approve() advances the step
-    approver_employee_id = employee.id
-
     # Approve step 4 — engine advances to step 5 (not final, so on_final_approval won't fire)
     result = engine.approve(approval_request_id, employee, comment=None)
 
@@ -401,10 +358,6 @@ def approve_and_issue_po(
     proc_req = svc_instance._get_or_404(request_id)
     db.refresh(proc_req)
 
-    # Notify the step 5 assignee (delivery confirmation) AND update the requester
-    workflow_email.notify_step_assigned(db, approval_request_id)
-    workflow_email.notify_step_progress(db, approval_request_id, approver_employee_id)
-
     return proc_req
 
 
@@ -417,7 +370,6 @@ def confirm_delivery(
     """Step 5: Procurement officer confirms goods received. Completes the workflow."""
     from app.shared.models.approval import AllRequest
     from app.shared.services.workflow_engine import WorkflowEngine
-    from app.shared.services import workflow_email
 
     employee = get_employee_by_user_id(current_user.id, db)
     engine = WorkflowEngine(db)
@@ -446,8 +398,6 @@ def confirm_delivery(
     proc_req = svc_instance._get_or_404(request_id)
     db.refresh(proc_req)
 
-    workflow_email.notify_request_result(db, approval_request_id, "approved")
-
     return proc_req
 
 
@@ -460,10 +410,11 @@ def regenerate_po_pdf(
 ):
     """Re-generate and re-upload the PO PDF for an existing purchase order."""
     issuer = get_employee_by_user_id(current_user.id, db)
-    req = _svc(db).regenerate_po_pdf(request_id, po_id, current_user, issuer)
+    svc_instance = _svc(db)
+    svc_instance.regenerate_po_pdf(request_id, po_id, current_user, issuer)
     db.commit()
-    db.refresh(req)
-    return req
+    # Re-fetch with full eager loading so the response includes the updated document URL
+    return svc_instance._get_or_404(request_id)
 
 
 @router.post("/{request_id}/issue-po", response_model=PurchaseOrderResponse, status_code=201)

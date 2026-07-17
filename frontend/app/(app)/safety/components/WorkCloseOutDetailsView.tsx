@@ -470,6 +470,8 @@ export default function WorkCloseOutDetailsView({
         title={request.title}
         status={<ApprovalBadge status={request.status} />}
         nextActor={getWorkCloseOutNextActor(request)}
+        nextApproverName={request.nextApproverName}
+        nextApproverRole={request.nextApproverRole}
         showRoleSwitcher={false}
       />
 

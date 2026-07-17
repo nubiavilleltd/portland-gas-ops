@@ -2,17 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api";
+import type { DepartmentListItem } from "@/types/setups";
 
-export interface DepartmentListItem {
-  id: string;
-  name: string;
-  code: string;
-  is_active: boolean;
-  hod_id: string | null;
-  parent_dept_id: string | null;
-  created_at: string;
-  employee_count: number;
-}
+export type { DepartmentListItem };
 
 export interface GroupListItem {
   id: string;

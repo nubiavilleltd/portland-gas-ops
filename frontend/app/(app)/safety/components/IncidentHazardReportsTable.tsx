@@ -11,6 +11,7 @@ import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety"
 import SafetyRequestListFilters, {
   type SafetyRequestListFilter,
 } from "./SafetyRequestListFilters";
+import SafetyTruncatedTableText from "./SafetyTruncatedTableText";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
   draft: "Draft",
@@ -41,7 +42,7 @@ const columns: Column<IncidentHazardReport>[] = [
   {
     key: "location",
     label: "Location",
-    render: (value) => String(value || "-"),
+    render: (value) => <SafetyTruncatedTableText value={String(value || "")} />,
   },
   {
     key: "reporter",

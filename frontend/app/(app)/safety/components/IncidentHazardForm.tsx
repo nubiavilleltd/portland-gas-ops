@@ -10,7 +10,10 @@ import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { reportTypeOptions } from "@/lib/modules/safety/incidentReport/constants";
+import {
+  incidentSeverityOptions,
+  reportTypeOptions,
+} from "@/lib/modules/safety/incidentReport/constants";
 import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
@@ -24,6 +27,7 @@ import {
   incidentReportsApi,
   type IncidentReportCreate,
   type IncidentReportType,
+  type IncidentSeverityEstimate,
   useEligibleWorkAuthorizationsForIncident,
 } from "@/lib/modules/safety/incidentReport";
 import { getLatestIncidentObservedDateTime } from "@/lib/modules/safety/date-rules";
@@ -46,6 +50,12 @@ const reportTypeByLabel: Record<string, IncidentReportType> = {
   "Unsafe Condition": "unsafe_condition",
   "Environmental Concern": "environmental_concern",
 };
+const severityByLabel: Record<string, IncidentSeverityEstimate> = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+  Critical: "critical",
+};
 
 type IncidentValidationField =
   | "title"
@@ -53,6 +63,7 @@ type IncidentValidationField =
   | "locations"
   | "observedAt"
   | "description"
+  | "severity"
   | "impactChecklist"
   | "immediateAction";
 
@@ -64,6 +75,7 @@ const incidentFieldOrder: IncidentValidationField[] = [
   "locations",
   "observedAt",
   "description",
+  "severity",
   "impactChecklist",
   "immediateAction",
 ];
@@ -101,7 +113,7 @@ export default function IncidentHazardForm() {
     };
   });
   const [description, setDescription] = useState("");
-  // const [severity, setSeverity] = useState("");
+  const [severity, setSeverity] = useState("");
   const [anyoneInjured, setAnyoneInjured] = useState("");
   const [propertyDamaged, setPropertyDamaged] = useState("");
   const [gasConcern, setGasConcern] = useState("");
@@ -113,6 +125,7 @@ export default function IncidentHazardForm() {
   const locationsRef = useRef<HTMLInputElement | null>(null);
   const observedAtRef = useRef<HTMLInputElement | null>(null);
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const severityRef = useRef<HTMLInputElement | null>(null);
   const impactChecklistRef = useRef<HTMLDivElement | null>(null);
   const immediateActionRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -126,6 +139,7 @@ export default function IncidentHazardForm() {
       locations,
       observedAt,
       description,
+      severity,
       immediateAction,
     });
     const impactChecklistValues = {
@@ -151,6 +165,7 @@ export default function IncidentHazardForm() {
           locationsRef,
           observedAtRef,
           descriptionRef,
+          severityRef,
           impactChecklistRef,
           immediateActionRef,
         }),
@@ -167,7 +182,7 @@ export default function IncidentHazardForm() {
       observed_at: toApiDateTime(observedAt),
       related_work_authorization_id: emptyToNull(relatedAuthorization),
       description,
-      severity_estimate: null,
+      severity_estimate: toIncidentSeverity(severity),
       anyone_injured: anyoneInjured === "Yes",
       property_damaged: propertyDamaged === "Yes",
       gas_fire_environmental_concern: gasConcern === "Yes",
@@ -320,7 +335,19 @@ export default function IncidentHazardForm() {
               clearIncidentValidationError("description", setValidationErrors);
             }}
           />
-          {/* <FormSelect label="Severity Estimate" required options={toOptions(incidentSeverityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} /> */}
+          <FormSelect
+            ref={severityRef}
+            label="Severity Estimate"
+            required
+            options={toOptions(incidentSeverityOptions)}
+            placeholder="Select severity"
+            value={severity}
+            error={validationErrors.severity}
+            onValueChange={(value) => {
+              setSeverity(value);
+              clearIncidentValidationError("severity", setValidationErrors);
+            }}
+          />
           <div
             ref={impactChecklistRef}
             className={
@@ -425,6 +452,7 @@ function validateIncidentReportForm({
   locations,
   observedAt,
   description,
+  severity,
   immediateAction,
 }: {
   title: string;
@@ -432,6 +460,7 @@ function validateIncidentReportForm({
   locations: string[];
   observedAt: string;
   description: string;
+  severity: string;
   immediateAction: string;
 }): IncidentValidationErrors {
   const errors: IncidentValidationErrors = {};
@@ -457,11 +486,18 @@ function validateIncidentReportForm({
   if (description.trim().length < 5) {
     errors.description = "Enter a description with at least 5 characters.";
   }
+  if (!severity) {
+    errors.severity = "Select a severity estimate.";
+  }
   if (!immediateAction.trim()) {
     errors.immediateAction = "Describe the immediate action taken.";
   }
 
   return errors;
+}
+
+function toIncidentSeverity(value: string): IncidentSeverityEstimate {
+  return severityByLabel[value] ?? "medium";
 }
 
 function getFirstInvalidIncidentField(errors: IncidentValidationErrors) {
@@ -488,6 +524,7 @@ function getIncidentFieldRef(
     locationsRef: React.RefObject<HTMLInputElement | null>;
     observedAtRef: React.RefObject<HTMLInputElement | null>;
     descriptionRef: React.RefObject<HTMLTextAreaElement | null>;
+    severityRef: React.RefObject<HTMLInputElement | null>;
     impactChecklistRef: React.RefObject<HTMLDivElement | null>;
     immediateActionRef: React.RefObject<HTMLTextAreaElement | null>;
   },
@@ -498,6 +535,7 @@ function getIncidentFieldRef(
     locations: refs.locationsRef,
     observedAt: refs.observedAtRef,
     description: refs.descriptionRef,
+    severity: refs.severityRef,
     impactChecklist: refs.impactChecklistRef,
     immediateAction: refs.immediateActionRef,
   };

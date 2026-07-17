@@ -425,6 +425,7 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
                 value={selectedTime || "09:00"}
                 min={timeMin}
                 max={timeMax}
+                onClick={(event) => event.currentTarget.showPicker?.()}
                 onChange={(event) => updateTime(event.target.value)}
                 title={
                   hasTimeRestriction

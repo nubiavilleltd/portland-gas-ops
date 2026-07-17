@@ -521,7 +521,7 @@ def toggle_leadership_published(
 
 # ── FAQ category endpoints — must come before /faqs/{id} ─────────────────────
 
-@router.get("/faqs/categories/", response_model=List[FAQCategoryResponse])
+@router.get("/faqs/categories", response_model=List[FAQCategoryResponse])
 def list_faq_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -529,7 +529,7 @@ def list_faq_categories(
     return _faq_cat_svc(db).list_all()
 
 
-@router.post("/faqs/categories/", response_model=FAQCategoryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/faqs/categories", response_model=FAQCategoryResponse, status_code=status.HTTP_201_CREATED)
 def create_faq_category(
     data: FAQCategoryCreate,
     db: Session = Depends(get_db),
@@ -595,7 +595,7 @@ def reorder_faqs(
 
 # ── FAQ published list — must come before /faqs/{id} ─────────────────────────
 
-@router.get("/faqs/published/", response_model=List[FAQResponse])
+@router.get("/faqs/published", response_model=List[FAQResponse])
 def list_published_faqs(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -605,7 +605,7 @@ def list_published_faqs(
 
 # ── FAQ admin list ────────────────────────────────────────────────────────────
 
-@router.get("/faqs/", response_model=List[FAQResponse])
+@router.get("/faqs", response_model=List[FAQResponse])
 def list_all_faqs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -613,7 +613,7 @@ def list_all_faqs(
     return _faq_svc(db).list_all()
 
 
-@router.post("/faqs/", response_model=FAQResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/faqs", response_model=FAQResponse, status_code=status.HTTP_201_CREATED)
 def create_faq(
     data: FAQCreate,
     db: Session = Depends(get_db),
@@ -664,7 +664,7 @@ def _feedback_svc(db: Session) -> IntranetFeedbackService:
     return IntranetFeedbackService(db)
 
 
-@router.get("/feedback/", response_model=List[FeedbackResponse])
+@router.get("/feedback", response_model=List[FeedbackResponse])
 def list_feedback(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -672,7 +672,7 @@ def list_feedback(
     return _feedback_svc(db).list_all()
 
 
-@router.post("/feedback/", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/feedback", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
 def submit_feedback(
     data: FeedbackCreate,
     db: Session = Depends(get_db),
@@ -753,7 +753,7 @@ _ALLOWED_AUDIO_TYPES          = {
 _MAX_AUDIO_BYTES              = 500 * 1024 * 1024         # 500 MB
 
 
-@router.get("/podcast/admin/", response_model=List[PodcastResponse])
+@router.get("/podcast/admin", response_model=List[PodcastResponse])
 def list_all_podcasts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -761,7 +761,7 @@ def list_all_podcasts(
     return _podcast_svc(db).list_all()
 
 
-@router.get("/podcast/", response_model=List[PodcastResponse])
+@router.get("/podcast", response_model=List[PodcastResponse])
 def list_published_podcasts(
     db: Session = Depends(get_db),
     current_user: User = Depends(login_required),
@@ -769,7 +769,7 @@ def list_published_podcasts(
     return _podcast_svc(db).list_published()
 
 
-@router.post("/podcast/upload-cover/", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/podcast/upload-cover", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_podcast_cover(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -789,7 +789,7 @@ async def upload_podcast_cover(
     return ImageUploadResponse(id=doc.id, url=doc.file_path)
 
 
-@router.post("/podcast/upload-audio/", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/podcast/upload-audio", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_podcast_audio(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -818,7 +818,7 @@ def get_podcast_episode(
     return _podcast_svc(db).get_published(episode_id)
 
 
-@router.post("/podcast/", response_model=PodcastResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/podcast", response_model=PodcastResponse, status_code=status.HTTP_201_CREATED)
 def create_podcast(
     data: PodcastCreate,
     db: Session = Depends(get_db),

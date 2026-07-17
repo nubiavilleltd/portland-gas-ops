@@ -15,6 +15,7 @@ import type { WorkInitiationRequest } from "@/types/safety";
 import SafetyRequestListFilters, {
   type SafetyRequestListFilter,
 } from "../../components/SafetyRequestListFilters";
+import SafetyTruncatedTableText from "../../components/SafetyTruncatedTableText";
 
 const columns: Column<WorkInitiationRequest>[] = [
   {
@@ -32,13 +33,24 @@ const columns: Column<WorkInitiationRequest>[] = [
     getSortValue: (row) => row.requester.requestDate,
     render: (_, row) => row.requester.requestDate || "-",
   },
-  { key: "workCategory", label: "Work Category" },
+  {
+    key: "workCategory",
+    label: "Work Category",
+    render: (_, row) =>
+      row.workCategory === "Other" && row.otherWorkCategory
+        ? `Other - ${row.otherWorkCategory}`
+        : row.workCategory,
+  },
   {
     key: "workType",
     label: "Work Type",
     render: (value) => (Array.isArray(value) ? value.join(", ") : String(value || "-")),
   },
-  { key: "location", label: "Location" },
+  {
+    key: "location",
+    label: "Location",
+    render: (value) => <SafetyTruncatedTableText value={String(value || "")} />,
+  },
   {
     key: "status",
     label: "Status",

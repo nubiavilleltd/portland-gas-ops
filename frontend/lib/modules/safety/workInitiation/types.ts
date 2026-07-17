@@ -20,6 +20,7 @@ export type WorkInitiationDecision = "approve" | "return" | "deny";
 export interface WorkInitiationCreate {
   title: string;
   work_category: WorkInitiationCategory;
+  other_work_category?: string | null;
   related_incident_report_id?: string | null;
   work_type: string[];
   location: string;
@@ -76,6 +77,7 @@ export interface WorkInitiationListItem {
   requester_role?: string | null;
   title: string;
   work_category: WorkInitiationCategory;
+  other_work_category?: string | null;
   related_incident_report_id?: string | null;
   work_type: string[];
   location: string;
@@ -87,6 +89,8 @@ export interface WorkInitiationListItem {
   assigned_supervisor_name?: string | null;
   created_at: string;
   updated_at: string;
+  next_actor_name?: string | null;
+  current_step_name?: string | null;
 }
 
 export interface WorkInitiationResponse extends WorkInitiationListItem {

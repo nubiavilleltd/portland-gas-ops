@@ -34,15 +34,15 @@ class Vendor(Base):
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     category = Column(SAEnum(VendorCategory), nullable=False)
-    contact_person = Column(String(255), nullable=True)
-    phone = Column(String(50), nullable=True)
-    email = Column(String(255), nullable=True)
-    address = Column(Text, nullable=True)
+    contact_person = Column(String(255), nullable=False)
+    phone = Column(String(50), nullable=False)
+    email = Column(String(255), nullable=False)
+    address = Column(Text, nullable=False)
 
     # Bank / payment details
-    bank_name = Column(String(255), nullable=True)
-    account_name = Column(String(255), nullable=True)
-    account_number = Column(String(20), nullable=True)
+    bank_name = Column(String(255), nullable=False)
+    account_name = Column(String(255), nullable=False)
+    account_number = Column(String(20), nullable=False)
 
     vendor_code       = Column(String(20), nullable=True, unique=True, index=True)  # e.g. AT-K7M2
     logo_document_id  = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)

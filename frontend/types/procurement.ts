@@ -111,7 +111,9 @@ export interface ProcurementListItem {
   /** Who needs to act next in the workflow (only set when status is "pending") */
   next_actor_name: string | null;
   current_step_name: string | null;
-  /** PO document download URL — set when a PO with a document exists */
+  /** PO number — set whenever a PO exists (even if PDF not yet generated) */
+  po_number: string | null;
+  /** PO document download URL — only set when the PDF is ready */
   po_document_url: string | null;
 }
 

@@ -6,6 +6,7 @@ export interface DepartmentListItem {
   code: string;
   is_active: boolean;
   hod_id: string | null;
+  hod_name: string | null;
   parent_dept_id: string | null;
   created_at: string;
   employee_count: number;

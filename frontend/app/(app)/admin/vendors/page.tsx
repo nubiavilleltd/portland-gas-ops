@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 // import { useRouter } from "next/navigation";
 import { Plus, Pencil, PowerOff, Power } from "lucide-react";
+import FormSelect from "@/components/forms/FormSelect";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Tip from "@/components/ui/Tip";
@@ -14,7 +15,7 @@ import { useVendors, useDeactivateVendor, useReactivateVendor, VENDOR_ERRORS } f
 import { useToast } from "@/hooks/useToast";
 import { getErrorMessage } from "@/lib/errors";
 import { capitalize } from "@/lib/utils";
-import type { Vendor, VendorCategory } from "@/types";
+import type { Vendor, VendorCategory, VendorType } from "@/types";
 
 const CATEGORY_COLOURS: Record<VendorCategory, string> = {
   equipment:     "bg-blue-100 text-blue-700",
@@ -125,14 +126,23 @@ const TABLE_COLUMNS: Column<Vendor>[] = [
   { key: "contact_person", label: "Contact", render: (_, v) => v.contact_person ? <span className="text-sm text-brand-text-primary">{v.contact_person}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "phone", label: "Phone", render: (_, v) => v.phone ? <span className="text-sm text-brand-text-primary">{v.phone}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "email", label: "Email", render: (_, v) => v.email ? <span className="text-sm text-brand-text-primary">{v.email}</span> : <span className="text-brand-text-secondary">—</span> },
+  { key: "vendor_type", label: "Type", render: (_, v) => (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${v.vendor_type === "permanent" ? "bg-brand-purple/10 text-brand-purple" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+      {v.vendor_type === "permanent" ? "Permanent" : "Temporary"}
+    </span>
+  )},
 ];
+
+type VendorTypeFilter = "all" | VendorType;
 
 export default function AdminVendorsPage() {
   const toast = useToast();
   const [deactivateTarget, setDeactivateTarget] = useState<Vendor | null>(null);
   const [reactivateTarget, setReactivateTarget] = useState<Vendor | null>(null);
+  const [typeFilter, setTypeFilter] = useState<VendorTypeFilter>("all");
 
-  const { data: vendors = [], isLoading, isError } = useVendors(undefined, true);
+  const { data: allVendors = [], isLoading, isError } = useVendors(undefined, true);
+  const vendors = typeFilter === "all" ? allVendors : allVendors.filter((v) => v.vendor_type === typeFilter);
   const deactivateVendor = useDeactivateVendor();
   const reactivateVendor = useReactivateVendor();
 
@@ -212,6 +222,20 @@ export default function AdminVendorsPage() {
           rowHref={(v) => `/admin/vendors/${v.id}`}
           showActions
           actions={tableActions}
+          toolbarActions={
+            <FormSelect
+              value={typeFilter}
+              placeholder="All Types"
+              options={[
+                { value: "all",       label: "All Types" },
+                { value: "permanent", label: "Permanent" },
+                { value: "temporary", label: "Temporary" },
+              ]}
+              onValueChange={(v) => setTypeFilter(v as VendorTypeFilter)}
+              sortOptions={false}
+              triggerClassName="w-36"
+            />
+          }
         />
       )}
 

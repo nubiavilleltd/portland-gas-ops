@@ -57,6 +57,7 @@ class SafetyWorkInitiation(Base):
     requester_id = Column(CHAR(36), ForeignKey("employees.id"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     work_category = Column(SAEnum(WorkInitiationCategory), nullable=False, index=True)
+    other_work_category = Column(String(255), nullable=True)
     related_incident_report_id = Column(
         CHAR(36),
         ForeignKey("safety_incident_reports.id"),

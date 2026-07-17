@@ -46,7 +46,11 @@ import {
   incidentSeverityOptions,
   reportTypeOptions,
 } from "@/lib/modules/safety/incidentReport/constants";
-import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
+import {
+  getIncidentHazardNextActor,
+  getIncidentHazardNextActorName,
+  getIncidentHazardNextActorRole,
+} from "@/lib/safety-next-actor";
 import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
 import { useAuditTrail } from "@/lib/modules/workflow/queries";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
@@ -415,8 +419,12 @@ export default function IncidentHazardDetailsView({
         onRoleChange={() => undefined}
         roleLabel={getIncidentHazardRoleLabel(currentRole)}
         roles={incidentHazardRoles}
+        recordLabel="Incident / Hazard Report"
+        title={report.title}
         status={<ApprovalBadge status={report.status} />}
         nextActor={getIncidentHazardNextActor(report)}
+        nextApproverName={getIncidentHazardNextActorName(report)}
+        nextApproverRole={getIncidentHazardNextActorRole(report)}
         switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
         showRoleSwitcher={false}
       />

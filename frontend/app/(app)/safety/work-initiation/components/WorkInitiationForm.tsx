@@ -126,6 +126,7 @@ const contractorOptions = toOptions([
 type WorkInitiationValidationField =
   | "title"
   | "workCategory"
+  | "otherWorkCategory"
   | "relatedIncidentId"
   | "workTypes"
   | "locations"
@@ -142,6 +143,7 @@ type WorkInitiationValidationField =
 const workInitiationFieldOrder: WorkInitiationValidationField[] = [
   "title",
   "workCategory",
+  "otherWorkCategory",
   "relatedIncidentId",
   "workTypes",
   "locations",
@@ -174,6 +176,7 @@ export default function WorkInitiationForm() {
   const [workCategory, setWorkCategory] = useState(
     isIncidentLinkedFromQuery ? "Incident/Hazard" : "",
   );
+  const [otherWorkCategory, setOtherWorkCategory] = useState("");
   const [workTypes, setWorkTypes] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [relatedIncidentId, setRelatedIncidentId] = useState(
@@ -197,6 +200,7 @@ export default function WorkInitiationForm() {
   const [materialsRequired, setMaterialsRequired] = useState("");
   const titleRef = useRef<HTMLInputElement | null>(null);
   const workCategoryRef = useRef<HTMLInputElement | null>(null);
+  const otherWorkCategoryRef = useRef<HTMLInputElement | null>(null);
   const relatedIncidentIdRef = useRef<HTMLInputElement | null>(null);
   const workTypesRef = useRef<HTMLInputElement | null>(null);
   const locationsRef = useRef<HTMLInputElement | null>(null);
@@ -265,7 +269,12 @@ export default function WorkInitiationForm() {
     setWorkCategory(nextCategory);
     setWorkTypes([]);
     clearValidationError("workCategory", setValidationErrors);
+    clearValidationError("otherWorkCategory", setValidationErrors);
     clearValidationError("workTypes", setValidationErrors);
+
+    if (nextCategory !== "Other") {
+      setOtherWorkCategory("");
+    }
 
     if (nextCategory !== "Incident/Hazard") {
       setRelatedIncidentId("");
@@ -296,6 +305,7 @@ export default function WorkInitiationForm() {
     const nextValidationErrors = validateWorkInitiationForm({
       title,
       workCategory,
+      otherWorkCategory,
       relatedIncidentId,
       workTypes,
       locations,
@@ -328,6 +338,7 @@ export default function WorkInitiationForm() {
         getWorkInitiationFieldRef(firstInvalidField, {
           titleRef,
           workCategoryRef,
+          otherWorkCategoryRef,
           relatedIncidentIdRef,
           workTypesRef,
           locationsRef,
@@ -348,6 +359,8 @@ export default function WorkInitiationForm() {
     const payload: WorkInitiationCreate = {
       title,
       work_category: toWorkInitiationCategory(workCategory),
+      other_work_category:
+        workCategory === "Other" ? emptyToNull(otherWorkCategory) : null,
       related_incident_report_id: emptyToNull(relatedIncidentId),
       work_type: workTypes,
       location: locations.join(", "),
@@ -463,6 +476,22 @@ export default function WorkInitiationForm() {
             onValueChange={handleWorkCategoryChange}
             disabled={isIncidentLinkedFromQuery}
           />
+
+          {workCategory === "Other" ? (
+            <FormInput
+              ref={otherWorkCategoryRef}
+              label="Specify Work Category"
+              required
+              maxLength={255}
+              placeholder="Enter the work category"
+              value={otherWorkCategory}
+              error={validationErrors.otherWorkCategory}
+              onChange={(event) => {
+                setOtherWorkCategory(event.target.value);
+                clearValidationError("otherWorkCategory", setValidationErrors);
+              }}
+            />
+          ) : null}
 
           {workCategory === "Incident/Hazard" ? (
             <>
@@ -821,6 +850,7 @@ function IncidentContextCard({ incident }: { incident: IncidentHazardReport }) {
 function validateWorkInitiationForm({
   title,
   workCategory,
+  otherWorkCategory,
   relatedIncidentId,
   workTypes,
   locations,
@@ -836,6 +866,7 @@ function validateWorkInitiationForm({
 }: {
   title: string;
   workCategory: string;
+  otherWorkCategory: string;
   relatedIncidentId: string;
   workTypes: string[];
   locations: string[];
@@ -853,6 +884,9 @@ function validateWorkInitiationForm({
 
   if (title.trim().length < 3) errors.title = "Enter a work title.";
   if (!workCategory) errors.workCategory = "Select work category.";
+  if (workCategory === "Other" && !otherWorkCategory.trim()) {
+    errors.otherWorkCategory = "Specify the work category.";
+  }
 
   if (workCategory === "Incident/Hazard" && !relatedIncidentId) {
     errors.relatedIncidentId = "Select the related incident/hazard request.";
@@ -861,7 +895,7 @@ function validateWorkInitiationForm({
   if (workTypes.length === 0) errors.workTypes = "Select at least one work type.";
   if (locations.length === 0) errors.locations = "Select at least one location.";
   if (workDescription.trim().length < 5) {
-    errors.workDescription = "Describe the work to be done.";
+    errors.workDescription = "Work description must be at least 5 characters.";
   }
   if (reasonForWork.trim().length < 3) {
     errors.reasonForWork = "Enter the reason for work.";

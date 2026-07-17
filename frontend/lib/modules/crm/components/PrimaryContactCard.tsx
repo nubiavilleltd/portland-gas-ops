@@ -6,7 +6,7 @@ import FormInput from "@/components/forms/FormInput";
 interface Props {
   values: {
     contactPerson: string;
-    designation: string;
+    department: string;
     email: string;
     phone: string;
     alternatePhone: string;
@@ -34,6 +34,7 @@ export default function PrimaryContactCard({
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <FormInput
           label="Contact Person"
+          placeholder="Enter Contact Person"
           required
           value={values.contactPerson}
           error={errors?.contactPerson}
@@ -42,15 +43,17 @@ export default function PrimaryContactCard({
         />
 
         <FormInput
-          label="Designation"
-          value={values.designation}
-          error={errors?.designation}
+          label="Department"
+          placeholder="Enter Department"
+          value={values.department}
+          error={errors?.department}
           readOnly={readOnly}
-          onChange={(e) => onChange?.("designation", e.target.value)}
+          onChange={(e) => onChange?.("department", e.target.value)}
         />
 
         <FormInput
           label="Email Address"
+          placeholder="Enter Email Address"
           type="email"
           required
           value={values.email}
@@ -61,6 +64,7 @@ export default function PrimaryContactCard({
 
         <FormInput
           label="Phone Number"
+          placeholder="Enter Phone Number"
           required
           value={values.phone}
           error={errors?.phone}
@@ -70,6 +74,7 @@ export default function PrimaryContactCard({
 
         <FormInput
           label="Alternative Phone"
+          placeholder="Enter Alternative Phone"
           value={values.alternatePhone}
           error={errors?.alternatePhone}
           readOnly={readOnly}
