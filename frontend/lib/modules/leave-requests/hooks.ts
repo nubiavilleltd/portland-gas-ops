@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
 import leaveRequestsApi from "./api";
 import { useToast } from "@/hooks/useToast";
 import { LeaveRequestCreatePayload, ListLeaveRequestsParams } from "./types";
@@ -56,19 +57,40 @@ export function useCreateLeaveRequest() {
   });
 }
 
+function shouldRetry(failureCount: number, error: unknown) {
+  const status = (error as { response?: { status?: number } }).response?.status;
+  if (status === 401 || status === 403 || status === 404 || status === 429) {
+    return false;
+  }
+  return failureCount < 1;
+}
+
 export function useCurrentEmployee() {
   return useQuery<CurrentEmployee | null, Error>({
     queryKey: ["current-employee"],
     queryFn: async () => {
-      const response = await fetch("/api/employees/me");
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error("Failed to fetch current employee");
+      try {
+        const response = await api.get<CurrentEmployee>("/api/employees/me");
+        return response.data;
+      } catch (error) {
+        const status = (error as { response?: { status?: number } }).response?.status;
+        if (status === 404) return null;
+        throw error;
       }
-      return response.json() as Promise<CurrentEmployee>;
     },
     staleTime: 5 * 60 * 1000,
+    retry: shouldRetry,
   });
+}
+
+export interface ApprovalAssignment {
+  id: string;
+  approval_request_id: string;
+  step_number: number;
+  step_name: string;
+  assigned_to: string;
+  status: string;
+  completed_at?: string | null;
 }
 
 export function useApprovalAssignments(approvalRequestId?: string) {
@@ -76,12 +98,16 @@ export function useApprovalAssignments(approvalRequestId?: string) {
     queryKey: ["approval-assignments", approvalRequestId],
     queryFn: async () => {
       if (!approvalRequestId) return null;
-      const response = await fetch(`/api/workflow/requests/${approvalRequestId}`);
-      if (!response.ok) throw new Error("Failed to fetch approval assignments");
-      return response.json();
+      try {
+        const response = await api.get<ApprovalAssignment[]>(`/api/workflow/requests/${approvalRequestId}`);
+        return response.data;
+      } catch (error) {
+        throw new Error("Failed to fetch approval assignments");
+      }
     },
     enabled: !!approvalRequestId,
     staleTime: 5 * 60 * 1000,
+    retry: shouldRetry,
   });
 }
 
@@ -99,25 +125,21 @@ export function useApproveLeaveRequest() {
       action: "approve" | "reject" | "return";
       comment?: string;
     }) => {
-      const response = await fetch(
-        `/api/workflow/requests/${approvalRequestId}/${action}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ comment: comment || null }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || `Failed to ${action} request`);
+      try {
+        const response = await api.post(
+          `/api/workflow/requests/${approvalRequestId}/${action}`,
+          { comment: comment || null }
+        );
+        return response.data;
+      } catch (error) {
+        const message = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail;
+        throw new Error(message || `Failed to ${action} request`);
       }
-
-      return response.json();
     },
     onSuccess: (data, variables) => {
-      // Invalidate all leave request queries to refetch updated data
+      // Invalidate all leave request queries AND approval assignments to refetch updated data
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ["approval-assignments"] }); // All approval assignment queries
 
       const actionMessages = {
         approve: "Request approved successfully",

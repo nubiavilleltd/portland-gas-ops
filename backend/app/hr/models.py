@@ -42,8 +42,9 @@ class LeaveRequestStatus(str, enum.Enum):
     draft = "draft"
     awaiting_approval = "awaiting_approval"
     pending = "pending"
-    approved = "approved"
     in_progress = "in_progress"
+    returned = "returned"
+    approved = "approved"
     denied = "denied"
 
 

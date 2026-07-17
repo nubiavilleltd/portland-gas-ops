@@ -12,7 +12,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
 import { useToast } from "@/hooks/useToast";
-import { useLeaveRequest, useCurrentEmployee, useApproveLeaveRequest } from "@/lib/modules/leave-requests/hooks";
+import { useLeaveRequest, useCurrentEmployee, useApproveLeaveRequest, useApprovalAssignments } from "@/lib/modules/leave-requests/hooks";
 import { LEAVE_STORE, type LeaveRequest } from "../../_components/_data";
 
 const CURRENT_USER = {
@@ -58,6 +58,7 @@ export default function LeaveRequestDetailPage({
   const { reference } = use(params);
   const { data: apiRecord, isLoading } = useLeaveRequest(reference);
   const { data: currentEmployee } = useCurrentEmployee();
+  const { data: assignmentsList } = useApprovalAssignments(apiRecord?.approval_request_id);
 
   const [record, setRecord] = useState<LeaveRequest | undefined>(
     () => LEAVE_STORE.find((r) => r.ref === reference)
@@ -91,24 +92,30 @@ export default function LeaveRequestDetailPage({
   }, [apiRecord]);
 
   // Auto-detect current user's role
-  // Note: Comparing by name as workaround since /api/employees/me returns user data instead of employee data
   // Role detection using employee ID comparison (matching Safety & Compliance pattern)
   const isRequester = apiRecord && currentEmployee ? apiRecord.requester_id === currentEmployee.id : false;
   const isReliever = apiRecord && currentEmployee ? apiRecord.reliever_id === currentEmployee.id : false;
-  const isApprover = apiRecord && currentEmployee && apiRecord.approval_request_id && !isRequester && !isReliever;
-  const hasWorkflowAccess = isRequester || isReliever || isApprover;
+
+  // Check if current user is assigned to ANY active approval step
+  const isCurrentApprover = apiRecord && currentEmployee && assignmentsList &&
+    assignmentsList.some(assignment =>
+      assignment.assigned_to === currentEmployee.id &&
+      (!assignment.completed_at) // Not yet completed
+    );
+
+  const hasWorkflowAccess = isRequester || isReliever || isCurrentApprover;
 
   useEffect(() => {
     if (!apiRecord || !currentEmployee) return;
 
     if (isReliever) {
       setCurrentRole("reliever");
-    } else if (isApprover) {
+    } else if (isCurrentApprover) {
       setCurrentRole("approver");
     } else {
       setCurrentRole("requester");
     }
-  }, [apiRecord, currentEmployee, isReliever, isApprover, isRequester]);
+  }, [apiRecord, currentEmployee, isReliever, isCurrentApprover, isRequester]);
   const [actionDone, setActionDone] = useState<ActionResult | null>(null);
   const [actionComment, setActionComment] = useState<string>("");
   const [currentRole, setCurrentRole] = useState<PageRole>("requester");
@@ -203,6 +210,7 @@ export default function LeaveRequestDetailPage({
           </div>
 
           {/* Workflow Progress */}
+          {/* COMMENTED OUT FOR NOW
           {record.status !== "draft" && (
             <div className="rounded-2xl border border-brand-border bg-white p-5">
               <p className="text-sm font-semibold text-brand-text-primary mb-4">Approval Progress</p>
@@ -239,6 +247,7 @@ export default function LeaveRequestDetailPage({
               </div>
             </div>
           )}
+          */}
 
           {/* Requester Details — mirrors form Requester Details section */}
           <ViewSection title="Requester Details" description="Your employee information for this leave request.">
@@ -329,13 +338,15 @@ export default function LeaveRequestDetailPage({
           {record.status === "pending" && !actionDone && currentRole === "reliever" && (
             <ApprovalPanel
               reviewingAs="Reliever"
-              showReturn={false}
+              showReturn
               showReject
               showApprove
-              rejectLabel="Decline"
-              approveLabel="Accept"
+              returnLabel="Return"
+              rejectLabel="Deny"
+              approveLabel="Approve"
               requireCommentForRejectReturn
               isSubmitting={approveMutation.isPending}
+              onReturn={(comment) => submitApprovalAction("return", comment)}
               onReject={(comment) => submitApprovalAction("reject", comment)}
               onApprove={(comment) => submitApprovalAction("approve", comment)}
             />

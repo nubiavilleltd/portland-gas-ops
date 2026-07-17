@@ -88,7 +88,7 @@ def notify_step_assigned(db: Session, approval_request_id: str) -> None:
         )
         step_name = step.step_name if step else ""
 
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        url = email_service.get_request_url(ar.request_type, ar.request_id, db)
         requester_name = (
             requester.user.full_name
             if requester and requester.user and requester.user.full_name
@@ -192,7 +192,7 @@ def notify_request_result(
         )
         title = (all_req.title if all_req else None) or ar.request_type
 
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        url = email_service.get_request_url(ar.request_type, ar.request_id, db)
         result_message_override = approved_result_message_for_request_type(
             ar.request_type,
             action,
@@ -317,7 +317,7 @@ def notify_step_progress(
         step_name = completed_step.step_name if completed_step else f"Step {completed_step_number}"
         next_step_name = next_step.step_name if next_step else f"Step {ar.current_step_number}"
 
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        url = email_service.get_request_url(ar.request_type, ar.request_id, db)
         subject = f"Request Update: {email_service.get_request_type_label(ar.request_type)} — Step {completed_step_number} Approved"
 
         html = email_service._render("request_progress.html", {

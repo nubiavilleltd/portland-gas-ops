@@ -334,7 +334,9 @@ def _update_source_status(request_type: str, request_id: str, status: str, db: S
             elif status == "rejected":
                 row.status = LeaveRequestStatus.denied
             elif status == "returned":
-                row.status = LeaveRequestStatus.draft
+                row.status = LeaveRequestStatus.returned
+            elif status == "in_progress":
+                row.status = LeaveRequestStatus.in_progress
 
 
 @router.post("/requests/{approval_request_id}/approve")
@@ -361,7 +363,9 @@ def approve_request(
     if result.overall_status.value == "approved":
         workflow_email.notify_request_result(db, approval_request_id, "approved", comment=body.comment)
     else:
-        # Mid-flow: email the next approver AND update the requester on progress
+        # Mid-flow: update source status to in_progress, then email the next approver
+        _update_source_status(ar.request_type, ar.request_id, "in_progress", db)
+        db.commit()
         workflow_email.notify_step_assigned(db, approval_request_id)
         workflow_email.notify_step_progress(db, approval_request_id, approver_employee_id)
 
