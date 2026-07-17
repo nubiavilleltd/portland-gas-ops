@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ORDER_KEYS } from "../constants/query-keys";
-import type { CreateOrderInput, Order } from "../types/orders.types";
+import type { CreateOrderInput, Order, SaveDraftInput } from "../types/orders.types";
 import { saveDraftOrderWorkflow } from "../workflows/save-draft-order.workflow";
 import { ORDER_ROUTES } from "../constants/routes";
 import { useRouter } from "next/navigation";
@@ -16,7 +16,7 @@ export function useSaveDraftOrderWorkflow() {
       input,
       existingDraftNo,
     }: {
-      input: CreateOrderInput;
+      input: SaveDraftInput;
       existingDraftNo?: string;
     }) => saveDraftOrderWorkflow(input, existingDraftNo),
 

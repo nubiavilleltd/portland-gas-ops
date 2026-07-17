@@ -99,7 +99,7 @@ export interface Order {
   totalAmount: number;
 
   // Delivery
-  deliveryAddress: string;
+  deliveryAddress: string | null;
   deliveryDate: string | null;
   notes?: string;
 
@@ -148,6 +148,16 @@ export interface CreateOrderInput {
   deliveryAddress: string;
   deliveryDate?: string;
 
+  notes?: string;
+}
+
+export interface SaveDraftInput {
+  customerId: string;
+  orderItems?: CreateOrderLineItemInput[];
+  discountType?: DiscountType;
+  discountValue?: number;
+  deliveryAddress?: string;
+  deliveryDate?: string;
   notes?: string;
 }
 

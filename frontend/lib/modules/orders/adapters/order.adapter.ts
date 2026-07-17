@@ -20,6 +20,7 @@ import type {
     Order,
     OrderLineItem,
     OrderStatus,
+    SaveDraftInput,
     UpdateOrderInput,
 } from "../types/orders.types";
 
@@ -55,7 +56,7 @@ interface OrderResponse {
     fulfillment_status: string;
     payment_status: string;
 
-    delivery_address: string;
+    delivery_address: string | null;
     delivery_date: string | null;
 
     notes: string | null;
@@ -135,6 +136,20 @@ export interface UpdateOrderRequest {
         quantity: number;
     }[];
 }
+
+
+
+export interface SaveDraftRequest {
+  customer_id: string;
+  order_items?: { product_id: string; quantity: number }[];
+  discount_type?: DiscountType;
+  discount_value?: number;
+  delivery_address?: string;
+  delivery_date?: string;
+  notes?: string;
+}
+
+
 
 // ─────────────────────────────────────────────────────────────
 // Enum mapping
@@ -289,6 +304,21 @@ export function adaptCreateOrderRequest(
       product_id: item.productId,
       quantity: item.quantity,
     })),
+  };
+}
+
+export function adaptSaveDraftRequest(input: SaveDraftInput): SaveDraftRequest {
+  return {
+    customer_id: input.customerId,
+    order_items: input.orderItems?.map((item) => ({
+      product_id: item.productId,
+      quantity: item.quantity,
+    })),
+    discount_type: input.discountType,
+    discount_value: input.discountValue,
+    delivery_address: input.deliveryAddress,
+    delivery_date: input.deliveryDate,
+    notes: input.notes,
   };
 }
 

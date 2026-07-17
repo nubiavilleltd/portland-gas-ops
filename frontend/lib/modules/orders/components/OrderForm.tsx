@@ -29,22 +29,17 @@ import {
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import {
-  getProductByNo,
   getActiveProducts,
   getProductById,
 } from "@/lib/modules/products/selectors/products.selectors";
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
-import CurrencyInput from "@/components/forms/CurrencyInput";
 import FormSection from "@/components/ui/FormSection";
 import {
   useConsumableStock,
   useInventoryItems,
 } from "../../inventory/hooks/useInventory";
-import {
-  getAvailableCount,
-  getConsumableStockLevel,
-} from "../../inventory/selectors/inventory.selectors";
+
 import { useState } from "react";
 
 // ── Props ─────────────────────────────────────────────────
@@ -56,6 +51,7 @@ interface OrderFormProps {
   submitLoadingLabel?: string;
   showDraft?: boolean;
   onSaveDraft?: (data: SaveDraftPayload) => Promise<void> | void;
+  draftButtonLabel?: string;
 }
 
 // ── Summary row ───────────────────────────────────────────
@@ -74,9 +70,9 @@ export default function OrderForm({
   onSubmit,
   onCancel,
   onSaveDraft,
+  draftButtonLabel,
   submitLabel = "Create Order",
   submitLoadingLabel = "Creating…",
-  showDraft = true,
 }: OrderFormProps) {
   const { form } = useCreateOrderForm({ defaultValues });
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
@@ -89,6 +85,7 @@ export default function OrderForm({
     watch,
     setValue,
     setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = form;
 
@@ -256,6 +253,36 @@ export default function OrderForm({
     { value: formatCurrency(subtotal) },
   ];
 
+
+  function findFirstErrorPath(errors: any, prefix = ""): string | null {
+    for (const key in errors) {
+      const value = errors[key];
+      const path = prefix ? `${prefix}.${key}` : key;
+
+      if (!value) continue;
+
+      if (value.message && typeof value.message === "string") {
+        return path;
+      }
+
+      if (typeof value === "object") {
+        const nested = findFirstErrorPath(value, path);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+
+
+  function handleFormInvalid(formErrors: typeof errors) {
+    toast.error("Please fix the highlighted fields before continuing.");
+
+    const firstErrorPath = findFirstErrorPath(formErrors);
+    if (firstErrorPath) {
+      setFocus(firstErrorPath as any);
+    }
+  }
+
   // ── Submit ────────────────────────────────────────────────
   async function handleFormSubmit(data: CreateOrderFormOutput) {
     try {
@@ -264,47 +291,54 @@ export default function OrderForm({
       const message =
         err instanceof Error ? err.message : "An unexpected error occurred.";
       setError("root", { message });
+      toast.error(message);
       throw err;
     }
   }
 
+
+
   async function handleSaveDraftClick() {
-  form.clearErrors();
-  const values = form.getValues();
+    form.clearErrors();
+    const values = form.getValues();
+    const cleanedValues = {
+      ...values,
+      orderItems: values.orderItems?.filter(
+        (item) => item.productId && item.productId.trim() !== ""
+      ),
+      ...(values.discountType === 'none' && { discountValue: 0 }),
+    };
+    const result = saveDraftSchema.safeParse(cleanedValues);
+    if (!result.success) {
+      toast.error("Please fix the highlighted fields before saving.");
 
-  const cleanedValues = {
-    ...values,
-    orderItems: values.orderItems?.filter(
-      (item) => item.productId && item.productId.trim() !== ""
-    ),
-  };
+      result.error.issues.forEach((issue) => {
+        const path = issue.path.join(".") as any;
+        form.setError(path, { message: issue.message, type: "manual" });
+      });
 
-  const result = saveDraftSchema.safeParse(cleanedValues);
+      const firstIssuePath = result.error.issues[0]?.path.join(".");
+      if (firstIssuePath) {
+        form.setFocus(firstIssuePath as any);
+      }
+      return;
+    }
 
-  if (!result.success) {
-    result.error.issues.forEach((issue) => {
-      const path = issue.path.join(".") as any;
-      form.setError(path, { message: issue.message });
-    });
-    return;
+    // 6. Save the draft
+    try {
+      setIsSavingDraft(true);
+      await onSaveDraft?.(result.data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save draft.";
+      form.setError("root", { message });
+    } finally {
+      setIsSavingDraft(false);
+    }
   }
 
-  try {
-    setIsSavingDraft(true);
-    await onSaveDraft?.(result.data);
-    // toast.success("Draft saved");
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to save draft.";
-    setError("root", { message });
-  } finally {
-    setIsSavingDraft(false);
-  }
-}
-
-  // ── Render ────────────────────────────────────────────────
   return (
     <form
-      onSubmit={handleSubmit(handleFormSubmit)}
+      onSubmit={handleSubmit(handleFormSubmit, handleFormInvalid)}
       noValidate
       className="space-y-6"
     >
@@ -327,7 +361,13 @@ export default function OrderForm({
                 options={customerOptions}
                 error={errors.customerId?.message}
                 value={field.value}
-                onValueChange={field.onChange}
+                // onValueChange={field.onChange}
+
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  // Clear the error when a value is selected
+                  form.clearErrors("customerId");
+                }}
               />
             )}
           />
@@ -458,11 +498,6 @@ export default function OrderForm({
       >
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* <FormDatePicker
-              label="Scheduled Date"
-              required
-              {...register("deliveryDate")}
-            /> */}
 
             <Controller
               control={control}
@@ -501,23 +536,7 @@ export default function OrderForm({
       <ErrorBanner message={errors.root?.message} />
 
       {/* ACTIONS */}
-      <div className="flex items-center justify-end gap-3 pb-10">
-        {/* <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-          Cancel
-        </Button> */}
-        {/* {showDraft && onSaveDraft && (
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={isSubmitting || isSavingDraft}
-            loading={isSavingDraft}
-            loadingText="Saving…"
-            onClick={handleSaveDraftClick}
-          >
-            Save Draft
-          </Button>
-        )} */}
-
+      <div className="flex items-center gap-3 pb-10">
         <Button
           type="button"
           variant="outline"
@@ -526,7 +545,7 @@ export default function OrderForm({
           loadingText="Saving…"
           onClick={handleSaveDraftClick}
         >
-          Save Draft
+          {draftButtonLabel || "Save Draft"}
         </Button>
         <Button
           type="submit"

@@ -12,6 +12,10 @@ from app.shared.utils.number_generator import generate_entity_no
 
 
 class OrderRepository:
+
+    def clear_items(self, db: Session, order_id: str) -> None:
+        """Delete all order items for a given order."""
+        db.query(OrderItem).filter(OrderItem.order_id == order_id).delete()
     def generate_order_no(self, db: Session) -> str:
         return generate_entity_no(db, Order, "order_no", "ORD")
 

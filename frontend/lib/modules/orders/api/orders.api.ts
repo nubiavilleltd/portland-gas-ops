@@ -3,6 +3,7 @@ import api from "@/lib/api";
 
 import type {
   CreateOrderRequest,
+  SaveDraftRequest,
   UpdateOrderRequest,
 } from "../adapters/order.adapter";
 
@@ -34,7 +35,7 @@ export const ordersApi = {
   },
 
   createDraft: async (
-    input: CreateOrderRequest,
+    input: SaveDraftRequest,
   ) => {
     const { data } = await api.post(
       "/api/orders",
@@ -46,7 +47,7 @@ export const ordersApi = {
 
   update: async (
     orderNo: string,
-    input: UpdateOrderRequest,
+    input: SaveDraftRequest,
   ) => {
     const { data } = await api.put(
       `/api/orders/${orderNo}`,

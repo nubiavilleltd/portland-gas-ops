@@ -22,7 +22,7 @@ class Order(Base):
     order_status        = Column(SAEnum(OrderStatus), nullable=False, default=OrderStatus.draft)
     fulfillment_status  = Column(SAEnum(FulfillmentStatus), nullable=False, default=FulfillmentStatus.pending)
     payment_status      = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.unpaid)
-    delivery_address    = Column(Text, nullable=False)
+    delivery_address    = Column(Text, nullable=True)
     delivery_date       = Column(Date, nullable=True)
     notes               = Column(Text, nullable=True)
     total_amount        = Column(Numeric(15, 2), nullable=False, default=0)

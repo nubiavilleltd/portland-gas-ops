@@ -8,7 +8,7 @@ from app.shared.dependencies import require_roles
 from app.shared.models.user import User
 from app.orders.service import OrderService
 from app.orders.schema import (
-    OrderCreate, OrderUpdate, OrderFilters, CancelOrderRequest,
+    OrderCreate, OrderDraftCreate, OrderUpdate, OrderFilters, CancelOrderRequest,
     OrderResponse, OrderListResponse,
     UpdateFulfillmentRequest, SetTripRequest, SetInvoiceRequest,
 )
@@ -54,7 +54,7 @@ def list_orders(
 
 @router.post("", response_model=OrderResponse, status_code=http_status.HTTP_201_CREATED)
 def create_draft(
-    data:         OrderCreate,
+    data:         OrderDraftCreate,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):

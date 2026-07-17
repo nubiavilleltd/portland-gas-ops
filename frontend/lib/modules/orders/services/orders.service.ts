@@ -6,7 +6,7 @@ import {
   adaptOrder,
   adaptOrderList,
   adaptCreateOrderRequest,
-  adaptUpdateOrderRequest,
+  adaptSaveDraftRequest,
 } from "../adapters/order.adapter";
 
 import type {
@@ -15,7 +15,7 @@ import type {
   Order,
   OrderKPIs,
   OrderStatus,
-  UpdateOrderInput,
+  SaveDraftInput,
 } from "../types/orders.types";
 
 import type { PaymentStatus } from "../../payments/types/payments.types";
@@ -82,11 +82,11 @@ export const OrdersService = {
   // ------------------------------------------------------------------
 
   async createDraftOrder(
-    input: CreateOrderInput,
+    input: SaveDraftInput,
   ): Promise<Order> {
     try {
       const raw = await ordersApi.createDraft(
-        adaptCreateOrderRequest(input),
+        adaptSaveDraftRequest(input),
       );
 
       return adaptOrder(raw);
@@ -99,12 +99,12 @@ export const OrdersService = {
 
   async updateDraftOrder(
     orderNo: string,
-    input: UpdateOrderInput,
+    input: SaveDraftInput,
   ): Promise<Order> {
     try {
       const raw = await ordersApi.update(
         orderNo,
-        adaptUpdateOrderRequest(input),
+        adaptSaveDraftRequest(input),
       );
 
       return adaptOrder(raw);

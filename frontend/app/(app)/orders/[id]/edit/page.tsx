@@ -1,8 +1,6 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -10,15 +8,12 @@ import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
-import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
 import type { CreateOrderFormOutput, CreateOrderFormValues, SaveDraftPayload } from "@/lib/modules/orders/schemas/create-order.schema";
-import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { ORDER_ROUTES } from "@/lib/routes";
-import { parseError } from "@/lib/errors";
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 
-import { buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
+
+import { buildDraftOrderPayload, buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
 import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
 import { BackButton } from "@/components/ui/BackButton";
@@ -30,7 +25,6 @@ export default function EditOrderPage() {
 
   const { order, isLoading, error } = useOrderByNumber(orderNo);
 
-  const { products } = useProducts();
   const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
   const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 
@@ -84,18 +78,6 @@ export default function EditOrderPage() {
     );
   }
 
-  // ── Map Order → form default values ───────────────────
-  // The Order entity stores a single product_name (legacy shape).
-  // We map it back to the order_items array the form expects.
-  // When the backend supports order_items natively, replace this
-  // mapping with the real array from the API response.
-  // const matchedProduct = products.find(
-  //   (p) => p.name === order.product_name
-  // );
-
-
-
-
   const defaultValues: Partial<CreateOrderFormValues> = {
     customerId: order.customerId,
     orderItems: order.orderItems.map((item) => ({
@@ -103,7 +85,7 @@ export default function EditOrderPage() {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
     })),
-    deliveryAddress: order.deliveryAddress,
+    deliveryAddress: order.deliveryAddress ?? "",
     deliveryDate: order.deliveryDate ?? "",
     notes: order.notes ?? "",
   };
@@ -112,25 +94,14 @@ export default function EditOrderPage() {
   async function handleSubmit(data: CreateOrderFormOutput) {
     await submitOrder({ input: buildOrderPayload(data), existingDraftNo: orderNo });
   }
-  async function handleSaveDraft(data: SaveDraftPayload) {
-    await saveDraft({ input: buildOrderPayload(data), existingDraftNo: orderNo });
-    // toast.success("Draft saved");
-  }
 
-//   async function handleSaveDraft(data: CreateOrderFormValues) {
-//   const saved = await saveDraft({ input: buildOrderPayload(data), existingDraftNo: draftId ?? undefined });
-//   toast.success("Draft saved");
-// }
+async function handleSaveDraft(data: SaveDraftPayload) {
+  await saveDraft({ input: buildDraftOrderPayload(data), existingDraftNo: orderNo });
+}
+
 
   return (
     <AppLayout pageTitle="Edit Order">
-      {/* <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back to Order
-      </button> */}
 
       <BackButton
         href={`${ORDER_ROUTES.detail(orderNo)}`}
@@ -143,21 +114,13 @@ export default function EditOrderPage() {
         className="mb-6"
       />
 
-      {/* <OrderForm
-        defaultValues={defaultValues}
-        onSubmit={handleSubmit}
-        onCancel={() => router.push(ORDER_ROUTES.detail(id))}
-        submitLabel="Submit Order"
-        submitLoadingLabel="Submitting..."
-      /> */}
       <OrderForm
         defaultValues={defaultValues}
         onSubmit={handleSubmit}
-        // onCancel={() => router.push(ORDER_ROUTES.detail(id))}
         onSaveDraft={handleSaveDraft}
         submitLabel="Submit Order"
         submitLoadingLabel="Submitting..."
-        showDraft
+        draftButtonLabel = "Update Draft"
       />
     </AppLayout>
   );

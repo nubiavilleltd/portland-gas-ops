@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -14,6 +14,7 @@ from app.orders.validators import (
     validate_quantity,
     validate_discount,
     validate_discount_value,
+    validate_customer_id
 )
 from app.payments.enums import PaymentStatus
 from app.orders.enums import DiscountType
@@ -38,6 +39,12 @@ class OrderCreate(BaseModel):
     delivery_address: str
     delivery_date: Optional[date] = None
     notes: Optional[str] = None
+
+
+    @field_validator("customer_id")
+    @classmethod
+    def customer_id_validator(cls, value: str) -> str:
+        return validate_customer_id(value)
 
     @field_validator("order_items")
     @classmethod
@@ -66,50 +73,109 @@ class OrderCreate(BaseModel):
         return self
 
 
-class OrderUpdate(BaseModel):
-    customer_id: Optional[str] = None
-    order_items: Optional[List[OrderItemCreate]] = None
-    discount_type: Optional[DiscountType] = None
-    discount_value: Optional[Decimal] = None
-
-    delivery_address: Optional[str] = None
+class OrderDraftCreate(BaseModel):
+    customer_id: str
+    order_items: List[OrderItemCreate] = Field(default_factory=list)
+    discount_type: DiscountType = DiscountType.none
+    discount_value: Decimal = Decimal("0")
+    delivery_address: str = ""
     delivery_date: Optional[date] = None
-    notes: Optional[str] = None
+    notes: str = ""
+
+    @field_validator("delivery_date", mode="before")
+    @classmethod
+    def handle_empty_date(cls, v: Any) -> Any:
+        """Convert empty string to None before date validation."""
+        if v == "":
+            return None
+        return v
+
+    @field_validator("customer_id")
+    @classmethod
+    def customer_id_validator(cls, value: str) -> str:
+        return validate_customer_id(value)
 
     @field_validator("order_items")
     @classmethod
     def order_items_validator(
         cls,
-        value: Optional[List[OrderItemCreate]],
-    ) -> Optional[List[OrderItemCreate]]:
-        return validate_order_items(value, required=False)
+        value: List[OrderItemCreate],
+    ) -> List[OrderItemCreate]:
+        return value
 
     @field_validator("delivery_address")
     @classmethod
     def delivery_address_validator(
         cls,
-        value: Optional[str],
-    ) -> Optional[str]:
-        return validate_delivery_address(value, required=False)
+        value: str,
+    ) -> str:
+        return value
+
+    @field_validator("discount_value")
+    @classmethod
+    def discount_value_validator(cls, value: Decimal) -> Decimal:
+        return validate_discount_value(value, required=False) or Decimal("0")
+
+    @model_validator(mode="after")
+    def validate_discount_fields(self):
+        self.discount_value = validate_discount(
+            self.discount_type,
+            self.discount_value,
+        )
+        return self
+class OrderUpdate(BaseModel):
+    customer_id: str
+    order_items: List[OrderItemCreate] = Field(default_factory=list)
+    discount_type: DiscountType = DiscountType.none
+    discount_value: Decimal = Decimal("0")
+    delivery_address: str = ""
+    delivery_date: Optional[date] = None
+    notes: str = ""
+
+    @field_validator("delivery_date", mode="before")
+    @classmethod
+    def handle_empty_date(cls, v: Any) -> Any:
+        """Convert empty string to None before date validation."""
+        if v == "":
+            return None
+        return v
+
+    @field_validator("customer_id")
+    @classmethod
+    def customer_id_validator(cls, value: str) -> str:
+        return validate_customer_id(value)
+
+    @field_validator("order_items")
+    @classmethod
+    def order_items_validator(
+        cls,
+        value: List[OrderItemCreate],
+    ) -> List[OrderItemCreate]:
+        return value
+
+    @field_validator("delivery_address")
+    @classmethod
+    def delivery_address_validator(
+        cls,
+        value: str,
+    ) -> str:
+        return value
 
     @field_validator("discount_value")
     @classmethod
     def discount_value_validator(
         cls,
-        value: Optional[Decimal],
-    ) -> Optional[Decimal]:
-        return validate_discount_value(value, required=False)
+        value: Decimal,
+    ) -> Decimal:
+        return validate_discount_value(value, required=False) or Decimal("0")
 
     @model_validator(mode="after")
     def validate_discount_fields(self):
-        if self.discount_type is not None or self.discount_value is not None:
-            self.discount_value = validate_discount(
-                self.discount_type or DiscountType.none,
-                self.discount_value or Decimal("0"),
-            )
-
+        self.discount_value = validate_discount(
+            self.discount_type,
+            self.discount_value,
+        )
         return self
-
 
 class CancelOrderRequest(BaseModel):
     reason: Optional[str] = None
@@ -157,7 +223,7 @@ class OrderResponse(BaseModel):
     fulfillment_status: FulfillmentStatus
     payment_status: PaymentStatus
 
-    delivery_address: str
+    delivery_address: Optional[str]
     delivery_date: Optional[date]
     notes: Optional[str]
 
