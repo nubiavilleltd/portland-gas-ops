@@ -114,7 +114,6 @@ async def create_product(
         )
 
     image_files = _validate_images(images)
-
     uploaded_by = _uploaded_by(current_user)
 
     product = service.create(db, payload, image_files, uploaded_by)
@@ -123,8 +122,9 @@ async def create_product(
     return _to_response(db, product)
 
 
-@router.get("/{product_no}", response_model=ProductResponse)
-def get_product(
+# ── Read: _no lookup (must come before /{product_id}) ──────────────
+@router.get("/by-no/{product_no}", response_model=ProductResponse)
+def get_product_by_no(
     product_no:   str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
@@ -133,9 +133,20 @@ def get_product(
     return _to_response(db, product)
 
 
-@router.put("/{product_no}", response_model=ProductResponse)
+# ── Read: primary, id-based ─────────────────────────────────────────
+@router.get("/{product_id}", response_model=ProductResponse)
+def get_product(
+    product_id:   str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+):
+    product = service.get_or_raise(db, product_id)
+    return _to_response(db, product)
+
+
+@router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
-    product_no:     str,
+    product_id:     str,
     data:           str              = Form(...),
     images:         List[UploadFile] = File(default=[]),
     kept_image_ids: str              = Form(default="[]"),
@@ -156,7 +167,7 @@ async def update_product(
     image_files = _validate_images(images)
     uploaded_by = _uploaded_by(current_user)
     product = service.update(
-        db, product_no, payload,
+        db, product_id, payload,
         new_images     = image_files,
         kept_image_ids = kept_ids,
         uploaded_by    = uploaded_by,
@@ -166,25 +177,26 @@ async def update_product(
     return _to_response(db, product)
 
 
-@router.post("/{product_no}/deactivate", response_model=ProductResponse)
+@router.post("/{product_id}/deactivate", response_model=ProductResponse)
 def deactivate_product(
-    product_no:   str,
+    product_id:   str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    product         = service.deactivate(db, product_no)
+    product = service.deactivate(db, product_id)
     db.commit()
     db.refresh(product)
     return _to_response(db, product)
 
 
-@router.post("/{product_no}/activate", response_model=ProductResponse)
+@router.post("/{product_id}/activate", response_model=ProductResponse)
 def activate_product(
-    product_no:   str,
+    product_id:   str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    product         = service.activate(db, product_no)
+    product = service.activate(db, product_id)
     db.commit()
     db.refresh(product)
     return _to_response(db, product)
+

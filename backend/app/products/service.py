@@ -146,14 +146,14 @@ class ProductService:
     def update(
         self,
         db: Session,
-        product_no: str,
+        product_id: str,
         data: ProductUpdate,
         new_images: list[tuple[bytes, str, str, int]] | None = None,
         kept_image_ids: list[str] | None = None,
         uploaded_by: str | None = None,
     ) -> Product:
 
-        product = self.get_by_no_or_raise(db, product_no)
+        product = self.get_or_raise(db, product_id)
 
         if data.name and data.name.lower() != product.name.lower():
             self._ensure_unique_name(db, data.name)
@@ -208,10 +208,10 @@ class ProductService:
     def activate(
         self,
         db: Session,
-        product_no: str,
+        product_id: str,
     ) -> Product:
 
-        product = self.get_by_no_or_raise(db, product_no)
+        product = self.get_or_raise(db, product_id)
 
         if not guards.can_activate(product):
             raise AppException(
@@ -229,10 +229,10 @@ class ProductService:
     def deactivate(
         self,
         db: Session,
-        product_no: str,
+        product_id: str,
     ) -> Product:
 
-        product = self.get_by_no_or_raise(db, product_no)
+        product = self.get_or_raise(db, product_id)
 
         if not guards.can_deactivate(product):
             raise AppException(

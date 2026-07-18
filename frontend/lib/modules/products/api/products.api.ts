@@ -49,7 +49,7 @@ export const productsApi = {
   },
 
   update: async (
-    productNo: string,
+    id: string,
     input: BackendUpdateProductInput,
     newImageFiles: File[],
     keptImageIds: string[],
@@ -62,7 +62,7 @@ export const productsApi = {
     newImageFiles.forEach(file => form.append("images", file));
 
     const { data } = await api.put(
-      `/api/products/${productNo}`,
+      `/api/products/${id}`,
       form,
       {
         headers: {
@@ -74,16 +74,16 @@ export const productsApi = {
     return data;
   },
 
-  activate: async (productNo: string) => {
+  activate: async (id: string) => {
     const { data } = await api.post(
-      `/api/products/${productNo}/activate`
+      `/api/products/${id}/activate`
     );
     return data;
   },
 
-  deactivate: async (productNo: string) => {
+  deactivate: async (id: string) => {
     const { data } = await api.post(
-      `/api/products/${productNo}/deactivate`
+      `/api/products/${id}/deactivate`
     );
     return data;
   },

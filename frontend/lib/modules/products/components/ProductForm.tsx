@@ -22,16 +22,12 @@ import type {
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { useState } from "react";
-import { PRODUCT_TYPE_OPTIONS, PRODUCT_UNIT_OPTIONS, UNIT_OPTIONS } from "../constants/product.constants";
+import { PRODUCT_TYPE_OPTIONS, UNIT_OPTIONS } from "../constants/product.constants";
 
 
 
 // ── Props ──────────────────────────────────────────────────
 interface ProductFormProps {
-  /**
-   * Pass an existing product to pre-fill the form for editing.
-   * Omit for the create flow.
-   */
   initial?: Product;
   onSubmit: (
     data: CreateProductFormOutput,
@@ -39,9 +35,7 @@ interface ProductFormProps {
     keptImages: ProductImage[],
   ) => Promise<void>;
   onCancel: () => void;
-  /** Label for the submit button */
   submitLabel?: string;
-  /** Label for the submit button while submitting */
   submitLoadingLabel?: string;
 }
 
@@ -116,6 +110,7 @@ export default function ProductForm({
     <form
       onSubmit={handleSubmit(handleFormSubmit)}
       className="space-y-5"
+      noValidate
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Product Name */}
@@ -155,22 +150,6 @@ export default function ProductForm({
 
       {/* Unit + Price side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* <Controller
-                    control={control}
-                    name="unit"
-                    render={({ field }) => (
-                        <FormSelect
-                            label="Unit of Measurement"
-                            required
-                            options={UNIT_OPTIONS}
-                            value={field.value}
-                            onValueChange={(v) => field.onChange(v as ProductUnit)}
-                            error={errors.unit?.message}
-                            hint="How quantities of this product are measured."
-                        />
-                    )}
-                /> */}
-
         {productType === "tracked" && (
           <FormInput
             label="Product Code / Tag Prefix"
@@ -219,17 +198,6 @@ export default function ProductForm({
           error={errors.defaultUnitPrice?.message}
           required
         />
-        {/* 
-                <FormInput
-                    label="Default Unit Price (₦)"
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    placeholder="e.g. 1,500,000"
-                    // hint="Suggested price per unit. Can be overridden on each order."
-                    error={errors.defaultUnitPrice?.message}
-                    {...register("defaultUnitPrice")}
-                /> */}
       </div>
 
       {/* Description */}
@@ -256,15 +224,7 @@ export default function ProductForm({
       <ErrorBanner message={errors.root?.message} />
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-2">
-        {/* <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onCancel}
-                    disabled={isSubmitting}
-                >
-                    Cancel
-                </Button> */}
+      <div className="mt-4">
         <Button
           type="submit"
           loading={isSubmitting}

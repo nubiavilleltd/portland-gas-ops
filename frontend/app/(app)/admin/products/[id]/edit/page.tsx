@@ -8,24 +8,24 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useProductByNo } from "@/lib/modules/products/hooks/useProducts";
-import type { CreateProductFormOutput, UpdateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
-import { ProductsService } from "@/lib/modules/products/services/products.service";
+import { useProductById } from "@/lib/modules/products/hooks/useProducts";
+import type { UpdateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import ProductForm from "@/lib/modules/products/components/ProductForm";
 import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
 import { useUpdateProduct } from "@/lib/modules/products/hooks/useProductMutations";
 import { ProductImage } from "@/lib/modules/products/types/product.types";
+import { parseError } from "@/lib/errors";
 
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
-  const productNo = params.id as string;
+  const id = params.id as string;
 
-  const { product, isLoading, error } = useProductByNo(productNo);
+  const { product, isLoading, error } = useProductById(id);
 
-    const { mutateAsync: updateProduct } = useUpdateProduct(productNo);
+    const { mutateAsync: updateProduct } = useUpdateProduct(id);
 
   if (isLoading) {
     return (
@@ -56,20 +56,27 @@ export default function EditProductPage() {
 async function handleSubmit(
   data: UpdateProductFormOutput,
   newImages: File[],
-  keptImages: ProductImage[]
+  keptImages: ProductImage[],
 ) {
-  await updateProduct({
-    ...data,
-    // Signal to service: new File objects + IDs of existing images to keep
-    _newImageFiles: newImages,
-    _keptImageIds:  keptImages.map((img) => img.id),
-  } as any);
+  try {
+    await updateProduct({
+      ...data,
+      _newImageFiles: newImages,
+      _keptImageIds: keptImages.map((img) => img.id),
+    } as any);
+
+    toast.success("Product updated successfully");
+
+    router.push(PRODUCT_ROUTES.detail(id));
+  } catch (err) {
+    toast.error(parseError(err));
+  }
 }
 
   return (
     <AppLayout pageTitle={`Edit — ${product.name}`}>
       <button
-        onClick={() => router.push(PRODUCT_ROUTES.detail(productNo))}
+        onClick={() => router.push(PRODUCT_ROUTES.detail(id))}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
       >
         <ArrowLeft size={14} />
@@ -91,7 +98,7 @@ async function handleSubmit(
         <ProductForm
           initial={product}
           onSubmit={handleSubmit}
-          onCancel={() => router.push(PRODUCT_ROUTES.detail(productNo))}
+          onCancel={() => router.push(PRODUCT_ROUTES.detail(id))}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
         />

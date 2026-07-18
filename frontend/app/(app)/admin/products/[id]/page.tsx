@@ -8,10 +8,9 @@ import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useProductByNo } from "@/lib/modules/products/hooks/useProducts";
+import { useProductById } from "@/lib/modules/products/hooks/useProducts";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
-import { parseError } from "@/lib/errors";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -29,18 +28,18 @@ import { getStockStatus } from "@/lib/modules/products/selectors/products.select
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const productNo = params.id as string;
+  const id = params.id as string;
 
-  const { product, isLoading, error } = useProductByNo(productNo);
-  const { stock, quantity } = useConsumableStockByProduct(productNo);
-  const { movements } = useStockMovementsByProduct(productNo);
+  const { product, isLoading, error } = useProductById(id);
+  const { stock, quantity } = useConsumableStockByProduct(id);
+  const { movements } = useStockMovementsByProduct(id);
   const isLow = getStockStatus(product as Product, quantity);
     // product?.minimumStock != null && quantity <= product?.minimumStock;
   // const [actionError, setActionError] = useState<string | null>(null);
 
   const isActive = product?.status == "active";
   const { mutate: toggleStatus, isPending: isToggling } =
-    useToggleProductStatus(productNo);
+    useToggleProductStatus(id);
 
   if (isLoading) {
     return (
@@ -94,7 +93,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            href={PRODUCT_ROUTES.edit(productNo)}
+            href={PRODUCT_ROUTES.edit(id)}
             leftIcon={<Pencil size={14} />}
           >
             Edit

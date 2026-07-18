@@ -13,21 +13,42 @@ import type { Product } from "@/lib/modules/products/types/product.types";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { formatCurrency } from "@/lib/utils";
 import { ProductStatusBadge } from "@/lib/modules/products/badges/ProductStatusBadge";
+import PageErrorState from "@/components/ui/PageError";
 
 type TruncateParams = {
   text:string;
-  maxChar:number
+  maxChar:number;
+  suffix?:string;
 }
 
-function truncateText({text, maxChar}: TruncateParams){
+function truncateText({text, maxChar=100, suffix="..."}: TruncateParams){
   if(!text || typeof text !== "string") return "-";
-  if(text.length < maxChar) return text
-  return `${text.slice(0, maxChar)}...`
+  if(maxChar <= 0) return suffix
+  if(text.length <= maxChar) return text
+  return text.slice(0, maxChar) + suffix;
 }
 
 
 export default function ProductsPage() {
-  const { products, isLoading, error } = useProducts();
+  const { products, isLoading, error, refetch } = useProducts();
+
+
+  if (error) {
+  return (
+    <AppLayout pageTitle="Products">
+      <PageHeader
+        title="Products"
+        description="Manage the product catalogue available for order creation"
+        className="mb-6"
+      />
+
+      <PageErrorState
+        message={error}
+        onRetry={refetch}
+      />
+    </AppLayout>
+  );
+}
 
   const columns: Column<Product>[] = [
     {
@@ -79,8 +100,7 @@ export default function ProductsPage() {
         columns={columns}
         data={products}
         isLoading={isLoading}
-        // error={error}
-        rowHref={(product) => PRODUCT_ROUTES.detail(product.productNo)}
+        rowHref={(product) => PRODUCT_ROUTES.detail(product.id)}
         emptyMessage="No products found. Add your first product to get started."
       />
     </AppLayout>
