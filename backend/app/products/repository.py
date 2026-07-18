@@ -66,7 +66,10 @@ class ProductRepository:
         total = q.with_entities(func.count(Product.id)).scalar() or 0
 
         items = (
-            q.order_by(Product.name)
+            q.order_by(
+                Product.created_at.desc(),
+                Product.id.desc(),
+            )
             .offset((page - 1) * page_size)
             .limit(page_size)
             .all()

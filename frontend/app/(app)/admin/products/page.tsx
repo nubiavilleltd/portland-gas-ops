@@ -9,7 +9,6 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import type { Product } from "@/lib/modules/products/types/product.types";
-// import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { formatCurrency } from "@/lib/utils";
 import { ProductStatusBadge } from "@/lib/modules/products/badges/ProductStatusBadge";
@@ -58,20 +57,17 @@ export default function ProductsPage() {
     {
       key:   "unit",
       label: "Unit",
-    //   render: (_value, product) => getUnitLabel(product) || product.unit,
       render: (_value, product) => product.unit,
     },
     {
       key:   "defaultUnitPrice",
       label: "Default Unit Price",
-    //   render: (value, product) =>
-    //     `${formatCurrency(value as number)} / ${getUnitLabel(product) || product.unit}`,
       render: (_value, product:Product) => formatCurrency(product.defaultUnitPrice),
     },
     {
       key:   "description",
       label: "Description",
-      render: (value) => (truncateText({text:value as string, maxChar:200})) || "—",
+      render: (value) => (truncateText({text:value as string, maxChar:200})),
     },
     {
       key:   "status",

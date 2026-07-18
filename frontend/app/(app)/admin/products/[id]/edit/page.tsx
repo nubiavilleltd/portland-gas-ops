@@ -26,56 +26,56 @@ export default function EditProductPage() {
 
   const { product, isLoading, error } = useProductById(id);
 
-    const { mutateAsync: updateProduct } = useUpdateProduct(id);
+  const { mutateAsync: updateProduct } = useUpdateProduct(id);
 
 
-if (isLoading) {
-  return (
-    <AppLayout pageTitle="Edit Product">
-      <ProductFormSkeleton />
-    </AppLayout>
-  );
-}
-
-if (error || !product) {
-  return (
-    <AppLayout pageTitle="Product Not Found">
-      <PageErrorState
-        title="Product Not Found"
-        message={error ?? "This product could not be found."}
-      >
-        <Button
-          variant="outline"
-          onClick={() => router.push(PRODUCT_ROUTES.list())}
-        >
-          Back to Products
-        </Button>
-      </PageErrorState>
-    </AppLayout>
-  );
-}
-
-
-
-async function handleSubmit(
-  data: UpdateProductFormOutput,
-  newImages: File[],
-  keptImages: ProductImage[],
-) {
-  try {
-    await updateProduct({
-      ...data,
-      _newImageFiles: newImages,
-      _keptImageIds: keptImages.map((img) => img.id),
-    } as any);
-
-    toast.success("Product updated successfully");
-
-    router.push(PRODUCT_ROUTES.detail(id));
-  } catch (err) {
-    toast.error(parseError(err));
+  if (isLoading) {
+    return (
+      <AppLayout pageTitle="Edit Product">
+        <ProductFormSkeleton />
+      </AppLayout>
+    );
   }
-}
+
+  if (error || !product) {
+    return (
+      <AppLayout pageTitle="Product Not Found">
+        <PageErrorState
+          title="Product Not Found"
+          message={error ?? "This product could not be found."}
+        >
+          <Button
+            variant="outline"
+            onClick={() => router.push(PRODUCT_ROUTES.list())}
+          >
+            Back to Products
+          </Button>
+        </PageErrorState>
+      </AppLayout>
+    );
+  }
+
+
+
+  async function handleSubmit(
+    data: UpdateProductFormOutput,
+    newImages: File[],
+    keptImages: ProductImage[],
+  ) {
+    try {
+      await updateProduct({
+        product: data,
+        newImageFiles: newImages,
+        keptImageIds: keptImages.map(img => img.id),
+      });
+
+      toast.success("Product updated successfully");
+
+      router.push(PRODUCT_ROUTES.detail(id));
+    } catch (err) {
+      toast.error(parseError(err));
+    }
+  }
 
   return (
     <AppLayout pageTitle={`Edit — ${product.name}`}>

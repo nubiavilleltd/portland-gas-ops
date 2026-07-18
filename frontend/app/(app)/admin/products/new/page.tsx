@@ -31,9 +31,9 @@ export default function NewProductPage() {
   ) {
     try {
       await createProduct({
-        ...data,
-        _imageFiles: images,
-      } as any);
+        product: data,
+        imageFiles: images,
+      });
 
       toast.success("Product created successfully");
 
@@ -65,7 +65,7 @@ export default function NewProductPage() {
           onCancel={() => router.back()}
           submitLabel="Create Product"
           submitLoadingLabel="Creating…"
-          // isSubmitting={isPending}
+        // isSubmitting={isPending}
         />
       </FormSection>
     </AppLayout>

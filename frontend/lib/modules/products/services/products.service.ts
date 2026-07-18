@@ -19,10 +19,12 @@ import {
 
 import type {
   CreateProductInput,
+  CreateProductPayload,
   Product,
   ProductStatus,
   ProductType,
   UpdateProductInput,
+  UpdateProductPayload,
 } from "../types/product.types";
 import { getErrorMessage } from "@/lib/errors";
 import { PRODUCT_ERROR_MESSAGES } from "../errors";
@@ -32,30 +34,30 @@ export class ProductsService {
   // Read
   // ───────────────────────────────────────────────────────────
 
-static async getProducts(filters?: {
-  search?: string;
-  status?: ProductStatus;
-  productType?: ProductType;
-}): Promise<Product[]> {
-  try {
-    const raw = await productsApi.list({
-      page_size: 200,
-      search: filters?.search,
-      status: filters?.status,
-      product_type: filters?.productType,
-    });
+  static async getProducts(filters?: {
+    search?: string;
+    status?: ProductStatus;
+    productType?: ProductType;
+  }): Promise<Product[]> {
+    try {
+      const raw = await productsApi.list({
+        page_size: 200,
+        search: filters?.search,
+        status: filters?.status,
+        product_type: filters?.productType,
+      });
 
-    return adaptProductList(raw);
-  } catch (err) {
-    throw new Error(
-      getErrorMessage(
-        err,
-        PRODUCT_ERROR_MESSAGES,
-        "Failed to fetch products",
-      ),
-    );
+      return adaptProductList(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to fetch products",
+        ),
+      );
+    }
   }
-}
 
   static async getProduct(
     productId: string,
@@ -76,15 +78,13 @@ static async getProducts(filters?: {
   // ───────────────────────────────────────────────────────────
 
   static async createProduct(
-    input: CreateProductInput,
+    payload: CreateProductPayload,
   ): Promise<Product> {
     try {
-      const imageFiles =
-        ((input as any)._imageFiles as File[]) ?? [];
+      const { product, imageFiles } = payload;
 
       const backendInput =
-        adaptCreateProductInput(input);
-
+        adaptCreateProductInput(product);
       const raw = await productsApi.create(
         backendInput,
         imageFiles,
@@ -104,17 +104,17 @@ static async getProducts(filters?: {
 
   static async updateProduct(
     productId: string,
-    input: UpdateProductInput,
+    payload: UpdateProductPayload,
   ): Promise<Product> {
     try {
-      const newImageFiles =
-        ((input as any)._newImageFiles as File[]) ?? [];
-
-      const keptImageIds =
-        ((input as any)._keptImageIds as string[]) ?? [];
+      const {
+        product,
+        newImageFiles,
+        keptImageIds,
+      } = payload;
 
       const backendInput =
-        adaptUpdateProductInput(input);
+        adaptUpdateProductInput(product);
 
       const raw = await productsApi.update(
         productId,

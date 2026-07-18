@@ -62,6 +62,17 @@ export interface UpdateProductInput {
   images?: ProductImage[];
 }
 
+export interface CreateProductPayload {
+  product: CreateProductInput;
+  imageFiles: File[];
+}
+
+export interface UpdateProductPayload {
+  product: UpdateProductInput;
+  newImageFiles: File[];
+  keptImageIds: string[];
+}
+
 export const UNIT_LABELS: Record<ProductUnit, string> = {
   kg:     "kg",
   litre:  "L",
