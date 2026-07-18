@@ -194,6 +194,10 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
       updateValue(updatedValues);
     }
 
+    function removeValue(nextValue: string) {
+      updateValue(selectedValues.filter((item) => item !== nextValue));
+    }
+
     function handleCreate() {
       if (!trimmedSearchQuery) return;
       toggleValue(trimmedSearchQuery);
@@ -228,11 +232,20 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
         />
 
         <div className="relative">
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={disabled ? -1 : 0}
             id={inputId}
-            disabled={disabled}
-            onClick={() => setOpen((current) => !current)}
+            aria-disabled={disabled}
+            aria-expanded={open}
+            onClick={() => {
+              if (!disabled) setOpen((current) => !current);
+            }}
+            onKeyDown={(event) => {
+              if (disabled || (event.key !== "Enter" && event.key !== " ")) return;
+              event.preventDefault();
+              setOpen((current) => !current);
+            }}
             className={cn(
               "min-h-10 w-full rounded-lg border border-brand-border bg-white px-3 py-2 pr-16 text-left text-sm text-brand-text-primary transition-shadow",
               "flex items-start gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
@@ -255,13 +268,33 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
                     )}
                   >
                     {option.displayLabel}
+                    {!disabled ? (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Remove ${option.displayLabel}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeValue(option.value);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          removeValue(option.value);
+                        }}
+                        className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-brand-purple/10"
+                      >
+                        <X size={11} />
+                      </span>
+                    ) : null}
                   </span>
                 ))
               ) : (
                 <span className="py-0.5 text-brand-text-secondary">{placeholder}</span>
               )}
             </div>
-          </button>
+          </div>
 
           {selectedOptions.length > 0 && !disabled ? (
             <button

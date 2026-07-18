@@ -24,6 +24,7 @@ import logging
 from datetime import datetime, date
 from typing import Callable
 
+from sqlalchemy import event as sa_event
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -45,8 +46,8 @@ from app.shared.models.approval import (
 )
 from app.core.datetime_utils import utc_isoformat
 from app.employees.models import Employee
-from app.shared.services import notification_service, email_service
-from app.hr.models import LeaveRequest
+from app.shared.services import notification_service
+from app.shared.services import workflow_email
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,25 @@ def _next_all_request_reference(request_type: str, db: Session) -> str:
 class WorkflowEngine:
     def __init__(self, db: Session):
         self.db = db
+
+    def _queue_email(self, fn: Callable[["Session"], None]) -> None:
+        """
+        Schedule fn(db) to run once AFTER the current transaction commits.
+        If the transaction is rolled back, fn() is never called.
+
+        fn receives a FRESH Session so it is never affected by the committed
+        state of the request session. The fresh session is closed when done.
+        """
+        @sa_event.listens_for(self.db, "after_commit", once=True)
+        def _run(_session: "Session") -> None:
+            from app.core.database import SessionLocal
+            new_db = SessionLocal()
+            try:
+                fn(new_db)
+            except Exception:
+                logger.exception("Post-commit email notification failed")
+            finally:
+                new_db.close()
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 
@@ -381,16 +401,6 @@ class WorkflowEngine:
             reference_id=request_id,
         )
 
-        # Send approval email to first approver
-        self._send_approval_email(
-            approver_id=assignee_id,
-            requester_id=requester.id,
-            request_type=request_type,
-            request_id=request_id,
-            request_title=title,
-            step_name=first_step.step_name,
-        )
-
         # Notify the requester that their submission is now in the approval queue
         notification_service.create_notification(
             db=self.db,
@@ -413,6 +423,12 @@ class WorkflowEngine:
             actor_role="requester",
             action=AuditAction.submitted,
         )
+
+        # Queue emails to fire only after the transaction commits successfully.
+        # If the commit rolls back, these are never sent.
+        _ar_id = approval_req.id
+        self._queue_email(lambda db: workflow_email.notify_submitted(db, _ar_id))
+        self._queue_email(lambda db: workflow_email.notify_step_assigned(db, _ar_id))
 
         return approval_req
 
@@ -485,6 +501,11 @@ class WorkflowEngine:
                     .filter(Employee.id == approval_req.submitted_by)
                     .first()
                 )
+                if not requester:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Cannot advance workflow: the requester's employee record no longer exists.",
+                    )
                 next_assignee_id = _resolve_assignee(next_step, requester, self.db)
                 self._create_step_assignment(approval_req.id, next_step.step_number, next_assignee_id)
 
@@ -499,16 +520,6 @@ class WorkflowEngine:
                 ),
                 reference_type=approval_req.request_type,
                 reference_id=approval_req.request_id,
-            )
-
-            # Send approval email to next assignee
-            self._send_approval_email(
-                approver_id=next_assignee_id,
-                requester_id=approval_req.submitted_by,
-                request_type=approval_req.request_type,
-                request_id=approval_req.request_id,
-                request_title=None,
-                step_name=next_step.step_name,
             )
 
             # Notify the requester of mid-flow progress
@@ -531,6 +542,13 @@ class WorkflowEngine:
                     reference_type=approval_req.request_type,
                     reference_id=approval_req.request_id,
                 )
+
+            # Queue emails — fire only after successful commit
+            _ar_id = approval_req.id
+            _actor_id = actor.id
+            self._queue_email(lambda db: workflow_email.notify_step_progress(db, _ar_id, _actor_id))
+            self._queue_email(lambda db: workflow_email.notify_step_assigned(db, _ar_id))
+
         else:
             # Final step approved — workflow complete
             approval_req.overall_status = ApprovalOverallStatus.approved
@@ -556,6 +574,11 @@ class WorkflowEngine:
 
             if on_final_approval:
                 on_final_approval()
+
+            # Queue email — fire only after successful commit
+            _ar_id = approval_req.id
+            _comment = comment
+            self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "approved", _comment))
 
         return approval_req
 
@@ -626,6 +649,11 @@ class WorkflowEngine:
 
         if on_rejected:
             on_rejected()
+
+        # Queue email — fire only after successful commit
+        _ar_id = approval_req.id
+        _comment = comment
+        self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "rejected", _comment))
 
         return approval_req
 
@@ -699,50 +727,12 @@ class WorkflowEngine:
         if on_returned:
             on_returned()
 
+        # Queue email — fire only after successful commit
+        _ar_id = approval_req.id
+        _comment = comment
+        self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "returned", _comment))
+
         return approval_req
-
-    def _send_approval_email(
-        self,
-        approver_id: str,
-        requester_id: str,
-        request_type: str,
-        request_id: str,
-        request_title: str | None,
-        step_name: str,
-    ) -> None:
-        """Send approval email to the assigned approver."""
-        try:
-            approver = self.db.query(Employee).filter(Employee.id == approver_id).first()
-            requester = self.db.query(Employee).filter(Employee.id == requester_id).first()
-
-            if not approver or not approver.user or not approver.user.email:
-                logger.warning(f"Cannot send approval email: approver {approver_id} has no email")
-                return
-
-            if not requester or not requester.user:
-                logger.warning(f"Cannot send approval email: requester {requester_id} not found")
-                return
-
-            # Build approval URL (use request reference for better UX)
-            action_url = f"http://localhost:3000/approvals/{request_type}/{request_id}"
-
-            # For leave requests, use the reference instead of UUID
-            if request_type == "leave_request":
-                leave_req = self.db.query(LeaveRequest).filter(LeaveRequest.id == request_id).first()
-                if leave_req and leave_req.reference:
-                    action_url = f"http://localhost:3000/hr-management/leave-requests/{leave_req.reference}"
-
-            email_service.send_approval_required(
-                to_email=approver.user.email,
-                approver_name=f"{approver.user.first_name} {approver.user.last_name}".strip(),
-                requester_name=f"{requester.user.first_name} {requester.user.last_name}".strip(),
-                request_type_label=request_type.replace("_", " ").title(),
-                request_title=request_title or f"{request_type.replace('_', ' ').title()} Request",
-                step_name=step_name,
-                action_url=action_url,
-            )
-        except Exception as e:
-            logger.error(f"Failed to send approval email: {str(e)}")
 
     # ── Query helpers (used by /my-approvals and /my-requests endpoints) ──────
 
@@ -770,6 +760,14 @@ class WorkflowEngine:
             ar = self.db.query(ApprovalRequest).filter(ApprovalRequest.id == asa.approval_request_id).first()
             if not ar:
                 continue
+            submitter = ar.submitter
+            requester_name = None
+            if submitter:
+                requester_name = (
+                    (submitter.user.full_name or submitter.user.email)
+                    if submitter.user
+                    else None
+                ) or submitter.employee_no
             all_req = (
                 self.db.query(AllRequest)
                 .filter(
@@ -778,14 +776,24 @@ class WorkflowEngine:
                 )
                 .first()
             )
+                # Determine total steps in this workflow so the frontend can
+            # tell if this is the final step without knowing the step number.
+            total_steps = (
+                self.db.query(WorkflowStep)
+                .filter(WorkflowStep.workflow_id == ar.workflow_id)
+                .count()
+            )
             result.append({
                 "approval_request_id": ar.id,
                 "request_type":        ar.request_type,
                 "request_id":          ar.request_id,
                 "reference":           all_req.reference if all_req else None,
                 "title":               all_req.title if all_req else None,
+                "requester_name":      requester_name,
                 "department":          all_req.department if all_req else None,
                 "current_step_number": ar.current_step_number,
+                "total_steps":         total_steps,
+                "is_final_step":       ar.current_step_number == total_steps,
                 "attempt_number":      ar.attempt_number,
                 "submitted_at":        utc_isoformat(ar.created_at),
             })
@@ -864,11 +872,16 @@ class WorkflowEngine:
         result = []
         for row in rows:
             actor = row.actor
+            actor_role = None
+            if actor:
+                actor_role = actor.job_title
+                if not actor_role and actor.user and actor.user.role:
+                    actor_role = actor.user.role.value
             result.append({
                 "id":          row.id,
                 "action":      row.action.value,
                 "actor_name":  actor.user.full_name if actor and actor.user else None,
-                "actor_role":  row.actor_role,
+                "actor_role":  actor_role,
                 "step_number": row.step_number,
                 "comment":     row.comment,
                 "acted_at":    utc_isoformat(row.acted_at),

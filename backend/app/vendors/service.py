@@ -47,8 +47,9 @@ class VendorService:
         limit: int = 100,
         search: str | None = None,
         include_inactive: bool = False,
+        vendor_type: str | None = None,
     ) -> list[Vendor]:
-        return self.repo.list(skip=skip, limit=limit, search=search, include_inactive=include_inactive)
+        return self.repo.list(skip=skip, limit=limit, search=search, include_inactive=include_inactive, vendor_type=vendor_type)
 
     def get_vendor(self, vendor_id: str) -> Vendor:
         """Fetch a single vendor by ID regardless of active status. Raises 404 if not found."""
@@ -60,6 +61,10 @@ class VendorService:
     # ── Write ────────────────────────────────────────────────────────────────────
 
     def create_vendor(self, data: VendorCreate, added_by: str) -> Vendor:
+        if self.repo.name_exists(data.name):
+            raise HTTPException(status_code=400, detail="A vendor with this name already exists")
+        if self.repo.email_exists(str(data.email)):
+            raise HTTPException(status_code=400, detail="A vendor with this email address already exists")
         vendor_code = self._generate_vendor_code(data.name)
         vendor = Vendor(**data.model_dump(), added_by=added_by, vendor_code=vendor_code)
         return self.repo.add(vendor)
@@ -67,7 +72,12 @@ class VendorService:
     def update_vendor(self, vendor_id: str, data: VendorUpdate) -> Vendor:
         """Only updates fields that were sent (exclude_unset=True)."""
         vendor = self.get_vendor(vendor_id)
-        for field, value in data.model_dump(exclude_unset=True).items():
+        updates = data.model_dump(exclude_unset=True)
+        if "name" in updates and self.repo.name_exists(updates["name"], exclude_id=vendor_id):
+            raise HTTPException(status_code=400, detail="A vendor with this name already exists")
+        if "email" in updates and updates["email"] and self.repo.email_exists(str(updates["email"]), exclude_id=vendor_id):
+            raise HTTPException(status_code=400, detail="A vendor with this email address already exists")
+        for field, value in updates.items():
             setattr(vendor, field, value)
         self.repo.flush()
         return vendor

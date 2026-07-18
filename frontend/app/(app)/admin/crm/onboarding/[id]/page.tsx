@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import CustomerInformationCard from "@/lib/modules/crm/components/CustomerInformationCard";
 import BusinessInformationCard from "@/lib/modules/crm/components/BusinessInformationCard";
 import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard";
@@ -26,11 +26,13 @@ import { useToast } from "@/hooks/useToast";
 
 export default function CustomerOnboardingDetailsPage() {
   const { id } = useParams<{ id: string }>();
+
   const toast = useToast();
 
   const { data: customer } = useCustomerOnboardingDetails(id);
   const isReturned = customer?.status?.toLowerCase() === "returned";
   const isDraft = customer?.status?.toLowerCase() === "draft";
+  const isAcknowledged = customer?.status?.toLowerCase() === "acknowledged";
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const [form, setForm] = useState({
@@ -79,16 +81,33 @@ export default function CustomerOnboardingDetailsPage() {
       }));
     }
   }
+  function saveDraft() {
+    console.log({
+      ...form,
+      status: "draft",
+    });
 
+    toast.success("Customer onboarding request has been saved as a draft.");
+
+    setTimeout(() => {
+      router.push("/admin/crm/onboarding");
+    }, 1000);
+  }
   if (!customer) return null;
 
   return (
     <AppLayout pageTitle="Customer Onboarding Details">
-      <BackButton
-        href="/admin/crm/onboarding"
-        label="Back to Customer Onboarding"
-      />
-
+      <div className="flex justify-between mb-2">
+        <BackButton
+          href="/admin/crm/onboarding"
+          label="Back to Customer Onboarding"
+        />
+        {isAcknowledged && (
+          <Button href={`/admin/crm/contacts/${customer.id}`}>
+            Manage Contacts
+          </Button>
+        )}
+      </div>
       <div className="space-y-6">
         <RoleBasedRecordHeader
           id={customer.onboarding_number}
@@ -115,6 +134,7 @@ export default function CustomerOnboardingDetailsPage() {
             customerName: customer.customer_name,
             entityType: customer.entity_type,
             category: customer.category,
+            companyEmail: customer.company_email,
           }}
         />
         <BusinessInformationCard
@@ -130,7 +150,7 @@ export default function CustomerOnboardingDetailsPage() {
           readOnly={readOnly}
           values={{
             contactPerson: customer.contact_person,
-            designation: customer.designation,
+            department: customer.department,
             email: customer.email,
             phone: customer.phone,
             alternatePhone: customer.alternate_phone,
@@ -194,8 +214,8 @@ export default function CustomerOnboardingDetailsPage() {
             }}
           />
         )}
-        {(isReturned || isDraft) && (
-          <div className="flex justify-end">
+        {isReturned && (
+          <div className="flex justify-start">
             <Button
               onClick={() => {
                 toast.success(
@@ -206,6 +226,24 @@ export default function CustomerOnboardingDetailsPage() {
               }}
             >
               Resubmit
+            </Button>
+          </div>
+        )}
+        {isDraft && (
+          <div className="flex justify-start">
+            <Button variant="secondary" onClick={saveDraft}>
+              Save Draft
+            </Button>
+            <Button
+              onClick={() => {
+                toast.success(
+                  "Customer onboarding request has been submitted successfully.",
+                );
+
+                router.push("/admin/crm/onboarding");
+              }}
+            >
+              Submit
             </Button>
           </div>
         )}

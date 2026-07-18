@@ -33,19 +33,33 @@ export default function AuditTrail({
         {items.length === 0 ? (
           <p className="text-sm text-brand-text-secondary">{emptyMessage}</p>
         ) : (
-          <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-            {items.map((item, index) => (
-              <div
-                key={`${item.action}-${index}`}
-                className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]"
-              >
-                <AuditCell label="Action" value={item.action} />
-                <AuditCell label="Actor" value={item.actor} />
-                <AuditCell label="Role" value={item.role} />
-                <AuditCell label="Date/Time" value={item.dateTime} />
-                <AuditCell label="Comment" value={item.comment} />
-              </div>
-            ))}
+          <div className="overflow-x-auto rounded-xl border border-brand-border">
+            <table className="w-full min-w-[760px] border-collapse text-left">
+              <thead className="bg-gray-50">
+                <tr className="border-b border-brand-border">
+                  {["Action", "Actor", "Role", "Date/Time", "Comment"].map((label) => (
+                    <th
+                      key={label}
+                      scope="col"
+                      className="px-4 py-3 text-xs font-semibold uppercase text-brand-text-secondary"
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-border bg-white">
+                {items.map((item, index) => (
+                  <tr key={`${item.action}-${index}`}>
+                    <AuditValue value={item.action} />
+                    <AuditValue value={item.actor} />
+                    <AuditValue value={item.role} />
+                    <AuditValue value={item.dateTime} className="whitespace-nowrap" />
+                    <AuditValue value={item.comment} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -53,13 +67,16 @@ export default function AuditTrail({
   );
 }
 
-function AuditCell({ label, value }: { label: string; value: string }) {
+function AuditValue({
+  value,
+  className = "",
+}: {
+  value: string;
+  className?: string;
+}) {
   return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">
-        {label}
-      </p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
+    <td className={`px-4 py-3 align-top text-sm text-brand-text-primary ${className}`}>
+      {value || "-"}
+    </td>
   );
 }

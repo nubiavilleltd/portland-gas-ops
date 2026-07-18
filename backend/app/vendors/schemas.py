@@ -20,13 +20,13 @@ class VendorCreate(BaseModel):
     name: str
     category: VendorCategory
     vendor_type: VendorType = VendorType.permanent
-    contact_person: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[EmailStr] = None
-    address: Optional[str] = None
-    bank_name: Optional[str] = None
-    account_name: Optional[str] = None
-    account_number: Optional[str] = None
+    contact_person: str
+    phone: str
+    email: EmailStr
+    address: str
+    bank_name: str
+    account_name: str
+    account_number: str
 
 
 class VendorUpdate(BaseModel):

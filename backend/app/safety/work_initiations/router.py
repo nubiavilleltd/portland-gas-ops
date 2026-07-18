@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
-from app.shared.services import workflow_email
 from app.safety.work_initiations import service as work_initiation_service
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
@@ -23,6 +22,7 @@ from app.safety.work_initiations.schemas import (
     WorkInitiationUpdate,
 )
 from app.safety.incidents.schemas import IncidentReportResponse
+from app.safety.workflow import enrich_next_workflow_actors
 
 
 router = APIRouter(prefix="/work-initiations", tags=["Safety Work Initiations"])
@@ -40,6 +40,15 @@ ALLOWED_ATTACHMENT_TYPES = {
 }
 MAX_ATTACHMENT_SIZE_MB = 10
 MAX_ATTACHMENTS = 10
+
+
+def work_initiation_responses(db: Session, records):
+    responses = [WorkInitiationResponse.from_model(record) for record in records]
+    return enrich_next_workflow_actors(db, "work_initiation", responses)
+
+
+def work_initiation_response(db: Session, record):
+    return work_initiation_responses(db, [record])[0]
 
 
 async def validate_attachments(files: List[UploadFile]) -> list[tuple[bytes, str, str, int]]:
@@ -114,7 +123,7 @@ def list_work_initiations(
         work_category=work_category,
         search=search,
     )
-    return [WorkInitiationResponse.from_model(record) for record in records]
+    return work_initiation_responses(db, records)
 
 
 @router.post(
@@ -138,7 +147,7 @@ async def create_work_initiation(
         attachments=attachment_files,
     )
     workflow_email.notify_new_request(db, "work_initiation", record.id)
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)
 
 
 @router.get(
@@ -167,7 +176,7 @@ def get_work_initiation(
         work_initiation_id=work_initiation_id,
         current_user=current_user,
     )
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)
 
 
 @router.put("/{work_initiation_id}", response_model=WorkInitiationResponse)
@@ -192,7 +201,7 @@ async def update_work_initiation(
 
     workflow_email.notify_new_request(db, "work_initiation", record.id)
 
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)
 
 
 @router.post(
@@ -229,7 +238,7 @@ def supervisor_review_work_initiation(
             comment=data.comment,
         )
 
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)
 
 
 @router.post(
@@ -272,4 +281,4 @@ def operations_hod_review_work_initiation(
             "rejected",
             comment=data.comment,
         )
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)

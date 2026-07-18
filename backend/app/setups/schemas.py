@@ -24,6 +24,7 @@ class DepartmentListItem(BaseModel):
     code: str
     is_active: bool
     hod_id: Optional[str]
+    hod_name: Optional[str] = None
     parent_dept_id: Optional[str]
     created_at: datetime
     employee_count: int = 0

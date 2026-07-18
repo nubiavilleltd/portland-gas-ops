@@ -203,6 +203,8 @@ class WorkCloseOutListItem(UtcDateTimeModel):
     submitted_at: datetime
     created_at: datetime
     updated_at: datetime
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     @classmethod
     def from_model(cls, closeout):

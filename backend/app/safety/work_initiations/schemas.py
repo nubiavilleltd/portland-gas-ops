@@ -19,6 +19,7 @@ def to_utc(value: datetime) -> datetime:
 class WorkInitiationCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=255)
     work_category: WorkInitiationCategory
+    other_work_category: Optional[str] = Field(None, max_length=255)
     related_incident_report_id: Optional[str] = None
     work_type: list[str] = Field(..., min_length=1)
     location: str = Field(..., min_length=2, max_length=255)
@@ -37,6 +38,7 @@ class WorkInitiationCreate(BaseModel):
 
     @field_validator(
         "title",
+        "other_work_category",
         "location",
         "exact_work_area",
         "work_description",
@@ -62,6 +64,18 @@ class WorkInitiationCreate(BaseModel):
                 seen.add(cleaned)
                 deduped.append(cleaned)
         return deduped
+
+    @model_validator(mode="after")
+    def validate_other_work_category(self):
+        if self.work_category == WorkInitiationCategory.other:
+            if not self.other_work_category:
+                raise ValueError(
+                    "Other work category is required when work category is Other."
+                )
+        else:
+            self.other_work_category = None
+
+        return self
 
     @model_validator(mode="after")
     def validate_planned_dates(self):
@@ -137,6 +151,7 @@ class WorkInitiationListItem(UtcDateTimeModel):
     requester_role: Optional[str] = None
     title: str
     work_category: WorkInitiationCategory
+    other_work_category: Optional[str]
     related_incident_report_id: Optional[str]
     work_type: list[str]
     location: str
@@ -148,6 +163,8 @@ class WorkInitiationListItem(UtcDateTimeModel):
     assigned_supervisor_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     @classmethod
     def from_model(cls, work_initiation):
@@ -161,6 +178,7 @@ class WorkInitiationListItem(UtcDateTimeModel):
             requester_role=employee_role(work_initiation.requester),
             title=work_initiation.title,
             work_category=work_initiation.work_category,
+            other_work_category=work_initiation.other_work_category,
             related_incident_report_id=work_initiation.related_incident_report_id,
             work_type=split_work_type(work_initiation.work_type),
             location=work_initiation.location,

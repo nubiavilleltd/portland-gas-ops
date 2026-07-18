@@ -143,7 +143,7 @@ export function useIntranetSpotlightTags() {
 export function useIntranetFAQCategories() {
   return useQuery<FAQCategory[]>({
     queryKey: intranetKeys.faqCategories(),
-    queryFn:  () => get<FAQCategory[]>("/api/intranet/faqs/categories/"),
+    queryFn:  () => get<FAQCategory[]>("/api/intranet/faqs/categories"),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -152,7 +152,7 @@ export function useIntranetFAQCategories() {
 export function useIntranetFAQsAdmin() {
   return useQuery<FAQItem[]>({
     queryKey: intranetKeys.faqs(),
-    queryFn:  () => get<FAQItem[]>("/api/intranet/faqs/"),
+    queryFn:  () => get<FAQItem[]>("/api/intranet/faqs"),
     staleTime: 30 * 1000,
   });
 }
@@ -161,7 +161,7 @@ export function useIntranetFAQsAdmin() {
 export function useIntranetFAQsPublished() {
   return useQuery<FAQItem[]>({
     queryKey: intranetKeys.faqsPublished(),
-    queryFn:  () => get<FAQItem[]>("/api/intranet/faqs/published/"),
+    queryFn:  () => get<FAQItem[]>("/api/intranet/faqs/published"),
     staleTime: 60 * 1000,
   });
 }
@@ -170,7 +170,7 @@ export function useIntranetFAQsPublished() {
 export function useIntranetFeedbackAdmin() {
   return useQuery<FeedbackEntry[]>({
     queryKey: intranetKeys.feedbackAdmin(),
-    queryFn:  () => get<FeedbackEntry[]>("/api/intranet/feedback/"),
+    queryFn:  () => get<FeedbackEntry[]>("/api/intranet/feedback"),
     staleTime: 30 * 1000,
   });
 }
@@ -181,7 +181,7 @@ export function useIntranetFeedbackAdmin() {
 export function usePodcastsPublished() {
   return useQuery<PodcastEpisode[]>({
     queryKey: intranetKeys.podcast(),
-    queryFn:  () => get<PodcastEpisode[]>("/api/intranet/podcast/"),
+    queryFn:  () => get<PodcastEpisode[]>("/api/intranet/podcast"),
     staleTime: 60 * 1000,
   });
 }
@@ -190,7 +190,7 @@ export function usePodcastsPublished() {
 export function usePodcastsAdmin() {
   return useQuery<PodcastEpisode[]>({
     queryKey: intranetKeys.podcastAdmin(),
-    queryFn:  () => get<PodcastEpisode[]>("/api/intranet/podcast/admin/"),
+    queryFn:  () => get<PodcastEpisode[]>("/api/intranet/podcast/admin"),
     staleTime: 30 * 1000,
   });
 }

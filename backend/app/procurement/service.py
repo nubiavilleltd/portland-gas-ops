@@ -185,6 +185,8 @@ class ProcurementService:
         req = self._get_or_404(request_id)
         if req.raised_by != employee.id:
             forbidden("PROCUREMENT_ACCESS_DENIED", "You can only edit your own requests")
+        if req.status not in ("draft", "returned"):
+            bad_request("PROCUREMENT_NOT_EDITABLE", "Attachments can only be changed on draft or returned requests")
         if req.attachment_id:
             self.repo.delete_document(req.attachment_id)
             req.attachment_id = None
@@ -238,33 +240,6 @@ class ProcurementService:
             requester=employee,
         )
 
-        return req
-
-    def approve_request(self, request_id: str, body: ActionRequest, current_user: User) -> ProcurementRequest:
-        """Admin direct-approval (bypasses workflow). Use /api/workflow/requests/{id}/approve for workflow-driven approvals."""
-        self._require_admin(current_user)
-        req = self._get_or_404(request_id)
-        if req.status != "pending":
-            bad_request("INVALID_STATUS_TRANSITION", f"Cannot approve a request with status '{req.status}'")
-        req.status = "approved"
-        return req
-
-    def reject_request(self, request_id: str, body: ActionRequest, current_user: User) -> ProcurementRequest:
-        """Admin direct-rejection. Use /api/workflow/requests/{id}/reject for workflow-driven rejections."""
-        self._require_admin(current_user)
-        req = self._get_or_404(request_id)
-        if req.status not in ("pending", "approved"):
-            bad_request("INVALID_STATUS_TRANSITION", f"Cannot reject a request with status '{req.status}'")
-        req.status = "rejected"
-        return req
-
-    def return_request(self, request_id: str, body: ActionRequest, current_user: User) -> ProcurementRequest:
-        """Admin direct-return. Use /api/workflow/requests/{id}/return for workflow-driven returns."""
-        self._require_admin(current_user)
-        req = self._get_or_404(request_id)
-        if req.status not in ("pending", "approved"):
-            bad_request("INVALID_STATUS_TRANSITION", f"Cannot return a request with status '{req.status}'")
-        req.status = "returned"
         return req
 
     # ── Purchase orders ───────────────────────────────────────────────────────
@@ -325,6 +300,7 @@ class ProcurementService:
                 {
                     "description": item.description,
                     "quantity": item.quantity,
+                    "unit": item.unit or "",
                     "unit_cost": item.unit_price,
                     "total_cost": item.total_price,
                 }
@@ -337,10 +313,11 @@ class ProcurementService:
             )
 
             import datetime as _dt
+            category_label = req.category.replace("_", " ").title() if req.category else ""
             pdf_bytes = pdf_service.generate_purchase_order(
                 reference=po.po_number,
-                title=f"{req.category} Request" if req.category else "Procurement Request",
-                category="",
+                title=f"{category_label} Request" if category_label else "Procurement Request",
+                category=category_label,
                 priority="",
                 justification=req.description,
                 required_by=None,
