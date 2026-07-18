@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, CalendarDays } from "lucide-react";
+import { ArrowLeft, Plus, CalendarDays, Paperclip, ExternalLink, Trash2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -15,9 +15,11 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormTextarea from "@/components/forms/FormTextarea";
-import DataTable from "@/components/data-table/data-table";
+import SelectInput from "@/components/forms/SelectInput";
+import DataTable from "@/components/ui/DataTable";
 import { leaveRequestColumns } from "../_components/columns";
-import { useCreateLeaveRequest, useLeaveRequests } from "@/lib/modules/leave-requests/hooks";
+import { useCreateLeaveRequest, useLeaveRequests, useLeaveRequest, useCurrentEmployee } from "@/lib/modules/leave-requests/hooks";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -38,6 +40,15 @@ const TODAY = new Date().toISOString().split("T")[0];
 const REQUEST_TYPE_OPTIONS = [
   { value: "self",   label: "Self"   },
   { value: "others", label: "Others" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "pending",     label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "returned",    label: "Returned" },
+  { value: "approved",    label: "Approved" },
+  { value: "denied",      label: "Denied" },
+  { value: "draft",       label: "Draft" },
 ];
 
 const schema = z.object({
@@ -63,9 +74,15 @@ function calcDays(start: string, end: string): number {
 
 export default function LeaveRequestsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user: currentUser } = useCurrentUser();
   const [view, setView] = useState<View>("list");
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
+  const [removedExistingDoc, setRemovedExistingDoc] = useState(false);
+
+  // Edit & Resubmit mode — driven by ?edit=<reference> (from a returned request)
+  const editRef = searchParams.get("edit");
+  const { data: editRecord } = useLeaveRequest(editRef ?? "", !!editRef);
 
   const createLeaveRequest = useCreateLeaveRequest();
   const { data: leaveRequestsResponse, isLoading: isLoadingRequests } = useLeaveRequests({
@@ -74,6 +91,35 @@ export default function LeaveRequestsPage() {
     sort_order: "desc"
   });
   const items = leaveRequestsResponse?.data || [];
+
+  // Current employee — used to scope "All" to the user's OWN requests
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  // "Awaiting my approval" scope — my-approvals returns requests where the current
+  // user is the assignee of the CURRENT step.
+  const { data: myApprovals = [] } = useMyApprovals();
+  const awaitingIds = new Set(
+    myApprovals
+      .filter((a) => a.request_type === "leave_request")
+      .map((a) => a.request_id)
+  );
+
+  const [scope, setScope] = useState<"all" | "awaiting">("all");
+  const [activeStatus, setActiveStatus] = useState<string>("");
+
+  const visibleItems = items.filter((i) => {
+    // Scope: "All" = requests I raised; "Awaiting my approval" = requests waiting on me.
+    // Tolerant match: newer requests store requester_id as the employee id, while
+    // older rows stored the user id (fixed on the backend going forward).
+    const isMine =
+      i.requesterId === currentEmployee?.id ||
+      i.requesterId === currentEmployee?.user_id;
+    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
+    if (!inScope) return false;
+    // Status filter (Procurement-style dropdown)
+    if (activeStatus && i.status !== activeStatus) return false;
+    return true;
+  });
 
   const { data: employees = [] } = useEmployees({ limit: 200 });
   const { data: leaveTypesResponse, isLoading: isLoadingLeaveTypes, error: leaveTypesError } = useLeaveTypes({ limit: 100, is_active: true });
@@ -106,6 +152,24 @@ export default function LeaveRequestsPage() {
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
+
+  // When arriving via ?edit=<ref>, load the returned request into the form
+  useEffect(() => {
+    if (editRef && editRecord) {
+      form.reset({
+        request_type: editRecord.request_type || "self",
+        employee_id: editRecord.employee_id,
+        leave_type: String(editRecord.leave_type_id),
+        start_date: editRecord.start_date,
+        end_date: editRecord.end_date,
+        reliever_id: editRecord.reliever_id || "",
+        reason: editRecord.reason || "",
+      });
+      setRemovedExistingDoc(false);
+      setView("form");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editRef, editRecord?.id]);
 
   const watchRequestType = form.watch("request_type");
   const watchStart       = form.watch("start_date");
@@ -150,6 +214,37 @@ export default function LeaveRequestsPage() {
 
       const leaveTypeId = parseInt(data.leave_type, 10);
       console.log("Leave type ID parsed:", { raw: data.leave_type, parsed: leaveTypeId });
+
+      // ── EDIT & RESUBMIT (returned request) ────────────────────────────────
+      if (editRef) {
+        const updated = await leaveRequestsApi.resubmit(editRef, {
+          employee_id: employeeId,
+          leave_type_id: leaveTypeId,
+          reliever_id: reliever_id,
+          start_date: startDateISO,
+          end_date: endDateISO,
+          request_type: data.request_type,
+          reason: data.reason,
+        });
+
+        // Upload any newly attached files to the existing request
+        if (supportingFiles.length > 0 && updated?.id) {
+          for (const file of supportingFiles) {
+            try {
+              await leaveRequestsApi.uploadDocument(updated.id, file);
+            } catch {
+              toast.warning(`Could not upload ${file.name}. Your request was still resubmitted.`);
+            }
+          }
+        }
+
+        toast.success("Request resubmitted for approval!");
+        form.reset();
+        setSupportingFiles([]);
+        router.replace("/hr-management/leave-requests");
+        setView("list");
+        return;
+      }
 
       // Create leave request first
       const leaveRequest = await createLeaveRequest.mutateAsync({
@@ -249,6 +344,7 @@ export default function LeaveRequestsPage() {
     setView("list");
     form.reset();
     setSupportingFiles([]);
+    if (editRef) router.replace("/hr-management/leave-requests");
   }
 
   return (
@@ -295,11 +391,55 @@ export default function LeaveRequestsPage() {
           </div>
           )}
 
+          {/* Scope filter pills */}
+          <div className="mb-3 flex flex-wrap gap-2">
+            {([
+              { value: "all",      label: "All" },
+              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
+            ] as const).map((pill) => (
+              <button
+                key={pill.value}
+                type="button"
+                onClick={() => setScope(pill.value)}
+                className={
+                  scope === pill.value
+                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
+                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
+                }
+              >
+                {pill.label}
+                {"count" in pill && pill.count > 0 ? (
+                  <span
+                    className={
+                      scope === pill.value
+                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
+                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
+                    }
+                  >
+                    {pill.count}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
           <div className="w-full overflow-hidden">
             <DataTable
               columns={leaveRequestColumns}
-              data={items}
+              data={visibleItems}
+              isLoading={isLoadingRequests}
               rowHref={(row) => `/hr-management/leave-requests/${row.ref}`}
+              toolbarActions={
+                <div className="w-52 shrink-0">
+                  <SelectInput
+                    placeholder="All Statuses"
+                    sortOptions={false}
+                    value={activeStatus}
+                    onValueChange={(v) => setActiveStatus(v)}
+                    options={STATUS_OPTIONS}
+                  />
+                </div>
+              }
               emptyMessage="No leave requests yet"
               emptyDescription="Submit your first leave request to get started"
             />
@@ -317,8 +457,8 @@ export default function LeaveRequestsPage() {
             <ArrowLeft size={16} /> Back to Leave Requests
           </button>
           <PageHeader
-            title="New Leave Request"
-            description="Submit a leave request for approval"
+            title={editRef ? `Edit & Resubmit — ${editRef}` : "New Leave Request"}
+            description={editRef ? "Update the request and resubmit for approval" : "Submit a leave request for approval"}
             className="mb-6"
           />
 
@@ -359,6 +499,7 @@ export default function LeaveRequestsPage() {
                   placeholder="Select leave type"
                   error={errors.leave_type?.message}
                   {...form.register("leave_type")}
+                  value={watchLeaveType ?? ""}
                 />
                 <FormSelect
                   label="Raise For"
@@ -368,6 +509,7 @@ export default function LeaveRequestsPage() {
                   placeholder="Select Raise For"
                   error={errors.request_type?.message}
                   {...form.register("request_type")}
+                  value={watchRequestType ?? ""}
                 />
 
                 {/* Balance banner — updates when leave type (and employee for others) is selected */}
@@ -409,6 +551,7 @@ export default function LeaveRequestsPage() {
                     placeholder="Select employee"
                     error={errors.employee_id?.message}
                     {...form.register("employee_id")}
+                    value={form.watch("employee_id") ?? ""}
                   />
                 )}
 
@@ -418,12 +561,14 @@ export default function LeaveRequestsPage() {
                   required
                   error={errors.start_date?.message}
                   {...form.register("start_date")}
+                  value={watchStart ?? ""}
                 />
                 <FormDatePicker
                   label="End Date"
                   required
                   error={errors.end_date?.message}
                   {...form.register("end_date")}
+                  value={watchEnd ?? ""}
                 />
 
                 {/* Number of Days — after End Date */}
@@ -449,10 +594,43 @@ export default function LeaveRequestsPage() {
                   placeholder="Select reliever"
                   error={errors.reliever_id?.message}
                   {...form.register("reliever_id")}
+                  value={form.watch("reliever_id") ?? ""}
                 />
+                {/* Existing document (edit mode) — kept unless removed */}
+                {editRef && editRecord?.document && !removedExistingDoc && (
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-medium text-brand-text-primary mb-2">Current Document</p>
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-brand-border bg-gray-50">
+                      <Paperclip size={14} className="text-brand-text-secondary shrink-0" />
+                      <span className="text-sm text-brand-text-primary truncate flex-1">
+                        {editRecord.document.name}
+                      </span>
+                      {editRecord.document.file_path && (
+                        <a
+                          href={editRecord.document.file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand-text-secondary hover:text-brand-purple shrink-0"
+                          title="View document"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setRemovedExistingDoc(true)}
+                        className="text-red-500 hover:text-red-700 shrink-0"
+                        title="Remove document"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="md:col-span-2">
                   <FileDropzone
-                    label="Supporting Document"
+                    label={editRef && editRecord?.document && !removedExistingDoc ? "Replace / Add Document" : "Supporting Document"}
                     value={supportingFiles}
                     onChange={setSupportingFiles}
                     accept="image/*,.pdf,.doc,.docx"
@@ -473,7 +651,7 @@ export default function LeaveRequestsPage() {
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance}>
-                Submit for Approval
+                {editRef ? "Resubmit for Approval" : "Submit for Approval"}
               </Button>
             </div>
           </form>

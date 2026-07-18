@@ -25,6 +25,9 @@ function adaptLeaveRequest(item: LeaveRequestListItem): LeaveRequest {
     status: (item.status.toLowerCase() as any) || "draft",
     date: formatDateTime(item.created_at),
     requestType: item.request_type || "self",
+    requesterId: item.requester_id || undefined,
+    nextActor: item.next_actor_name || undefined,
+    currentStepName: item.current_step_name || undefined,
   };
 }
 
@@ -47,6 +50,11 @@ const leaveRequestsApi = {
 
   async create(payload: LeaveRequestCreatePayload): Promise<LeaveRequestDetail> {
     const response = await api.post("/api/hr/leave-requests", payload);
+    return response.data;
+  },
+
+  async resubmit(reference: string, payload: LeaveRequestCreatePayload): Promise<LeaveRequestDetail> {
+    const response = await api.post(`/api/hr/leave-requests/${reference}/resubmit`, payload);
     return response.data;
   },
 

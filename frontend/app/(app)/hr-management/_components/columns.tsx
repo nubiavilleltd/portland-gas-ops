@@ -334,6 +334,22 @@ export const leaveRequestColumns: Column<LeaveRequest>[] = [
     sortable: true,
     render: (v) => <ApprovalBadge status={String(v)} />,
   },
+  {
+    key: "nextActor",
+    label: "Next Actor",
+    sortable: true,
+    render: (v, row) =>
+      v ? (
+        <span className="text-brand-text-primary whitespace-nowrap">
+          {String(v)}
+          {row.currentStepName ? (
+            <span className="block text-[11px] text-brand-text-secondary">{row.currentStepName}</span>
+          ) : null}
+        </span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
 ];
 
 export const payrollColumns: Column<PayrollRun>[] = [

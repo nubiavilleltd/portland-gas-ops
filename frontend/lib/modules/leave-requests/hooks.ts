@@ -137,9 +137,14 @@ export function useApproveLeaveRequest() {
       }
     },
     onSuccess: (data, variables) => {
-      // Invalidate all leave request queries AND approval assignments to refetch updated data
+      // Refetch leave request data AND workflow queries so the page reflects the
+      // new step immediately. my-approvals drives who can act next — invalidating
+      // it lets a multi-role approver (e.g. reliever who is also ops manager) see
+      // the next step's panel after the data refetches.
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all });
-      queryClient.invalidateQueries({ queryKey: ["approval-assignments"] }); // All approval assignment queries
+      queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["my-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-trail"] });
 
       const actionMessages = {
         approve: "Request approved successfully",

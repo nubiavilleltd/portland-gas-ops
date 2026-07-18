@@ -255,6 +255,60 @@ def get_all_leave_requests(
     return leave_requests, total
 
 
+def get_next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
+    """
+    For each leave request id that is still pending in the workflow, return the
+    name of the assignee holding the current step and the step name.
+    Returns { request_id: {"name": str, "step_name": str} }.
+    """
+    if not request_ids:
+        return {}
+
+    from app.shared.models.approval import (
+        ApprovalStepAssignment,
+        ApprovalOverallStatus,
+        WorkflowStep,
+    )
+    from app.shared.models.user import User
+
+    rows = (
+        db.query(
+            ApprovalRequest.request_id,
+            User.first_name,
+            User.last_name,
+            WorkflowStep.step_name,
+        )
+        .join(
+            ApprovalStepAssignment,
+            and_(
+                ApprovalStepAssignment.approval_request_id == ApprovalRequest.id,
+                ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ),
+        )
+        .join(Employee, Employee.id == ApprovalStepAssignment.assigned_to)
+        .join(User, User.id == Employee.user_id)
+        .join(
+            WorkflowStep,
+            and_(
+                WorkflowStep.workflow_id == ApprovalRequest.workflow_id,
+                WorkflowStep.step_number == ApprovalRequest.current_step_number,
+            ),
+        )
+        .filter(
+            ApprovalRequest.request_type == "leave_request",
+            ApprovalRequest.request_id.in_(request_ids),
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .all()
+    )
+
+    result: dict[str, dict] = {}
+    for row in rows:
+        name = " ".join(p for p in [row.first_name, row.last_name] if p) or "—"
+        result[row.request_id] = {"name": name, "step_name": row.step_name}
+    return result
+
+
 def get_leave_request_by_reference(db: Session, reference: str) -> LeaveRequest:
     """Get a single leave request by reference (e.g., LRQ-2026-0001)."""
     leave_request = db.query(LeaveRequest).options(
@@ -320,3 +374,63 @@ def submit_leave_request_for_approval(
     )
 
     return approval_request
+
+
+def resubmit_leave_request(
+    db: Session,
+    reference: str,
+    payload: LeaveRequestCreate,
+    current_user_id: str,
+) -> LeaveRequest:
+    """
+    Edit and resubmit a RETURNED leave request. Updates the editable fields,
+    resets status to pending, and restarts the approval workflow from step 1
+    (a new attempt). Only the original requester may resubmit.
+    """
+    lr = get_leave_request_by_reference(db, reference)
+
+    if lr.status != LeaveRequestStatus.returned:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only returned requests can be resubmitted",
+        )
+
+    # requester_id stores the User id — only the requester can resubmit
+    if lr.requester_id != current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the requester can resubmit this request",
+        )
+
+    # Validate leave type
+    leave_type = db.query(LeaveTypeSetup).filter(LeaveTypeSetup.id == payload.leave_type_id).first()
+    if not leave_type:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave type not found")
+
+    if payload.end_date < payload.start_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date must be after start date")
+
+    employee = db.query(Employee).filter(Employee.id == payload.employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+
+    # Apply edits
+    lr.employee_id = payload.employee_id
+    lr.leave_type_id = payload.leave_type_id
+    lr.reliever_id = payload.reliever_id
+    lr.request_type = payload.request_type
+    lr.department = employee.department
+    lr.job_title = employee.job_title
+    lr.start_date = payload.start_date
+    lr.end_date = payload.end_date
+    lr.days = (payload.end_date - payload.start_date).days + 1
+    lr.reason = payload.reason
+    if payload.document_id is not None:
+        lr.document_id = payload.document_id
+    lr.status = LeaveRequestStatus.pending
+    db.flush()
+
+    # Restart the workflow (engine.start creates a new attempt from step 1)
+    submit_leave_request_for_approval(db, lr.id)
+
+    return lr

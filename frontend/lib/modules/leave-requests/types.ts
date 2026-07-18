@@ -28,6 +28,8 @@ export interface LeaveRequestListItem {
   reason?: string;
   status: string;
   approval_request_id?: string;
+  next_actor_name?: string;
+  current_step_name?: string;
   created_at: string;
   updated_at?: string;
 }

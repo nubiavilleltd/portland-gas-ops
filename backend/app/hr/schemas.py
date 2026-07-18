@@ -59,6 +59,7 @@ class LeaveRequestCreate(BaseModel):
     request_type: str = "self"  # "self" or "others"
     reason: Optional[str] = None
     document_id: Optional[int] = None
+    picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
 
 
 class LeaveRequestRead(BaseModel):
@@ -85,6 +86,8 @@ class LeaveRequestRead(BaseModel):
     reason: Optional[str] = None
     status: str
     approval_request_id: Optional[str] = None
+    next_actor_name: Optional[str] = None      # who currently holds the request (pending step assignee)
+    current_step_name: Optional[str] = None    # name of the current pending step
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -256,6 +256,8 @@ def create_leave_request(
     - reason: str (optional)
     - document_id: int (optional)
     """
+    # NOTE: requester_id stores the User id by design — submit_leave_request_for_approval
+    # resolves the employee via Employee.user_id == requester_id.
     leave_request = service.create_leave_request(db, payload, current_user.id)
     db.commit()
     db.refresh(leave_request)
@@ -309,8 +311,20 @@ def list_leave_requests(
         db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order
     )
 
+    # Enrich with the current pending approver ("next actor") in one query
+    next_actors = service.get_next_actors(db, [lr.id for lr in leave_requests])
+
+    items = []
+    for lr in leave_requests:
+        item = LeaveRequestRead.model_validate(lr)
+        info = next_actors.get(lr.id)
+        if info:
+            item.next_actor_name = info["name"]
+            item.current_step_name = info["step_name"]
+        items.append(item)
+
     return {
-        "data": [LeaveRequestRead.model_validate(lr) for lr in leave_requests],
+        "data": items,
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -335,6 +349,26 @@ def get_leave_request(
     **Response:** Single LeaveRequestRead object
     """
     return service.get_leave_request_by_reference(db, reference)
+
+
+@router.post(
+    "/leave-requests/{reference}/resubmit",
+    response_model=LeaveRequestRead,
+)
+def resubmit_leave_request(
+    reference: str,
+    payload: LeaveRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Edit and resubmit a returned leave request. Restarts the approval workflow
+    from step 1. Only the original requester may resubmit.
+    """
+    lr = service.resubmit_leave_request(db, reference, payload, current_user.id)
+    db.commit()
+    db.refresh(lr)
+    return lr
 
 
 # ════════════════════════════════════════════════════════════════════════════
