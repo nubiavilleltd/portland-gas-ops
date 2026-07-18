@@ -48,7 +48,6 @@ export function getErrorMessage(
   errorMessages: Record<string, string> = {},
   fallback = DEFAULT_ERROR_MESSAGE,
 ): string {
-  // Axios/network error
   if (isNetworkError(err)) {
     return APP_ERROR_MESSAGES.NETWORK_ERROR;
   }

@@ -17,6 +17,8 @@ import FormSection from "@/components/ui/FormSection";
 import { useUpdateProduct } from "@/lib/modules/products/hooks/useProductMutations";
 import { ProductImage } from "@/lib/modules/products/types/product.types";
 import { parseError } from "@/lib/errors";
+import PageErrorState from "@/components/ui/PageError";
+import ProductFormSkeleton from "@/lib/modules/products/components/ProductFormSkeleton";
 
 export default function EditProductPage() {
   const params = useParams();
@@ -27,31 +29,62 @@ export default function EditProductPage() {
 
     const { mutateAsync: updateProduct } = useUpdateProduct(id);
 
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Edit Product">
-        <div className="animate-pulse space-y-4 max-w-2xl">
-          <div className="h-8 bg-gray-100 rounded-lg w-1/3" />
-          <div className="h-64 bg-gray-100 rounded-2xl" />
-        </div>
-      </AppLayout>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <AppLayout pageTitle="Edit Product">
+  //       <div className="animate-pulse space-y-4 max-w-2xl">
+  //         <div className="h-8 bg-gray-100 rounded-lg w-1/3" />
+  //         <div className="h-64 bg-gray-100 rounded-2xl" />
+  //       </div>
+  //     </AppLayout>
+  //   );
+  // }
 
-  if (error || !product) {
-    return (
-      <AppLayout pageTitle="Product Not Found">
-        <ErrorBanner message={error ?? "This product could not be found."} />
+  // if (error || !product) {
+  //   return (
+  //     <AppLayout pageTitle="Product Not Found">
+  //       <ErrorBanner message={error ?? "This product could not be found."} />
+  //       <Button
+  //         variant="outline"
+  //         className="mt-4"
+  //         onClick={() => router.push(PRODUCT_ROUTES.list())}
+  //       >
+  //         Back to Products
+  //       </Button>
+  //     </AppLayout>
+  //   );
+  // }
+
+
+
+
+if (isLoading) {
+  return (
+    <AppLayout pageTitle="Edit Product">
+      <ProductFormSkeleton />
+    </AppLayout>
+  );
+}
+
+if (error || !product) {
+  return (
+    <AppLayout pageTitle="Product Not Found">
+      <PageErrorState
+        title="Product Not Found"
+        message={error ?? "This product could not be found."}
+      >
         <Button
           variant="outline"
-          className="mt-4"
           onClick={() => router.push(PRODUCT_ROUTES.list())}
         >
           Back to Products
         </Button>
-      </AppLayout>
-    );
-  }
+      </PageErrorState>
+    </AppLayout>
+  );
+}
+
+
 
 async function handleSubmit(
   data: UpdateProductFormOutput,
