@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+
+from io import BytesIO
+from PIL import Image
+
 from app.products.model import Product
 from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, status
 from sqlalchemy.orm import Session
@@ -23,6 +27,10 @@ from app.products.constants import (
     MAX_IMAGES,
 )
 
+
+from app.core.exceptions import AppException
+from app.products.error_codes import ProductErrorCode
+
 router  = APIRouter()
 service = ProductService()
 
@@ -37,6 +45,7 @@ def _uploaded_by(user: User) -> str | None:
         else None
     )
 
+
 def _validate_images(files: List[UploadFile]) -> List[tuple]:
     if len(files) > MAX_IMAGES:
         raise AppException(
@@ -44,25 +53,49 @@ def _validate_images(files: List[UploadFile]) -> List[tuple]:
             error_code=ErrorCode.VALIDATION_ERROR,
             message=f"Maximum {MAX_IMAGES} images allowed",
         )
-    result = []
+
+    validated_images = []
+
     for file in files:
         if file.content_type not in ALLOWED_IMAGE_TYPES:
             raise AppException(
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
-                message=f"Invalid image type '{file.content_type}'. Allowed: JPEG, PNG, WebP",
+                message="Only JPEG, PNG, and WebP images are supported.",
             )
+
         file_bytes = file.file.read()
-        size_mb    = len(file_bytes) / (1024 * 1024)
+        file.file.seek(0)
+
+        size_mb = len(file_bytes) / (1024 * 1024)
+
         if size_mb > MAX_IMAGE_SIZE_MB:
             raise AppException(
                 status_code=400,
                 error_code=ErrorCode.VALIDATION_ERROR,
-                message=f"Image '{file.filename}' exceeds {MAX_IMAGE_SIZE_MB}MB limit",
+                message=f"Image '{file.filename}' exceeds the {MAX_IMAGE_SIZE_MB} MB limit.",
             )
-        result.append((file_bytes, file.filename or "image", file.content_type, len(file_bytes)))
-    return result
 
+        # Verify the uploaded bytes are actually a valid image
+        try:
+            Image.open(BytesIO(file_bytes)).verify()
+        except Exception:
+            raise AppException(
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+                message=f"'{file.filename}' is not a valid image.",
+            )
+
+        validated_images.append(
+            (
+                file_bytes,
+                file.filename or "image",
+                file.content_type,
+                len(file_bytes),
+            )
+        )
+
+    return validated_images
 
 @router.get("", response_model=ProductListResponse)
 def list_products(

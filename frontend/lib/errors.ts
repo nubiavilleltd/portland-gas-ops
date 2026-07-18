@@ -1,4 +1,6 @@
 import type { AxiosError } from "axios";
+import { APP_ERROR_MESSAGES } from "./app-errors";
+
 
 // ───────────────────────────────────────────────────────────
 // Generic fallback
@@ -22,7 +24,7 @@ export function extractApiError(
 ): ApiErrorDetail | null {
   const axiosErr =
     err as AxiosError<{ detail: ApiErrorDetail | string }>;
-
+    
   const detail = axiosErr?.response?.data?.detail;
 
   if (!detail) return null;
@@ -41,7 +43,6 @@ export function extractApiError(
 // Translate backend error → friendly message
 // ───────────────────────────────────────────────────────────
 
-import { APP_ERROR_MESSAGES } from "./app-errors";
 
 export function getErrorMessage(
   err: unknown,
@@ -70,7 +71,7 @@ export function getErrorMessage(
       detail,
     );
 
-    return fallback;
+    return DEFAULT_ERROR_MESSAGE;
   }
 
   return message;

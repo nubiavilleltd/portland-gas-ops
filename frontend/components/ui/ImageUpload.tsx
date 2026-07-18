@@ -9,7 +9,7 @@ import type { ProductImage } from "@/lib/modules/products/types/product.types";
 // Represents either an existing saved image or a new local file
 type ImageItem =
   | { kind: "existing"; image: ProductImage }
-  | { kind: "new";      file: File; previewUrl: string };
+  | { kind: "new"; file: File; previewUrl: string };
 
 interface ImageUploadProps {
   // New files selected by user
@@ -41,26 +41,31 @@ export default function ImageUpload({
   error,
   className,
 }: ImageUploadProps) {
-  const inputRef            = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging]     = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const maxBytes     = maxSizeMB * 1024 * 1024;
+  const maxBytes = maxSizeMB * 1024 * 1024;
+  const allowedTypes = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ]);
   const displayError = error ?? localError;
 
   // ── Build unified list ────────────────────────────────────
   const items: ImageItem[] = [
     ...existingImages.map((img): ImageItem => ({ kind: "existing", image: img })),
     ...value.map((file): ImageItem => ({
-      kind:       "new",
+      kind: "new",
       file,
       previewUrl: URL.createObjectURL(file),
     })),
   ];
 
   const totalCount = items.length;
-  const atLimit    = totalCount >= maxFiles;
+  const atLimit = totalCount >= maxFiles;
 
   // ── Get display URL for any item ─────────────────────────
   function getUrl(item: ImageItem): string {
@@ -76,6 +81,17 @@ export default function ImageUpload({
     setLocalError(null);
     const list = Array.from(incoming);
 
+    const invalidFile = list.find(
+      (file) => !allowedTypes.has(file.type),
+    );
+
+    if (invalidFile) {
+      setLocalError(
+        `"${invalidFile.name}" is not a supported image. Please upload a PNG, JPG, or WEBP image.`,
+      );
+      return;
+    }
+
     const tooBig = list.find((f) => f.size > maxBytes);
     if (tooBig) {
       setLocalError(`"${tooBig.name}" exceeds the ${maxSizeMB} MB limit.`);
@@ -90,7 +106,7 @@ export default function ImageUpload({
     }
 
     // Deduplicate by name+size
-    const seen   = new Set<string>();
+    const seen = new Set<string>();
     const deduped = merged.filter((f) => {
       const key = `${f.name}-${f.size}`;
       if (seen.has(key)) return false;
@@ -225,8 +241,8 @@ export default function ImageUpload({
             dragging
               ? "border-brand-purple bg-brand-purple/5"
               : displayError
-              ? "border-red-400 bg-red-50/30 hover:border-red-500"
-              : "border-brand-border bg-white hover:border-brand-purple hover:bg-purple-50/20"
+                ? "border-red-400 bg-red-50/30 hover:border-red-500"
+                : "border-brand-border bg-white hover:border-brand-purple hover:bg-purple-50/20"
           )}
         >
           <UploadCloud
