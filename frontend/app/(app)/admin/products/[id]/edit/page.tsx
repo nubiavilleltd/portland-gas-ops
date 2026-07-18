@@ -6,7 +6,6 @@ import { ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import ErrorBanner from "@/components/ui/ErrorBanner";
 
 import { useProductById } from "@/lib/modules/products/hooks/useProducts";
 import type { UpdateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
@@ -28,34 +27,6 @@ export default function EditProductPage() {
   const { product, isLoading, error } = useProductById(id);
 
     const { mutateAsync: updateProduct } = useUpdateProduct(id);
-
-  // if (isLoading) {
-  //   return (
-  //     <AppLayout pageTitle="Edit Product">
-  //       <div className="animate-pulse space-y-4 max-w-2xl">
-  //         <div className="h-8 bg-gray-100 rounded-lg w-1/3" />
-  //         <div className="h-64 bg-gray-100 rounded-2xl" />
-  //       </div>
-  //     </AppLayout>
-  //   );
-  // }
-
-  // if (error || !product) {
-  //   return (
-  //     <AppLayout pageTitle="Product Not Found">
-  //       <ErrorBanner message={error ?? "This product could not be found."} />
-  //       <Button
-  //         variant="outline"
-  //         className="mt-4"
-  //         onClick={() => router.push(PRODUCT_ROUTES.list())}
-  //       >
-  //         Back to Products
-  //       </Button>
-  //     </AppLayout>
-  //   );
-  // }
-
-
 
 
 if (isLoading) {
