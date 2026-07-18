@@ -6,6 +6,17 @@ export interface ProductImage {
   name: string;
 }
 
+
+export type ProductFormImage =
+  | {
+      kind: "existing";
+      image: ProductImage;
+    }
+  | {
+      kind: "new";
+      file: File;
+    };
+
 export type ProductType = "consumable" | "tracked";
 
 export type ProductStatus =

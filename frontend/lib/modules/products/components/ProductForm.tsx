@@ -17,6 +17,7 @@ import {
 import type {
   Product,
   ProductImage,
+  ProductFormImage,
   ProductUnit,
 } from "@/lib/modules/products/types/product.types";
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
@@ -47,6 +48,10 @@ export default function ProductForm({
   submitLabel = "Create Product",
   submitLoadingLabel = "Creating…",
 }: ProductFormProps) {
+
+
+  const MAX_FILES = 3
+  const MAX_SIZE_MB = 5;
   const {
     register,
     control,
@@ -83,15 +88,21 @@ export default function ProductForm({
 
   const productType = watch("productType");
 
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  // const [imageFiles, setImageFiles] = useState<File[]>([]);
 
-  const [keptImages, setKeptImages] = useState<ProductImage[]>(
-    initial?.images ?? [],
-  );
+  // const [keptImages, setKeptImages] = useState<ProductImage[]>(
+  //   initial?.images ?? [],
+  // );
 
-  function handleRemoveExisting(id: string) {
-    setKeptImages((prev) => prev.filter((img) => img.id !== id));
-  }
+
+  const [images, setImages] = useState<ProductFormImage[]>(
+  () =>
+    (initial?.images ?? []).map((image) => ({
+      kind: "existing",
+      image,
+    })),
+);
+
 
   async function handleFormSubmit(data: CreateProductFormOutput) {
     try {
@@ -209,17 +220,14 @@ export default function ProductForm({
         {...register("description")}
       />
 
-      <ImageUpload
-        label="Product Images"
-        value={imageFiles}
-        onChange={setImageFiles}
-        existingImages={keptImages}
-        onRemoveExisting={handleRemoveExisting}
-        maxFiles={3}
-        maxSizeMB={5}
-        hint="Up to 3 images. First image is used as the primary display image."
-      />
-
+  <ImageUpload
+  label="Product Images"
+  images={images}
+  onChange={setImages}
+  maxFiles={MAX_FILES}
+  maxSizeMB={MAX_SIZE_MB}
+  hint="Up to 3 images. First image is used as the primary display image."
+/>
       {/* Root error */}
       <ErrorBanner message={errors.root?.message} />
 
