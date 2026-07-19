@@ -26,6 +26,8 @@ export interface InvoiceRequest {
   requester: string;
   date: string;
   status: string;
+  nextActor?: string;
+  currentStepName?: string;
 }
 
 export const cashRequisitionColumns: Column<CashRequest>[] = [
@@ -140,5 +142,26 @@ export const invoiceColumns: Column<InvoiceRequest>[] = [
     label: "Status",
     sortable: true,
     render: (v) => <ApprovalBadge status={String(v)} />,
+  },
+  {
+    key: "nextActor",
+    label: "Next Actor",
+    sortable: true,
+    render: (_v, row) => {
+      // A returned invoice goes back to the requester (mirrors the detail header).
+      const isReturned = row.status === "returned";
+      const actorName = isReturned ? row.requester : row.nextActor;
+      const actorRole = isReturned ? "Requester" : row.currentStepName;
+      return actorName ? (
+        <span className="text-brand-text-primary whitespace-nowrap">
+          {String(actorName)}
+          {actorRole ? (
+            <span className="block text-[11px] text-brand-text-secondary">{actorRole}</span>
+          ) : null}
+        </span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      );
+    },
   },
 ];

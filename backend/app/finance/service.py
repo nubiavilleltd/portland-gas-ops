@@ -4,8 +4,11 @@ from fastapi import HTTPException, status
 from typing import Optional, Tuple
 from datetime import datetime
 
-from app.finance.models import CashRequisition, CashRequisitionStatus
-from app.finance.schemas import CashRequisitionCreate
+from app.finance.models import (
+    CashRequisition, CashRequisitionStatus,
+    InvoiceProcessing, InvoiceProcessingStatus,
+)
+from app.finance.schemas import CashRequisitionCreate, InvoiceProcessingCreate
 from app.employees.models import Employee
 from app.shared.services.workflow_engine import WorkflowEngine
 from app.shared.models.approval import ApprovalRequest
@@ -237,3 +240,213 @@ def resubmit_cash_requisition(
 
     submit_cash_requisition_for_approval(db, cr.id)
     return cr
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# INVOICE PROCESSING
+# ════════════════════════════════════════════════════════════════════════════
+
+def _next_invoice_reference(db: Session) -> str:
+    """Generate next invoice reference: INV-2026-0001"""
+    year = datetime.now().year
+    pattern = f"INV-{year}-%"
+    last = db.query(InvoiceProcessing.reference).filter(
+        InvoiceProcessing.reference.like(pattern)
+    ).order_by(InvoiceProcessing.reference.desc()).first()
+
+    num = 1
+    if last:
+        try:
+            num = int(last[0].split("-")[-1]) + 1
+        except (ValueError, IndexError):
+            pass
+
+    return f"INV-{year}-{num:04d}"
+
+
+def get_po_options(db: Session) -> list[dict]:
+    """Approved/completed procurement request references — for the PO dropdown."""
+    from app.procurement.models import ProcurementRequest
+    rows = (
+        db.query(ProcurementRequest.reference)
+        .filter(ProcurementRequest.status.in_(["approved", "completed"]))
+        .order_by(ProcurementRequest.reference.desc())
+        .all()
+    )
+    return [{"reference": r[0]} for r in rows if r[0]]
+
+
+def get_vendor_options(db: Session) -> list[dict]:
+    """Active vendors (id + name) for the invoice Vendor dropdown. A column query
+    (not the full ORM object) avoids the vendors.vendor_type enum, which currently
+    holds invalid data that makes GET /api/vendors 500."""
+    from app.vendors.models import Vendor
+    rows = (
+        db.query(Vendor.id, Vendor.name)
+        .filter(Vendor.is_active.is_(True))
+        .order_by(Vendor.name)
+        .all()
+    )
+    return [{"id": r[0], "name": r[1]} for r in rows if r[1]]
+
+
+def create_invoice(
+    db: Session,
+    payload: InvoiceProcessingCreate,
+    requester_id: str,
+) -> InvoiceProcessing:
+    """Create an invoice (pending). Submit-for-approval starts the workflow."""
+    if payload.amount is None or payload.amount <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Net amount must be greater than zero")
+    if not payload.vendor:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor is required")
+
+    employee = db.query(Employee).filter(Employee.user_id == requester_id).first()
+    department = payload.department or (employee.department if employee else None)
+
+    invoice = InvoiceProcessing(
+        reference=_next_invoice_reference(db),
+        invoice_id=payload.invoice_id,
+        requester_id=requester_id,
+        document_id=payload.document_id,
+        invoice_number=payload.invoice_number,
+        title=payload.title,
+        description=payload.description,
+        vendor=payload.vendor,
+        department=department,
+        po_number=payload.po_number,
+        payment_terms=payload.payment_terms,
+        gross_amount=payload.gross_amount or 0,
+        tax_amount=payload.tax_amount or 0,
+        amount=payload.amount,
+        currency=payload.currency or "NGN",
+        status=InvoiceProcessingStatus.pending,
+    )
+    db.add(invoice)
+    db.flush()
+    return invoice
+
+
+def get_all_invoices(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+) -> Tuple[list[InvoiceProcessing], int]:
+    query = db.query(InvoiceProcessing).options(joinedload(InvoiceProcessing.document))
+    sort_column = getattr(InvoiceProcessing, sort_by, InvoiceProcessing.created_at)
+    query = query.order_by(sort_column.asc() if sort_order.lower() == "asc" else sort_column.desc())
+    total = query.count()
+    return query.offset(skip).limit(limit).all(), total
+
+
+def get_invoice_by_id(db: Session, invoice_id: str) -> InvoiceProcessing:
+    inv = db.query(InvoiceProcessing).options(
+        joinedload(InvoiceProcessing.document),
+    ).filter(InvoiceProcessing.id == invoice_id).first()
+    if not inv:
+        inv = db.query(InvoiceProcessing).options(
+            joinedload(InvoiceProcessing.document),
+        ).filter(InvoiceProcessing.reference == invoice_id).first()
+    if not inv:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Invoice '{invoice_id}' not found")
+    return inv
+
+
+def get_invoice_next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
+    """Next-actor name + step for pending invoices in the workflow."""
+    if not request_ids:
+        return {}
+    from app.shared.models.approval import ApprovalStepAssignment, ApprovalOverallStatus, WorkflowStep
+    from app.shared.models.user import User
+
+    rows = (
+        db.query(ApprovalRequest.request_id, User.first_name, User.last_name, WorkflowStep.step_name)
+        .join(
+            ApprovalStepAssignment,
+            and_(
+                ApprovalStepAssignment.approval_request_id == ApprovalRequest.id,
+                ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ),
+        )
+        .join(Employee, Employee.id == ApprovalStepAssignment.assigned_to)
+        .join(User, User.id == Employee.user_id)
+        .join(
+            WorkflowStep,
+            and_(
+                WorkflowStep.workflow_id == ApprovalRequest.workflow_id,
+                WorkflowStep.step_number == ApprovalRequest.current_step_number,
+            ),
+        )
+        .filter(
+            ApprovalRequest.request_type == "invoice",
+            ApprovalRequest.request_id.in_(request_ids),
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .all()
+    )
+    result: dict[str, dict] = {}
+    for row in rows:
+        name = " ".join(p for p in [row.first_name, row.last_name] if p) or "—"
+        result[row.request_id] = {"name": name, "step_name": row.step_name}
+    return result
+
+
+def submit_invoice_for_approval(db: Session, invoice_id: str) -> ApprovalRequest:
+    """Submit an invoice into the workflow (both steps auto-resolve)."""
+    inv = db.query(InvoiceProcessing).filter(InvoiceProcessing.id == invoice_id).first()
+    if not inv:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+
+    requester = db.query(Employee).filter(Employee.user_id == inv.requester_id).first()
+    if not requester:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Requester must have an employee record")
+
+    title = f"{inv.title} — {inv.vendor} — {inv.currency} {inv.amount:,.2f}"
+
+    engine = WorkflowEngine(db)
+    return engine.start(
+        request_type="invoice",
+        request_id=invoice_id,
+        title=title,
+        requester=requester,
+        picked_approvers=None,
+    )
+
+
+def resubmit_invoice(
+    db: Session,
+    invoice_id: str,
+    payload: InvoiceProcessingCreate,
+    current_user_id: str,
+) -> InvoiceProcessing:
+    """Edit and resubmit a RETURNED invoice. Only the requester may resubmit."""
+    inv = get_invoice_by_id(db, invoice_id)
+    if inv.status != InvoiceProcessingStatus.returned:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only returned invoices can be resubmitted")
+    if inv.requester_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the requester can resubmit this invoice")
+    if payload.amount is None or payload.amount <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Net amount must be greater than zero")
+
+    employee = db.query(Employee).filter(Employee.user_id == current_user_id).first()
+
+    inv.invoice_number = payload.invoice_number
+    inv.title = payload.title
+    inv.description = payload.description
+    inv.vendor = payload.vendor
+    inv.department = payload.department or (employee.department if employee else inv.department)
+    inv.po_number = payload.po_number
+    inv.payment_terms = payload.payment_terms
+    inv.gross_amount = payload.gross_amount or 0
+    inv.tax_amount = payload.tax_amount or 0
+    inv.amount = payload.amount
+    inv.currency = payload.currency or "NGN"
+    if payload.document_id is not None:
+        inv.document_id = payload.document_id
+    inv.status = InvoiceProcessingStatus.pending
+    db.flush()
+
+    submit_invoice_for_approval(db, inv.id)
+    return inv
