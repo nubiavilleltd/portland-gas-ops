@@ -304,6 +304,39 @@ class InventoryRepository:
         item.disposition = disposition
 
         db.flush()
+    
+    def deduct_consumable_stock(
+        self,
+        db: Session,
+        *,
+        product_id: str,
+        location_id: str,
+        quantity: Decimal,
+    ) -> ConsumableStock:
+
+        stock = self.get_consumable_stock(
+            db=db,
+            product_id=product_id,
+            location_id=location_id,
+        )
+
+        if stock is None:
+            raise ValueError(
+                "Consumable stock not found."
+            )
+
+        if stock.quantity < quantity:
+            raise ValueError(
+                f"Insufficient stock. Available {stock.quantity}, required {quantity}."
+            )
+
+        stock.quantity -= quantity
+
+        db.flush()
+
+        return stock
+    
+    
     def release_inventory_item(
         self,
         db: Session,

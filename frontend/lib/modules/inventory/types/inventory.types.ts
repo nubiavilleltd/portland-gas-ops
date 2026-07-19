@@ -44,7 +44,7 @@ export interface InventoryAssignment {
   location_id?: string;
 
   // business disposition
-  disposition: ItemDisposition;
+  disposition?: ItemDisposition;
 }
 
 // ── 4. INVENTORY ITEM ────────────────────────────────────

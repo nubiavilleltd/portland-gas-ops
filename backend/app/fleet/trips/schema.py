@@ -27,11 +27,25 @@ class TripAssignResources(BaseModel):
     driver_id: str
     vehicle_id: str
 
+# class TripInventoryAssignment(BaseModel):
+#     order_id: str
+#     product_id: str
+#     item_ids: list[str] = Field(min_length=1)
+#     disposition: DispositionStatus
+
+
 class TripInventoryAssignment(BaseModel):
     order_id: str
     product_id: str
-    item_ids: list[str] = Field(min_length=1)
-    disposition: DispositionStatus
+
+    # tracked products
+    item_ids: list[str] = Field(default_factory=list)
+
+    # consumables
+    location_id: str | None = None
+
+    # Business disposition for tracked inventory
+    disposition: DispositionStatus | None = None
 
 
 class TripMarkReady(BaseModel):

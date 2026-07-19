@@ -147,9 +147,6 @@ export default function AssignInventoryPage() {
   const { items, isLoading: itemsLoading } = useInventoryItems();
   const { locations } = useLocations();
 
-
-
-
   const [selection, setSelection] = useState<SelectionMap>({});
   const [activePicker, setActivePicker] = useState<{
     orderId: string;
@@ -174,7 +171,6 @@ export default function AssignInventoryPage() {
       },
     }));
   }
-
 
   const isLoading =
     tripLoading || ordersLoading || productsLoading || itemsLoading;
@@ -233,7 +229,7 @@ export default function AssignInventoryPage() {
 
   // ── Derive trip orders ────────────────────────────────────
   const tripOrders = orders.filter((order) =>
-    trip.order_ids.includes(order.id)
+    trip.order_ids.includes(order.id),
   );
 
   // ── Derive all tracked line items across this trip ────────
@@ -270,7 +266,6 @@ export default function AssignInventoryPage() {
     });
   }
 
-
   function getConsumableLineItems() {
     return tripOrders.flatMap((order) =>
       order.orderItems
@@ -288,19 +283,14 @@ export default function AssignInventoryPage() {
   }
 
   function isConsumablesAssigned(): boolean {
-    return getConsumableLineItems().every(
-      ({ key }) => Boolean(selection[key]?.locationId),
+    return getConsumableLineItems().every(({ key }) =>
+      Boolean(selection[key]?.locationId),
     );
   }
 
   function isAllAssigned() {
-    return (
-      isTrackedInventoryAssigned() &&
-      isConsumablesAssigned()
-    );
+    return isTrackedInventoryAssigned() && isConsumablesAssigned();
   }
-
-
 
   // ── Submit ────────────────────────────────────────────────
   async function handleSubmit() {
@@ -314,18 +304,34 @@ export default function AssignInventoryPage() {
       return;
     }
 
-    const trackedAssignments = getTrackedLineItems()
-      .map(({ order, lineItem, key }) => ({
-        order_id: order.id,
-        product_id: lineItem.productId,
-        item_ids: selection[key]?.itemIds ?? [],
-        disposition: selection[key]?.disposition ?? "sold",
-      }))
-      .filter((a) => a.item_ids.length > 0);
+    const assignments = tripOrders.flatMap((order) =>
+      order.orderItems
+        .filter((lineItem) => productMap.has(lineItem.productId))
+        .map((lineItem) => {
+          const key = lineItemKey(order.id, lineItem.productId);
+          const product = productMap.get(lineItem.productId)!;
+
+          if (isTracked(product)) {
+            return {
+              order_id: order.id,
+              product_id: lineItem.productId,
+              item_ids: selection[key]?.itemIds ?? [],
+              disposition: selection[key]?.disposition ?? "sold",
+            };
+          }
+
+          return {
+            order_id: order.id,
+            product_id: lineItem.productId,
+            item_ids: [],
+            location_id: selection[key]?.locationId,
+          };
+        }),
+    );
 
     await assignInventory.mutateAsync({
       trip: trip as Trip,
-      assignments: trackedAssignments,
+      assignments,
     });
   }
 
@@ -473,28 +479,28 @@ export default function AssignInventoryPage() {
           );
         })}
 
-       <div className="space-y-2">
-  {!isTrackedInventoryAssigned() && (
-    <p className="text-sm text-amber-700 flex items-center gap-1.5">
-      <AlertCircle size={14} />
-      Assign all required tracked inventory before proceeding.
-    </p>
-  )}
+        <div className="space-y-2">
+          {!isTrackedInventoryAssigned() && (
+            <p className="text-sm text-amber-700 flex items-center gap-1.5">
+              <AlertCircle size={14} />
+              Assign all required tracked inventory before proceeding.
+            </p>
+          )}
 
-  {!isConsumablesAssigned() && (
-    <p className="text-sm text-amber-700 flex items-center gap-1.5">
-      <AlertCircle size={14} />
-      Select a warehouse for all consumable items.
-    </p>
-  )}
+          {!isConsumablesAssigned() && (
+            <p className="text-sm text-amber-700 flex items-center gap-1.5">
+              <AlertCircle size={14} />
+              Select a warehouse for all consumable items.
+            </p>
+          )}
 
-  {isTrackedInventoryAssigned() && isConsumablesAssigned() && (
-    <p className="text-sm text-green-700 flex items-center gap-1.5">
-      <CheckCircle size={14} />
-      Inventory assignment complete — ready to proceed.
-    </p>
-  )}
-</div>
+          {isTrackedInventoryAssigned() && isConsumablesAssigned() && (
+            <p className="text-sm text-green-700 flex items-center gap-1.5">
+              <CheckCircle size={14} />
+              Inventory assignment complete — ready to proceed.
+            </p>
+          )}
+        </div>
 
         {/* Actions */}
         <div className="flex pb-10">
