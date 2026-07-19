@@ -16,6 +16,7 @@ const PROCESS_CONFIG: Record<string, { label: string; badge: string }> = {
   procurement:      { label: "Procurement",    badge: "bg-purple-100 text-purple-700" },
   asset:            { label: "Asset Request",  badge: "bg-blue-100 text-blue-700" },
   leave:            { label: "Leave Request",  badge: "bg-green-100 text-green-700" },
+  cash_requisition: { label: "Cash Requisition", badge: "bg-emerald-100 text-emerald-700" },
   work_initiation:  { label: "Work Initiation", badge: "bg-orange-100 text-orange-700" },
   work_authorization: { label: "Work Authorization", badge: "bg-cyan-100 text-cyan-700" },
   work_closeout:    { label: "Work Closeout",   badge: "bg-teal-100 text-teal-700" },
@@ -29,6 +30,7 @@ function requestHref(row: ApprovalRow): string {
   switch (row.request_type) {
     case "procurement": return `/procurement/${row.request_id}`;
     case "asset":       return `/assets/requests/${row.request_id}`;
+    case "cash_requisition": return `/finance/cash-requisitions/${row.request_id}`;
     case "work_initiation": return `/safety/work-initiation/${row.request_id}`;
     case "work_authorization": return `/safety/work-authorization/${row.request_id}`;
     case "work_closeout": return `/safety/work-close-out/${row.request_id}`;
