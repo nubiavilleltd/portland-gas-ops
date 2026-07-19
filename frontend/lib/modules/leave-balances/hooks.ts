@@ -18,3 +18,12 @@ export function useAllLeaveBalances(fiscalYear?: number) {
     staleTime: 60 * 1000,
   });
 }
+
+export function useEmployeeLeaveBalances(employeeId?: string, fiscalYear?: number) {
+  return useQuery({
+    queryKey: ["leave-balances", "employee", employeeId, fiscalYear ?? "current"],
+    queryFn: () => leaveBalancesApi.listForEmployee(employeeId as string, fiscalYear),
+    enabled: !!employeeId,
+    staleTime: 60 * 1000,
+  });
+}

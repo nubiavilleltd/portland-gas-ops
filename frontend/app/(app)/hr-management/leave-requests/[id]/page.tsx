@@ -36,19 +36,7 @@ type ResubmitForm = {
   reason: string;
 };
 
-const CURRENT_USER = {
-  name: "Joseph Chika",
-  department: "Operations",
-  title: "Operations Manager",
-};
-
-const STATUS_STEP: Record<string, number> = {
-  draft:       0,
-  pending:     1,
-  in_progress: 2,
-  approved:    4,
-  denied:      1,
-};
+const TODAY = new Date().toISOString().split("T")[0];
 
 const WORKFLOW_STEPS = [
   { step: 1, name: "Reliever", description: "Approval from reliever" },
@@ -106,7 +94,7 @@ export default function LeaveRequestDetailPage({
         reason: apiRecord.reason,
         status: (apiRecord.status.toLowerCase() as any) || "draft",
         date: formatDateTime(apiRecord.created_at),
-        requestType: apiRecord.request_type || "self",
+        requestType: apiRecord.request_type === "others" ? "others" : "self",
         jobTitle: apiRecord.job_title,
         supportingDocuments: apiRecord.document ? [apiRecord.document.name] : [],
       };
@@ -206,6 +194,17 @@ export default function LeaveRequestDetailPage({
   const resubmitForm = useForm<ResubmitForm>();
   const rWatch = resubmitForm.watch;
   const rIsOthers = rWatch("request_type") === "others";
+  const rStart = rWatch("start_date");
+  const rEnd = rWatch("end_date");
+
+  // Keep the range valid: if a newly picked start date is after the current end
+  // date, clear the end date so the user re-selects it.
+  useEffect(() => {
+    if (rStart && rEnd && rEnd < rStart) {
+      resubmitForm.setValue("end_date", "", { shouldValidate: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rStart]);
 
   // Load the request into the edit form once (when it becomes editable)
   useEffect(() => {
@@ -266,7 +265,7 @@ export default function LeaveRequestDetailPage({
           try {
             await leaveRequestsApi.uploadDocument(updated.id, file);
           } catch {
-            toast.warning(`Could not upload ${file.name}. Request was still resubmitted.`);
+            toast.info(`Could not upload ${file.name}. Request was still resubmitted.`);
           }
         }
       }
@@ -435,11 +434,11 @@ export default function LeaveRequestDetailPage({
                     />
                   )}
                   <FormDatePicker
-                    label="Start Date" required
+                    label="Start Date" required min={TODAY}
                     {...resubmitForm.register("start_date")} value={rWatch("start_date") ?? ""}
                   />
                   <FormDatePicker
-                    label="End Date" required
+                    label="End Date" required min={rWatch("start_date") || TODAY}
                     {...resubmitForm.register("end_date")} value={rWatch("end_date") ?? ""}
                   />
                   <FormInput label="Number of Days" value={rDays > 0 ? String(rDays) : ""} disabled placeholder="Auto-calculated" />

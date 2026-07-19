@@ -17,4 +17,12 @@ export const leaveBalancesApi = {
     });
     return data;
   },
+
+  // A specific employee's balances — used when raising a request "for others"
+  listForEmployee: async (employeeId: string, fiscalYear?: number): Promise<LeaveBalance[]> => {
+    const { data } = await api.get(`/api/hr/leave-balances/employee/${employeeId}`, {
+      params: fiscalYear != null ? { fiscal_year: fiscalYear } : undefined,
+    });
+    return data;
+  },
 };

@@ -275,6 +275,25 @@ def get_all_leave_balances(
     return service.get_all_leave_balances(db, year, skip=skip, limit=limit)
 
 
+@router.get(
+    "/leave-balances/employee/{employee_id}",
+    response_model=list[LeaveBalanceRead],
+)
+def get_employee_leave_balances(
+    employee_id: str,
+    fiscal_year: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    A specific employee's leave balances for a fiscal year. Used when raising a
+    leave request "for others" so the form reflects the target employee's balance
+    (the days count against them). Available to any authenticated user.
+    """
+    year = fiscal_year if fiscal_year is not None else date.today().year
+    return service.get_my_leave_balances(db, employee_id, year)
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # LEAVE REQUESTS
 # ════════════════════════════════════════════════════════════════════════════

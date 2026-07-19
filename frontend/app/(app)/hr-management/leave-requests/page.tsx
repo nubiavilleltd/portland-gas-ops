@@ -21,7 +21,7 @@ import { leaveRequestColumns } from "../_components/columns";
 import { useCreateLeaveRequest, useLeaveRequests, useLeaveRequest, useCurrentEmployee } from "@/lib/modules/leave-requests/hooks";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
-import { useMyLeaveBalances } from "@/lib/modules/leave-balances/hooks";
+import { useMyLeaveBalances, useEmployeeLeaveBalances } from "@/lib/modules/leave-balances/hooks";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthStore } from "@/store/authStore";
@@ -182,7 +182,31 @@ export default function LeaveRequestsPage() {
   const watchEnd         = form.watch("end_date");
   const watchLeaveType   = form.watch("leave_type");
 
+  // Keep the range valid: if a newly picked start date is after the current end
+  // date, clear the end date so the user re-selects it.
+  useEffect(() => {
+    if (watchStart && watchEnd && watchEnd < watchStart) {
+      form.setValue("end_date", "", { shouldValidate: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchStart]);
+
   const isOthers = watchRequestType === "others";
+
+  // When raising "for others", the leave counts against the SELECTED employee,
+  // so the banner + exceeds-balance guard use THEIR balance (not the requester's).
+  const watchEmployeeId = form.watch("employee_id");
+  const selectedEmployee = isOthers ? employees.find((e) => e.id === watchEmployeeId) : undefined;
+  const balanceOwnerName = selectedEmployee?.user
+    ? `${selectedEmployee.user.first_name ?? ""} ${selectedEmployee.user.last_name ?? ""}`.trim()
+    : "";
+  const { data: otherBalances = [] } = useEmployeeLeaveBalances(
+    isOthers ? (watchEmployeeId || undefined) : undefined,
+    YEAR,
+  );
+  // self -> requester's balances; others -> the target's (empty until picked).
+  const formBalances = !isOthers ? leaveBalances : watchEmployeeId ? otherBalances : [];
+  const formBalanceByType = new Map(formBalances.map((b) => [Number(b.leave_type_id), b]));
 
   // For balance calc, look up the leave type by ID and use its entitlement
   const selectedLeaveType = watchLeaveType
@@ -190,11 +214,17 @@ export default function LeaveRequestsPage() {
     : null;
 
   const leaveTypeName = selectedLeaveType?.leave_type_name;
+  const balanceHeading = isOthers
+    ? (balanceOwnerName ? `${balanceOwnerName}'s ${leaveTypeName} Balance` : `${leaveTypeName} Balance`)
+    : `Your ${leaveTypeName} Balance`;
+  const balancePossessive = isOthers
+    ? (balanceOwnerName ? `${balanceOwnerName}'s` : "the")
+    : "your";
 
-  // Real balance for the selected leave type — falls back to full entitlement
-  // when the employee hasn't drawn on this type yet this year.
+  // Real balance for the selected leave type, for the person the leave is FOR.
+  // Falls back to full entitlement when they haven't drawn on this type this year.
   const activeBal = selectedLeaveType ? (() => {
-    const bal = balanceByType.get(Number(selectedLeaveType.id));
+    const bal = formBalanceByType.get(Number(selectedLeaveType.id));
     return {
       entitlement: bal?.entitlement ?? selectedLeaveType.entitlement_days,
       used: bal?.used ?? 0,
@@ -532,7 +562,7 @@ export default function LeaveRequestsPage() {
                   <div className="md:col-span-2 rounded-xl border border-brand-purple bg-white px-4 py-3 flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-brand-text-secondary uppercase tracking-wide">
-                        Your {leaveTypeName} Balance
+                        {balanceHeading}
                       </p>
                       <div className="flex items-baseline gap-1.5 mt-1">
                         <span className="text-sm font-bold text-brand-purple">
@@ -574,6 +604,7 @@ export default function LeaveRequestsPage() {
                 <FormDatePicker
                   label="Start Date"
                   required
+                  min={TODAY}
                   error={errors.start_date?.message}
                   {...form.register("start_date")}
                   value={watchStart ?? ""}
@@ -581,6 +612,7 @@ export default function LeaveRequestsPage() {
                 <FormDatePicker
                   label="End Date"
                   required
+                  min={watchStart || TODAY}
                   error={errors.end_date?.message}
                   {...form.register("end_date")}
                   value={watchEnd ?? ""}
@@ -596,7 +628,7 @@ export default function LeaveRequestsPage() {
                   />
                   {exceedsBalance && activeBal && (
                     <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                      Requested {days} day{days !== 1 ? "s" : ""} exceeds your available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {leaveTypeName}.
+                      Requested {days} day{days !== 1 ? "s" : ""} exceeds {balancePossessive} available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {leaveTypeName}.
                     </p>
                   )}
                 </div>
