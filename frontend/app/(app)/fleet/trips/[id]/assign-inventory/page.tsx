@@ -14,11 +14,12 @@ import Badge from "@/components/ui/Badge";
 import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-import { useInventoryItems } from "@/lib/modules/inventory/hooks/useInventory";
+import {
+  useInventoryItems,
+  useLocations,
+} from "@/lib/modules/inventory/hooks/useInventory";
 import { useAssignInventoryWorkflow } from "@/lib/modules/fleet/hooks/useAssignInventoryWorkflow";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
-import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
 import { getAvailableItems } from "@/lib/modules/inventory/selectors/inventory.selectors";
 import { isTracked } from "@/lib/modules/products/types/product.types";
 import { canAssignInventory } from "@/lib/modules/fleet/guards/trip.guards";
@@ -31,10 +32,15 @@ import { cn } from "@/lib/utils";
 
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import type { ItemDisposition } from "@/lib/modules/inventory/types/inventory.types";
+import FormSelect from "@/components/forms/FormSelect";
 
 // ── Types ─────────────────────────────────────────────────
 // Each tracked line item now carries its own disposition alongside selected unit ids
-type LineSelection = { itemIds: string[]; disposition: ItemDisposition };
+type LineSelection = {
+  itemIds: string[];
+  disposition: ItemDisposition;
+  locationId?: string;
+};
 type SelectionMap = Record<string, LineSelection>;
 
 // ── Helper ────────────────────────────────────────────────
@@ -44,14 +50,54 @@ function lineItemKey(orderId: string, productId: string) {
 
 // ── Sub-components ────────────────────────────────────────
 
-function ConsumableLineItem({ productName }: { productName: string }) {
+// function ConsumableLineItem({ productName }: { productName: string }) {
+//   return (
+//     <div className="flex items-center gap-3 py-3 px-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+//       <CheckCircle size={15} className="shrink-0" />
+//       <span>
+//         <span className="font-medium">{productName}</span>
+//         {" — "}Consumable, no unit assignment needed
+//       </span>
+//     </div>
+//   );
+// }
+
+function ConsumableLineItem({
+  productName,
+  quantity,
+  value,
+  locations,
+  onChange,
+}: {
+  productName: string;
+  quantity: number;
+  value?: string;
+  locations: { value: string; label: string }[];
+  onChange: (locationId: string) => void;
+}) {
   return (
-    <div className="flex items-center gap-3 py-3 px-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
-      <CheckCircle size={15} className="shrink-0" />
-      <span>
-        <span className="font-medium">{productName}</span>
-        {" — "}Consumable, no unit assignment needed
-      </span>
+    <div className="border border-brand-border rounded-xl overflow-hidden">
+      <div className="px-4 py-3 bg-gray-50 border-b border-brand-border">
+        <div className="flex items-center justify-between">
+          <span className="font-medium">{productName}</span>
+          <Badge
+            variant="neutral"
+            label={`Consumable × ${quantity}`}
+          />
+        </div>
+      </div>
+
+      <div className="p-4">
+        <FormSelect
+          label="Warehouse"
+          required
+          placeholder="Select warehouse"
+          options={locations}
+          value={value ?? ""}
+          onValueChange={onChange}
+          hint="Choose the warehouse this stock will be deducted from during dispatch."
+        />
+      </div>
     </div>
   );
 }
@@ -77,7 +123,7 @@ function DispositionPicker({
               "px-3 py-1 text-xs rounded-full border transition-colors",
               value === opt.value
                 ? "bg-brand-purple text-white border-brand-purple"
-                : "border-brand-border text-brand-text-secondary hover:border-brand-purple/50"
+                : "border-brand-border text-brand-text-secondary hover:border-brand-purple/50",
             )}
           >
             {opt.label}
@@ -97,8 +143,8 @@ export default function AssignInventoryPage() {
   const { trip, isLoading: tripLoading } = useTripByNo(tripNo);
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products, isLoading: productsLoading } = useProducts();
-  const { customers, isLoading: customersLoading } = useCustomers();
   const { items, isLoading: itemsLoading } = useInventoryItems();
+  const { locations } = useLocations();
 
   const [selection, setSelection] = useState<SelectionMap>({});
   const [activePicker, setActivePicker] = useState<{
@@ -109,10 +155,24 @@ export default function AssignInventoryPage() {
   } | null>(null);
 
   const productMap = new Map(products.map((p) => [p.id, p]));
-  const customerMap = new Map(customers.map((c) => [c.id, c]));
+  const locationOptions = locations.map((location) => ({
+    value: location.id,
+    label: location.name,
+  }));
+
+  function handleLocationChange(key: string, locationId: string) {
+    setSelection((prev) => ({
+      ...prev,
+      [key]: {
+        itemIds: prev[key]?.itemIds ?? [],
+        disposition: prev[key]?.disposition ?? "sold",
+        locationId,
+      },
+    }));
+  }
 
   const isLoading =
-    tripLoading || ordersLoading || productsLoading || itemsLoading || customersLoading;
+    tripLoading || ordersLoading || productsLoading || itemsLoading;
 
   // ── Loading ──────────────────────────────────────────────
   if (isLoading) {
@@ -137,12 +197,17 @@ export default function AssignInventoryPage() {
     return (
       <AppLayout pageTitle="Cannot Assign Inventory">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
-          <h2 className="font-semibold mb-2">Inventory Assignment Unavailable</h2>
+          <h2 className="font-semibold mb-2">
+            Inventory Assignment Unavailable
+          </h2>
           <p className="text-sm text-brand-text-secondary mb-4">
             This trip is not awaiting inventory assignment. Current status:{" "}
             <strong>{trip.status}</strong>
           </p>
-          <Button variant="outline" href={FLEET_ROUTES.tripDetail(tripNo)}>
+          <Button
+            variant="outline"
+            href={FLEET_ROUTES.tripDetail(tripNo)}
+          >
             Back to Trip
           </Button>
         </div>
@@ -154,15 +219,17 @@ export default function AssignInventoryPage() {
   if (trip.order_ids.length === 0) {
     return (
       <AppLayout pageTitle="Assign Inventory">
-        <p className="text-brand-text-secondary">This trip has no linked orders.</p>
+        <p className="text-brand-text-secondary">
+          This trip has no linked orders.
+        </p>
       </AppLayout>
     );
   }
 
   // ── Derive trip orders ────────────────────────────────────
-  const tripOrders = trip.order_ids
-    .map((oid) => getOrderById(orders, oid))
-    .filter(Boolean);
+  const tripOrders = orders.filter((order) =>
+    trip.order_ids.includes(order.id)
+  );
 
   // ── Derive all tracked line items across this trip ────────
   function getTrackedLineItems() {
@@ -178,7 +245,7 @@ export default function AssignInventoryPage() {
           product: productMap.get(lineItem.productId)!,
           key: lineItemKey(order!.id, lineItem.productId),
           required: Math.ceil(lineItem.quantity),
-        }))
+        })),
     );
   }
 
@@ -239,14 +306,17 @@ export default function AssignInventoryPage() {
           if (!order) return null;
 
           return (
-            <div key={order.id} className="bg-white border border-brand-border rounded-2xl">
+            <div
+              key={order.id}
+              className="bg-white border border-brand-border rounded-2xl"
+            >
               {/* Order header */}
               <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
                 <h2 className="text-sm font-semibold text-brand-text-primary">
                   {order.orderNumber}
                 </h2>
                 <p className="text-xs text-brand-text-secondary mt-0.5">
-                  {customerMap.get(order.customerId)?.name ?? "-"}
+                  {order.customerName ?? "-"}
                 </p>
               </div>
 
@@ -257,10 +327,17 @@ export default function AssignInventoryPage() {
                   if (!product) return null;
 
                   if (!isTracked(product)) {
+                    const key = lineItemKey(order.id, lineItem.productId);
                     return (
                       <ConsumableLineItem
                         key={lineItem.productId}
                         productName={product.name}
+                        quantity={lineItem.quantity}
+                        value={selection[key]?.locationId}
+                        locations={locationOptions}
+                        onChange={(locationId) =>
+                          handleLocationChange(key, locationId)
+                        }
                       />
                     );
                   }
@@ -279,9 +356,16 @@ export default function AssignInventoryPage() {
                       {/* Header */}
                       <div className="px-4 py-3 bg-gray-50 border-b border-brand-border flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Package size={14} className="text-brand-text-secondary" />
-                          <span className="text-sm font-medium">{product.name}</span>
-                          <span className="text-sm text-brand-text-secondary">× {required}</span>
+                          <Package
+                            size={14}
+                            className="text-brand-text-secondary"
+                          />
+                          <span className="text-sm font-medium">
+                            {product.name}
+                          </span>
+                          <span className="text-sm text-brand-text-secondary">
+                            × {required}
+                          </span>
                         </div>
                         <Badge
                           variant={fulfilled ? "success" : "warning"}
@@ -323,7 +407,9 @@ export default function AssignInventoryPage() {
                           }
                           className="shrink-0 ml-4 text-sm text-brand-purple font-medium hover:underline"
                         >
-                          {selectedIds.length === 0 ? "Select units →" : "Change →"}
+                          {selectedIds.length === 0
+                            ? "Select units →"
+                            : "Change →"}
                         </button>
                       </div>
 
@@ -346,29 +432,43 @@ export default function AssignInventoryPage() {
         <div className="flex-1">
           {isAllAssigned() ? (
             <p className="text-sm text-green-700 flex items-center gap-1.5">
-              <CheckCircle size={14} className="shrink-0" />
+              <CheckCircle
+                size={14}
+                className="shrink-0"
+              />
               All tracked items assigned — ready to proceed
             </p>
           ) : (
             <div className="space-y-1">
               {getTrackedLineItems()
-                .filter(({ key, required }) => (selection[key]?.itemIds.length ?? 0) < required)
+                .filter(
+                  ({ key, required }) =>
+                    (selection[key]?.itemIds.length ?? 0) < required,
+                )
                 .map(({ product, key, required }) => {
                   const selected = selection[key]?.itemIds.length ?? 0;
                   const available = getAvailableItems(items, product.id).length;
                   const isStockGap = available < required;
 
                   return (
-                    <p key={product.id} className="text-sm text-amber-700 flex items-start gap-1.5">
-                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <p
+                      key={product.id}
+                      className="text-sm text-amber-700 flex items-start gap-1.5"
+                    >
+                      <AlertCircle
+                        size={14}
+                        className="shrink-0 mt-0.5"
+                      />
                       {isStockGap ? (
                         <span>
-                          <strong>{product.name}</strong>: only {available} of {required} units
-                          available in stock. Check in more stock before proceeding.
+                          <strong>{product.name}</strong>: only {available} of{" "}
+                          {required} units available in stock. Check in more
+                          stock before proceeding.
                         </span>
                       ) : (
                         <span>
-                          <strong>{product.name}</strong>: select {required - selected} more unit
+                          <strong>{product.name}</strong>: select{" "}
+                          {required - selected} more unit
                           {required - selected !== 1 ? "s" : ""} to continue.
                         </span>
                       )}
@@ -397,16 +497,24 @@ export default function AssignInventoryPage() {
             open={activePicker !== null}
             onClose={() => setActivePicker(null)}
             onConfirm={(itemIds) => {
-              const key = lineItemKey(activePicker.orderId, activePicker.productId);
+              const key = lineItemKey(
+                activePicker.orderId,
+                activePicker.productId,
+              );
               setSelection((prev) => ({
                 ...prev,
-                [key]: { itemIds, disposition: prev[key]?.disposition ?? "sold" },
+                [key]: {
+                  itemIds,
+                  disposition: prev[key]?.disposition ?? "sold",
+                },
               }));
               setActivePicker(null);
             }}
             items={getAvailableItems(items, activePicker.productId)}
             selectedIds={
-              selection[lineItemKey(activePicker.orderId, activePicker.productId)]?.itemIds ?? []
+              selection[
+                lineItemKey(activePicker.orderId, activePicker.productId)
+              ]?.itemIds ?? []
             }
             productName={activePicker.productName}
             required={activePicker.required}

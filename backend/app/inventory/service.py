@@ -23,6 +23,7 @@ from app.inventory.schema import (
     CheckInTrackedInput,
     ReturnItemInput,
 )
+from app.orders.model import OrderItem
 
 
 class InventoryService:
@@ -385,15 +386,20 @@ class InventoryService:
                 )
 
                 # Consumables don't require inventory checkout.
-                if product.product_type.value != "tracked":
-                    continue
-
-                self._check_out_order_item(
-                    db=db,
-                    trip_id=trip_id,
-                    order_item_id=order_item.id,
-                    actor_id=actor_id,
-                )
+                if product.product_type.value == "tracked":
+                    self._check_out_order_item(
+                        db=db,
+                        trip_id=trip_id,
+                        order_item_id=order_item.id,
+                        actor_id=actor_id,
+                    )
+                else:
+                    self._check_out_consumable(
+                        db=db,
+                        trip_id=trip_id,
+                        order_item=order_item,
+                        actor_id=actor_id,
+                    )
 
 
     def _check_out_order_item(
@@ -499,7 +505,17 @@ class InventoryService:
 
         return checked_out_ids
 
-
+    def _check_out_consumable(
+        self,
+        db: Session,
+        trip_id: str,
+        order_item:OrderItem,
+        actor_id: str,
+    ):
+        """
+        Checks out consumable stock for a single order item.
+        """
+        pass
 
 
     def release_trip_inventory(
