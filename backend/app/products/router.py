@@ -183,12 +183,18 @@ async def update_product(
     data:           str              = Form(...),
     images:         List[UploadFile] = File(default=[]),
     kept_image_ids: str              = Form(default="[]"),
+    primary_image_id: str | None = Form(default=None),
     db:             Session          = Depends(get_db),
     current_user:   User             = Depends(require_roles("super_admin", "admin")),
 ):
     try:
         payload  = ProductUpdate.model_validate(json.loads(data))
         kept_ids = json.loads(kept_image_ids)
+        primary_image_id = (
+            int(primary_image_id)
+            if primary_image_id not in (None, "", "null")
+            else None
+        )
     except ValidationError as exc:
         raise AppException(
             status_code=422,
@@ -203,6 +209,7 @@ async def update_product(
         db, product_id, payload,
         new_images     = image_files,
         kept_image_ids = kept_ids,
+        primary_image_id=primary_image_id,
         uploaded_by    = uploaded_by,
     )
     db.commit()

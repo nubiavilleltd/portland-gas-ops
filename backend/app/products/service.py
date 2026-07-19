@@ -150,6 +150,7 @@ class ProductService:
         data: ProductUpdate,
         new_images: list[tuple[bytes, str, str, int]] | None = None,
         kept_image_ids: list[str] | None = None,
+         primary_image_id: str | None = None,
         uploaded_by: str | None = None,
     ) -> Product:
 
@@ -178,11 +179,6 @@ class ProductService:
                 if str(doc.id) not in kept:
                     self.repo.delete_image_document(db, doc.id)
 
-            primary_doc_id = next(
-                (doc.id for doc in existing_docs if str(doc.id) in kept),
-                None,
-            )
-
             uploaded_primary = self._upload_images(
                 db=db,
                 product=product,
@@ -190,7 +186,9 @@ class ProductService:
                 uploaded_by=uploaded_by,
             )
 
-            if primary_doc_id is None:
+            if primary_image_id:
+                primary_doc_id = int(primary_image_id)
+            else:
                 primary_doc_id = uploaded_primary
 
             self.repo.update(

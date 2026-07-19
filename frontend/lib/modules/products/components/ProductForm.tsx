@@ -23,17 +23,17 @@ import type {
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { useState } from "react";
-import { PRODUCT_TYPE_OPTIONS, UNIT_OPTIONS } from "../constants/product.constants";
-
-
+import {
+  PRODUCT_TYPE_OPTIONS,
+  UNIT_OPTIONS,
+} from "../constants/product.constants";
 
 // ── Props ──────────────────────────────────────────────────
 interface ProductFormProps {
   initial?: Product;
   onSubmit: (
     data: CreateProductFormOutput,
-    images: File[],
-    keptImages: ProductImage[],
+    images: ProductFormImage[],
   ) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
@@ -48,9 +48,7 @@ export default function ProductForm({
   submitLabel = "Create Product",
   submitLoadingLabel = "Creating…",
 }: ProductFormProps) {
-
-
-  const MAX_FILES = 3
+  const MAX_FILES = 3;
   const MAX_SIZE_MB = 5;
   const {
     register,
@@ -94,19 +92,16 @@ export default function ProductForm({
   //   initial?.images ?? [],
   // );
 
-
-  const [images, setImages] = useState<ProductFormImage[]>(
-  () =>
+  const [images, setImages] = useState<ProductFormImage[]>(() =>
     (initial?.images ?? []).map((image) => ({
       kind: "existing",
       image,
     })),
-);
-
+  );
 
   async function handleFormSubmit(data: CreateProductFormOutput) {
     try {
-      await onSubmit(data, imageFiles, keptImages);
+      await onSubmit(data, images);
     } catch (err) {
       // Re-throw so the page/modal can also handle it if needed,
       // but also set the root error so ErrorBanner renders
@@ -220,14 +215,14 @@ export default function ProductForm({
         {...register("description")}
       />
 
-  <ImageUpload
-  label="Product Images"
-  images={images}
-  onChange={setImages}
-  maxFiles={MAX_FILES}
-  maxSizeMB={MAX_SIZE_MB}
-  hint="Up to 3 images. First image is used as the primary display image."
-/>
+      <ImageUpload
+        label="Product Images"
+        images={images}
+        onChange={setImages}
+        maxFiles={MAX_FILES}
+        maxSizeMB={MAX_SIZE_MB}
+        hint="Up to 3 images. First image is used as the primary display image."
+      />
       {/* Root error */}
       <ErrorBanner message={errors.root?.message} />
 

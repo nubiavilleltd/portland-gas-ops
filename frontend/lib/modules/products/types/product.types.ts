@@ -82,6 +82,7 @@ export interface UpdateProductPayload {
   product: UpdateProductInput;
   newImageFiles: File[];
   keptImageIds: string[];
+  primaryImageId?: string;
 }
 
 export const UNIT_LABELS: Record<ProductUnit, string> = {

@@ -18,7 +18,7 @@ export const productsApi = {
       status?: string;
       page?: number;
       page_size?: number;
-    } = {}
+    } = {},
   ) => {
     const { data } = await api.get("/api/products", { params });
     return data;
@@ -29,15 +29,12 @@ export const productsApi = {
     return data;
   },
 
-  create: async (
-    input: BackendCreateProductInput,
-    imageFiles: File[],
-  ) => {
+  create: async (input: BackendCreateProductInput, imageFiles: File[]) => {
     const form = new FormData();
 
     form.append("data", JSON.stringify(input));
 
-    imageFiles.forEach(file => form.append("images", file));
+    imageFiles.forEach((file) => form.append("images", file));
 
     const { data } = await api.post("/api/products", form, {
       headers: {
@@ -53,38 +50,34 @@ export const productsApi = {
     input: BackendUpdateProductInput,
     newImageFiles: File[],
     keptImageIds: string[],
+    primaryImageId?: string,
   ) => {
     const form = new FormData();
 
     form.append("data", JSON.stringify(input));
     form.append("kept_image_ids", JSON.stringify(keptImageIds));
+    if (primaryImageId) {
+      form.append("primary_image_id", primaryImageId);
+    }
 
-    newImageFiles.forEach(file => form.append("images", file));
+    newImageFiles.forEach((file) => form.append("images", file));
 
-    const { data } = await api.put(
-      `/api/products/${id}`,
-      form,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+    const { data } = await api.put(`/api/products/${id}`, form, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
     return data;
   },
 
   activate: async (id: string) => {
-    const { data } = await api.post(
-      `/api/products/${id}/activate`
-    );
+    const { data } = await api.post(`/api/products/${id}/activate`);
     return data;
   },
 
   deactivate: async (id: string) => {
-    const { data } = await api.post(
-      `/api/products/${id}/deactivate`
-    );
+    const { data } = await api.post(`/api/products/${id}/deactivate`);
     return data;
   },
 };

@@ -108,7 +108,10 @@ class ProductRepository:
         db: Session,
         product_id: str,
     ) -> list[Document]:
-        return (
+
+        product = self.get_by_id(db, product_id)
+
+        docs = (
             db.query(Document)
             .filter(
                 Document.category == f"product:{product_id}",
@@ -117,6 +120,15 @@ class ProductRepository:
             .order_by(Document.created_at.asc())
             .all()
         )
+
+        if not product or not product.primary_document_id:
+            return docs
+
+        docs.sort(
+            key=lambda doc: doc.id != product.primary_document_id,
+        )
+
+        return docs
 
     def create_image_document(
         self,

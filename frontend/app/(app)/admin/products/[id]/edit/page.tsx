@@ -14,7 +14,7 @@ import ProductForm from "@/lib/modules/products/components/ProductForm";
 import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
 import { useUpdateProduct } from "@/lib/modules/products/hooks/useProductMutations";
-import { ProductImage } from "@/lib/modules/products/types/product.types";
+import { ProductFormImage } from "@/lib/modules/products/types/product.types";
 import { parseError } from "@/lib/errors";
 import PageErrorState from "@/components/ui/PageError";
 import ProductFormSkeleton from "@/lib/modules/products/components/ProductFormSkeleton";
@@ -27,7 +27,6 @@ export default function EditProductPage() {
   const { product, isLoading, error } = useProductById(id);
 
   const { mutateAsync: updateProduct } = useUpdateProduct(id);
-
 
   if (isLoading) {
     return (
@@ -55,18 +54,26 @@ export default function EditProductPage() {
     );
   }
 
-
-
   async function handleSubmit(
     data: UpdateProductFormOutput,
-    newImages: File[],
-    keptImages: ProductImage[],
+    images: ProductFormImage[],
   ) {
+    const newImageFiles = images
+      .filter((image) => image.kind === "new")
+      .map((image) => image.file);
+
+    const keptImageIds = images
+      .filter((image) => image.kind === "existing")
+      .map((image) => image.image.id);
+
+    const primaryImageId =
+      images[0]?.kind === "existing" ? images[0].image.id : undefined;
     try {
       await updateProduct({
         product: data,
-        newImageFiles: newImages,
-        keptImageIds: keptImages.map(img => img.id),
+        newImageFiles,
+        keptImageIds,
+        primaryImageId,
       });
 
       toast.success("Product updated successfully");
@@ -93,8 +100,6 @@ export default function EditProductPage() {
         className="mb-6"
       />
 
-
-
       <FormSection
         title="Product Information"
         description="Enter product details and pricing information"
@@ -107,10 +112,6 @@ export default function EditProductPage() {
           submitLoadingLabel="Saving…"
         />
       </FormSection>
-
-
-
-
     </AppLayout>
   );
 }

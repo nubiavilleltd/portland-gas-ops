@@ -12,7 +12,7 @@ import ProductForm from "@/lib/modules/products/components/ProductForm";
 
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 
-import type { ProductImage } from "@/lib/modules/products/types/product.types";
+import type { ProductFormImage } from "@/lib/modules/products/types/product.types";
 import type { CreateProductFormOutput } from "@/lib/modules/products/schemas/product.schema";
 
 import { useCreateProduct } from "@/lib/modules/products/hooks/useProductMutations";
@@ -21,18 +21,19 @@ import { parseError } from "@/lib/errors";
 export default function NewProductPage() {
   const router = useRouter();
 
-  const { mutateAsync: createProduct, isPending } =
-    useCreateProduct();
+  const { mutateAsync: createProduct, isPending } = useCreateProduct();
 
   async function handleSubmit(
     data: CreateProductFormOutput,
-    images: File[],
-    _keptImages: ProductImage[],
+    images: ProductFormImage[],
   ) {
     try {
+      const imageFiles = images
+        .filter((image) => image.kind === "new")
+        .map((image) => image.file);
       await createProduct({
         product: data,
-        imageFiles: images,
+        imageFiles,
       });
 
       toast.success("Product created successfully");
@@ -65,7 +66,7 @@ export default function NewProductPage() {
           onCancel={() => router.back()}
           submitLabel="Create Product"
           submitLoadingLabel="Creating…"
-        // isSubmitting={isPending}
+          // isSubmitting={isPending}
         />
       </FormSection>
     </AppLayout>

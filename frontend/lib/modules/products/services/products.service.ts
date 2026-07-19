@@ -111,6 +111,7 @@ export class ProductsService {
         product,
         newImageFiles,
         keptImageIds,
+        primaryImageId,
       } = payload;
 
       const backendInput =
@@ -121,6 +122,7 @@ export class ProductsService {
         backendInput,
         newImageFiles,
         keptImageIds,
+        primaryImageId
       );
 
       return adaptProduct(raw);
