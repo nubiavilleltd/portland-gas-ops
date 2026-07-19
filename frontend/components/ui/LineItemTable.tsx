@@ -59,7 +59,7 @@ interface LineItemTableProps<TRow> {
   rows: TRow[];
   /** Called when user clicks Add Row */
   onAdd: () => void;
-  canAdd?: boolean;
+  disableAdd?: boolean;
   /** Called when user removes a row by index */
   onRemove: (index: number) => void;
   /** Called when a cell changes a field on a row */
@@ -86,7 +86,7 @@ export default function LineItemTable<TRow>({
   columns,
   rows,
   onAdd,
-  canAdd = true,
+  disableAdd = false,
   onRemove,
   onChange,
   addLabel = "Add Item",
@@ -234,12 +234,12 @@ export default function LineItemTable<TRow>({
         <button
           type="button"
           onClick={onAdd}
-          disabled={!canAdd}
+          disabled={disableAdd}
           className={cn(
             "flex items-center gap-2 text-sm font-medium transition-colors",
-            canAdd
-              ? "text-brand-purple hover:text-brand-purple-dark"
-              : "text-brand-text-secondary opacity-50 cursor-not-allowed",
+            disableAdd
+              ? "text-brand-text-muted cursor-not-allowed opacity-50"
+              : "text-brand-purple hover:text-brand-purple-dark",
           )}
         >
           <Plus size={15} />

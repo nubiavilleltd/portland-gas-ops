@@ -132,6 +132,17 @@ export default function OrderForm({
     return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
   }, 0);
 
+
+
+  const selectedProductIds = orderItems
+  .map(i => i.productId)
+  .filter(Boolean);
+
+const remainingProducts =
+  activeProducts.length - selectedProductIds.length;
+
+const canAddMore = remainingProducts > 0;
+
   const discountValue = watch("discountValue") ?? 0;
 
   const discountAmount =
@@ -402,7 +413,7 @@ export default function OrderForm({
           columns={columns}
           rows={orderItems}
           onAdd={() => append({ ...DEFAULT_LINE_ITEM })}
-          canAdd={productsReady}
+          disableAdd={!canAddMore}
           onRemove={(i) => remove(i)}
           onChange={(index, patch) => {
             const current = orderItems[index];
@@ -412,7 +423,7 @@ export default function OrderForm({
               { shouldValidate: true },
             );
           }}
-          addLabel="Add Product"
+          addLabel={canAddMore ? "Add Product" : "All Products Added"}
           totals={totals}
           minRows={1}
           error={errors.orderItems?.message}
@@ -599,9 +610,7 @@ export default function OrderForm({
         products={activeProducts}
         inventoryItems={inventoryItems}
         consumableStock={consumableStock}
-        selectedProductIds={orderItems
-          .map((item) => item.productId)
-          .filter(Boolean)}
+        selectedProductIds={selectedProductIds}
       />
     </form>
   );
