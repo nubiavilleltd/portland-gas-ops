@@ -8,7 +8,6 @@ import PageHeader from "@/components/ui/PageHeader";
 
 import type { CreateOrderFormOutput, SaveDraftPayload } from "@/lib/modules/orders/schemas/create-order.schema";
 
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 import { useState } from "react";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
@@ -27,12 +26,12 @@ const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
 
   async function handleSubmit(data: CreateOrderFormOutput) {
-  await submitOrder({ input: buildOrderPayload(data), existingDraftNo: draftId ?? undefined });
+  await submitOrder({ input: buildOrderPayload(data), existingDraftId: draftId ?? undefined });
 }
 
 async function handleSaveDraft(data: SaveDraftPayload) {
   const payload = draftId ? buildOrderPayload(data) : buildDraftOrderPayload(data);
-  const saved = await saveDraft({ input: payload, existingDraftNo: draftId ?? undefined });
+  const saved = await saveDraft({ input: payload, existingDraftId: draftId ?? undefined });
   setDraftId(saved.id);
 }
 

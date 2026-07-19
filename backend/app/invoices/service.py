@@ -77,7 +77,7 @@ class InvoiceService:
         created_by: str,
     ) -> Invoice:
 
-        order = self.order_service.get_by_id_or_raise(db, data.order_id)
+        order = self.order_service.get_or_raise(db, data.order_id)
 
         if not order_guards.can_generate_invoice(order):
             if order.invoice_id:

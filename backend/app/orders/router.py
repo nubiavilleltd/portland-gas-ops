@@ -92,36 +92,46 @@ def create_and_submit_order(
     return _to_response(order)
 
 
-@router.get("/{order_no}", response_model=OrderResponse)
+@router.get("/{order_id}", response_model=OrderResponse)
 def get_order(
-    order_no:     str,
+    order_id:     str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
+):
+    order = service.get_or_raise(db, order_id)
+    return _to_response(order)
+
+
+@router.get("/by-no/{order_no}", response_model=OrderResponse)
+def get_order_by_no(
+    order_no: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     order = service.get_by_no_or_raise(db, order_no)
     return _to_response(order)
 
 
-@router.put("/{order_no}", response_model=OrderResponse)
+@router.put("/{order_id}", response_model=OrderResponse)
 def update_draft(
-    order_no:     str,
+    order_id:     str,
     data:         OrderUpdate,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.update_draft(db, order_no, data)
+    order = service.update_draft(db, order_id, data)
     db.commit()
     db.refresh(order)
     return _to_response(order)
 
 
-@router.post("/{order_no}/submit", response_model=OrderResponse)
+@router.post("/{order_id}/submit", response_model=OrderResponse)
 def submit_order(
-    order_no:     str,
+    order_id:     str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.submit(db, order_no)
+    order = service.submit(db, order_id)
     AuditService.record(
     db, AuditEntityType.order, order.id,
     "submitted", "Order submitted for processing",
@@ -131,9 +141,9 @@ def submit_order(
     db.refresh(order)
     return _to_response(order)
 
-@router.post("/{order_no}/cancel", response_model=OrderResponse)
+@router.post("/{order_id}/cancel", response_model=OrderResponse)
 def cancel_order(
-    order_no:     str,
+    order_id:     str,
     body:         CancelOrderRequest,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
@@ -145,7 +155,7 @@ def cancel_order(
     from app.invoices.service import InvoiceService
     invoice_service = InvoiceService()
 
-    order = service.cancel(db, order_no, reason=body.reason)
+    order = service.cancel(db, order_id, reason=body.reason)
 
     # Cascade: void linked invoice if exists
     if order.invoice_id:
@@ -164,9 +174,9 @@ def cancel_order(
     return _to_response(order)
 
 
-@router.post("/{order_no}/confirm-delivery", response_model=OrderResponse)
+@router.post("/{order_id}/confirm-delivery", response_model=OrderResponse)
 def confirm_delivery(
-    order_no:     str,
+    order_id:     str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
@@ -175,7 +185,7 @@ def confirm_delivery(
     If payment_status==paid: auto-completes the order.
     Mirrors confirmDeliveryWorkflow exactly.
     """
-    order = service.confirm_delivery(db, order_no)
+    order = service.confirm_delivery(db, order_id)
 
     AuditService.record(
     db, AuditEntityType.order, order.id,
@@ -194,51 +204,51 @@ def confirm_delivery(
     return _to_response(order)
 
 
-@router.patch("/{order_no}/fulfillment", response_model=OrderResponse)
+@router.patch("/{order_id}/fulfillment", response_model=OrderResponse)
 def update_fulfillment(
-    order_no:     str,
+    order_id:     str,
     body:         UpdateFulfillmentRequest,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
     """Called by trips module when trip status changes."""
-    order = service.update_fulfillment_status(db, order_no, body.fulfillment_status)
+    order = service.update_fulfillment_status(db, order_id, body.fulfillment_status)
     db.commit()
     db.refresh(order)
     return _to_response(order)
 
 
-@router.patch("/{order_no}/trip", response_model=OrderResponse)
+@router.patch("/{order_id}/trip", response_model=OrderResponse)
 def set_trip(
-    order_no:     str,
+    order_id:     str,
     body:         SetTripRequest,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    order = service.set_trip(db, order_no, body.trip_id)
+    order = service.set_trip(db, order_id, body.trip_id)
     db.commit()
     db.refresh(order)
     return _to_response(order)
 
 
-@router.patch("/{order_no}/invoice", response_model=OrderResponse)
+@router.patch("/{order_id}/invoice", response_model=OrderResponse)
 def set_invoice(
-    order_no:     str,
+    order_id:     str,
     body:         SetInvoiceRequest,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(require_roles("super_admin", "admin")),
 ):
-    order = service.get_by_no_or_raise(db, order_no)
+    order = service.get_by_no_or_raise(db, order_id)
     updated = service.set_invoice(db, order, body.invoice_id)
     db.commit()
     db.refresh(updated)
     return _to_response(updated)
 
-@router.get("/{order_no}/audit", response_model=list[AuditLogResponse])
+@router.get("/{order_id}/audit", response_model=list[AuditLogResponse])
 def get_order_audit(
-    order_no:     str,
+    order_id:     str,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.get_by_no_or_raise(db, order_no)
+    order = service.get_by_no_or_raise(db, order_id)
     return AuditService.get_by_entity(db, AuditEntityType.order, order.id)

@@ -7,18 +7,13 @@ import { ArrowLeft, CheckCircle, Truck, MapPin, AlertCircle } from "lucide-react
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-// import { FulfillmentStatusBadge } from "@/components/ui/FulfillmentStatusBadge";
 
-import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
-// import { OrdersService } from "@/lib/services/orders.service";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
 import FormSection from "@/components/ui/FormSection";
-import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { useConfirmDeliveryWorkflow } from "@/lib/modules/orders/hooks/useConfirmDeliveryWorkflow";
 import { Order } from "@/lib/modules/orders/types/orders.types";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { canConfirmDelivery } from "@/lib/modules/orders/guards/orders.guards";
 import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
 import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
@@ -30,13 +25,11 @@ import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 export default function OrderDeliveryPage() {
   const params = useParams();
   const router = useRouter();
-  const orderNo = params.id as string;
-  const { order } = useOrderByNumber(orderNo);
+  const id = params.id as string;
+  const { order } = useOrderById(id);
 
-  const { customers } = useCustomers();
   const {invoice} = useInvoiceById(order?.invoiceId || "");
   const confirmDelivery = useConfirmDeliveryWorkflow()
-  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
 
   const [proofNotes, setProofNotes] = useState("");
@@ -93,7 +86,7 @@ export default function OrderDeliveryPage() {
       </button> */}
 
       <BackButton
-        href={`${ORDER_ROUTES.detail(orderNo)}`}
+        href={`${ORDER_ROUTES.detail(id)}`}
         label="Back to Order"
       />
 
@@ -144,7 +137,7 @@ export default function OrderDeliveryPage() {
       </div> */}
             <div>
               <h3 className="font-semibold">{order.orderNumber}</h3>
-              <p className="text-sm text-brand-text-secondary">{customerMap.get(order.customerId)?.name || "Unknown customer"}</p>
+              <p className="text-sm text-brand-text-secondary">{order.customerName || "-"}</p>
             </div>
             <div className="ml-auto">
               <FulfillmentStatusBadge status={order.fulfillmentStatus} />

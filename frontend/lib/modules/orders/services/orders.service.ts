@@ -28,15 +28,12 @@ export const OrdersService = {
 
   async getOrders(): Promise<Order[]> {
     const raw = await ordersApi.list({ page_size: 200 });
-
-    console.log("raw", {raw, adapt:adaptOrderList(raw)})
-
     return adaptOrderList(raw);
   },
 
-  async getOrderById(orderNo: string): Promise<Order> {
+  async getOrderById(orderId: string): Promise<Order> {
     try {
-      const raw = await ordersApi.get(orderNo);
+      const raw = await ordersApi.get(orderId);
 
       return adaptOrder(raw);
     } catch (err) {
@@ -98,12 +95,12 @@ export const OrdersService = {
   },
 
   async updateDraftOrder(
-    orderNo: string,
+    orderid: string,
     input: SaveDraftInput,
   ): Promise<Order> {
     try {
       const raw = await ordersApi.update(
-        orderNo,
+        orderid,
         adaptSaveDraftRequest(input),
       );
 
@@ -116,10 +113,10 @@ export const OrdersService = {
   },
 
   async submitOrder(
-    orderNo: string,
+    orderid: string,
   ): Promise<Order> {
     try {
-      const raw = await ordersApi.submit(orderNo);
+      const raw = await ordersApi.submit(orderid);
 
       return adaptOrder(raw);
     } catch (err) {
@@ -149,12 +146,12 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async cancelOrder(
-    orderNo: string,
+    orderid: string,
     reason?: string,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.cancel(orderNo, reason),
+        await ordersApi.cancel(orderid, reason),
       );
     } catch (err) {
       throw new Error(
@@ -164,11 +161,11 @@ async createOrder(
   },
 
   async confirmDelivery(
-    orderNo: string,
+    orderid: string,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.confirmDelivery(orderNo),
+        await ordersApi.confirmDelivery(orderid),
       );
     } catch (err) {
       throw new Error(
@@ -182,13 +179,13 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async updateFulfillmentStatus(
-    orderNo: string,
+    orderid: string,
     status: FulfillmentStatus,
   ): Promise<Order> {
     try {
       return adaptOrder(
         await ordersApi.updateFulfillment(
-          orderNo,
+          orderid,
           status,
         ),
       );
@@ -215,10 +212,10 @@ async createOrder(
    * Remove this method once all callers have migrated.
    */
   async updatePaymentStatus(
-    orderNo: string,
+    orderId: string,
     _status: PaymentStatus,
   ): Promise<Order> {
-    return this.getOrderById(orderNo);
+    return this.getOrderById(orderId);
   },
 
   // ------------------------------------------------------------------
@@ -226,7 +223,7 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async updateOrderLineItem(
-    orderNo: string,
+    orderId: string,
     productId: string,
     inventoryItemIds: string[],
     disposition: ItemDisposition,
@@ -237,7 +234,7 @@ async createOrder(
     void inventoryItemIds;
     void disposition;
 
-    return this.getOrderById(orderNo);
+    return this.getOrderById(orderId);
   },
 
   // ------------------------------------------------------------------
@@ -245,12 +242,12 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async assignToTrip(
-    orderNo: string,
+    orderId: string,
     tripId: string,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.setTrip(orderNo, tripId),
+        await ordersApi.setTrip(orderId, tripId),
       );
     } catch (err) {
       throw new Error(
@@ -260,12 +257,12 @@ async createOrder(
   },
 
   async setTrip(
-    orderNo: string,
+    orderId: string,
     tripId: string | null,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.setTrip(orderNo, tripId),
+        await ordersApi.setTrip(orderId, tripId),
       );
     } catch (err) {
       throw new Error(
@@ -275,12 +272,12 @@ async createOrder(
   },
 
   async setInvoice(
-    orderNo: string,
+    orderId: string,
     invoiceId: string,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.setInvoice(orderNo, invoiceId),
+        await ordersApi.setInvoice(orderId, invoiceId),
       );
     } catch (err) {
       throw new Error(

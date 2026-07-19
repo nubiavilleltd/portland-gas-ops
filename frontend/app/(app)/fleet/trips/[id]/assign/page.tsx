@@ -20,7 +20,7 @@ import { useAvailableDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useAvailableVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useAssignResourcesWorkflow } from "@/lib/modules/fleet/hooks/useAssignResourcesWorkflow";
 import { BackButton } from "@/components/ui/BackButton";
-import { FLEET_ROUTES, ORDER_ROUTES } from "@/lib/routes";
+import { FLEET_ROUTES } from "@/lib/routes";
 
 export default function AssignResourcesPage() {
   const params = useParams();

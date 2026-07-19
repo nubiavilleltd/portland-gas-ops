@@ -10,15 +10,15 @@ import Button from "@/components/ui/Button";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormSection from "@/components/ui/FormSection";
 
-import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { useCancelOrderWorkflow } from "@/lib/modules/orders/hooks/useCancelOrderWorkflow";
 import { canCancelOrder } from "@/lib/modules/orders/guards/orders.guards";
 import { ORDER_ROUTES } from "@/lib/modules/orders/constants/routes";
 
 export default function CancelOrderPage() {
-  const { id:orderNo } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { order, isLoading } = useOrderByNumber(orderNo);
+  const { order, isLoading } = useOrderById(id);
   const cancelOrder = useCancelOrderWorkflow();
   const [reason, setReason] = useState("");
 
@@ -47,7 +47,7 @@ export default function CancelOrderPage() {
             Orders that have already been dispatched, are in transit, delivered,
             or already completed/cancelled cannot be cancelled from here.
           </p>
-          <Button variant="outline" href={ORDER_ROUTES.detail(orderNo)}>
+          <Button variant="outline" href={ORDER_ROUTES.detail(id)}>
             Back to Order
           </Button>
         </div>
@@ -96,7 +96,7 @@ export default function CancelOrderPage() {
           />
         </FormSection>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex gap-3">
           <Button
             variant="outline"
             onClick={() => router.back()}

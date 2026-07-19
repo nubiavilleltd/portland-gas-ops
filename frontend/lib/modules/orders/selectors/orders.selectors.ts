@@ -8,19 +8,19 @@ import type { PaymentStatus } from "../../payments/types/payments.types";
 
 // ── LOOKUPS ─────────────────────────────────────────────
 
-export function getOrderById(
-  orders: Order[],
-  id: string
-): Order | undefined {
-  return orders.find((order) => order.id === id);
-}
+// export function getOrderById(
+//   orders: Order[],
+//   id: string
+// ): Order | undefined {
+//   return orders.find((order) => order.id === id);
+// }
 
-export function getOrderByNumber(
-  orders: Order[],
-  orderNumber: string
-): Order | undefined {
-  return orders.find((order) => order.orderNumber === orderNumber);
-}
+// export function getOrderByNumber(
+//   orders: Order[],
+//   orderNumber: string
+// ): Order | undefined {
+//   return orders.find((order) => order.orderNumber === orderNumber);
+// }
 
 // ── FILTERS ─────────────────────────────────────────────
 
@@ -71,11 +71,7 @@ export function getOrderKPIs(
   return {
     totalOrders: orders.length,
 
-    pendingDispatch: activeOrders.filter(
-      (order) =>
-        order.orderStatus === "confirmed" &&
-        order.fulfillmentStatus === "pending"
-    ).length,
+    pendingDispatch: getConfirmedUnassignedOrders(activeOrders).length,
 
     inTransit: activeOrders.filter(
       (order) =>

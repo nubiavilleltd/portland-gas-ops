@@ -89,7 +89,7 @@ def record_payment(
         payment.invoice_id,
     )
 
-    order = order_service.get_by_id_or_raise(
+    order = order_service.get_or_raise(
         db,
         invoice.order_id,
     )

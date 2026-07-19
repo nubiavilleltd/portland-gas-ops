@@ -14,17 +14,43 @@ import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBad
 
 import DataTable, { Column } from "@/components/ui/DataTable";
 import { Order } from "@/lib/modules/orders/types/orders.types";
-import { useOrderKPIs, useOrders } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { ORDER_ROUTES } from "@/lib/routes";
 import { ORDER_DASHBOARD_KPIS } from "@/lib/modules/orders/constants/order-dashboard.constants";
 import { KpiCard } from "@/lib/modules/orders/components/KpiCard";
+
+import PageError from "@/components/ui/PageError";
+import { getOrderKPIs } from "@/lib/modules/orders/selectors/orders.selectors";
 
 
 
 export default function OrdersListPage() {
 
-  const { orders, isLoading } = useOrders()
-  const { kpis, isLoading: isLoadingKPIs } = useOrderKPIs()
+  const {
+    orders,
+    isLoading,
+    error,
+    refetch,
+  } = useOrders();
+ const kpis = getOrderKPIs(orders);
+
+
+  if (error) {
+  return (
+    <AppLayout pageTitle="Orders">
+      <PageHeader
+        title="Orders"
+        description="Manage customer orders, dispatch, billing and payments"
+        className="mb-6"
+      />
+
+      <PageError
+        message={error}
+        onRetry={refetch}
+      />
+    </AppLayout>
+  );
+}
 
 
 
@@ -114,7 +140,7 @@ export default function OrdersListPage() {
                 : kpis[item.key]
             }
             variant={item.variant}
-            isLoading={isLoadingKPIs}
+            isLoading={isLoading}
           />
         ))}
       </div>
@@ -122,8 +148,8 @@ export default function OrdersListPage() {
       <DataTable<Order>
         columns={columns}
         data={orders}
-        rowHref={(order) => ORDER_ROUTES.detail(order.orderNumber)}
-        isLoading={isLoading || isLoadingKPIs}
+        rowHref={(order) => ORDER_ROUTES.detail(order.id)}
+        isLoading={isLoading}
         emptyMessage="No orders found."
       />
     </AppLayout>

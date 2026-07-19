@@ -30,6 +30,7 @@ class OrderService:
         """Drop placeholder rows with no product selected — treated as
         'not yet provided', mirroring the frontend's draft filtering."""
         return [item for item in order_items if item.product_id]
+    
     def get_or_raise(self, db: Session, order_id: str) -> Order:
         order = self.repo.get_by_id(db, order_id)
         if not order:
@@ -40,11 +41,6 @@ class OrderService:
         order = self.repo.get_by_no(db, order_no)
         if not order:
             raise AppException(404, OrderErrorCode.ORDER_NOT_FOUND, f"Order {order_no} not found")
-        return order
-    def get_by_id_or_raise(self, db: Session, order_id: str) -> Order:
-        order = self.repo.get_by_id(db, order_id)
-        if not order:
-            raise AppException(404, OrderErrorCode.ORDER_NOT_FOUND, f"Order {order_id} not found")
         return order
     
     def get_order_items(
@@ -133,9 +129,9 @@ class OrderService:
                             "Only draft orders can be submitted")
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
-    def update_draft(self, db: Session, order_no: str, data: OrderUpdate) -> Order:
+    def update_draft(self, db: Session, order_id: str, data: OrderUpdate) -> Order:
         """Update a draft order - handles partial updates gracefully."""
-        order = self.get_by_no_or_raise(db, order_no)
+        order = self.get_or_raise(db, order_id)
         if not guards.can_edit(order):
             raise AppException(400, OrderErrorCode.ORDER_NOT_EDITABLE, "Only draft orders can be edited")
 
@@ -214,16 +210,16 @@ class OrderService:
 
         return self.repo.update(db, order, **updates)
 
-    def submit(self, db: Session, order_no: str) -> Order:
-        order = self.get_by_no_or_raise(db, order_no)
+    def submit(self, db: Session, order_id: str) -> Order:
+        order = self.get_or_raise(db, order_id)
         if not guards.can_submit(order):
             raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
                                "Only draft orders can be submitted")
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
-    def confirm(self, db: Session, order_no: str, confirmed_by: str) -> Order:
+    def confirm(self, db: Session, order_id: str, confirmed_by: str) -> Order:
         """Manual confirmation — submitted → confirmed."""
-        order = self.get_by_no_or_raise(db, order_no)
+        order = self.get_or_raise(db, order_id)
         if not guards.can_confirm(order):
             raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_CONFIRMED,
                                "Only submitted orders can be confirmed")
@@ -234,13 +230,13 @@ class OrderService:
             confirmed_at = datetime.now(timezone.utc),
         )
 
-    def cancel(self, db: Session, order_no: str, reason: Optional[str]) -> Order:
+    def cancel(self, db: Session, order_id: str, reason: Optional[str]) -> Order:
         """
         Cancel order. Backend handles the cascade:
         - Sets order cancelled
         - Voids any linked invoice (handled in invoice service, called from router)
         """
-        order = self.get_by_no_or_raise(db, order_no)
+        order = self.get_or_raise(db, order_id)
         if not guards.can_cancel(order):
             raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
                                "This order cannot be cancelled in its current state")
@@ -251,14 +247,14 @@ class OrderService:
             cancelled_at        = datetime.now(timezone.utc),
         )
 
-    def confirm_delivery(self, db: Session, order_no: str) -> Order:
+    def confirm_delivery(self, db: Session, order_id: str) -> Order:
         """
         Confirm delivery.
         Sets fulfillment=delivered, delivered_at=now.
         If payment_status==paid: auto-close (set order_status=completed).
         This is what the frontend confirmDeliveryWorkflow does — both steps in one.
         """
-        order = self.get_by_no_or_raise(db, order_no)
+        order = self.get_or_raise(db, order_id)
         if not guards.can_confirm_delivery(order):
             raise AppException(400, OrderErrorCode.ORDER_NOT_EDITABLE,
                                "Delivery cannot be confirmed for this order")
@@ -290,13 +286,13 @@ class OrderService:
 
         return self.repo.update(db, order, **updates)
 
-    def update_fulfillment_status(self, db: Session, order_no: str, status: FulfillmentStatus) -> Order:
+    def update_fulfillment_status(self, db: Session, order_id: str, status: FulfillmentStatus) -> Order:
         """Called by trips module when trip status changes."""
-        order = self.get_by_no_or_raise(db, order_no)
+        order = self.get_or_raise(db, order_id)
         return self.repo.update(db, order, fulfillment_status=status)
 
-    def set_trip(self, db: Session, order_no: str, trip_id: Optional[str]) -> Order:
-        order = self.get_by_no_or_raise(db, order_no)
+    def set_trip(self, db: Session, order_id: str, trip_id: Optional[str]) -> Order:
+        order = self.get_or_raise(db, order_id)
         return self.repo.update(db, order, trip_id=trip_id)
 
     def set_invoice(self, db: Session, order: Order, invoice_id: str) -> Order:

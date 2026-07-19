@@ -32,7 +32,7 @@ export const FLEET_ROUTES = {
    *   → "/fleet/trips/new?orderId=ord-001"
    */
   tripNew: (params?: {
-    orderNo?: string;
+    orderId?: string;
     driverId?: string;
     vehicleId?: string;
   }) => {

@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
-import { useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import type { CreateOrderFormOutput, CreateOrderFormValues, SaveDraftPayload } from "@/lib/modules/orders/schemas/create-order.schema";
 import { ORDER_ROUTES } from "@/lib/routes";
 
@@ -21,9 +21,9 @@ import { BackButton } from "@/components/ui/BackButton";
 export default function EditOrderPage() {
   const params = useParams();
   const router = useRouter();
-  const orderNo = params.id as string;
+  const id = params.id as string;
 
-  const { order, isLoading, error } = useOrderByNumber(orderNo);
+  const { order, isLoading, error } = useOrderById(id);
 
   const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
   const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
@@ -69,7 +69,7 @@ export default function EditOrderPage() {
           </p>
           <Button
             variant="outline"
-            onClick={() => router.push(ORDER_ROUTES.detail(orderNo))}
+            onClick={() => router.push(ORDER_ROUTES.detail(id))}
           >
             Back to Order
           </Button>
@@ -92,11 +92,11 @@ export default function EditOrderPage() {
 
 
   async function handleSubmit(data: CreateOrderFormOutput) {
-    await submitOrder({ input: buildOrderPayload(data), existingDraftNo: orderNo });
+    await submitOrder({ input: buildOrderPayload(data), existingDraftId: id });
   }
 
 async function handleSaveDraft(data: SaveDraftPayload) {
-  await saveDraft({ input: buildDraftOrderPayload(data), existingDraftNo: orderNo });
+  await saveDraft({ input: buildDraftOrderPayload(data), existingDraftId: id });
 }
 
 
@@ -104,7 +104,7 @@ async function handleSaveDraft(data: SaveDraftPayload) {
     <AppLayout pageTitle="Edit Order">
 
       <BackButton
-        href={`${ORDER_ROUTES.detail(orderNo)}`}
+        href={`${ORDER_ROUTES.detail(id)}`}
         label="Back to Order"
       />
 

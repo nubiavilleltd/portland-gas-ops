@@ -280,7 +280,7 @@ import {
   invoiceSchema,
 } from "@/lib/modules/invoices/schemas/invoice.schema";
 import FormSection from "@/components/ui/FormSection";
-import { useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { canGenerateInvoice } from "@/lib/modules/orders/guards/orders.guards";
 import { Order } from "@/lib/modules/orders/types/orders.types";
 import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreateInvoiceWorkflow";
@@ -288,6 +288,7 @@ import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { BackButton } from "@/components/ui/BackButton";
 import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
+import { ORDER_ROUTES } from "@/lib/routes";
 
 // ── Skeleton Components ──
 function CreateInvoiceSkeleton() {
@@ -347,18 +348,14 @@ function CreateInvoicePageContent() {
   const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const { customers } = useCustomers();
-  const orderNo = searchParams.get("orderNo") as string;
+  const orderId = searchParams.get("orderId") as string;
 
   // ── REAL order lookup ──
-  const { order, isLoading, isFetching } = useOrderByNumber(orderNo);
+  const { order, isLoading, isFetching } = useOrderById(orderId);
   const { mutate: generateInvoice, isPending } = useCreateInvoiceWorkflow(order as Order);
   const canInvoice = canGenerateInvoice(order as Order);
   const { invoice } = useInvoiceById(order?.invoiceId as string);
 
-  const customerMap = Object.fromEntries(
-    customers.map((customer) => [customer.id, customer])
-  );
 
   const {
     register,
@@ -394,7 +391,7 @@ function CreateInvoicePageContent() {
             No order was specified. Please go back and use the &quot;Generate Invoice&quot;
             button from the order detail page.
           </p>
-          <Button href="/orders" variant="outline">
+          <Button href={ORDER_ROUTES.new()} variant="outline">
             Back to Orders
           </Button>
         </div>
@@ -414,7 +411,7 @@ function CreateInvoicePageContent() {
           <p className="text-sm mb-4">
             Current status: <OrderStatusBadge status={order.orderStatus} />
           </p>
-          <Button href={`/orders/${orderNo}`} variant="outline">
+          <Button href={ORDER_ROUTES.detail(orderId)} variant="outline">
             Back to Order
           </Button>
         </div>

@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import FormSection from "@/components/ui/FormSection";
 
-import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import { useInvoiceByOrderId } from "@/lib/modules/invoices/hooks/useInvoices";
 import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
@@ -47,13 +47,13 @@ import { ActivitySkeleton, DispatchSkeleton, InvoiceSkeleton, OrderSummarySkelet
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const orderNumber = params.id as string;
+  const id = params.id as string;
 
   const { products, isFetching: isFetchingProducts } = useProducts();
-  const { order, isLoading, isFetching, error } = useOrderByNumber(orderNumber);
-  const { entries, isFetching:isFetchingEntries } = useAuditByEntity("order", order?.id as string);
+  const { order, isLoading, isFetching, error } = useOrderById(id);
+  const { entries, isFetching:isFetchingEntries } = useAuditByEntity("order", id);
 
-  const { invoice, isFetching: isFetchingInvoice } = useInvoiceByOrderId(order?.id as string);
+  const { invoice, isFetching: isFetchingInvoice } = useInvoiceByOrderId(id);
   const { summary: paymentSummary,  isFetching:isFetchingPayment} = usePaymentSummary(invoice?.id);
   const { trip, isFetching: isFetchingTrip } = useTripById(order?.tripId as string);
 
@@ -135,17 +135,17 @@ export default function OrderDetailPage() {
         action={
           <div className="flex gap-2 flex-wrap justify-end">
             {canEdit && (
-              <Button href={ORDER_ROUTES.edit(orderNumber)} variant="outline">
+              <Button href={ORDER_ROUTES.edit(id)} variant="outline">
                 Edit
               </Button>
             )}
             {canDeliver && (
-              <Button href={ORDER_ROUTES.deliveryConfirm(orderNumber)}>
+              <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
                 Confirm Delivery →
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" href={`/orders/${orderNumber}/cancel`}>
+              <Button variant="danger" href={ORDER_ROUTES.cancel(id)}>
                 Cancel Order →
               </Button>
             )}
@@ -238,7 +238,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    href={FLEET_ROUTES.tripNew({ orderNo: orderNumber })}
+                    href={FLEET_ROUTES.tripNew({ orderId: id })}
                   >
                     Assign to Trip →
                   </Button>
@@ -286,7 +286,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    href={`${INVOICE_ROUTES.new()}?orderNo=${orderNumber}`}
+                    href={`${INVOICE_ROUTES.new()}?orderId=${id}`}
                   >
                     Create Invoice →
                   </Button>
