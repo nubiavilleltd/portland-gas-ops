@@ -337,6 +337,19 @@ def _update_source_status(request_type: str, request_id: str, status: str, db: S
             elif status == "in_progress":
                 row.status = LeaveRequestStatus.in_progress
 
+    elif request_type == "cash_requisition":
+        from app.finance.models import CashRequisition, CashRequisitionStatus
+        row = db.query(CashRequisition).filter(CashRequisition.id == request_id).first()
+        if row:
+            if status == "approved":
+                row.status = CashRequisitionStatus.approved
+            elif status == "rejected":
+                row.status = CashRequisitionStatus.denied
+            elif status == "returned":
+                row.status = CashRequisitionStatus.returned
+            elif status == "in_progress":
+                row.status = CashRequisitionStatus.in_progress
+
     elif request_type == "asset":
         from app.assets.models import AssetRequest, AssetRequestStatus
         row = db.query(AssetRequest).filter(AssetRequest.id == request_id).first()
@@ -386,8 +399,8 @@ def approve_request(
             from app.shared.services import workflow_email as _wf_email
             _wf_email.notify_asset_allocation_needed(db, _request_id, employee.id)
     else:
-        # Mid-flow: reflect in-progress status on the source leave request
-        if _request_type == "leave_request":
+        # Mid-flow: reflect in-progress status on the source request
+        if _request_type in ("leave_request", "cash_requisition"):
             _update_source_status(_request_type, _request_id, "in_progress", db)
             db.commit()
 
