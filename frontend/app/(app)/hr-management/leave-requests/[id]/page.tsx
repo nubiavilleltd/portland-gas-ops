@@ -75,16 +75,16 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
 export default function LeaveRequestDetailPage({
   params,
 }: {
-  params: Promise<{ reference: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const { reference } = use(params);
-  const { data: apiRecord, isLoading } = useLeaveRequest(reference);
+  const { id } = use(params);
+  const { data: apiRecord, isLoading } = useLeaveRequest(id);
   const { data: currentEmployee } = useCurrentEmployee();
   const { data: myApprovals = [] } = useMyApprovals();
   const { data: auditEntries = [] } = useAuditTrail("leave_request", apiRecord?.id ?? "");
 
   const [record, setRecord] = useState<LeaveRequest | undefined>(
-    () => LEAVE_STORE.find((r) => r.ref === reference)
+    () => LEAVE_STORE.find((r) => r.id === id)
   );
 
   // Update record when API data loads
@@ -175,7 +175,12 @@ export default function LeaveRequestDetailPage({
     action: "approve" | "reject" | "return",
     comment: string
   ) {
-    if (!apiRecord?.approval_request_id) {
+    // Act on the approval request the CURRENT step is assigned to (from my-approvals).
+    // After a resubmit there are multiple attempts; the record's approval_request_id
+    // may point at an old (returned) attempt, so prefer my-approvals' id.
+    const approvalRequestId =
+      myApproval?.approval_request_id ?? apiRecord?.approval_request_id;
+    if (!approvalRequestId) {
       toast.error("Cannot process approval: request not in workflow");
       return;
     }
@@ -183,7 +188,7 @@ export default function LeaveRequestDetailPage({
     // Server is the source of truth — the mutation invalidates leave-request and
     // my-approvals queries, which refetch and drive the UI (panel / banner).
     await approveMutation.mutateAsync({
-      approvalRequestId: apiRecord.approval_request_id,
+      approvalRequestId,
       action,
       comment,
     });
@@ -246,7 +251,7 @@ export default function LeaveRequestDetailPage({
     }
     setIsResubmitting(true);
     try {
-      const updated = await leaveRequestsApi.resubmit(reference, {
+      const updated = await leaveRequestsApi.resubmit(id, {
         employee_id: employeeId,
         leave_type_id: parseInt(data.leave_type, 10),
         reliever_id: data.reliever_id,
@@ -295,14 +300,14 @@ export default function LeaveRequestDetailPage({
           <div className="bg-brand-card border border-brand-border rounded-2xl p-8 text-center max-w-lg">
             <p className="text-brand-text-primary font-semibold">Record not found</p>
             <p className="text-brand-text-secondary text-sm mt-1">
-              No leave request found for <span className="font-mono">{reference}</span>.
+              No leave request found for <span className="font-mono">{id}</span>.
             </p>
           </div>
         )
       ) : (
         <div className="space-y-5">
 
-          {/* Header */}
+          {/* Header — matches Safety & Compliance (Current Access + Next Approver) */}
           <RoleBasedRecordHeader
             id={record.ref}
             currentRole={currentRole}
@@ -312,19 +317,32 @@ export default function LeaveRequestDetailPage({
             status={<ApprovalBadge status={record.status} />}
             recordLabel="Leave Request"
             title={`${record.employee} — ${record.type}`}
+            nextApproverName={
+              record.status === "returned"
+                ? (record.requester ?? record.employee)
+                : (apiRecord?.next_actor_name ?? undefined)
+            }
+            nextApproverRole={
+              record.status === "returned"
+                ? "Requester"
+                : (apiRecord?.current_step_name ?? undefined)
+            }
             showRoleSwitcher={false}
           />
 
-          {/* Access note */}
-          <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
-            <p className="text-sm text-brand-text-secondary">
-              {canActNow
-                ? `You are the current approver for this request (${currentStepName}). Review and make your decision below.`
-                : hasWorkflowAccess
-                ? `Viewing as ${viewingAsLabel}`
-                : "You do not have direct access to this request. Available actions are based on the current employee profile and record assignment."}
-            </p>
-          </div>
+          {/* Access note — hidden once the request reaches a terminal state
+              (approved / denied); the status badge + outcome banner cover it. */}
+          {record.status !== "approved" && record.status !== "denied" && (
+            <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
+              <p className="text-sm text-brand-text-secondary">
+                {canActNow
+                  ? `You are the current approver for this request (${currentStepName}). Review and make your decision below.`
+                  : hasWorkflowAccess
+                  ? `Viewing as ${viewingAsLabel}`
+                  : "You do not have direct access to this request. Available actions are based on the current employee profile and record assignment."}
+              </p>
+            </div>
+          )}
 
           {/* Returned — requester edits inline below and resubmits */}
           {canResubmit && (

@@ -43,8 +43,8 @@ const leaveRequestsApi = {
     };
   },
 
-  async get(reference: string): Promise<LeaveRequestDetail> {
-    const response = await api.get(`/api/hr/leave-requests/${reference}`);
+  async get(id: string): Promise<LeaveRequestDetail> {
+    const response = await api.get(`/api/hr/leave-requests/${id}`);
     return response.data;
   },
 
@@ -53,8 +53,8 @@ const leaveRequestsApi = {
     return response.data;
   },
 
-  async resubmit(reference: string, payload: LeaveRequestCreatePayload): Promise<LeaveRequestDetail> {
-    const response = await api.post(`/api/hr/leave-requests/${reference}/resubmit`, payload);
+  async resubmit(id: string, payload: LeaveRequestCreatePayload): Promise<LeaveRequestDetail> {
+    const response = await api.post(`/api/hr/leave-requests/${id}/resubmit`, payload);
     return response.data;
   },
 

@@ -176,15 +176,9 @@ def get_request_url(request_type: str, request_id: str, db=None) -> str:
     """Build the deep-link URL for a request's detail page."""
     base = settings.FRONTEND_URL.rstrip("/")
 
-    # Special handling for leave_request: use reference instead of UUID
-    if request_type == "leave_request" and db:
-        try:
-            from app.hr.models import LeaveRequest
-            leave_req = db.query(LeaveRequest).filter(LeaveRequest.id == request_id).first()
-            if leave_req and leave_req.reference:
-                return f"{base}/hr-management/leave-requests/{leave_req.reference}"
-        except Exception:
-            pass  # Fall back to UUID if lookup fails
+    # Detail routes are keyed by UUID (matching Safety & Compliance)
+    if request_type == "leave_request":
+        return f"{base}/hr-management/leave-requests/{request_id}"
 
     path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
     return f"{base}/{path}/{request_id}"

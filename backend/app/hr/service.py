@@ -325,6 +325,32 @@ def get_leave_request_by_reference(db: Session, reference: str) -> LeaveRequest:
     return leave_request
 
 
+def get_leave_request_by_id(db: Session, leave_request_id: str) -> LeaveRequest:
+    """
+    Get a single leave request by its UUID (detail routes use id, matching
+    Safety & Compliance). Falls back to reference lookup for backward compat.
+    """
+    leave_request = db.query(LeaveRequest).options(
+        joinedload(LeaveRequest.leave_type),
+        joinedload(LeaveRequest.document),
+    ).filter(LeaveRequest.id == leave_request_id).first()
+
+    if not leave_request:
+        # Backward compat: older links / callers may still pass a reference
+        leave_request = db.query(LeaveRequest).options(
+            joinedload(LeaveRequest.leave_type),
+            joinedload(LeaveRequest.document),
+        ).filter(LeaveRequest.reference == leave_request_id).first()
+
+    if not leave_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Leave request '{leave_request_id}' not found",
+        )
+
+    return leave_request
+
+
 def submit_leave_request_for_approval(
     db: Session,
     leave_request_id: str,
@@ -378,7 +404,7 @@ def submit_leave_request_for_approval(
 
 def resubmit_leave_request(
     db: Session,
-    reference: str,
+    leave_request_id: str,
     payload: LeaveRequestCreate,
     current_user_id: str,
 ) -> LeaveRequest:
@@ -387,7 +413,7 @@ def resubmit_leave_request(
     resets status to pending, and restarts the approval workflow from step 1
     (a new attempt). Only the original requester may resubmit.
     """
-    lr = get_leave_request_by_reference(db, reference)
+    lr = get_leave_request_by_id(db, leave_request_id)
 
     if lr.status != LeaveRequestStatus.returned:
         raise HTTPException(

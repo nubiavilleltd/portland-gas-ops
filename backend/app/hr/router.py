@@ -332,31 +332,39 @@ def list_leave_requests(
 
 
 @router.get(
-    "/leave-requests/{reference}",
+    "/leave-requests/{leave_request_id}",
     response_model=LeaveRequestRead,
 )
 def get_leave_request(
-    reference: str,
+    leave_request_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get a single leave request by reference.
+    Get a single leave request by its UUID (detail routes use id, matching
+    Safety & Compliance). Falls back to reference for backward compat.
 
     **Path Parameters:**
-    - reference: str (e.g., "LRQ-2026-0001")
+    - leave_request_id: str (UUID, or reference for backward compat)
 
     **Response:** Single LeaveRequestRead object
     """
-    return service.get_leave_request_by_reference(db, reference)
+    lr = service.get_leave_request_by_id(db, leave_request_id)
+    result = LeaveRequestRead.model_validate(lr)
+    # Enrich with the current pending approver ("next actor") for the header
+    info = service.get_next_actors(db, [lr.id]).get(lr.id)
+    if info:
+        result.next_actor_name = info["name"]
+        result.current_step_name = info["step_name"]
+    return result
 
 
 @router.post(
-    "/leave-requests/{reference}/resubmit",
+    "/leave-requests/{leave_request_id}/resubmit",
     response_model=LeaveRequestRead,
 )
 def resubmit_leave_request(
-    reference: str,
+    leave_request_id: str,
     payload: LeaveRequestCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -365,7 +373,7 @@ def resubmit_leave_request(
     Edit and resubmit a returned leave request. Restarts the approval workflow
     from step 1. Only the original requester may resubmit.
     """
-    lr = service.resubmit_leave_request(db, reference, payload, current_user.id)
+    lr = service.resubmit_leave_request(db, leave_request_id, payload, current_user.id)
     db.commit()
     db.refresh(lr)
     return lr

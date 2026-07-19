@@ -428,7 +428,7 @@ export default function LeaveRequestsPage() {
               columns={leaveRequestColumns}
               data={visibleItems}
               isLoading={isLoadingRequests}
-              rowHref={(row) => `/hr-management/leave-requests/${row.ref}`}
+              rowHref={(row) => `/hr-management/leave-requests/${row.id}`}
               toolbarActions={
                 <div className="w-52 shrink-0">
                   <SelectInput

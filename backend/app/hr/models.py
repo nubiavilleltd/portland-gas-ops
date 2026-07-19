@@ -142,10 +142,12 @@ class LeaveRequest(Base):
             from app.shared.models.approval import ApprovalRequest
             session = object_session(self)
             if session:
+                # Latest attempt — after a resubmit there are multiple attempts;
+                # the newest one is the active workflow.
                 approval_req = session.query(ApprovalRequest).filter(
                     ApprovalRequest.request_type == "leave_request",
                     ApprovalRequest.request_id == self.id,
-                ).first()
+                ).order_by(ApprovalRequest.attempt_number.desc()).first()
                 if approval_req:
                     return approval_req.id
         except Exception:

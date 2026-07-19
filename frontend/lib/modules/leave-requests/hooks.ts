@@ -26,7 +26,7 @@ export interface CurrentEmployee {
 const QUERY_KEYS = {
   all: ["leave-requests"],
   list: (params?: ListLeaveRequestsParams) => [...QUERY_KEYS.all, "list", params],
-  detail: (reference: string) => [...QUERY_KEYS.all, "detail", reference],
+  detail: (id: string) => [...QUERY_KEYS.all, "detail", id],
 };
 
 export function useLeaveRequests(params: ListLeaveRequestsParams = {}) {
@@ -37,10 +37,10 @@ export function useLeaveRequests(params: ListLeaveRequestsParams = {}) {
   });
 }
 
-export function useLeaveRequest(reference: string, enabled: boolean = true) {
+export function useLeaveRequest(id: string, enabled: boolean = true) {
   return useQuery({
-    queryKey: QUERY_KEYS.detail(reference),
-    queryFn: () => leaveRequestsApi.get(reference),
+    queryKey: QUERY_KEYS.detail(id),
+    queryFn: () => leaveRequestsApi.get(id),
     enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
