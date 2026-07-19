@@ -145,6 +145,8 @@ export function useApproveLeaveRequest() {
       queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
       queryClient.invalidateQueries({ queryKey: ["my-requests"] });
       queryClient.invalidateQueries({ queryKey: ["audit-trail"] });
+      // A final approval deducts leave balance — refresh the balance strip.
+      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
 
       const actionMessages = {
         approve: "Request approved successfully",

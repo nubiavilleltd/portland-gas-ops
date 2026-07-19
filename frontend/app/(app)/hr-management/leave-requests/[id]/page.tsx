@@ -80,7 +80,7 @@ export default function LeaveRequestDetailPage({
   const { id } = use(params);
   const { data: apiRecord, isLoading } = useLeaveRequest(id);
   const { data: currentEmployee } = useCurrentEmployee();
-  const { data: myApprovals = [] } = useMyApprovals();
+  const { data: myApprovals = [], isLoading: isApprovalsLoading } = useMyApprovals();
   const { data: auditEntries = [] } = useAuditTrail("leave_request", apiRecord?.id ?? "");
 
   const [record, setRecord] = useState<LeaveRequest | undefined>(
@@ -334,13 +334,17 @@ export default function LeaveRequestDetailPage({
               (approved / denied); the status badge + outcome banner cover it. */}
           {record.status !== "approved" && record.status !== "denied" && (
             <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
-              <p className="text-sm text-brand-text-secondary">
-                {canActNow
-                  ? `You are the current approver for this request (${currentStepName}). Review and make your decision below.`
-                  : hasWorkflowAccess
-                  ? `Viewing as ${viewingAsLabel}`
-                  : "You do not have direct access to this request. Available actions are based on the current employee profile and record assignment."}
-              </p>
+              {isApprovalsLoading ? (
+                <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse" />
+              ) : (
+                <p className="text-sm text-brand-text-secondary">
+                  {canActNow
+                    ? `You are the current approver for this request (${currentStepName}). Review and make your decision below.`
+                    : hasWorkflowAccess
+                    ? `Viewing as ${viewingAsLabel}`
+                    : "You do not have direct access to this request. Available actions are based on the current employee profile and record assignment."}
+                </p>
+              )}
             </div>
           )}
 
@@ -551,7 +555,12 @@ export default function LeaveRequestDetailPage({
               The reviewingAs label reflects the step they are acting on, so a
               user who is both reliever and operations manager sees the correct
               role at each step. */}
-          {canActNow && (
+          {isApprovalsLoading &&
+          (record.status === "pending" || record.status === "in_progress") ? (
+            // Reserve the action slot while my-approvals resolves, so the panel
+            // doesn't pop in late for the current approver (or flash for others).
+            <ApprovalPanelSkeleton />
+          ) : canActNow ? (
             <ApprovalPanel
               reviewingAs={currentStepName}
               showReturn
@@ -566,7 +575,7 @@ export default function LeaveRequestDetailPage({
               onReject={(comment) => submitApprovalAction("reject", comment)}
               onApprove={(comment) => submitApprovalAction("approve", comment)}
             />
-          )}
+          ) : null}
 
           {/* Terminal status banner — shown only for final outcomes (server state) */}
           {terminalStatus && (
@@ -609,6 +618,30 @@ export default function LeaveRequestDetailPage({
         </div>
       )}
     </AppLayout>
+  );
+}
+
+// Placeholder matching the ApprovalPanel (FormSection) shape — shown while
+// my-approvals resolves so the action area doesn't pop in / flip.
+function ApprovalPanelSkeleton() {
+  return (
+    <div className="bg-white border border-brand-border rounded-2xl animate-pulse">
+      <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+        <div className="h-4 w-40 rounded bg-gray-200" />
+        <div className="mt-2 h-3 w-32 rounded bg-gray-100" />
+      </div>
+      <div className="p-6 space-y-5">
+        <div>
+          <div className="mb-2 h-3 w-28 rounded bg-gray-200" />
+          <div className="h-20 rounded-xl bg-gray-100" />
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <div className="h-10 w-24 rounded-lg bg-gray-100" />
+          <div className="h-10 w-24 rounded-lg bg-gray-100" />
+          <div className="h-10 w-28 rounded-lg bg-gray-200" />
+        </div>
+      </div>
+    </div>
   );
 }
 

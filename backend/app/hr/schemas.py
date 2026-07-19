@@ -48,6 +48,27 @@ class LeaveTypeRead(BaseModel):
         from_attributes = True
 
 
+class LeaveBalanceRead(BaseModel):
+    leave_type_id: int
+    leave_type_name: str
+    fiscal_year: int
+    entitlement: int
+    used: int
+    remaining: int
+
+    class Config:
+        from_attributes = True
+
+
+class EmployeeLeaveBalancesRead(BaseModel):
+    employee_id: str
+    name: str
+    job_title: Optional[str] = None
+    department: Optional[str] = None
+    fiscal_year: int
+    balances: list[LeaveBalanceRead]
+
+
 # ── Leave Request Schemas ────────────────────────────────────────────────────
 
 class LeaveRequestCreate(BaseModel):

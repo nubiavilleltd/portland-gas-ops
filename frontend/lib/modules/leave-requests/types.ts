@@ -59,4 +59,5 @@ export interface ListLeaveRequestsParams {
   limit?: number;
   sort_by?: string;
   sort_order?: "asc" | "desc";
+  employee_id?: string;
 }

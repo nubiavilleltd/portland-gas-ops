@@ -21,6 +21,7 @@ import { leaveRequestColumns } from "../_components/columns";
 import { useCreateLeaveRequest, useLeaveRequests, useLeaveRequest, useCurrentEmployee } from "@/lib/modules/leave-requests/hooks";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
+import { useMyLeaveBalances } from "@/lib/modules/leave-balances/hooks";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuthStore } from "@/store/authStore";
@@ -125,6 +126,11 @@ export default function LeaveRequestsPage() {
   const { data: leaveTypesResponse, isLoading: isLoadingLeaveTypes, error: leaveTypesError } = useLeaveTypes({ limit: 100, is_active: true });
   const leaveTypes = leaveTypesResponse?.data || [];
 
+  // Recorded leave balances for the current year — feeds the balance strip and
+  // the new-request form banner (used/remaining come from approved requests).
+  const { data: leaveBalances = [] } = useMyLeaveBalances(YEAR);
+  const balanceByType = new Map(leaveBalances.map((b) => [Number(b.leave_type_id), b]));
+
   console.log("Leave Types Debug:", { leaveTypes, isLoadingLeaveTypes, leaveTypesError, leaveTypesResponse, rawResponse: JSON.stringify(leaveTypesResponse) });
 
   // Get current user's employee record
@@ -185,12 +191,16 @@ export default function LeaveRequestsPage() {
 
   const leaveTypeName = selectedLeaveType?.leave_type_name;
 
-  // Use real entitlement from leave type setup
-  const activeBal = selectedLeaveType ? {
-    entitlement: selectedLeaveType.entitlement_days,
-    used: 0,  // TODO: Calculate from approved leave requests
-    remaining: selectedLeaveType.entitlement_days
-  } : null;
+  // Real balance for the selected leave type — falls back to full entitlement
+  // when the employee hasn't drawn on this type yet this year.
+  const activeBal = selectedLeaveType ? (() => {
+    const bal = balanceByType.get(Number(selectedLeaveType.id));
+    return {
+      entitlement: bal?.entitlement ?? selectedLeaveType.entitlement_days,
+      used: bal?.used ?? 0,
+      remaining: Math.max(0, bal?.remaining ?? selectedLeaveType.entitlement_days),
+    };
+  })() : null;
 
   const days = calcDays(watchStart, watchEnd);
   const exceedsBalance = days > 0 && activeBal !== null && days > activeBal.remaining;
@@ -371,22 +381,27 @@ export default function LeaveRequestsPage() {
               My Leave Balance — {YEAR}
             </p>
             <div className="flex gap-3">
-              {leaveTypes.map((lt) => (
+              {leaveTypes.map((lt) => {
+                const bal = balanceByType.get(Number(lt.id));
+                const entitlement = bal?.entitlement ?? lt.entitlement_days;
+                const remaining = Math.max(0, bal?.remaining ?? lt.entitlement_days);
+                return (
                 <section key={lt.id} className="rounded-xl border border-brand-border bg-white p-3 flex-shrink-0 min-w-[130px]">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-xs text-brand-text-secondary leading-tight">{lt.leave_type_name}</p>
-                      <p className="mt-1 text-xl font-bold text-brand-text-primary">{lt.entitlement_days}</p>
+                      <p className="mt-1 text-xl font-bold text-brand-text-primary">{remaining}</p>
                     </div>
                     <span className="rounded-lg p-1.5 ring-1 bg-purple-50 text-purple-700 ring-purple-100 shrink-0">
                       <CalendarDays size={16} />
                     </span>
                   </div>
                   <p className="mt-2 text-[11px] leading-4 text-brand-text-secondary">
-                    {lt.entitlement_days}/{lt.entitlement_days} days left
+                    {remaining}/{entitlement} days left
                   </p>
                 </section>
-              ))}
+                );
+              })}
             </div>
           </div>
           )}

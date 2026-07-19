@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from typing import Optional, Tuple
 from datetime import datetime
 
-from app.hr.models import LeaveTypeSetup, LeaveRequest, LeaveRequestStatus
+from app.hr.models import LeaveTypeSetup, LeaveRequest, LeaveRequestStatus, LeaveBalance
 from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveRequestCreate
 from app.employees.models import Employee
 from app.shared.services.workflow_engine import WorkflowEngine
@@ -191,6 +191,13 @@ def create_leave_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Leave type not found",
         )
+    # An inactive leave type cannot be requested (frontend hides it, but guard
+    # against stale caches / direct API calls).
+    if not leave_type.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"'{leave_type.leave_type_name}' is not available for leave requests",
+        )
 
     # Validate dates
     if payload.end_date < payload.start_date:
@@ -235,12 +242,18 @@ def get_all_leave_requests(
     limit: int = 100,
     sort_by: str = "created_at",
     sort_order: str = "desc",
+    employee_id: Optional[str] = None,
 ) -> Tuple[list[LeaveRequest], int]:
     """Get all leave requests with pagination and sorting."""
     query = db.query(LeaveRequest).options(
         joinedload(LeaveRequest.leave_type),
         joinedload(LeaveRequest.document),
     )
+
+    # Optional filter: only a single employee's requests (used by the
+    # per-employee balance/history view).
+    if employee_id:
+        query = query.filter(LeaveRequest.employee_id == employee_id)
 
     # Apply sorting
     sort_column = getattr(LeaveRequest, sort_by, LeaveRequest.created_at)
@@ -432,6 +445,11 @@ def resubmit_leave_request(
     leave_type = db.query(LeaveTypeSetup).filter(LeaveTypeSetup.id == payload.leave_type_id).first()
     if not leave_type:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave type not found")
+    if not leave_type.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"'{leave_type.leave_type_name}' is not available for leave requests",
+        )
 
     if payload.end_date < payload.start_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date must be after start date")
@@ -460,3 +478,157 @@ def resubmit_leave_request(
     submit_leave_request_for_approval(db, lr.id)
 
     return lr
+
+
+# ── LEAVE BALANCE ───────────────────────────────────────────────────────────
+
+def apply_leave_balance_on_approval(db: Session, leave_request_id: str) -> LeaveBalance:
+    """
+    Record the leave-balance deduction for a fully-approved leave request.
+
+    Called once from the workflow's on_final_approval callback (leave_request only),
+    inside the approval transaction — the caller owns the commit. Get-or-creates the
+    LeaveBalance row for (employee, leave_type, fiscal_year) and adds this request's
+    days to `used`. Fiscal year is the leave's start_date year.
+    """
+    lr = get_leave_request_by_id(db, leave_request_id)
+    fiscal_year = lr.start_date.year
+
+    balance = (
+        db.query(LeaveBalance)
+        .filter(
+            LeaveBalance.employee_id == lr.employee_id,
+            LeaveBalance.leave_type_id == lr.leave_type_id,
+            LeaveBalance.fiscal_year == fiscal_year,
+        )
+        .first()
+    )
+
+    if balance is None:
+        # First deduction this year — snapshot the entitlement from the leave type.
+        entitlement = lr.leave_type.entitlement_days if lr.leave_type else 0
+        balance = LeaveBalance(
+            employee_id=lr.employee_id,
+            leave_type_id=lr.leave_type_id,
+            fiscal_year=fiscal_year,
+            entitlement=entitlement,
+            used=0,
+            remaining=entitlement,
+        )
+        db.add(balance)
+
+    balance.used = (balance.used or 0) + lr.days
+    # Keep an accurate remaining (may reach 0 / go negative on over-use); the UI
+    # clamps the displayed value at 0.
+    balance.remaining = balance.entitlement - balance.used
+    db.flush()
+    return balance
+
+
+def get_my_leave_balances(db: Session, employee_id: str, fiscal_year: int) -> list[dict]:
+    """
+    Merged leave-balance view for an employee: every ACTIVE leave type with its
+    recorded used/remaining for the fiscal year, defaulting to the full
+    entitlement for types the employee hasn't drawn on yet.
+    """
+    leave_types = (
+        db.query(LeaveTypeSetup)
+        .filter(LeaveTypeSetup.is_active.is_(True))
+        .all()
+    )
+    balances = (
+        db.query(LeaveBalance)
+        .filter(
+            LeaveBalance.employee_id == employee_id,
+            LeaveBalance.fiscal_year == fiscal_year,
+        )
+        .all()
+    )
+    by_type = {b.leave_type_id: b for b in balances}
+
+    result = []
+    for lt in leave_types:
+        bal = by_type.get(lt.id)
+        result.append({
+            "leave_type_id":   lt.id,
+            "leave_type_name": lt.leave_type_name,
+            "fiscal_year":     fiscal_year,
+            "entitlement":     bal.entitlement if bal else lt.entitlement_days,
+            "used":            (bal.used or 0) if bal else 0,
+            "remaining":       bal.remaining if bal else lt.entitlement_days,
+        })
+    return result
+
+
+def get_all_leave_balances(
+    db: Session,
+    fiscal_year: int,
+    skip: int = 0,
+    limit: int = 500,
+) -> list[dict]:
+    """
+    All-employees leave-balance view for a fiscal year — one entry per employee,
+    each with every ACTIVE leave type (recorded used/remaining, or a full
+    entitlement default). Batched into a constant number of queries (employees +
+    leave types + balances), so it does not scale per-employee (no N+1).
+    """
+    employees = (
+        db.query(Employee)
+        .options(
+            joinedload(Employee.user),
+            joinedload(Employee.department_rel),
+        )
+        .order_by(Employee.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    if not employees:
+        return []
+
+    leave_types = (
+        db.query(LeaveTypeSetup)
+        .filter(LeaveTypeSetup.is_active.is_(True))
+        .all()
+    )
+
+    emp_ids = [e.id for e in employees]
+    balances = (
+        db.query(LeaveBalance)
+        .filter(
+            LeaveBalance.fiscal_year == fiscal_year,
+            LeaveBalance.employee_id.in_(emp_ids),
+        )
+        .all()
+    )
+    by_key = {(b.employee_id, b.leave_type_id): b for b in balances}
+
+    result = []
+    for emp in employees:
+        user = emp.user
+        name = (
+            f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
+            if user else ""
+        ) or emp.employee_no
+
+        emp_balances = []
+        for lt in leave_types:
+            bal = by_key.get((emp.id, lt.id))
+            emp_balances.append({
+                "leave_type_id":   lt.id,
+                "leave_type_name": lt.leave_type_name,
+                "fiscal_year":     fiscal_year,
+                "entitlement":     bal.entitlement if bal else lt.entitlement_days,
+                "used":            (bal.used or 0) if bal else 0,
+                "remaining":       bal.remaining if bal else lt.entitlement_days,
+            })
+
+        result.append({
+            "employee_id": emp.id,
+            "name":        name,
+            "job_title":   emp.job_title,
+            "department":  emp.department,
+            "fiscal_year": fiscal_year,
+            "balances":    emp_balances,
+        })
+    return result

@@ -364,6 +364,11 @@ def approve_request(
 
     def on_final_approval():
         _update_source_status(_request_type, _request_id, "approved", db)
+        # Leave requests: record the balance deduction against the employee's
+        # leave-type allowance (runs once, in this same transaction).
+        if _request_type == "leave_request":
+            from app.hr.service import apply_leave_balance_on_approval
+            apply_leave_balance_on_approval(db, _request_id)
         # Asset requests: re-validate availability at the moment of final approval
         # to catch inventory that was consumed between submission and approval.
         if _request_type == "asset":

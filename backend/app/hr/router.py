@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import date
 
 from app.core.database import get_db
 from app.shared.dependencies import get_current_user, require_roles
@@ -8,7 +9,7 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead
 from app.hr import service
 from app.employees.service import get_employee_by_user_id
 
@@ -231,6 +232,50 @@ def reactivate_leave_type(
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# LEAVE BALANCES
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    "/leave-balances/me",
+    response_model=list[LeaveBalanceRead],
+)
+def get_my_leave_balances(
+    fiscal_year: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Current employee's leave balances for a fiscal year — every active leave
+    type with its recorded used/remaining, defaulting to full entitlement for
+    types not yet drawn on. Fiscal year defaults to the current calendar year.
+    """
+    employee = get_employee_by_user_id(current_user.id, db)
+    year = fiscal_year if fiscal_year is not None else date.today().year
+    return service.get_my_leave_balances(db, employee.id, year)
+
+
+@router.get(
+    "/leave-balances",
+    response_model=list[EmployeeLeaveBalancesRead],
+)
+def get_all_leave_balances(
+    fiscal_year: Optional[int] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(500, ge=1, le=1000),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """
+    All-employees leave balances for a fiscal year (HR/admin only) — one entry
+    per employee with every active leave type. Fiscal year defaults to the
+    current calendar year.
+    """
+    year = fiscal_year if fiscal_year is not None else date.today().year
+    return service.get_all_leave_balances(db, year, skip=skip, limit=limit)
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # LEAVE REQUESTS
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -273,6 +318,7 @@ def list_leave_requests(
     limit: int = Query(100, ge=1, le=200),
     sort_by: str = Query("created_at", pattern="^(created_at|start_date|end_date|days|status)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    employee_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -308,7 +354,7 @@ def list_leave_requests(
     ```
     """
     leave_requests, total = service.get_all_leave_requests(
-        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, employee_id=employee_id
     )
 
     # Enrich with the current pending approver ("next actor") in one query
