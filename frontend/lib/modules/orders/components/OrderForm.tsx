@@ -402,6 +402,7 @@ export default function OrderForm({
           columns={columns}
           rows={orderItems}
           onAdd={() => append({ ...DEFAULT_LINE_ITEM })}
+          canAdd={productsReady}
           onRemove={(i) => remove(i)}
           onChange={(index, patch) => {
             const current = orderItems[index];
