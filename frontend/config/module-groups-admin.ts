@@ -187,6 +187,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/admin/leave-balances",
       },
       {
+        name: "Leave Type Setup",
+        description: "Configure and manage all leave types",
+        icon: SlidersHorizontal,
+        href: "/admin/leave-types",
+      },
+      {
         name: "Pay Slip Management",
         description: "Generate and manage employee pay slips",
         icon: CreditCard,

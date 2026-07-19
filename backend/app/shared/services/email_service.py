@@ -159,8 +159,8 @@ _REQUEST_TYPE_PATHS: dict[str, str] = {
     "procurement":      "procurement",
     "asset":            "assets",
     "leave":            "leave",
-    "cash_requisition": "cash-requisitions",
-    "invoice":          "invoices",
+    "cash_requisition": "finance/cash-requisitions",
+    "invoice":          "finance/invoices",
     "work_initiation":  "safety/work-initiation",
     "work_authorization": "safety/work-authorization",
     "work_closeout":    "safety/work-close-out",
@@ -172,10 +172,15 @@ def get_request_type_label(request_type: str) -> str:
     return _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
 
 
-def get_request_url(request_type: str, request_id: str) -> str:
+def get_request_url(request_type: str, request_id: str, db=None) -> str:
     """Build the deep-link URL for a request's detail page."""
-    path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
     base = settings.FRONTEND_URL.rstrip("/")
+
+    # Detail routes are keyed by UUID (matching Safety & Compliance)
+    if request_type == "leave_request":
+        return f"{base}/hr-management/leave-requests/{request_id}"
+
+    path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
     return f"{base}/{path}/{request_id}"
 
 

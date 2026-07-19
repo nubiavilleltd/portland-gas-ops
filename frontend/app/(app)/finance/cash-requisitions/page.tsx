@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,9 +14,17 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import DataTable from "@/components/data-table/data-table";
+import DataTable from "@/components/ui/DataTable";
+import SelectInput from "@/components/forms/SelectInput";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
-import { formatNumber } from "@/lib/utils/format-number";
+import { useCashRequisitions, useCreateCashRequisition } from "@/lib/modules/cash-requisitions/hooks";
+import cashRequisitionsApi from "@/lib/modules/cash-requisitions/api";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { CURRENCY_OPTIONS } from "../_components/_data";
+
+const TODAY = new Date().toISOString().split("T")[0];
 
 function applyCommas(raw: string): string {
   const clean = raw.replace(/[^0-9.]/g, "");
@@ -25,68 +32,112 @@ function applyCommas(raw: string): string {
   const formatted = (int || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return dec !== undefined ? `${formatted}.${dec}` : formatted;
 }
-import {
-  DEPT_OPTIONS,
-  CURRENCY_OPTIONS,
-  genRef,
-  SEED_CASH_REQUESTS,
-  CASH_STORE,
-  type CashRequest,
-} from "../_components/_data";
 
-const TODAY = new Date().toISOString().split("T")[0];
-
-const CURRENT_USER = {
-  name: "Joseph Chika",
-  department: "Finance",
-  role: "Finance Manager",
-};
+const STATUS_OPTIONS = [
+  { value: "pending",     label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "returned",    label: "Returned" },
+  { value: "approved",    label: "Approved" },
+  { value: "denied",      label: "Denied" },
+];
 
 const schema = z.object({
   title:               z.string().min(3, "Title is required"),
   currency:            z.string().min(1, "Select a currency"),
   amount:              z.string().min(1, "Amount is required"),
   description:         z.string().min(5, "Description is required"),
+  expected_retirement: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
-
 type View = "list" | "form";
 
 export default function CashRequisitionsPage() {
-  const router = useRouter();
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<CashRequest[]>(() =>
-    SEED_CASH_REQUESTS.filter((item) => item.requester === CURRENT_USER.name)
-  );
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
+
+  const { user: currentUser } = useCurrentUser();
+  const { data: myEmployee } = useMyEmployee();
+  const createCashRequisition = useCreateCashRequisition();
+
+  const { data: response, isLoading } = useCashRequisitions({
+    limit: 100,
+    sort_by: "created_at",
+    sort_order: "desc",
+  });
+  const allItems = response?.data || [];
+
+  // "Awaiting my approval" — my-approvals returns requests where the current user
+  // is the assignee of the CURRENT step.
+  const { data: myApprovals = [] } = useMyApprovals();
+  const awaitingIds = new Set(
+    myApprovals.filter((a) => a.request_type === "cash_requisition").map((a) => a.request_id)
+  );
+
+  const [scope, setScope] = useState<"all" | "awaiting">("all");
+  const [activeStatus, setActiveStatus] = useState<string>("");
+
+  const visibleItems = allItems.filter((i) => {
+    // "All" = requests I raised; "Awaiting my approval" = requests waiting on me.
+    const isMine = !i.requesterId || i.requesterId === currentUser?.id;
+    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
+    if (!inScope) return false;
+    if (activeStatus && i.status !== activeStatus) return false;
+    return true;
+  });
+
+  const requesterName = myEmployee?.user
+    ? `${myEmployee.user.first_name ?? ""} ${myEmployee.user.last_name ?? ""}`.trim()
+    : "";
+
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
+  // Expected Retirement Date is hidden for now:
+  // const watchRetirement = form.watch("expected_retirement");
 
-  function onSubmit(data: FormData) {
-    const ref = genRef("CRQ");
-    const newItem: CashRequest = {
-      id: ref,
-      ref,
-      title: data.title,
-      department: CURRENT_USER.department,
-      amount: parseFloat(data.amount.replace(/,/g, "")),
-      requester: CURRENT_USER.name,
-      jobTitle: CURRENT_USER.role,
-      date: TODAY,
-      status: "pending",
-      currency: data.currency,
-      description: data.description,
-      supportingDocuments: supportingFiles.length > 0
-        ? supportingFiles.map((f) => f.name)
-        : undefined,
-    };
-    CASH_STORE.unshift(newItem);
-    setItems((prev) => [newItem, ...prev]);
-    toast.success(`Request submitted successfully — Reference: ${ref}`);
-    form.reset();
-    setSupportingFiles([]);
-    setTimeout(() => location.reload(), 800);
+  async function onSubmit(data: FormData) {
+    try {
+      const amount = parseFloat(data.amount.replace(/,/g, ""));
+      if (!amount || amount <= 0) {
+        toast.error("Enter a valid amount");
+        return;
+      }
+
+      // 1. Create the requisition
+      const cr = await createCashRequisition.mutateAsync({
+        title: data.title,
+        description: data.description,
+        amount,
+        currency: data.currency,
+        expected_retirement: data.expected_retirement || undefined,
+      });
+
+      // 2. Upload supporting files (best-effort)
+      if (supportingFiles.length > 0 && cr?.id) {
+        for (const file of supportingFiles) {
+          try {
+            await cashRequisitionsApi.uploadDocument(cr.id, file);
+          } catch {
+            toast.info(`Could not upload ${file.name}. Your request was still saved.`);
+          }
+        }
+      }
+
+      // 3. Submit for approval (enters the workflow)
+      if (cr?.id) {
+        await cashRequisitionsApi.submitForApproval(cr.id);
+      }
+
+      toast.success(`Request submitted for approval — ${cr.reference}`);
+      form.reset();
+      setSupportingFiles([]);
+      setView("list");
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (error instanceof Error ? error.message : "Failed to submit cash requisition");
+      toast.error(message);
+    }
   }
 
   function goBack() {
@@ -111,11 +162,56 @@ export default function CashRequisitionsPage() {
             }
             className="mb-6"
           />
+
+          {/* Scope filter pills */}
+          <div className="mb-3 flex flex-wrap gap-2">
+            {([
+              { value: "all",      label: "All" },
+              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
+            ] as const).map((pill) => (
+              <button
+                key={pill.value}
+                type="button"
+                onClick={() => setScope(pill.value)}
+                className={
+                  scope === pill.value
+                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
+                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
+                }
+              >
+                {pill.label}
+                {"count" in pill && pill.count > 0 ? (
+                  <span
+                    className={
+                      scope === pill.value
+                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
+                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
+                    }
+                  >
+                    {pill.count}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
           <div className="w-full overflow-hidden">
             <DataTable
               columns={cashRequisitionColumns}
-              data={items}
+              data={visibleItems}
+              isLoading={isLoading}
               rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
+              toolbarActions={
+                <div className="w-52 shrink-0">
+                  <SelectInput
+                    placeholder="All Statuses"
+                    sortOptions={false}
+                    value={activeStatus}
+                    onValueChange={(v) => setActiveStatus(v)}
+                    options={STATUS_OPTIONS}
+                  />
+                </div>
+              }
               emptyMessage="No cash requisitions yet"
               emptyDescription="Submit your first cash request to get started"
             />
@@ -144,9 +240,9 @@ export default function CashRequisitionsPage() {
 
             <FormSection title="Requester Details" description="Your employee information for this cash requisition.">
               <div className="grid gap-4 md:grid-cols-2">
-                <FormInput label="Requester Name" value={CURRENT_USER.name} disabled />
-                <FormInput label="Department" value={CURRENT_USER.department} disabled />
-                <FormInput label="Job Title / Role" value={CURRENT_USER.role} disabled />
+                <FormInput label="Requester Name" value={requesterName} disabled />
+                <FormInput label="Department" value={myEmployee?.department || ""} disabled />
+                <FormInput label="Job Title / Role" value={myEmployee?.job_title || ""} disabled />
                 <FormDatePicker label="Request Date" value={TODAY} disabled />
               </div>
             </FormSection>
@@ -180,6 +276,15 @@ export default function CashRequisitionsPage() {
                     },
                   })}
                 />
+                {/* Expected Retirement Date — hidden for now
+                <FormDatePicker
+                  label="Expected Retirement Date"
+                  min={TODAY}
+                  hint="When the cash is expected to be accounted for (optional)"
+                  {...form.register("expected_retirement")}
+                  value={form.watch("expected_retirement") ?? ""}
+                />
+                */}
                 <div className="md:col-span-2">
                   <FormTextarea
                     label="Description / Justification"
@@ -196,7 +301,7 @@ export default function CashRequisitionsPage() {
                     value={supportingFiles}
                     onChange={setSupportingFiles}
                     accept="image/*,.pdf,.doc,.docx"
-                    maxFiles={10}
+                    maxFiles={5}
                     hint="Attach quotes, receipts, or any relevant documents (optional)"
                   />
                 </div>
