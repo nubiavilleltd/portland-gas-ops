@@ -1,15 +1,12 @@
 // hooks/useSubmitOrderWorkflow.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ORDER_KEYS } from "../constants/query-keys";
-import { ORDER_ROUTES } from "../constants/routes";
 import type { CreateOrderInput, Order } from "../types/orders.types";
 import { submitOrderWorkflow } from "../workflows/submit-order-workflow";
 
 export function useSubmitOrderWorkflow() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: ({
@@ -32,14 +29,7 @@ export function useSubmitOrderWorkflow() {
             : [...old, order];
         }
       );
-      toast.success("Order submitted successfully");
-     router.push(
-          ORDER_ROUTES.home()
-        );
-    },
-
-    onError: (err: any) => {
-      toast.error(err?.message ?? "Failed to submit order");
+  
     },
   });
 }

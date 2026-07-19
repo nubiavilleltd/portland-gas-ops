@@ -1,5 +1,4 @@
 
-import { getErrorMessage } from "@/lib/api/error";
 
 import { ordersApi } from "../api/orders.api";
 import {
@@ -20,6 +19,9 @@ import type {
 
 import type { PaymentStatus } from "../../payments/types/payments.types";
 import { ItemDisposition } from "../../inventory/types/inventory.types";
+import { getErrorMessage } from "@/lib/errors";
+import { ORDER_ERROR_MESSAGES } from "../errors";
+import { ERROR_MESSAGES } from "@/lib/api/error";
 
 export const OrdersService = {
   // ------------------------------------------------------------------
@@ -37,7 +39,7 @@ export const OrdersService = {
 
       return adaptOrder(raw);
     } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to load order"));
+      throw new Error(getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to load order"));
     }
   },
 
@@ -89,7 +91,7 @@ export const OrdersService = {
       return adaptOrder(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to create draft order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to create draft order"),
       );
     }
   },
@@ -107,7 +109,7 @@ export const OrdersService = {
       return adaptOrder(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to update draft order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to update draft order"),
       );
     }
   },
@@ -121,7 +123,7 @@ export const OrdersService = {
       return adaptOrder(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to submit order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to submit order"),
       );
     }
   },
@@ -137,7 +139,7 @@ async createOrder(
     return adaptOrder(raw);
   } catch (err) {
     throw new Error(
-      getErrorMessage(err, "Failed to create and submit order"),
+      getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to create and submit order"),
     );
   }
 },
@@ -155,7 +157,7 @@ async createOrder(
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to cancel order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to cancel order"),
       );
     }
   },
@@ -169,7 +171,7 @@ async createOrder(
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to confirm order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to confirm delivery"),
       );
     }
   },
@@ -193,6 +195,7 @@ async createOrder(
       throw new Error(
         getErrorMessage(
           err,
+          ORDER_ERROR_MESSAGES,
           "Failed to update fulfillment status",
         ),
       );
@@ -251,7 +254,7 @@ async createOrder(
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to assign trip"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to assign trip"),
       );
     }
   },
@@ -266,7 +269,7 @@ async createOrder(
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to update trip"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to update trip"),
       );
     }
   },
@@ -281,7 +284,7 @@ async createOrder(
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to link invoice"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to link invoice"),
       );
     }
   },

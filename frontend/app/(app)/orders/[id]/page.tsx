@@ -40,10 +40,13 @@ import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
 import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
-import { ActivitySkeleton, DispatchSkeleton, InvoiceSkeleton, OrderSummarySkeleton, PaymentsSkeleton } from "@/lib/modules/orders/components/OrderDetailSkeleton";
-
-
-
+import {
+  ActivitySkeleton,
+  DispatchSkeleton,
+  InvoiceSkeleton,
+  OrderSummarySkeleton,
+  PaymentsSkeleton,
+} from "@/lib/modules/orders/components/OrderDetailSkeleton";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -51,11 +54,17 @@ export default function OrderDetailPage() {
 
   const { products, isFetching: isFetchingProducts } = useProducts();
   const { order, isLoading, isFetching, error } = useOrderById(id);
-  const { entries, isFetching:isFetchingEntries } = useAuditByEntity("order", id);
+  const { entries, isFetching: isFetchingEntries } = useAuditByEntity(
+    "order",
+    id,
+  );
 
   const { invoice, isFetching: isFetchingInvoice } = useInvoiceByOrderId(id);
-  const { summary: paymentSummary,  isFetching:isFetchingPayment} = usePaymentSummary(invoice?.id);
-  const { trip, isFetching: isFetchingTrip } = useTripById(order?.tripId as string);
+  const { summary: paymentSummary, isFetching: isFetchingPayment } =
+    usePaymentSummary(invoice?.id);
+  const { trip, isFetching: isFetchingTrip } = useTripById(
+    order?.tripId as string,
+  );
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
@@ -65,10 +74,13 @@ export default function OrderDetailPage() {
     return (
       <AppLayout pageTitle="Order Details">
         <div className="space-y-6">
-          <BackButton href={`${ORDER_ROUTES.home()}`} label="Back to Orders" />
-          <PageHeader 
-            title="Loading..." 
-            description="Loading order details" 
+          <BackButton
+            href={`${ORDER_ROUTES.home()}`}
+            label="Back to Orders"
+          />
+          <PageHeader
+            title="Loading..."
+            description="Loading order details"
           />
           <OrderSummarySkeleton />
           <DispatchSkeleton />
@@ -96,12 +108,10 @@ export default function OrderDetailPage() {
     ? invoice.total_amount - paymentSummary.amountPaid
     : 0;
 
-   const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
+  const itemColumns: SimpleTableColumn<OrderLineItem>[] = [
     {
       label: "Product",
-      render: (item) => (
-        <span className="font-medium">{item.productName}</span>
-      ),
+      render: (item) => <span className="font-medium">{item.productName}</span>,
     },
     {
       label: "Quantity",
@@ -135,7 +145,10 @@ export default function OrderDetailPage() {
         action={
           <div className="flex gap-2 flex-wrap justify-end">
             {canEdit && (
-              <Button href={ORDER_ROUTES.edit(id)} variant="outline">
+              <Button
+                href={ORDER_ROUTES.edit(id)}
+                variant="outline"
+              >
                 Edit
               </Button>
             )}
@@ -145,7 +158,10 @@ export default function OrderDetailPage() {
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" href={ORDER_ROUTES.cancel(id)}>
+              <Button
+                variant="danger"
+                href={ORDER_ROUTES.cancel(id)}
+              >
                 Cancel Order →
               </Button>
             )}
@@ -159,7 +175,7 @@ export default function OrderDetailPage() {
           title="Order Summary"
           description="Overview of customer, order, delivery, and payment details"
         >
-            <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start justify-between mb-6">
             <div>
               <p className="text-xs font-mono text-brand-text-secondary">
                 {order.orderNumber}
@@ -168,7 +184,6 @@ export default function OrderDetailPage() {
               <h2 className="text-lg font-semibold text-brand-text-primary mt-1">
                 {order.customerName ?? "—"}
               </h2>
-
             </div>
 
             {/* Three status badges side by side */}
@@ -179,6 +194,32 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+  <InfoRow
+    label="Delivery Date"
+    value={
+      order.deliveryDate
+        ? formatDate(order.deliveryDate)
+        : "Not scheduled"
+    }
+  />
+
+  {/* <div>
+    <p className="text-xs text-brand-text-secondary">
+      Delivery Address
+    </p>
+    <p className="mt-1 text-sm whitespace-pre-wrap">
+      {order.deliveryAddress ?? "No delivery address provided"}
+    </p>
+  </div> */}
+
+     <InfoRow
+      label="Delivery Address"
+      value={order.deliveryAddress ?? "No delivery address provided"}
+      valueClassName="wrap-break-word"
+    />
+</div>
+
           <SimpleTable
             columns={itemColumns}
             rows={order.orderItems}
@@ -186,7 +227,10 @@ export default function OrderDetailPage() {
             footer={
               <>
                 <tr>
-                  <td colSpan={3} className="pt-3 text-right text-xs text-brand-text-secondary">
+                  <td
+                    colSpan={3}
+                    className="pt-3 text-right text-xs text-brand-text-secondary"
+                  >
                     Subtotal
                   </td>
                   <td className="pt-3 text-right text-sm">
@@ -195,7 +239,10 @@ export default function OrderDetailPage() {
                 </tr>
                 {order.discountAmount > 0 && (
                   <tr>
-                    <td colSpan={3} className="text-right text-xs text-brand-text-secondary">
+                    <td
+                      colSpan={3}
+                      className="text-right text-xs text-brand-text-secondary"
+                    >
                       {order.discountType === "percentage"
                         ? `Discount (${order.discountValue}%)`
                         : "Discount"}
@@ -206,7 +253,10 @@ export default function OrderDetailPage() {
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={3} className="pt-1 text-right text-xs font-semibold text-brand-text-secondary">
+                  <td
+                    colSpan={3}
+                    className="pt-1 text-right text-xs font-semibold text-brand-text-secondary"
+                  >
                     Grand Total
                   </td>
                   <td className="pt-1 text-right font-semibold">
@@ -220,7 +270,7 @@ export default function OrderDetailPage() {
           {order.notes && (
             <div className="mt-4 pt-4 border-t border-brand-border text-sm">
               <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
-              <p>{order.notes}</p>
+              <p className="wrap-break-word">{order.notes}</p>
             </div>
           )}
         </FormSection>
@@ -254,13 +304,25 @@ export default function OrderDetailPage() {
                   </Button>
                 </div>
               ) : undefined}
-              
+
               {trip ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                  <InfoRow label="Trip Number" value={trip.trip_number} />
-                  <InfoRow label="From" value={trip.start_location} />
-                  <InfoRow label="To" value={trip.end_location} />
-                  <InfoRow label="Scheduled" value={formatDate(trip.scheduled_date)} />
+                  <InfoRow
+                    label="Trip Number"
+                    value={trip.trip_number}
+                  />
+                  <InfoRow
+                    label="From"
+                    value={trip.start_location}
+                  />
+                  <InfoRow
+                    label="To"
+                    value={trip.end_location}
+                  />
+                  <InfoRow
+                    label="Scheduled"
+                    value={formatDate(trip.scheduled_date)}
+                  />
                 </div>
               ) : (
                 <p className="text-sm text-brand-text-secondary">
@@ -305,20 +367,29 @@ export default function OrderDetailPage() {
 
               {invoice ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                  <InfoRow label="Invoice No" value={invoice.invoice_number} />
+                  <InfoRow
+                    label="Invoice No"
+                    value={invoice.invoice_number}
+                  />
                   <InfoRow label="Status">
                     <PaymentStatusBadge status={invoice.status} />
                   </InfoRow>
-                  <InfoRow label="Issued" value={formatDate(invoice.issued_date)} />
-                  <InfoRow label="Due" value={formatDate(invoice.due_date)} />
+                  <InfoRow
+                    label="Issued"
+                    value={formatDate(invoice.issued_date)}
+                  />
+                  <InfoRow
+                    label="Due"
+                    value={formatDate(invoice.due_date)}
+                  />
                 </div>
               ) : (
                 <p className="text-sm text-brand-text-secondary">
                   {order.orderStatus === "draft"
                     ? "Submit the order before generating an invoice."
                     : order.orderStatus === "submitted"
-                    ? "Generate an invoice so the customer can make payment."
-                    : "No invoice generated yet."}
+                      ? "Generate an invoice so the customer can make payment."
+                      : "No invoice generated yet."}
                 </p>
               )}
             </>
@@ -357,7 +428,9 @@ export default function OrderDetailPage() {
                 <InfoRow
                   label="Balance"
                   value={invoice ? formatCurrency(balance) : "—"}
-                  valueClassName={balance > 0 ? "text-red-600" : "text-green-600"}
+                  valueClassName={
+                    balance > 0 ? "text-red-600" : "text-green-600"
+                  }
                 />
               </div>
             </>
@@ -365,7 +438,10 @@ export default function OrderDetailPage() {
         </FormSection>
 
         {/* ACTIVITY - Show skeleton if loading */}
-        <FormSection title="Activity" description="Timeline of actions taken on this order">
+        <FormSection
+          title="Activity"
+          description="Timeline of actions taken on this order"
+        >
           {!entries || isFetchingEntries ? (
             <ActivitySkeleton />
           ) : (
@@ -376,9 +452,6 @@ export default function OrderDetailPage() {
     </AppLayout>
   );
 }
-
-
-
 
 function InfoRow({
   label,

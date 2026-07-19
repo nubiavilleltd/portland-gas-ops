@@ -21,6 +21,16 @@ export function getActiveProducts(products: Product[]): Product[] {
 }
 
 
+export function getProductSelection(products: Product[]):{value:string; label:string}[] {
+  return (
+    products.map((product) => ({
+      value: product.id,
+      label: `${product.productNo} • ${product.name}`,
+    })))
+}
+
+
+
 
 export function getStockStatus(product: Product, quantity: number) {
   return product?.minimumStock != null &&

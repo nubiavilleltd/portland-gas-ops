@@ -27,7 +27,7 @@ import {
   SaveDraftPayload,
 } from "@/lib/modules/orders/schemas/create-order.schema";
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { useActiveProducts } from "@/lib/modules/products/hooks/useProducts";
 import {
   getActiveProducts,
   getProductById,
@@ -41,6 +41,7 @@ import {
 } from "../../inventory/hooks/useInventory";
 
 import { useState } from "react";
+import OrderFormSkeleton from "./OrderFormSkeleton";
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -92,11 +93,15 @@ export default function OrderForm({
   // ── Data ────────────────────────────────────────────────
   const { options: customerOptions, isLoading: customersLoading } =
     useCustomerSelectOptions();
-  const { products, isLoading: productsLoading } = useProducts();
-  const { items: inventoryItems } = useInventoryItems();
-  const { stock: consumableStock } = useConsumableStock();
-  const activeProducts = getActiveProducts(products);
+  const { products: activeProducts, isLoading: productsLoading } =
+    useActiveProducts();
+  const { items: inventoryItems, isLoading: inventoryLoading } =
+    useInventoryItems();
+  const { stock: consumableStock, isLoading: consumableStockLoading } =
+    useConsumableStock();
 
+  const productsReady =
+    !productsLoading && !inventoryLoading && !consumableStockLoading;
 
   // ── Field array ─────────────────────────────────────────
   const { append, remove } = useFieldArray({
@@ -104,30 +109,28 @@ export default function OrderForm({
     name: "orderItems",
   });
 
-
   const rowErrors: Record<number, Record<string, string>> = {};
-  Array.isArray(errors.orderItems) ? errors.orderItems?.forEach?.((itemError, index) => {
-    if (!itemError) return;
-    const fieldErrors: Record<string, string> = {};
-    if (itemError.productId?.message) fieldErrors.productId = itemError.productId.message;
-    if (itemError.quantity?.message) fieldErrors.quantity = itemError.quantity.message;
-    if (Object.keys(fieldErrors).length) rowErrors[index] = fieldErrors;
-  }) : undefined;
+  Array.isArray(errors.orderItems)
+    ? errors.orderItems?.forEach?.((itemError, index) => {
+        if (!itemError) return;
+        const fieldErrors: Record<string, string> = {};
+        if (itemError.productId?.message)
+          fieldErrors.productId = itemError.productId.message;
+        if (itemError.quantity?.message)
+          fieldErrors.quantity = itemError.quantity.message;
+        if (Object.keys(fieldErrors).length) rowErrors[index] = fieldErrors;
+      })
+    : undefined;
 
   const orderItems = watch("orderItems") ?? [];
   const discountType = watch("discountType");
 
   // ── Subtotal ─────────────────────────────────────────────
   const subtotal = orderItems.reduce((sum, item) => {
-    const product = getProductById(products, item.productId);
+    const product = getProductById(activeProducts, item.productId);
 
-    return (
-      sum +
-      (item.quantity || 0) *
-      (product?.defaultUnitPrice || 0)
-    );
+    return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
   }, 0);
-
 
   const discountValue = watch("discountValue") ?? 0;
 
@@ -148,12 +151,16 @@ export default function OrderForm({
       label: "Product",
       width: "2fr",
       renderCell: (row, index, _onChange, cellError) => {
-        const selected = getProductById(products, row.productId);
+        const selected = getProductById(activeProducts, row.productId);
         return (
           <div>
             <button
               type="button"
-              onClick={() => setPickerIndex(index)}
+              disabled={!productsReady}
+              onClick={() => {
+                if (!productsReady) return;
+                setPickerIndex(index);
+              }}
               className={cn(
                 "w-full text-left text-sm py-0.5 transition-colors rounded",
                 cellError && "ring-1 ring-red-400",
@@ -166,11 +173,15 @@ export default function OrderForm({
                 <span>{selected.name}</span>
               ) : (
                 <span className="text-brand-text-secondary">
-                  {productsLoading ? "Loading…" : "Click to select product"}
+                  {productsLoading
+                    ? "Loading products..."
+                    : "Click to select product"}
                 </span>
               )}
             </button>
-            {cellError && <p className="text-xs text-red-600 mt-0.5">{cellError}</p>}
+            {cellError && (
+              <p className="text-xs text-red-600 mt-0.5">{cellError}</p>
+            )}
           </div>
         );
       },
@@ -181,7 +192,7 @@ export default function OrderForm({
       label: "Quantity",
       width: "130px",
       renderCell: (row, index, onChange, cellError) => {
-        const product = getProductById(products, row.productId);
+        const product = getProductById(activeProducts, row.productId);
         const unitLabel = product ? getUnitLabel(product) : "";
         return (
           <div>
@@ -197,8 +208,8 @@ export default function OrderForm({
                   onChange({ quantity: parseFloat(raw) || 0 });
                 }}
                 className={cn(
-                  "w-full text-sm outline-none bg-transparent",
-                  cellError && "text-red-600"
+                  "w-full text-sm outline-none bg-transparent border border-brand-border focus:border-brand-primary transition-colors p-0.5",
+                  cellError && "text-red-600",
                 )}
               />
               {unitLabel && (
@@ -207,7 +218,9 @@ export default function OrderForm({
                 </span>
               )}
             </div>
-            {cellError && <p className="text-xs text-red-600 mt-0.5">{cellError}</p>}
+            {cellError && (
+              <p className="text-xs text-red-600 mt-0.5">{cellError}</p>
+            )}
           </div>
         );
       },
@@ -219,23 +232,21 @@ export default function OrderForm({
       width: "140px",
 
       renderCell: (row) => {
-        const product = getProductById(products, row.productId);
+        const product = getProductById(activeProducts, row.productId);
 
         return (
           <span className="text-sm font-medium text-brand-text-secondary">
-            {product
-              ? formatCurrency(product.defaultUnitPrice)
-              : "—"}
+            {product ? formatCurrency(product.defaultUnitPrice) : "—"}
           </span>
         );
-      }
+      },
     },
     {
       key: "total",
       label: "Total",
       width: "120px",
       renderCell: (row) => {
-        const product = getProductById(products, row.productId);
+        const product = getProductById(activeProducts, row.productId);
 
         const itemTotal =
           (row.quantity || 0) * (product?.defaultUnitPrice || 0);
@@ -252,7 +263,6 @@ export default function OrderForm({
     { colSpan: 3, label: "SubTotal" },
     { value: formatCurrency(subtotal) },
   ];
-
 
   function findFirstErrorPath(errors: any, prefix = ""): string | null {
     for (const key in errors) {
@@ -272,7 +282,6 @@ export default function OrderForm({
     }
     return null;
   }
-
 
   function handleFormInvalid(formErrors: typeof errors) {
     toast.error("Please fix the highlighted fields before continuing.");
@@ -296,17 +305,15 @@ export default function OrderForm({
     }
   }
 
-
-
   async function handleSaveDraftClick() {
     form.clearErrors();
     const values = form.getValues();
     const cleanedValues = {
       ...values,
       orderItems: values.orderItems?.filter(
-        (item) => item.productId && item.productId.trim() !== ""
+        (item) => item.productId && item.productId.trim() !== "",
       ),
-      ...(values.discountType === 'none' && { discountValue: 0 }),
+      ...(values.discountType === "none" && { discountValue: 0 }),
     };
     const result = saveDraftSchema.safeParse(cleanedValues);
     if (!result.success) {
@@ -329,12 +336,23 @@ export default function OrderForm({
       setIsSavingDraft(true);
       await onSaveDraft?.(result.data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save draft.";
+      const message =
+        err instanceof Error ? err.message : "Failed to save draft.";
       form.setError("root", { message });
     } finally {
       setIsSavingDraft(false);
     }
   }
+
+  //  const isLoadingDependencies =
+  //   customersLoading ||
+  //   productsLoading ||
+  //   inventoryLoading ||
+  //   consumableStockLoading;
+
+  // if (isLoadingDependencies) {
+  //   return <OrderFormSkeleton />;
+  // }
 
   return (
     <form
@@ -358,6 +376,7 @@ export default function OrderForm({
                 placeholder={
                   customersLoading ? "Loading customers…" : "Select customer"
                 }
+                disabled={customersLoading}
                 options={customerOptions}
                 error={errors.customerId?.message}
                 value={field.value}
@@ -486,10 +505,8 @@ export default function OrderForm({
               {formatCurrency(grandTotal)}
             </span>
           </div>
-
         </div>
       </FormSection>
-
 
       {/* DELIVERY INFORMATION */}
       <FormSection
@@ -498,7 +515,6 @@ export default function OrderForm({
       >
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
             <Controller
               control={control}
               name="deliveryDate"
@@ -531,7 +547,6 @@ export default function OrderForm({
           />
         </div>
       </FormSection>
-
 
       <ErrorBanner message={errors.root?.message} />
 

@@ -57,6 +57,14 @@ export default function OrdersListPage() {
   const columns: Column<Order>[] = [
     { key: "orderNumber", label: "ORDER NO." },
 
+      {
+      key: "createdAt",
+      label: "CREATED AT",
+      render: (value) =>
+        value
+          ? formatDate(value as string)
+          : "—",
+    },
     {
       key: "customerName", label: "CUSTOMER"
     },

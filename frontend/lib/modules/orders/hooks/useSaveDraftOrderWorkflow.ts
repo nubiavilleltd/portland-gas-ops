@@ -1,15 +1,11 @@
 // hooks/useSaveDraftOrderWorkflow.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { ORDER_KEYS } from "../constants/query-keys";
 import type { Order, SaveDraftInput } from "../types/orders.types";
 import { saveDraftOrderWorkflow } from "../workflows/save-draft-order.workflow";
-import { ORDER_ROUTES } from "../constants/routes";
-import { useRouter } from "next/navigation";
 
 export function useSaveDraftOrderWorkflow() {
   const queryClient = useQueryClient();
-  const router = useRouter()
 
   return useMutation({
     mutationFn: ({
@@ -32,14 +28,6 @@ export function useSaveDraftOrderWorkflow() {
             : [...old, savedOrder];
         }
       );
-      toast.success("Draft saved successfully");
-      router.push(
-          ORDER_ROUTES.home()
-        );
-    },
-
-    onError: (err: any) => {
-      toast.error(err?.message ?? "Failed to save draft");
     },
   });
 }

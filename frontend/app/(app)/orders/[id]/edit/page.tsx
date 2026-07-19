@@ -9,14 +9,25 @@ import ErrorBanner from "@/components/ui/ErrorBanner";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
-import type { CreateOrderFormOutput, CreateOrderFormValues, SaveDraftPayload } from "@/lib/modules/orders/schemas/create-order.schema";
+import type {
+  CreateOrderFormOutput,
+  CreateOrderFormValues,
+  SaveDraftPayload,
+} from "@/lib/modules/orders/schemas/create-order.schema";
 import { ORDER_ROUTES } from "@/lib/routes";
 
-
-import { buildDraftOrderPayload, buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
+import {
+  buildDraftOrderPayload,
+  buildOrderPayload,
+} from "@/lib/modules/orders/utils/build-order-payload";
 import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
 import { BackButton } from "@/components/ui/BackButton";
+import { parseError } from "@/lib/errors";
+import { toast } from "sonner";
+import PageErrorState from "@/components/ui/PageError";
+import OrderFormSkeleton from "@/lib/modules/orders/components/OrderFormSkeleton";
+import EditOrderPageSkeleton from "@/lib/modules/orders/components/EditOrderPageSkeleton";
 
 export default function EditOrderPage() {
   const params = useParams();
@@ -28,34 +39,35 @@ export default function EditOrderPage() {
   const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
   const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 
-  // ── Loading skeleton ──────────────────────────────────
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Edit Order">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-100 rounded-lg w-1/4" />
-          <div className="h-64 bg-gray-100 rounded-2xl" />
-          <div className="h-48 bg-gray-100 rounded-2xl" />
-        </div>
-      </AppLayout>
-    );
-  }
+if (isLoading) {
+  return (
+    <AppLayout pageTitle="Edit Order">
+      <PageHeader
+        title="Edit Order"
+        description="Loading order..."
+      />
+      <EditOrderPageSkeleton />
+    </AppLayout>
+  );
+}
 
-  // ── Not found ─────────────────────────────────────────
-  if (error || !order) {
-    return (
-      <AppLayout pageTitle="Order Not Found">
-        <ErrorBanner message={error ?? "This order could not be found."} />
+if (error || !order) {
+  return (
+    <AppLayout pageTitle="Order Not Found">
+      <PageErrorState
+        title="Order Not Found"
+        message={error ?? "This order could not be found."}
+      >
         <Button
           variant="outline"
-          className="mt-4"
           onClick={() => router.push(ORDER_ROUTES.home())}
         >
           Back to Orders
         </Button>
-      </AppLayout>
-    );
-  }
+      </PageErrorState>
+    </AppLayout>
+  );
+}
 
   // ── Guard — only draft orders are editable ────────────
   if (order.orderStatus !== "draft") {
@@ -90,19 +102,34 @@ export default function EditOrderPage() {
     notes: order.notes ?? "",
   };
 
-
   async function handleSubmit(data: CreateOrderFormOutput) {
-    await submitOrder({ input: buildOrderPayload(data), existingDraftId: id });
+    try {
+      await submitOrder({
+        input: buildOrderPayload(data),
+        existingDraftId: id,
+      });
+      toast.success("Order submitted successfully");
+      router.push(ORDER_ROUTES.detail(id));
+    } catch (err) {
+      toast.error(parseError(err));
+    }
   }
 
-async function handleSaveDraft(data: SaveDraftPayload) {
-  await saveDraft({ input: buildDraftOrderPayload(data), existingDraftId: id });
-}
-
+  async function handleSaveDraft(data: SaveDraftPayload) {
+    try {
+      await saveDraft({
+        input: buildDraftOrderPayload(data),
+        existingDraftId: id,
+      });
+      toast.success("Draft updated successfully");
+      router.push(ORDER_ROUTES.detail(id));
+    } catch (err) {
+      toast.error(parseError(err));
+    }
+  }
 
   return (
     <AppLayout pageTitle="Edit Order">
-
       <BackButton
         href={`${ORDER_ROUTES.detail(id)}`}
         label="Back to Order"
@@ -120,7 +147,7 @@ async function handleSaveDraft(data: SaveDraftPayload) {
         onSaveDraft={handleSaveDraft}
         submitLabel="Submit Order"
         submitLoadingLabel="Submitting..."
-        draftButtonLabel = "Update Draft"
+        draftButtonLabel="Update Draft"
       />
     </AppLayout>
   );
