@@ -178,7 +178,7 @@ def notify_submitted(db: Session, approval_request_id: str) -> None:
         subject = (override or {}).get("subject") or (
             f"{email_service.get_request_type_label(ar.request_type)} Request Submitted"
         )
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        url = email_service.get_request_url(ar.request_type, ar.request_id, db)
 
         html = email_service._render("request_submitted.html", {
             "subject":            subject,
@@ -270,7 +270,7 @@ def notify_step_assigned(db: Session, approval_request_id: str) -> None:
         }
         override = _call_hook(ar.request_type, "on_step_assigned", ctx)
 
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        url = email_service.get_request_url(ar.request_type, ar.request_id, db)
 
         email_service.send_approval_required(
             to_email=approver.user.email,
@@ -368,7 +368,7 @@ def notify_step_progress(
             f"{email_service.get_request_type_label(ar.request_type)} Request — Approved"
         )
         resolved_approver_name = (override or {}).get("approver_name") or approver_name
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        url = email_service.get_request_url(ar.request_type, ar.request_id, db)
 
         html = email_service._render("request_progress.html", {
             "subject":            subject,
@@ -443,7 +443,7 @@ def notify_request_result(
         override = _call_hook(ar.request_type, hook_name, ctx)
         result_message_override = (override or {}).get("result_message")
 
-        url = email_service.get_request_url(ar.request_type, ar.request_id)
+        url = email_service.get_request_url(ar.request_type, ar.request_id, db)
 
         email_service.send_approval_result(
             to_email=requester.user.email,

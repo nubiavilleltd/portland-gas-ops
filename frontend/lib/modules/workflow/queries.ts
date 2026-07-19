@@ -121,6 +121,7 @@ export function useMyApprovals() {
   return useQuery<MyApproval[]>({
     queryKey: ["my-approvals"],
     queryFn:  () => get<MyApproval[]>("/api/workflow/my-approvals"),
+    staleTime: 30 * 1000,
   });
 }
 

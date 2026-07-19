@@ -8,12 +8,10 @@ import PageHeader from "@/components/ui/PageHeader";
 import DataTable from "@/components/data-table/data-table";
 import type { Column } from "@/components/data-table/data-table";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import {
-  EMPLOYEE_STORE,
-  LEAVE_STORE,
-  fmtDate,
-  type LeaveRequest,
-} from "../../_components/_data";
+import { formatDate } from "@/lib/utils";
+import { useEmployee } from "@/lib/modules/employees/hooks";
+import { useLeaveRequests } from "@/lib/modules/leave-requests/hooks";
+import type { LeaveRequest } from "@/app/(app)/hr-management/_components/_data";
 
 const columns: Column<LeaveRequest>[] = [
   {
@@ -35,14 +33,14 @@ const columns: Column<LeaveRequest>[] = [
     label: "Start Date",
     sortable: true,
     render: (v) => (
-      <span className="whitespace-nowrap text-brand-text-secondary">{fmtDate(String(v))}</span>
+      <span className="whitespace-nowrap text-brand-text-secondary">{formatDate(String(v))}</span>
     ),
   },
   {
     key: "endDate",
     label: "End Date",
     render: (v) => (
-      <span className="whitespace-nowrap text-brand-text-secondary">{fmtDate(String(v))}</span>
+      <span className="whitespace-nowrap text-brand-text-secondary">{formatDate(String(v))}</span>
     ),
   },
   {
@@ -62,9 +60,16 @@ const columns: Column<LeaveRequest>[] = [
 export default function EmployeeLeaveRequestsPage() {
   const { employeeId } = useParams<{ employeeId: string }>();
 
-  const employee = EMPLOYEE_STORE.find((e) => e.id === employeeId);
-  const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : "";
-  const requests = LEAVE_STORE.filter((r) => r.employee === employeeName);
+  const { data: employee } = useEmployee(employeeId);
+  const { data: requestsResponse, isLoading } = useLeaveRequests({
+    employee_id: employeeId,
+    limit: 100,
+  });
+  const requests = requestsResponse?.data ?? [];
+
+  const employeeName = employee?.user
+    ? `${employee.user.first_name ?? ""} ${employee.user.last_name ?? ""}`.trim()
+    : "";
 
   return (
     <AppLayout pageTitle="Leave Requests">
@@ -79,7 +84,7 @@ export default function EmployeeLeaveRequestsPage() {
         title={employeeName || "Employee"}
         description={
           employee
-            ? `${employee.title} · ${employee.department} — leave request history`
+            ? `${employee.job_title ?? "—"} · ${employee.department ?? "—"} — leave request history`
             : "Leave request history"
         }
         className="mb-6"
@@ -88,11 +93,12 @@ export default function EmployeeLeaveRequestsPage() {
       <DataTable
         columns={columns}
         data={requests}
+        isLoading={isLoading}
         hideStatusFilter
         newRequestLabel=""
-        rowHref={(row) => `/admin/leave-requests/${row.id}`}
+        rowHref={(row) => `/hr-management/leave-requests/${row.id}`}
         emptyMessage="No leave requests found"
-        emptyDescription={`${employeeName} has not submitted any leave requests yet`}
+        emptyDescription={`${employeeName || "This employee"} has not submitted any leave requests yet`}
       />
     </AppLayout>
   );

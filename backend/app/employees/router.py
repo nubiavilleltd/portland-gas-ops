@@ -67,7 +67,10 @@ def get_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return employee_service.get_employee_by_user_id(current_user.id, db)
+    emp = employee_service.get_employee_by_user_id(current_user.id, db)
+    # Pydantic will auto-serialize from_attributes=True using the SQLAlchemy model
+    # The key: ensure User relationship is eagerly loaded (it is in get_employee_by_user_id)
+    return emp
 
 
 # Must come before /{employee_id} to avoid "birthdays" being captured as an ID

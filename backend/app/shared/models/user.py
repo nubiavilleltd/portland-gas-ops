@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import uuid
 import enum
+from typing import Optional
 from app.core.database import Base
 
 
@@ -60,7 +61,7 @@ class User(Base):
         return self.name or ""
 
     @property
-    def profile_picture_url(self) -> str | None:
+    def profile_picture_url(self) -> Optional[str]:
         """Returns the Cloudinary URL of the profile picture, or None."""
         if self.profile_picture and self.profile_picture.file_path:
             return self.profile_picture.file_path

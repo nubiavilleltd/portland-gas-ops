@@ -13,18 +13,26 @@ async function getStore() {
 }
 
 /**
- * Store the access token in Zustand (memory only — no JS-accessible cookies).
- * HTTP-only cookies (access_token, refresh_token) are managed exclusively by the backend.
+ * Store the access token in Zustand and localStorage for persistence.
+ * HTTP-only cookies (refresh_token) are managed exclusively by the backend.
  */
 export async function saveTokens(accessToken: string): Promise<void> {
   const store = await getStore();
   store.setAccessToken(accessToken);
+  // Persist to localStorage for page reloads
+  if (typeof window !== "undefined") {
+    localStorage.setItem("accessToken", accessToken);
+  }
 }
 
 /**
- * Clear auth state from memory. HTTP-only cookies are cleared by the backend /api/auth/logout endpoint.
+ * Clear auth state from memory and localStorage. HTTP-only cookies are cleared by the backend /api/auth/logout endpoint.
  */
 export async function clearTokens(): Promise<void> {
   const store = await getStore();
   store.logout();
+  // Remove from localStorage
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("accessToken");
+  }
 }

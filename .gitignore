@@ -45,6 +45,11 @@ coverage.xml
 dist/
 build/
 
+# ─── Local database ──────────────────────────────────────────
+# Local SQLite scratch DB — the app uses remote MySQL (DATABASE_URL)
+backend/portland_gas.db
+*.sqlite3
+
 # ─── Alembic ─────────────────────────────────────────────────
 # Keep versions folder but ignore auto-generated __pycache__
 backend/alembic/versions/__pycache__/
