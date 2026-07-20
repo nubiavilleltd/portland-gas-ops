@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -74,6 +74,16 @@ function calcDays(start: string, end: string): number {
 }
 
 export default function LeaveRequestsPage() {
+  // useSearchParams() must sit inside a Suspense boundary or static
+  // prerendering of this route fails (Next.js App Router requirement).
+  return (
+    <Suspense fallback={null}>
+      <LeaveRequestsPageContent />
+    </Suspense>
+  );
+}
+
+function LeaveRequestsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user: currentUser } = useCurrentUser();
