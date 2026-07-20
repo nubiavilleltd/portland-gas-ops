@@ -16,6 +16,7 @@ from app.inventory.repository import InventoryRepository
 from app.inventory.enums import (
     InventoryItemStatus,
     MovementType,
+    ReferenceType
 )
 
 
@@ -98,7 +99,7 @@ class MarkReadyWorkflow:
                 quantity=Decimal("1"),
                 location_id=item.location_id,
                 recorded_by=actor_id,
-                reference_type="trip",
+                reference_type=ReferenceType.trip,
                 reference_id=str(trip.id),
                 notes=(
                     f"Reserved inventory item {item.tag_number} "
@@ -147,7 +148,7 @@ class MarkReadyWorkflow:
             quantity=Decimal(str(order_item.quantity)),
             location_id=assignment.location_id,
             recorded_by=actor_id,
-            reference_type="trip",
+            reference_type=ReferenceType.trip,
             reference_id=str(trip.id),
             notes=(
                 f"Reserved consumable stock "
@@ -220,10 +221,21 @@ class MarkReadyWorkflow:
                     actor_id=actor_id,
                 )
 
+
+            update_fields = {}
+
+            # Tracked products
+            if assignment.disposition is not None:
+                update_fields["disposition"] = assignment.disposition
+
+            # Consumables
+            if assignment.location_id is not None:
+                update_fields["location_id"] = assignment.location_id
+
             self.order_service.update_order_item(
                 db=db,
                 order_item=order_item,
-                disposition=assignment.disposition,
+                **update_fields,
             )
 
             self.audit_service.record(

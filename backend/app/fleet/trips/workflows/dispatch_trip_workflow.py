@@ -68,7 +68,7 @@ class DispatchTripWorkflow:
                 )
 
         #
-        # Check out inventory (tracked products only)
+        # Check out inventory
         #
         self.inventory_service.check_out_for_trip(
             db=db,

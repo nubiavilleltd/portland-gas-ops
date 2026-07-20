@@ -71,10 +71,20 @@ class OrderItem(Base):
     unit_price   = Column(Numeric(15, 2), nullable=False)  # historical snapshot
     total        = Column(Numeric(15, 2), nullable=False)
     disposition  = Column(SAEnum(DispositionStatus), nullable=True)
+    location_id = Column(
+                        CHAR(36),
+                        ForeignKey("warehouse_locations.id", ondelete="SET NULL"),
+                        nullable=True,
+                    )
 
     # Relationships
     order   = relationship("Order", back_populates="order_items")
     product = relationship("Product", foreign_keys=[product_id])
+
+    location = relationship(
+        "WarehouseLocation",
+        foreign_keys=[location_id],
+    )
     inventory_assignments = relationship(
         "OrderItemInventory",
         back_populates="order_item",

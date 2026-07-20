@@ -14,6 +14,7 @@ from app.inventory.enums import (
     InventoryItemCondition,
     InventoryItemStatus,
     MovementType,
+    ReferenceType
 )
 from app.inventory.error_codes import InventoryErrorCode
 from app.inventory.model import ConsumableStock, InventoryItem, StockMovement
@@ -68,24 +69,6 @@ class InventoryService:
 
     def get_kpis(self, db: Session):
         return self.repo.get_kpis(db)
-
-    # def list_items(
-    #     self,
-    #     db: Session,
-    #     product_id: Optional[str] = None,
-    #     status: Optional[InventoryItemStatus] = None,
-    #     location_id: Optional[int] = None,
-    #     page: int = 1,
-    #     page_size: int = 50,
-    # ):
-    #     return self.repo.list_inventory_items(
-    #         db,
-    #         product_id=product_id,
-    #         status=status,
-    #         location_id=location_id,
-    #         page=page,
-    #         page_size=page_size,
-    #     )
 
     def list_items(
         self,
@@ -459,7 +442,7 @@ class InventoryService:
             quantity=Decimal(len(allocations)),
             location_id=first_item.location_id,
             recorded_by=actor_id,
-            reference_type="trip",
+            reference_type=ReferenceType.trip,
             reference_id=str(trip_id),
             notes=(
                 f"Checked out {len(allocations)} reserved inventory item(s) "
@@ -509,13 +492,69 @@ class InventoryService:
         self,
         db: Session,
         trip_id: str,
-        order_item:OrderItem,
+        order_item: OrderItem,
         actor_id: str,
     ):
         """
-        Checks out consumable stock for a single order item.
+        Records checkout of consumable stock.
+
+        Stock was already deducted during Mark Ready.
+        Dispatch only records the physical movement out of the warehouse.
         """
-        pass
+
+        if order_item.location_id is None:
+            raise AppException(
+                status_code=400,
+                error_code=InventoryErrorCode.LOCATION_NOT_FOUND,
+                message="Consumable order item has no assigned warehouse.",
+            )
+
+        stock = self.repo.get_consumable_stock(
+            db=db,
+            product_id=order_item.product_id,
+            location_id=order_item.location_id,
+        )
+
+        if stock is None:
+            raise AppException(
+                status_code=400,
+                error_code=InventoryErrorCode.INSUFFICIENT_STOCK,
+                message=(
+                    "Consumable stock record not found. "
+                    "Mark Ready may not have completed successfully."
+                ),
+            )
+
+        quantity = Decimal(str(order_item.quantity))
+
+        self.repo.create_stock_movement(
+            db=db,
+            movement_no=self.repo.generate_movement_no(db),
+            product_id=order_item.product_id,
+            movement_type=MovementType.check_out,
+            quantity=quantity,
+            location_id=order_item.location_id,
+            recorded_by=actor_id,
+            reference_type=ReferenceType.trip,
+            reference_id=str(trip_id),
+            notes=(
+                f"Checked out {quantity} consumable unit(s) "
+                f"for trip {trip_id}"
+            ),
+        )
+
+        AuditService.record(
+            db=db,
+            entity_type=AuditEntityType.order,
+            entity_id=str(order_item.order_id),
+            action="consumable_checked_out",
+            description=(
+                f"Checked out {quantity} consumable unit(s) "
+                f"for trip {trip_id}"
+            ),
+            actor_type=AuditActorType.employee,
+            actor_employee_id=actor_id,
+        )
 
 
     def release_trip_inventory(

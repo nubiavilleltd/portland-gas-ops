@@ -580,3 +580,25 @@ class InventoryRepository:
                 OrderItemInventory.inventory_item_id == inventory_item_id
             )
         ).scalar()
+    
+    def has_trip_reservation_movement(
+        self,
+        db: Session,
+        *,
+        trip_id: str,
+        product_id: str,
+        location_id: str,
+    ) -> bool:
+
+        return (
+            db.query(StockMovement)
+            .filter(
+                StockMovement.reference_type == "trip",
+                StockMovement.reference_id == str(trip_id),
+                StockMovement.product_id == product_id,
+                StockMovement.location_id == location_id,
+                StockMovement.movement_type == MovementType.reservation,
+            )
+            .first()
+            is not None
+        )
