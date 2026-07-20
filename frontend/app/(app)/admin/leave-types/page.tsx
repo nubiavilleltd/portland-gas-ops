@@ -51,14 +51,14 @@ export default function LeaveTypesPage() {
       sortable: true,
       render: (v) => (
         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-          {v} days
+          {String(v)} days
         </span>
       ),
     },
     {
       key: "description",
       label: "Description",
-      render: (v) => <span className="text-sm text-brand-text-secondary">{v || "—"}</span>,
+      render: (v) => <span className="text-sm text-brand-text-secondary">{v ? String(v) : "—"}</span>,
     },
     {
       key: "is_active",
