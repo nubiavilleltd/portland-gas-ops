@@ -11,6 +11,7 @@ from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
 from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
 from app.hr import service
+from app.employees.models import Employee
 from app.employees.service import get_employee_by_user_id
 
 router = APIRouter(prefix="/api/hr", tags=["HR Management"])
@@ -603,6 +604,44 @@ def list_payslip_periods(
 ):
     """Distinct periods that have payslips — for the filter dropdown."""
     return service.get_payslip_periods(db)
+
+
+# ── Employee self-service: the caller's OWN payslips (scoped by token) ──────────
+# Declared before /payslips/{payslip_id} so "me" isn't captured as a payslip id.
+
+@router.get("/payslips/me", response_model=dict)
+def list_my_payslips(
+    period: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The current employee's own payslips. Empty (not 404) if the account has no employee profile."""
+    emp_id = db.query(Employee.id).filter(Employee.user_id == current_user.id).scalar()
+    if not emp_id:
+        return {"data": [], "total": 0, "skip": skip, "limit": limit}
+    rows, total = service.get_all_payslips(
+        db, period=period, employee_id=emp_id, skip=skip, limit=limit
+    )
+    return {
+        "data": [PayslipRead.model_validate(p) for p in rows],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@router.get("/payslips/me/periods", response_model=list[str])
+def list_my_payslip_periods(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Distinct periods the current employee actually has payslips for — for the filter dropdown."""
+    emp_id = db.query(Employee.id).filter(Employee.user_id == current_user.id).scalar()
+    if not emp_id:
+        return []
+    return service.get_payslip_periods(db, employee_id=emp_id)
 
 
 @router.get("/payslips", response_model=dict)

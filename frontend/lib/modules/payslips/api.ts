@@ -46,6 +46,17 @@ const payslipsApi = {
     const { data } = await api.get<string[]>("/api/hr/payslips/periods");
     return data;
   },
+
+  // Employee self-service: the logged-in user's OWN payslips (scoped server-side by token).
+  async listMine(params: ListPayslipsParams = {}): Promise<PayslipDisplay[]> {
+    const { data } = await api.get<PayslipListResponse>("/api/hr/payslips/me", { params });
+    return data.data.map(adaptPayslip);
+  },
+
+  async minePeriods(): Promise<string[]> {
+    const { data } = await api.get<string[]>("/api/hr/payslips/me/periods");
+    return data;
+  },
 };
 
 export default payslipsApi;

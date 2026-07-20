@@ -722,11 +722,17 @@ def generate_payslips(
     return result
 
 
-def get_payslip_periods(db: Session) -> list[str]:
-    """Distinct periods that actually have payslips — for the filter dropdown."""
+def get_payslip_periods(db: Session, employee_id: Optional[str] = None) -> list[str]:
+    """Distinct periods that actually have payslips — for the filter dropdown.
+
+    When ``employee_id`` is given, scope to that employee's own payslips (self-service).
+    """
     from sqlalchemy import func
+    query = db.query(Payslip.period)
+    if employee_id:
+        query = query.filter(Payslip.employee_id == employee_id)
     rows = (
-        db.query(Payslip.period)
+        query
         .group_by(Payslip.period)
         .order_by(func.max(Payslip.created_at).desc())
         .all()
@@ -738,15 +744,21 @@ def get_all_payslips(
     db: Session,
     period: Optional[str] = None,
     search: Optional[str] = None,
+    employee_id: Optional[str] = None,
     skip: int = 0,
     limit: int = 200,
 ) -> Tuple[list[Payslip], int]:
-    """List payslips (eager-load employee+user for the name), optional period + name filter."""
+    """List payslips (eager-load employee+user for the name), optional period + name filter.
+
+    When ``employee_id`` is given, scope to that employee's own payslips (self-service).
+    """
     from app.shared.models.user import User
 
     query = db.query(Payslip).options(
         joinedload(Payslip.employee).joinedload(Employee.user)
     )
+    if employee_id:
+        query = query.filter(Payslip.employee_id == employee_id)
     if period:
         query = query.filter(Payslip.period == period)
     if search:
