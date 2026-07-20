@@ -21,6 +21,7 @@ import { KpiCard } from "@/lib/modules/orders/components/KpiCard";
 
 import PageError from "@/components/ui/PageError";
 import { getOrderKPIs } from "@/lib/modules/orders/selectors/orders.selectors";
+import { InvoiceStatusBadge, OrderInvoiceStatus } from "@/lib/modules/orders/badges/InvoiceStatusBadge";
 
 
 
@@ -33,6 +34,8 @@ export default function OrdersListPage() {
     refetch,
   } = useOrders();
  const kpis = getOrderKPIs(orders);
+
+ console.log("orders", {orders});
 
 
   if (error) {
@@ -108,6 +111,18 @@ export default function OrdersListPage() {
       ),
     },
 
+    {
+      key: "invoiceId",
+      label: "INVOICE",
+      render: (value) => {
+        const orderInvoiceStatus = value ? "generated" : "pending";
+        return (<InvoiceStatusBadge
+          status={
+            orderInvoiceStatus as OrderInvoiceStatus
+          }
+        />)
+        },
+    },
     {
       key: "paymentStatus",
       label: "PAYMENT STATUS",
