@@ -223,3 +223,9 @@ class Payslip(Base):
 
     # Relationships
     employee = relationship("Employee")
+
+    @property
+    def employee_name(self) -> Optional[str]:
+        if self.employee and self.employee.user:
+            return f"{self.employee.user.first_name or ''} {self.employee.user.last_name or ''}".strip()
+        return None
