@@ -159,7 +159,7 @@ def cancel_order(
 
     # Cascade: void linked invoice if exists
     if order.invoice_id:
-        invoice = invoice_service.get_by_id_or_none(db, order.invoice_id)
+        invoice = invoice_service.get_or_none(db, order.invoice_id)
         if invoice:
             invoice_service.void(db, invoice)
     

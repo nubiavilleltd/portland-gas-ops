@@ -107,7 +107,7 @@ class PaymentService:
         from app.invoices.service import InvoiceService
 
         invoice_service = InvoiceService()
-        invoice = invoice_service.get_by_id_or_raise(
+        invoice = invoice_service.get_or_raise(
             db,
             data.invoice_id,
         )

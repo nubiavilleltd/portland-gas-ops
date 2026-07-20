@@ -69,7 +69,8 @@ def list_invoices(
 def create_invoice(
     data: InvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("super_admin", "admin")),
+    # current_user: User = Depends(require_roles("super_admin", "admin")),
+    current_user: User = Depends(get_current_user),
 ):
     invoice = service.create(
         db,
@@ -103,22 +104,22 @@ def create_invoice(
     return _to_response(invoice)
 
 
-@router.get("/by-order/{order_no}", response_model=InvoiceResponse)
+@router.get("/by-order/{order_id}", response_model=InvoiceResponse)
 def get_invoice_by_order(
-    order_no: str,
+    order_id: str,
     db: Session =Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     from app.orders.service import OrderService
 
-    order = OrderService().get_by_no_or_raise(db, order_no)
+    order = OrderService().get_or_raise(db, order_id)
 
     invoice = service.get_by_order_id_or_raise(db, order.id)
 
     return _to_response(invoice)
 
 
-@router.get("/{invoice_no}", response_model=InvoiceResponse)
+@router.get("/by-no/{invoice_no}", response_model=InvoiceResponse)
 def get_invoice(
     invoice_no: str,
     db: Session = Depends(get_db),
@@ -128,13 +129,25 @@ def get_invoice(
     return _to_response(invoice)
 
 
-@router.post("/{invoice_no}/void", response_model=InvoiceResponse)
+@router.get("/{invoice_id}", response_model=InvoiceResponse)
+def get_invoice(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invoice = service.get_or_raise(db, invoice_id)
+    return _to_response(invoice)
+
+
+
+
+@router.post("/{invoice_id}/void", response_model=InvoiceResponse)
 def void_invoice(
-    invoice_no: str,
+    invoice_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
-    invoice = service.get_by_no_or_raise(db, invoice_no)
+    invoice = service.get_or_raise(db, invoice_id)
 
     invoice = service.void(db, invoice)
 
