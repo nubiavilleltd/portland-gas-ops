@@ -24,7 +24,7 @@ function adaptLeaveRequest(item: LeaveRequestListItem): LeaveRequest {
     reason: item.reason,
     status: (item.status.toLowerCase() as any) || "draft",
     date: formatDateTime(item.created_at),
-    requestType: item.request_type || "self",
+    requestType: (item.request_type as "self" | "others") || "self",
     requesterId: item.requester_id || undefined,
     nextActor: item.next_actor_name || undefined,
     currentStepName: item.current_step_name || undefined,
