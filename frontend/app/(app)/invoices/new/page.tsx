@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, ArrowLeft } from "lucide-react";
 
@@ -14,7 +14,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   InvoiceForm,
-  invoiceSchema,
+  createInvoiceSchema,
 } from "@/lib/modules/invoices/schemas/invoice.schema";
 import FormSection from "@/components/ui/FormSection";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
@@ -24,7 +24,10 @@ import { useCreateInvoiceWorkflow } from "@/lib/modules/invoices/hooks/useCreate
 import { BackButton } from "@/components/ui/BackButton";
 import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 import { OrderStatusBadge } from "@/lib/modules/orders/badges/OrderStatusBadge";
-import { ORDER_ROUTES } from "@/lib/routes";
+import { INVOICE_ROUTES, ORDER_ROUTES } from "@/lib/routes";
+import PageErrorState from "@/components/ui/PageError";
+import { toast } from "sonner";
+import { parseError } from "@/lib/errors";
 
 // ── Skeleton Components ──
 function CreateInvoiceSkeleton() {
@@ -36,7 +39,7 @@ function CreateInvoiceSkeleton() {
         description="Create and issue an invoice for this order"
         className="mb-6"
       />
-      
+
       <div className="space-y-6">
         {/* Order Summary Skeleton */}
         <FormSection title="Order Summary" description="Loading order details...">
@@ -87,34 +90,61 @@ function CreateInvoicePageContent() {
   const orderId = searchParams.get("orderId") as string;
 
   // ── REAL order lookup ──
-  const { order, isLoading, isFetching } = useOrderById(orderId);
+  const { order, isLoading, error, refetch } = useOrderById(orderId);
   const { mutate: generateInvoice, isPending } = useCreateInvoiceWorkflow(order as Order);
-  const canInvoice = canGenerateInvoice(order as Order);
-  const { invoice } = useInvoiceById(order?.invoiceId as string);
+  const canInvoice = order ? canGenerateInvoice(order) : false;
+  const { invoice } = useInvoiceById(order?.invoiceId ?? "");
 
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    setValue,
-    formState: { isSubmitting },
-  } = useForm<InvoiceForm>({
-    resolver: zodResolver(invoiceSchema),
-    defaultValues: {
-      invoice_date: new Date().toISOString().split("T")[0],
-      due_date: "",
-      notes: "",
-    },
-  });
 
+  useEffect(() => {
+    if (order?.invoiceId && invoice) {
+      router.replace(`/invoices/${invoice.id}`);
+    }
+  }, [order, invoice, router]);
+
+
+const {
+  register,
+  control,
+  handleSubmit,
+  formState: { errors },
+} = useForm<InvoiceForm>({
+  resolver: zodResolver(createInvoiceSchema(order?.createdAt ?? "")),
+  mode: "onBlur",
+  reValidateMode: "onChange",
+  defaultValues: {
+    invoice_date: new Date().toISOString().split("T")[0],
+    due_date: "",
+    notes: "",
+  },
+});
   const invoiceDate = useWatch({ control, name: "invoice_date" });
   const dueDate = useWatch({ control, name: "due_date" });
 
   // ── LOADING STATE ──
-  // Show skeleton while loading OR if order is undefined (even during refetch)
-  if (isLoading || isFetching || !order) {
+  if (isLoading) {
     return <CreateInvoiceSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <AppLayout pageTitle="Generate Invoice">
+        <BackButton label="Back" />
+
+        <PageHeader
+          title="Generate Invoice"
+          description="Create and issue an invoice for this order"
+          className="mb-6"
+        />
+
+        <PageErrorState
+          title="Failed to load order"
+          message={error}
+          onRetry={() => refetch()}
+        />
+      </AppLayout>
+    );
   }
 
   // ── ORDER NOT FOUND ──
@@ -155,27 +185,39 @@ function CreateInvoicePageContent() {
     );
   }
 
-  // ── INVOICE ALREADY EXISTS ──
-  if (order.invoiceId) {
-    return (
-      <AppLayout pageTitle="Invoice Already Exists">
-        <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
-          <h2 className="font-semibold mb-2">Invoice Already Generated</h2>
-          <p className="text-sm text-brand-text-secondary mb-4">
-            This order already has an invoice.
-          </p>
-          <Button href={`/invoices/${invoice?.invoice_number}`} variant="outline">
-            View Invoice
-          </Button>
-        </div>
-      </AppLayout>
-    );
-  }
+  // // ── INVOICE ALREADY EXISTS ──
+  // if (order.invoiceId) {
+  //   return (
+  //     <AppLayout pageTitle="Invoice Already Exists">
+  //       <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
+  //         <h2 className="font-semibold mb-2">Invoice Already Generated</h2>
+  //         <p className="text-sm text-brand-text-secondary mb-4">
+  //           This order already has an invoice.
+  //         </p>
+  //         <Button href={`/invoices/${invoice?.invoice_number}`} variant="outline">
+  //           View Invoice
+  //         </Button>
+  //       </div>
+  //     </AppLayout>
+  //   );
+  // }
 
   // ── FORM SUBMISSION ──
+
+
   async function onSubmit(data: InvoiceForm) {
-    generateInvoice(data);
+
+    try {
+      generateInvoice(data);
+      toast.success("Invoice generated successfully");
+      router.push(INVOICE_ROUTES.list());
+    } catch (error) {
+      setSubmitError(parseError(error))
+      toast.error(parseError(error));
+    }
   }
+
+
 
   return (
     <AppLayout pageTitle="Generate Invoice">
@@ -225,21 +267,45 @@ function CreateInvoicePageContent() {
         <FormSection title="Invoice Generation" description="Fill in invoice information and generate an invoice for this order">
           <form
             onSubmit={handleSubmit(onSubmit)}
+            noValidate
             className="grid grid-cols-1 md:grid-cols-2 gap-5"
           >
-            <FormDatePicker
-              label="Invoice Date"
-              value={invoiceDate}
-              onValueChange={(value) => setValue("invoice_date", value)}
-              min={new Date().toISOString().split("T")[0]}
-            />
+          <Controller
+  control={control}
+  name="invoice_date"
+  render={({ field, fieldState }) => (
+    <FormDatePicker
+      label="Invoice Date"
+      value={field.value}
+      onValueChange={field.onChange}
+      onBlur={field.onBlur}
+      error={fieldState.error?.message}
+      min={new Date(
+        Math.max(
+          new Date().setHours(0, 0, 0, 0),
+          new Date(order.createdAt).setHours(0, 0, 0, 0)
+        )
+      )
+        .toISOString()
+        .split("T")[0]}
+    />
+  )}
+/>
 
-            <FormDatePicker
-              label="Due Date"
-              value={dueDate}
-              onValueChange={(value) => setValue("due_date", value)}
-              min={new Date().toISOString().split("T")[0]}
-            />
+<Controller
+  control={control}
+  name="due_date"
+  render={({ field, fieldState }) => (
+    <FormDatePicker
+      label="Due Date"
+      value={field.value}
+      onValueChange={field.onChange}
+      onBlur={field.onBlur}
+      error={fieldState.error?.message}
+      min={invoiceDate}
+    />
+  )}
+/>
 
             <div className="md:col-span-2">
               <FormTextarea
@@ -258,7 +324,7 @@ function CreateInvoicePageContent() {
             )}
 
             {/* ACTIONS */}
-            <div className="md:col-span-2 flex justify-end gap-3">
+            <div className="md:col-span-2 flex gap-3">
               {canInvoice && (
                 <Button type="submit" loading={isPending} loadingText="Generating...">
                   Generate Invoice
