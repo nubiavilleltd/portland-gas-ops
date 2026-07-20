@@ -358,7 +358,7 @@ export default function OrderDetailPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    href={INVOICE_ROUTES.detail(invoice.invoice_number)}
+                    href={INVOICE_ROUTES.detail(invoice.id)}
                   >
                     View Invoice →
                   </Button>
@@ -409,7 +409,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-end">
                   <Button
                     size="sm"
-                    href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice?.invoice_number || ""}`}
+                    href={`${PAYMENT_ROUTES.new()}?invoiceId=${invoice?.id || ""}`}
                   >
                     Make Payment →
                   </Button>

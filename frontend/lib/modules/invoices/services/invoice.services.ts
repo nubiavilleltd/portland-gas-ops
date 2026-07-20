@@ -10,7 +10,7 @@ export class InvoicesService {
     return adaptInvoiceList(raw);
   }
 
-  static async getInvoiceById(id: string): Promise<Invoice | undefined> {
+  static async getInvoice(id: string): Promise<Invoice | undefined> {
     try {
       const raw = await invoicesApi.get(id);
       return adaptInvoice(raw);
@@ -51,12 +51,4 @@ export class InvoicesService {
     }
   }
 
-  // These are now no-ops — backend handles status updates automatically via payment cascade
-  static async markPaid(_id: string): Promise<Invoice> {
-    throw new Error("Use payment recording to update invoice status");
-  }
-
-  static async markPartiallyPaid(_id: string): Promise<Invoice> {
-    throw new Error("Use payment recording to update invoice status");
-  }
 }

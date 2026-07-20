@@ -9,14 +9,13 @@ import FormSection from "@/components/ui/FormSection";
 
 import { formatCurrency, formatDate, toTitleCase } from "@/lib/utils";
 
-import { Order, OrderLineItem } from "@/lib/modules/orders/types/orders.types";
+import { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
 
 import {
   useInvoiceById,
-  useInvoiceByNo,
 } from "@/lib/modules/invoices/hooks/useInvoices";
 
 import {
@@ -27,12 +26,11 @@ import {
   usePaymentsByInvoice,
   usePaymentSummary,
 } from "@/lib/modules/payments/hooks/usePayments";
-import { useCustomerById, useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { useCustomerById } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
-import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { needsPayment } from "@/lib/modules/payments/types/payments.types";
 import { Download } from "lucide-react";
@@ -42,9 +40,9 @@ import { generateInvoicePdf } from "@/lib/pdf/invoice.pdf";
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const invoiceNo = params.id as string;
+  const id = params.id as string;
 
-    const { invoice } = useInvoiceByNo(invoiceNo);
+    const { invoice } = useInvoiceById(id);
 
   const { order } = useOrderById(
     invoice?.order_id ?? ""
@@ -61,22 +59,9 @@ export default function InvoiceDetailPage() {
 
   const [downloading, setDownloading] = useState(false);
 
-  // const customerMap = Object.fromEntries(
-  //   customers.map((customer) => [
-  //     customer.customerNo,
-  //     customer,
-  //   ])
-  // );
+
 
   const productMap = new Map(products.map((p) => [p.id, p]));
-
-
-
-
-
-
-
-
 
 
   if (!invoice) {
