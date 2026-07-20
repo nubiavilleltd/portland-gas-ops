@@ -2,12 +2,12 @@ export type LeaveTypeListItem = {
   id: number;
   leave_type_name: string;
   entitlement_days: number;
+  description: string | null;
   is_active: boolean;
   created_at: string; // ISO datetime
 };
 
 export type LeaveTypeDetail = LeaveTypeListItem & {
-  description: string | null;
   updated_at: string;
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -8,8 +8,8 @@ import Button from "@/components/ui/Button";
 import FormSelect from "@/components/forms/FormSelect";
 import DataTable from "@/components/data-table/data-table";
 import { createPaySlipColumns } from "../_components/columns";
-import { SEED_PAYSLIPS, PAYROLL_PERIODS, type PaySlip } from "../_components/_data";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { type PaySlip } from "../_components/_data";
+import { useMyPayslips, useMyPayslipPeriods } from "@/lib/modules/payslips/hooks";
 
 const fmt = (n: number) => `₦${n.toLocaleString("en-NG")}`;
 
@@ -131,30 +131,24 @@ async function downloadSinglePdf(slip: PaySlip) {
 }
 
 export default function MyPaySlipsPage() {
-  const { user } = useCurrentUser();
-  const [slips] = useState<PaySlip[]>(SEED_PAYSLIPS);
   const [filterPeriod, setFilterPeriod] = useState<string | null>(null);
   const [selected, setSelected] = useState<PaySlip | null>(null);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // The logged-in employee's OWN payslips — scoped server-side by token.
+  const { data: mySlips = [], isLoading } = useMyPayslips({
+    period: filterPeriod || undefined,
+  });
+  const { data: periods = [] } = useMyPayslipPeriods();
+  const filtered = mySlips as PaySlip[];
 
-  // Use the current user's name if available, otherwise default to Joseph Chika for demo
-  const currentUserName = user?.name || "Joseph Chika";
-  const userSlips = slips.filter((s) => s.employee === currentUserName);
-  const filtered = filterPeriod ? userSlips.filter((s) => s.period === filterPeriod) : userSlips;
   const columns = useMemo(() => createPaySlipColumns(setSelected, downloadSinglePdf), []);
 
-  const filterOptions = useMemo(() => {
-    const known = new Set(PAYROLL_PERIODS as readonly string[]);
-    const extra = [...new Set(userSlips.map((s) => s.period).filter((p) => !known.has(p)))];
-    const all = [...PAYROLL_PERIODS, ...extra];
-    return all.map((p) => ({ value: p, label: p }));
-  }, [userSlips]);
+  const filterOptions = useMemo(
+    () => periods.map((p) => ({ value: p, label: p })),
+    [periods],
+  );
 
-  if (!mounted) {
+  if (isLoading) {
     return (
       <AppLayout pageTitle="My Pay Slips">
         <PageHeader

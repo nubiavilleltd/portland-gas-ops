@@ -3,9 +3,11 @@ from sqlalchemy import and_
 from fastapi import HTTPException, status
 from typing import Optional, Tuple
 from datetime import datetime
+from decimal import Decimal
+import uuid
 
-from app.hr.models import LeaveTypeSetup, LeaveRequest, LeaveRequestStatus, LeaveBalance
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveRequestCreate
+from app.hr.models import LeaveTypeSetup, LeaveRequest, LeaveRequestStatus, LeaveBalance, Payslip, PayslipStatus
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveRequestCreate, PayslipGenerate
 from app.employees.models import Employee
 from app.shared.services.workflow_engine import WorkflowEngine
 from app.shared.models.approval import ApprovalRequest
@@ -632,3 +634,152 @@ def get_all_leave_balances(
             "balances":    emp_balances,
         })
     return result
+
+
+# ── PAYSLIPS ─────────────────────────────────────────────────────────────────
+
+_MONTHS = ["January", "February", "March", "April", "May", "June",
+           "July", "August", "September", "October", "November", "December"]
+
+
+def _period_yyyymm(period: str, year: int) -> str:
+    """'April 2026' -> '202604' (falls back to year+01 if the month can't be parsed)."""
+    month_name = period.split()[0] if period else ""
+    month = _MONTHS.index(month_name) + 1 if month_name in _MONTHS else 1
+    return f"{year}{month:02d}"
+
+
+def _next_payroll_ref(period: str, year: int) -> str:
+    """Payroll run reference: PAY-YYYYMM-XXXXXX (one per generate run)."""
+    return f"PAY-{_period_yyyymm(period, year)}-{uuid.uuid4().hex[:6].upper()}"
+
+
+def generate_payslips(
+    db: Session,
+    payload: PayslipGenerate,
+    prepared_by: Optional[str],
+) -> list[Payslip]:
+    """
+    Generate payslips for the SELECTED employees for the given period. Snapshots
+    each employee's salary components, computes net, and upserts per
+    (employee, period, year) — regenerating simply updates the existing row.
+    """
+    period, year = payload.period, payload.year
+    if not payload.employee_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select at least one employee to generate payslips for",
+        )
+
+    existing_by_emp = {
+        p.employee_id: p
+        for p in db.query(Payslip)
+        .filter(
+            Payslip.period == period,
+            Payslip.year == year,
+            Payslip.employee_id.in_(payload.employee_ids),
+        )
+        .all()
+    }
+
+    employees = (
+        db.query(Employee)
+        .options(joinedload(Employee.user))
+        .filter(Employee.id.in_(payload.employee_ids))
+        .all()
+    )
+
+    payroll_ref = _next_payroll_ref(period, year)
+    zero = Decimal("0")
+    result: list[Payslip] = []
+
+    for emp in employees:
+        basic     = emp.basic_salary or zero
+        housing   = emp.housing_allowance or zero
+        transport = emp.transport_allowance or zero
+        meal      = emp.meal_allowance or zero
+        paye      = emp.paye or zero
+        pension   = emp.pension or zero
+        nhf       = emp.nhf or zero
+        loan      = emp.loan_repayment or zero
+        net = (basic + housing + transport + meal) - (paye + pension + nhf + loan)
+
+        is_new = emp.id not in existing_by_emp
+        slip = existing_by_emp.get(emp.id) or Payslip(employee_id=emp.id, period=period, year=year)
+        slip.payroll_ref = payroll_ref
+        slip.emp_code = emp.employee_no
+        slip.department = emp.department
+        slip.basic, slip.housing, slip.transport, slip.meal = basic, housing, transport, meal
+        slip.paye, slip.pension, slip.nhf, slip.loan = paye, pension, nhf, loan
+        slip.net = net
+        slip.payroll_status = PayslipStatus.processed
+        slip.prepared_by = prepared_by
+        if is_new:
+            db.add(slip)
+        result.append(slip)
+
+    db.flush()
+    return result
+
+
+def get_payslip_periods(db: Session, employee_id: Optional[str] = None) -> list[str]:
+    """Distinct periods that actually have payslips — for the filter dropdown.
+
+    When ``employee_id`` is given, scope to that employee's own payslips (self-service).
+    """
+    from sqlalchemy import func
+    query = db.query(Payslip.period)
+    if employee_id:
+        query = query.filter(Payslip.employee_id == employee_id)
+    rows = (
+        query
+        .group_by(Payslip.period)
+        .order_by(func.max(Payslip.created_at).desc())
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def get_all_payslips(
+    db: Session,
+    period: Optional[str] = None,
+    search: Optional[str] = None,
+    employee_id: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 200,
+) -> Tuple[list[Payslip], int]:
+    """List payslips (eager-load employee+user for the name), optional period + name filter.
+
+    When ``employee_id`` is given, scope to that employee's own payslips (self-service).
+    """
+    from app.shared.models.user import User
+
+    query = db.query(Payslip).options(
+        joinedload(Payslip.employee).joinedload(Employee.user)
+    )
+    if employee_id:
+        query = query.filter(Payslip.employee_id == employee_id)
+    if period:
+        query = query.filter(Payslip.period == period)
+    if search:
+        like = f"%{search}%"
+        query = query.join(Employee, Employee.id == Payslip.employee_id).join(
+            User, User.id == Employee.user_id
+        ).filter(
+            (User.first_name.ilike(like)) |
+            (User.last_name.ilike(like)) |
+            (Payslip.emp_code.ilike(like))
+        )
+
+    total = query.count()
+    rows = query.order_by(Payslip.created_at.desc()).offset(skip).limit(limit).all()
+    return rows, total
+
+
+def get_payslip_by_id(db: Session, payslip_id: str) -> Payslip:
+    slip = db.query(Payslip).options(
+        joinedload(Payslip.employee).joinedload(Employee.user)
+    ).filter(Payslip.id == payslip_id).first()
+    if not slip:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Payslip '{payslip_id}' not found")
+    return slip

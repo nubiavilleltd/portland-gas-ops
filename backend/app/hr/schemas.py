@@ -114,3 +114,38 @@ class LeaveRequestRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── Payslip Schemas ──────────────────────────────────────────────────────────
+
+class PayslipGenerate(BaseModel):
+    period: str                # e.g. "April 2026"
+    year: int
+    employee_ids: list[str]    # which employees to generate for (from the preview)
+
+
+class PayslipRead(BaseModel):
+    id: str
+    payroll_ref: Optional[str] = None
+    employee_id: str
+    employee_name: Optional[str] = None
+    emp_code: Optional[str] = None
+    department: Optional[str] = None
+    period: str
+    year: int
+    basic: float
+    housing: float
+    transport: float
+    meal: float
+    paye: float
+    pension: float
+    nhf: float
+    loan: float
+    net: float
+    payroll_status: str
+    prepared_by: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

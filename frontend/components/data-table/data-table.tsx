@@ -13,11 +13,13 @@ export interface Column<T> {
   render?: (value: unknown, row: T) => React.ReactNode;
 }
 
+type RowActionColor = "default" | "danger" | "success";
+
 export interface RowAction<T> {
   label: string | ((row: T) => string);
   icon: LucideIcon | ((row: T) => LucideIcon);
   onClick: (row: T) => void;
-  color?: "default" | "danger" | "success";
+  color?: RowActionColor | ((row: T) => RowActionColor);
 }
 
 interface DataTableProps<T extends { id: string; status?: string }> {
@@ -233,10 +235,13 @@ export default function DataTable<T extends { id: string; status?: string }>({
                         <div className="flex items-center justify-end gap-1">
                           {rowActions.map((action, idx) => {
                             const label = typeof action.label === "function" ? action.label(row) : action.label;
-                            const Icon = typeof action.icon === "function" ? action.icon(row) : action.icon;
+                            // LucideIcon is a callable exotic component, so `typeof === "function"`
+                            // can't narrow it away at the type level; cast the resolved value.
+                            const Icon = (typeof action.icon === "function" ? action.icon(row) : action.icon) as LucideIcon;
+                            const color = typeof action.color === "function" ? action.color(row) : action.color;
                             const colorClass =
-                              action.color === "danger" ? "text-red-600 hover:text-red-700" :
-                              action.color === "success" ? "text-green-600 hover:text-green-700" :
+                              color === "danger" ? "text-red-600 hover:text-red-700" :
+                              color === "success" ? "text-green-600 hover:text-green-700" :
                               "text-brand-text-secondary hover:text-brand-text-primary";
 
                             return (
