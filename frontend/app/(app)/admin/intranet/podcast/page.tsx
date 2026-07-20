@@ -567,14 +567,6 @@ export default function PodcastPage() {
               <FormInput
                 label=""
                 placeholder={form.media_type === "video"
-<<<<<<< HEAD
-                  ? "https://… (direct .mp4 link, Vimeo direct, etc.)"
-                  : "https://… (Spotify, Anchor, direct .mp3, etc.)"
-                }
-                value={form.audio_url}
-                onChange={(e) => field("audio_url", e.target.value)}
-                hint="Link opens in the native browser player."
-=======
                   ? "https://… (direct .mp4, .webm, Vimeo direct, etc.)"
                   : "https://… (Spotify, Anchor, direct .mp3, .wav, etc.)"
                 }
@@ -582,7 +574,6 @@ export default function PodcastPage() {
                 onChange={(e) => { field("audio_url", e.target.value); setErrors((p) => ({ ...p, audio_url: "" })); }}
                 hint="Link opens in the native browser player."
                 error={errors.audio_url}
->>>>>>> origin/dev
               />
             )}
 
@@ -591,14 +582,9 @@ export default function PodcastPage() {
                 label=""
                 placeholder="https://www.youtube.com/watch?v=SgbcghWXDiw"
                 value={form.embed_url}
-<<<<<<< HEAD
-                onChange={(e) => field("embed_url", e.target.value)}
-                hint="Paste the YouTube or Vimeo page URL — not an embed code. e.g. https://www.youtube.com/watch?v=…"
-=======
                 onChange={(e) => { field("embed_url", e.target.value); setErrors((p) => ({ ...p, embed_url: "" })); }}
                 hint="Paste the YouTube or Vimeo page URL — not an embed code. e.g. https://www.youtube.com/watch?v=…"
                 error={errors.embed_url}
->>>>>>> origin/dev
               />
             )}
           </div>
