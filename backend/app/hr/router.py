@@ -9,7 +9,7 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
 from app.hr import service
 from app.employees.service import get_employee_by_user_id
 
@@ -572,3 +572,63 @@ def submit_leave_request_for_approval(
         "status": approval_request.overall_status,
         "current_step_number": approval_request.current_step_number,
     }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PAYSLIPS
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/payslips/generate",
+    response_model=list[PayslipRead],
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_payslips(
+    payload: PayslipGenerate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Generate payslips for all active salaried employees for a period."""
+    prepared_by = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or current_user.email
+    slips = service.generate_payslips(db, payload, prepared_by)
+    db.commit()
+    return slips
+
+
+@router.get("/payslips/periods", response_model=list[str])
+def list_payslip_periods(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Distinct periods that have payslips — for the filter dropdown."""
+    return service.get_payslip_periods(db)
+
+
+@router.get("/payslips", response_model=dict)
+def list_payslips(
+    period: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List payslips, optionally filtered by period and employee-name search."""
+    rows, total = service.get_all_payslips(db, period=period, search=search, skip=skip, limit=limit)
+    return {
+        "data": [PayslipRead.model_validate(p) for p in rows],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@router.get("/payslips/{payslip_id}", response_model=PayslipRead)
+def get_payslip(
+    payslip_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a single payslip by id."""
+    return service.get_payslip_by_id(db, payslip_id)

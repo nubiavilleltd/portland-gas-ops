@@ -160,7 +160,7 @@ _REQUEST_TYPE_PATHS: dict[str, str] = {
     "asset":            "assets",
     "leave":            "leave",
     "cash_requisition": "finance/cash-requisitions",
-    "invoice":          "invoices",
+    "invoice":          "finance/invoices",
     "work_initiation":  "safety/work-initiation",
     "work_authorization": "safety/work-authorization",
     "work_closeout":    "safety/work-close-out",

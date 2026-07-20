@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,9 +14,17 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import DataTable from "@/components/data-table/data-table";
+import SelectInput from "@/components/forms/SelectInput";
+import DataTable from "@/components/ui/DataTable";
 import { invoiceColumns } from "@/components/data-table/columns";
-import { formatNumber } from "@/lib/utils/format-number";
+import { useInvoices, useCreateInvoice, usePoOptions, useVendorOptions } from "@/lib/modules/invoices-processing/hooks";
+import invoicesApi from "@/lib/modules/invoices-processing/api";
+import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { CURRENCY_OPTIONS, genRef } from "../_components/_data";
+
+const TODAY = new Date().toISOString().split("T")[0];
 
 function applyCommas(raw: string): string {
   const clean = raw.replace(/[^0-9.]/g, "");
@@ -25,23 +32,14 @@ function applyCommas(raw: string): string {
   const formatted = (int || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return dec !== undefined ? `${formatted}.${dec}` : formatted;
 }
-import {
-  CURRENCY_OPTIONS,
-  VENDOR_OPTIONS,
-  PURCHASE_ORDERS,
-  genRef,
-  SEED_INVOICES,
-  INVOICE_STORE,
-  type InvoiceRequest,
-} from "../_components/_data";
 
-const TODAY = new Date().toISOString().split("T")[0];
-
-const CURRENT_USER = {
-  name: "Joseph Chika",
-  department: "Finance",
-  role: "Finance Manager",
-};
+const STATUS_OPTIONS = [
+  { value: "pending",     label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "returned",    label: "Returned" },
+  { value: "approved",    label: "Approved" },
+  { value: "denied",      label: "Denied" },
+];
 
 const schema = z.object({
   vendor_name:    z.string().min(1, "Select a vendor"),
@@ -56,24 +54,49 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
-
 type View = "list" | "form";
 
 export default function InvoicesPage() {
-  const router = useRouter();
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<InvoiceRequest[]>(() =>
-    SEED_INVOICES.filter((item) => item.requester === CURRENT_USER.name)
-  );
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [invoiceId] = useState(() => genRef("IID"));
+
+  const { user: currentUser } = useCurrentUser();
+  const { data: myEmployee } = useMyEmployee();
+  const createInvoice = useCreateInvoice();
+
+  const { data: response, isLoading } = useInvoices({ limit: 100, sort_by: "created_at", sort_order: "desc" });
+  const allItems = response?.data || [];
+
+  const { data: myApprovals = [] } = useMyApprovals();
+  const awaitingIds = new Set(myApprovals.filter((a) => a.request_type === "invoice").map((a) => a.request_id));
+  const [scope, setScope] = useState<"all" | "awaiting">("all");
+  const [activeStatus, setActiveStatus] = useState<string>("");
+
+  const visibleItems = allItems.filter((i) => {
+    const isMine = !i.requesterId || i.requesterId === currentUser?.id;
+    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
+    if (!inScope) return false;
+    if (activeStatus && i.status !== activeStatus) return false;
+    return true;
+  });
+
+  // Real dropdown sources
+  const { data: vendors = [] } = useVendorOptions();
+  const { data: poOptions = [] } = usePoOptions();
+  const vendorOptions = vendors.map((v) => ({ value: v.name, label: v.name }));
+  const poOptionsList = poOptions.map((p) => ({ value: p.reference, label: p.reference }));
+
+  const requesterName = myEmployee?.user
+    ? `${myEmployee.user.first_name ?? ""} ${myEmployee.user.last_name ?? ""}`.trim()
+    : "";
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
 
+  // Auto-calc net = gross − tax
   const watchGross = form.watch("gross_amount");
   const watchTax   = form.watch("tax_amount");
-  const watchNet   = form.watch("net_amount");
   useEffect(() => {
     const gross = parseFloat((watchGross ?? "").replace(/,/g, ""));
     if (isNaN(gross)) return;
@@ -82,36 +105,51 @@ export default function InvoicesPage() {
     form.setValue("net_amount", applyCommas(net.toFixed(2)), { shouldValidate: true });
   }, [watchGross, watchTax, form]);
 
-  function onSubmit(data: FormData) {
-    const ref = genRef("INV");
-    const newItem: InvoiceRequest = {
-      id: ref,
-      ref,
-      title: data.title,
-      description: data.description,
-      department: CURRENT_USER.department,
-      amount: parseFloat(data.net_amount.replace(/,/g, "")),
-      vendor: data.vendor_name,
-      invoiceId,
-      invoiceNo: data.invoice_number,
-      requester: CURRENT_USER.name,
-      jobTitle: CURRENT_USER.role,
-      date: TODAY,
-      status: "pending",
-      poNumber: data.po_number,
-      currency: data.currency,
-      grossAmount: parseFloat(data.gross_amount.replace(/,/g, "")),
-      taxAmount: data.tax_amount ? parseFloat(data.tax_amount.replace(/,/g, "")) : undefined,
-      supportingDocuments: supportingFiles.length > 0
-        ? supportingFiles.map((f) => f.name)
-        : undefined,
-    };
-    INVOICE_STORE.unshift(newItem);
-    setItems((prev) => [newItem, ...prev]);
-    toast.success(`Invoice submitted successfully — Reference: ${ref}`);
-    form.reset();
-    setSupportingFiles([]);
-    setTimeout(() => location.reload(), 800);
+  async function onSubmit(data: FormData) {
+    try {
+      const gross = parseFloat(data.gross_amount.replace(/,/g, ""));
+      const tax = data.tax_amount ? parseFloat(data.tax_amount.replace(/,/g, "")) : 0;
+      const net = parseFloat(data.net_amount.replace(/,/g, ""));
+      if (!net || net <= 0) {
+        toast.error("Enter a valid net payable amount");
+        return;
+      }
+
+      const inv = await createInvoice.mutateAsync({
+        invoice_id: invoiceId,
+        invoice_number: data.invoice_number,
+        title: data.title,
+        description: data.description,
+        vendor: data.vendor_name,
+        po_number: data.po_number || undefined,
+        gross_amount: gross,
+        tax_amount: tax,
+        amount: net,
+        currency: data.currency,
+      });
+
+      if (supportingFiles.length > 0 && inv?.id) {
+        for (const file of supportingFiles) {
+          try {
+            await invoicesApi.uploadDocument(inv.id, file);
+          } catch {
+            toast.info(`Could not upload ${file.name}. Your invoice was still saved.`);
+          }
+        }
+      }
+
+      if (inv?.id) await invoicesApi.submitForApproval(inv.id);
+
+      toast.success(`Invoice submitted for approval — ${inv.reference}`);
+      form.reset();
+      setSupportingFiles([]);
+      setView("list");
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (error instanceof Error ? error.message : "Failed to submit invoice");
+      toast.error(message);
+    }
   }
 
   function goBack() {
@@ -136,11 +174,56 @@ export default function InvoicesPage() {
             }
             className="mb-6"
           />
+
+          {/* Scope filter pills */}
+          <div className="mb-3 flex flex-wrap gap-2">
+            {([
+              { value: "all",      label: "All" },
+              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
+            ] as const).map((pill) => (
+              <button
+                key={pill.value}
+                type="button"
+                onClick={() => setScope(pill.value)}
+                className={
+                  scope === pill.value
+                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
+                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
+                }
+              >
+                {pill.label}
+                {"count" in pill && pill.count > 0 ? (
+                  <span
+                    className={
+                      scope === pill.value
+                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
+                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
+                    }
+                  >
+                    {pill.count}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
           <div className="w-full overflow-hidden">
             <DataTable
               columns={invoiceColumns}
-              data={items}
+              data={visibleItems}
+              isLoading={isLoading}
               rowHref={(row) => `/finance/invoices/${row.id}`}
+              toolbarActions={
+                <div className="w-52 shrink-0">
+                  <SelectInput
+                    placeholder="All Statuses"
+                    sortOptions={false}
+                    value={activeStatus}
+                    onValueChange={(v) => setActiveStatus(v)}
+                    options={STATUS_OPTIONS}
+                  />
+                </div>
+              }
               emptyMessage="No invoices yet"
               emptyDescription="Submit your first invoice to get started"
             />
@@ -169,9 +252,9 @@ export default function InvoicesPage() {
 
             <FormSection title="Requester Details" description="Your employee information for this invoice request.">
               <div className="grid gap-4 md:grid-cols-2">
-                <FormInput label="Requester Name"  value={CURRENT_USER.name} disabled />
-                <FormInput label="Department"       value={CURRENT_USER.department} disabled />
-                <FormInput label="Job Title / Role" value={CURRENT_USER.role} disabled />
+                <FormInput label="Requester Name"  value={requesterName} disabled />
+                <FormInput label="Department"       value={myEmployee?.department || ""} disabled />
+                <FormInput label="Job Title / Role" value={myEmployee?.job_title || ""} disabled />
                 <FormDatePicker label="Request Date" value={TODAY} disabled />
               </div>
             </FormSection>
@@ -179,14 +262,13 @@ export default function InvoicesPage() {
             <FormSection title="Request Details" description="Vendor and invoice details for this payment request.">
               <div className="space-y-6">
 
-                {/* Vendor Details sub-section */}
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">Vendor Details</p>
                   <div className="grid gap-4 md:grid-cols-2">
                     <FormSelect
                       label="Vendor / Supplier Name"
                       required
-                      options={VENDOR_OPTIONS}
+                      options={vendorOptions}
                       sortOptions={false}
                       placeholder="Select vendor"
                       error={errors.vendor_name?.message}
@@ -194,7 +276,7 @@ export default function InvoicesPage() {
                     />
                     <FormSelect
                       label="Purchase Order Number"
-                      options={PURCHASE_ORDERS}
+                      options={poOptionsList}
                       sortOptions={false}
                       placeholder="Select PO (optional)"
                       {...form.register("po_number")}
@@ -206,15 +288,10 @@ export default function InvoicesPage() {
                       error={errors.invoice_number?.message}
                       {...form.register("invoice_number")}
                     />
-                    <FormInput
-                      label="Invoice ID"
-                      value={invoiceId}
-                      disabled
-                    />
+                    <FormInput label="Invoice ID" value={invoiceId} disabled />
                   </div>
                 </div>
 
-                {/* Invoice Details sub-section */}
                 <div className="border-t border-brand-border pt-6">
                   <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">Invoice Details</p>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -242,18 +319,14 @@ export default function InvoicesPage() {
                       placeholder="0.00"
                       error={errors.gross_amount?.message}
                       {...form.register("gross_amount", {
-                        onChange: (e) => {
-                          e.target.value = applyCommas(e.target.value);
-                        },
+                        onChange: (e) => { e.target.value = applyCommas(e.target.value); },
                       })}
                     />
                     <FormInput
                       label="VAT / WHT Amount"
                       placeholder="0.00 (optional)"
                       {...form.register("tax_amount", {
-                        onChange: (e) => {
-                          e.target.value = applyCommas(e.target.value);
-                        },
+                        onChange: (e) => { e.target.value = applyCommas(e.target.value); },
                       })}
                     />
                     <FormInput
@@ -262,9 +335,7 @@ export default function InvoicesPage() {
                       placeholder="0.00"
                       error={errors.net_amount?.message}
                       {...form.register("net_amount", {
-                        onChange: (e) => {
-                          e.target.value = applyCommas(e.target.value);
-                        },
+                        onChange: (e) => { e.target.value = applyCommas(e.target.value); },
                       })}
                     />
                     <div className="md:col-span-2">
@@ -282,7 +353,7 @@ export default function InvoicesPage() {
                         value={supportingFiles}
                         onChange={setSupportingFiles}
                         accept="image/*,.pdf,.doc,.docx"
-                        maxFiles={10}
+                        maxFiles={5}
                         hint="Attach the scanned or digital invoice and any supporting documents (optional)"
                       />
                     </div>

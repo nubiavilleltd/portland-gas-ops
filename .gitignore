@@ -50,6 +50,9 @@ build/
 backend/portland_gas.db
 *.sqlite3
 
+# ─── Office temp / lock files ────────────────────────────────
+~$*
+
 # ─── Alembic ─────────────────────────────────────────────────
 # Keep versions folder but ignore auto-generated __pycache__
 backend/alembic/versions/__pycache__/

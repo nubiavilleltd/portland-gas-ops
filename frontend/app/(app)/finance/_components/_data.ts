@@ -110,6 +110,9 @@ export interface InvoiceRequest {
   grossAmount?: number;
   taxAmount?: number;
   supportingDocuments?: string[];
+  requesterId?: string;      // user id of who raised the request
+  nextActor?: string;        // current pending step assignee
+  currentStepName?: string;  // name of the current pending step
 }
 
 // ── Seed data ─────────────────────────────────────────────────────────────────

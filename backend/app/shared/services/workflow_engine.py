@@ -147,6 +147,7 @@ _REQUEST_TYPE_PREFIX = {
     "asset":          "REQ-ASSET",
     "leave":          "REQ-LEAVE",
     "cash_requisition":   "REQ-CASH",
+    "invoice":            "REQ-INV",
     "work_initiation":    "REQ-WI",
     "work_authorization": "REQ-WA",
     "work_closeout":      "REQ-WC",
