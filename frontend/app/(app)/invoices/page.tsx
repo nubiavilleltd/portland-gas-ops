@@ -84,7 +84,7 @@ export default function InvoicesPage() {
       <DataTable<Invoice>
         columns={columns}
         data={invoices}
-        rowHref={(invoice) => `/invoices/${invoice.invoice_number}`}
+        rowHref={(invoice) => `/invoices/${invoice.id}`}
         emptyMessage="No invoices found."
       />
     </AppLayout>

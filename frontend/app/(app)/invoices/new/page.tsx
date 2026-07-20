@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,7 +42,10 @@ function CreateInvoiceSkeleton() {
 
       <div className="space-y-6">
         {/* Order Summary Skeleton */}
-        <FormSection title="Order Summary" description="Loading order details...">
+        <FormSection
+          title="Order Summary"
+          description="Loading order details..."
+        >
           <div className="animate-pulse">
             <div className="flex items-start justify-end mb-4">
               <div className="h-6 w-24 bg-gray-100 rounded"></div>
@@ -57,7 +60,10 @@ function CreateInvoiceSkeleton() {
         </FormSection>
 
         {/* Invoice Form Skeleton */}
-        <FormSection title="Invoice Generation" description="Loading form...">
+        <FormSection
+          title="Invoice Generation"
+          description="Loading form..."
+        >
           <div className="animate-pulse">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="h-20 bg-gray-100 rounded"></div>
@@ -91,34 +97,44 @@ function CreateInvoicePageContent() {
 
   // ── REAL order lookup ──
   const { order, isLoading, error, refetch } = useOrderById(orderId);
-  const { mutate: generateInvoice, isPending } = useCreateInvoiceWorkflow(order as Order);
+  const { mutateAsync: generateInvoice, isPending } = useCreateInvoiceWorkflow(
+    order as Order,
+  );
   const canInvoice = order ? canGenerateInvoice(order) : false;
-  const { invoice } = useInvoiceById(order?.invoiceId ?? "");
+
+  const minimumInvoiceDate = useMemo(() => {
+  return new Date(
+    Math.max(
+      new Date().setHours(0, 0, 0, 0),
+      new Date(order?.createdAt ?? "").setHours(0, 0, 0, 0),
+    ),
+  )
+    .toISOString()
+    .split("T")[0];
+}, [order?.createdAt]);
+
+const schema = useMemo(
+  () => createInvoiceSchema(order?.createdAt ?? ""),
+  [order?.createdAt]
+);
 
 
 
-  useEffect(() => {
-    if (order?.invoiceId && invoice) {
-      router.replace(`/invoices/${invoice.id}`);
-    }
-  }, [order, invoice, router]);
-
-
-const {
-  register,
-  control,
-  handleSubmit,
-  formState: { errors },
-} = useForm<InvoiceForm>({
-  resolver: zodResolver(createInvoiceSchema(order?.createdAt ?? "")),
-  mode: "onBlur",
-  reValidateMode: "onChange",
-  defaultValues: {
-    invoice_date: new Date().toISOString().split("T")[0],
-    due_date: "",
-    notes: "",
-  },
-});
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<InvoiceForm>({
+    resolver: zodResolver(schema),
+    mode: "onBlur",
+    reValidateMode: "onChange",
+    defaultValues: {
+      invoice_date: new Date().toISOString().split("T")[0],
+      due_date: "",
+      notes: "",
+    },
+  });
   const invoiceDate = useWatch({ control, name: "invoice_date" });
   const dueDate = useWatch({ control, name: "due_date" });
 
@@ -154,10 +170,13 @@ const {
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
           <h2 className="font-semibold mb-2">Order Not Found</h2>
           <p className="text-sm text-brand-text-secondary mb-4">
-            No order was specified. Please go back and use the &quot;Generate Invoice&quot;
-            button from the order detail page.
+            No order was specified. Please go back and use the &quot;Generate
+            Invoice&quot; button from the order detail page.
           </p>
-          <Button href={ORDER_ROUTES.new()} variant="outline">
+          <Button
+            href={ORDER_ROUTES.new()}
+            variant="outline"
+          >
             Back to Orders
           </Button>
         </div>
@@ -177,7 +196,10 @@ const {
           <p className="text-sm mb-4">
             Current status: <OrderStatusBadge status={order.orderStatus} />
           </p>
-          <Button href={ORDER_ROUTES.detail(orderId)} variant="outline">
+          <Button
+            href={ORDER_ROUTES.detail(orderId)}
+            variant="outline"
+          >
             Back to Order
           </Button>
         </div>
@@ -185,39 +207,37 @@ const {
     );
   }
 
-  // // ── INVOICE ALREADY EXISTS ──
-  // if (order.invoiceId) {
-  //   return (
-  //     <AppLayout pageTitle="Invoice Already Exists">
-  //       <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
-  //         <h2 className="font-semibold mb-2">Invoice Already Generated</h2>
-  //         <p className="text-sm text-brand-text-secondary mb-4">
-  //           This order already has an invoice.
-  //         </p>
-  //         <Button href={`/invoices/${invoice?.invoice_number}`} variant="outline">
-  //           View Invoice
-  //         </Button>
-  //       </div>
-  //     </AppLayout>
-  //   );
-  // }
+  // ── INVOICE ALREADY EXISTS ──
+  if (order.invoiceId) {
+    return (
+      <AppLayout pageTitle="Invoice Already Exists">
+        <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
+          <h2 className="font-semibold mb-2">Invoice Already Generated</h2>
+          <p className="text-sm text-brand-text-secondary mb-4">
+            This order already has an invoice.
+          </p>
+          <Button href={`/invoices/${order.invoiceId}`} variant="outline">
+            View Invoice
+          </Button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   // ── FORM SUBMISSION ──
 
-
   async function onSubmit(data: InvoiceForm) {
-
     try {
-      generateInvoice(data);
+      await generateInvoice(data);
       toast.success("Invoice generated successfully");
-      router.push(INVOICE_ROUTES.list());
+      // router.push(INVOICE_ROUTES.list());
+
+      router.replace(INVOICE_ROUTES.detail(order?.invoiceId ?? ""));
     } catch (error) {
-      setSubmitError(parseError(error))
+      setSubmitError(parseError(error));
       toast.error(parseError(error));
     }
   }
-
-
 
   return (
     <AppLayout pageTitle="Generate Invoice">
@@ -231,7 +251,10 @@ const {
 
       <div className="space-y-6">
         {/* ORDER SUMMARY - Now order is guaranteed to exist */}
-        <FormSection title="Order Summary" description="Invoice will be generated from this order">
+        <FormSection
+          title="Order Summary"
+          description="Invoice will be generated from this order"
+        >
           <div className="flex items-start justify-end mb-4">
             <OrderStatusBadge status={order.orderStatus} />
           </div>
@@ -256,56 +279,54 @@ const {
 
             <div>
               <p className="text-xs text-brand-text-secondary">Order Date</p>
-              <p className="font-medium mt-1">
-                {formatDate(order.createdAt)}
-              </p>
+              <p className="font-medium mt-1">{formatDate(order.createdAt)}</p>
             </div>
           </div>
         </FormSection>
 
         {/* INVOICE FORM */}
-        <FormSection title="Invoice Generation" description="Fill in invoice information and generate an invoice for this order">
+        <FormSection
+          title="Invoice Generation"
+          description="Fill in invoice information and generate an invoice for this order"
+        >
           <form
             onSubmit={handleSubmit(onSubmit)}
             noValidate
             className="grid grid-cols-1 md:grid-cols-2 gap-5"
           >
-          <Controller
-  control={control}
-  name="invoice_date"
-  render={({ field, fieldState }) => (
-    <FormDatePicker
-      label="Invoice Date"
-      value={field.value}
-      onValueChange={field.onChange}
-      onBlur={field.onBlur}
-      error={fieldState.error?.message}
-      min={new Date(
-        Math.max(
-          new Date().setHours(0, 0, 0, 0),
-          new Date(order.createdAt).setHours(0, 0, 0, 0)
-        )
-      )
-        .toISOString()
-        .split("T")[0]}
-    />
-  )}
-/>
+            <Controller
+              control={control}
+              name="invoice_date"
+              render={({ field, fieldState }) => (
+                <FormDatePicker
+                  label="Invoice Date"
+                  value={field.value}
+                  required
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  min={
+                   minimumInvoiceDate
+                  }
+                />
+              )}
+            />
 
-<Controller
-  control={control}
-  name="due_date"
-  render={({ field, fieldState }) => (
-    <FormDatePicker
-      label="Due Date"
-      value={field.value}
-      onValueChange={field.onChange}
-      onBlur={field.onBlur}
-      error={fieldState.error?.message}
-      min={invoiceDate}
-    />
-  )}
-/>
+            <Controller
+              control={control}
+              name="due_date"
+              render={({ field, fieldState }) => (
+                <FormDatePicker
+                  label="Due Date"
+                  value={field.value}
+                  required
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  min={invoiceDate}
+                />
+              )}
+            />
 
             <div className="md:col-span-2">
               <FormTextarea
@@ -318,7 +339,10 @@ const {
             {/* ERROR */}
             {submitError && (
               <div className="md:col-span-2 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                <AlertCircle size={16} className="shrink-0" />
+                <AlertCircle
+                  size={16}
+                  className="shrink-0"
+                />
                 {submitError}
               </div>
             )}
@@ -326,7 +350,11 @@ const {
             {/* ACTIONS */}
             <div className="md:col-span-2 flex gap-3">
               {canInvoice && (
-                <Button type="submit" loading={isPending} loadingText="Generating...">
+                <Button
+                  type="submit"
+                  loading={isPending}
+                  loadingText="Generating..."
+                >
                   Generate Invoice
                 </Button>
               )}

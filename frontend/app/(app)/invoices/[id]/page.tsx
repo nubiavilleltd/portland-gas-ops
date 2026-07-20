@@ -186,7 +186,7 @@ export default function InvoiceDetailPage() {
             </Button> */}
 
             <Button
-              variant="outline"
+              variant="primary"
               onClick={handleDownloadPdf}
               disabled={downloading}
               leftIcon={<Download size={14} />}
