@@ -474,7 +474,7 @@ def require_comment_for_negative_decision(data: WorkInitiationReviewCreate) -> N
         if not data.comment:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Comment is required when returning or denying a work initiation.",
+                detail="Comment is required when returning or rejecting a work initiation.",
             )
 
 

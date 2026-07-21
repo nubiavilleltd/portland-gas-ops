@@ -110,11 +110,11 @@ def on_rejected(ctx: dict) -> dict | None:
     if not request:
         return None
     return {
-        "subject": f"Work Close-Out Denied - {request.reference}",
-        "result_heading": "Your Work Close-Out Has Been Denied",
-        "action_label": "Denied",
+        "subject": f"Work Close-Out Rejected - {request.reference}",
+        "result_heading": "Your Work Close-Out Has Been Rejected",
+        "action_label": "Rejected",
         "result_message": (
-            f"Work Close-Out {request.reference}: {_title(request)} has been denied."
+            f"Work Close-Out {request.reference}: {_title(request)} has been rejected."
         )
     }
 

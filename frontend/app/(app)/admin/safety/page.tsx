@@ -7,6 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import PageHeader from "@/components/ui/PageHeader";
 import { useSafetyDashboard } from "@/lib/modules/safety/dashboard";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import type {
   SafetyDashboardOngoingWorkItem,
   SafetyDashboardQueueItem,
@@ -341,7 +342,9 @@ function OngoingWorkPanel({ items }: { items: SafetyDashboardOngoingWorkItem[] }
                           {item.reference}
                         </span>
                         <StatusPill label={item.current_stage} tone="green" />
-                        <ApprovalBadge status={item.status} />
+                        <ApprovalBadge
+                          status={getSafetyDisplayStatus(item.status)}
+                        />
                       </div>
                       <p
                         className="mt-2 truncate text-sm font-semibold text-brand-text-primary"

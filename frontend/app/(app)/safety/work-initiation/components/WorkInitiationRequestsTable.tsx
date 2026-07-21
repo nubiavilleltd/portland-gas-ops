@@ -9,6 +9,7 @@ import {
   sortByLatestSafetyActivity,
 } from "@/lib/safety-demo-routing";
 import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import { useWorkInitiations } from "@/lib/modules/safety/workInitiation";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import type { WorkInitiationRequest } from "@/types/safety";
@@ -54,7 +55,9 @@ const columns: Column<WorkInitiationRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => <ApprovalBadge status={String(value)} />,
+    render: (value) => (
+      <ApprovalBadge status={getSafetyDisplayStatus(String(value))} />
+    ),
   },
   {
     key: "nextAction",

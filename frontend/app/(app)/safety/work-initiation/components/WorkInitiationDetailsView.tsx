@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
@@ -335,7 +336,7 @@ export default function WorkInitiationDetailsView({
     if (!request) return;
     if (supervisorReviewMutation.isPending) return;
     if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) {
-      toast.error("Add a supervisor comment before returning or denying.");
+      toast.error("Add a supervisor comment before returning or rejecting.");
       return;
     }
 
@@ -360,7 +361,7 @@ export default function WorkInitiationDetailsView({
     if (!request) return;
     if (operationsHodReviewMutation.isPending) return;
     if ((decision === "Return" || decision === "Deny") && !operationsHodComment.trim()) {
-      toast.error("Add an Operations HOD comment before returning or denying.");
+      toast.error("Add an Operations HOD comment before returning or rejecting.");
       return;
     }
 
@@ -410,7 +411,9 @@ export default function WorkInitiationDetailsView({
         roles={workInitiationRoles}
         recordLabel="Work Initiation"
         title={request.title}
-        status={<ApprovalBadge status={request.status} />}
+        status={
+          <ApprovalBadge status={getSafetyDisplayStatus(request.status)} />
+        }
         nextActor={getWorkInitiationNextActor(request)}
         nextApproverName={request.nextApproverName}
         nextApproverRole={request.nextApproverRole}
@@ -465,14 +468,14 @@ export default function WorkInitiationDetailsView({
           onApprove={() => supervisorReview("Approve")}
           onReturn={() => supervisorReview("Return")}
           onReject={() => supervisorReview("Deny")}
-          rejectLabel="Deny"
+          rejectLabel="Reject"
           disabled={supervisorReviewMutation.isPending}
           returnDisabled={!supervisorComment.trim()}
           rejectDisabled={!supervisorComment.trim()}
           extraFields={
             !supervisorComment.trim() ? (
               <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Add a supervisor comment before returning or denying this request.
+                Add a supervisor comment before returning or rejecting this request.
               </p>
             ) : null
           }
@@ -490,14 +493,14 @@ export default function WorkInitiationDetailsView({
           onApprove={() => operationsHodReview("Approve")}
           onReturn={() => operationsHodReview("Return")}
           onReject={() => operationsHodReview("Deny")}
-          rejectLabel="Deny"
+          rejectLabel="Reject"
           disabled={operationsHodReviewMutation.isPending}
           returnDisabled={!operationsHodComment.trim()}
           rejectDisabled={!operationsHodComment.trim()}
           extraFields={
             !operationsHodComment.trim() ? (
               <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Add an Operations HOD comment before returning or denying this request.
+                Add an Operations HOD comment before returning or rejecting this request.
               </p>
             ) : null
           }
@@ -986,7 +989,7 @@ function AssignmentPlanning({
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
   if (request.status === "returned") note = currentRole === "requester" ? "This request was returned. Update and resubmit." : "This request was returned to the requester.";
-  if (request.status === "denied") note = "This work initiation request has been denied and closed.";
+  if (request.status === "denied") note = "This work initiation request has been rejected and closed.";
   if (!note) return null;
   return (
     <div
@@ -1199,7 +1202,7 @@ function showDecisionToast(
   } else if (decision === "Return") {
     toast.warning(`${recordLabel} returned to requester.`);
   } else {
-    toast.error(`${recordLabel} denied by ${actorLabel}.`);
+    toast.error(`${recordLabel} rejected by ${actorLabel}.`);
   }
 }
 

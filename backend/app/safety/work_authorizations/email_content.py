@@ -66,11 +66,11 @@ def on_rejected(ctx: dict) -> dict | None:
     if not request:
         return None
     return {
-        "subject": f"Work Authorization Denied - {request.reference}",
-        "result_heading": "Your Work Authorization Has Been Denied",
-        "action_label": "Denied",
+        "subject": f"Work Authorization Rejected - {request.reference}",
+        "result_heading": "Your Work Authorization Has Been Rejected",
+        "action_label": "Rejected",
         "result_message": (
-            f"Work Authorization {request.reference}: {_title(request)} has been denied."
+            f"Work Authorization {request.reference}: {_title(request)} has been rejected."
         )
     }
 

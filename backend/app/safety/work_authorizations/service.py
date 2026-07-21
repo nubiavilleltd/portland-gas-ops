@@ -812,7 +812,7 @@ def validate_hse_decision(data: WorkAuthorizationHseReviewCreate) -> None:
         if not data.decision_comment:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="HSE comment is required when returning or denying work authorization.",
+                detail="HSE comment is required when returning or rejecting work authorization.",
             )
 
 

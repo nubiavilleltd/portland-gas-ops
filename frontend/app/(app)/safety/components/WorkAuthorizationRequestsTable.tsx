@@ -4,6 +4,7 @@ import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import {
@@ -67,7 +68,9 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => <ApprovalBadge status={String(value)} />,
+    render: (value) => (
+      <ApprovalBadge status={getSafetyDisplayStatus(String(value))} />
+    ),
   },
   {
     key: "nextAction",

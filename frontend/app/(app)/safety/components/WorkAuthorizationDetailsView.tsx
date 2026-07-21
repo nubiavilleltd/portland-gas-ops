@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
@@ -77,7 +78,7 @@ const workAuthorizationRoles: { value: WorkAuthorizationRole; label: string }[] 
 ];
 
 function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
-  if (decision === "Deny") return "denied";
+  if (decision === "Deny") return "rejected";
   return `${decision.toLowerCase()}ed`;
 }
 
@@ -459,7 +460,7 @@ export default function WorkAuthorizationDetailsView({
       } else if (decision === "Return") {
         toast.warning("Work authorization returned to requester.");
       } else {
-        toast.error("Work authorization denied by HSE.");
+        toast.error("Work authorization rejected by HSE.");
       }
       routeBackToWorkAuthorizationRequests(router);
     } catch (error) {
@@ -490,7 +491,9 @@ export default function WorkAuthorizationDetailsView({
         roles={workAuthorizationRoles}
         recordLabel="Work Authorization Details"
         title={request.workInitiation.title}
-        status={<ApprovalBadge status={request.status} />}
+        status={
+          <ApprovalBadge status={getSafetyDisplayStatus(request.status)} />
+        }
         nextActor={getWorkAuthorizationNextActor(request)}
         nextApproverName={request.nextApproverName}
         nextApproverRole={request.nextApproverRole}
@@ -913,7 +916,7 @@ function HseFinalActionSection({
       title="HSE Final Approval"
       description="Record the final safety decision for this work authorization."
       showComment={false}
-      rejectLabel="Deny"
+      rejectLabel="Reject"
       disabled={isPending}
       approveDisabled={disableApprove}
       returnDisabled={reasonMissing || checklistIncomplete}
@@ -935,7 +938,7 @@ function HseFinalActionSection({
           ) : null}
           {reasonMissing ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Add an HSE inspection comment before returning or denying this request.
+              Add an HSE inspection comment before returning or rejecting this request.
             </p>
           ) : null}
         </div>
@@ -1005,7 +1008,7 @@ function StatusNote({
         ? "This request was returned. Review the comments, update the request, and resubmit."
         : "This request has been returned to the requester.";
   } else if (request.status === "denied") {
-    note = "This request has been denied and is closed.";
+    note = "This request has been rejected and is closed.";
   }
 
   if (!note) return null;

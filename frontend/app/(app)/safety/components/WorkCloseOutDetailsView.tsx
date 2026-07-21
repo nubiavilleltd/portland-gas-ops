@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
@@ -468,7 +469,9 @@ export default function WorkCloseOutDetailsView({
         roles={workCloseOutRoles}
         recordLabel="Work Completion & Close-Out"
         title={request.title}
-        status={<ApprovalBadge status={request.status} />}
+        status={
+          <ApprovalBadge status={getSafetyDisplayStatus(request.status)} />
+        }
         nextActor={getWorkCloseOutNextActor(request)}
         nextApproverName={request.nextApproverName}
         nextApproverRole={request.nextApproverRole}
@@ -557,7 +560,7 @@ export default function WorkCloseOutDetailsView({
           title={`Supervisor Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
-              ? "This close-out was not completed as approved or has a remaining hazard. Acknowledge it for audit, return it for correction, or deny it."
+              ? "This close-out was not completed as approved or has a remaining hazard. Acknowledge it for audit, return it for correction, or reject it."
               : "Review the reported completion and record your supervisor decision."
           }
           commentLabel="Supervisor Comment"
@@ -565,7 +568,7 @@ export default function WorkCloseOutDetailsView({
           commentValue={supervisorComment}
           onCommentChange={setSupervisorComment}
           approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
-          rejectLabel="Deny"
+          rejectLabel="Reject"
           disabled={supervisorReview.isPending}
           returnDisabled={!supervisorComment.trim()}
           rejectDisabled={!supervisorComment.trim()}
@@ -577,7 +580,7 @@ export default function WorkCloseOutDetailsView({
               <FormInput label="Supervisor" value={request.workAuthorization.supervisor} disabled />
               {!supervisorComment.trim() ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Add a supervisor comment before returning or denying this close-out.
+                  Add a supervisor comment before returning or rejecting this close-out.
                 </p>
               ) : null}
               {isExceptionCloseOut ? <ExceptionCloseOutNotice /> : null}
@@ -591,7 +594,7 @@ export default function WorkCloseOutDetailsView({
           title={`Operations Head Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
-              ? "Acknowledge the exception close-out for audit and route it to HSE, or return/deny it with comments."
+              ? "Acknowledge the exception close-out for audit and route it to HSE, or return/reject it with comments."
               : "Confirm the completed work is acceptable for final HSE review."
           }
           commentLabel="Operations Head Comment"
@@ -599,7 +602,7 @@ export default function WorkCloseOutDetailsView({
           commentValue={operationsHeadComment}
           onCommentChange={setOperationsHeadComment}
           approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
-          rejectLabel="Deny"
+          rejectLabel="Reject"
           disabled={operationsHeadReview.isPending}
           returnDisabled={!operationsHeadComment.trim()}
           rejectDisabled={!operationsHeadComment.trim()}
@@ -615,7 +618,7 @@ export default function WorkCloseOutDetailsView({
               />
               {!operationsHeadComment.trim() ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Add an Operations Head comment before returning or denying this close-out.
+                  Add an Operations Head comment before returning or rejecting this close-out.
                 </p>
               ) : null}
               {isExceptionCloseOut ? <ExceptionCloseOutNotice /> : null}
@@ -629,7 +632,7 @@ export default function WorkCloseOutDetailsView({
           title={`HSE Final Close-Out ${isExceptionCloseOut ? "Acknowledgement" : "Approval"}`}
           description={
             isExceptionCloseOut
-              ? "Verify the unresolved hazard or approval deviation, preserve the audit record, and decide whether to acknowledge, return, or deny it."
+              ? "Verify the unresolved hazard or approval deviation, preserve the audit record, and decide whether to acknowledge, return, or reject it."
               : "Verify site safety and complete the final close-out decision."
           }
           commentLabel="HSE Comment"
@@ -637,7 +640,7 @@ export default function WorkCloseOutDetailsView({
           commentValue={hseComment}
           onCommentChange={setHseComment}
           approveLabel={isExceptionCloseOut ? "Acknowledge" : "Approve"}
-          rejectLabel="Deny"
+          rejectLabel="Reject"
           disabled={hseReview.isPending}
           approveDisabled={hseChecksIncomplete || (!isExceptionCloseOut && hseApprovalBlocked)}
           returnDisabled={!hseComment.trim() || hseChecksIncomplete}
@@ -666,7 +669,7 @@ export default function WorkCloseOutDetailsView({
               ) : null}
               {!hseComment.trim() ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Add an HSE comment before returning or denying this close-out.
+                  Add an HSE comment before returning or rejecting this close-out.
                 </p>
               ) : null}
               {hseChecksIncomplete ? (
@@ -1343,7 +1346,7 @@ function HseResult({
 function ExceptionCloseOutNotice() {
   return (
     <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-      This is an exception close-out because it was not completed as approved or it has a remaining hazard. It can be acknowledged for audit, returned, or denied, but it cannot be approved as successful.
+      This is an exception close-out because it was not completed as approved or it has a remaining hazard. It can be acknowledged for audit, returned, or rejected, but it cannot be approved as successful.
     </p>
   );
 }
@@ -1363,7 +1366,7 @@ function StatusNote({
         ? "This close-out was returned. Review the comments, update the close-out, and resubmit."
         : "This close-out has been returned to the requester.";
   } else if (request.status === "denied") {
-    note = "This close-out has been denied and is closed.";
+    note = "This close-out has been rejected and is closed.";
   } else if (request.status === "acknowledged") {
     note = "This exception close-out has been acknowledged for audit. It is not counted as a successful close-out.";
   }
@@ -1455,7 +1458,7 @@ function showCloseOutDecisionToast(
   } else if (decision === "Return") {
     toast.warning("Close-out returned to requester.");
   } else {
-    toast.error(`Close-out denied by ${actorLabel}.`);
+    toast.error(`Close-out rejected by ${actorLabel}.`);
   }
 }
 

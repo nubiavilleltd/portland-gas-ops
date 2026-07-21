@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
@@ -421,7 +422,9 @@ export default function IncidentHazardDetailsView({
         roles={incidentHazardRoles}
         recordLabel="Incident / Hazard Report"
         title={report.title}
-        status={<ApprovalBadge status={report.status} />}
+        status={
+          <ApprovalBadge status={getSafetyDisplayStatus(report.status)} />
+        }
         nextActor={getIncidentHazardNextActor(report)}
         nextApproverName={getIncidentHazardNextActorName(report)}
         nextApproverRole={getIncidentHazardNextActorRole(report)}
@@ -769,7 +772,7 @@ function HseReviewAction({
       disabled={isSaving}
       approveDisabled={!canResolveWithoutCorrectiveWork || isSaving}
       rejectDisabled={!canDenyWithoutCorrectiveWork || isSaving}
-      rejectLabel="Deny"
+      rejectLabel="Reject"
       onApprove={() => onDecision("Resolved")}
       onReject={() => onDecision("Not Resolved")}
       extraActions={
@@ -917,7 +920,7 @@ function HseReviewAction({
           ) : null}
           {correctiveActionRequired === "No" && !comment.trim() ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Add an HSE comment before denying this report.
+              Add an HSE comment before rejecting this report.
             </p>
           ) : null}
         </div>

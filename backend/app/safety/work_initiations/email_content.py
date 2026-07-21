@@ -79,11 +79,11 @@ def on_rejected(ctx: dict) -> dict | None:
     if not request:
         return None
     return {
-        "subject": f"Work Initiation Denied - {request.reference}",
-        "result_heading": "Your Work Initiation Has Been Denied",
-        "action_label": "Denied",
+        "subject": f"Work Initiation Rejected - {request.reference}",
+        "result_heading": "Your Work Initiation Has Been Rejected",
+        "action_label": "Rejected",
         "result_message": (
-            f"Work Initiation {request.reference}: {request.title} has been denied."
+            f"Work Initiation {request.reference}: {request.title} has been rejected."
         )
     }
 

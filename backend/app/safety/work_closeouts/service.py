@@ -979,7 +979,7 @@ def validate_supervisor_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
 
@@ -1004,7 +1004,7 @@ def validate_operations_head_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
 
@@ -1026,7 +1026,7 @@ def validate_hse_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
     if data.decision == WorkCloseOutDecision.approve:
@@ -1056,7 +1056,7 @@ def validate_decision_for_closeout_type(
     if is_exception and decision == WorkCloseOutDecision.approve:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Close-outs with a remaining hazard or work not completed as approved cannot be approved. Acknowledge, return, or deny instead.",
+            detail="Close-outs with a remaining hazard or work not completed as approved cannot be approved. Acknowledge, return, or reject instead.",
         )
 
     if not is_exception and decision == WorkCloseOutDecision.acknowledge:
