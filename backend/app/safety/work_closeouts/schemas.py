@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core.schemas import UtcDateTimeModel
 from app.safety.checklists.schemas import ChecklistAnswerCreate
 from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES
 from app.safety.work_closeouts.models import (
@@ -106,7 +107,7 @@ class WorkCloseOutCreate(BaseModel):
 
 
 class WorkCloseOutUpdate(WorkCloseOutCreate):
-    pass
+    retained_completion_evidence_ids: Optional[list[str]] = None
 
 
 class WorkCloseOutDecisionCreate(BaseModel):
@@ -139,7 +140,7 @@ class WorkCloseOutEmployeeSummary(BaseModel):
     job_title: Optional[str] = None
 
 
-class WorkCloseOutAuthorizationSummary(BaseModel):
+class WorkCloseOutAuthorizationSummary(UtcDateTimeModel):
     id: str
     reference: str
     status: str
@@ -159,7 +160,7 @@ class WorkCloseOutAuthorizationSummary(BaseModel):
     hse_approver: Optional[str]
 
 
-class WorkCloseOutReviewResponse(BaseModel):
+class WorkCloseOutReviewResponse(UtcDateTimeModel):
     id: str
     decision: WorkCloseOutDecision
     reviewer_id: Optional[str] = None
@@ -168,7 +169,7 @@ class WorkCloseOutReviewResponse(BaseModel):
     decided_at: Optional[datetime] = None
 
 
-class WorkCloseOutHseReviewResponse(BaseModel):
+class WorkCloseOutHseReviewResponse(UtcDateTimeModel):
     id: str
     inspector_id: Optional[str] = None
     inspector_name: Optional[str] = None
@@ -181,7 +182,7 @@ class WorkCloseOutHseReviewResponse(BaseModel):
     decided_at: Optional[datetime] = None
 
 
-class WorkCloseOutListItem(BaseModel):
+class WorkCloseOutListItem(UtcDateTimeModel):
     id: str
     reference: str
     status: WorkCloseOutStatus
@@ -202,6 +203,8 @@ class WorkCloseOutListItem(BaseModel):
     submitted_at: datetime
     created_at: datetime
     updated_at: datetime
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     @classmethod
     def from_model(cls, closeout):

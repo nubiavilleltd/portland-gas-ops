@@ -145,6 +145,13 @@ export function mapWorkAuthorizationToRequest(
     hseInspection,
     hseApproval,
     auditTrail: buildAuditTrail(item, hseApproval),
+    nextApproverName:
+      item.next_actor_name ??
+      (item.status === "returned" ? item.requester_name : undefined) ??
+      undefined,
+    nextApproverRole:
+      item.current_step_name ??
+      (item.status === "returned" ? "Requester" : undefined),
   };
 }
 
@@ -162,7 +169,10 @@ function mapWorkInitiationSummary(
     reference: item.reference,
     title: item.title,
     status: "approved" as const,
-    workCategory: workCategoryLabels[item.work_category] ?? item.work_category,
+    workCategory:
+      item.work_category === "other" && item.other_work_category
+        ? `Other - ${item.other_work_category}`
+        : workCategoryLabels[item.work_category] ?? item.work_category,
     relatedIncidentHazardId: item.related_incident_report_id ?? "",
     workType: item.work_type,
     location: item.location,
@@ -247,7 +257,13 @@ function buildAuditTrail(
 
   if (hseApproval) {
     auditTrail.push({
-      action: `HSE ${hseApproval.decision === "Approve" ? "Approved" : `${hseApproval.decision}ed`}`,
+      action: `HSE ${
+        hseApproval.decision === "Approve"
+          ? "Approved"
+          : hseApproval.decision === "Deny"
+            ? "Rejected"
+            : `${hseApproval.decision}ed`
+      }`,
       actor: hseApproval.approver,
       role: "HSE Inspector",
       dateTime: hseApproval.dateTime,

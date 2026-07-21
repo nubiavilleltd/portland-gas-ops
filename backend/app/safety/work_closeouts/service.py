@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session, joinedload
 from app.employees.models import Employee
 from app.safety.date_rules import SCHEDULE_DEVIATION_TOLERANCE_MINUTES
 from app.safety.dependencies import get_employee_for_user
-from app.safety.permissions import require_safety_operations_approver
+from app.safety.permissions import (
+    is_safety_hse_employee,
+    require_safety_operations_approver,
+)
 from app.safety.incidents.models import IncidentReportStatus, SafetyIncidentReport
-from app.safety.incidents.service import get_incident_report, send_incident_resolved_emails
+from app.safety.incidents import email_content as incident_email
 from app.safety.checklists.models import (
     SafetyChecklistParentType,
     SafetyChecklistStage,
@@ -52,6 +55,7 @@ from app.shared.models.approval import (
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
 from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.post_commit import queue_after_commit
 from app.shared.services.workflow_engine import WorkflowEngine
 
 
@@ -287,6 +291,12 @@ def update_work_closeout(
         answered_by=requester.id,
     )
 
+    delete_removed_work_closeout_documents(
+        db=db,
+        work_closeout_id=record.id,
+        retained_completion_evidence_ids=data.retained_completion_evidence_ids,
+    )
+
     create_work_closeout_documents(
         db=db,
         work_closeout_id=record.id,
@@ -366,6 +376,58 @@ def validate_work_closeout_create_rules(
         )
 
     validate_work_closeout_schedule(data, authorization)
+
+
+def list_eligible_work_authorizations_for_closeout(
+    db: Session,
+    current_user: User,
+) -> list[SafetyWorkAuthorization]:
+    requester = get_employee_for_user(db, current_user)
+    active_closeout_exists = exists().where(
+        SafetyWorkCloseOut.work_authorization_id == SafetyWorkAuthorization.id,
+        SafetyWorkCloseOut.is_active == True,
+        SafetyWorkCloseOut.status.in_(ACTIVE_WORK_CLOSEOUT_STATUSES),
+    )
+
+    return (
+        db.query(SafetyWorkAuthorization)
+        .options(
+            joinedload(SafetyWorkAuthorization.requester).joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.hse_inspector).joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.requester)
+            .joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.assigned_supervisor)
+            .joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.workers)
+            .joinedload(SafetyWorkInitiationWorker.worker)
+            .joinedload(Employee.user),
+        )
+        .filter(
+            SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.status == WorkAuthorizationStatus.approved,
+            ~active_closeout_exists,
+            or_(
+                SafetyWorkAuthorization.requester_id == requester.id,
+                SafetyWorkAuthorization.work_initiation.has(
+                    or_(
+                        SafetyWorkInitiation.requester_id == requester.id,
+                        SafetyWorkInitiation.assigned_supervisor_id == requester.id,
+                        SafetyWorkInitiation.workers.any(
+                            SafetyWorkInitiationWorker.worker_id == requester.id,
+                        ),
+                    ),
+                ),
+            ),
+        )
+        .order_by(
+            SafetyWorkAuthorization.created_at.desc(),
+            SafetyWorkAuthorization.id.desc(),
+        )
+        .all()
+    )
 
 
 def is_closeout_requester_allowed(
@@ -547,8 +609,11 @@ def list_work_closeouts(
             .joinedload(SafetyWorkInitiation.assigned_supervisor)
             .joinedload(Employee.user),
         )
-        .filter(
-            SafetyWorkCloseOut.is_active == True,
+        .filter(SafetyWorkCloseOut.is_active == True)
+    )
+
+    if not is_safety_hse_employee(employee):
+        query = query.filter(
             or_(
                 SafetyWorkCloseOut.requester_id == employee.id,
                 SafetyWorkCloseOut.work_authorization.has(
@@ -562,9 +627,8 @@ def list_work_closeouts(
                     ),
                 ),
                 current_approval_exists,
-            ),
+            )
         )
-    )
 
     if status_filter:
         query = query.filter(SafetyWorkCloseOut.status == status_filter)
@@ -627,6 +691,8 @@ def can_view_work_closeout(
     record: SafetyWorkCloseOut,
     employee: Employee,
 ) -> bool:
+    if is_safety_hse_employee(employee):
+        return True
     if record.requester_id == employee.id:
         return True
 
@@ -829,10 +895,10 @@ def hse_decision(
         record.id,
     )
     engine = WorkflowEngine(db)
-    resolved_incident_id: Optional[str] = None
+    pending_verification_incident_id: Optional[str] = None
 
     def mark_hse_review() -> None:
-        nonlocal resolved_incident_id
+        nonlocal pending_verification_incident_id
         add_closeout_review(
             db=db,
             record=record,
@@ -847,7 +913,7 @@ def hse_decision(
         )
         record.status = status_after_hse_decision(data.decision)
         if record.status == WorkCloseOutStatus.approved:
-            resolved_incident_id = move_linked_incident_to_hse_verification(
+            pending_verification_incident_id = move_linked_incident_to_hse_verification(
                 db,
                 record,
                 inspector,
@@ -875,9 +941,17 @@ def hse_decision(
             on_rejected=mark_hse_review,
         )
 
+    if pending_verification_incident_id:
+        incident_id = pending_verification_incident_id
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_pending_verification(
+                fresh_db,
+                incident_id,
+            ),
+            description=f"incident verification notifications for {incident_id}",
+        )
     db.commit()
-    if resolved_incident_id:
-        send_incident_resolved_emails(get_incident_report(db, resolved_incident_id))
 
     return get_work_closeout(db, record.id), approval_request_id
 
@@ -905,7 +979,7 @@ def validate_supervisor_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
 
@@ -930,7 +1004,7 @@ def validate_operations_head_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
 
@@ -952,7 +1026,7 @@ def validate_hse_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
     if data.decision == WorkCloseOutDecision.approve:
@@ -982,7 +1056,7 @@ def validate_decision_for_closeout_type(
     if is_exception and decision == WorkCloseOutDecision.approve:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Close-outs with a remaining hazard or work not completed as approved cannot be approved. Acknowledge, return, or deny instead.",
+            detail="Close-outs with a remaining hazard or work not completed as approved cannot be approved. Acknowledge, return, or reject instead.",
         )
 
     if not is_exception and decision == WorkCloseOutDecision.acknowledge:
@@ -1041,7 +1115,7 @@ def add_closeout_review(
         area_safe_for_operations=area_safe_for_operations,
         corrective_action_required=corrective_action_required,
         corrective_action_details=corrective_action_details,
-        decided_at=datetime.utcnow(),
+        decided_at=datetime.now(timezone.utc),
     )
     db.add(review)
     db.flush()
@@ -1128,6 +1202,30 @@ def list_work_closeout_documents(
         .order_by(Document.created_at)
         .all()
     )
+
+
+def delete_removed_work_closeout_documents(
+    db: Session,
+    work_closeout_id: str,
+    retained_completion_evidence_ids: Optional[list[str]],
+) -> None:
+    if retained_completion_evidence_ids is None:
+        return
+
+    retained_ids = {
+        int(attachment_id)
+        for attachment_id in retained_completion_evidence_ids
+        if str(attachment_id).isdigit()
+    }
+    query = db.query(Document).filter(
+        Document.category == work_closeout_document_category(work_closeout_id),
+        Document.type == "file",
+    )
+    if retained_ids:
+        query = query.filter(~Document.id.in_(retained_ids))
+
+    for document in query.all():
+        db.delete(document)
 
 
 def create_work_closeout_documents(

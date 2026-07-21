@@ -86,6 +86,7 @@ export interface LeaveRequest {
   ref: string;
   requestType?: "self" | "others";
   requester?: string;
+  requesterJobTitle?: string;
   employee: string;
   jobTitle?: string;
   type: string;
@@ -96,8 +97,11 @@ export interface LeaveRequest {
   reliever: string;
   reason?: string;
   supportingDocuments?: string[];
-  status: "draft" | "pending" | "approved" | "in_progress" | "denied";
+  status: "draft" | "pending" | "approved" | "in_progress" | "denied" | "returned";
   date: string;
+  requesterId?: string;     // employee UUID of who raised the request
+  nextActor?: string;       // who currently holds the request (pending step assignee)
+  currentStepName?: string; // name of the current pending step
 }
 
 export interface EmployeeRecord {

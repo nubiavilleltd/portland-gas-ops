@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/authStore";
 import { writeMappedRecordToSafetyCaches } from "../query-cache";
 import { incidentReportsApi } from "./api";
 import { mapIncidentReportToHazardReport } from "./mappers";
+import { mapWorkAuthorizationToRequest } from "../workAuthorization/mappers";
 import type {
   IncidentHseReviewCreate,
   IncidentHseVerificationCreate,
@@ -17,6 +18,8 @@ export const incidentReportKeys = {
   list: (params?: IncidentReportListParams) =>
     [...incidentReportKeys.lists(), params ?? {}] as const,
   detail: (id: string) => [...incidentReportKeys.all, "detail", id] as const,
+  eligibleWorkAuthorizations: () =>
+    [...incidentReportKeys.all, "eligible-work-authorizations"] as const,
 };
 
 function shouldRetry(failureCount: number, error: unknown) {
@@ -50,6 +53,21 @@ export function useIncidentReport(id: string) {
       return mapIncidentReportToHazardReport(report);
     },
     enabled: isAuthenticated && Boolean(id),
+    staleTime: 60 * 1000,
+    retry: shouldRetry,
+  });
+}
+
+export function useEligibleWorkAuthorizationsForIncident() {
+  const { isAuthenticated } = useAuthStore();
+
+  return useQuery({
+    queryKey: incidentReportKeys.eligibleWorkAuthorizations(),
+    queryFn: async () => {
+      const authorizations = await incidentReportsApi.eligibleWorkAuthorizations();
+      return authorizations.map(mapWorkAuthorizationToRequest);
+    },
+    enabled: isAuthenticated,
     staleTime: 60 * 1000,
     retry: shouldRetry,
   });

@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core.schemas import UtcDateTimeModel
+from app.safety.date_rules import start_of_minute
 from app.safety.incidents.models import (
     IncidentHseDecision,
     IncidentReportStatus,
@@ -32,7 +34,7 @@ class IncidentReportCreate(BaseModel):
 
     description: str = Field(..., min_length=5, max_length=5000)
 
-    severity_estimate: Optional[IncidentSeverityEstimate] = None
+    severity_estimate: IncidentSeverityEstimate
 
     anyone_injured: bool = False
     property_damaged: bool = False
@@ -58,7 +60,7 @@ class IncidentReportCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_observed_at(self):
-        now = datetime.now(timezone.utc)
+        now = start_of_minute(datetime.now(timezone.utc))
         latest_allowed_observed_at = now - timedelta(minutes=5)
 
         if to_utc(self.observed_at) > latest_allowed_observed_at:
@@ -95,7 +97,9 @@ class IncidentReportUpdate(BaseModel):
         if self.observed_at is None:
             return self
 
-        latest_allowed_observed_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        latest_allowed_observed_at = start_of_minute(
+            datetime.now(timezone.utc),
+        ) - timedelta(minutes=5)
         if to_utc(self.observed_at) > latest_allowed_observed_at:
             raise ValueError("Observed at must be at least 5 minutes in the past.")
         return self
@@ -149,7 +153,7 @@ class IncidentHseReviewCreate(BaseModel):
         return self
 
 
-class IncidentHseReviewResponse(BaseModel):
+class IncidentHseReviewResponse(UtcDateTimeModel):
     id: str
     incident_report_id: str
     inspector_id: str
@@ -192,7 +196,7 @@ class IncidentAttachmentResponse(BaseModel):
     type: str
 
 
-class IncidentReportListItem(BaseModel):
+class IncidentReportListItem(UtcDateTimeModel):
     id: str
     reference: str
     status: IncidentReportStatus
@@ -241,6 +245,7 @@ class IncidentReportListItem(BaseModel):
 
 class IncidentReportResponse(IncidentReportListItem):
     related_work_authorization_id: Optional[str]
+    has_active_work_initiation: bool = False
 
     description: str
 

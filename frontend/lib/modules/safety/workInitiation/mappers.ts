@@ -1,4 +1,5 @@
 import type {
+  WorkAuthorizationAttachment,
   WorkAuthorizationDecision,
   WorkInitiationRequest,
   WorkInitiationReview,
@@ -56,11 +57,19 @@ export function mapWorkInitiationToRequest(
     workDescription: item.work_description,
     reasonForWork: item.reason_for_work,
     workCategory: workCategoryLabels[item.work_category],
+    otherWorkCategory: item.other_work_category || "",
     relatedIncidentHazardId: item.related_incident_report_id || "",
     workType: item.work_type,
     location: item.location,
     exactWorkArea: item.exact_work_area || "",
-    attachments: [],
+    attachments: (item.attachments ?? []).map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      url: attachment.url,
+      type: attachmentType(attachment.type),
+      mimeType: attachment.mime_type ?? undefined,
+      fileSize: attachment.file_size ?? undefined,
+    })),
     assetDetails: {
       assetInvolved: false,
       assetType: "",
@@ -87,7 +96,28 @@ export function mapWorkInitiationToRequest(
     supervisorApproval,
     operationalReview,
     auditTrail: buildAuditTrail(item, supervisorApproval, operationalReview),
+    nextApproverName:
+      item.next_actor_name ??
+      (item.status === "returned"
+        ? item.requester_name
+        : item.status === "submitted"
+          ? item.assigned_supervisor_name
+          : undefined) ??
+      undefined,
+    nextApproverRole:
+      item.current_step_name ??
+      (item.status === "returned"
+        ? "Requester"
+        : item.status === "submitted"
+          ? "Supervisor"
+          : undefined),
   };
+}
+
+function attachmentType(type: string): WorkAuthorizationAttachment["type"] {
+  if (type.startsWith("image")) return "image";
+  if (type.startsWith("video")) return "video";
+  return "document";
 }
 
 function mapReview(review: {
@@ -124,7 +154,9 @@ function buildAuditTrail(
       action:
         supervisorApproval.decision === "Approve"
           ? "Supervisor Approved"
-          : `Supervisor ${supervisorApproval.decision}ed`,
+          : supervisorApproval.decision === "Deny"
+            ? "Supervisor Rejected"
+            : `Supervisor ${supervisorApproval.decision}ed`,
       actor: supervisorApproval.approver,
       role: "Supervisor",
       dateTime: supervisorApproval.dateTime,
@@ -137,7 +169,9 @@ function buildAuditTrail(
       action:
         operationalReview.decision === "Approve"
           ? "Operations HOD Approved"
-          : `Operations HOD ${operationalReview.decision}ed`,
+          : operationalReview.decision === "Deny"
+            ? "Operations HOD Rejected"
+            : `Operations HOD ${operationalReview.decision}ed`,
       actor: operationalReview.reviewer,
       role: "Operations HOD",
       dateTime: operationalReview.dateTime,

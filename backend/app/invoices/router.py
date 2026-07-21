@@ -62,7 +62,7 @@ def list_invoices(
 
 
 @router.post(
-    "/",
+    "",
     response_model=InvoiceResponse,
     status_code=status.HTTP_201_CREATED,
 )

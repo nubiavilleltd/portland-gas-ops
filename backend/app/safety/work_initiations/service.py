@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -11,7 +11,10 @@ from app.employees.models import Employee
 from app.shared.models.reference_counter import ReferenceCounter
 from app.safety.dependencies import get_employee_for_user
 from app.safety.incidents.models import IncidentReportStatus, SafetyIncidentReport
-from app.safety.permissions import require_safety_operations_approver
+from app.safety.permissions import (
+    is_safety_hse_employee,
+    require_safety_operations_approver,
+)
 from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
@@ -25,12 +28,14 @@ from app.safety.work_initiations.schemas import (
     WorkInitiationUpdate,
 )
 from app.shared.models.user import User
+from app.shared.models.document import Document
 from app.shared.models.approval import (
     AllRequest,
     ApprovalOverallStatus,
     ApprovalRequest,
     ApprovalStepAssignment,
 )
+from app.shared.services.cloudinary_service import ResourceType, get_storage_service
 from app.shared.services.workflow_engine import WorkflowEngine
 
 
@@ -38,6 +43,7 @@ logger = logging.getLogger(__name__)
 WORK_INITIATION_REFERENCE_ENTITY = "work_initiation"
 WORK_INITIATION_REFERENCE_PREFIX = "WI"
 WORK_INITIATION_REQUEST_TYPE = "work_initiation"
+WORK_INITIATION_DOCUMENT_CATEGORY_PREFIX = "safety_work_initiation"
 ACTIVE_RELATED_INCIDENT_WORK_STATUSES = (
     WorkInitiationStatus.draft,
     WorkInitiationStatus.submitted,
@@ -45,6 +51,11 @@ ACTIVE_RELATED_INCIDENT_WORK_STATUSES = (
     WorkInitiationStatus.returned,
     WorkInitiationStatus.approved,
 )
+
+
+def work_initiation_document_category(work_initiation_id: str) -> str:
+    return f"{WORK_INITIATION_DOCUMENT_CATEGORY_PREFIX}:{work_initiation_id}"
+
 
 def get_active_workflow_approval_request_id(
     db: Session,
@@ -125,8 +136,10 @@ def create_work_initiation(
     db: Session,
     data: WorkInitiationCreate,
     current_user: User,
+    attachments: Optional[list[tuple[bytes, str, str, int]]] = None,
 ) -> SafetyWorkInitiation:
     requester = get_employee_for_user(db, current_user)
+    attachments = attachments or []
     validate_incident_work_initiation_rules(db, data, requester)
 
     assigned_supervisor = get_employee(
@@ -142,6 +155,7 @@ def create_work_initiation(
         requester_id=requester.id,
         title=data.title,
         work_category=data.work_category,
+        other_work_category=data.other_work_category,
         related_incident_report_id=data.related_incident_report_id,
         work_type=", ".join(data.work_type),
         location=data.location,
@@ -171,6 +185,14 @@ def create_work_initiation(
                 worker_id=worker.id,
             )
         )
+
+    create_work_initiation_documents(
+        db=db,
+        work_initiation_id=record.id,
+        files=attachments,
+        uploaded_by=requester.id,
+    )
+
     start_work_initiation_workflow(
     db=db,
     record=record,
@@ -187,9 +209,11 @@ def update_work_initiation(
     work_initiation_id: str,
     data: WorkInitiationUpdate,
     current_user: User,
+    attachments: Optional[list[tuple[bytes, str, str, int]]] = None,
 ) -> SafetyWorkInitiation:
     record = get_work_initiation(db, work_initiation_id)
     requester = get_employee_for_user(db, current_user)
+    attachments = attachments or []
 
     if record.requester_id != requester.id:
         raise HTTPException(
@@ -220,6 +244,7 @@ def update_work_initiation(
     record.status = WorkInitiationStatus.submitted
     record.title = data.title
     record.work_category = data.work_category
+    record.other_work_category = data.other_work_category
     record.related_incident_report_id = data.related_incident_report_id
     record.work_type = ", ".join(data.work_type)
     record.location = data.location
@@ -257,6 +282,19 @@ def update_work_initiation(
                 worker_id=worker.id,
             )
         )
+
+    delete_removed_work_initiation_documents(
+        db=db,
+        work_initiation_id=record.id,
+        retained_attachment_ids=data.retained_attachment_ids,
+    )
+
+    create_work_initiation_documents(
+        db=db,
+        work_initiation_id=record.id,
+        files=attachments,
+        uploaded_by=requester.id,
+    )
 
     start_work_initiation_workflow(
     db=db,
@@ -320,7 +358,7 @@ def supervisor_review_work_initiation(
         record.supervisor_decision = data.decision
         record.supervisor_id = reviewer.id
         record.supervisor_comment = data.comment
-        record.supervisor_decided_at = datetime.utcnow()
+        record.supervisor_decided_at = datetime.now(timezone.utc)
 
         if data.decision == WorkInitiationDecision.approve:
             record.status = WorkInitiationStatus.pending
@@ -393,7 +431,7 @@ def operations_hod_review_work_initiation(
         record.operations_hod_decision = data.decision
         record.operations_hod_id = reviewer.id
         record.operations_hod_comment = data.comment
-        record.operations_hod_decided_at = datetime.utcnow()
+        record.operations_hod_decided_at = datetime.now(timezone.utc)
 
         if data.decision == WorkInitiationDecision.approve:
             record.status = WorkInitiationStatus.approved
@@ -436,7 +474,7 @@ def require_comment_for_negative_decision(data: WorkInitiationReviewCreate) -> N
         if not data.comment:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Comment is required when returning or denying a work initiation.",
+                detail="Comment is required when returning or rejecting a work initiation.",
             )
 
 
@@ -505,6 +543,50 @@ def validate_incident_work_initiation_rules(
                 "existing_work_initiation_reference": existing_record.reference,
             },
         )
+
+
+def list_eligible_incidents_for_work_initiation(
+    db: Session,
+    current_user: User,
+) -> list[SafetyIncidentReport]:
+    requester = get_employee_for_user(db, current_user)
+    active_work_initiation_exists = exists().where(
+        SafetyWorkInitiation.related_incident_report_id == SafetyIncidentReport.id,
+        SafetyWorkInitiation.is_active == True,
+        SafetyWorkInitiation.status.in_(ACTIVE_RELATED_INCIDENT_WORK_STATUSES),
+    )
+
+    incidents = (
+        db.query(SafetyIncidentReport)
+        .options(
+            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review),
+        )
+        .filter(
+            SafetyIncidentReport.is_active == True,
+            SafetyIncidentReport.status == IncidentReportStatus.recommended,
+            ~active_work_initiation_exists,
+        )
+        .order_by(
+            SafetyIncidentReport.reported_at.desc(),
+            SafetyIncidentReport.id.desc(),
+        )
+        .all()
+    )
+
+    return [
+        incident
+        for incident in incidents
+        if incident.hse_review
+        and incident.hse_review.action_owner_id
+        and incident.hse_review.assigned_department
+        and is_incident_work_requester_allowed(
+            requester,
+            incident.hse_review.action_owner_id,
+            incident.hse_review.assigned_department,
+        )
+    ]
+
 
 def get_related_incident(db: Session, incident_id: str) -> SafetyIncidentReport:
     incident = (
@@ -614,8 +696,11 @@ def list_work_initiations(
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(
-            SafetyWorkInitiation.is_active == True,
+        .filter(SafetyWorkInitiation.is_active == True)
+    )
+
+    if not is_safety_hse_employee(employee):
+        query = query.filter(
             or_(
                 SafetyWorkInitiation.requester_id == employee.id,
                 SafetyWorkInitiation.assigned_supervisor_id == employee.id,
@@ -623,9 +708,8 @@ def list_work_initiations(
                     SafetyWorkInitiationWorker.worker_id == employee.id,
                 ),
                 current_approval_exists,
-            ),
+            )
         )
-    )
 
     if status_filter:
         query = query.filter(SafetyWorkInitiation.status == status_filter)
@@ -686,6 +770,8 @@ def can_view_work_initiation(
     record: SafetyWorkInitiation,
     employee: Employee,
 ) -> bool:
+    if is_safety_hse_employee(employee):
+        return True
     if record.requester_id == employee.id:
         return True
     if record.assigned_supervisor_id == employee.id:
@@ -743,4 +829,84 @@ def get_work_initiation(db: Session, work_initiation_id: str) -> SafetyWorkIniti
             detail="Work initiation not found.",
         )
 
+    record.attachments = list_work_initiation_documents(db, record.id)
+
     return record
+
+
+def list_work_initiation_documents(
+    db: Session,
+    work_initiation_id: str,
+) -> list[Document]:
+    return (
+        db.query(Document)
+        .filter(
+            Document.category == work_initiation_document_category(work_initiation_id),
+            Document.type == "file",
+        )
+        .order_by(Document.created_at)
+        .all()
+    )
+
+
+def delete_removed_work_initiation_documents(
+    db: Session,
+    work_initiation_id: str,
+    retained_attachment_ids: Optional[list[str]],
+) -> None:
+    if retained_attachment_ids is None:
+        return
+
+    retained_ids = {
+        int(attachment_id)
+        for attachment_id in retained_attachment_ids
+        if str(attachment_id).isdigit()
+    }
+    query = db.query(Document).filter(
+        Document.category == work_initiation_document_category(work_initiation_id),
+        Document.type == "file",
+    )
+    if retained_ids:
+        query = query.filter(~Document.id.in_(retained_ids))
+
+    for document in query.all():
+        db.delete(document)
+
+
+def create_work_initiation_documents(
+    db: Session,
+    work_initiation_id: str,
+    files: list[tuple[bytes, str, str, int]],
+    uploaded_by: Optional[str],
+) -> list[Document]:
+    if not files:
+        return []
+
+    storage = get_storage_service()
+    documents: list[Document] = []
+    category = work_initiation_document_category(work_initiation_id)
+    folder = f"safety/work-initiations/{work_initiation_id}/requester"
+
+    for file_bytes, filename, mime_type, file_size in files:
+        result = storage.upload(
+            file_bytes=file_bytes,
+            filename=filename,
+            folder=folder,
+            resource_type=ResourceType.AUTO,
+            overwrite=False,
+        )
+        document = Document(
+            type="file",
+            name=filename,
+            category=category,
+            file_path=result.url,
+            file_size=result.file_size or file_size,
+            mime_type=mime_type,
+            uploaded_by=uploaded_by,
+            parent_id=None,
+        )
+        db.add(document)
+        documents.append(document)
+
+    db.flush()
+    return documents

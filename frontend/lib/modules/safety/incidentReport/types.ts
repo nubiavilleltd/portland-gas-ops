@@ -114,6 +114,7 @@ export interface IncidentReportListItem {
 
 export interface IncidentReportResponse extends IncidentReportListItem {
   related_work_authorization_id?: string | null;
+  has_active_work_initiation: boolean;
   description: string;
   immediate_action_taken?: string | null;
   people_involved?: string | null;

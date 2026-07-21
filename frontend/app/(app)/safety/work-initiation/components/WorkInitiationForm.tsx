@@ -4,32 +4,28 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
+import { toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
-import {
-  useIncidentReport,
-  useIncidentReports,
-} from "@/lib/modules/safety/incidentReport";
 import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import {
-  getSafetyEmployeeRequester,
   useSafetyActors,
-  useSafetyCurrentEmployee,
   useSafetyDepartments,
 } from "@/lib/modules/safety/people";
 import {
   getDateTimeAfter,
   getEarliestPlannedStartDateTime,
+  isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
+  startOfMinute,
 } from "@/lib/modules/safety/date-rules";
 import {
   useCreateWorkInitiation,
+  useEligibleIncidentsForWorkInitiation,
   type WorkInitiationCategory,
   type WorkInitiationCreate,
 } from "@/lib/modules/safety/workInitiation";
@@ -129,6 +125,7 @@ const contractorOptions = toOptions([
 type WorkInitiationValidationField =
   | "title"
   | "workCategory"
+  | "otherWorkCategory"
   | "relatedIncidentId"
   | "workTypes"
   | "locations"
@@ -145,6 +142,7 @@ type WorkInitiationValidationField =
 const workInitiationFieldOrder: WorkInitiationValidationField[] = [
   "title",
   "workCategory",
+  "otherWorkCategory",
   "relatedIncidentId",
   "workTypes",
   "locations",
@@ -177,6 +175,7 @@ export default function WorkInitiationForm() {
   const [workCategory, setWorkCategory] = useState(
     isIncidentLinkedFromQuery ? "Incident/Hazard" : "",
   );
+  const [otherWorkCategory, setOtherWorkCategory] = useState("");
   const [workTypes, setWorkTypes] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [relatedIncidentId, setRelatedIncidentId] = useState(
@@ -200,6 +199,7 @@ export default function WorkInitiationForm() {
   const [materialsRequired, setMaterialsRequired] = useState("");
   const titleRef = useRef<HTMLInputElement | null>(null);
   const workCategoryRef = useRef<HTMLInputElement | null>(null);
+  const otherWorkCategoryRef = useRef<HTMLInputElement | null>(null);
   const relatedIncidentIdRef = useRef<HTMLInputElement | null>(null);
   const workTypesRef = useRef<HTMLInputElement | null>(null);
   const locationsRef = useRef<HTMLInputElement | null>(null);
@@ -213,17 +213,7 @@ export default function WorkInitiationForm() {
   const plannedStartDateTimeRef = useRef<HTMLInputElement | null>(null);
   const plannedEndDateTimeRef = useRef<HTMLInputElement | null>(null);
 
-  const currentEmployee = useSafetyCurrentEmployee();
-  const requester = getSafetyEmployeeRequester(
-    currentEmployee.data,
-    formatLocalDate(),
-  );
-
-  const recommendedIncidentsQuery = useIncidentReports({
-    status: "recommended",
-  });
-
-  const linkedIncidentQuery = useIncidentReport(incidentIdFromQuery ?? "");
+  const recommendedIncidentsQuery = useEligibleIncidentsForWorkInitiation();
   const departmentsQuery = useSafetyDepartments();
   const departmentTeamOptions = useMemo(
     () =>
@@ -248,11 +238,7 @@ export default function WorkInitiationForm() {
 
   const recommendedIncidents = recommendedIncidentsQuery.data ?? [];
 
-  const incidentOptionsSource = mergeUniqueIncidents(
-    linkedIncidentQuery.data
-      ? [linkedIncidentQuery.data, ...recommendedIncidents]
-      : recommendedIncidents,
-  );
+  const incidentOptionsSource = mergeUniqueIncidents(recommendedIncidents);
 
   const incidentHazardRequestOptions = incidentOptionsSource
     .filter((report) => isActionRecommendedIncident(report))
@@ -264,9 +250,9 @@ export default function WorkInitiationForm() {
       description: `${report.reporter.name} | ${report.reporter.reportDate}`,
     }));
 
-  const selectedIncident =
-    linkedIncidentQuery.data ??
-    incidentOptionsSource.find((report) => report.id === relatedIncidentId);
+  const selectedIncident = incidentOptionsSource.find(
+    (report) => report.id === relatedIncidentId,
+  );
 
   const workTypeOptions = toOptions(
     workCategory ? workTypeOptionsByCategory[workCategory] ?? [] : [],
@@ -276,7 +262,12 @@ export default function WorkInitiationForm() {
     setWorkCategory(nextCategory);
     setWorkTypes([]);
     clearValidationError("workCategory", setValidationErrors);
+    clearValidationError("otherWorkCategory", setValidationErrors);
     clearValidationError("workTypes", setValidationErrors);
+
+    if (nextCategory !== "Other") {
+      setOtherWorkCategory("");
+    }
 
     if (nextCategory !== "Incident/Hazard") {
       setRelatedIncidentId("");
@@ -307,6 +298,7 @@ export default function WorkInitiationForm() {
     const nextValidationErrors = validateWorkInitiationForm({
       title,
       workCategory,
+      otherWorkCategory,
       relatedIncidentId,
       workTypes,
       locations,
@@ -320,6 +312,14 @@ export default function WorkInitiationForm() {
       plannedStartDateTime,
       plannedEndDateTime,
     });
+    if (
+      workCategory === "Incident/Hazard" &&
+      relatedIncidentId &&
+      !selectedIncident
+    ) {
+      nextValidationErrors.relatedIncidentId =
+        "Select an eligible incident/hazard request.";
+    }
     setValidationErrors(nextValidationErrors);
 
     const firstInvalidField = getFirstInvalidField(
@@ -331,6 +331,7 @@ export default function WorkInitiationForm() {
         getWorkInitiationFieldRef(firstInvalidField, {
           titleRef,
           workCategoryRef,
+          otherWorkCategoryRef,
           relatedIncidentIdRef,
           workTypesRef,
           locationsRef,
@@ -351,6 +352,8 @@ export default function WorkInitiationForm() {
     const payload: WorkInitiationCreate = {
       title,
       work_category: toWorkInitiationCategory(workCategory),
+      other_work_category:
+        workCategory === "Other" ? emptyToNull(otherWorkCategory) : null,
       related_incident_report_id: emptyToNull(relatedIncidentId),
       work_type: workTypes,
       location: locations.join(", "),
@@ -375,7 +378,10 @@ export default function WorkInitiationForm() {
     try {
       setIsSubmitting(true);
 
-      await createWorkInitiation.mutateAsync(payload);
+      await createWorkInitiation.mutateAsync({
+        payload,
+        attachments: files,
+      });
 
       toast.success("Work initiation request submitted successfully.");
 
@@ -402,22 +408,6 @@ export default function WorkInitiationForm() {
       />
 
       <FormSection
-        title="Requester Details"
-        description="Your employee information for this work initiation request."
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={requester.name} disabled />
-          <FormInput label="Department" value={requester.department} disabled />
-          <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker
-            label="Request Date"
-            value={requester.requestDate}
-            disabled
-          />
-        </div>
-      </FormSection>
-
-      <FormSection
         title="Work Details"
         description="Define the work needed, its purpose, and where it will happen."
       >
@@ -426,16 +416,16 @@ export default function WorkInitiationForm() {
             <IncidentContextCard incident={selectedIncident} />
           ) : null}
 
-          {linkedIncidentQuery.isLoading && isIncidentLinkedFromQuery ? (
+          {recommendedIncidentsQuery.isLoading && isIncidentLinkedFromQuery ? (
             <div className="rounded-lg border border-brand-border bg-gray-50 px-4 py-3 text-sm text-brand-text-secondary md:col-span-2">
               Loading linked incident details...
             </div>
           ) : null}
 
-          {linkedIncidentQuery.isError && isIncidentLinkedFromQuery ? (
+          {recommendedIncidentsQuery.isError && isIncidentLinkedFromQuery ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
-              Could not load the linked incident report context. The incident
-              link from the URL is still attached to this request.
+              Could not load eligible incident report context. Please select an
+              eligible incident manually.
             </div>
           ) : null}
 
@@ -463,6 +453,22 @@ export default function WorkInitiationForm() {
             onValueChange={handleWorkCategoryChange}
             disabled={isIncidentLinkedFromQuery}
           />
+
+          {workCategory === "Other" ? (
+            <FormInput
+              ref={otherWorkCategoryRef}
+              label="Specify Work Category"
+              required
+              maxLength={255}
+              placeholder="Enter the work category"
+              value={otherWorkCategory}
+              error={validationErrors.otherWorkCategory}
+              onChange={(event) => {
+                setOtherWorkCategory(event.target.value);
+                clearValidationError("otherWorkCategory", setValidationErrors);
+              }}
+            />
+          ) : null}
 
           {workCategory === "Incident/Hazard" ? (
             <>
@@ -712,6 +718,17 @@ export default function WorkInitiationForm() {
             error={validationErrors.plannedStartDateTime}
             onValueChange={(value) => {
               setPlannedStartDateTime(value);
+              const minimumEnd = getDateTimeAfter(
+                value,
+                MIN_SCHEDULE_DURATION_MINUTES,
+              );
+              if (
+                plannedEndDateTime &&
+                isDateTimeBefore(plannedEndDateTime, minimumEnd)
+              ) {
+                setPlannedEndDateTime("");
+                clearValidationError("plannedEndDateTime", setValidationErrors);
+              }
               clearValidationError("plannedStartDateTime", setValidationErrors);
             }}
           />
@@ -720,11 +737,16 @@ export default function WorkInitiationForm() {
             ref={plannedEndDateTimeRef}
             label="Planned End Date/Time"
             required
-            min={
+            disabled={!plannedStartDateTime}
+            placeholder={
               plannedStartDateTime
-                ? getDateTimeAfter(plannedStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
-                : getEarliestPlannedStartDateTime()
+                ? "Select date and time"
+                : "Select planned start date/time first"
             }
+            min={getDateTimeAfter(
+              plannedStartDateTime,
+              MIN_SCHEDULE_DURATION_MINUTES,
+            )}
             value={plannedEndDateTime}
             error={validationErrors.plannedEndDateTime}
             onValueChange={(value) => {
@@ -821,6 +843,7 @@ function IncidentContextCard({ incident }: { incident: IncidentHazardReport }) {
 function validateWorkInitiationForm({
   title,
   workCategory,
+  otherWorkCategory,
   relatedIncidentId,
   workTypes,
   locations,
@@ -836,6 +859,7 @@ function validateWorkInitiationForm({
 }: {
   title: string;
   workCategory: string;
+  otherWorkCategory: string;
   relatedIncidentId: string;
   workTypes: string[];
   locations: string[];
@@ -853,6 +877,9 @@ function validateWorkInitiationForm({
 
   if (title.trim().length < 3) errors.title = "Enter a work title.";
   if (!workCategory) errors.workCategory = "Select work category.";
+  if (workCategory === "Other" && !otherWorkCategory.trim()) {
+    errors.otherWorkCategory = "Specify the work category.";
+  }
 
   if (workCategory === "Incident/Hazard" && !relatedIncidentId) {
     errors.relatedIncidentId = "Select the related incident/hazard request.";
@@ -861,7 +888,7 @@ function validateWorkInitiationForm({
   if (workTypes.length === 0) errors.workTypes = "Select at least one work type.";
   if (locations.length === 0) errors.locations = "Select at least one location.";
   if (workDescription.trim().length < 5) {
-    errors.workDescription = "Describe the work to be done.";
+    errors.workDescription = "Work description must be at least 5 characters.";
   }
   if (reasonForWork.trim().length < 3) {
     errors.reasonForWork = "Enter the reason for work.";
@@ -886,7 +913,7 @@ function validateWorkInitiationForm({
     errors.plannedEndDateTime = "Select planned end date/time.";
   }
 
-  const now = new Date();
+  const now = startOfMinute(new Date());
   const minimumStartTime = new Date(now.getTime() + 10 * 60 * 1000);
 
   const plannedStart = new Date(plannedStartDateTime);

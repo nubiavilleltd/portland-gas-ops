@@ -56,7 +56,9 @@ export interface WorkCloseOutCreate {
   area_condition_checklist_answers: WorkCloseOutChecklistAnswerCreate[];
 }
 
-export type WorkCloseOutUpdate = WorkCloseOutCreate;
+export interface WorkCloseOutUpdate extends WorkCloseOutCreate {
+  retained_completion_evidence_ids?: string[] | null;
+}
 
 export interface WorkCloseOutDecisionCreate {
   decision: WorkCloseOutDecision;
@@ -133,6 +135,8 @@ export interface WorkCloseOutListItem {
   submitted_at: string;
   created_at: string;
   updated_at: string;
+  next_actor_name?: string | null;
+  current_step_name?: string | null;
 }
 
 export interface WorkCloseOutResponse extends WorkCloseOutListItem {

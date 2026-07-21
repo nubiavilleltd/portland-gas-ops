@@ -45,7 +45,9 @@ export interface WorkAuthorizationCreate {
 export type WorkAuthorizationUpdate = Omit<
   WorkAuthorizationCreate,
   "work_initiation_id"
->;
+> & {
+  retained_attachment_ids?: string[] | null;
+};
 
 export interface WorkAuthorizationHseReviewCreate {
   work_area_safe: WorkAuthorizationInspectionCheck;
@@ -74,6 +76,7 @@ export interface WorkAuthorizationWorkInitiationSummary {
   title: string;
   status: string;
   work_category: string;
+  other_work_category?: string | null;
   related_incident_report_id?: string | null;
   work_type: string[];
   location: string;
@@ -124,6 +127,8 @@ export interface WorkAuthorizationListItem {
   requested_at: string;
   created_at: string;
   updated_at: string;
+  next_actor_name?: string | null;
+  current_step_name?: string | null;
 }
 
 export interface WorkAuthorizationResponse extends WorkAuthorizationListItem {

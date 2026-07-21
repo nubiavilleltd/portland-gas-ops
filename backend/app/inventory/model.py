@@ -315,10 +315,6 @@ class StockMovementItem(Base):
 
 
 class OrderItemInventory(Base):
-    """
-    Links specific tracked assets to an order line.
-    """
-
     __tablename__ = "order_item_inventory"
 
     __table_args__ = (
@@ -342,3 +338,10 @@ class OrderItemInventory(Base):
         ForeignKey("inventory_items.id", ondelete="RESTRICT"),
         nullable=False,
     )
+
+    order_item = relationship(
+        "OrderItem",
+        back_populates="inventory_assignments",
+    )
+    inventory_item = relationship("InventoryItem")
+

@@ -91,6 +91,8 @@ export interface MyRequest {
   status: string;
   department: string | null;
   approval_request_id: string | null;
+  next_approver_name: string | null;
+  next_approver_role: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -108,6 +110,7 @@ export interface MyApproval {
   request_id:          string;
   reference:           string | null;
   title:               string | null;
+  requester_name:      string | null;
   department:          string | null;
   current_step_number: number;
   total_steps:         number;
@@ -120,6 +123,7 @@ export function useMyApprovals() {
   return useQuery<MyApproval[]>({
     queryKey: ["my-approvals"],
     queryFn:  () => get<MyApproval[]>("/api/workflow/my-approvals"),
+    staleTime: 30 * 1000,
   });
 }
 

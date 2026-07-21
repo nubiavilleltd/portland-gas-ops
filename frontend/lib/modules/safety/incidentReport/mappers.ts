@@ -71,6 +71,7 @@ export function mapIncidentReportToHazardReport(
     location: report.location,
     dateTimeObserved: formatFriendlyDateTime(report.observed_at),
     relatedWorkAuthorization: report.related_work_authorization_id ?? "",
+    hasActiveWorkInitiation: report.has_active_work_initiation,
     description: report.description,
     severityEstimate: report.severity_estimate
       ? severityLabels[report.severity_estimate]

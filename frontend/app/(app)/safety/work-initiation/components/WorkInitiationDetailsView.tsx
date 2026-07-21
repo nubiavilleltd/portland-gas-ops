@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
@@ -35,14 +37,16 @@ import {
 import {
   getDateTimeAfter,
   getEarliestPlannedStartDateTime,
+  isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
+  startOfMinute,
 } from "@/lib/modules/safety/date-rules";
 import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
-import { useAuditTrail } from "@/lib/modules/workflow/queries";
+import { useAuditTrail, useMyApprovals } from "@/lib/modules/workflow/queries";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
+import SafetyAttachmentList from "../../components/SafetyAttachmentList";
 import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
 import type {
-  WorkAuthorizationAttachment,
   WorkAuthorizationDecision,
   WorkInitiationRequest,
   WorkInitiationRole,
@@ -129,9 +133,10 @@ const yesNoOptions = toOptions(["Yes", "No"]);
 type WorkInitiationEditValues = {
   title: string;
   workCategory: string;
+  otherWorkCategory: string;
   relatedIncidentHazardId: string;
   workType: string[];
-  location: string;
+  locations: string[];
   exactWorkArea: string;
   workDescription: string;
   reasonForWork: string;
@@ -164,6 +169,7 @@ export default function WorkInitiationDetailsView({
   const operationsHodReviewMutation = useOperationsHodReviewWorkInitiation();
   const updateWorkInitiationMutation = useUpdateWorkInitiation(requestId);
   const auditTrailQuery = useAuditTrail("work_initiation", requestId);
+  const myApprovalsQuery = useMyApprovals();
   const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
   const request = requestQuery.data;
   const currentEmployeeQuery = useSafetyCurrentEmployee();
@@ -186,6 +192,9 @@ export default function WorkInitiationDetailsView({
     }));
   const [supervisorComment, setSupervisorComment] = useState("");
   const [operationsHodComment, setOperationsHodComment] = useState("");
+  const [requesterAttachments, setRequesterAttachments] = useState<File[]>([]);
+  const [retainedRequesterAttachmentIds, setRetainedRequesterAttachmentIds] =
+    useState<string[]>([]);
   const departmentsQuery = useSafetyDepartments();
   const departmentOptions = useMemo(
     () =>
@@ -210,7 +219,23 @@ export default function WorkInitiationDetailsView({
     [departmentEmployeesQuery.data],
   );
 
-  if (requestQuery.isLoading || currentEmployeeQuery.isLoading) {
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!request) return;
+    setRequesterAttachments([]);
+    setRetainedRequesterAttachmentIds(
+      request.attachments
+        .map((attachment) => attachment.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+  }, [request?.id, request?.attachments]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+
+  if (
+    requestQuery.isLoading ||
+    currentEmployeeQuery.isLoading ||
+    myApprovalsQuery.isLoading
+  ) {
     return <SafetyProcessFormSkeleton sections={4} />;
   }
 
@@ -234,6 +259,11 @@ export default function WorkInitiationDetailsView({
       request.assignment.assignedSupervisorId === currentEmployee.id,
   );
   const isOperationsHod = isOperationsHodEmployee(currentEmployee);
+  const isAssignedWorkflowApprover = (myApprovalsQuery.data ?? []).some(
+    (approval) =>
+      approval.request_type === "work_initiation" &&
+      approval.request_id === requestId,
+  );
   const hasDirectWorkInitiationAccess =
     isRequester || isAssignedSupervisor || isOperationsHod;
   const currentRole = getWorkInitiationAccessRole({
@@ -244,9 +274,14 @@ export default function WorkInitiationDetailsView({
 
   const canRequesterEdit =
     isRequester && (request.status === "draft" || request.status === "returned");
-  const canSupervisorReview = isAssignedSupervisor && request.status === "submitted";
+  const canSupervisorReview =
+    isAssignedSupervisor &&
+    isAssignedWorkflowApprover &&
+    request.status === "submitted";
   const canOperationsHodReview =
-    isOperationsHod && request.status === "pending";
+    isOperationsHod &&
+    isAssignedWorkflowApprover &&
+    request.status === "pending";
 
   function setEditValues(
     action: React.SetStateAction<WorkInitiationEditValues | null>,
@@ -281,7 +316,13 @@ export default function WorkInitiationDetailsView({
 
     try {
       await updateWorkInitiationMutation.mutateAsync(
-        buildWorkInitiationUpdatePayload(editValues),
+        {
+          payload: {
+            ...buildWorkInitiationUpdatePayload(editValues),
+            retained_attachment_ids: retainedRequesterAttachmentIds,
+          },
+          attachments: requesterAttachments,
+        },
       );
       toast.success("Work initiation submitted.");
       routeBackToWorkInitiationRequests(router);
@@ -295,7 +336,7 @@ export default function WorkInitiationDetailsView({
     if (!request) return;
     if (supervisorReviewMutation.isPending) return;
     if ((decision === "Return" || decision === "Deny") && !supervisorComment.trim()) {
-      toast.error("Add a supervisor comment before returning or denying.");
+      toast.error("Add a supervisor comment before returning or rejecting.");
       return;
     }
 
@@ -320,7 +361,7 @@ export default function WorkInitiationDetailsView({
     if (!request) return;
     if (operationsHodReviewMutation.isPending) return;
     if ((decision === "Return" || decision === "Deny") && !operationsHodComment.trim()) {
-      toast.error("Add an Operations HOD comment before returning or denying.");
+      toast.error("Add an Operations HOD comment before returning or rejecting.");
       return;
     }
 
@@ -370,8 +411,12 @@ export default function WorkInitiationDetailsView({
         roles={workInitiationRoles}
         recordLabel="Work Initiation"
         title={request.title}
-        status={<ApprovalBadge status={request.status} />}
+        status={
+          <ApprovalBadge status={getSafetyDisplayStatus(request.status)} />
+        }
         nextActor={getWorkInitiationNextActor(request)}
+        nextApproverName={request.nextApproverName}
+        nextApproverRole={request.nextApproverRole}
         showRoleSwitcher={false}
       />
 
@@ -383,6 +428,10 @@ export default function WorkInitiationDetailsView({
         values={editValues ?? buildInitialEditValues(request)}
         onValuesChange={setEditValues}
         incidentHazardRequestOptions={incidentHazardRequestOptions}
+        retainedAttachmentIds={retainedRequesterAttachmentIds}
+        onRetainedAttachmentIdsChange={setRetainedRequesterAttachmentIds}
+        newAttachments={requesterAttachments}
+        onNewAttachmentsChange={setRequesterAttachments}
       />
       {/* <AssetDetails request={request} editable={canRequesterEdit} /> */}
       <AssignmentPlanning
@@ -419,25 +468,17 @@ export default function WorkInitiationDetailsView({
           onApprove={() => supervisorReview("Approve")}
           onReturn={() => supervisorReview("Return")}
           onReject={() => supervisorReview("Deny")}
-          rejectLabel="Deny"
+          rejectLabel="Reject"
           disabled={supervisorReviewMutation.isPending}
           returnDisabled={!supervisorComment.trim()}
           rejectDisabled={!supervisorComment.trim()}
           extraFields={
             !supervisorComment.trim() ? (
               <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Add a supervisor comment before returning or denying this request.
+                Add a supervisor comment before returning or rejecting this request.
               </p>
             ) : null
           }
-        />
-      ) : request.supervisorApproval ? (
-        <ApprovalResult
-          title="Supervisor Review Result"
-          approver={request.supervisorApproval.approver}
-          decision={request.supervisorApproval.decision}
-          dateTime={request.supervisorApproval.dateTime}
-          comment={request.supervisorApproval.comment}
         />
       ) : null}
 
@@ -452,20 +493,18 @@ export default function WorkInitiationDetailsView({
           onApprove={() => operationsHodReview("Approve")}
           onReturn={() => operationsHodReview("Return")}
           onReject={() => operationsHodReview("Deny")}
-          rejectLabel="Deny"
+          rejectLabel="Reject"
           disabled={operationsHodReviewMutation.isPending}
           returnDisabled={!operationsHodComment.trim()}
           rejectDisabled={!operationsHodComment.trim()}
           extraFields={
             !operationsHodComment.trim() ? (
               <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Add an Operations HOD comment before returning or denying this request.
+                Add an Operations HOD comment before returning or rejecting this request.
               </p>
             ) : null
           }
         />
-      ) : request.operationalReview ? (
-        <ReviewResult request={request} />
       ) : null}
 
       {request.status !== "draft" ? <AuditTrail items={workflowAuditTrail} /> : null}
@@ -492,6 +531,10 @@ function WorkDetails({
   values,
   onValuesChange,
   incidentHazardRequestOptions,
+  retainedAttachmentIds,
+  onRetainedAttachmentIdsChange,
+  newAttachments,
+  onNewAttachmentsChange,
 }: {
   request: WorkInitiationRequest;
   editable: boolean;
@@ -500,10 +543,20 @@ function WorkDetails({
     React.SetStateAction<WorkInitiationEditValues | null>
   >;
   incidentHazardRequestOptions: { value: string; label: string }[];
+  retainedAttachmentIds: string[];
+  onRetainedAttachmentIdsChange: (ids: string[]) => void;
+  newAttachments: File[];
+  onNewAttachmentsChange: (files: File[]) => void;
 }) {
   const workTypeOptions = toOptions(
     values.workCategory ? workTypeOptionsByCategory[values.workCategory] ?? [] : [],
   );
+  const visibleAttachments = editable
+    ? request.attachments.filter(
+        (attachment) =>
+          !attachment.id || retainedAttachmentIds.includes(attachment.id),
+      )
+    : request.attachments;
 
   function handleWorkCategoryChange(nextCategory: string) {
     onValuesChange((current) =>
@@ -511,6 +564,8 @@ function WorkDetails({
         ? {
             ...current,
             workCategory: nextCategory,
+            otherWorkCategory:
+              nextCategory === "Other" ? current.otherWorkCategory : "",
             relatedIncidentHazardId:
               nextCategory === "Incident/Hazard"
                 ? current.relatedIncidentHazardId
@@ -543,8 +598,28 @@ function WorkDetails({
             placeholder="Select work category"
           />
         ) : (
-          <FormInput label="Work Category" value={request.workCategory} disabled />
+          <FormInput
+            label="Work Category"
+            value={formatWorkCategory(request)}
+            disabled
+          />
         )}
+        {editable && values.workCategory === "Other" ? (
+          <FormInput
+            label="Specify Work Category"
+            required
+            maxLength={255}
+            placeholder="Enter the work category"
+            value={values.otherWorkCategory}
+            onChange={(event) =>
+              onValuesChange((current) =>
+                current
+                  ? { ...current, otherWorkCategory: event.target.value }
+                  : current,
+              )
+            }
+          />
+        ) : null}
         {values.workCategory === "Incident/Hazard" ? (
           editable ? (
             <FormSelect
@@ -590,10 +665,10 @@ function WorkDetails({
         )}
         <FormMultiSelect
           label="Location"
-          value={values.location ? [values.location] : []}
+          value={values.locations}
           onValueChange={(value) =>
             onValuesChange((current) =>
-              current ? { ...current, location: value[0] ?? "" } : current,
+              current ? { ...current, locations: value } : current,
             )
           }
           disabled={!editable}
@@ -640,7 +715,29 @@ function WorkDetails({
         />
       </div>
       <div className="mt-4">
-        <AttachmentList attachments={request.attachments} />
+        <SafetyAttachmentList
+          label="Supporting Images/Documents"
+          attachments={visibleAttachments}
+          onRemove={
+            editable
+              ? (attachmentId) =>
+                  onRetainedAttachmentIdsChange(
+                    retainedAttachmentIds.filter((id) => id !== attachmentId),
+                  )
+              : undefined
+          }
+        />
+        {editable ? (
+          <div className="mt-4">
+            <FileDropzone
+              value={newAttachments}
+              onChange={onNewAttachmentsChange}
+              accept="image/*,.pdf,.doc,.docx"
+              maxFiles={10}
+              hint="These files will be uploaded when the returned request is resubmitted."
+            />
+          </div>
+        ) : null}
       </div>
     </FormSection>
   );
@@ -833,7 +930,18 @@ function AssignmentPlanning({
           onValueChange={(value) =>
             onValuesChange((current) =>
               current
-                ? { ...current, plannedStartDateTime: value }
+                ? {
+                    ...current,
+                    plannedStartDateTime: value,
+                    plannedEndDateTime:
+                      current.plannedEndDateTime &&
+                      isDateTimeBefore(
+                        current.plannedEndDateTime,
+                        getDateTimeAfter(value, MIN_SCHEDULE_DURATION_MINUTES),
+                      )
+                        ? ""
+                        : current.plannedEndDateTime,
+                  }
                 : current,
             )
           }
@@ -846,7 +954,12 @@ function AssignmentPlanning({
               ? getDateTimeAfter(values.plannedStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
               : undefined
           }
-          disabled={!editable}
+          disabled={!editable || !values.plannedStartDateTime}
+          placeholder={
+            values.plannedStartDateTime
+              ? "Select date and time"
+              : "Select planned start date/time first"
+          }
           onValueChange={(value) =>
             onValuesChange((current) =>
               current
@@ -873,74 +986,22 @@ function AssignmentPlanning({
   );
 }
 
-function ReviewResult({ request }: { request: WorkInitiationRequest }) {
-  const review = request.operationalReview;
-  if (!review) return null;
-  return (
-    <FormSection title="Operations HOD Review Result" description="Recorded Operations HOD decision and comments.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Reviewer" value={review.reviewer} disabled />
-        <FormInput label="Review Decision" value={review.decision} disabled />
-        <FormInput label="Review Date/Time" value={review.dateTime} disabled />
-        <FormTextarea label="Review Comment" value={review.comment} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
-function ApprovalResult({
-  title,
-  approver,
-  decision,
-  dateTime,
-  comment,
-}: {
-  title: string;
-  approver: string;
-  decision: WorkAuthorizationDecision;
-  dateTime: string;
-  comment: string;
-}) {
-  return (
-    <FormSection title={title} description="Recorded supervisor decision and comments for this work request.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Approver" value={approver} disabled />
-        <FormInput label="Decision" value={decision} disabled />
-        <FormInput label="Review Date/Time" value={dateTime} disabled />
-        <FormTextarea label="Comment" value={comment} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
-function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachment[] }) {
-  if (attachments.length === 0) return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <div key={attachment.name} className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? <ImageIcon size={18} /> : <FileText size={18} />}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">{attachment.name}</p>
-            <p className="text-xs capitalize text-brand-text-secondary">{attachment.type}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
-  if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your supervisor review." : "Waiting for supervisor approval.";
-  if (request.status === "pending") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
-  if (request.status === "approved") note = "Work approved by Operations HOD. Its assigned team is eligible for Work Authorization.";
   if (request.status === "returned") note = currentRole === "requester" ? "This request was returned. Update and resubmit." : "This request was returned to the requester.";
-  if (request.status === "denied") note = "This work initiation request has been denied and closed.";
+  if (request.status === "denied") note = "This work initiation request has been rejected and closed.";
   if (!note) return null;
-  return <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{note}</div>;
+  return (
+    <div
+      className={
+        request.status === "denied"
+          ? "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          : "rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
+      }
+    >
+      {note}
+    </div>
+  );
 }
 
 function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
@@ -977,9 +1038,10 @@ function buildInitialEditValues(
   return {
     title: request.title,
     workCategory: request.workCategory,
+    otherWorkCategory: request.otherWorkCategory ?? "",
     relatedIncidentHazardId: request.relatedIncidentHazardId,
     workType: request.workType,
-    location: request.location,
+    locations: parseStoredLocations(request.location),
     exactWorkArea: request.exactWorkArea,
     workDescription: request.workDescription,
     reasonForWork: request.reasonForWork,
@@ -1008,12 +1070,14 @@ function buildWorkInitiationUpdatePayload(
   return {
     title: values.title,
     work_category: workCategory,
+    other_work_category:
+      workCategory === "other" ? values.otherWorkCategory.trim() || null : null,
     related_incident_report_id:
       workCategory === "incident_hazard"
         ? values.relatedIncidentHazardId || null
         : null,
     work_type: values.workType,
-    location: values.location,
+    location: values.locations.join(", "),
     exact_work_area: values.exactWorkArea || null,
     work_description: values.workDescription,
     reason_for_work: values.reasonForWork,
@@ -1034,7 +1098,19 @@ function buildWorkInitiationUpdatePayload(
 }
 
 function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
-  const now = new Date();
+  if (values.locations.length === 0) {
+    return "Select at least one location.";
+  }
+
+  if (values.workDescription.trim().length < 5) {
+    return "Work description must be at least 5 characters.";
+  }
+
+  if (values.workCategory === "Other" && !values.otherWorkCategory.trim()) {
+    return "Specify the work category.";
+  }
+
+  const now = startOfMinute(new Date());
   const minimumStartTime = new Date(now.getTime() + 10 * 60 * 1000);
   const plannedStart = new Date(values.plannedStartDateTime);
   const plannedEnd = new Date(values.plannedEndDateTime);
@@ -1065,6 +1141,21 @@ function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
   }
 
   return null;
+}
+
+function parseStoredLocations(value: string) {
+  return value
+    .split(",")
+    .map((location) => location.trim())
+    .filter(Boolean);
+}
+
+function formatWorkCategory(request: WorkInitiationRequest) {
+  if (request.workCategory === "Other" && request.otherWorkCategory) {
+    return `Other - ${request.otherWorkCategory}`;
+  }
+
+  return request.workCategory;
 }
 
 function toApiDateTime(value: string) {
@@ -1109,9 +1200,9 @@ function showDecisionToast(
   if (decision === "Approve") {
     toast.success(`${recordLabel} approved by ${actorLabel}.`);
   } else if (decision === "Return") {
-    toast.info(`${recordLabel} returned to requester.`);
+    toast.warning(`${recordLabel} returned to requester.`);
   } else {
-    toast.error(`${recordLabel} denied by ${actorLabel}.`);
+    toast.error(`${recordLabel} rejected by ${actorLabel}.`);
   }
 }
 

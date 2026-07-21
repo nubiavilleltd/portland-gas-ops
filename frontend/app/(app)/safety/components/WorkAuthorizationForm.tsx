@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
@@ -23,11 +22,6 @@ import {
   useEligibleWorkInitiationsForAuthorization,
   type WorkAuthorizationCreate,
 } from "@/lib/modules/safety/workAuthorization";
-import {
-  getSafetyEmployeeRequester,
-  useSafetyCurrentEmployee,
-} from "@/lib/modules/safety/people";
-import { formatLocalDate } from "@/lib/safety-demo-dates";
 import {
   clearValidationError,
   getFirstInvalidField,
@@ -54,11 +48,6 @@ const workAuthorizationFieldOrder: WorkAuthorizationValidationField[] = [
 export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
-  const currentEmployee = useSafetyCurrentEmployee();
-  const requester = getSafetyEmployeeRequester(
-    currentEmployee.data,
-    formatLocalDate(),
-  );
   const workInitiationsQuery = useEligibleWorkInitiationsForAuthorization();
   const createWorkAuthorization = useCreateWorkAuthorization();
   const riskChecklist = useActiveSafetyChecklist(
@@ -72,7 +61,10 @@ export default function WorkAuthorizationForm() {
       reference: request.reference,
       title: request.title,
       status: "approved",
-      workCategory: request.workCategory,
+      workCategory:
+        request.workCategory === "Other" && request.otherWorkCategory
+          ? `Other - ${request.otherWorkCategory}`
+          : request.workCategory,
       relatedIncidentHazardId: request.relatedIncidentHazardId,
       workType: request.workType,
       location: request.location,
@@ -179,7 +171,7 @@ export default function WorkAuthorizationForm() {
     }
   }
 
-  if (riskChecklist.isLoading || workInitiationsQuery.isLoading || currentEmployee.isLoading) {
+  if (riskChecklist.isLoading || workInitiationsQuery.isLoading) {
     return <SafetyProcessFormSkeleton sections={5} />;
   }
 
@@ -189,15 +181,6 @@ export default function WorkAuthorizationForm() {
         errors={validationErrors}
         fieldOrder={workAuthorizationFieldOrder}
       />
-
-      <FormSection title="Requester Details" description="Your employee information for this work authorization request.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={requester.name} disabled />
-          <FormInput label="Department" value={requester.department} disabled />
-          <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
-        </div>
-      </FormSection>
 
       <FormSection title="Work Initiation Lookup" description="Select the approved work initiation that requires safety authorization.">
         <div className="grid gap-4 md:grid-cols-2">

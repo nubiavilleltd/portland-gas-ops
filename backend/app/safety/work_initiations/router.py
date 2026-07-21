@@ -1,7 +1,9 @@
+import json
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -11,7 +13,6 @@ from app.safety.work_initiations import service as work_initiation_service
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
     WorkInitiationStatus,
-    WorkInitiationDecision
 )
 from app.safety.work_initiations.schemas import (
     WorkInitiationCreate,
@@ -19,9 +20,83 @@ from app.safety.work_initiations.schemas import (
     WorkInitiationReviewCreate,
     WorkInitiationUpdate,
 )
+from app.safety.incidents.schemas import IncidentReportResponse
+from app.safety.workflow import enrich_next_workflow_actors
 
 
 router = APIRouter(prefix="/work-initiations", tags=["Safety Work Initiations"])
+
+ALLOWED_ATTACHMENT_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "video/mp4",
+    "video/quicktime",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+MAX_ATTACHMENT_SIZE_MB = 10
+MAX_ATTACHMENTS = 10
+
+
+def work_initiation_responses(db: Session, records):
+    responses = [WorkInitiationResponse.from_model(record) for record in records]
+    return enrich_next_workflow_actors(db, "work_initiation", responses)
+
+
+def work_initiation_response(db: Session, record):
+    return work_initiation_responses(db, [record])[0]
+
+
+async def validate_attachments(files: List[UploadFile]) -> list[tuple[bytes, str, str, int]]:
+    if len(files) > MAX_ATTACHMENTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Maximum {MAX_ATTACHMENTS} attachments allowed.",
+        )
+
+    validated: list[tuple[bytes, str, str, int]] = []
+    max_bytes = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024
+
+    for file in files:
+        if not file.filename:
+            continue
+        if file.content_type not in ALLOWED_ATTACHMENT_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid attachment type '{file.content_type}'.",
+            )
+        file_bytes = await file.read()
+        if len(file_bytes) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Attachment '{file.filename}' exceeds {MAX_ATTACHMENT_SIZE_MB} MB.",
+            )
+        validated.append((
+            file_bytes,
+            file.filename,
+            file.content_type or "application/octet-stream",
+            len(file_bytes),
+        ))
+
+    return validated
+
+
+def parse_form_payload(data: str, schema):
+    try:
+        return schema.model_validate(json.loads(data))
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid JSON in 'data' field.",
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.errors(),
+        )
 
 
 @router.get("", response_model=List[WorkInitiationResponse])
@@ -47,7 +122,7 @@ def list_work_initiations(
         work_category=work_category,
         search=search,
     )
-    return [WorkInitiationResponse.from_model(record) for record in records]
+    return work_initiation_responses(db, records)
 
 
 @router.post(
@@ -55,18 +130,37 @@ def list_work_initiations(
     response_model=WorkInitiationResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_work_initiation(
-    data: WorkInitiationCreate,
+async def create_work_initiation(
+    data: str = Form(...),
+    attachments: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    payload = parse_form_payload(data, WorkInitiationCreate)
+    attachment_files = await validate_attachments(attachments)
+
     record = work_initiation_service.create_work_initiation(
         db=db,
-        data=data,
+        data=payload,
+        current_user=current_user,
+        attachments=attachment_files,
+    )
+    return work_initiation_response(db, record)
+
+
+@router.get(
+    "/eligible-incidents",
+    response_model=List[IncidentReportResponse],
+)
+def list_eligible_incidents_for_work_initiation(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    records = work_initiation_service.list_eligible_incidents_for_work_initiation(
+        db=db,
         current_user=current_user,
     )
-    workflow_email.notify_new_request(db, "work_initiation", record.id)
-    return WorkInitiationResponse.from_model(record)
+    return [IncidentReportResponse.from_model(record) for record in records]
 
 
 @router.get("/{work_initiation_id}", response_model=WorkInitiationResponse)
@@ -80,27 +174,29 @@ def get_work_initiation(
         work_initiation_id=work_initiation_id,
         current_user=current_user,
     )
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)
 
 
 @router.put("/{work_initiation_id}", response_model=WorkInitiationResponse)
-def update_work_initiation(
+async def update_work_initiation(
     work_initiation_id: str,
-    data: WorkInitiationUpdate,
+    data: str = Form(...),
+    attachments: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    payload = parse_form_payload(data, WorkInitiationUpdate)
+    attachment_files = await validate_attachments(attachments)
+
     record = work_initiation_service.update_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
-        data=data,
+        data=payload,
         current_user=current_user,
+        attachments=attachment_files,
     )
 
-
-    workflow_email.notify_new_request(db, "work_initiation", record.id)
-
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)
 
 
 @router.post(
@@ -113,31 +209,14 @@ def supervisor_review_work_initiation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record, approval_request_id = work_initiation_service.supervisor_review_work_initiation(
+    record, _ = work_initiation_service.supervisor_review_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
         data=data,
         current_user=current_user,
     )
 
-    if data.decision == WorkInitiationDecision.approve:
-        workflow_email.notify_step_assigned(db, approval_request_id)
-    elif data.decision == WorkInitiationDecision.return_:
-        workflow_email.notify_request_result(
-        db,
-        approval_request_id,
-        "returned",
-        comment=data.comment,
-    )
-    else:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "rejected",
-            comment=data.comment,
-        )
-
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)
 
 
 @router.post(
@@ -150,34 +229,11 @@ def operations_hod_review_work_initiation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record, approval_request_id = work_initiation_service.operations_hod_review_work_initiation(
+    record, _ = work_initiation_service.operations_hod_review_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
         data=data,
         current_user=current_user,
     )
 
-    if data.decision == WorkInitiationDecision.approve:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "approved",
-            comment=data.comment,
-        )
-
-    elif data.decision == WorkInitiationDecision.return_:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "returned",
-            comment=data.comment,
-        )
-
-    else:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "rejected",
-            comment=data.comment,
-        )
-    return WorkInitiationResponse.from_model(record)
+    return work_initiation_response(db, record)

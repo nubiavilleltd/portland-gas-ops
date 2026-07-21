@@ -3,6 +3,7 @@
 import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
 import { getAdminIncidentHref, sortByLatestSafetyActivity } from "@/lib/safety-demo-routing";
 import { useIncidentReports } from "@/lib/modules/safety/incidentReport";
@@ -11,6 +12,7 @@ import type { IncidentHazardReport, IncidentHazardStatus } from "@/types/safety"
 import SafetyRequestListFilters, {
   type SafetyRequestListFilter,
 } from "./SafetyRequestListFilters";
+import SafetyTruncatedTableText from "./SafetyTruncatedTableText";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
   draft: "Draft",
@@ -41,7 +43,7 @@ const columns: Column<IncidentHazardReport>[] = [
   {
     key: "location",
     label: "Location",
-    render: (value) => String(value || "-"),
+    render: (value) => <SafetyTruncatedTableText value={String(value || "")} />,
   },
   {
     key: "reporter",
@@ -57,7 +59,11 @@ const columns: Column<IncidentHazardReport>[] = [
     key: "status",
     label: "Status",
     getSearchValue: (row) => incidentHazardStatusLabels[row.status],
-    render: (value) => <ApprovalBadge status={value as IncidentHazardStatus} />,
+    render: (value) => (
+      <ApprovalBadge
+        status={getSafetyDisplayStatus(value as IncidentHazardStatus)}
+      />
+    ),
   },
   {
     key: "nextAction",
@@ -115,7 +121,7 @@ export default function IncidentHazardReportsTable({
 
   return (
     <div className="space-y-3">
-      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      {/* <SafetyRequestListFilters value={filter} onChange={setFilter} /> */}
       <DataTable
         columns={columns}
         data={reports}

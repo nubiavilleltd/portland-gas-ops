@@ -91,7 +91,7 @@ function DispositionPicker({
 // ── Page ──────────────────────────────────────────────────
 export default function AssignInventoryPage() {
   const router = useRouter();
-  const { id:tripNo } = useParams<{ id: string }>();
+  const { id: tripNo } = useParams<{ id: string }>();
   const assignInventory = useAssignInventoryWorkflow();
 
   const { trip, isLoading: tripLoading } = useTripByNo(tripNo);
@@ -108,7 +108,7 @@ export default function AssignInventoryPage() {
     required: number;
   } | null>(null);
 
-  const productMap  = new Map(products.map((p) => [p.id, p]));
+  const productMap = new Map(products.map((p) => [p.id, p]));
   const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   const isLoading =
@@ -175,8 +175,8 @@ export default function AssignInventoryPage() {
         .map((lineItem) => ({
           order: order!,
           lineItem,
-          product:  productMap.get(lineItem.productId)!,
-          key:      lineItemKey(order!.id, lineItem.productId),
+          product: productMap.get(lineItem.productId)!,
+          key: lineItemKey(order!.id, lineItem.productId),
           required: Math.ceil(lineItem.quantity),
         }))
     );
@@ -207,12 +207,12 @@ export default function AssignInventoryPage() {
 
     const assignments = getTrackedLineItems()
       .map(({ order, lineItem, key }) => ({
-        orderId:     order.id,
-        productId:   lineItem.productId,
-        itemIds:     selection[key]?.itemIds ?? [],
+        order_id: order.id,
+        product_id: lineItem.productId,
+        item_ids: selection[key]?.itemIds ?? [],
         disposition: selection[key]?.disposition ?? "sold",
       }))
-      .filter((a) => a.itemIds.length > 0);
+      .filter((a) => a.item_ids.length > 0);
 
     await assignInventory.mutateAsync({ trip: trip as Trip, assignments });
   }
@@ -265,11 +265,11 @@ export default function AssignInventoryPage() {
                     );
                   }
 
-                  const key         = lineItemKey(order.id, lineItem.productId);
+                  const key = lineItemKey(order.id, lineItem.productId);
                   const selectedIds = selection[key]?.itemIds ?? [];
                   const disposition = selection[key]?.disposition ?? "sold";
-                  const required    = Math.ceil(lineItem.quantity);
-                  const fulfilled   = selectedIds.length >= required;
+                  const required = Math.ceil(lineItem.quantity);
+                  const fulfilled = selectedIds.length >= required;
 
                   return (
                     <div
@@ -315,8 +315,8 @@ export default function AssignInventoryPage() {
                           type="button"
                           onClick={() =>
                             setActivePicker({
-                              orderId:     order.id,
-                              productId:   lineItem.productId,
+                              orderId: order.id,
+                              productId: lineItem.productId,
                               productName: product.name,
                               required,
                             })
@@ -354,8 +354,8 @@ export default function AssignInventoryPage() {
               {getTrackedLineItems()
                 .filter(({ key, required }) => (selection[key]?.itemIds.length ?? 0) < required)
                 .map(({ product, key, required }) => {
-                  const selected   = selection[key]?.itemIds.length ?? 0;
-                  const available  = getAvailableItems(items, product.id).length;
+                  const selected = selection[key]?.itemIds.length ?? 0;
+                  const available = getAvailableItems(items, product.id).length;
                   const isStockGap = available < required;
 
                   return (

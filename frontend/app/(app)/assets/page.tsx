@@ -70,7 +70,15 @@ export default function AssetsPage() {
       ) : assets.length === 0 && !isLoading ? (
         <EmptyState title="No assets" description="There are no assets available to you right now" />
       ) : (
-        <DataTable columns={TABLE_COLUMNS} data={assets} isLoading={isLoading} rowHref={(asset) => `/assets/${asset.id}`} emptyMessage="No assets found." searchPlaceholder="Search by name or tag…" />
+        <DataTable
+          columns={TABLE_COLUMNS}
+          data={assets}
+          isLoading={isLoading}
+          rowHref={(asset) => `/assets/${asset.id}`}
+          emptyMessage="No assets found."
+          searchPlaceholder="Search by name, tag, serial, assignee…"
+          searchInputClassName="lg:w-72 lg:min-w-72"
+        />
       )}
     </AppLayout>
   );

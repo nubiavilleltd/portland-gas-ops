@@ -4,29 +4,25 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { formatLocalDate } from "@/lib/safety-demo-dates";
 import type {
   ApprovedWorkAuthorizationOption,
   WorkAuthorizationRequest,
 } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
-import {
-  getSafetyEmployeeRequester,
-  useSafetyCurrentEmployee,
-} from "@/lib/modules/safety/people";
-import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
+import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
 import {
   useCreateWorkCloseout,
+  useEligibleWorkAuthorizationsForCloseout,
   type WorkCloseOutChecklistAnswerCreate,
 } from "@/lib/modules/safety/workCloseout";
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
+  isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
   SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
 } from "@/lib/modules/safety/date-rules";
@@ -82,15 +78,8 @@ export default function WorkCompletionForm() {
     ValidationErrors<WorkCompletionValidationField>
   >({});
   const currentEmployee = useSafetyCurrentEmployee();
-  const approvedAuthorizations = useWorkAuthorizations({
-    status: "approved",
-    limit: 100,
-  });
+  const approvedAuthorizations = useEligibleWorkAuthorizationsForCloseout();
   const createCloseout = useCreateWorkCloseout();
-  const requester = getSafetyEmployeeRequester(
-    currentEmployee.data,
-    formatLocalDate(),
-  );
   const completionChecklist = useActiveSafetyChecklist("work_closeout", "completion");
   const monitoringChecklist = useActiveSafetyChecklist("work_closeout", "monitoring");
   const areaConditionChecklist = useActiveSafetyChecklist(
@@ -98,10 +87,6 @@ export default function WorkCompletionForm() {
     "closeout_review",
   );
   const workAuthorizations: ApprovedWorkAuthorizationOption[] = (approvedAuthorizations.data ?? [])
-    .filter((request) =>
-      request.status === "approved" &&
-      canCurrentEmployeeCloseOutAuthorization(request, currentEmployee.data?.id),
-    )
     .map(mapApprovedAuthorizationOption);
   const [actualStartDateTime, setActualStartDateTime] = useState("");
   const [actualCompletionDateTime, setActualCompletionDateTime] = useState("");
@@ -258,7 +243,6 @@ export default function WorkCompletionForm() {
       }, 700);
     } catch (error) {
       console.error("Failed to submit work close-out", error);
-      console.error("Work close-out error detail", getApiErrorDetail(error));
       toast.error(
         getApiErrorMessage(
           error,
@@ -284,15 +268,6 @@ export default function WorkCompletionForm() {
         errors={validationErrors}
         fieldOrder={workCompletionFieldOrder}
       />
-
-      <FormSection title="Requester Details" description="Your employee information for this work completion request.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={requester.name} disabled />
-          <FormInput label="Department" value={requester.department} disabled />
-          <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
-        </div>
-      </FormSection>
 
       <FormSection title="Work Authorization Lookup" description="Select the approved work authorization being completed.">
         <FormSelect
@@ -325,6 +300,20 @@ export default function WorkCompletionForm() {
             error={validationErrors.actualStartDateTime}
             onValueChange={(value) => {
               setActualStartDateTime(value);
+              const minimumCompletion = getDateTimeAfter(
+                value,
+                MIN_SCHEDULE_DURATION_MINUTES,
+              );
+              if (
+                actualCompletionDateTime &&
+                isDateTimeBefore(actualCompletionDateTime, minimumCompletion)
+              ) {
+                setActualCompletionDateTime("");
+                clearValidationError(
+                  "actualCompletionDateTime",
+                  setValidationErrors,
+                );
+              }
               clearValidationError("actualStartDateTime", setValidationErrors);
             }}
           />
@@ -332,6 +321,12 @@ export default function WorkCompletionForm() {
             ref={actualCompletionDateTimeRef}
             label="Actual Completion Date/Time"
             required
+            disabled={!actualStartDateTime}
+            placeholder={
+              actualStartDateTime
+                ? "Select date and time"
+                : "Select actual start date/time first"
+            }
             min={
               actualStartDateTime
                 ? getDateTimeAfter(actualStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
@@ -619,18 +614,6 @@ function mapApprovedAuthorizationOption(
     supervisor: request.workInitiation.assignedSupervisor,
     hseApprover: request.hseApproval?.approver ?? "HSE Inspector",
   };
-}
-
-function canCurrentEmployeeCloseOutAuthorization(
-  request: WorkAuthorizationRequest,
-  employeeId?: string,
-) {
-  if (!employeeId) return false;
-  return (
-    request.requesterId === employeeId ||
-    request.workInitiation.assignedSupervisorId === employeeId ||
-    Boolean(request.workInitiation.assignedWorkerIds?.includes(employeeId))
-  );
 }
 
 function toApiDateTime(value: string) {

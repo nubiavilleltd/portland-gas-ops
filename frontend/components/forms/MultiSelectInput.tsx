@@ -194,6 +194,10 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
       updateValue(updatedValues);
     }
 
+    function removeValue(nextValue: string) {
+      updateValue(selectedValues.filter((item) => item !== nextValue));
+    }
+
     function handleCreate() {
       if (!trimmedSearchQuery) return;
       toggleValue(trimmedSearchQuery);
@@ -228,17 +232,26 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
         />
 
         <div className="relative">
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={disabled ? -1 : 0}
             id={inputId}
-            disabled={disabled}
-            onClick={() => setOpen((current) => !current)}
+            aria-disabled={disabled}
+            aria-expanded={open}
+            onClick={() => {
+              if (!disabled) setOpen((current) => !current);
+            }}
+            onKeyDown={(event) => {
+              if (disabled || (event.key !== "Enter" && event.key !== " ")) return;
+              event.preventDefault();
+              setOpen((current) => !current);
+            }}
             className={cn(
               "min-h-10 w-full rounded-lg border border-brand-border bg-white px-3 py-2 pr-16 text-left text-sm text-brand-text-primary transition-shadow",
               "flex items-start gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
               error && "border-red-400 focus:ring-red-400",
               disabled &&
-                "cursor-not-allowed border-gray-200 bg-gray-100 shadow-none opacity-50 focus:ring-0 focus:border-gray-200",
+                "cursor-not-allowed border-gray-200 bg-gray-50 text-brand-text-secondary opacity-100 shadow-none focus:ring-0 focus:border-gray-200",
               triggerClassName
             )}
           >
@@ -250,18 +263,38 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
                     className={cn(
                       "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
                       disabled
-                        ? "bg-gray-200 text-brand-text-primary"
+                        ? "bg-gray-100 text-brand-text-secondary"
                         : "bg-brand-purple-faint text-brand-purple"
                     )}
                   >
                     {option.displayLabel}
+                    {!disabled ? (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Remove ${option.displayLabel}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeValue(option.value);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          removeValue(option.value);
+                        }}
+                        className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-brand-purple/10"
+                      >
+                        <X size={11} />
+                      </span>
+                    ) : null}
                   </span>
                 ))
               ) : (
                 <span className="py-0.5 text-brand-text-secondary">{placeholder}</span>
               )}
             </div>
-          </button>
+          </div>
 
           {selectedOptions.length > 0 && !disabled ? (
             <button

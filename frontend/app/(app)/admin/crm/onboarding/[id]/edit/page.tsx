@@ -37,7 +37,7 @@ export default function EditCustomerPage() {
     industry: "",
 
     contactPerson: "",
-    designation: "",
+    department: "",
     email: "",
     phone: "",
     alternatePhone: "",
@@ -78,7 +78,7 @@ export default function EditCustomerPage() {
       industry: customer.industry ?? "",
 
       contactPerson: customer.contact_person ?? "",
-      designation: customer.designation ?? "",
+      department: customer.department ?? "",
       email: customer.email ?? "",
       phone: customer.phone ?? "",
       alternatePhone: customer.alternate_phone ?? "",
@@ -203,6 +203,7 @@ export default function EditCustomerPage() {
           values={{
             customerName: form.customerName,
             entityType: form.entityType,
+            companyEmail: customer.company_email,
             category: form.category,
           }}
           errors={errors}
@@ -225,7 +226,7 @@ export default function EditCustomerPage() {
         <PrimaryContactCard
           values={{
             contactPerson: form.contactPerson,
-            designation: form.designation,
+            department: form.department,
             email: form.email,
             phone: form.phone,
             alternatePhone: form.alternatePhone,

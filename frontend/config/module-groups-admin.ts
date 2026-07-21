@@ -65,28 +65,10 @@ export const moduleGroups: readonly ModuleGroup[] = [
         href: "/admin/crm/contacts",
       },
       {
-        name: "Activities",
-        description: "Track customer calls, meetings and interactions",
-        icon: CalendarDays,
-        href: "/admin/crm/activities",
-      },
-      {
-        name: "Service Requests",
-        description: "Manage customer enquiries and requests",
-        icon: MessageSquare,
-        href: "/admin/crm/service-requests",
-      },
-      {
-        name: "Complaints",
-        description: "Track and resolve customer complaints",
-        icon: HelpCircle,
-        href: "/admin/crm/complaints",
-      },
-      {
         name: "CRM Dashboard",
         description: "Customer insights and relationship metrics",
         icon: BarChart2,
-        href: "/admin/crm/dashboard",
+        href: "/admin/crm/",
       },
     ],
   },
@@ -203,6 +185,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         description: "Entitlement and usage by employee",
         icon: BarChart2,
         href: "/admin/leave-balances",
+      },
+      {
+        name: "Leave Type Setup",
+        description: "Configure and manage all leave types",
+        icon: SlidersHorizontal,
+        href: "/admin/leave-types",
       },
       {
         name: "Pay Slip Management",

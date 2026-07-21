@@ -9,12 +9,14 @@ import {
   sortByLatestSafetyActivity,
 } from "@/lib/safety-demo-routing";
 import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import { useWorkInitiations } from "@/lib/modules/safety/workInitiation";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import type { WorkInitiationRequest } from "@/types/safety";
 import SafetyRequestListFilters, {
   type SafetyRequestListFilter,
 } from "../../components/SafetyRequestListFilters";
+import SafetyTruncatedTableText from "../../components/SafetyTruncatedTableText";
 
 const columns: Column<WorkInitiationRequest>[] = [
   {
@@ -32,17 +34,30 @@ const columns: Column<WorkInitiationRequest>[] = [
     getSortValue: (row) => row.requester.requestDate,
     render: (_, row) => row.requester.requestDate || "-",
   },
-  { key: "workCategory", label: "Work Category" },
+  {
+    key: "workCategory",
+    label: "Work Category",
+    render: (_, row) =>
+      row.workCategory === "Other" && row.otherWorkCategory
+        ? `Other - ${row.otherWorkCategory}`
+        : row.workCategory,
+  },
   {
     key: "workType",
     label: "Work Type",
     render: (value) => (Array.isArray(value) ? value.join(", ") : String(value || "-")),
   },
-  { key: "location", label: "Location" },
+  {
+    key: "location",
+    label: "Location",
+    render: (value) => <SafetyTruncatedTableText value={String(value || "")} />,
+  },
   {
     key: "status",
     label: "Status",
-    render: (value) => <ApprovalBadge status={String(value)} />,
+    render: (value) => (
+      <ApprovalBadge status={getSafetyDisplayStatus(String(value))} />
+    ),
   },
   {
     key: "nextAction",
@@ -96,7 +111,7 @@ export default function WorkInitiationRequestsTable({
 
   return (
     <div className="space-y-3">
-      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      {/* <SafetyRequestListFilters value={filter} onChange={setFilter} /> */}
       <DataTable
         columns={columns}
         data={scopedRequests}

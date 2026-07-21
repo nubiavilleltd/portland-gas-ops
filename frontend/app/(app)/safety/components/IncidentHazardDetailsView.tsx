@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import Button from "@/components/ui/Button";
 import FormDatePicker from "@/components/forms/FormDatePicker";
@@ -41,17 +42,21 @@ import {
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
+import SafetyAttachmentList from "./SafetyAttachmentList";
 import {
   incidentSeverityOptions,
   reportTypeOptions,
 } from "@/lib/modules/safety/incidentReport/constants";
-import { getIncidentHazardNextActor } from "@/lib/safety-next-actor";
+import {
+  getIncidentHazardNextActor,
+  getIncidentHazardNextActorName,
+  getIncidentHazardNextActorRole,
+} from "@/lib/safety-next-actor";
 import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
 import { useAuditTrail } from "@/lib/modules/workflow/queries";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
 import type {
-  IncidentHazardAttachment,
   IncidentHazardHseReview,
   IncidentHazardReport,
   IncidentHazardRole,
@@ -415,8 +420,14 @@ export default function IncidentHazardDetailsView({
         onRoleChange={() => undefined}
         roleLabel={getIncidentHazardRoleLabel(currentRole)}
         roles={incidentHazardRoles}
-        status={<ApprovalBadge status={report.status} />}
+        recordLabel="Incident / Hazard Report"
+        title={report.title}
+        status={
+          <ApprovalBadge status={getSafetyDisplayStatus(report.status)} />
+        }
         nextActor={getIncidentHazardNextActor(report)}
+        nextApproverName={getIncidentHazardNextActorName(report)}
+        nextApproverRole={getIncidentHazardNextActorRole(report)}
         switcherDescription="Switch roles to preview reporter, HSE, and assigned action-owner views."
         showRoleSwitcher={false}
       />
@@ -618,11 +629,11 @@ function IncidentDetails({
           disabled={!editable}
           className="md:col-span-2"
         />
-        {/* <FormInput
-          label="Severity Estimate"
-          defaultValue={report.severityEstimate}
-          disabled={!editable}
-        /> */}
+        <FormInput
+          label="Reporter Severity Estimate"
+          value={report.severityEstimate || "Not recorded"}
+          disabled
+        />
         <div className="md:col-span-2">
           <SafetyChoiceTable
             options={yesNoOptions}
@@ -657,7 +668,10 @@ function EvidenceSection({ report }: { report: IncidentHazardReport }) {
       title="Evidence / Attachments"
       description="Supporting photos, videos, or documents for this report."
     >
-      <AttachmentList attachments={report.attachments} />
+      <SafetyAttachmentList
+        label="Photos / Videos / Documents"
+        attachments={report.attachments}
+      />
     </FormSection>
   );
 }
@@ -758,7 +772,7 @@ function HseReviewAction({
       disabled={isSaving}
       approveDisabled={!canResolveWithoutCorrectiveWork || isSaving}
       rejectDisabled={!canDenyWithoutCorrectiveWork || isSaving}
-      rejectLabel="Deny"
+      rejectLabel="Reject"
       onApprove={() => onDecision("Resolved")}
       onReject={() => onDecision("Not Resolved")}
       extraActions={
@@ -906,7 +920,7 @@ function HseReviewAction({
           ) : null}
           {correctiveActionRequired === "No" && !comment.trim() ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Add an HSE comment before denying this report.
+              Add an HSE comment before rejecting this report.
             </p>
           ) : null}
         </div>
@@ -928,7 +942,6 @@ function HseReviewResult({
       description="Recorded HSE findings and corrective action outcome."
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value={review.inspector} disabled />
         <FormInput
           label="Confirmed Report Type"
           value={review.confirmedReportType}
@@ -973,17 +986,6 @@ function HseReviewResult({
             />
           </>
         ) : null}
-        <FormInput
-          label="HSE Resolution"
-          value={review.decision || "Pending final HSE resolution"}
-          disabled
-        />
-        <FormTextarea label="HSE Comment" value={review.comment} disabled />
-        <FormInput
-          label="HSE Review Date/Time"
-          value={review.reviewDateTime}
-          disabled
-        />
       </div>
     </FormSection>
   );
@@ -1026,6 +1028,7 @@ function CorrectiveWorkResolution({
       </div>
       {report.status === "recommended" &&
       !completedWorkReference &&
+      !report.hasActiveWorkInitiation &&
       canCreateLinkedWork ? (
         <div className="mt-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-blue-800">
@@ -1041,12 +1044,6 @@ function CorrectiveWorkResolution({
             Create Work Initiation
           </Button>
         </div>
-      ) : null}
-      {report.status === "pending_hse_verification" ? (
-        <p className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-          Corrective action work has been completed and approved. This incident
-          is waiting for final HSE verification.
-        </p>
       ) : null}
     </FormSection>
   );
@@ -1250,69 +1247,6 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function AttachmentList({
-  attachments,
-}: {
-  attachments?: IncidentHazardAttachment[];
-}) {
-  const safeAttachments = attachments ?? [];
-
-  if (safeAttachments.length === 0) {
-    return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
-  }
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {safeAttachments.map((attachment) => (
-        <AttachmentItem key={attachment.id ?? attachment.name} attachment={attachment} />
-      ))}
-    </div>
-  );
-}
-
-function AttachmentItem({
-  attachment,
-}: {
-  attachment: IncidentHazardAttachment;
-}) {
-  const content = (
-    <>
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-        {attachment.type === "image" ? (
-          <ImageIcon size={18} />
-        ) : (
-          <FileText size={18} />
-        )}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-brand-text-primary">
-          {attachment.name}
-        </p>
-        <p className="text-xs capitalize text-brand-text-secondary">
-          {attachment.type}
-        </p>
-      </div>
-    </>
-  );
-
-  const className = "flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3";
-
-  if (!attachment.url) {
-    return <div className={className}>{content}</div>;
-  }
-
-  return (
-    <a
-      href={attachment.url}
-      target="_blank"
-      rel="noreferrer"
-      className={`${className} transition-colors hover:border-brand-purple/40 hover:bg-white`}
-    >
-      {content}
-    </a>
-  );
-}
-
 function StatusNote({
   report,
   currentRole,
@@ -1321,36 +1255,20 @@ function StatusNote({
   currentRole: IncidentHazardRole;
 }) {
   let note = "";
-  if (report.status === "submitted") {
-    note =
-      currentRole === "hse"
-        ? "This report is waiting for your HSE review."
-        : "Submitted. Waiting for HSE review.";
-  } else if (report.status === "draft" && currentRole !== "reporter") {
-    note = "This report is still in draft and has not been submitted.";
-  } else if (report.status === "recommended") {
-    note =
-      currentRole === "action_owner"
-        ? `Corrective work has been recommended to you in ${report.hseReview?.assignedDepartment || "the assigned department"}. Raise linked Work Initiation to continue.`
-        : `Corrective action recommended to ${report.hseReview?.actionOwner || "the action owner"} in ${report.hseReview?.assignedDepartment || "the assigned department"}.`;
-  } else if (report.status === "pending_hse_verification") {
-    note =
-      currentRole === "hse"
-        ? "Corrective action completed. Pending your HSE verification."
-        : "Corrective action completed. Pending HSE verification.";
-  } else if (report.status === "resolved") {
-    note =
-      currentRole === "hse"
-        ? "The action owner marked this incident resolved. Verify the completed work and close it."
-        : "This incident has been marked resolved and is awaiting HSE closure.";
-  } else if (report.status === "closed") {
-    note = "This report has been verified and closed by HSE.";
+  if (report.status === "recommended" && currentRole === "action_owner") {
+    note = `Corrective work has been recommended to you in ${report.hseReview?.assignedDepartment || "the assigned department"}. Raise linked Work Initiation to continue.`;
   } else if (report.status === "not_resolved") {
     note = "This report has been marked not resolved by HSE.";
   }
   if (!note) return null;
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <div
+      className={
+        report.status === "not_resolved"
+          ? "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          : "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      }
+    >
       {note}
     </div>
   );

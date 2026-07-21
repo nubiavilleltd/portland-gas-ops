@@ -21,7 +21,6 @@ export default function EditDriverPage() {
   const { data: allEmployees = [] } = useEmployees({ limit: 200 });
   const { data: currentEmployee } = useEmployee(driver?.employee_id ?? "");
   const { updateDriver } = useUpdateDriver();
-  console.log("driver", {driver})
 
 
   const employeeOptions: PickedEmployee[] = useMemo(() => allEmployees.map((e) => ({

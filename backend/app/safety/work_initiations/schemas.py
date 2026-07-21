@@ -2,7 +2,8 @@ from typing import Optional
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES
+from app.core.schemas import UtcDateTimeModel
+from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES, start_of_minute
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
     WorkInitiationDecision,
@@ -18,6 +19,7 @@ def to_utc(value: datetime) -> datetime:
 class WorkInitiationCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=255)
     work_category: WorkInitiationCategory
+    other_work_category: Optional[str] = Field(None, max_length=255)
     related_incident_report_id: Optional[str] = None
     work_type: list[str] = Field(..., min_length=1)
     location: str = Field(..., min_length=2, max_length=255)
@@ -36,6 +38,7 @@ class WorkInitiationCreate(BaseModel):
 
     @field_validator(
         "title",
+        "other_work_category",
         "location",
         "exact_work_area",
         "work_description",
@@ -63,8 +66,20 @@ class WorkInitiationCreate(BaseModel):
         return deduped
 
     @model_validator(mode="after")
+    def validate_other_work_category(self):
+        if self.work_category == WorkInitiationCategory.other:
+            if not self.other_work_category:
+                raise ValueError(
+                    "Other work category is required when work category is Other."
+                )
+        else:
+            self.other_work_category = None
+
+        return self
+
+    @model_validator(mode="after")
     def validate_planned_dates(self):
-        now = datetime.now(timezone.utc)
+        now = start_of_minute(datetime.now(timezone.utc))
         minimum_start_time = now + timedelta(minutes=10)
 
         planned_start = to_utc(self.planned_start_at)
@@ -89,7 +104,7 @@ class WorkInitiationCreate(BaseModel):
 
 
 class WorkInitiationUpdate(WorkInitiationCreate):
-    pass
+    retained_attachment_ids: Optional[list[str]] = None
 
 class WorkInitiationReviewCreate(BaseModel):
     decision: WorkInitiationDecision
@@ -109,7 +124,7 @@ class WorkInitiationEmployeeSummary(BaseModel):
     job_title: Optional[str] = None
 
 
-class WorkInitiationReviewResponse(BaseModel):
+class WorkInitiationReviewResponse(UtcDateTimeModel):
     decision: WorkInitiationDecision
     reviewer_id: Optional[str] = None
     reviewer_name: Optional[str] = None
@@ -117,7 +132,16 @@ class WorkInitiationReviewResponse(BaseModel):
     decided_at: Optional[datetime] = None
 
 
-class WorkInitiationListItem(BaseModel):
+class WorkInitiationAttachmentResponse(BaseModel):
+    id: str
+    name: str
+    url: str
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    type: str
+
+
+class WorkInitiationListItem(UtcDateTimeModel):
     id: str
     reference: str
     status: WorkInitiationStatus
@@ -127,6 +151,7 @@ class WorkInitiationListItem(BaseModel):
     requester_role: Optional[str] = None
     title: str
     work_category: WorkInitiationCategory
+    other_work_category: Optional[str]
     related_incident_report_id: Optional[str]
     work_type: list[str]
     location: str
@@ -138,6 +163,8 @@ class WorkInitiationListItem(BaseModel):
     assigned_supervisor_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     @classmethod
     def from_model(cls, work_initiation):
@@ -151,6 +178,7 @@ class WorkInitiationListItem(BaseModel):
             requester_role=employee_role(work_initiation.requester),
             title=work_initiation.title,
             work_category=work_initiation.work_category,
+            other_work_category=work_initiation.other_work_category,
             related_incident_report_id=work_initiation.related_incident_report_id,
             work_type=split_work_type(work_initiation.work_type),
             location=work_initiation.location,
@@ -175,6 +203,7 @@ class WorkInitiationResponse(WorkInitiationListItem):
     assigned_workers: list[WorkInitiationEmployeeSummary]
     supervisor_review: Optional[WorkInitiationReviewResponse] = None
     operations_hod_review: Optional[WorkInitiationReviewResponse] = None
+    attachments: list[WorkInitiationAttachmentResponse] = Field(default_factory=list)
     is_active: bool
 
     @classmethod
@@ -206,6 +235,9 @@ class WorkInitiationResponse(WorkInitiationListItem):
                 work_initiation.operations_hod,
                 work_initiation.operations_hod_comment,
                 work_initiation.operations_hod_decided_at,
+            ),
+            attachments=attachment_responses(
+                getattr(work_initiation, "attachments", []) or [],
             ),
             is_active=work_initiation.is_active,
         )
@@ -258,3 +290,27 @@ def build_review(
         comment=comment,
         decided_at=decided_at,
     )
+
+
+def attachment_responses(documents) -> list[WorkInitiationAttachmentResponse]:
+    return [
+        WorkInitiationAttachmentResponse(
+            id=str(document.id),
+            name=document.name,
+            url=document.file_path or "",
+            mime_type=document.mime_type,
+            file_size=document.file_size,
+            type=attachment_type_for_mime_type(document.mime_type),
+        )
+        for document in documents
+    ]
+
+
+def attachment_type_for_mime_type(mime_type: Optional[str]) -> str:
+    if not mime_type:
+        return "document"
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("video/"):
+        return "video"
+    return "document"

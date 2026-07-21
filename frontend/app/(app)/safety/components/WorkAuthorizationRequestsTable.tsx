@@ -4,6 +4,7 @@ import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
 import {
@@ -15,6 +16,7 @@ import type { WorkAuthorizationRequest } from "@/types/safety";
 import SafetyRequestListFilters, {
   type SafetyRequestListFilter,
 } from "./SafetyRequestListFilters";
+import SafetyTruncatedTableText from "./SafetyTruncatedTableText";
 
 const columns: Column<WorkAuthorizationRequest>[] = [
   {
@@ -48,7 +50,9 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "location",
     label: "Location",
-    render: (_, row) => row.workInitiation.location,
+    render: (_, row) => (
+      <SafetyTruncatedTableText value={row.workInitiation.location} />
+    ),
   },
   {
     key: "supervisor",
@@ -64,7 +68,9 @@ const columns: Column<WorkAuthorizationRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => <ApprovalBadge status={String(value)} />,
+    render: (value) => (
+      <ApprovalBadge status={getSafetyDisplayStatus(String(value))} />
+    ),
   },
   {
     key: "nextAction",
@@ -119,7 +125,7 @@ export default function WorkAuthorizationRequestsTable({
 
   return (
     <div className="space-y-3">
-      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      {/* <SafetyRequestListFilters value={filter} onChange={setFilter} /> */}
       <DataTable
         columns={columns}
         data={requests}

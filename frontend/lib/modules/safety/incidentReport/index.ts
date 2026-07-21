@@ -3,6 +3,7 @@ export {
   incidentReportKeys,
   useCloseIncident,
   useCreateIncidentHseReview,
+  useEligibleWorkAuthorizationsForIncident,
   useIncidentReport,
   useIncidentReports,
   useMarkIncidentNotResolved,

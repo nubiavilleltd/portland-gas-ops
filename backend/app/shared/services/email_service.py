@@ -172,10 +172,15 @@ def get_request_type_label(request_type: str) -> str:
     return _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
 
 
-def get_request_url(request_type: str, request_id: str) -> str:
+def get_request_url(request_type: str, request_id: str, db=None) -> str:
     """Build the deep-link URL for a request's detail page."""
-    path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
     base = settings.FRONTEND_URL.rstrip("/")
+
+    # Detail routes are keyed by UUID (matching Safety & Compliance)
+    if request_type == "leave_request":
+        return f"{base}/hr-management/leave-requests/{request_id}"
+
+    path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
     return f"{base}/{path}/{request_id}"
 
 
@@ -226,6 +231,10 @@ def send_approval_result(
     comment: str | None,
     action_url: str,
     result_message_override: str | None = None,
+    subject_override: str | None = None,
+    result_heading_override: str | None = None,
+    action_label_override: str | None = None,
+    action_color_override: str | None = None,
 ) -> None:
     """Notify the requester of the outcome of their request."""
     _ACTION_META = {
@@ -239,7 +248,7 @@ def send_approval_result(
             "label":   "Rejected",
             "color":   "#dc2626",
             "heading": "Your Request Has Been Rejected",
-            "message": "Unfortunately your request has been rejected. Please contact your manager if you have questions.",
+            "message": "Please contact your manager if you have questions.",
         },
         "returned": {
             "label":   "Returned for Revision",
@@ -274,15 +283,15 @@ def send_approval_result(
         comment_row_html = ""
         comment_row_style = ""
 
-    subject = f"{request_type_label} Request {meta['label']}"
+    subject = subject_override or f"{request_type_label} Request {meta['label']}"
     html = _render("approval_result.html", {
         "subject":            subject,
         "requester_name":     requester_name,
         "request_type_label": request_type_label,
         "request_title":      request_title,
-        "action_label":       meta["label"],
-        "action_color":       meta["color"],
-        "result_heading":     meta["heading"],
+        "action_label":       action_label_override or meta["label"],
+        "action_color":       action_color_override or meta["color"],
+        "result_heading":     result_heading_override or meta["heading"],
         "result_message":     result_message_override or meta["message"],
         "comment_row_html":   comment_row_html,
         "comment_row_style":  comment_row_style,

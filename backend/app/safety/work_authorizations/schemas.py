@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.schemas import UtcDateTimeModel
 from app.safety.work_authorizations.models import (
     WorkAuthorizationDecision,
     WorkAuthorizationInspectionCheck,
@@ -58,6 +59,7 @@ class WorkAuthorizationUpdate(BaseModel):
     additional_safety_note: Optional[str] = Field(None, max_length=5000)
     attachment_notes: Optional[str] = Field(None, max_length=5000)
     attachments: list[WorkAuthorizationAttachment] = Field(default_factory=list)
+    retained_attachment_ids: Optional[list[str]] = None
 
     @field_validator("additional_safety_note", "attachment_notes", mode="before")
     @classmethod
@@ -91,12 +93,13 @@ class WorkAuthorizationEmployeeSummary(BaseModel):
     job_title: Optional[str] = None
 
 
-class WorkAuthorizationWorkInitiationSummary(BaseModel):
+class WorkAuthorizationWorkInitiationSummary(UtcDateTimeModel):
     id: str
     reference: str
     title: str
     status: str
     work_category: str
+    other_work_category: Optional[str]
     related_incident_report_id: Optional[str]
     work_type: list[str]
     location: str
@@ -114,7 +117,7 @@ class WorkAuthorizationWorkInitiationSummary(BaseModel):
     materials_required: Optional[str]
 
 
-class WorkAuthorizationHseReviewResponse(BaseModel):
+class WorkAuthorizationHseReviewResponse(UtcDateTimeModel):
     hse_inspector_id: Optional[str]
     hse_inspector_name: Optional[str]
     work_area_safe: Optional[WorkAuthorizationInspectionCheck]
@@ -130,7 +133,7 @@ class WorkAuthorizationHseReviewResponse(BaseModel):
     decided_at: Optional[datetime]
 
 
-class WorkAuthorizationListItem(BaseModel):
+class WorkAuthorizationListItem(UtcDateTimeModel):
     id: str
     reference: str
     status: WorkAuthorizationStatus
@@ -147,6 +150,8 @@ class WorkAuthorizationListItem(BaseModel):
     requested_at: datetime
     created_at: datetime
     updated_at: datetime
+    next_actor_name: Optional[str] = None
+    current_step_name: Optional[str] = None
 
     @classmethod
     def from_model(cls, authorization):
@@ -250,6 +255,7 @@ def work_initiation_summary(work_initiation) -> Optional[WorkAuthorizationWorkIn
         title=work_initiation.title,
         status=work_initiation.status.value,
         work_category=work_initiation.work_category.value,
+        other_work_category=work_initiation.other_work_category,
         related_incident_report_id=work_initiation.related_incident_report_id,
         work_type=split_list(work_initiation.work_type),
         location=work_initiation.location,

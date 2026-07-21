@@ -4,15 +4,17 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { reportTypeOptions } from "@/lib/modules/safety/incidentReport/constants";
+import {
+  incidentSeverityOptions,
+  reportTypeOptions,
+} from "@/lib/modules/safety/incidentReport/constants";
 import { safetyLocationOptions } from "@/lib/modules/safety/locations";
-import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
+import { toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import {
   safetyChecklistsApi,
@@ -24,13 +26,13 @@ import {
   incidentReportsApi,
   type IncidentReportCreate,
   type IncidentReportType,
+  type IncidentSeverityEstimate,
+  useEligibleWorkAuthorizationsForIncident,
 } from "@/lib/modules/safety/incidentReport";
-import { getLatestIncidentObservedDateTime } from "@/lib/modules/safety/date-rules";
 import {
-  getSafetyEmployeeRequester,
-  useSafetyCurrentEmployee,
-} from "@/lib/modules/safety/people";
-import { useWorkAuthorizations } from "@/lib/modules/safety/workAuthorization";
+  getLatestIncidentObservedDateTime,
+  startOfMinute,
+} from "@/lib/modules/safety/date-rules";
 import { getValidationScrollTarget } from "@/lib/modules/safety/form-validation";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyValidationSummary from "./SafetyValidationSummary";
@@ -46,6 +48,12 @@ const reportTypeByLabel: Record<string, IncidentReportType> = {
   "Unsafe Condition": "unsafe_condition",
   "Environmental Concern": "environmental_concern",
 };
+const severityByLabel: Record<string, IncidentSeverityEstimate> = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+  Critical: "critical",
+};
 
 type IncidentValidationField =
   | "title"
@@ -53,6 +61,7 @@ type IncidentValidationField =
   | "locations"
   | "observedAt"
   | "description"
+  | "severity"
   | "impactChecklist"
   | "immediateAction";
 
@@ -64,6 +73,7 @@ const incidentFieldOrder: IncidentValidationField[] = [
   "locations",
   "observedAt",
   "description",
+  "severity",
   "impactChecklist",
   "immediateAction",
 ];
@@ -79,25 +89,24 @@ export default function IncidentHazardForm() {
   const [locations, setLocations] = useState<string[]>([]);
   const [observedAt, setObservedAt] = useState("");
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
-  const workAuthorizationsQuery = useWorkAuthorizations({ limit: 100 });
-  const currentEmployee = useSafetyCurrentEmployee();
-  const reporter = getSafetyEmployeeRequester(
-    currentEmployee.data,
-    formatLocalDate(),
-  );
+  const workAuthorizationsQuery = useEligibleWorkAuthorizationsForIncident();
   const impactChecklist = useActiveSafetyChecklist(
     "incident_report",
     "risk_assessment",
   );
-  const relatedAuthorizationOptions = (workAuthorizationsQuery.data ?? []).map((request) => ({
-    value: request.id,
-    label: request.reference
-      ? `${request.reference} - ${request.workInitiation.title}`
-      : request.workInitiation.title,
-    description: `${request.requester.name} | ${request.requester.requestDate}`,
-  }));
+  const relatedAuthorizationOptions = (workAuthorizationsQuery.data ?? []).map((request) => {
+    const authorizationTitle = request.requestDetails.title;
+
+    return {
+      value: request.id,
+      label: request.reference
+        ? `${request.reference} - ${authorizationTitle}`
+        : authorizationTitle,
+      description: `${request.requester.name} | ${request.requester.requestDate}`,
+    };
+  });
   const [description, setDescription] = useState("");
-  // const [severity, setSeverity] = useState("");
+  const [severity, setSeverity] = useState("");
   const [anyoneInjured, setAnyoneInjured] = useState("");
   const [propertyDamaged, setPropertyDamaged] = useState("");
   const [gasConcern, setGasConcern] = useState("");
@@ -109,6 +118,7 @@ export default function IncidentHazardForm() {
   const locationsRef = useRef<HTMLInputElement | null>(null);
   const observedAtRef = useRef<HTMLInputElement | null>(null);
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const severityRef = useRef<HTMLInputElement | null>(null);
   const impactChecklistRef = useRef<HTMLDivElement | null>(null);
   const immediateActionRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -122,6 +132,7 @@ export default function IncidentHazardForm() {
       locations,
       observedAt,
       description,
+      severity,
       immediateAction,
     });
     const impactChecklistValues = {
@@ -147,6 +158,7 @@ export default function IncidentHazardForm() {
           locationsRef,
           observedAtRef,
           descriptionRef,
+          severityRef,
           impactChecklistRef,
           immediateActionRef,
         }),
@@ -163,7 +175,7 @@ export default function IncidentHazardForm() {
       observed_at: toApiDateTime(observedAt),
       related_work_authorization_id: emptyToNull(relatedAuthorization),
       description,
-      severity_estimate: null,
+      severity_estimate: toIncidentSeverity(severity),
       anyone_injured: anyoneInjured === "Yes",
       property_damaged: propertyDamaged === "Yes",
       gas_fire_environmental_concern: gasConcern === "Yes",
@@ -220,7 +232,6 @@ export default function IncidentHazardForm() {
 
   if (
     impactChecklist.isLoading ||
-    currentEmployee.isLoading ||
     workAuthorizationsQuery.isLoading
   ) {
     return <SafetyProcessFormSkeleton sections={4} />;
@@ -232,15 +243,6 @@ export default function IncidentHazardForm() {
         errors={validationErrors}
         fieldOrder={incidentFieldOrder}
       />
-
-      <FormSection title="Reporter Details" description="Your employee information for this incident or hazard report.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Reporter Name" value={reporter.name} disabled />
-          <FormInput label="Department" value={reporter.department} disabled />
-          <FormInput label="Job Title / Role" value={reporter.role} disabled />
-          <FormDatePicker label="Report Date" value={reporter.reportDate} disabled />
-        </div>
-      </FormSection>
 
       <FormSection title="Report Details" description="Basic information about the incident or hazard being reported.">
         <div className="grid gap-4 md:grid-cols-2">
@@ -316,7 +318,19 @@ export default function IncidentHazardForm() {
               clearIncidentValidationError("description", setValidationErrors);
             }}
           />
-          {/* <FormSelect label="Severity Estimate" required options={toOptions(incidentSeverityOptions)} placeholder="Select severity" value={severity} onValueChange={setSeverity} /> */}
+          <FormSelect
+            ref={severityRef}
+            label="Reporter Severity Estimate"
+            required
+            options={toOptions(incidentSeverityOptions)}
+            placeholder="Select severity"
+            value={severity}
+            error={validationErrors.severity}
+            onValueChange={(value) => {
+              setSeverity(value);
+              clearIncidentValidationError("severity", setValidationErrors);
+            }}
+          />
           <div
             ref={impactChecklistRef}
             className={
@@ -421,6 +435,7 @@ function validateIncidentReportForm({
   locations,
   observedAt,
   description,
+  severity,
   immediateAction,
 }: {
   title: string;
@@ -428,6 +443,7 @@ function validateIncidentReportForm({
   locations: string[];
   observedAt: string;
   description: string;
+  severity: string;
   immediateAction: string;
 }): IncidentValidationErrors {
   const errors: IncidentValidationErrors = {};
@@ -445,7 +461,9 @@ function validateIncidentReportForm({
     errors.observedAt = "Select the date and time observed.";
   } else {
     const observedDate = new Date(observedAt);
-    const latestAllowedObservedAt = new Date(Date.now() - 5 * 60 * 1000);
+    const latestAllowedObservedAt = new Date(
+      startOfMinute(new Date()).getTime() - 5 * 60 * 1000,
+    );
     if (observedDate > latestAllowedObservedAt) {
       errors.observedAt = "Observed date/time must be at least 5 minutes in the past.";
     }
@@ -453,11 +471,18 @@ function validateIncidentReportForm({
   if (description.trim().length < 5) {
     errors.description = "Enter a description with at least 5 characters.";
   }
+  if (!severity) {
+    errors.severity = "Select a severity estimate.";
+  }
   if (!immediateAction.trim()) {
     errors.immediateAction = "Describe the immediate action taken.";
   }
 
   return errors;
+}
+
+function toIncidentSeverity(value: string): IncidentSeverityEstimate {
+  return severityByLabel[value] ?? "medium";
 }
 
 function getFirstInvalidIncidentField(errors: IncidentValidationErrors) {
@@ -484,6 +509,7 @@ function getIncidentFieldRef(
     locationsRef: React.RefObject<HTMLInputElement | null>;
     observedAtRef: React.RefObject<HTMLInputElement | null>;
     descriptionRef: React.RefObject<HTMLTextAreaElement | null>;
+    severityRef: React.RefObject<HTMLInputElement | null>;
     impactChecklistRef: React.RefObject<HTMLDivElement | null>;
     immediateActionRef: React.RefObject<HTMLTextAreaElement | null>;
   },
@@ -494,6 +520,7 @@ function getIncidentFieldRef(
     locations: refs.locationsRef,
     observedAt: refs.observedAtRef,
     description: refs.descriptionRef,
+    severity: refs.severityRef,
     impactChecklist: refs.impactChecklistRef,
     immediateAction: refs.immediateActionRef,
   };

@@ -324,6 +324,44 @@ def _update_source_status(request_type: str, request_id: str, status: str, db: S
         row = db.query(ProcurementRequest).filter(ProcurementRequest.id == request_id).first()
         if row:
             row.status = status
+    elif request_type == "leave_request":
+        from app.hr.models import LeaveRequest, LeaveRequestStatus
+        row = db.query(LeaveRequest).filter(LeaveRequest.id == request_id).first()
+        if row:
+            if status == "approved":
+                row.status = LeaveRequestStatus.approved
+            elif status == "rejected":
+                row.status = LeaveRequestStatus.denied
+            elif status == "returned":
+                row.status = LeaveRequestStatus.returned
+            elif status == "in_progress":
+                row.status = LeaveRequestStatus.in_progress
+
+    elif request_type == "cash_requisition":
+        from app.finance.models import CashRequisition, CashRequisitionStatus
+        row = db.query(CashRequisition).filter(CashRequisition.id == request_id).first()
+        if row:
+            if status == "approved":
+                row.status = CashRequisitionStatus.approved
+            elif status == "rejected":
+                row.status = CashRequisitionStatus.denied
+            elif status == "returned":
+                row.status = CashRequisitionStatus.returned
+            elif status == "in_progress":
+                row.status = CashRequisitionStatus.in_progress
+
+    elif request_type == "invoice":
+        from app.finance.models import InvoiceProcessing, InvoiceProcessingStatus
+        row = db.query(InvoiceProcessing).filter(InvoiceProcessing.id == request_id).first()
+        if row:
+            if status == "approved":
+                row.status = InvoiceProcessingStatus.approved
+            elif status == "rejected":
+                row.status = InvoiceProcessingStatus.denied
+            elif status == "returned":
+                row.status = InvoiceProcessingStatus.returned
+            elif status == "in_progress":
+                row.status = InvoiceProcessingStatus.in_progress
 
     elif request_type == "asset":
         from app.assets.models import AssetRequest, AssetRequestStatus
@@ -352,6 +390,11 @@ def approve_request(
 
     def on_final_approval():
         _update_source_status(_request_type, _request_id, "approved", db)
+        # Leave requests: record the balance deduction against the employee's
+        # leave-type allowance (runs once, in this same transaction).
+        if _request_type == "leave_request":
+            from app.hr.service import apply_leave_balance_on_approval
+            apply_leave_balance_on_approval(db, _request_id)
         # Asset requests: re-validate availability at the moment of final approval
         # to catch inventory that was consumed between submission and approval.
         if _request_type == "asset":
@@ -361,10 +404,18 @@ def approve_request(
     result = engine.approve(approval_request_id, employee, body.comment, on_final_approval=on_final_approval)
     db.commit()
 
-    # After commit: notify the approver (asset admin) to perform allocation
-    if result.overall_status.value == "approved" and _request_type == "asset":
-        from app.shared.services import workflow_email as _wf_email
-        _wf_email.notify_asset_allocation_needed(db, _request_id, employee.id)
+    # General workflow emails (submitted, step-assigned, step-progress, result)
+    # are queued inside the engine and fire post-commit — do not re-send here.
+    if result.overall_status.value == "approved":
+        # Asset requests: notify the asset admin to perform allocation
+        if _request_type == "asset":
+            from app.shared.services import workflow_email as _wf_email
+            _wf_email.notify_asset_allocation_needed(db, _request_id, employee.id)
+    else:
+        # Mid-flow: reflect in-progress status on the source request
+        if _request_type in ("leave_request", "cash_requisition", "invoice"):
+            _update_source_status(_request_type, _request_id, "in_progress", db)
+            db.commit()
 
     return {"id": result.id, "overall_status": result.overall_status.value, "current_step_number": result.current_step_number}
 

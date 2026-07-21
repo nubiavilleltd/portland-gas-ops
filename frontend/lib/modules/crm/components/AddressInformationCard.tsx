@@ -35,6 +35,7 @@ export default function AddressInformationCard({
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <FormInput
           label="Country"
+          placeholder="Enter Country"
           required
           value={values.country}
           error={errors?.country}
@@ -44,6 +45,7 @@ export default function AddressInformationCard({
 
         <FormInput
           label="State"
+          placeholder="Enter State"
           required
           value={values.state}
           error={errors?.state}
@@ -53,6 +55,7 @@ export default function AddressInformationCard({
 
         <FormInput
           label="City"
+          placeholder="Enter City"
           required
           value={values.city}
           error={errors?.city}
@@ -62,6 +65,7 @@ export default function AddressInformationCard({
 
         <FormInput
           label="Postal Code"
+          placeholder="Enter Postal Code"
           value={values.postalCode}
           error={errors?.postalCode}
           readOnly={readOnly}
@@ -71,6 +75,7 @@ export default function AddressInformationCard({
         <div className="md:col-span-2">
           <FormInput
             label="Address Line 1"
+            placeholder="Enter Address Line 1"
             required
             value={values.addressLine1}
             error={errors?.addressLine1}
@@ -82,6 +87,7 @@ export default function AddressInformationCard({
         <div className="md:col-span-2">
           <FormInput
             label="Address Line 2"
+            placeholder="Enter Address Line 2"
             value={values.addressLine2}
             error={errors?.addressLine2}
             readOnly={readOnly}

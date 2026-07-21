@@ -20,6 +20,7 @@ export type WorkInitiationDecision = "approve" | "return" | "deny";
 export interface WorkInitiationCreate {
   title: string;
   work_category: WorkInitiationCategory;
+  other_work_category?: string | null;
   related_incident_report_id?: string | null;
   work_type: string[];
   location: string;
@@ -37,7 +38,9 @@ export interface WorkInitiationCreate {
   materials_required?: string | null;
 }
 
-export type WorkInitiationUpdate = WorkInitiationCreate;
+export interface WorkInitiationUpdate extends WorkInitiationCreate {
+  retained_attachment_ids?: string[] | null;
+}
 
 export interface WorkInitiationEmployeeSummary {
   id: string;
@@ -55,6 +58,15 @@ export interface WorkInitiationReviewResponse {
   decided_at?: string | null;
 }
 
+export interface WorkInitiationAttachmentResponse {
+  id: string;
+  name: string;
+  url: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  type: string;
+}
+
 export interface WorkInitiationListItem {
   id: string;
   reference: string;
@@ -65,6 +77,7 @@ export interface WorkInitiationListItem {
   requester_role?: string | null;
   title: string;
   work_category: WorkInitiationCategory;
+  other_work_category?: string | null;
   related_incident_report_id?: string | null;
   work_type: string[];
   location: string;
@@ -76,6 +89,8 @@ export interface WorkInitiationListItem {
   assigned_supervisor_name?: string | null;
   created_at: string;
   updated_at: string;
+  next_actor_name?: string | null;
+  current_step_name?: string | null;
 }
 
 export interface WorkInitiationResponse extends WorkInitiationListItem {
@@ -88,6 +103,7 @@ export interface WorkInitiationResponse extends WorkInitiationListItem {
   assigned_workers: WorkInitiationEmployeeSummary[];
   supervisor_review?: WorkInitiationReviewResponse | null;
   operations_hod_review?: WorkInitiationReviewResponse | null;
+  attachments: WorkInitiationAttachmentResponse[];
   is_active: boolean;
 }
 

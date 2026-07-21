@@ -22,7 +22,7 @@ function AssignmentsBackButton() {
 const REQUEST_TYPES = [
   { value: "procurement",        label: "Procurement Requests",   description: "Purchase requests raised by employees" },
   { value: "asset",              label: "Asset Requests",         description: "Loan and requisition requests for company assets" },
-  { value: "leave",              label: "Leave Requests",         description: "Annual, sick, and other leave types" },
+  { value: "leave_request",      label: "Leave Requests",         description: "Annual, sick, and other leave types" },
   { value: "cash_requisition",   label: "Cash Requisitions",      description: "Petty cash and advance payment requests" },
   { value: "invoice",            label: "Invoice Approvals",      description: "Vendor invoice review and payment approval" },
   { value: "work_initiation",    label: "Work Initiation",        description: "PTW / work initiation forms before field work begins" },

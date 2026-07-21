@@ -7,6 +7,10 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useMyApprovals, type MyApproval } from "@/lib/modules/workflow/queries";
 import ApprovalsSkeleton from "./ApprovalsSkeleton";
+import {
+  getWorkflowProcessConfig,
+  normalizeWorkflowProcessType,
+} from "@/lib/modules/workflow/processes";
 
 // DataTable requires T extends { id: string } — map approval_request_id → id
 type ApprovalRow = MyApproval & { id: string };
@@ -16,6 +20,8 @@ const PROCESS_CONFIG: Record<string, { label: string; badge: string }> = {
   procurement:      { label: "Procurement",    badge: "bg-purple-100 text-purple-700" },
   asset:            { label: "Asset Request",  badge: "bg-blue-100 text-blue-700" },
   leave:            { label: "Leave Request",  badge: "bg-green-100 text-green-700" },
+  cash_requisition: { label: "Cash Requisition", badge: "bg-emerald-100 text-emerald-700" },
+  invoice:          { label: "Invoice", badge: "bg-amber-100 text-amber-700" },
   work_initiation:  { label: "Work Initiation", badge: "bg-orange-100 text-orange-700" },
   work_authorization: { label: "Work Authorization", badge: "bg-cyan-100 text-cyan-700" },
   work_closeout:    { label: "Work Closeout",   badge: "bg-teal-100 text-teal-700" },
@@ -26,9 +32,11 @@ function getProcessConfig(type: string) {
 }
 
 function requestHref(row: ApprovalRow): string {
-  switch (row.request_type) {
+  switch (normalizeWorkflowProcessType(row.request_type)) {
     case "procurement": return `/procurement/${row.request_id}`;
     case "asset":       return `/assets/requests/${row.request_id}`;
+    case "cash_requisition": return `/finance/cash-requisitions/${row.request_id}`;
+    case "invoice":     return `/finance/invoices/${row.request_id}`;
     case "work_initiation": return `/safety/work-initiation/${row.request_id}`;
     case "work_authorization": return `/safety/work-authorization/${row.request_id}`;
     case "work_closeout": return `/safety/work-close-out/${row.request_id}`;
@@ -53,13 +61,22 @@ const columns: Column<ApprovalRow>[] = [
     key: "request_type",
     label: "Process",
     render: (v) => {
-      const cfg = getProcessConfig(String(v));
+      const cfg = getWorkflowProcessConfig(String(v));
       return (
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${cfg.badge}`}>
           {cfg.label}
         </span>
       );
     },
+  },
+  {
+    key: "requester_name",
+    label: "Requester",
+    render: (v) => (
+      <span className="text-sm text-brand-text-primary">
+        {v ? String(v) : "—"}
+      </span>
+    ),
   },
   {
     key: "department",
@@ -73,12 +90,13 @@ const columns: Column<ApprovalRow>[] = [
   {
     key: "submitted_at",
     label: "Submitted",
+    getSortValue: (row) => new Date(row.submitted_at).getTime(),
     render: (v) => (
       <span className="text-xs text-brand-text-secondary">{formatDateTime(v as string)}</span>
     ),
   },
   {
-    key: "current_step_number",
+    key: "action_needed",
     label: "Action Needed",
     render: (_, row) => (
       <ApprovalBadge status={row.current_step_number === 4 ? "awaiting_confirmation" : "pending_approval"} />
@@ -88,7 +106,13 @@ const columns: Column<ApprovalRow>[] = [
 
 export default function MyApprovalsPage() {
   const { data: rawApprovals = [], isLoading } = useMyApprovals();
-  const approvals: ApprovalRow[] = rawApprovals.map((a) => ({ ...a, id: a.approval_request_id }));
+  const approvals: ApprovalRow[] = rawApprovals
+    .map((approval) => ({ ...approval, id: approval.approval_request_id }))
+    .sort(
+      (left, right) =>
+        new Date(right.submitted_at).getTime() -
+        new Date(left.submitted_at).getTime(),
+    );
 
   return (
     <AppLayout pageTitle="My Approvals">
