@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.employees.models import Employee
 from app.safety.dependencies import require_hse_reviewer
 from app.safety.work_closeouts import service as work_closeout_service
-from app.safety.work_closeouts.models import WorkCloseOutDecision, WorkCloseOutStatus
+from app.safety.work_closeouts.models import WorkCloseOutStatus
 from app.safety.work_closeouts.schemas import (
     WorkCloseOutCreate,
     WorkCloseOutDecisionCreate,
@@ -22,7 +22,6 @@ from app.safety.work_closeouts.schemas import (
 from app.safety.work_authorizations.schemas import WorkAuthorizationResponse
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
-from app.shared.services import workflow_email
 from app.safety.workflow import enrich_next_workflow_actors
 
 
@@ -171,7 +170,6 @@ async def create_work_closeout(
         current_user=current_user,
         completion_evidence=evidence_files,
     )
-    workflow_email.notify_new_request(db, "work_closeout", record.id)
 
     return work_closeout_response(db, record)
 
@@ -209,7 +207,6 @@ async def update_work_closeout(
         current_user=current_user,
         completion_evidence=evidence_files,
     )
-    workflow_email.notify_new_request(db, "work_closeout", record.id)
 
     return work_closeout_response(db, record)
 
@@ -221,18 +218,11 @@ def supervisor_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record, approval_request_id = work_closeout_service.supervisor_decision(
+    record, _ = work_closeout_service.supervisor_decision(
         db=db,
         work_closeout_id=work_closeout_id,
         data=data,
         current_user=current_user,
-    )
-    notify_closeout_decision_result(
-        db,
-        approval_request_id,
-        data.decision,
-        data.comment,
-        is_final_step=False,
     )
 
     return work_closeout_response(db, record)
@@ -245,18 +235,11 @@ def operations_head_review(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record, approval_request_id = work_closeout_service.operations_head_decision(
+    record, _ = work_closeout_service.operations_head_decision(
         db=db,
         work_closeout_id=work_closeout_id,
         data=data,
         current_user=current_user,
-    )
-    notify_closeout_decision_result(
-        db,
-        approval_request_id,
-        data.decision,
-        data.comment,
-        is_final_step=False,
     )
 
     return work_closeout_response(db, record)
@@ -269,51 +252,11 @@ def hse_review(
     db: Session = Depends(get_db),
     inspector: Employee = Depends(require_hse_reviewer),
 ):
-    record, approval_request_id = work_closeout_service.hse_decision(
+    record, _ = work_closeout_service.hse_decision(
         db=db,
         work_closeout_id=work_closeout_id,
         data=data,
         inspector=inspector,
     )
-    notify_closeout_decision_result(
-        db,
-        approval_request_id,
-        data.decision,
-        data.comment,
-        is_final_step=True,
-    )
 
     return work_closeout_response(db, record)
-
-
-def notify_closeout_decision_result(
-    db: Session,
-    approval_request_id: str,
-    decision: WorkCloseOutDecision,
-    comment: Optional[str],
-    is_final_step: bool,
-) -> None:
-    if decision in (WorkCloseOutDecision.approve, WorkCloseOutDecision.acknowledge):
-        if is_final_step:
-            workflow_email.notify_request_result(
-                db,
-                approval_request_id,
-                "approved",
-                comment=comment,
-            )
-        else:
-            workflow_email.notify_step_assigned(db, approval_request_id)
-    elif decision == WorkCloseOutDecision.return_:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "returned",
-            comment=comment,
-        )
-    else:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "rejected",
-            comment=comment,
-        )

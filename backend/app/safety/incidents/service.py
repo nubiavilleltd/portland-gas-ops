@@ -1,5 +1,4 @@
 from datetime import datetime
-import logging
 import uuid
 from typing import Optional
 
@@ -11,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.employees.models import Employee
 from app.setups.models import Department as DepartmentModel
 from app.safety.dependencies import get_employee_for_user
+from app.safety.permissions import is_safety_hse_employee
 from app.shared.models.approval import (
     ApprovalOverallStatus,
     ApprovalRequest,
@@ -21,8 +21,9 @@ from app.shared.models.approval import (
 from app.shared.models.document import Document
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import AccountStatus, User
-from app.shared.services import email_service
 from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.post_commit import queue_after_commit
+from app.safety.incidents import email_content as incident_email
 from app.safety.incidents.models import (
     IncidentHseDecision,
     IncidentReportStatus,
@@ -45,6 +46,7 @@ from app.safety.work_closeouts.models import SafetyWorkCloseOut, WorkCloseOutSta
 from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
+    WorkInitiationStatus,
 )
 
 INCIDENT_REFERENCE_ENTITY = "incident_report"
@@ -56,9 +58,6 @@ INCIDENT_RELATED_AUTHORIZATION_STATUSES = (
     WorkAuthorizationStatus.submitted,
     WorkAuthorizationStatus.returned,
 )
-
-logger = logging.getLogger(__name__)
-
 
 def incident_document_category(incident_id: str) -> str:
     return f"{INCIDENT_DOCUMENT_CATEGORY_PREFIX}:{incident_id}"
@@ -76,14 +75,6 @@ def actor_role(employee: Employee | None) -> str | None:
     return employee.job_title or (
         employee.department_rel.name if employee.department_rel else None
     )
-
-
-def incident_severity_label(report: SafetyIncidentReport) -> str:
-    return report.severity_estimate.value.title() if report.severity_estimate else "Not specified"
-
-
-def incident_url(incident_id: str) -> str:
-    return email_service.get_request_url("safety", f"incidents/{incident_id}")
 
 
 def add_incident_audit_event(
@@ -125,113 +116,6 @@ def get_primary_hse_inspector(db: Session) -> Employee | None:
         .first()
     )
     return inspector or query.order_by(Employee.created_at.asc()).first()
-
-
-def send_incident_submitted_email(
-    db: Session,
-    report: SafetyIncidentReport,
-    reporter: Employee,
-) -> None:
-    inspector = get_primary_hse_inspector(db)
-    if not inspector or not inspector.user or not inspector.user.email:
-        return
-
-    try:
-        email_service.send_incident_notification(
-            to_email=inspector.user.email,
-            recipient_name=actor_name(inspector),
-            subject=f"Incident/Hazard Report Submitted - {report.reference}",
-            heading="New Incident/Hazard Report Submitted",
-            message=(
-                f"{actor_name(reporter)} submitted an incident/hazard report "
-                "that needs HSE review."
-            ),
-            incident_reference=report.reference,
-            incident_title=report.title,
-            severity=incident_severity_label(report),
-            location=report.location,
-            details=report.description,
-            action_label="Review Incident",
-            action_url=incident_url(report.id),
-        )
-    except Exception:
-        logger.exception("Incident submitted email failed for %s", report.id)
-
-
-def send_incident_recommendation_email(review: SafetyIncidentHseReview) -> None:
-    owner = review.action_owner
-    report = review.incident_report
-    if not owner or not owner.user or not owner.user.email or not report:
-        return
-
-    try:
-        email_service.send_incident_notification(
-            to_email=owner.user.email,
-            recipient_name=actor_name(owner),
-            subject=f"Corrective Action Assigned - {report.reference}",
-            heading="Corrective Action Recommended",
-            message=(
-                "HSE has recommended corrective action and assigned this "
-                "incident/hazard report to you."
-            ),
-            incident_reference=report.reference,
-            incident_title=report.title,
-            severity=incident_severity_label(report),
-            location=report.location,
-            details=review.corrective_action_details,
-            action_label="View Corrective Action",
-            action_url=incident_url(report.id),
-        )
-    except Exception:
-        logger.exception("Incident recommendation email failed for %s", report.id)
-
-
-def send_incident_resolved_emails(report: SafetyIncidentReport) -> None:
-    recipients: list[Employee] = []
-    if report.reporter:
-        recipients.append(report.reporter)
-    if report.hse_review and report.hse_review.inspector:
-        recipients.append(report.hse_review.inspector)
-    if report.hse_review and report.hse_review.action_owner:
-        recipients.append(report.hse_review.action_owner)
-
-    sent_to: set[str] = set()
-    for recipient in recipients:
-        if not recipient.user or not recipient.user.email:
-            continue
-        email = recipient.user.email
-        if email in sent_to:
-            continue
-        sent_to.add(email)
-
-        try:
-            email_service.send_incident_notification(
-                to_email=email,
-                recipient_name=actor_name(recipient),
-                subject=f"Incident/Hazard Resolved - {report.reference}",
-                heading="Incident/Hazard Marked Resolved",
-                message=(
-                    "This incident/hazard report has been marked resolved. "
-                    "Open the record to review the resolution details and audit trail."
-                ),
-                incident_reference=report.reference,
-                incident_title=report.title,
-                severity=incident_severity_label(report),
-                location=report.location,
-                details=(
-                    report.hse_review.comment
-                    if report.hse_review and report.hse_review.comment
-                    else "The incident/hazard report has been marked resolved."
-                ),
-                action_label="View Incident",
-                action_url=incident_url(report.id),
-            )
-        except Exception:
-            logger.exception(
-                "Incident resolved email failed for %s to %s",
-                report.id,
-                email,
-            )
 
 
 def reserve_incident_reference(db: Session) -> str:
@@ -331,16 +215,21 @@ def create_incident_report(
         action=AuditAction.submitted,
         comment="Incident/hazard report submitted for HSE review.",
     )
+    incident_id = report.id
+    queue_after_commit(
+        db,
+        lambda fresh_db: incident_email.notify_submitted(fresh_db, incident_id),
+        description=f"incident submission notifications for {incident_id}",
+    )
 
     db.commit()
     db.refresh(report)
-    send_incident_submitted_email(db, report, employee)
 
     return get_incident_report(db, report.id)
 
 
 def is_hse_employee(employee: Employee) -> bool:
-    return bool(employee.department_rel and employee.department_rel.code == "safety")
+    return is_safety_hse_employee(employee)
 
 
 def can_employee_view_incident(
@@ -498,16 +387,29 @@ def create_hse_review(
         action=audit_action_for_hse_decision(data.decision),
         comment=data.comment or data.findings,
     )
+    incident_id = report.id
+    if data.decision == IncidentHseDecision.recommended:
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_recommended(fresh_db, incident_id),
+            description=f"incident recommendation notifications for {incident_id}",
+        )
+    elif data.decision == IncidentHseDecision.resolved:
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_closed(fresh_db, incident_id),
+            description=f"incident closure notifications for {incident_id}",
+        )
+    else:
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_not_resolved(fresh_db, incident_id),
+            description=f"incident not-resolved notifications for {incident_id}",
+        )
     db.commit()
     db.refresh(review)
 
-    saved_review = get_hse_review(db, review.id)
-    if data.decision == IncidentHseDecision.recommended:
-        send_incident_recommendation_email(saved_review)
-    elif data.decision == IncidentHseDecision.resolved:
-        send_incident_resolved_emails(get_incident_report(db, report.id))
-
-    return saved_review
+    return get_hse_review(db, review.id)
 
 
 def incident_status_for_hse_decision(
@@ -516,7 +418,7 @@ def incident_status_for_hse_decision(
     if decision == IncidentHseDecision.recommended:
         return IncidentReportStatus.recommended
     if decision == IncidentHseDecision.resolved:
-        return IncidentReportStatus.resolved
+        return IncidentReportStatus.closed
     return IncidentReportStatus.not_resolved
 
 
@@ -524,7 +426,7 @@ def audit_action_for_hse_decision(decision: IncidentHseDecision) -> AuditAction:
     if decision == IncidentHseDecision.recommended:
         return AuditAction.recommended
     if decision == IncidentHseDecision.resolved:
-        return AuditAction.resolved
+        return AuditAction.closed
     return AuditAction.not_resolved
 
 
@@ -815,6 +717,24 @@ def get_incident_report(
         require_incident_view_access(report, employee)
 
     report.attachments = list_incident_documents(db, report.id)
+    report.has_active_work_initiation = (
+        db.query(SafetyWorkInitiation.id)
+        .filter(
+            SafetyWorkInitiation.related_incident_report_id == report.id,
+            SafetyWorkInitiation.is_active == True,
+            SafetyWorkInitiation.status.in_(
+                (
+                    WorkInitiationStatus.draft,
+                    WorkInitiationStatus.submitted,
+                    WorkInitiationStatus.pending,
+                    WorkInitiationStatus.returned,
+                    WorkInitiationStatus.approved,
+                )
+            ),
+        )
+        .first()
+        is not None
+    )
 
     return report
 
@@ -946,6 +866,12 @@ def close_resolved_incident(
         action=AuditAction.closed,
         comment=data.notes,
     )
+    incident_id = report.id
+    queue_after_commit(
+        db,
+        lambda fresh_db: incident_email.notify_closed(fresh_db, incident_id),
+        description=f"incident closure notifications for {incident_id}",
+    )
     db.commit()
     db.refresh(report)
 
@@ -982,6 +908,12 @@ def mark_incident_not_resolved_after_verification(
         actor=inspector,
         action=AuditAction.not_resolved,
         comment=data.notes,
+    )
+    incident_id = report.id
+    queue_after_commit(
+        db,
+        lambda fresh_db: incident_email.notify_not_resolved(fresh_db, incident_id),
+        description=f"incident not-resolved notifications for {incident_id}",
     )
     db.commit()
     db.refresh(report)

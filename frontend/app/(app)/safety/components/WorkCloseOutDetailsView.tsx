@@ -32,6 +32,7 @@ import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
+  isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
   SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
 } from "@/lib/modules/safety/date-rules";
@@ -51,7 +52,6 @@ import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
 import SafetyAttachmentList from "./SafetyAttachmentList";
 import type {
-  WorkCloseOutApprovalResult,
   WorkCloseOutDecision,
   WorkCloseOutHseApproval,
   WorkCloseOutRole,
@@ -584,8 +584,6 @@ export default function WorkCloseOutDetailsView({
             </div>
           }
         />
-      ) : permissions.showSupervisorApproval && request.supervisorApproval ? (
-        <ApprovalResult title="Supervisor Close-Out Review Result" result={request.supervisorApproval} />
       ) : null}
 
       {permissions.canOperationsHeadApprove ? (
@@ -624,8 +622,6 @@ export default function WorkCloseOutDetailsView({
             </div>
           }
         />
-      ) : permissions.showOperationsHeadApproval && request.operationsHeadApproval ? (
-        <ApprovalResult title="Operations Head Close-Out Review Result" result={request.operationsHeadApproval} />
       ) : null}
 
       {permissions.canHseApprove ? (
@@ -801,11 +797,28 @@ function CompletionDetails({
               label="Actual Start Date/Time"
               value={values.actualStartDateTime}
               max={getLatestActualWorkDateTime()}
-              onValueChange={onChange.setActualStartDateTime}
+              onValueChange={(value) => {
+                onChange.setActualStartDateTime(value);
+                if (
+                  values.actualCompletionDateTime &&
+                  isDateTimeBefore(
+                    values.actualCompletionDateTime,
+                    getDateTimeAfter(value, MIN_SCHEDULE_DURATION_MINUTES),
+                  )
+                ) {
+                  onChange.setActualCompletionDateTime("");
+                }
+              }}
             />
             <FormDateTimeInput
               label="Actual Completion Date/Time"
               value={values.actualCompletionDateTime}
+              disabled={!values.actualStartDateTime}
+              placeholder={
+                values.actualStartDateTime
+                  ? "Select date and time"
+                  : "Select actual start date/time first"
+              }
               min={
                 values.actualStartDateTime
                   ? getDateTimeAfter(
@@ -874,6 +887,7 @@ function CompletionDetails({
       </div>
       <div className="mt-4">
         <SafetyAttachmentList
+          label="Completion Evidence"
           attachments={visibleEvidence}
           emptyMessage="No completion evidence."
           onRemove={
@@ -890,7 +904,6 @@ function CompletionDetails({
         {editable ? (
           <div className="mt-4">
             <FileDropzone
-              label="Completion Evidence"
               value={values.completionEvidence}
               onChange={onChange.setCompletionEvidence}
               accept="image/*,.pdf,.doc,.docx"
@@ -1300,25 +1313,6 @@ function enumAnswer(
   };
 }
 
-function ApprovalResult({
-  result,
-  title,
-}: {
-  result: WorkCloseOutApprovalResult;
-  title: string;
-}) {
-  return (
-    <FormSection title={title} description="Recorded review decision and comments for this close-out.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Reviewer" value={result.approver} disabled />
-        <FormInput label="Decision" value={result.decision} disabled />
-        <FormInput label="Review Date/Time" value={result.dateTime} disabled />
-        <FormTextarea label="Comment" value={result.comment} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
 function HseResult({
   result,
   checklistResponses,
@@ -1327,9 +1321,8 @@ function HseResult({
   checklistResponses: SafetyChecklistResponse[];
 }) {
   return (
-    <FormSection title="HSE Final Close-Out Review Result" description="Final HSE verification and close-out decision.">
+    <FormSection title="HSE Close-Out Verification" description="Recorded HSE checklist and corrective-action details.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value={result.inspector} disabled />
         <div className="md:col-span-2 space-y-2">
           <p className="text-sm font-medium text-brand-text-primary">
             HSE Checklist Responses
@@ -1342,9 +1335,6 @@ function HseResult({
         {result.correctiveActionRequired ? (
           <FormTextarea label="Corrective Action Details" value={result.correctiveActionDetails} disabled />
         ) : null}
-        <FormInput label="HSE Decision" value={result.decision} disabled />
-        <FormInput label="HSE Review Date/Time" value={result.dateTime} disabled />
-        <FormTextarea label="HSE Comment" value={result.comment} disabled />
       </div>
     </FormSection>
   );
@@ -1367,14 +1357,7 @@ function StatusNote({
 }) {
   let note = "";
 
-  if (request.status === "submitted") {
-    note =
-      currentRole === "supervisor"
-        ? "This close-out is waiting for your supervisor review."
-        : currentRole === "hse"
-          ? "Waiting for supervisor approval before HSE close-out verification."
-          : "Waiting for supervisor close-out approval.";
-  } else if (request.status === "returned") {
+  if (request.status === "returned") {
     note =
       currentRole === "requester"
         ? "This close-out was returned. Review the comments, update the close-out, and resubmit."
@@ -1383,26 +1366,20 @@ function StatusNote({
     note = "This close-out has been denied and is closed.";
   } else if (request.status === "acknowledged") {
     note = "This exception close-out has been acknowledged for audit. It is not counted as a successful close-out.";
-  } else if (request.status === "pending") {
-    if (!request.operationsHeadApproval) {
-      note =
-        currentRole === "operations_head"
-          ? `Supervisor ${request.supervisorApproval?.decision === "Acknowledge" ? "acknowledged" : "approved"}. Operations Head close-out review is available.`
-          : `Supervisor ${request.supervisorApproval?.decision === "Acknowledge" ? "acknowledged" : "approved"}. Waiting for Operations Head review.`;
-    } else {
-      note =
-        currentRole === "hse"
-          ? `Operations Head ${request.operationsHeadApproval.decision === "Acknowledge" ? "acknowledged" : "approved"}. HSE final close-out review is available.`
-          : `Operations Head ${request.operationsHeadApproval.decision === "Acknowledge" ? "acknowledged" : "approved"}. Waiting for HSE final close-out review.`;
-    }
-  } else if (request.status === "draft" && currentRole !== "requester") {
-    note = "This close-out is still in draft and has not been submitted.";
   }
 
   if (!note) return null;
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <div
+      className={
+        request.status === "denied"
+          ? "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          : request.status === "acknowledged"
+            ? "rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800"
+            : "rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
+      }
+    >
       {note}
     </div>
   );
@@ -1476,7 +1453,7 @@ function showCloseOutDecisionToast(
   } else if (decision === "Acknowledge") {
     toast.success(`Close-out acknowledged by ${actorLabel}.`);
   } else if (decision === "Return") {
-    toast.info("Close-out returned to requester.");
+    toast.warning("Close-out returned to requester.");
   } else {
     toast.error(`Close-out denied by ${actorLabel}.`);
   }

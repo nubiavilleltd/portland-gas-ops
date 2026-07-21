@@ -626,11 +626,11 @@ function IncidentDetails({
           disabled={!editable}
           className="md:col-span-2"
         />
-        {/* <FormInput
-          label="Severity Estimate"
-          defaultValue={report.severityEstimate}
-          disabled={!editable}
-        /> */}
+        <FormInput
+          label="Reporter Severity Estimate"
+          value={report.severityEstimate || "Not recorded"}
+          disabled
+        />
         <div className="md:col-span-2">
           <SafetyChoiceTable
             options={yesNoOptions}
@@ -665,7 +665,10 @@ function EvidenceSection({ report }: { report: IncidentHazardReport }) {
       title="Evidence / Attachments"
       description="Supporting photos, videos, or documents for this report."
     >
-      <SafetyAttachmentList attachments={report.attachments} />
+      <SafetyAttachmentList
+        label="Photos / Videos / Documents"
+        attachments={report.attachments}
+      />
     </FormSection>
   );
 }
@@ -936,7 +939,6 @@ function HseReviewResult({
       description="Recorded HSE findings and corrective action outcome."
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="HSE Inspector" value={review.inspector} disabled />
         <FormInput
           label="Confirmed Report Type"
           value={review.confirmedReportType}
@@ -981,17 +983,6 @@ function HseReviewResult({
             />
           </>
         ) : null}
-        <FormInput
-          label="HSE Resolution"
-          value={review.decision || "Pending final HSE resolution"}
-          disabled
-        />
-        <FormTextarea label="HSE Comment" value={review.comment} disabled />
-        <FormInput
-          label="HSE Review Date/Time"
-          value={review.reviewDateTime}
-          disabled
-        />
       </div>
     </FormSection>
   );
@@ -1034,6 +1025,7 @@ function CorrectiveWorkResolution({
       </div>
       {report.status === "recommended" &&
       !completedWorkReference &&
+      !report.hasActiveWorkInitiation &&
       canCreateLinkedWork ? (
         <div className="mt-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-blue-800">
@@ -1049,12 +1041,6 @@ function CorrectiveWorkResolution({
             Create Work Initiation
           </Button>
         </div>
-      ) : null}
-      {report.status === "pending_hse_verification" ? (
-        <p className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-          Corrective action work has been completed and approved. This incident
-          is waiting for final HSE verification.
-        </p>
       ) : null}
     </FormSection>
   );
@@ -1266,36 +1252,20 @@ function StatusNote({
   currentRole: IncidentHazardRole;
 }) {
   let note = "";
-  if (report.status === "submitted") {
-    note =
-      currentRole === "hse"
-        ? "This report is waiting for your HSE review."
-        : "Submitted. Waiting for HSE review.";
-  } else if (report.status === "draft" && currentRole !== "reporter") {
-    note = "This report is still in draft and has not been submitted.";
-  } else if (report.status === "recommended") {
-    note =
-      currentRole === "action_owner"
-        ? `Corrective work has been recommended to you in ${report.hseReview?.assignedDepartment || "the assigned department"}. Raise linked Work Initiation to continue.`
-        : `Corrective action recommended to ${report.hseReview?.actionOwner || "the action owner"} in ${report.hseReview?.assignedDepartment || "the assigned department"}.`;
-  } else if (report.status === "pending_hse_verification") {
-    note =
-      currentRole === "hse"
-        ? "Corrective action completed. Pending your HSE verification."
-        : "Corrective action completed. Pending HSE verification.";
-  } else if (report.status === "resolved") {
-    note =
-      currentRole === "hse"
-        ? "The action owner marked this incident resolved. Verify the completed work and close it."
-        : "This incident has been marked resolved and is awaiting HSE closure.";
-  } else if (report.status === "closed") {
-    note = "This report has been verified and closed by HSE.";
+  if (report.status === "recommended" && currentRole === "action_owner") {
+    note = `Corrective work has been recommended to you in ${report.hseReview?.assignedDepartment || "the assigned department"}. Raise linked Work Initiation to continue.`;
   } else if (report.status === "not_resolved") {
     note = "This report has been marked not resolved by HSE.";
   }
   if (!note) return null;
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <div
+      className={
+        report.status === "not_resolved"
+          ? "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          : "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+      }
+    >
       {note}
     </div>
   );

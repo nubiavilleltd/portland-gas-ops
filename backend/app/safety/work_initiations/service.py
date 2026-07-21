@@ -11,7 +11,10 @@ from app.employees.models import Employee
 from app.shared.models.reference_counter import ReferenceCounter
 from app.safety.dependencies import get_employee_for_user
 from app.safety.incidents.models import IncidentReportStatus, SafetyIncidentReport
-from app.safety.permissions import require_safety_operations_approver
+from app.safety.permissions import (
+    is_safety_hse_employee,
+    require_safety_operations_approver,
+)
 from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
@@ -693,8 +696,11 @@ def list_work_initiations(
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(
-            SafetyWorkInitiation.is_active == True,
+        .filter(SafetyWorkInitiation.is_active == True)
+    )
+
+    if not is_safety_hse_employee(employee):
+        query = query.filter(
             or_(
                 SafetyWorkInitiation.requester_id == employee.id,
                 SafetyWorkInitiation.assigned_supervisor_id == employee.id,
@@ -702,9 +708,8 @@ def list_work_initiations(
                     SafetyWorkInitiationWorker.worker_id == employee.id,
                 ),
                 current_approval_exists,
-            ),
+            )
         )
-    )
 
     if status_filter:
         query = query.filter(SafetyWorkInitiation.status == status_filter)
@@ -765,6 +770,8 @@ def can_view_work_initiation(
     record: SafetyWorkInitiation,
     employee: Employee,
 ) -> bool:
+    if is_safety_hse_employee(employee):
+        return True
     if record.requester_id == employee.id:
         return True
     if record.assigned_supervisor_id == employee.id:

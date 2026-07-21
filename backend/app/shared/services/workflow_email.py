@@ -1,8 +1,9 @@
 """
 Workflow email notifications — sends emails at key points in the approval lifecycle.
 
-Always call AFTER db.commit() so the data is stable. All functions swallow
-their own exceptions — email failures must never block the API response.
+WorkflowEngine queues the standard lifecycle emails and runs them only after
+the request transaction commits successfully. All functions swallow their own
+exceptions so email failures never block the API response.
 
 Email content (subject, copy, button labels) is resolved via a two-level
 registry:
@@ -13,13 +14,9 @@ registry:
 Each content file exposes hooks (on_submitted, on_step_assigned, etc.) that
 return a dict of overrides, or None to fall back.
 
-Usage:
-    result = engine.approve(...)
-    db.commit()
-    if result.overall_status.value == "approved":
-        notify_request_result(db, approval_request_id, "approved", comment=body.comment)
-    else:
-        notify_step_assigned(db, approval_request_id)
+Modules customize wording through the content registry. They should not call
+the standard lifecycle helpers after invoking WorkflowEngine because that
+would send the same notification twice.
 """
 
 import importlib
@@ -49,12 +46,13 @@ class StepContext:
 # ---------------------------------------------------------------------------
 
 _CONTENT_REGISTRY: dict[str, str] = {
-    "procurement": "app.procurement.email_content",
-    "asset":       "app.assets.email_content",
+    "procurement":       "app.procurement.email_content",
+    "asset":             "app.assets.email_content",
+    "work_initiation":   "app.safety.work_initiations.email_content",
+    "work_authorization": "app.safety.work_authorizations.email_content",
+    "work_closeout":     "app.safety.work_closeouts.email_content",
     # Uncomment as each module creates its content file:
-    # "work_initiation":    "app.safety.work_initiation_email_content",
-    # "work_authorization": "app.safety.work_authorization_email_content",
-    # "leave":              "app.leave.email_content",
+    # "leave": "app.leave.email_content",
 }
 
 _GENERIC_MODULE = "app.shared.services.generic_email_content"
@@ -441,7 +439,7 @@ def notify_request_result(
             "returned": "on_returned",
         }.get(action, "on_approved")
         override = _call_hook(ar.request_type, hook_name, ctx)
-        result_message_override = (override or {}).get("result_message")
+        overrides = override or {}
 
         url = email_service.get_request_url(ar.request_type, ar.request_id, db)
 
@@ -453,7 +451,11 @@ def notify_request_result(
             action=action,
             comment=comment,
             action_url=url,
-            result_message_override=result_message_override,
+            result_message_override=overrides.get("result_message"),
+            subject_override=overrides.get("subject"),
+            result_heading_override=overrides.get("result_heading"),
+            action_label_override=overrides.get("action_label"),
+            action_color_override=overrides.get("action_color"),
         )
     except Exception:
         logger.exception("notify_request_result failed for AR %s", approval_request_id)

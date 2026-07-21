@@ -7,24 +7,11 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import SelectInput from "@/components/forms/SelectInput";
 import { useMyRequests, type MyRequest } from "@/lib/modules/workflow/queries";
+import {
+  getWorkflowProcessConfig,
+  normalizeWorkflowProcessType,
+} from "@/lib/modules/workflow/processes";
 import { formatDate } from "@/lib/utils";
-
-// ── Process config ─────────────────────────────────────────────────────────────
-
-const PROCESS_CONFIG: Record<string, { label: string; badge: string }> = {
-  procurement:      { label: "Procurement",      badge: "bg-purple-100 text-purple-700" },
-  asset:            { label: "Asset Request",    badge: "bg-blue-100 text-blue-700" },
-  leave:            { label: "Leave",            badge: "bg-green-100 text-green-700" },
-  cash_requisition: { label: "Cash Requisition", badge: "bg-yellow-100 text-yellow-700" },
-  invoice:          { label: "Invoice",          badge: "bg-pink-100 text-pink-700" },
-  work_initiation:  { label: "Work Initiation",  badge: "bg-orange-100 text-orange-700" },
-  work_closeout:    { label: "Work Close-Out",   badge: "bg-teal-100 text-teal-700" },
-  safety:           { label: "Safety Incident",  badge: "bg-red-100 text-red-700" },
-};
-
-function getProcessConfig(type: string) {
-  return PROCESS_CONFIG[type] ?? { label: type, badge: "bg-gray-100 text-gray-700" };
-}
 
 // ── Title fallback ─────────────────────────────────────────────────────────────
 
@@ -35,24 +22,34 @@ const REQUEST_TYPE_LABEL: Record<string, string> = {
   cash_requisition: "Cash Requisition",
   invoice:          "Invoice Request",
   work_initiation:  "Work Initiation",
+  work_authorization: "Work Authorization",
   work_closeout:    "Work Close-Out",
   safety:           "Safety Incident",
+  incident_report:  "Safety Incident",
 };
 
 function resolveTitle(row: MyRequest): string {
   if (row.title && row.title !== "undefined" && row.title.trim()) {
+    const title = row.title.trim();
+
     // Procurement titles arrive as "category — PR-REF". Flip to "PR-REF — Category".
-    if (row.request_type === "procurement") {
-      const parts = row.title.split(" — ");
+    if (normalizeWorkflowProcessType(row.request_type) === "procurement") {
+      const parts = title.split(" — ");
       if (parts.length === 2) {
         const [category, reference] = parts;
-        const label = category.trim().charAt(0).toUpperCase() + category.trim().slice(1).replace(/_/g, " ");
+        const normalizedCategory = category.trim().replace(/_/g, " ");
+        const label =
+          normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1);
         return `${reference.trim()} — ${label}`;
       }
     }
-    return row.title;
+
+    return title;
   }
-  return REQUEST_TYPE_LABEL[row.request_type] ?? "Request";
+
+  return (
+    REQUEST_TYPE_LABEL[normalizeWorkflowProcessType(row.request_type)] ?? "Request"
+  );
 }
 
 // ── Table columns ──────────────────────────────────────────────────────────────
@@ -71,7 +68,7 @@ const COLUMNS: Column<MyRequest>[] = [
     key: "request_type",
     label: "Process",
     render: (v) => {
-      const cfg = getProcessConfig(String(v));
+      const cfg = getWorkflowProcessConfig(String(v));
       return (
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${cfg.badge}`}>
           {cfg.label}
@@ -97,6 +94,23 @@ const COLUMNS: Column<MyRequest>[] = [
     render: (v) => <ApprovalBadge status={String(v)} />,
   },
   {
+    key: "next_approver_name",
+    label: "Next Approver",
+    render: (v, row) =>
+      v ? (
+        <div>
+          <p className="text-sm text-brand-text-primary">{String(v)}</p>
+          {row.next_approver_role ? (
+            <p className="text-xs text-brand-text-secondary">
+              {row.next_approver_role}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
+  {
     key: "created_at",
     label: "Date Submitted",
     render: (v) => (
@@ -111,13 +125,18 @@ const COLUMNS: Column<MyRequest>[] = [
 
 function resolveHref(row: MyRequest): string {
   const id = row.request_id;
-  switch (row.request_type) {
-    case "procurement":       return `/procurement/${id}`;
-    case "asset":             return `/assets/requests/${id}`;
-    case "work_initiation":   return `/safety/work-initiation/${id}`;
-    case "work_authorization":return `/safety/work-authorization/${id}`;
-    case "work_closeout":     return `/safety/work-close-out/${id}`;
-    default:                  return "#";
+  switch (normalizeWorkflowProcessType(row.request_type)) {
+    case "procurement": return `/procurement/${id}`;
+    case "asset":       return `/assets/requests/${id}`;
+    case "leave":       return `/hr-management/leave-requests/${id}`;
+    case "cash_requisition": return `/finance/cash-requisitions/${id}`;
+    case "invoice":     return `/invoices/${id}`;
+    case "work_initiation": return `/safety/work-initiation/${id}`;
+    case "work_authorization": return `/safety/work-authorization/${id}`;
+    case "work_closeout": return `/safety/work-close-out/${id}`;
+    case "safety":
+    case "incident_report": return `/safety/incidents/${id}`;
+    default:            return "#";
   }
 }
 
@@ -131,13 +150,23 @@ export default function MyRequestsPage() {
 
   const processOptions = useMemo(() => {
     const seen = new Set<string>();
-    requests.forEach((r) => seen.add(r.request_type));
-    return Array.from(seen).map((t) => ({ value: t, label: getProcessConfig(t).label }));
+    requests.forEach((request) =>
+      seen.add(normalizeWorkflowProcessType(request.request_type)),
+    );
+    return Array.from(seen).map((type) => ({
+      value: type,
+      label: getWorkflowProcessConfig(type).label,
+    }));
   }, [requests]);
 
   const filtered = useMemo(() => {
     let list = requests;
-    if (activeProcess) list = list.filter((r) => r.request_type === activeProcess);
+    if (activeProcess) {
+      list = list.filter(
+        (request) =>
+          normalizeWorkflowProcessType(request.request_type) === activeProcess,
+      );
+    }
     if (activeStatus)  list = list.filter((r) => r.status.toLowerCase() === activeStatus);
     return list;
   }, [requests, activeProcess, activeStatus]);

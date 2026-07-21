@@ -822,12 +822,43 @@ class WorkflowEngine:
         """
         rows = (
             self.db.query(AllRequest)
+            .options(
+                joinedload(AllRequest.approval_request)
+                .joinedload(ApprovalRequest.step_assignments)
+                .joinedload(ApprovalStepAssignment.assignee)
+                .joinedload(Employee.user),
+            )
             .filter(AllRequest.raised_by == employee_id)
             .order_by(AllRequest.created_at.desc())
             .all()
         )
         result = []
         for row in rows:
+            next_approver_name = None
+            next_approver_role = None
+            approval_request = row.approval_request
+            if (
+                approval_request
+                and approval_request.overall_status == ApprovalOverallStatus.pending
+            ):
+                current_assignment = next(
+                    (
+                        assignment
+                        for assignment in approval_request.step_assignments
+                        if assignment.step_number
+                        == approval_request.current_step_number
+                    ),
+                    None,
+                )
+                if current_assignment and current_assignment.assignee:
+                    assignee = current_assignment.assignee
+                    next_approver_name = (
+                        (assignee.user.full_name or assignee.user.email)
+                        if assignee.user
+                        else None
+                    ) or assignee.employee_no
+                    next_approver_role = assignee.job_title
+
             result.append({
                 "id":                  row.id,
                 "reference":           row.reference,
@@ -837,6 +868,8 @@ class WorkflowEngine:
                 "status":              row.status.value,
                 "department":          row.department,
                 "approval_request_id": row.approval_request_id,
+                "next_approver_name":  next_approver_name,
+                "next_approver_role":  next_approver_role,
                 "created_at":          utc_isoformat(row.created_at),
                 "updated_at":          utc_isoformat(row.updated_at),
             })

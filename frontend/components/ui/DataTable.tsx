@@ -12,6 +12,7 @@ import {
   FileX,
   Plus,
   Search,
+  X,
 } from "lucide-react";
 import ApprovalBadge from "./ApprovalBadge";
 import Button from "./Button";
@@ -72,6 +73,7 @@ interface Props<T extends { id: string }> {
   isLoading?: boolean;
   searchable?: boolean;
   searchPlaceholder?: string;
+  searchInputClassName?: string;
   searchFields?: DataTableSearchField<T>[];
   getSearchValues?: (row: T) => unknown[];
   filters?: DataTableFilter<T>[];
@@ -176,6 +178,7 @@ export default function DataTable<T extends { id: string }>({
   isLoading = false,
   searchable = true,
   searchPlaceholder = "Search...",
+  searchInputClassName,
   sortable = true,
   paginated = true,
   pageSize = DEFAULT_PAGE_SIZE,
@@ -305,7 +308,12 @@ export default function DataTable<T extends { id: string }>({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 flex-col gap-3 sm:flex-row">
             {searchable ? (
-              <div className="relative w-full min-w-0 sm:w-48 lg:w-[7.5%] lg:min-w-48">
+              <div
+                className={cn(
+                  "relative w-full min-w-0",
+                  searchInputClassName ?? "sm:w-48 lg:w-[7.5%] lg:min-w-48",
+                )}
+              >
                 <Search
                   size={15}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary"
@@ -318,8 +326,22 @@ export default function DataTable<T extends { id: string }>({
                     setSearch(event.target.value);
                     resetToFirstPage();
                   }}
-                  className="h-10 w-full rounded-lg border border-brand-border bg-white pl-9 pr-4 text-sm text-brand-text-primary transition placeholder:text-brand-text-secondary focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                  className="h-10 w-full rounded-lg border border-brand-border bg-white pl-9 pr-10 text-sm text-brand-text-primary transition placeholder:text-brand-text-secondary focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-purple"
                 />
+                {search ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      resetToFirstPage();
+                    }}
+                    className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-brand-text-secondary transition-colors hover:bg-gray-100 hover:text-brand-text-primary"
+                    aria-label="Clear search"
+                    title="Clear search"
+                  >
+                    <X size={15} />
+                  </button>
+                ) : null}
               </div>
             ) : null}
 

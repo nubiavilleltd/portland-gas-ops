@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
+import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import PageHeader from "@/components/ui/PageHeader";
 import { useSafetyDashboard } from "@/lib/modules/safety/dashboard";
 import type {
@@ -21,10 +22,12 @@ import {
   Gauge,
   ListChecks,
   MapPin,
+  Search,
   ShieldAlert,
   ShieldCheck,
   UserRound,
   UsersRound,
+  X,
 } from "lucide-react";
 
 const PENDING_QUEUE_PAGE_SIZE = 5;
@@ -145,11 +148,23 @@ export default function AdminSafetyDashboardPage() {
 
 function PendingHseQueue({ items }: { items: SafetyDashboardQueueItem[] }) {
   const [page, setPage] = useState(1);
-  const pageCount = getPageCount(items.length, PENDING_QUEUE_PAGE_SIZE);
+  const [search, setSearch] = useState("");
+  const filteredItems = useMemo(
+    () =>
+      filterBySearch(items, search, (item) => [
+        item.reference,
+        item.type,
+        item.title,
+        item.detail,
+        item.location,
+      ]),
+    [items, search],
+  );
+  const pageCount = getPageCount(filteredItems.length, PENDING_QUEUE_PAGE_SIZE);
   const currentPage = Math.min(page, pageCount);
   const paginatedItems = useMemo(
-    () => paginateItems(items, currentPage, PENDING_QUEUE_PAGE_SIZE),
-    [items, currentPage],
+    () => paginateItems(filteredItems, currentPage, PENDING_QUEUE_PAGE_SIZE),
+    [filteredItems, currentPage],
   );
 
   return (
@@ -168,10 +183,23 @@ function PendingHseQueue({ items }: { items: SafetyDashboardQueueItem[] }) {
         </span>
       </div>
 
-      {items.length === 0 ? (
+      <div className="border-b border-brand-border px-5 py-3">
+        <DashboardSearch
+          value={search}
+          placeholder="Search pending HSE requests"
+          onChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      {filteredItems.length === 0 ? (
         <div className="p-5">
           <p className="rounded-lg border border-dashed border-brand-border bg-gray-50 p-4 text-sm text-brand-text-secondary">
-            No requests are pending HSE review right now.
+            {items.length === 0
+              ? "No requests are pending HSE review right now."
+              : "No pending HSE requests match your search."}
           </p>
         </div>
       ) : (
@@ -191,18 +219,27 @@ function PendingHseQueue({ items }: { items: SafetyDashboardQueueItem[] }) {
                       </span>
                       <StatusPill label={request.type} tone="blue" />
                     </div>
-                    <p className="mt-2 line-clamp-1 text-sm font-semibold text-brand-text-primary">
+                    <p
+                      className="mt-2 truncate text-sm font-semibold text-brand-text-primary"
+                      title={request.title}
+                    >
                       {request.title}
                     </p>
-                    <p className="mt-1 line-clamp-1 text-xs text-brand-text-secondary">
+                    <p
+                      className="mt-1 truncate text-xs text-brand-text-secondary"
+                      title={request.detail}
+                    >
                       {request.detail}
                     </p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">
                       Location
                     </p>
-                    <p className="mt-1 text-sm text-brand-text-primary">
+                    <p
+                      className="mt-1 truncate text-sm text-brand-text-primary"
+                      title={request.location}
+                    >
                       {request.location}
                     </p>
                   </div>
@@ -218,7 +255,7 @@ function PendingHseQueue({ items }: { items: SafetyDashboardQueueItem[] }) {
           <PaginationFooter
             page={currentPage}
             pageCount={pageCount}
-            total={items.length}
+            total={filteredItems.length}
             pageSize={PENDING_QUEUE_PAGE_SIZE}
             onPageChange={setPage}
           />
@@ -230,11 +267,26 @@ function PendingHseQueue({ items }: { items: SafetyDashboardQueueItem[] }) {
 
 function OngoingWorkPanel({ items }: { items: SafetyDashboardOngoingWorkItem[] }) {
   const [page, setPage] = useState(1);
-  const pageCount = getPageCount(items.length, ONGOING_WORK_PAGE_SIZE);
+  const [search, setSearch] = useState("");
+  const filteredItems = useMemo(
+    () =>
+      filterBySearch(items, search, (item) => [
+        item.reference,
+        item.current_stage,
+        item.status,
+        item.title,
+        item.location,
+        item.exact_work_area,
+        item.supervisor,
+        ...item.assigned_workers,
+      ]),
+    [items, search],
+  );
+  const pageCount = getPageCount(filteredItems.length, ONGOING_WORK_PAGE_SIZE);
   const currentPage = Math.min(page, pageCount);
   const paginatedItems = useMemo(
-    () => paginateItems(items, currentPage, ONGOING_WORK_PAGE_SIZE),
-    [items, currentPage],
+    () => paginateItems(filteredItems, currentPage, ONGOING_WORK_PAGE_SIZE),
+    [filteredItems, currentPage],
   );
 
   return (
@@ -253,10 +305,23 @@ function OngoingWorkPanel({ items }: { items: SafetyDashboardOngoingWorkItem[] }
         </span>
       </div>
 
-      {items.length === 0 ? (
+      <div className="border-b border-brand-border px-5 py-3">
+        <DashboardSearch
+          value={search}
+          placeholder="Search ongoing work"
+          onChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      {filteredItems.length === 0 ? (
         <div className="p-5">
           <p className="rounded-lg border border-dashed border-brand-border bg-gray-50 p-4 text-sm text-brand-text-secondary">
-            No active authorized work is in progress right now.
+            {items.length === 0
+              ? "No active authorized work is in progress right now."
+              : "No ongoing work matches your search."}
           </p>
         </div>
       ) : (
@@ -276,9 +341,12 @@ function OngoingWorkPanel({ items }: { items: SafetyDashboardOngoingWorkItem[] }
                           {item.reference}
                         </span>
                         <StatusPill label={item.current_stage} tone="green" />
-                        <StatusPill label={formatStatus(item.status)} tone="gray" />
+                        <ApprovalBadge status={item.status} />
                       </div>
-                      <p className="mt-2 line-clamp-1 text-sm font-semibold text-brand-text-primary">
+                      <p
+                        className="mt-2 truncate text-sm font-semibold text-brand-text-primary"
+                        title={item.title}
+                      >
                         {item.title}
                       </p>
                     </div>
@@ -321,13 +389,50 @@ function OngoingWorkPanel({ items }: { items: SafetyDashboardOngoingWorkItem[] }
           <PaginationFooter
             page={currentPage}
             pageCount={pageCount}
-            total={items.length}
+            total={filteredItems.length}
             pageSize={ONGOING_WORK_PAGE_SIZE}
             onPageChange={setPage}
           />
         </>
       )}
     </section>
+  );
+}
+
+function DashboardSearch({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="relative w-full sm:max-w-sm">
+      <Search
+        size={16}
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-secondary"
+      />
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 w-full rounded-lg border border-brand-border bg-white pl-9 pr-10 text-sm text-brand-text-primary outline-none transition placeholder:text-brand-text-secondary focus:border-transparent focus:ring-2 focus:ring-brand-purple"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-brand-text-secondary transition-colors hover:bg-gray-100 hover:text-brand-text-primary"
+          aria-label={`Clear ${placeholder.toLowerCase()}`}
+          title="Clear search"
+        >
+          <X size={15} />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -504,7 +609,9 @@ function InfoLine({
         <span className="block text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">
           {label}
         </span>
-        <span className="line-clamp-2 text-sm text-brand-text-primary">{value}</span>
+        <span className="block truncate text-sm text-brand-text-primary" title={value}>
+          {value}
+        </span>
       </span>
     </div>
   );
@@ -551,16 +658,25 @@ function DashboardSkeleton() {
   );
 }
 
-function formatStatus(value: string) {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function getPageCount(total: number, pageSize: number) {
   return Math.max(1, Math.ceil(total / pageSize));
 }
 
 function paginateItems<T>(items: T[], page: number, pageSize: number) {
   return items.slice((page - 1) * pageSize, page * pageSize);
+}
+
+function filterBySearch<T>(
+  items: T[],
+  search: string,
+  getValues: (item: T) => Array<string | null | undefined>,
+) {
+  const query = search.trim().toLowerCase();
+  if (!query) return items;
+
+  return items.filter((item) =>
+    getValues(item).some((value) => String(value ?? "").toLowerCase().includes(query)),
+  );
 }
 
 function formatPlannedWindow(item: SafetyDashboardOngoingWorkItem) {

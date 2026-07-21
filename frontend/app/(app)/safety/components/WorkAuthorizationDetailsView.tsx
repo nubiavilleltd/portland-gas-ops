@@ -45,7 +45,6 @@ import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
 import SafetyAttachmentList from "./SafetyAttachmentList";
 import SafetyChoiceTable from "./SafetyChoiceTable";
 import type {
-  WorkAuthorizationApprovalResult,
   WorkAuthorizationHseInspection,
   WorkAuthorizationRequest,
   WorkAuthorizationRole,
@@ -458,7 +457,7 @@ export default function WorkAuthorizationDetailsView({
       if (decision === "Approve") {
         toast.success("Work authorization approved by HSE.");
       } else if (decision === "Return") {
-        toast.info("Work authorization returned to requester.");
+        toast.warning("Work authorization returned to requester.");
       } else {
         toast.error("Work authorization denied by HSE.");
       }
@@ -569,12 +568,6 @@ export default function WorkAuthorizationDetailsView({
                 checklistResponses={(hseInspectionResponsesQuery.data ?? []).filter(
                   (response) => response.stage_snapshot === "inspection",
                 )}
-              />
-            ) : null}
-            {request.hseApproval ? (
-              <ApprovalResultSection
-                title="HSE Final Approval Result"
-                result={request.hseApproval}
               />
             ) : null}
           </>
@@ -766,6 +759,7 @@ function AttachmentsSection({
   return (
     <FormSection title="Attachments" description="Supporting safety documents and evidence attached to this request.">
       <SafetyAttachmentList
+        label="Safety-related Images/Documents"
         attachments={visibleAttachments}
         onRemove={
           editable
@@ -779,7 +773,6 @@ function AttachmentsSection({
       {editable ? (
         <div className="mt-4">
           <FileDropzone
-            label="Safety-related Images/Documents"
             value={newAttachments}
             onChange={onNewAttachmentsChange}
             accept="image/*,.pdf,.doc,.docx"
@@ -951,25 +944,6 @@ function HseFinalActionSection({
   );
 }
 
-function ApprovalResultSection({
-  title,
-  result,
-}: {
-  title: string;
-  result: WorkAuthorizationApprovalResult;
-}) {
-  return (
-    <FormSection title={title} description="Recorded HSE decision and review notes for this request.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Decision" value={result.decision} disabled />
-        <FormInput label="Approver" value={result.approver} disabled />
-        <FormInput label="Date/time" value={result.dateTime} disabled />
-        <FormTextarea label="Comment" value={result.comment} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
 function HseInspectionResultSection({
   inspection,
   checklistResponses,
@@ -1007,7 +981,10 @@ function HseInspectionResultSection({
         </div>
       </div>
       <div className="mt-4">
-        <SafetyAttachmentList attachments={inspection.evidence} />
+        <SafetyAttachmentList
+          label="Inspection evidence/images"
+          attachments={inspection.evidence}
+        />
       </div>
     </FormSection>
   );
@@ -1022,28 +999,25 @@ function StatusNote({
 }) {
   let note = "";
 
-  if (request.status === "draft" && currentRole !== "requester") {
-    note = "This request is still in draft and has not been submitted.";
-  } else if (request.status === "returned") {
+  if (request.status === "returned") {
     note =
       currentRole === "requester"
         ? "This request was returned. Review the comments, update the request, and resubmit."
         : "This request has been returned to the requester.";
   } else if (request.status === "denied") {
     note = "This request has been denied and is closed.";
-  } else if (request.status === "approved") {
-    note = "Approved. HSE has confirmed the safety requirements and work can begin.";
-  } else if (request.status === "submitted") {
-    note =
-      currentRole === "hse"
-        ? "This request is waiting for your HSE inspection and authorization decision."
-        : "Waiting for HSE inspection and authorization.";
   }
 
   if (!note) return null;
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <div
+      className={
+        request.status === "denied"
+          ? "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          : "rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
+      }
+    >
       {note}
     </div>
   );

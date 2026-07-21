@@ -36,10 +36,12 @@ import {
 import {
   getDateTimeAfter,
   getEarliestPlannedStartDateTime,
+  isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
+  startOfMinute,
 } from "@/lib/modules/safety/date-rules";
 import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
-import { useAuditTrail } from "@/lib/modules/workflow/queries";
+import { useAuditTrail, useMyApprovals } from "@/lib/modules/workflow/queries";
 import SafetyProcessFormSkeleton from "../../components/SafetyProcessFormSkeleton";
 import SafetyAttachmentList from "../../components/SafetyAttachmentList";
 import type { SafetyEmployeeProfile } from "@/lib/modules/safety/people";
@@ -133,7 +135,7 @@ type WorkInitiationEditValues = {
   otherWorkCategory: string;
   relatedIncidentHazardId: string;
   workType: string[];
-  location: string;
+  locations: string[];
   exactWorkArea: string;
   workDescription: string;
   reasonForWork: string;
@@ -166,6 +168,7 @@ export default function WorkInitiationDetailsView({
   const operationsHodReviewMutation = useOperationsHodReviewWorkInitiation();
   const updateWorkInitiationMutation = useUpdateWorkInitiation(requestId);
   const auditTrailQuery = useAuditTrail("work_initiation", requestId);
+  const myApprovalsQuery = useMyApprovals();
   const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
   const request = requestQuery.data;
   const currentEmployeeQuery = useSafetyCurrentEmployee();
@@ -227,7 +230,11 @@ export default function WorkInitiationDetailsView({
   }, [request?.id, request?.attachments]);
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
-  if (requestQuery.isLoading || currentEmployeeQuery.isLoading) {
+  if (
+    requestQuery.isLoading ||
+    currentEmployeeQuery.isLoading ||
+    myApprovalsQuery.isLoading
+  ) {
     return <SafetyProcessFormSkeleton sections={4} />;
   }
 
@@ -251,6 +258,11 @@ export default function WorkInitiationDetailsView({
       request.assignment.assignedSupervisorId === currentEmployee.id,
   );
   const isOperationsHod = isOperationsHodEmployee(currentEmployee);
+  const isAssignedWorkflowApprover = (myApprovalsQuery.data ?? []).some(
+    (approval) =>
+      approval.request_type === "work_initiation" &&
+      approval.request_id === requestId,
+  );
   const hasDirectWorkInitiationAccess =
     isRequester || isAssignedSupervisor || isOperationsHod;
   const currentRole = getWorkInitiationAccessRole({
@@ -261,9 +273,14 @@ export default function WorkInitiationDetailsView({
 
   const canRequesterEdit =
     isRequester && (request.status === "draft" || request.status === "returned");
-  const canSupervisorReview = isAssignedSupervisor && request.status === "submitted";
+  const canSupervisorReview =
+    isAssignedSupervisor &&
+    isAssignedWorkflowApprover &&
+    request.status === "submitted";
   const canOperationsHodReview =
-    isOperationsHod && request.status === "pending";
+    isOperationsHod &&
+    isAssignedWorkflowApprover &&
+    request.status === "pending";
 
   function setEditValues(
     action: React.SetStateAction<WorkInitiationEditValues | null>,
@@ -460,14 +477,6 @@ export default function WorkInitiationDetailsView({
             ) : null
           }
         />
-      ) : request.supervisorApproval ? (
-        <ApprovalResult
-          title="Supervisor Review Result"
-          approver={request.supervisorApproval.approver}
-          decision={request.supervisorApproval.decision}
-          dateTime={request.supervisorApproval.dateTime}
-          comment={request.supervisorApproval.comment}
-        />
       ) : null}
 
       {canOperationsHodReview ? (
@@ -493,8 +502,6 @@ export default function WorkInitiationDetailsView({
             ) : null
           }
         />
-      ) : request.operationalReview ? (
-        <ReviewResult request={request} />
       ) : null}
 
       {request.status !== "draft" ? <AuditTrail items={workflowAuditTrail} /> : null}
@@ -655,10 +662,10 @@ function WorkDetails({
         )}
         <FormMultiSelect
           label="Location"
-          value={values.location ? [values.location] : []}
+          value={values.locations}
           onValueChange={(value) =>
             onValuesChange((current) =>
-              current ? { ...current, location: value[0] ?? "" } : current,
+              current ? { ...current, locations: value } : current,
             )
           }
           disabled={!editable}
@@ -706,6 +713,7 @@ function WorkDetails({
       </div>
       <div className="mt-4">
         <SafetyAttachmentList
+          label="Supporting Images/Documents"
           attachments={visibleAttachments}
           onRemove={
             editable
@@ -719,7 +727,6 @@ function WorkDetails({
         {editable ? (
           <div className="mt-4">
             <FileDropzone
-              label="Supporting Images/Documents"
               value={newAttachments}
               onChange={onNewAttachmentsChange}
               accept="image/*,.pdf,.doc,.docx"
@@ -920,7 +927,18 @@ function AssignmentPlanning({
           onValueChange={(value) =>
             onValuesChange((current) =>
               current
-                ? { ...current, plannedStartDateTime: value }
+                ? {
+                    ...current,
+                    plannedStartDateTime: value,
+                    plannedEndDateTime:
+                      current.plannedEndDateTime &&
+                      isDateTimeBefore(
+                        current.plannedEndDateTime,
+                        getDateTimeAfter(value, MIN_SCHEDULE_DURATION_MINUTES),
+                      )
+                        ? ""
+                        : current.plannedEndDateTime,
+                  }
                 : current,
             )
           }
@@ -933,7 +951,12 @@ function AssignmentPlanning({
               ? getDateTimeAfter(values.plannedStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
               : undefined
           }
-          disabled={!editable}
+          disabled={!editable || !values.plannedStartDateTime}
+          placeholder={
+            values.plannedStartDateTime
+              ? "Select date and time"
+              : "Select planned start date/time first"
+          }
           onValueChange={(value) =>
             onValuesChange((current) =>
               current
@@ -960,55 +983,22 @@ function AssignmentPlanning({
   );
 }
 
-function ReviewResult({ request }: { request: WorkInitiationRequest }) {
-  const review = request.operationalReview;
-  if (!review) return null;
-  return (
-    <FormSection title="Operations HOD Review Result" description="Recorded Operations HOD decision and comments.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Reviewer" value={review.reviewer} disabled />
-        <FormInput label="Review Decision" value={review.decision} disabled />
-        <FormInput label="Review Date/Time" value={review.dateTime} disabled />
-        <FormTextarea label="Review Comment" value={review.comment} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
-function ApprovalResult({
-  title,
-  approver,
-  decision,
-  dateTime,
-  comment,
-}: {
-  title: string;
-  approver: string;
-  decision: WorkAuthorizationDecision;
-  dateTime: string;
-  comment: string;
-}) {
-  return (
-    <FormSection title={title} description="Recorded supervisor decision and comments for this work request.">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Approver" value={approver} disabled />
-        <FormInput label="Decision" value={decision} disabled />
-        <FormInput label="Review Date/Time" value={dateTime} disabled />
-        <FormTextarea label="Comment" value={comment} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
 function StatusNote({ request, currentRole }: { request: WorkInitiationRequest; currentRole: WorkInitiationRole }) {
   let note = "";
-  if (request.status === "submitted") note = currentRole === "supervisor" ? "This request is waiting for your review as supervisor." : "Waiting for supervisor approval.";
-  if (request.status === "pending") note = currentRole === "operations_hod" ? "Supervisor approved. This request is waiting for your Operations HOD review." : "Supervisor approved. Waiting for Operations HOD approval.";
-  if (request.status === "approved") note = "Work approved by Operations HOD. Its assigned team is eligible for Work Authorization.";
   if (request.status === "returned") note = currentRole === "requester" ? "This request was returned. Update and resubmit." : "This request was returned to the requester.";
   if (request.status === "denied") note = "This work initiation request has been denied and closed.";
   if (!note) return null;
-  return <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{note}</div>;
+  return (
+    <div
+      className={
+        request.status === "denied"
+          ? "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          : "rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
+      }
+    >
+      {note}
+    </div>
+  );
 }
 
 function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
@@ -1048,7 +1038,7 @@ function buildInitialEditValues(
     otherWorkCategory: request.otherWorkCategory ?? "",
     relatedIncidentHazardId: request.relatedIncidentHazardId,
     workType: request.workType,
-    location: request.location,
+    locations: parseStoredLocations(request.location),
     exactWorkArea: request.exactWorkArea,
     workDescription: request.workDescription,
     reasonForWork: request.reasonForWork,
@@ -1084,7 +1074,7 @@ function buildWorkInitiationUpdatePayload(
         ? values.relatedIncidentHazardId || null
         : null,
     work_type: values.workType,
-    location: values.location,
+    location: values.locations.join(", "),
     exact_work_area: values.exactWorkArea || null,
     work_description: values.workDescription,
     reason_for_work: values.reasonForWork,
@@ -1105,6 +1095,10 @@ function buildWorkInitiationUpdatePayload(
 }
 
 function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
+  if (values.locations.length === 0) {
+    return "Select at least one location.";
+  }
+
   if (values.workDescription.trim().length < 5) {
     return "Work description must be at least 5 characters.";
   }
@@ -1113,7 +1107,7 @@ function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
     return "Specify the work category.";
   }
 
-  const now = new Date();
+  const now = startOfMinute(new Date());
   const minimumStartTime = new Date(now.getTime() + 10 * 60 * 1000);
   const plannedStart = new Date(values.plannedStartDateTime);
   const plannedEnd = new Date(values.plannedEndDateTime);
@@ -1144,6 +1138,13 @@ function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
   }
 
   return null;
+}
+
+function parseStoredLocations(value: string) {
+  return value
+    .split(",")
+    .map((location) => location.trim())
+    .filter(Boolean);
 }
 
 function formatWorkCategory(request: WorkInitiationRequest) {
@@ -1196,7 +1197,7 @@ function showDecisionToast(
   if (decision === "Approve") {
     toast.success(`${recordLabel} approved by ${actorLabel}.`);
   } else if (decision === "Return") {
-    toast.info(`${recordLabel} returned to requester.`);
+    toast.warning(`${recordLabel} returned to requester.`);
   } else {
     toast.error(`${recordLabel} denied by ${actorLabel}.`);
   }

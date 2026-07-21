@@ -122,7 +122,7 @@ export default function WorkAuthorizationRequestsTable({
 
   return (
     <div className="space-y-3">
-      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      {/* <SafetyRequestListFilters value={filter} onChange={setFilter} /> */}
       <DataTable
         columns={columns}
         data={requests}

@@ -376,6 +376,7 @@ export interface IncidentHazardReport {
   location: string;
   dateTimeObserved: string;
   relatedWorkAuthorization: string;
+  hasActiveWorkInitiation: boolean;
   description: string;
   severityEstimate: IncidentHazardSeverity | "";
   anyoneInjured: boolean | null;

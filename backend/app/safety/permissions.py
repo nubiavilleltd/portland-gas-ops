@@ -3,6 +3,13 @@ from fastapi import HTTPException, status
 from app.employees.models import Employee
 
 
+def is_safety_hse_employee(employee: Employee) -> bool:
+    return bool(
+        employee.department_rel
+        and employee.department_rel.code == "safety"
+    )
+
+
 def require_safety_operations_approver(employee: Employee) -> Employee:
     if (
         employee.department_rel
@@ -21,7 +28,7 @@ def require_safety_operations_approver(employee: Employee) -> Employee:
 
 
 def require_safety_hse_reviewer(employee: Employee) -> Employee:
-    if employee.department_rel and employee.department_rel.code == "safety":
+    if is_safety_hse_employee(employee):
         return employee
 
     raise HTTPException(

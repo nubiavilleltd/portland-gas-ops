@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.schemas import UtcDateTimeModel
-from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES
+from app.safety.date_rules import MIN_SCHEDULE_DURATION_MINUTES, start_of_minute
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
     WorkInitiationDecision,
@@ -79,7 +79,7 @@ class WorkInitiationCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_planned_dates(self):
-        now = datetime.now(timezone.utc)
+        now = start_of_minute(datetime.now(timezone.utc))
         minimum_start_time = now + timedelta(minutes=10)
 
         planned_start = to_utc(self.planned_start_at)

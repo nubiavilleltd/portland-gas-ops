@@ -78,7 +78,7 @@ export default function RoleBasedRecordHeader<T extends string>({
               </p>
             ) : nextActor ? (
               <p className="mt-1 text-sm text-brand-text-secondary">
-                Next Actor: <span className="font-medium text-brand-text-primary">{nextActor}</span>
+                Next Actor: <span className="font-medium text-brand-text-primary">{nextActor.toLowerCase() === "closed" ? "None" : nextActor}</span>
               </p>
             ) : null}
           </div>
