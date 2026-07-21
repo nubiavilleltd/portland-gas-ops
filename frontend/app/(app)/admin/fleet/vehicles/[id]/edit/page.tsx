@@ -8,8 +8,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import VehicleForm, { type VehicleFormValues } from "@/lib/modules/fleet/components/VehicleForm";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
-import { VehiclesService } from "@/lib/modules/fleet/services/vehicles.service";
-import { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+import { useUpdateVehicle } from "@/lib/modules/fleet/hooks/useVehicles";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
@@ -23,6 +22,7 @@ export default function EditVehiclePage() {
   const router = useRouter();
   const id = params.id as string;
   const { vehicle } = useVehicleById(id);
+    const { updateVehicle } = useUpdateVehicle();
 
   if (!vehicle) {
     return (
@@ -34,10 +34,10 @@ export default function EditVehiclePage() {
 
 
 async function handleSubmit(data: VehicleFormValues) {
-  await VehiclesService.updateVehicle(
+  await updateVehicle({
     id,
-    adaptUpdateVehicleRequest(data)
-  );
+    input: adaptUpdateVehicleRequest(data),
+  });
 
   toast.success("Vehicle successfully updated");
 
