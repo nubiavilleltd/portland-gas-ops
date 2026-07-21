@@ -14,6 +14,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
 
 import { adaptUpdateVehicleRequest } from "@/lib/modules/fleet/adapters/fleet.adapter";
+import { parseError } from "@/lib/errors";
 
 
 
@@ -34,7 +35,8 @@ export default function EditVehiclePage() {
 
 
 async function handleSubmit(data: VehicleFormValues) {
-  await updateVehicle({
+ try{
+   await updateVehicle({
     id,
     input: adaptUpdateVehicleRequest(data),
   });
@@ -42,6 +44,10 @@ async function handleSubmit(data: VehicleFormValues) {
   toast.success("Vehicle successfully updated");
 
   router.push(`/admin/fleet/vehicles/${id}`);
+ }catch(error){
+  toast.error(parseError(error));
+ }
+
 }
   return (
     <AppLayout pageTitle="Edit Vehicle">

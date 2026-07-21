@@ -151,7 +151,7 @@ class VehicleService:
         return self.repo.update(
             db,
             vehicle,
-            status=VehicleStatus.in_use,
+            status=VehicleStatus.assigned,
         )
 
     def mark_in_transit(
