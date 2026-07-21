@@ -30,10 +30,10 @@ export default function AssignResourcesPage() {
 
   const assignResources = useAssignResourcesWorkflow();
 
-  const tripNo = params.id as string;
+  const id = params.id as string;
 
   // ✅ domain hooks instead of selectors
-  const { trip } = useTripByNo(tripNo);
+  const { trip } = useTripById(id);
   const { drivers: availableDrivers } = useAvailableDrivers();
   const { vehicles: availableVehicles } = useAvailableVehicles();
 
@@ -59,7 +59,7 @@ export default function AssignResourcesPage() {
             trip is currently <TripStatusBadge status={trip.status} />.
           </p>
           <Button
-            href={`/fleet/trips/${tripNo}`}
+            href={`/fleet/trips/${id}`}
             variant="outline"
           >
             Back to Trip
@@ -74,7 +74,7 @@ export default function AssignResourcesPage() {
   async function handleAssign() {
     if (!canSubmit) return;
     await assignResources.mutateAsync({
-      tripId:trip?.id as string,
+      tripId:id,
       driverId: selectedDriverId,
       vehicleId: selectedVehicleId,
     });
@@ -83,7 +83,7 @@ export default function AssignResourcesPage() {
   return (
     <AppLayout pageTitle="Assign Driver & Vehicle">
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
+        href={`${FLEET_ROUTES.tripDetail(id)}`}
         label="Back to Trip"
       />
       <PageHeader

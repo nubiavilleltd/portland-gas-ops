@@ -138,10 +138,10 @@ function DispositionPicker({
 // ── Page ──────────────────────────────────────────────────
 export default function AssignInventoryPage() {
   const router = useRouter();
-  const { id: tripNo } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const assignInventory = useAssignInventoryWorkflow();
 
-  const { trip, isLoading: tripLoading } = useTripByNo(tripNo);
+  const { trip, isLoading: tripLoading } = useTripById(id);
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products, isLoading: productsLoading } = useProducts();
   const { items, isLoading: itemsLoading } = useInventoryItems();
@@ -207,7 +207,7 @@ export default function AssignInventoryPage() {
           </p>
           <Button
             variant="outline"
-            href={FLEET_ROUTES.tripDetail(tripNo)}
+            href={FLEET_ROUTES.tripDetail(id)}
           >
             Back to Trip
           </Button>

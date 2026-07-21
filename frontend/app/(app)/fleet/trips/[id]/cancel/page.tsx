@@ -16,9 +16,9 @@ import { canCancelTrip } from "@/lib/modules/fleet/guards/trip.guards";
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
 
 export default function CancelTripPage() {
-  const { id: tripNo } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { trip, isLoading } = useTripByNo(tripNo);
+  const { trip, isLoading } = useTripById(id);
   const cancelTrip = useCancelTripWorkflow();
   const [reason, setReason] = useState("");
 
@@ -47,7 +47,7 @@ export default function CancelTripPage() {
             Trips that are already dispatched, in transit, completed, or
             already cancelled cannot be cancelled from here.
           </p>
-          <Button variant="outline" href={FLEET_ROUTES.tripDetail(tripNo)}>
+          <Button variant="outline" href={FLEET_ROUTES.tripDetail(id)}>
             Back to Trip
           </Button>
         </div>

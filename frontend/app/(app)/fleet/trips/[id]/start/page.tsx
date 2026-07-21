@@ -28,11 +28,11 @@ export default function StartTripPage() {
 
   const startTrip = useStartTripWorkflow();
 
-  const tripNo = params.id as string;
+  const id = params.id as string;
 
   // ── DATA HOOKS ─────────────────────────────────────────
 
-  const { trip } = useTripByNo(tripNo);
+  const { trip } = useTripById(id);
   const { driver } = useDriverById(trip?.driver_id as string);
   const { vehicle } = useVehicleById(trip?.vehicle_id as string);
 
@@ -56,7 +56,7 @@ export default function StartTripPage() {
           </p>
 
           <Button
-            href={`/fleet/trips/${tripNo}`}
+            href={`/fleet/trips/${id}`}
             variant="outline"
           >
             Back to Trip
@@ -74,7 +74,7 @@ export default function StartTripPage() {
     <AppLayout pageTitle="Start Trip">
 
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
+        href={`${FLEET_ROUTES.tripDetail(id)}`}
         label="Back to Trip"
       />
       <PageHeader

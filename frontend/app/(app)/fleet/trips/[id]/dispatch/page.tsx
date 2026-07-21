@@ -24,10 +24,10 @@ export default function DispatchTripPage() {
   const params = useParams();
   const dispatchTrip = useDispatchTripWorkflow();
 
-  const tripNo = params.id as string;
+  const id = params.id as string;
 
   // ── React Query sources ───────────────────────────────
-  const { trip } = useTripByNo(tripNo);
+  const { trip } = useTripById(id);
 
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
@@ -57,7 +57,7 @@ export default function DispatchTripPage() {
 
           {trip.status === "pending" && (
             <Button
-              href={`/fleet/trips/${tripNo}/assign`}
+              href={`/fleet/trips/${id}/assign`}
               className="mr-2"
             >
               Assign Driver & Vehicle First →
@@ -65,7 +65,7 @@ export default function DispatchTripPage() {
           )}
 
           <Button
-            href={`/fleet/trips/${tripNo}`}
+            href={`/fleet/trips/${id}`}
             variant="outline"
           >
             Back to Trip
@@ -83,7 +83,7 @@ export default function DispatchTripPage() {
     <AppLayout pageTitle="Dispatch Trip">
 
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
+        href={`${FLEET_ROUTES.tripDetail(id)}`}
         label="Back to Trip"
       />
       <PageHeader

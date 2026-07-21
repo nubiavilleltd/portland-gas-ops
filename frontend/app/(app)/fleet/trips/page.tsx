@@ -15,9 +15,9 @@ import { useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 
 export default function TripsPage() {
-  const { trips } = useTrips();
-  const { drivers } = useDrivers();
-  const { vehicles } = useVehicles();
+  const { trips, isLoading:isLoadingTrips } = useTrips();
+  const { drivers, isLoading:isLoadingDrivers } = useDrivers();
+  const { vehicles, isLoading:isLoadingVehicles } = useVehicles();
 
   // ── IMPORTANT: build lookup maps (fast + clean) ────────
   const driverMap = new Map(drivers.map((d) => [d.id, d]));
@@ -97,7 +97,8 @@ export default function TripsPage() {
       <DataTable<Trip>
         columns={columns}
         data={trips}
-        rowHref={(trip) => `/fleet/trips/${trip.trip_number}`}
+        isLoading={isLoadingTrips || isLoadingDrivers || isLoadingVehicles}
+        rowHref={(trip) => `/fleet/trips/${trip.id}`}
         emptyMessage="No trips available."
       />
     </AppLayout>

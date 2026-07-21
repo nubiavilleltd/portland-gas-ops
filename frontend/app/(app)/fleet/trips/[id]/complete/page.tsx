@@ -26,8 +26,8 @@ import { FLEET_ROUTES } from "@/lib/routes";
 export default function CompleteTripPage() {
   const params = useParams();
 
-  const tripNo = params.id as string;
-  const { trip } = useTripByNo(tripNo);
+  const id = params.id as string;
+  const { trip } = useTripById(id);
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
@@ -70,7 +70,7 @@ export default function CompleteTripPage() {
           </p>
 
           <Button
-            href={`/fleet/trips/${tripNo}`}
+            href={`/fleet/trips/${id}`}
             variant="outline"
           >
             Back to Trip
@@ -91,7 +91,7 @@ export default function CompleteTripPage() {
           </p>
 
           <Button
-            href={`/fleet/trips/${tripNo}`}
+            href={`/fleet/trips/${id}`}
             variant="outline"
           >
             Back to Trip
@@ -117,7 +117,7 @@ export default function CompleteTripPage() {
     <AppLayout pageTitle="Complete Trip">
 
       <BackButton
-        href={`${FLEET_ROUTES.tripDetail(tripNo)}`}
+        href={`${FLEET_ROUTES.tripDetail(id)}`}
         label="Back to Trip"
       />
       <PageHeader

@@ -48,12 +48,12 @@ const STATUS_ORDER = [
 export default function TripDetailPage() {
   const params = useParams();
 
-  const tripNo = params.id as string;
+  const id = params.id as string;
 
 
   // ── React Query hooks (single sources of truth) ─────────
-  const { trip } = useTripByNo(tripNo);
-  const { entries } = useAuditByEntity("trip", trip?.id as string);
+  const { trip } = useTripById(id);
+  const { entries } = useAuditByEntity("trip", id);
 
   const { orders } = useOrders();
   const { customers } = useCustomers();
@@ -62,9 +62,9 @@ export default function TripDetailPage() {
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
 
-  console.log("trip", trip);
-console.log("trip.order_ids", trip?.order_ids);
-console.log("orders", orders);
+//   console.log("trip", trip);
+// console.log("trip.order_ids", trip?.order_ids);
+// console.log("orders", orders);
 
   if (!trip) {
     return (
@@ -142,30 +142,30 @@ console.log("orders", orders);
 
 
             {canDispatch && (
-              <Button href={`/fleet/trips/${tripNo}/dispatch`}>
+              <Button href={`/fleet/trips/${id}/dispatch`}>
                 Dispatch Trip →
               </Button>
             )}
 
             {canStart && (
-              <Button href={`/fleet/trips/${tripNo}/start`}>
+              <Button href={`/fleet/trips/${id}/start`}>
                 Start Transit →
               </Button>
             )}
 
             {canComplete && (
-              <Button href={`/fleet/trips/${tripNo}/complete`}>
+              <Button href={`/fleet/trips/${id}/complete`}>
                 Complete Trip →
               </Button>
             )}
 
             {canAssignInventoryToTrip && (
-              <Button href={`/fleet/trips/${tripNo}/assign-inventory`}>
+              <Button href={`/fleet/trips/${id}/assign-inventory`}>
                 Assign Inventory →
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" href={`/fleet/trips/${tripNo}/cancel`}>
+              <Button variant="danger" href={`/fleet/trips/${id}/cancel`}>
                 Cancel Trip →
               </Button>
             )}
@@ -284,7 +284,7 @@ console.log("orders", orders);
 
           {canAssign && (
             <div className="flex justify-end">
-              <Button href={`/fleet/trips/${tripNo}/assign`}>
+              <Button href={`/fleet/trips/${id}/assign`}>
                 Assign Driver & Vehicle →
               </Button>
             </div>
