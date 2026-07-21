@@ -26,7 +26,6 @@ import {
 import { parseError } from "@/lib/errors";
 
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
@@ -62,11 +61,10 @@ function CreateTripForm() {
 
   const vehicleId = searchParams.get("vehicleId");
   const driverId = searchParams.get("driverId");
-  const orderNo = searchParams.get("orderNo");
+  const orderId = searchParams.get("orderId");
 
   // ── DATA HOOKS ─────────────────────────────────────────
   const { orders } = useOrders();
-  const { customers } = useCustomers();
 
   const { driver } = useDriverById(driverId ?? "");
   const { vehicle } = useVehicleById(vehicleId ?? "");
@@ -74,13 +72,12 @@ function CreateTripForm() {
   // ── LOOKUP MAPS ────────────────────────────────────────
 
   const orderMap = new Map(orders.map((o) => [o.id, o]));
-  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
-  const preloadedOrder = orderNo
-    ? orders.find((o) => o.orderNumber === orderNo)
+  const preloadedOrder = orderId
+    ? orders.find((o) => o.id === orderId)
     : null;
 
-  const isTripTypeLocked = !!orderNo;
+  const isTripTypeLocked = !!orderId;
 
   const assignableOrders = orders
     .filter(
@@ -89,7 +86,7 @@ function CreateTripForm() {
     )
     .map((o) => ({
       value: o.id,
-      label: `${o.orderNumber} — ${customerMap.get(o.customerId)?.name ?? o.customerName}`,
+      label: `${o.orderNumber} — ${o.customerName ?? ""}`,
     }));
 
   const {
@@ -157,7 +154,7 @@ function CreateTripForm() {
 
                 <span>
                   Order <strong>{preloadedOrder.orderNumber}</strong> —{" "}
-                  {customerMap.get(preloadedOrder.customerId)?.name ?? preloadedOrder.customerName}
+                  {preloadedOrder.customerName ?? ""}
                 </span>
               </div>
             )}
@@ -206,7 +203,7 @@ function CreateTripForm() {
               )}
             />
 
-            {tripType === "order_delivery" && !orderNo && (
+            {tripType === "order_delivery" && !orderId && (
               <Controller
                 control={control}
                 name="linked_order_id"
@@ -221,7 +218,7 @@ function CreateTripForm() {
                       const linked = orderMap.get(v);
 
                       if (linked) {
-                        setValue("end_location", linked.deliveryAddress);
+                        setValue("end_location", linked.deliveryAddress ?? "");
 
                         if (linked.deliveryDate) {
                           setValue("scheduled_date", linked.deliveryDate);

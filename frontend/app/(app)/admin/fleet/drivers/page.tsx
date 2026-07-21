@@ -61,8 +61,6 @@ const columns: Column<Driver>[] = [
 export default function DriversPage() {
   const { drivers, isLoading } = useDrivers();
 
-  console.log("drivers", {drivers})
-
   return (
     <AppLayout pageTitle="Drivers">
       <PageHeader

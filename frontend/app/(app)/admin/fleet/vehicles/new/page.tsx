@@ -4,8 +4,6 @@ import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import VehicleForm, { type VehicleFormValues } from "@/lib/modules/fleet/components/VehicleForm";
-import { useVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
-import type { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
 import { VehiclesService } from "@/lib/modules/fleet/services/vehicles.service";
 import { toast } from "sonner";
 import { FLEET_ROUTES } from "@/lib/routes";
