@@ -36,6 +36,8 @@ export default function DriverDetailPage() {
   } = useDriverById(id);
   // const { trips } = useTrips();
 
+  console.log("drivers", {driver})
+
   const { suspendDriver, isLoading: isSuspending } = useSuspendDriver();
   const { reinstateDriver, isLoading: isReinstating } = useReinstateDriver();
   const { setDriverOffDuty, isLoading: isSettingOffDuty } = useSetDriverOffDuty();

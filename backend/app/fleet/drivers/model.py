@@ -16,6 +16,7 @@ from sqlalchemy.dialects.mysql import CHAR
 
 from app.core.database import Base
 from app.fleet.drivers.enums import DriverStatus
+from app.fleet.trips.enums import TripStatus
 import uuid
 
 
@@ -78,7 +79,10 @@ class Driver(Base):
 
     @property
     def full_name(self) -> str | None:
-        return self.employee.user.full_name if self.employee and self.employee.user else None
+        if not self.employee or not self.employee.user:
+            return None
+
+        return self.employee.user.full_name
 
     @property
     def email(self) -> str | None:
@@ -86,13 +90,20 @@ class Driver(Base):
 
     @property
     def phone_number(self) -> str | None:
-        return self.employee.user.phone if self.employee and self.employee.user else None
+        return self.employee.phone if self.employee else None
     @property
     def profile_image_url(self) -> str | None:
-        return self.profile_image.file_path if self.profile_image else None
+        if (
+            self.employee
+            and self.employee.user
+            and self.employee.user.profile_picture
+        ):
+            return self.employee.user.profile_picture.file_path
+
+        return None
     @property
     def current_trip_id(self) -> str | None:
         for trip in self.trips:
-            if trip.status not in ("completed", "cancelled"):
+            if trip.status not in (TripStatus.completed, TripStatus.cancelled):
                 return trip.id
         return None
