@@ -4,6 +4,7 @@ import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import { useWorkCloseouts } from "@/lib/modules/safety/workCloseout";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
 import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
@@ -57,7 +58,9 @@ const columns: Column<WorkCloseOutRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (value) => <ApprovalBadge status={String(value)} />,
+    render: (value) => (
+      <ApprovalBadge status={getSafetyDisplayStatus(String(value))} />
+    ),
   },
   {
     key: "nextAction",
@@ -112,7 +115,7 @@ export default function WorkCloseOutRequestsTable({
 
   return (
     <div className="space-y-3">
-      <SafetyRequestListFilters value={filter} onChange={setFilter} />
+      {/* <SafetyRequestListFilters value={filter} onChange={setFilter} /> */}
       <DataTable
         columns={columns}
         data={requests}

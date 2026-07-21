@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session, joinedload
 from app.employees.models import Employee
 from app.safety.date_rules import SCHEDULE_DEVIATION_TOLERANCE_MINUTES
 from app.safety.dependencies import get_employee_for_user
-from app.safety.permissions import require_safety_operations_approver
+from app.safety.permissions import (
+    is_safety_hse_employee,
+    require_safety_operations_approver,
+)
 from app.safety.incidents.models import IncidentReportStatus, SafetyIncidentReport
-from app.safety.incidents.service import get_incident_report, send_incident_resolved_emails
+from app.safety.incidents import email_content as incident_email
 from app.safety.checklists.models import (
     SafetyChecklistParentType,
     SafetyChecklistStage,
@@ -52,6 +55,7 @@ from app.shared.models.approval import (
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
 from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.post_commit import queue_after_commit
 from app.shared.services.workflow_engine import WorkflowEngine
 
 
@@ -605,8 +609,11 @@ def list_work_closeouts(
             .joinedload(SafetyWorkInitiation.assigned_supervisor)
             .joinedload(Employee.user),
         )
-        .filter(
-            SafetyWorkCloseOut.is_active == True,
+        .filter(SafetyWorkCloseOut.is_active == True)
+    )
+
+    if not is_safety_hse_employee(employee):
+        query = query.filter(
             or_(
                 SafetyWorkCloseOut.requester_id == employee.id,
                 SafetyWorkCloseOut.work_authorization.has(
@@ -620,9 +627,8 @@ def list_work_closeouts(
                     ),
                 ),
                 current_approval_exists,
-            ),
+            )
         )
-    )
 
     if status_filter:
         query = query.filter(SafetyWorkCloseOut.status == status_filter)
@@ -685,6 +691,8 @@ def can_view_work_closeout(
     record: SafetyWorkCloseOut,
     employee: Employee,
 ) -> bool:
+    if is_safety_hse_employee(employee):
+        return True
     if record.requester_id == employee.id:
         return True
 
@@ -887,10 +895,10 @@ def hse_decision(
         record.id,
     )
     engine = WorkflowEngine(db)
-    resolved_incident_id: Optional[str] = None
+    pending_verification_incident_id: Optional[str] = None
 
     def mark_hse_review() -> None:
-        nonlocal resolved_incident_id
+        nonlocal pending_verification_incident_id
         add_closeout_review(
             db=db,
             record=record,
@@ -905,7 +913,7 @@ def hse_decision(
         )
         record.status = status_after_hse_decision(data.decision)
         if record.status == WorkCloseOutStatus.approved:
-            resolved_incident_id = move_linked_incident_to_hse_verification(
+            pending_verification_incident_id = move_linked_incident_to_hse_verification(
                 db,
                 record,
                 inspector,
@@ -933,9 +941,17 @@ def hse_decision(
             on_rejected=mark_hse_review,
         )
 
+    if pending_verification_incident_id:
+        incident_id = pending_verification_incident_id
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_pending_verification(
+                fresh_db,
+                incident_id,
+            ),
+            description=f"incident verification notifications for {incident_id}",
+        )
     db.commit()
-    if resolved_incident_id:
-        send_incident_resolved_emails(get_incident_report(db, resolved_incident_id))
 
     return get_work_closeout(db, record.id), approval_request_id
 
@@ -963,7 +979,7 @@ def validate_supervisor_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
 
@@ -988,7 +1004,7 @@ def validate_operations_head_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
 
@@ -1010,7 +1026,7 @@ def validate_hse_decision(
     if data.decision in (WorkCloseOutDecision.return_, WorkCloseOutDecision.deny) and not data.comment:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment is required when returning or denying a work close-out.",
+            detail="Comment is required when returning or rejecting a work close-out.",
         )
 
     if data.decision == WorkCloseOutDecision.approve:
@@ -1040,7 +1056,7 @@ def validate_decision_for_closeout_type(
     if is_exception and decision == WorkCloseOutDecision.approve:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Close-outs with a remaining hazard or work not completed as approved cannot be approved. Acknowledge, return, or deny instead.",
+            detail="Close-outs with a remaining hazard or work not completed as approved cannot be approved. Acknowledge, return, or reject instead.",
         )
 
     if not is_exception and decision == WorkCloseOutDecision.acknowledge:

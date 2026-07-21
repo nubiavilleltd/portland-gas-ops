@@ -251,7 +251,7 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
               "flex items-start gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
               error && "border-red-400 focus:ring-red-400",
               disabled &&
-                "cursor-not-allowed border-gray-200 bg-gray-100 shadow-none opacity-50 focus:ring-0 focus:border-gray-200",
+                "cursor-not-allowed border-gray-200 bg-gray-50 text-brand-text-secondary opacity-100 shadow-none focus:ring-0 focus:border-gray-200",
               triggerClassName
             )}
           >
@@ -263,7 +263,7 @@ const MultiSelectInput = forwardRef<HTMLInputElement, Props>(
                     className={cn(
                       "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
                       disabled
-                        ? "bg-gray-200 text-brand-text-primary"
+                        ? "bg-gray-100 text-brand-text-secondary"
                         : "bg-brand-purple-faint text-brand-purple"
                     )}
                   >

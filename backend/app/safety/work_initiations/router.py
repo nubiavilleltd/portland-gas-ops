@@ -13,7 +13,6 @@ from app.safety.work_initiations import service as work_initiation_service
 from app.safety.work_initiations.models import (
     WorkInitiationCategory,
     WorkInitiationStatus,
-    WorkInitiationDecision
 )
 from app.safety.work_initiations.schemas import (
     WorkInitiationCreate,
@@ -146,7 +145,6 @@ async def create_work_initiation(
         current_user=current_user,
         attachments=attachment_files,
     )
-    workflow_email.notify_new_request(db, "work_initiation", record.id)
     return work_initiation_response(db, record)
 
 
@@ -198,9 +196,6 @@ async def update_work_initiation(
         attachments=attachment_files,
     )
 
-
-    workflow_email.notify_new_request(db, "work_initiation", record.id)
-
     return work_initiation_response(db, record)
 
 
@@ -214,29 +209,12 @@ def supervisor_review_work_initiation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record, approval_request_id = work_initiation_service.supervisor_review_work_initiation(
+    record, _ = work_initiation_service.supervisor_review_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
         data=data,
         current_user=current_user,
     )
-
-    if data.decision == WorkInitiationDecision.approve:
-        workflow_email.notify_step_assigned(db, approval_request_id)
-    elif data.decision == WorkInitiationDecision.return_:
-        workflow_email.notify_request_result(
-        db,
-        approval_request_id,
-        "returned",
-        comment=data.comment,
-    )
-    else:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "rejected",
-            comment=data.comment,
-        )
 
     return work_initiation_response(db, record)
 
@@ -251,34 +229,11 @@ def operations_hod_review_work_initiation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    record, approval_request_id = work_initiation_service.operations_hod_review_work_initiation(
+    record, _ = work_initiation_service.operations_hod_review_work_initiation(
         db=db,
         work_initiation_id=work_initiation_id,
         data=data,
         current_user=current_user,
     )
 
-    if data.decision == WorkInitiationDecision.approve:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "approved",
-            comment=data.comment,
-        )
-
-    elif data.decision == WorkInitiationDecision.return_:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "returned",
-            comment=data.comment,
-        )
-
-    else:
-        workflow_email.notify_request_result(
-            db,
-            approval_request_id,
-            "rejected",
-            comment=data.comment,
-        )
     return work_initiation_response(db, record)

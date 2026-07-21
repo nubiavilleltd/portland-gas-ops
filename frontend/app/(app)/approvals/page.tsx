@@ -7,6 +7,10 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { useMyApprovals, type MyApproval } from "@/lib/modules/workflow/queries";
 import ApprovalsSkeleton from "./ApprovalsSkeleton";
+import {
+  getWorkflowProcessConfig,
+  normalizeWorkflowProcessType,
+} from "@/lib/modules/workflow/processes";
 
 // DataTable requires T extends { id: string } — map approval_request_id → id
 type ApprovalRow = MyApproval & { id: string };
@@ -28,7 +32,7 @@ function getProcessConfig(type: string) {
 }
 
 function requestHref(row: ApprovalRow): string {
-  switch (row.request_type) {
+  switch (normalizeWorkflowProcessType(row.request_type)) {
     case "procurement": return `/procurement/${row.request_id}`;
     case "asset":       return `/assets/requests/${row.request_id}`;
     case "cash_requisition": return `/finance/cash-requisitions/${row.request_id}`;
@@ -57,7 +61,7 @@ const columns: Column<ApprovalRow>[] = [
     key: "request_type",
     label: "Process",
     render: (v) => {
-      const cfg = getProcessConfig(String(v));
+      const cfg = getWorkflowProcessConfig(String(v));
       return (
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${cfg.badge}`}>
           {cfg.label}

@@ -91,6 +91,8 @@ export interface MyRequest {
   status: string;
   department: string | null;
   approval_request_id: string | null;
+  next_approver_name: string | null;
+  next_approver_role: string | null;
   created_at: string;
   updated_at: string | null;
 }

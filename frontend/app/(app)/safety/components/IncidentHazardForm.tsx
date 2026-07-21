@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
@@ -15,7 +14,7 @@ import {
   reportTypeOptions,
 } from "@/lib/modules/safety/incidentReport/constants";
 import { safetyLocationOptions } from "@/lib/modules/safety/locations";
-import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
+import { toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import {
   safetyChecklistsApi,
@@ -30,11 +29,10 @@ import {
   type IncidentSeverityEstimate,
   useEligibleWorkAuthorizationsForIncident,
 } from "@/lib/modules/safety/incidentReport";
-import { getLatestIncidentObservedDateTime } from "@/lib/modules/safety/date-rules";
 import {
-  getSafetyEmployeeRequester,
-  useSafetyCurrentEmployee,
-} from "@/lib/modules/safety/people";
+  getLatestIncidentObservedDateTime,
+  startOfMinute,
+} from "@/lib/modules/safety/date-rules";
 import { getValidationScrollTarget } from "@/lib/modules/safety/form-validation";
 import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
 import SafetyValidationSummary from "./SafetyValidationSummary";
@@ -92,11 +90,6 @@ export default function IncidentHazardForm() {
   const [observedAt, setObservedAt] = useState("");
   const [relatedAuthorization, setRelatedAuthorization] = useState("");
   const workAuthorizationsQuery = useEligibleWorkAuthorizationsForIncident();
-  const currentEmployee = useSafetyCurrentEmployee();
-  const reporter = getSafetyEmployeeRequester(
-    currentEmployee.data,
-    formatLocalDate(),
-  );
   const impactChecklist = useActiveSafetyChecklist(
     "incident_report",
     "risk_assessment",
@@ -239,7 +232,6 @@ export default function IncidentHazardForm() {
 
   if (
     impactChecklist.isLoading ||
-    currentEmployee.isLoading ||
     workAuthorizationsQuery.isLoading
   ) {
     return <SafetyProcessFormSkeleton sections={4} />;
@@ -251,15 +243,6 @@ export default function IncidentHazardForm() {
         errors={validationErrors}
         fieldOrder={incidentFieldOrder}
       />
-
-      <FormSection title="Reporter Details" description="Your employee information for this incident or hazard report.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Reporter Name" value={reporter.name} disabled />
-          <FormInput label="Department" value={reporter.department} disabled />
-          <FormInput label="Job Title / Role" value={reporter.role} disabled />
-          <FormDatePicker label="Report Date" value={reporter.reportDate} disabled />
-        </div>
-      </FormSection>
 
       <FormSection title="Report Details" description="Basic information about the incident or hazard being reported.">
         <div className="grid gap-4 md:grid-cols-2">
@@ -337,7 +320,7 @@ export default function IncidentHazardForm() {
           />
           <FormSelect
             ref={severityRef}
-            label="Severity Estimate"
+            label="Reporter Severity Estimate"
             required
             options={toOptions(incidentSeverityOptions)}
             placeholder="Select severity"
@@ -478,7 +461,9 @@ function validateIncidentReportForm({
     errors.observedAt = "Select the date and time observed.";
   } else {
     const observedDate = new Date(observedAt);
-    const latestAllowedObservedAt = new Date(Date.now() - 5 * 60 * 1000);
+    const latestAllowedObservedAt = new Date(
+      startOfMinute(new Date()).getTime() - 5 * 60 * 1000,
+    );
     if (observedDate > latestAllowedObservedAt) {
       errors.observedAt = "Observed date/time must be at least 5 minutes in the past.";
     }

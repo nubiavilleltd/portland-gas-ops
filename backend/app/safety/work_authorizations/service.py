@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.employees.models import Employee
 from app.safety.dependencies import get_employee_for_user
+from app.safety.permissions import is_safety_hse_employee
 from app.safety.work_authorizations.models import (
     SafetyWorkAuthorization,
     WorkAuthorizationDecision,
@@ -423,8 +424,11 @@ def list_work_authorizations(
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(
-            SafetyWorkAuthorization.is_active == True,
+        .filter(SafetyWorkAuthorization.is_active == True)
+    )
+
+    if not is_safety_hse_employee(employee):
+        query = query.filter(
             or_(
                 SafetyWorkAuthorization.requester_id == employee.id,
                 SafetyWorkAuthorization.work_initiation.has(
@@ -436,9 +440,8 @@ def list_work_authorizations(
                     ),
                 ),
                 current_approval_exists,
-            ),
+            )
         )
-    )
 
     if status_filter:
         query = query.filter(SafetyWorkAuthorization.status == status_filter)
@@ -496,6 +499,8 @@ def can_view_work_authorization(
     record: SafetyWorkAuthorization,
     employee: Employee,
 ) -> bool:
+    if is_safety_hse_employee(employee):
+        return True
     if record.requester_id == employee.id:
         return True
 
@@ -807,7 +812,7 @@ def validate_hse_decision(data: WorkAuthorizationHseReviewCreate) -> None:
         if not data.decision_comment:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="HSE comment is required when returning or denying work authorization.",
+                detail="HSE comment is required when returning or rejecting work authorization.",
             )
 
 
