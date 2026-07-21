@@ -133,8 +133,8 @@ function AllocateAssetsContent() {
       });
       toast.success("Assets allocated successfully");
       router.push(`/assets/requests/${request.id}`);
-    } catch {
-      toast.error("Failed to allocate assets");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 

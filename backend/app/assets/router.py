@@ -86,6 +86,10 @@ def _require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def _is_admin(user: User) -> bool:
+    return user.role in ("admin", "super_admin")
+
+
 # ── Categories ─────────────────────────────────────────────────────────────────
 
 @router.get("/categories", response_model=List[AssetCategoryWithTypesResponse])
@@ -174,6 +178,29 @@ def list_all_assignment_logs(
     return result
 
 
+# ── Availability (lightweight — must come before /{asset_id}) ─────────────────
+
+@router.get("/availability")
+def get_availability(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns { asset_type_id: available_count } via a single GROUP BY query."""
+    from sqlalchemy import func
+    from app.assets.models import Asset as AssetModel
+    rows = (
+        db.query(AssetModel.asset_type_id, func.count().label("cnt"))
+        .filter(
+            AssetModel.is_active == True,
+            AssetModel.status == AssetStatus.available,
+            AssetModel.asset_type_id != None,
+        )
+        .group_by(AssetModel.asset_type_id)
+        .all()
+    )
+    return {row.asset_type_id: row.cnt for row in rows}
+
+
 # ── Assets ─────────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=List[AssetResponse])
@@ -185,6 +212,7 @@ def list_assets(
     status_filter: Optional[AssetStatus] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     mine: bool = Query(False),
+    include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -197,6 +225,7 @@ def list_assets(
         db, skip=skip, limit=limit, category_id=category_id,
         asset_type_id=asset_type_id, status_filter=status_filter,
         search=search, employee_id=employee_id,
+        include_inactive=include_inactive and _is_admin(current_user),
     )
     name_map = _resolve_assignee_names(db, assets)
     return [_build_asset_response(a, name_map) for a in assets]
@@ -449,13 +478,37 @@ def create_maintenance_log(
     return item
 
 
+@router.put("/{asset_id}/maintenance-logs/{log_id}", response_model=MaintenanceLogResponse)
+def update_maintenance_log(
+    asset_id: str,
+    log_id: str,
+    data: MaintenanceLogCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    log = asset_service.update_maintenance_log(db, log_id, data)
+    item = MaintenanceLogResponse.model_validate(log)
+    item.logged_by_name = log.logged_by_user.name if log.logged_by_user else None
+    return item
+
+
+@router.delete("/{asset_id}/maintenance-logs/{log_id}", status_code=204)
+def delete_maintenance_log(
+    asset_id: str,
+    log_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    asset_service.delete_maintenance_log(db, log_id)
+
+
 @router.get("/{asset_id}", response_model=AssetResponse)
 def get_asset(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    asset = asset_service.get_asset(db, asset_id)
+    asset = asset_service.get_asset(db, asset_id, include_inactive=_is_admin(current_user))
     return _build_asset_response(asset, _resolve_assignee_names(db, [asset]))
 
 
@@ -493,7 +546,7 @@ async def update_asset(
         db.flush()
         attachment_id = doc.id
 
-    asset = asset_service.update_asset(db, asset_id, update_data, attachment_id=attachment_id)
+    asset = asset_service.update_asset(db, asset_id, update_data, attachment_id=attachment_id, performed_by_id=current_user.id)
     return _build_asset_response(asset, _resolve_assignee_names(db, [asset]))
 
 
@@ -503,4 +556,4 @@ def delete_asset(
     db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ):
-    asset_service.delete_asset(db, asset_id)
+    asset_service.delete_asset(db, asset_id, performed_by_id=current_user.id)

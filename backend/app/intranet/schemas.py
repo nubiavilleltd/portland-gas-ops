@@ -68,7 +68,7 @@ class NewsUpdate(BaseModel):
 
 
 class NewsResponse(BaseModel):
-    id:              int
+    id:              str
     title:           str
     body:            str
     category:        str

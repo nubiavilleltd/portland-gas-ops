@@ -16,7 +16,7 @@ class IntranetNewsCategory(Base):
 class IntranetNews(Base):
     __tablename__ = "intranet_news"
 
-    id             = Column(Integer,     primary_key=True, autoincrement=True)
+    id             = Column(String(36),  primary_key=True)
     title          = Column(String(255), nullable=False)
     body           = Column(Text,        nullable=False)
     category       = Column(String(60),  nullable=False)

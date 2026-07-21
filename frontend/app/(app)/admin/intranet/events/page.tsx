@@ -310,6 +310,7 @@ export default function IntranetEventsPage() {
           <FormDatePicker
             label="Date"
             required
+            min={new Date().toISOString().split("T")[0]}
             value={form.event_date}
             onValueChange={(v) => field("event_date", v)}
           />

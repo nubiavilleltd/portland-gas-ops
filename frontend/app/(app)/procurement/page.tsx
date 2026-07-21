@@ -5,16 +5,17 @@ import Link from "next/link";
 import { Plus, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import SelectInput from "@/components/forms/SelectInput";
 import { formatDateTime, formatCurrency, capitalize } from "@/lib/utils";
 import { useProcurementList } from "@/lib/modules/procurement";
+import api from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { ProcurementListItem, ProcurementStatus } from "@/types";
 
 const STATUS_OPTIONS = [
-  { value: "draft",     label: "Draft" },
   { value: "pending",   label: "Pending Approval" },
   { value: "approved",  label: "Approved" },
   { value: "awaiting_confirmation", label: "Awaiting Confirmation" },
@@ -95,16 +96,29 @@ export default function ProcurementPage() {
         label: "PO",
         render: (_, row) =>
           row.po_document_url ? (
-            <a
-              href={row.po_document_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const response = await api.get(`/api/procurement/${row.id}/po/download`, { responseType: "blob" });
+                  const blob = new Blob([response.data], { type: "application/pdf" });
+                  const url  = URL.createObjectURL(blob);
+                  const a    = document.createElement("a");
+                  a.href     = url;
+                  a.download = row.po_number ? `${row.po_number}.pdf` : "purchase-order.pdf";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+                } catch {
+                  alert("Could not download PO. Please try again.");
+                }
+              }}
               className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-purple-50 text-brand-purple hover:bg-purple-100 transition-colors"
               title="Download Purchase Order"
             >
               <Download size={14} />
-            </a>
+            </button>
           ) : row.po_number ? (
             <span className="text-xs font-mono text-brand-text-secondary" title="PO issued — PDF not yet available">
               {row.po_number}
@@ -139,12 +153,9 @@ export default function ProcurementPage() {
         title="Purchase & Service Requests"
         description="Raise and manage purchase and service requisitions"
         action={
-          <Link
-            href="/procurement/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors w-fit"
-          >
-            <Plus size={16} /> New Request
-          </Link>
+          <Button href="/procurement/new" leftIcon={<Plus size={15} />} size="sm">
+            New Request
+          </Button>
         }
         className="mb-6"
       />

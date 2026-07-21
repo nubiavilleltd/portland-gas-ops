@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { Plus, Package } from "lucide-react";
+import { ClipboardList, Package } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -46,6 +45,7 @@ const TABLE_COLUMNS: Column<Asset>[] = [
   },
   { key: "asset_tag", label: "Tag", render: (v) => v ? <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{String(v)}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "category", label: "Category", render: (_, asset) => asset.category ? <span className="text-sm text-brand-text-primary">{asset.category.name}</span> : <span className="text-brand-text-secondary">—</span> },
+  { key: "asset_type", label: "Type", getSearchValue: (asset) => asset.asset_type?.name ?? "", render: (_, asset) => asset.asset_type ? <span className="text-sm text-brand-text-primary">{asset.asset_type.name}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "status", label: "Status", render: (_, asset) => <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}>{capitalize(asset.status.replace(/_/g, " "))}</span> },
   { key: "condition", label: "Condition", render: (_, asset) => <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}>{capitalize(asset.condition)}</span> },
 ];
@@ -59,15 +59,11 @@ export default function AssetsPage() {
         title="Assets"
         description="Available assets and assets assigned to you"
         action={
-          <Button href="/assets/requests/new" leftIcon={<Plus size={15} />} size="sm">
-            New Request
+          <Button href="/assets/requests" leftIcon={<ClipboardList size={15} />} size="sm">
+            My Requests
           </Button>
         }
       />
-
-      <div className="flex justify-end mb-4">
-        <Link href="/assets/requests" className="text-xs text-brand-purple hover:underline font-medium">My Requests →</Link>
-      </div>
 
       {isError ? (
         <div className="text-center py-20 text-brand-text-secondary">Failed to load assets.</div>

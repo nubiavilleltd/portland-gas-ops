@@ -1,13 +1,35 @@
-export const ASSET_ERRORS: Record<string, string> = {
-  ASSET_NOT_FOUND: "Asset not found.",
-  ASSET_CATEGORY_NOT_FOUND: "Category not found.",
-  ASSET_TYPE_NOT_FOUND: "Asset type not found.",
-  ASSET_CATEGORY_EXISTS: "A category with this name already exists.",
-  ASSET_TYPE_EXISTS: "This asset type already exists in the selected category.",
-  ASSET_INSUFFICIENT_QUANTITY: "Insufficient quantity available for this asset.",
-  ASSET_TRANSFER_FAILED: "Failed to transfer asset. Please try again.",
-};
+// ── User-friendly fallback messages for every asset action ────────────────────
 
-export function getAssetError(code: string): string {
-  return ASSET_ERRORS[code] ?? "An unexpected error occurred.";
+export const ASSET_ERRORS = {
+  // Asset CRUD
+  CREATE_ASSET:    "Failed to register asset. Please try again.",
+  UPDATE_ASSET:    "Failed to update asset.",
+  DELETE_ASSET:    "Failed to delete asset.",
+  TRANSFER_ASSET:  "Failed to transfer asset. Please try again.",
+
+  // Categories
+  CREATE_CATEGORY: "Failed to create category.",
+  UPDATE_CATEGORY: "Failed to update category.",
+  DELETE_CATEGORY: "Failed to delete category.",
+
+  // Asset Types
+  CREATE_TYPE:     "Failed to add asset type.",
+  DELETE_TYPE:     "Failed to remove asset type.",
+
+  // Maintenance Logs
+  CREATE_LOG:      "Failed to save maintenance log.",
+  UPDATE_LOG:      "Failed to update maintenance log.",
+  DELETE_LOG:      "Failed to delete maintenance log.",
+} as const;
+
+type ApiError = { response?: { data?: { detail?: string } } };
+
+/**
+ * Resolves an API error to a display message.
+ * - If the backend sent a detail string → always show it (backend errors are readable).
+ * - Otherwise → show the provided fallback from ASSET_ERRORS.
+ */
+export function resolveAssetError(err: unknown, fallback: string): string {
+  const detail = (err as ApiError)?.response?.data?.detail;
+  return detail ?? fallback;
 }

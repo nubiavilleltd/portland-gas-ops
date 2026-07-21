@@ -9,12 +9,18 @@ import type {
   PurchaseOrder,
 } from "@/types";
 import { procurementKeys } from "./queries";
+import { PROCUREMENT_ERRORS, resolveProcurementError } from "./errors";
 
 export function useCreateProcurement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (formData: FormData) =>
-      postForm<ProcurementRequest>("/api/procurement", formData),
+    mutationFn: async (formData: FormData) => {
+      try {
+        return await postForm<ProcurementRequest>("/api/procurement", formData);
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.CREATE));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -22,8 +28,13 @@ export function useCreateProcurement() {
 export function useUpdateProcurement(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: ProcurementUpdateInput) =>
-      patch<ProcurementRequest>(`/api/procurement/${id}`, data),
+    mutationFn: async (data: ProcurementUpdateInput) => {
+      try {
+        return await patch<ProcurementRequest>(`/api/procurement/${id}`, data);
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.UPDATE));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -31,8 +42,13 @@ export function useUpdateProcurement(id: string) {
 export function useSubmitProcurement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      post<ProcurementRequest>(`/api/procurement/${id}/submit`),
+    mutationFn: async (id: string) => {
+      try {
+        return await post<ProcurementRequest>(`/api/procurement/${id}/submit`);
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.SUBMIT));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -40,8 +56,13 @@ export function useSubmitProcurement() {
 export function useApproveProcurement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
-      post<ProcurementRequest>(`/api/procurement/${id}/approve`, { comment }),
+    mutationFn: async ({ id, comment }: { id: string; comment?: string }) => {
+      try {
+        return await post<ProcurementRequest>(`/api/procurement/${id}/approve`, { comment });
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.APPROVE));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -49,8 +70,13 @@ export function useApproveProcurement() {
 export function useRejectProcurement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
-      post<ProcurementRequest>(`/api/procurement/${id}/reject`, { comment }),
+    mutationFn: async ({ id, comment }: { id: string; comment?: string }) => {
+      try {
+        return await post<ProcurementRequest>(`/api/procurement/${id}/reject`, { comment });
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.REJECT));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -58,8 +84,13 @@ export function useRejectProcurement() {
 export function useReturnProcurement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, comment }: { id: string; comment?: string }) =>
-      post<ProcurementRequest>(`/api/procurement/${id}/return`, { comment }),
+    mutationFn: async ({ id, comment }: { id: string; comment?: string }) => {
+      try {
+        return await post<ProcurementRequest>(`/api/procurement/${id}/return`, { comment });
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.RETURN));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -67,8 +98,13 @@ export function useReturnProcurement() {
 export function useIssuePO() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data?: IssuePOInput }) =>
-      post<PurchaseOrder>(`/api/procurement/${id}/issue-po`, data ?? {}),
+    mutationFn: async ({ id, data }: { id: string; data?: IssuePOInput }) => {
+      try {
+        return await post<PurchaseOrder>(`/api/procurement/${id}/issue-po`, data ?? {});
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.ISSUE_PO));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -76,11 +112,17 @@ export function useIssuePO() {
 export function useApproveAndIssuePO() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      post<ProcurementRequest>(`/api/procurement/${id}/approve-and-issue-po`, { notes }),
+    mutationFn: async ({ id, notes, comment }: { id: string; notes?: string; comment?: string }) => {
+      try {
+        return await post<ProcurementRequest>(`/api/procurement/${id}/approve-and-issue-po`, { notes, comment });
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.APPROVE));
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: procurementKeys.all });
       queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-trail"] });
     },
   });
 }
@@ -88,11 +130,17 @@ export function useApproveAndIssuePO() {
 export function useConfirmDelivery() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      post<ProcurementRequest>(`/api/procurement/${id}/confirm-delivery`),
+    mutationFn: async ({ id, comment }: { id: string; comment?: string }) => {
+      try {
+        return await post<ProcurementRequest>(`/api/procurement/${id}/confirm-delivery`, { comment });
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.CONFIRM_DELIVERY));
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: procurementKeys.all });
       queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-trail"] });
     },
   });
 }
@@ -100,8 +148,13 @@ export function useConfirmDelivery() {
 export function useRemoveProcurementAttachment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      del<ProcurementRequest>(`/api/procurement/${id}/attachment`),
+    mutationFn: async (id: string) => {
+      try {
+        return await del<ProcurementRequest>(`/api/procurement/${id}/attachment`);
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.REMOVE_ATTACH));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -109,10 +162,14 @@ export function useRemoveProcurementAttachment() {
 export function useUploadProcurementAttachment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, file }: { id: string; file: File }) => {
-      const fd = new FormData();
-      fd.append("attachment", file);
-      return postForm<ProcurementRequest>(`/api/procurement/${id}/attachment`, fd);
+    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+      try {
+        const fd = new FormData();
+        fd.append("attachment", file);
+        return await postForm<ProcurementRequest>(`/api/procurement/${id}/attachment`, fd);
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.UPLOAD));
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
@@ -121,8 +178,13 @@ export function useUploadProcurementAttachment() {
 export function useRegeneratePOPDF() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ requestId, poId }: { requestId: string; poId: string }) =>
-      post<ProcurementRequest>(`/api/procurement/${requestId}/purchase-orders/${poId}/regenerate-pdf`),
+    mutationFn: async ({ requestId, poId }: { requestId: string; poId: string }) => {
+      try {
+        return await post<ProcurementRequest>(`/api/procurement/${requestId}/purchase-orders/${poId}/regenerate-pdf`);
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.REGENERATE_PDF));
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }
@@ -130,10 +192,13 @@ export function useRegeneratePOPDF() {
 export function useUpdatePOStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ poId, status }: { poId: string; status: "delivered" | "cancelled" }) =>
-      patch<PurchaseOrder>(`/api/procurement/purchase-orders/${poId}/status`, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: procurementKeys.all });
+    mutationFn: async ({ poId, status }: { poId: string; status: "delivered" | "cancelled" }) => {
+      try {
+        return await patch<PurchaseOrder>(`/api/procurement/purchase-orders/${poId}/status`, { status });
+      } catch (err) {
+        throw new Error(resolveProcurementError(err, PROCUREMENT_ERRORS.UPDATE_PO_STATUS));
+      }
     },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: procurementKeys.all }),
   });
 }

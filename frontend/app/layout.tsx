@@ -29,7 +29,14 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} ${mulish.variable}`} suppressHydrationWarning>
       <body className="min-h-screen bg-brand-bg antialiased" suppressHydrationWarning>
         {children}
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          expand={false}
+          visibleToasts={3}
+          toastOptions={{ duration: 8000 }}
+        />
       </body>
     </html>
   );

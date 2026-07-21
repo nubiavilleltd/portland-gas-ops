@@ -312,6 +312,15 @@ class ProcurementService:
                 if issuer.user else issuer.employee_no
             )
 
+            # Raised By = the employee who submitted the request (not the PO issuer)
+            raiser = req.raiser if hasattr(req, "raiser") and req.raiser else None
+            if raiser and raiser.user:
+                requester_name = f"{raiser.user.first_name or ''} {raiser.user.last_name or ''}".strip() or raiser.employee_no
+            elif raiser:
+                requester_name = raiser.employee_no
+            else:
+                requester_name = issuer_name  # fallback
+
             import datetime as _dt
             category_label = req.category.replace("_", " ").title() if req.category else ""
             pdf_bytes = pdf_service.generate_purchase_order(
@@ -326,8 +335,9 @@ class ProcurementService:
                 vendor_phone=vendor.phone if vendor else None,
                 vendor_email=vendor.email if vendor else None,
                 items=items_for_pdf,
-                requester_name=issuer_name,
+                requester_name=requester_name,
                 created_at=_dt.date.today(),
+                authorized_by=issuer_name,
             )
 
             url = cloudinary_service.upload(

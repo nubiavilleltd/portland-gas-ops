@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, AlertCircle, FileText, Download } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, Download, Loader2 } from "lucide-react";
+import api from "@/lib/api";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
@@ -12,13 +13,10 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ProcurementDetailSkeleton from "./ProcurementDetailSkeleton";
 import AuditTrail from "@/components/forms/AuditTrail";
-import { getErrorMessage } from "@/lib/errors";
-import { PROCUREMENT_ERRORS } from "@/lib/modules/procurement";
 import {
   useProcurement,
   useApproveAndIssuePO,
   useConfirmDelivery,
-  useRegeneratePOPDF,
 } from "@/lib/modules/procurement";
 import {
   useMyApprovals,
@@ -31,6 +29,7 @@ import {
 } from "@/lib/modules/workflow/mutations";
 import { useToast } from "@/hooks/useToast";
 import { formatDate, formatDateTime, formatCurrency, capitalize } from "@/lib/utils";
+import { generatePO } from "@/lib/generatePO";
 import type { ProcurementStatus } from "@/types";
 
 // ── Status badge colours ───────────────────────────────────────────────────────
@@ -53,14 +52,37 @@ export default function ProcurementDetailPage() {
   const toast   = useToast();
 
   const { data: req, isLoading, isFetching, isError } = useProcurement(id);
-  const [isActioning, setIsActioning] = useState(false);
+  const [isActioning,       setIsActioning]       = useState(false);
+  const [openingAttachment, setOpeningAttachment] = useState(false);
+
+  async function openAttachment() {
+    setOpeningAttachment(true);
+    try {
+      const response = await api.get(`/api/procurement/${id}/attachment/download`, {
+        responseType: "blob",
+      });
+      const blob     = new Blob([response.data], { type: response.headers["content-type"] || "application/pdf" });
+      const url      = URL.createObjectURL(blob);
+      const filename = req?.attachment?.name ?? "attachment";
+      const a        = document.createElement("a");
+      a.href         = url;
+      a.download     = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch {
+      toast.error("Could not open attachment. Please try again.");
+    } finally {
+      setOpeningAttachment(false);
+    }
+  }
 
   useEffect(() => {
     if (isActioning && !isFetching) setIsActioning(false);
   }, [isFetching, isActioning]);
   const approveAndIssuePO  = useApproveAndIssuePO();
   const confirmDelivery    = useConfirmDelivery();
-  const regeneratePOPDF    = useRegeneratePOPDF();
 
   // Workflow: check if I'm the current step's approver for this request
   const { data: myApprovals = [] } = useMyApprovals();
@@ -113,7 +135,7 @@ export default function ProcurementDetailPage() {
       }
     } catch (err) {
       setIsActioning(false);
-      toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
+      toast.error((err as Error).message);
     }
   }
 
@@ -310,14 +332,15 @@ export default function ProcurementDetailPage() {
                         : "—"}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <a
-                        href={req.attachment.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-purple hover:underline"
+                      <button
+                        onClick={openAttachment}
+                        disabled={openingAttachment}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-purple hover:underline disabled:opacity-50"
                       >
-                        <Download size={12} /> Open
-                      </a>
+                        {openingAttachment
+                          ? <><Loader2 size={12} className="animate-spin" /> Downloading…</>
+                          : <><Download size={12} /> Download</>}
+                      </button>
                     </td>
                   </tr>
                 </tbody>
@@ -367,42 +390,12 @@ export default function ProcurementDetailPage() {
                     }`}>
                       {capitalize(p.status)}
                     </span>
-                    {p.document?.file_path ? (
-                      <a
-                        href={p.document.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-brand-purple hover:underline"
-                      >
-                        <Download size={12} /> Download PO
-                      </a>
-                    ) : (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const result = await regeneratePOPDF.mutateAsync({ requestId: id, poId: p.id });
-                            const updatedPO = result.purchase_orders?.find((x) => x.id === p.id);
-                            const poUrl = updatedPO?.document?.file_path;
-                            if (poUrl) {
-                              window.open(poUrl, "_blank", "noopener,noreferrer");
-                              toast.success("PDF generated — opened in a new tab");
-                            } else {
-                              toast.error("PDF generation failed. Check Cloudinary configuration.");
-                            }
-                          } catch {
-                            toast.error("Failed to generate PDF. Check Cloudinary configuration.");
-                          }
-                        }}
-                        disabled={regeneratePOPDF.isPending}
-                        className="flex items-center gap-1 text-xs text-amber-600 hover:underline disabled:opacity-50"
-                      >
-                        {regeneratePOPDF.isPending ? (
-                          <span>Generating…</span>
-                        ) : (
-                          <><FileText size={12} /> Generate PDF</>
-                        )}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => generatePO(req, p)}
+                      className="flex items-center gap-1 text-xs text-brand-purple hover:underline"
+                    >
+                      <Download size={12} /> Download PO
+                    </button>
                   </div>
                 </div>
               ))}
@@ -429,16 +422,16 @@ export default function ProcurementDetailPage() {
             showReject={false}
             showApprove
             approveLabel="Confirm Goods Received"
-            onApprove={async () => {
+            onApprove={async (comment) => {
               if (!goodsConfirmed) {
                 toast.error("Please check the confirmation box before proceeding.");
                 return;
               }
               try {
-                await confirmDelivery.mutateAsync(id);
+                await confirmDelivery.mutateAsync({ id, comment: comment || undefined });
                 toast.success("Goods confirmed — request completed");
               } catch (err) {
-                toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
+                toast.error((err as Error).message);
               }
             }}
             approveLoading={confirmDelivery.isPending}
@@ -467,6 +460,7 @@ export default function ProcurementDetailPage() {
             showReturn
             showReject
             showApprove
+            requireCommentForRejectReturn
             returnLabel="Return for Revision"
             approveLabel={isIssuePOStep ? "Issue PO" : "Approve"}
             onReturn={(comment)  => handleAction("return",  comment)}
@@ -474,16 +468,12 @@ export default function ProcurementDetailPage() {
             onApprove={async (comment) => {
               if (isIssuePOStep) {
                 try {
-                  const result = await approveAndIssuePO.mutateAsync({ id });
-                  const poUrl = result.purchase_orders?.[0]?.document?.file_path;
-                  if (poUrl) {
-                    window.open(poUrl, "_blank", "noopener,noreferrer");
-                    toast.success("PO issued — PDF opened in a new tab");
-                  } else {
-                    toast.success("PO issued — awaiting delivery confirmation");
-                  }
+                  const result = await approveAndIssuePO.mutateAsync({ id, comment: comment || undefined });
+                  const issuedPO = result.purchase_orders?.[0];
+                  await generatePO(result, issuedPO);
+                  toast.success("PO issued — PDF downloading");
                 } catch (err) {
-                  toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
+                  toast.error((err as Error).message);
                 }
               } else {
                 handleAction("approve", comment);

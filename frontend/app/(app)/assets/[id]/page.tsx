@@ -6,7 +6,7 @@ import Image from "next/image";
 import { ArrowLeft, Package, AlertCircle, Wrench, History, Download } from "lucide-react";
 import QRCode from "react-qr-code";
 import AppLayout from "@/components/layout/AppLayout";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import AssetDetailSkeleton from "./AssetDetailSkeleton";
 import { useAsset, useAssignmentLogs } from "@/lib/modules/assets";
 import { formatDate, capitalize } from "@/lib/utils";
 import type { AssetAssignmentLog } from "@/types";
@@ -80,7 +80,7 @@ export default function AssetDetailPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (isLoading) return <AppLayout pageTitle="Assets"><div className="flex justify-center py-20"><LoadingSpinner /></div></AppLayout>;
+  if (isLoading) return <AppLayout pageTitle="Assets"><AssetDetailSkeleton /></AppLayout>;
   if (isError || !asset) {
     return (
       <AppLayout pageTitle="Assets">
@@ -191,7 +191,10 @@ export default function AssetDetailPage() {
                 <div className="bg-white border border-brand-border rounded-2xl p-5">
                   <h3 className="text-sm font-semibold text-brand-text-primary mb-2">Request Asset</h3>
                   <p className="text-xs text-brand-text-secondary mb-4">Submit a loan or requisition request for this asset.</p>
-                  <a href={`/assets/requests/new?asset_id=${asset.id}`} className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors">
+                  <a
+                    href={asset.asset_type_id ? `/assets/requests/new?type_id=${asset.asset_type_id}` : "/assets/requests/new"}
+                    className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors"
+                  >
                     Request this Asset
                   </a>
                 </div>

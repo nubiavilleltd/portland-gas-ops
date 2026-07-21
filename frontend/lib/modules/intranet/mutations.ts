@@ -74,7 +74,7 @@ export function useCreateNews() {
   });
 }
 
-export function useUpdateNews(id: number) {
+export function useUpdateNews(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: NewsUpdatePayload) =>
@@ -90,7 +90,7 @@ export function useUpdateNews(id: number) {
 export function useDeleteNews() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => del(`/api/intranet/news/${id}`),
+    mutationFn: (id: string) => del(`/api/intranet/news/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: intranetKeys.news() });
       qc.invalidateQueries({ queryKey: intranetKeys.newsAdmin() });
@@ -101,7 +101,7 @@ export function useDeleteNews() {
 export function useToggleNewsPublished() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) =>
+    mutationFn: (id: string) =>
       patch<NewsItem>(`/api/intranet/news/${id}/publish`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: intranetKeys.news() });

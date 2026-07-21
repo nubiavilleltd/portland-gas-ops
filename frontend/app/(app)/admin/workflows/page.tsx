@@ -79,7 +79,8 @@ const COLUMNS: Column<ApprovalWorkflowListItem>[] = [
 ];
 
 export default function WorkflowsPage() {
-  const { data: workflows = [], isLoading, isError } = useWorkflows();
+  const { data: rawWorkflows = [], isLoading, isError } = useWorkflows();
+  const workflows = [...rawWorkflows].sort((a, b) => a.name.localeCompare(b.name));
   const deleteWorkflow = useDeleteWorkflow();
   const toast = useToast();
 
