@@ -135,8 +135,8 @@ export default function RegisterAssetPage() {
       });
       toast.success("Asset registered successfully");
       router.push("/assets");
-    } catch {
-      toast.error("Failed to register asset. Please try again.");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 

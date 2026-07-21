@@ -180,8 +180,8 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               <div className="p-6">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#7234BD] mb-5">Contact</p>
                 <div className="space-y-4">
-                  <InfoItem icon={Mail}  label="Work Email" value={emp.user?.email} />
-                  <InfoItem icon={Phone} label="Phone"      value={emp.phone} />
+                  <InfoItem icon={Mail}  label="Work Email" value={emp.user?.email} href={emp.user?.email ? `mailto:${emp.user.email}` : undefined} />
+                  <InfoItem icon={Phone} label="Phone"      value={emp.phone}       href={emp.phone ? `tel:${emp.phone}` : undefined} />
                 </div>
               </div>
             </div>
@@ -220,7 +220,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 }
 
 // ── Shared info row ───────────────────────────────────────────────────────────
-function InfoItem({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | null | undefined }) {
+function InfoItem({ icon: Icon, label, value, href }: { icon: React.ElementType; label: string; value: string | null | undefined; href?: string }) {
   return (
     <div className="flex items-start gap-3">
       <div className="h-8 w-8 rounded-lg bg-[#F3EEFF] flex items-center justify-center shrink-0 mt-0.5">
@@ -228,7 +228,11 @@ function InfoItem({ icon: Icon, label, value }: { icon: React.ElementType; label
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400 mb-0.5">{label}</p>
-        <p className="text-sm font-semibold text-[#1C043B] break-words leading-snug">{value || "—"}</p>
+        {href && value ? (
+          <a href={href} className="text-sm font-semibold text-[#7234BD] hover:underline break-words leading-snug">{value}</a>
+        ) : (
+          <p className="text-sm font-semibold text-[#1C043B] break-words leading-snug">{value || "—"}</p>
+        )}
       </div>
     </div>
   );

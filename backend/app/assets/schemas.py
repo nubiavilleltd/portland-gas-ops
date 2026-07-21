@@ -301,6 +301,11 @@ class AssetRequestResponse(BaseModel):
             obj.requester_department = emp.department_rel.name if emp and emp.department_rel else None
             obj.requester_job_title  = emp.job_title if emp else None
         obj.allocated_by_name = req.allocator.full_name if req.allocator else None
+        # Re-hydrate attachment_url for each allocated asset — plain model_validate
+        # skips the from_orm_with_flags logic that reads asset.attachment.file_path
+        for item_obj, item_orm in zip(obj.items, req.items):
+            if item_orm.asset:
+                item_obj.asset = AssetResponse.from_orm_with_flags(item_orm.asset)
         return obj
 
 

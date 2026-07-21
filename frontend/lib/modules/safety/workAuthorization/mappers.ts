@@ -257,7 +257,13 @@ function buildAuditTrail(
 
   if (hseApproval) {
     auditTrail.push({
-      action: `HSE ${hseApproval.decision === "Approve" ? "Approved" : `${hseApproval.decision}ed`}`,
+      action: `HSE ${
+        hseApproval.decision === "Approve"
+          ? "Approved"
+          : hseApproval.decision === "Deny"
+            ? "Rejected"
+            : `${hseApproval.decision}ed`
+      }`,
       actor: hseApproval.approver,
       role: "HSE Inspector",
       dateTime: hseApproval.dateTime,

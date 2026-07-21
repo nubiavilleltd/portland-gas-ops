@@ -298,7 +298,7 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
             "flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
             error && "border-red-400 focus:ring-red-400",
             disabled &&
-              "cursor-not-allowed border-gray-200 bg-gray-100 opacity-50 shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
+              "cursor-not-allowed border-gray-200 bg-gray-50 text-brand-text-secondary opacity-100 shadow-none focus:ring-0 focus:border-gray-200",
             triggerClassName
           )}
         >
@@ -307,7 +307,9 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
             <span
               className={cn(
                 "truncate",
-                selectedValue ? "text-brand-text-primary" : "text-brand-text-secondary"
+                selectedValue && !disabled
+                  ? "text-brand-text-primary"
+                  : "text-brand-text-secondary"
               )}
             >
               {selectedValue ? formatDisplayDateTime(selectedValue) : placeholder}

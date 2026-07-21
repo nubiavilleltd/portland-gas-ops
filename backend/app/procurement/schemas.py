@@ -200,6 +200,11 @@ class DocumentInPO(BaseModel):
 class IssuePORequest(BaseModel):
     notes: Optional[str] = None
     vendor_id: Optional[str] = None   # override request's vendor if needed
+    comment: Optional[str] = None     # audit trail comment for the Issue PO step
+
+
+class ConfirmDeliveryBody(BaseModel):
+    comment: Optional[str] = None     # audit trail comment for the Confirm Delivery step
 
 
 class POStatusUpdate(BaseModel):

@@ -127,8 +127,8 @@ const FormToggleGroup = forwardRef<HTMLInputElement, Props>(
                     ? "bg-brand-purple text-white"
                     : "text-brand-text-secondary hover:bg-gray-50 hover:text-brand-text-primary",
                   disabled &&
-                    "cursor-not-allowed text-brand-text-primary hover:bg-transparent hover:text-brand-text-primary",
-                  disabled && isSelected && "bg-gray-300 text-brand-text-primary"
+                    "cursor-not-allowed text-brand-text-secondary hover:bg-transparent hover:text-brand-text-secondary",
+                  disabled && isSelected && "bg-gray-200 text-brand-text-secondary"
                 )}
               >
                 {option.label}

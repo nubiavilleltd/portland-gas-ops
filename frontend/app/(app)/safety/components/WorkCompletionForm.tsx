@@ -4,21 +4,16 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { formatLocalDate } from "@/lib/safety-demo-dates";
 import type {
   ApprovedWorkAuthorizationOption,
   WorkAuthorizationRequest,
 } from "@/types/safety";
 import { useToast } from "@/hooks/useToast";
-import {
-  getSafetyEmployeeRequester,
-  useSafetyCurrentEmployee,
-} from "@/lib/modules/safety/people";
+import { useSafetyCurrentEmployee } from "@/lib/modules/safety/people";
 import {
   useCreateWorkCloseout,
   useEligibleWorkAuthorizationsForCloseout,
@@ -27,6 +22,7 @@ import {
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
+  isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
   SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
 } from "@/lib/modules/safety/date-rules";
@@ -84,10 +80,6 @@ export default function WorkCompletionForm() {
   const currentEmployee = useSafetyCurrentEmployee();
   const approvedAuthorizations = useEligibleWorkAuthorizationsForCloseout();
   const createCloseout = useCreateWorkCloseout();
-  const requester = getSafetyEmployeeRequester(
-    currentEmployee.data,
-    formatLocalDate(),
-  );
   const completionChecklist = useActiveSafetyChecklist("work_closeout", "completion");
   const monitoringChecklist = useActiveSafetyChecklist("work_closeout", "monitoring");
   const areaConditionChecklist = useActiveSafetyChecklist(
@@ -277,15 +269,6 @@ export default function WorkCompletionForm() {
         fieldOrder={workCompletionFieldOrder}
       />
 
-      <FormSection title="Requester Details" description="Your employee information for this work completion request.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={requester.name} disabled />
-          <FormInput label="Department" value={requester.department} disabled />
-          <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
-        </div>
-      </FormSection>
-
       <FormSection title="Work Authorization Lookup" description="Select the approved work authorization being completed.">
         <FormSelect
           ref={selectedWorkAuthorizationRef}
@@ -317,6 +300,20 @@ export default function WorkCompletionForm() {
             error={validationErrors.actualStartDateTime}
             onValueChange={(value) => {
               setActualStartDateTime(value);
+              const minimumCompletion = getDateTimeAfter(
+                value,
+                MIN_SCHEDULE_DURATION_MINUTES,
+              );
+              if (
+                actualCompletionDateTime &&
+                isDateTimeBefore(actualCompletionDateTime, minimumCompletion)
+              ) {
+                setActualCompletionDateTime("");
+                clearValidationError(
+                  "actualCompletionDateTime",
+                  setValidationErrors,
+                );
+              }
               clearValidationError("actualStartDateTime", setValidationErrors);
             }}
           />
@@ -324,6 +321,12 @@ export default function WorkCompletionForm() {
             ref={actualCompletionDateTimeRef}
             label="Actual Completion Date/Time"
             required
+            disabled={!actualStartDateTime}
+            placeholder={
+              actualStartDateTime
+                ? "Select date and time"
+                : "Select actual start date/time first"
+            }
             min={
               actualStartDateTime
                 ? getDateTimeAfter(actualStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)

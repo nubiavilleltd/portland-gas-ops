@@ -34,7 +34,7 @@ function CategoryModal({ initial, onClose }: { initial?: AssetCategory; onClose:
       if (isEditing) { await updateCategory.mutateAsync({ name: name.trim(), colour }); toast.success("Category updated"); }
       else { await createCategory.mutateAsync({ name: name.trim(), colour }); toast.success("Category created"); }
       onClose();
-    } catch { toast.error(`Failed to ${isEditing ? "update" : "create"} category`); }
+    } catch (err) { toast.error((err as Error).message); }
   }
 
   return (
@@ -86,7 +86,7 @@ function AddTypeInline({ categoryId, onDone }: { categoryId: string; onDone: () 
     if (!typeName.trim()) { setError("Name is required"); return; }
     setError(null);
     try { const prefix = typeName.trim().substring(0, 3).toUpperCase(); await createType.mutateAsync({ name: typeName.trim(), category_id: categoryId, prefix }); toast.success("Asset type added"); setTypeName(""); onDone(); }
-    catch { toast.error("Failed to add asset type"); }
+    catch (err) { toast.error((err as Error).message); }
   }
 
   return (
@@ -107,7 +107,7 @@ function CategoryCard({ cat, types, onEdit, onDelete }: { cat: AssetCategory; ty
 
   async function handleDeleteType(typeId: string, typeName: string) {
     try { await deleteType.mutateAsync(typeId); toast.success(`"${typeName}" removed`); }
-    catch { toast.error("Failed to remove asset type"); }
+    catch (err) { toast.error((err as Error).message); }
   }
 
   return (
@@ -164,7 +164,7 @@ export default function AdminAssetCategoriesPage() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try { await deleteCategory.mutateAsync(deleteTarget.id); toast.success(`"${deleteTarget.name}" deleted`); }
-    catch { toast.error("Failed to delete category"); }
+    catch (err) { toast.error((err as Error).message); }
     setDeleteTarget(null);
   }
 

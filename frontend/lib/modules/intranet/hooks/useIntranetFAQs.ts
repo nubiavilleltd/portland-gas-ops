@@ -122,6 +122,13 @@ export function useIntranetFAQs() {
     ]);
   }
 
+  /** Bulk reorder after a drag-and-drop — pass numeric IDs in their new order */
+  function reorderFaqs(orderedIds: number[]) {
+    reorderMutation.mutate(
+      orderedIds.map((id, i) => ({ id, order_index: i }))
+    );
+  }
+
   return {
     faqs,
     isLoading,
@@ -137,5 +144,6 @@ export function useIntranetFAQs() {
     updateFaq,
     removeFaq,
     moveFaq,
+    reorderFaqs,
   };
 }

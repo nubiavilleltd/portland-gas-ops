@@ -4,25 +4,24 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { formatLocalDate, toApiDateTime } from "@/lib/safety-demo-dates";
+import { toApiDateTime } from "@/lib/safety-demo-dates";
 import { useToast } from "@/hooks/useToast";
 import { safetyLocationOptions } from "@/lib/modules/safety/locations";
 import {
-  getSafetyEmployeeRequester,
   useSafetyActors,
-  useSafetyCurrentEmployee,
   useSafetyDepartments,
 } from "@/lib/modules/safety/people";
 import {
   getDateTimeAfter,
   getEarliestPlannedStartDateTime,
+  isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
+  startOfMinute,
 } from "@/lib/modules/safety/date-rules";
 import {
   useCreateWorkInitiation,
@@ -213,12 +212,6 @@ export default function WorkInitiationForm() {
   const selectedContractorRef = useRef<HTMLInputElement | null>(null);
   const plannedStartDateTimeRef = useRef<HTMLInputElement | null>(null);
   const plannedEndDateTimeRef = useRef<HTMLInputElement | null>(null);
-
-  const currentEmployee = useSafetyCurrentEmployee();
-  const requester = getSafetyEmployeeRequester(
-    currentEmployee.data,
-    formatLocalDate(),
-  );
 
   const recommendedIncidentsQuery = useEligibleIncidentsForWorkInitiation();
   const departmentsQuery = useSafetyDepartments();
@@ -413,22 +406,6 @@ export default function WorkInitiationForm() {
         errors={validationErrors}
         fieldOrder={workInitiationFieldOrder}
       />
-
-      <FormSection
-        title="Requester Details"
-        description="Your employee information for this work initiation request."
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={requester.name} disabled />
-          <FormInput label="Department" value={requester.department} disabled />
-          <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker
-            label="Request Date"
-            value={requester.requestDate}
-            disabled
-          />
-        </div>
-      </FormSection>
 
       <FormSection
         title="Work Details"
@@ -741,6 +718,17 @@ export default function WorkInitiationForm() {
             error={validationErrors.plannedStartDateTime}
             onValueChange={(value) => {
               setPlannedStartDateTime(value);
+              const minimumEnd = getDateTimeAfter(
+                value,
+                MIN_SCHEDULE_DURATION_MINUTES,
+              );
+              if (
+                plannedEndDateTime &&
+                isDateTimeBefore(plannedEndDateTime, minimumEnd)
+              ) {
+                setPlannedEndDateTime("");
+                clearValidationError("plannedEndDateTime", setValidationErrors);
+              }
               clearValidationError("plannedStartDateTime", setValidationErrors);
             }}
           />
@@ -749,11 +737,16 @@ export default function WorkInitiationForm() {
             ref={plannedEndDateTimeRef}
             label="Planned End Date/Time"
             required
-            min={
+            disabled={!plannedStartDateTime}
+            placeholder={
               plannedStartDateTime
-                ? getDateTimeAfter(plannedStartDateTime, MIN_SCHEDULE_DURATION_MINUTES)
-                : getEarliestPlannedStartDateTime()
+                ? "Select date and time"
+                : "Select planned start date/time first"
             }
+            min={getDateTimeAfter(
+              plannedStartDateTime,
+              MIN_SCHEDULE_DURATION_MINUTES,
+            )}
             value={plannedEndDateTime}
             error={validationErrors.plannedEndDateTime}
             onValueChange={(value) => {
@@ -920,7 +913,7 @@ function validateWorkInitiationForm({
     errors.plannedEndDateTime = "Select planned end date/time.";
   }
 
-  const now = new Date();
+  const now = startOfMinute(new Date());
   const minimumStartTime = new Date(now.getTime() + 10 * 60 * 1000);
 
   const plannedStart = new Date(plannedStartDateTime);

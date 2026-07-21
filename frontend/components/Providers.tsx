@@ -29,6 +29,9 @@ export const queryClient = new QueryClient({
  */
 function AuthRestore() {
   useEffect(() => {
+    // First, hydrate token from localStorage if available
+    useAuthStore.getState().hydrate();
+
     // Skip if already authenticated (e.g., right after login — token already in memory)
     if (useAuthStore.getState().isAuthenticated) return;
 

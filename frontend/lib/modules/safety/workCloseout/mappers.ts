@@ -271,5 +271,5 @@ function decisionAction(decision: UiWorkCloseOutDecision) {
   if (decision === "Approve") return "Approved";
   if (decision === "Acknowledge") return "Acknowledged";
   if (decision === "Return") return "Returned";
-  return "Denied";
+  return "Rejected";
 }

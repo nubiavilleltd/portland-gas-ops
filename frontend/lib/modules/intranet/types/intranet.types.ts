@@ -24,7 +24,7 @@ export interface SpotlightTag {
 // ── News & Announcements  (DB: intranet_news) ────────────────────────────────
 
 export interface NewsItem {
-  id:              number;
+  id:              string;
   title:           string;
   body:            string;
   category:        string;        // free text — must match a name in intranet_news_categories

@@ -68,7 +68,7 @@ class NewsUpdate(BaseModel):
 
 
 class NewsResponse(BaseModel):
-    id:              int
+    id:              str
     title:           str
     body:            str
     category:        str
@@ -361,7 +361,6 @@ class PodcastCreate(BaseModel):
             raise ValueError("Embed links (YouTube / Vimeo) are for video podcasts. Switch Podcast Type to Video or use an External Link instead.")
         return self
 
-
 class PodcastUpdate(BaseModel):
     episode_number:    Optional[int]  = None
     title:             Optional[str]  = None
@@ -392,7 +391,6 @@ class PodcastUpdate(BaseModel):
         if self.embed_url and self.media_type == "audio":
             raise ValueError("Embed links (YouTube / Vimeo) are for video podcasts. Switch Podcast Type to Video or use an External Link instead.")
         return self
-
 
 class PodcastResponse(BaseModel):
     id:                int

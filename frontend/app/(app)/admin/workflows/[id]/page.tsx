@@ -3,10 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import {
-  AlertCircle, Plus, Trash2, GripVertical,
-  ChevronUp, ChevronDown, Pencil,
-} from "lucide-react";
+import { AlertCircle, Plus, Trash2, Pencil } from "lucide-react";
 import { BackButton } from "@/components/ui/BackButton";
 import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
@@ -16,6 +13,7 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import SelectInput from "@/components/forms/SelectInput";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
+import SortableList, { SortableAction, type SortableColumn } from "@/components/ui/SortableList";
 import {
   useWorkflow,
   useUpdateWorkflow,
@@ -297,18 +295,9 @@ export default function WorkflowDetailPage() {
     }
   }
 
-  async function moveStep(step: WorkflowStep, direction: "up" | "down") {
-    if (!wf) return;
-    const steps = [...wf.steps].sort((a, b) => a.step_number - b.step_number);
-    const idx   = steps.findIndex((s) => s.id === step.id);
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= steps.length) return;
-
-    const reordered = [...steps];
-    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
-
+  async function handleReorder(steps: WorkflowStep[]) {
     try {
-      await reorderSteps.mutateAsync(reordered.map((s) => s.id));
+      await reorderSteps.mutateAsync(steps.map((s) => s.id));
     } catch {
       toast.error("Failed to reorder steps");
     }
@@ -354,6 +343,32 @@ export default function WorkflowDetailPage() {
   }
 
   const sortedSteps = [...wf.steps].sort((a, b) => a.step_number - b.step_number);
+
+  const stepColumns: SortableColumn<WorkflowStep>[] = [
+    {
+      label: "Step",
+      className: "w-10 shrink-0",
+      render: (step) => (
+        <div className="h-7 w-7 rounded-full bg-brand-purple flex items-center justify-center text-white text-xs font-bold shrink-0">
+          {step.step_number}
+        </div>
+      ),
+    },
+    {
+      label: "Name",
+      render: (step) => (
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <p className="text-sm font-semibold text-brand-text-primary">{step.step_name}</p>
+          <StepBadge type={step.assignee_type} />
+          {step.role && (
+            <span className="text-xs font-mono text-brand-text-secondary bg-gray-100 px-1.5 py-0.5 rounded">
+              {step.role}
+            </span>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <AppLayout pageTitle="Admin — Workflows">
@@ -412,87 +427,46 @@ export default function WorkflowDetailPage() {
       {/* Steps */}
       <FormSection
         title={`Approval Steps (${sortedSteps.length})`}
-        description="Steps run in order — each approver must act before the next is notified."
+        description="Steps run in order — drag to rearrange, or use the edit/delete actions."
         bodyClassName="space-y-3"
       >
-        {sortedSteps.length === 0 && !showAddForm && (
-          <p className="text-sm text-brand-text-secondary py-4 text-center">
-            No steps yet. Add the first step below.
-          </p>
+        {/* If a step is being edited, show its inline form instead of the sortable row */}
+        {editingStep && (
+          <StepForm
+            initial={{
+              step_name:     editingStep.step_name,
+              assignee_type: editingStep.assignee_type,
+              employee_id:   editingStep.employee_id ?? "",
+              employee_name: editingStep.employee_name ?? "",
+              group_id:      editingStep.group_id ?? "",
+            }}
+            onSave={handleEditStep}
+            onCancel={() => setEditingStep(null)}
+            saving={false}
+          />
         )}
 
-        {sortedSteps.map((step, idx) => (
-          <div key={step.id}>
-            {editingStep?.id === step.id ? (
-              <StepForm
-                initial={{
-                  step_name:     step.step_name,
-                  assignee_type: step.assignee_type,
-                  employee_id:   step.employee_id ?? "",
-                  employee_name: step.employee_name ?? "",
-                  group_id:      step.group_id ?? "",
-                }}
-                onSave={handleEditStep}
-                onCancel={() => setEditingStep(null)}
-                saving={false}
-              />
-            ) : (
-              <div className="flex items-center gap-3 p-4 bg-white border border-brand-border rounded-xl">
-                {/* Step number */}
-                <div className="h-7 w-7 rounded-full bg-brand-purple flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {step.step_number}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-brand-text-primary">{step.step_name}</p>
-                    <StepBadge type={step.assignee_type} />
-                    {step.role && (
-                      <span className="text-xs font-mono text-brand-text-secondary bg-gray-100 px-1.5 py-0.5 rounded">
-                        {step.role}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    title="Move up"
-                    disabled={idx === 0 || reorderSteps.isPending}
-                    onClick={() => moveStep(step, "up")}
-                    className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-brand-text-secondary hover:bg-gray-100 disabled:opacity-30 transition-colors"
-                  >
-                    <ChevronUp size={14} />
-                  </button>
-                  <button
-                    title="Move down"
-                    disabled={idx === sortedSteps.length - 1 || reorderSteps.isPending}
-                    onClick={() => moveStep(step, "down")}
-                    className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-brand-text-secondary hover:bg-gray-100 disabled:opacity-30 transition-colors"
-                  >
-                    <ChevronDown size={14} />
-                  </button>
-                  <button
-                    title="Edit step"
-                    onClick={() => { setEditingStep(step); setShowAddForm(false); }}
-                    className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-brand-text-secondary hover:bg-gray-100 transition-colors"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    title="Delete step"
-                    onClick={() => setDeleteTarget(step)}
-                    className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
+        {!editingStep && (
+          <SortableList
+            items={sortedSteps}
+            onReorder={handleReorder}
+            columns={stepColumns}
+            emptyMessage="No steps yet. Add the first step below."
+            actions={(step) => (
+              <>
+                <SortableAction onClick={() => { setEditingStep(step); setShowAddForm(false); }}>
+                  <Pencil size={13} />
+                </SortableAction>
+                <SortableAction
+                  onClick={() => setDeleteTarget(step)}
+                  className="hover:bg-red-50 hover:text-red-600"
+                >
+                  <Trash2 size={13} />
+                </SortableAction>
+              </>
             )}
-          </div>
-        ))}
+          />
+        )}
 
         {/* Add step form */}
         {showAddForm && (

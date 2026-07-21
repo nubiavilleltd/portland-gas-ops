@@ -24,7 +24,7 @@ import logging
 from datetime import datetime, date
 from typing import Callable
 
-from sqlalchemy import event as sa_event
+from sqlalchemy import event as sa_event, func
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -146,6 +146,8 @@ _REQUEST_TYPE_PREFIX = {
     "procurement":    "REQ-PROC",
     "asset":          "REQ-ASSET",
     "leave":          "REQ-LEAVE",
+    "cash_requisition":   "REQ-CASH",
+    "invoice":            "REQ-INV",
     "work_initiation":    "REQ-WI",
     "work_authorization": "REQ-WA",
     "work_closeout":      "REQ-WC",
@@ -741,12 +743,16 @@ class WorkflowEngine:
         Returns all approval_requests where the current step is assigned to
         this employee and the overall status is still pending.
         """
-        rows = (
-            self.db.query(ApprovalStepAssignment)
+        # One query for the pending approval requests whose CURRENT step is
+        # assigned to this employee, with submitter + user eager-loaded so the
+        # requester name doesn't trigger a lazy load per row.
+        ars = (
+            self.db.query(ApprovalRequest)
             .join(
-                ApprovalRequest,
-                ApprovalRequest.id == ApprovalStepAssignment.approval_request_id,
+                ApprovalStepAssignment,
+                ApprovalStepAssignment.approval_request_id == ApprovalRequest.id,
             )
+            .options(joinedload(ApprovalRequest.submitter).joinedload(Employee.user))
             .filter(
                 ApprovalStepAssignment.assigned_to == employee_id,
                 ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
@@ -755,11 +761,33 @@ class WorkflowEngine:
             .all()
         )
 
+        if not ars:
+            return []
+
+        # Batch the two per-row lookups into one query each, keyed by the ids we
+        # already have — turns an N+1 into a constant number of queries.
+        workflow_ids = {ar.workflow_id for ar in ars}
+        step_counts = dict(
+            self.db.query(WorkflowStep.workflow_id, func.count(WorkflowStep.id))
+            .filter(WorkflowStep.workflow_id.in_(workflow_ids))
+            .group_by(WorkflowStep.workflow_id)
+            .all()
+        )
+
+        # request_id is a per-row uuid4, so it's globally unique across types;
+        # we still key the map by (type, id) to be exact.
+        request_ids = {ar.request_id for ar in ars}
+        all_req_map = {
+            (row.request_type, row.request_id): row
+            for row in (
+                self.db.query(AllRequest)
+                .filter(AllRequest.request_id.in_(request_ids))
+                .all()
+            )
+        }
+
         result = []
-        for asa in rows:
-            ar = self.db.query(ApprovalRequest).filter(ApprovalRequest.id == asa.approval_request_id).first()
-            if not ar:
-                continue
+        for ar in ars:
             submitter = ar.submitter
             requester_name = None
             if submitter:
@@ -768,21 +796,10 @@ class WorkflowEngine:
                     if submitter.user
                     else None
                 ) or submitter.employee_no
-            all_req = (
-                self.db.query(AllRequest)
-                .filter(
-                    AllRequest.request_type == ar.request_type,
-                    AllRequest.request_id == ar.request_id,
-                )
-                .first()
-            )
-                # Determine total steps in this workflow so the frontend can
-            # tell if this is the final step without knowing the step number.
-            total_steps = (
-                self.db.query(WorkflowStep)
-                .filter(WorkflowStep.workflow_id == ar.workflow_id)
-                .count()
-            )
+            all_req = all_req_map.get((ar.request_type, ar.request_id))
+            # total steps lets the frontend tell if this is the final step
+            # without knowing the step number.
+            total_steps = step_counts.get(ar.workflow_id, 0)
             result.append({
                 "approval_request_id": ar.id,
                 "request_type":        ar.request_type,
@@ -805,12 +822,43 @@ class WorkflowEngine:
         """
         rows = (
             self.db.query(AllRequest)
+            .options(
+                joinedload(AllRequest.approval_request)
+                .joinedload(ApprovalRequest.step_assignments)
+                .joinedload(ApprovalStepAssignment.assignee)
+                .joinedload(Employee.user),
+            )
             .filter(AllRequest.raised_by == employee_id)
             .order_by(AllRequest.created_at.desc())
             .all()
         )
         result = []
         for row in rows:
+            next_approver_name = None
+            next_approver_role = None
+            approval_request = row.approval_request
+            if (
+                approval_request
+                and approval_request.overall_status == ApprovalOverallStatus.pending
+            ):
+                current_assignment = next(
+                    (
+                        assignment
+                        for assignment in approval_request.step_assignments
+                        if assignment.step_number
+                        == approval_request.current_step_number
+                    ),
+                    None,
+                )
+                if current_assignment and current_assignment.assignee:
+                    assignee = current_assignment.assignee
+                    next_approver_name = (
+                        (assignee.user.full_name or assignee.user.email)
+                        if assignee.user
+                        else None
+                    ) or assignee.employee_no
+                    next_approver_role = assignee.job_title
+
             result.append({
                 "id":                  row.id,
                 "reference":           row.reference,
@@ -820,6 +868,8 @@ class WorkflowEngine:
                 "status":              row.status.value,
                 "department":          row.department,
                 "approval_request_id": row.approval_request_id,
+                "next_approver_name":  next_approver_name,
+                "next_approver_role":  next_approver_role,
                 "created_at":          utc_isoformat(row.created_at),
                 "updated_at":          utc_isoformat(row.updated_at),
             })

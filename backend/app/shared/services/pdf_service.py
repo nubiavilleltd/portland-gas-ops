@@ -94,6 +94,7 @@ def generate_purchase_order(
     items: list[dict],
     requester_name: str,
     created_at: date,
+    authorized_by: str | None = None,
 ) -> bytes:
     pdf = PurchaseOrderPDF(orientation="P", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=20)
@@ -136,7 +137,7 @@ def generate_purchase_order(
     pdf.set_xy(col_x_left, start_y)
     label("Request Title")
     pdf.set_x(col_x_left)
-    value(title, bold=True)
+    value(title)
 
     pdf.set_x(col_x_left)
     label("Category")
@@ -159,7 +160,7 @@ def generate_purchase_order(
     pdf.set_xy(col_x_right, start_y)
     label("Vendor")
     pdf.set_x(col_x_right)
-    value(vendor_name or "Not specified", bold=True)
+    value(vendor_name or "Not specified")
 
     if vendor_address:
         pdf.set_x(col_x_right)
@@ -185,9 +186,11 @@ def generate_purchase_order(
     right_end_y = pdf.get_y()
     pdf.set_y(max(left_end_y, right_end_y) + 4)
 
-    # Justification
+    # Justification — explicitly set x to match the two-column left margin
     if justification:
+        pdf.set_x(col_x_left)
         label("Justification / Purpose")
+        pdf.set_x(col_x_left)
         pdf.set_font("DejaVu", "", 10)
         pdf.set_text_color(17, 17, 24)
         pdf.multi_cell(0, 5, justification)
@@ -277,10 +280,11 @@ def generate_purchase_order(
     pdf.set_font("DejaVu", "", 8)
     pdf.set_text_color(107, 114, 128)
     pdf.cell(80, 5, "Authorised By", ln=True)
-    pdf.set_xy(112, sig_y + 8)
-    pdf.set_font("DejaVu", "", 8)
-    pdf.set_text_color(107, 114, 128)
-    pdf.cell(80, 5, "Name:", ln=True)
+    if authorized_by:
+        pdf.set_xy(112, sig_y + 6)
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.set_text_color(17, 17, 24)
+        pdf.cell(80, 6, authorized_by, ln=True)
 
     auth_line_y = sig_y + 30
     pdf.line(112, auth_line_y, 192, auth_line_y)

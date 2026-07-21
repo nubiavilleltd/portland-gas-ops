@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
+import SortableList, { SortableAction, type SortableColumn } from "@/components/ui/SortableList";
 import ActionModal from "@/components/ui/ActionModal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Button from "@/components/ui/Button";
@@ -36,42 +36,6 @@ const EMPTY_FORM = {
 };
 type FormState = typeof EMPTY_FORM;
 
-const columns: Column<MessageRow>[] = [
-  {
-    key: "sort_order",
-    label: "#",
-    render: (_, row) => (
-      <span className="text-sm font-medium text-brand-text-secondary">{row.sort_order + 1}</span>
-    ),
-  },
-  {
-    key: "author_name",
-    label: "Author",
-    render: (_, row) => (
-      <div className="flex items-center gap-3 min-w-0">
-        <Avatar name={row.author_name} src={row.avatar_url} size="md" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-brand-text-primary truncate">{row.author_name}</p>
-          <p className="text-xs text-brand-text-secondary truncate">{row.author_role} · {row.author_dept}</p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    key: "title",
-    label: "Headline",
-    render: (_, row) => (
-      <p className="text-sm text-brand-text-primary max-w-sm truncate">{row.title}</p>
-    ),
-  },
-  {
-    key: "is_published",
-    label: "Status",
-    render: (_, row) => (
-      <Badge variant={row.is_published ? "success" : "neutral"} label={row.is_published ? "Published" : "Draft"} />
-    ),
-  },
-];
 
 export default function LeadershipPage() {
   const { data: messages = [], isLoading, isFetching } = useIntranetLeadershipAdmin();
@@ -223,45 +187,31 @@ export default function LeadershipPage() {
 
   const saving = createMutation.isPending || updateMutation.isPending;
 
-  const tableActions: DataTableAction<MessageRow>[] = [
+  const sortableColumns: SortableColumn<MessageRow>[] = [
     {
-      key: "up",
-      label: "",
-      icon: <Tip label="Move Up"><ChevronUp size={14} /></Tip>,
-      variant: "ghost",
-      onClick: (row) => handleMove(row, "up"),
+      label: "Author",
+      render: (row) => (
+        <div className="flex items-center gap-3 min-w-0">
+          <Avatar name={row.author_name} src={row.avatar_url} size="md" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-brand-text-primary truncate">{row.author_name}</p>
+            <p className="text-xs text-brand-text-secondary truncate">{row.author_role} · {row.author_dept}</p>
+          </div>
+        </div>
+      ),
     },
     {
-      key: "down",
-      label: "",
-      icon: <Tip label="Move Down"><ChevronDown size={14} /></Tip>,
-      variant: "ghost",
-      onClick: (row) => handleMove(row, "down"),
+      label: "Headline",
+      render: (row) => (
+        <p className="text-sm text-brand-text-primary max-w-sm truncate">{row.title}</p>
+      ),
     },
     {
-      key: "toggle",
-      label: "",
-      icon: (row) =>
-        toggleMutation.isPending && toggleSpinner === row._numId
-          ? <Loader2 size={14} className="animate-spin" />
-          : <Tip label={row.is_published ? "Unpublish Message" : "Publish Message"}>{row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}</Tip>,
-      variant: "ghost",
-      onClick: (row) => setToggleConfirmTarget(row),
-    },
-    {
-      key: "edit",
-      label: "",
-      icon: <Tip label="Edit Message"><Pencil size={14} /></Tip>,
-      variant: "ghost",
-      onClick: (row) => openEdit(row),
-    },
-    {
-      key: "delete",
-      label: "",
-      icon: <Tip label="Delete Message"><Trash2 size={14} /></Tip>,
-      variant: "ghost",
-      className: "hover:bg-red-50 hover:text-red-600",
-      onClick: (row) => setDeleteId(row._numId),
+      label: "Status",
+      className: "w-36 shrink-0",
+      render: (row) => (
+        <Badge variant={row.is_published ? "success" : "neutral"} label={row.is_published ? "Published" : "Draft"} />
+      ),
     },
   ];
 
@@ -279,17 +229,41 @@ export default function LeadershipPage() {
         }
       />
 
-      <DataTable<MessageRow>
-        columns={columns}
-        data={rows}
-        isLoading={isLoading || isFetching}
-        showActions
-        actions={tableActions}
-        actionsLabel="Actions"
-        searchable
-        searchPlaceholder="Search messages…"
-        emptyMessage="No leadership messages yet."
-        emptyDescription="Click 'New Message' to add one."
+      <SortableList<MessageRow>
+        items={rows}
+        onReorder={async (newRows) => {
+          try {
+            await reorderMutation.mutateAsync(
+              newRows.map((r, i) => ({ id: r._numId, sort_order: i }))
+            );
+          } catch {
+            toast.error("Failed to reorder.");
+          }
+        }}
+        columns={sortableColumns}
+        isLoading={isLoading}
+        emptyMessage="No leadership messages yet. Click 'New Message' to add one."
+        actions={(row) => (
+          <>
+            {toggleMutation.isPending && toggleSpinner === row._numId ? (
+              <div className="h-7 w-7 flex items-center justify-center">
+                <Loader2 size={14} className="animate-spin text-brand-text-secondary" />
+              </div>
+            ) : (
+              <SortableAction onClick={() => setToggleConfirmTarget(row)}>
+                <Tip label={row.is_published ? "Unpublish Message" : "Publish Message"}>
+                  {row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}
+                </Tip>
+              </SortableAction>
+            )}
+            <SortableAction onClick={() => openEdit(row)}>
+              <Tip label="Edit Message"><Pencil size={14} /></Tip>
+            </SortableAction>
+            <SortableAction className="hover:bg-red-50 hover:text-red-600" onClick={() => setDeleteId(row._numId)}>
+              <Tip label="Delete Message"><Trash2 size={14} /></Tip>
+            </SortableAction>
+          </>
+        )}
       />
 
       <ActionModal

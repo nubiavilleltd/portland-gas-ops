@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronsUpDown, FileX } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronsUpDown, FileX, LucideIcon } from "lucide-react";
 import Toolbar from "./toolbar";
 import Pagination from "./pagination";
 
@@ -11,6 +11,15 @@ export interface Column<T> {
   label: string;
   sortable?: boolean;
   render?: (value: unknown, row: T) => React.ReactNode;
+}
+
+type RowActionColor = "default" | "danger" | "success";
+
+export interface RowAction<T> {
+  label: string | ((row: T) => string);
+  icon: LucideIcon | ((row: T) => LucideIcon);
+  onClick: (row: T) => void;
+  color?: RowActionColor | ((row: T) => RowActionColor);
 }
 
 interface DataTableProps<T extends { id: string; status?: string }> {
@@ -22,8 +31,11 @@ interface DataTableProps<T extends { id: string; status?: string }> {
   newRequestLabel?: string;
   emptyMessage?: string;
   emptyDescription?: string;
+  searchPlaceholder?: string;
+  emptyState?: { title: string; description: string };
   hideStatusFilter?: boolean;
   toolbarExtra?: React.ReactNode;
+  rowActions?: RowAction<T>[];
 }
 
 type SortDir = "asc" | "desc";
@@ -43,8 +55,11 @@ export default function DataTable<T extends { id: string; status?: string }>({
   newRequestLabel,
   emptyMessage = "No records found",
   emptyDescription = "Try adjusting your search or filters",
+  searchPlaceholder,
+  emptyState,
   hideStatusFilter = false,
   toolbarExtra,
+  rowActions = [],
 }: DataTableProps<T>) {
   const router = useRouter();
 
@@ -165,6 +180,11 @@ export default function DataTable<T extends { id: string; status?: string }>({
                     )}
                   </th>
                 ))}
+                {rowActions.length > 0 && (
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide whitespace-nowrap">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
 
@@ -210,6 +230,34 @@ export default function DataTable<T extends { id: string; status?: string }>({
                         </td>
                       );
                     })}
+                    {rowActions.length > 0 && (
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          {rowActions.map((action, idx) => {
+                            const label = typeof action.label === "function" ? action.label(row) : action.label;
+                            // LucideIcon is a callable exotic component, so `typeof === "function"`
+                            // can't narrow it away at the type level; cast the resolved value.
+                            const Icon = (typeof action.icon === "function" ? action.icon(row) : action.icon) as LucideIcon;
+                            const color = typeof action.color === "function" ? action.color(row) : action.color;
+                            const colorClass =
+                              color === "danger" ? "text-red-600 hover:text-red-700" :
+                              color === "success" ? "text-green-600 hover:text-green-700" :
+                              "text-brand-text-secondary hover:text-brand-text-primary";
+
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => action.onClick(row)}
+                                title={label}
+                                className={`p-1.5 rounded-lg transition-colors hover:bg-gray-100 ${colorClass}`}
+                              >
+                                <Icon size={18} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

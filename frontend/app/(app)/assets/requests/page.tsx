@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import SelectInput from "@/components/forms/SelectInput";
@@ -135,12 +136,9 @@ export default function AssetRequestsPage() {
         title="My Requests"
         description="Your loan and requisition requests for company assets"
         action={
-          <Link
-            href="/assets/requests/new"
-            className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
-          >
-            <Plus size={16} /> New Request
-          </Link>
+          <Button href="/assets/requests/new" leftIcon={<Plus size={15} />} size="sm">
+            New Request
+          </Button>
         }
         className="mb-6"
       />

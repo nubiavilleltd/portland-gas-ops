@@ -154,7 +154,9 @@ function buildAuditTrail(
       action:
         supervisorApproval.decision === "Approve"
           ? "Supervisor Approved"
-          : `Supervisor ${supervisorApproval.decision}ed`,
+          : supervisorApproval.decision === "Deny"
+            ? "Supervisor Rejected"
+            : `Supervisor ${supervisorApproval.decision}ed`,
       actor: supervisorApproval.approver,
       role: "Supervisor",
       dateTime: supervisorApproval.dateTime,
@@ -167,7 +169,9 @@ function buildAuditTrail(
       action:
         operationalReview.decision === "Approve"
           ? "Operations HOD Approved"
-          : `Operations HOD ${operationalReview.decision}ed`,
+          : operationalReview.decision === "Deny"
+            ? "Operations HOD Rejected"
+            : `Operations HOD ${operationalReview.decision}ed`,
       actor: operationalReview.reviewer,
       role: "Operations HOD",
       dateTime: operationalReview.dateTime,

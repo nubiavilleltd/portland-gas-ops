@@ -206,11 +206,9 @@ export default function FeedbackInboxPage() {
             </div>
 
             {/* Category + subject */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Badge variant={CATEGORY_BADGE[viewTarget.category] ?? "neutral"} label={viewTarget.category} />
-              </div>
-              <p className="text-base font-semibold text-brand-text-primary">{viewTarget.subject}</p>
+            <div className="border-t border-brand-border pt-4">
+              <Badge variant={CATEGORY_BADGE[viewTarget.category] ?? "neutral"} label={viewTarget.category} />
+              <p className="text-base font-semibold text-brand-text-primary mt-5">{viewTarget.subject}</p>
             </div>
 
             {/* Status — placed before message so dropdown opens downward with room */}

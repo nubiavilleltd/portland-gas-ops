@@ -5,28 +5,35 @@ import type { WorkAuthorizationAttachment } from "@/types/safety";
 
 type SafetyAttachmentListProps = {
   attachments?: WorkAuthorizationAttachment[];
+  label?: string;
   emptyMessage?: string;
   onRemove?: (attachmentId: string) => void;
 };
 
 export default function SafetyAttachmentList({
   attachments = [],
+  label,
   emptyMessage = "No attachments.",
   onRemove,
 }: SafetyAttachmentListProps) {
-  if (attachments.length === 0) {
-    return <p className="text-sm text-brand-text-secondary">{emptyMessage}</p>;
-  }
-
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <SafetyAttachmentItem
-          key={attachment.id ?? attachment.url ?? attachment.name}
-          attachment={attachment}
-          onRemove={attachment.id ? onRemove : undefined}
-        />
-      ))}
+    <div className="space-y-2">
+      {label ? (
+        <p className="text-sm font-medium text-brand-text-primary">{label}</p>
+      ) : null}
+      {attachments.length === 0 ? (
+        <p className="text-sm text-brand-text-secondary">{emptyMessage}</p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {attachments.map((attachment) => (
+            <SafetyAttachmentItem
+              key={attachment.id ?? attachment.url ?? attachment.name}
+              attachment={attachment}
+              onRemove={attachment.id ? onRemove : undefined}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

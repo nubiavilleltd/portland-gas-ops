@@ -10,7 +10,7 @@ export const intranetKeys = {
   newsCategories: () => ["intranet", "news", "categories"] as const,
   news:           () => ["intranet", "news"] as const,
   newsAdmin:      () => ["intranet", "news", "admin"] as const,
-  newsDetail:     (id: number) => ["intranet", "news", id] as const,
+  newsDetail:     (uuid: string) => ["intranet", "news", uuid] as const,
   events:         () => ["intranet", "events"] as const,
   eventsAdmin:    () => ["intranet", "events", "admin"] as const,
   eventDetail:    (id: number) => ["intranet", "events", id] as const,
@@ -58,12 +58,12 @@ export function useIntranetNewsAdmin() {
   });
 }
 
-/** Single published article by id — used on the detail page */
-export function useIntranetNewsDetail(id: number) {
+/** Single published article by UUID — used on the detail page */
+export function useIntranetNewsDetail(uuid: string) {
   return useQuery<NewsItem>({
-    queryKey: intranetKeys.newsDetail(id),
-    queryFn:  () => get<NewsItem>(`/api/intranet/news/${id}`),
-    enabled:  !!id,
+    queryKey: intranetKeys.newsDetail(uuid),
+    queryFn:  () => get<NewsItem>(`/api/intranet/news/${uuid}`),
+    enabled:  !!uuid,
     staleTime: 60 * 1000,
   });
 }

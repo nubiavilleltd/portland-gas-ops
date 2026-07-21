@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { useMemo } from "react";
 import type { Asset, AssetCategory, AssetType, AssetAssignmentLog, AssetMaintenanceLog, AssetRequest, AssetRequestListItem, AssetRequestStatus } from "@/types";
 
 export const assetKeys = {
@@ -18,7 +17,7 @@ export const assetKeys = {
   request:          (id: string) => ["asset-requests", id] as const,
 };
 
-export function useAssets(params?: { category_id?: string; asset_type_id?: string; status?: string; search?: string; mine?: boolean }) {
+export function useAssets(params?: { category_id?: string; asset_type_id?: string; status?: string; search?: string; mine?: boolean; include_inactive?: boolean }) {
   return useQuery<Asset[]>({
     queryKey: assetKeys.list(params),
     queryFn: async () => {
@@ -119,14 +118,15 @@ export function useAssetRequest(id: string) {
   });
 }
 
-/** Returns a map of { [assetTypeId]: availableCount } from live asset data. */
-export function useAssetAvailability(): Record<string, number> {
-  const { data: assets = [] } = useAssets();
-  return useMemo(() => {
-    const counts: Record<string, number> = {};
-    assets
-      .filter((a) => a.status === "available" && a.asset_type_id)
-      .forEach((a) => { counts[a.asset_type_id!] = (counts[a.asset_type_id!] ?? 0) + 1; });
-    return counts;
-  }, [assets]);
+/** Returns { [assetTypeId]: availableCount } from a single lightweight backend query. */
+export function useAssetAvailability(): { availability: Record<string, number>; isLoading: boolean } {
+  const { data, isLoading } = useQuery<Record<string, number>>({
+    queryKey: ["asset-availability"],
+    queryFn: async () => {
+      const { data } = await api.get("/api/assets/availability");
+      return data;
+    },
+    staleTime: 30_000,
+  });
+  return { availability: data ?? {}, isLoading };
 }

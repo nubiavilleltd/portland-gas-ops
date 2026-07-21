@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { ArrowLeft, Download, X, FileDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -9,43 +8,27 @@ import Button from "@/components/ui/Button";
 import FormSelect from "@/components/forms/FormSelect";
 import DataTable from "@/components/data-table/data-table";
 import { createPaySlipColumns } from "../_components/columns";
-import { SEED_PAYSLIPS, SEED_EMPLOYEES, PAYROLL_PERIODS, type PaySlip } from "../_components/_data";
+import { type PaySlip } from "../_components/_data";
 import { useToast } from "@/hooks/useToast";
+import { usePayslips, useGeneratePayslips, usePayslipPeriods } from "@/lib/modules/payslips/hooks";
+import { useEmployees } from "@/lib/modules/employees/hooks";
+import type { EmployeeListItem } from "@/lib/modules/employees/types";
 
 const fmt = (n: number) => `₦${n.toLocaleString("en-NG")}`;
 
-// "2026-04" → "April 2026"
-function monthInputToLabel(value: string): string {
-  const [year, month] = value.split("-");
-  return new Date(Number(year), Number(month) - 1, 1)
-    .toLocaleDateString("en-NG", { month: "long", year: "numeric" });
-}
-
-// "April 2026" → "2026-04"
-function labelToMonthInput(label: string): string {
-  const date = new Date(`1 ${label}`);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
-
-function computeSlip(emp: typeof SEED_EMPLOYEES[number], period: string): PaySlip {
-  const basic     = emp.basicSalary        ?? 0;
-  const housing   = emp.housingAllowance   ?? 0;
-  const transport = emp.transportAllowance ?? 0;
-  const meal      = emp.mealAllowance      ?? 0;
-  const paye      = emp.paye              ?? 0;
-  const pension   = emp.pension           ?? 0;
-  const nhf       = emp.nhf              ?? 0;
-  const loan      = emp.loanRepayment    ?? 0;
+// Build a preview payslip from a real employee record (values from HR salary setup).
+function computeSlip(emp: EmployeeListItem, period: string): PaySlip {
+  const num = (v: string | null | undefined) => Number(v ?? 0);
+  const basic = num(emp.basic_salary), housing = num(emp.housing_allowance);
+  const transport = num(emp.transport_allowance), meal = num(emp.meal_allowance);
+  const paye = num(emp.paye), pension = num(emp.pension), nhf = num(emp.nhf), loan = num(emp.loan_repayment);
   return {
-    id:         `gen-${emp.id}-${period.replace(/\s/g, "")}`,
-    employee:   `${emp.firstName} ${emp.lastName}`,
-    empId:      `PG-${emp.id.padStart(3, "0")}`,
-    department: emp.department,
+    id: emp.id, // employee id — the selection key + the employee_id we generate for
+    employee: `${emp.user?.first_name ?? ""} ${emp.user?.last_name ?? ""}`.trim() || emp.employee_no,
+    empId: emp.employee_no,
+    department: emp.department ?? "—",
     period,
-    basic, housing, transport, meal,
-    paye, pension, nhf, loan,
+    basic, housing, transport, meal, paye, pension, nhf, loan,
     net: basic + housing + transport + meal - paye - pension - nhf - loan,
   };
 }
@@ -347,49 +330,53 @@ function OverrideConfirmModal({
 
 export default function PaySlipsPage() {
   const toast = useToast();
-  const [slips,  setSlips]  = useState<PaySlip[]>(SEED_PAYSLIPS);
-  const [filterPeriod, setFilterPeriod] = useState("April 2026");
+  const [filterPeriod, setFilterPeriod] = useState("");
   const [selected, setSelected] = useState<PaySlip | null>(null);
   const [zipping, setZipping] = useState(false);
-
-  // ── Generate-preview state ────────────────────────────────────────────────
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [overridePeriod, setOverridePeriod] = useState<string | null>(null);
-  const [preview,    setPreview]    = useState<PaySlip[] | null>(null);
+
+  // ── Generate-preview state ────────────────────────────────────────────────
+  const [preview, setPreview] = useState<PaySlip[] | null>(null);
   const [previewPeriod, setPreviewPeriod] = useState<string>("");
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
-  const filtered = slips.filter((s) => s.period === filterPeriod);
+  const { data: periods = [] } = usePayslipPeriods();
+  const { data: employees = [] } = useEmployees({ limit: 200 });
+  const generateMut = useGeneratePayslips();
+
+  // Show the chosen period, or default to the most recent generated one.
+  const effectivePeriod = filterPeriod || periods[0] || "";
+  const { data: slips = [], isLoading } = usePayslips(effectivePeriod ? { period: effectivePeriod } : {});
+
+  const filtered = slips as PaySlip[];
   const columns  = useMemo(() => createPaySlipColumns(setSelected, async (slip) => {
     await downloadSinglePdf(slip);
     toast.success(`Payslip downloaded for ${slip.employee}`);
-  }), []);
+  }), [toast]);
 
-  // Filter options — unique periods only
+  // Filter options — only periods that actually have payslips.
   const filterOptions = useMemo(() => {
-    const known = new Set(PAYROLL_PERIODS as readonly string[]);
-    const extra = [...new Set(slips.map((s) => s.period).filter((p) => !known.has(p)))];
-    const all = [...PAYROLL_PERIODS, ...extra];
-    return all.map((p) => ({ value: p, label: p }));
-  }, [slips]);
+    const list = effectivePeriod && !periods.includes(effectivePeriod) ? [...periods, effectivePeriod] : periods;
+    return list.map((p) => ({ value: p, label: p }));
+  }, [periods, effectivePeriod]);
 
   function openMonthPicker() {
     setShowMonthPicker(true);
   }
 
   function startPreview(period: string) {
-    const previewed = SEED_EMPLOYEES.map((e) => computeSlip(e, period));
-    // When overriding, check all employees; otherwise only unchecked ones
-    setCheckedIds(new Set(previewed.map((s) => s.id)));
+    const salaried = employees.filter((e) => e.basic_salary != null && Number(e.basic_salary) > 0);
+    const previewed = salaried.map((e) => computeSlip(e, period));
+    setCheckedIds(new Set(previewed.map((s) => s.id))); // all selected by default
     setPreviewPeriod(period);
     setPreview(previewed);
   }
 
   function handleMonthConfirm(period: string) {
     setShowMonthPicker(false);
-    const hasExisting = slips.some((s) => s.period === period);
-    if (hasExisting) {
-      setOverridePeriod(period);
+    if (periods.includes(period)) {
+      setOverridePeriod(period);   // already generated → confirm before overwriting
     } else {
       startPreview(period);
     }
@@ -418,25 +405,28 @@ export default function PaySlipsPage() {
   function toggleOne(id: string) {
     setCheckedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }
 
-  function confirmGenerate() {
-    const toAdd = preview!.filter((s) => checkedIds.has(s.id));
-    // Remove every employee in the preview from existing records for this period —
-    // checked ones get replaced with the new slip, unchecked ones get removed entirely.
-    const allPreviewEmployees = new Set(preview!.map((s) => s.employee));
-    setSlips((prev) => [
-      ...toAdd,
-      ...prev.filter((s) => !(s.period === previewPeriod && allPreviewEmployees.has(s.employee))),
-    ]);
-    setFilterPeriod(previewPeriod);
-    setPreview(null);
-    setPreviewPeriod("");
-    setCheckedIds(new Set());
-    toast.success(`${toAdd.length} payslip${toAdd.length !== 1 ? "s" : ""} generated for ${previewPeriod}`);
+  async function confirmGenerate() {
+    const employee_ids = [...checkedIds];
+    if (employee_ids.length === 0) return;
+    const year = Number(previewPeriod.split(" ").pop());
+    try {
+      const created = await generateMut.mutateAsync({ period: previewPeriod, year, employee_ids });
+      setFilterPeriod(previewPeriod);
+      setPreview(null);
+      setPreviewPeriod("");
+      setCheckedIds(new Set());
+      toast.success(`${created.length} payslip${created.length !== 1 ? "s" : ""} generated for ${previewPeriod}`);
+    } catch (err) {
+      toast.error(
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "Failed to generate payslips"
+      );
+    }
   }
 
   async function handleDownloadZip() {
@@ -535,9 +525,6 @@ export default function PaySlipsPage() {
   }
 
   // ── List view ─────────────────────────────────────────────────────────────
-  const alreadyDone = new Set(
-    preview ? slips.filter((s) => s.period === previewPeriod).map((s) => s.employee) : []
-  );
   const allChecked  = preview !== null && checkedIds.size === preview.length;
   const someChecked = checkedIds.size > 0 && !allChecked;
 
@@ -573,7 +560,7 @@ export default function PaySlipsPage() {
         />
       </div>
 
-      {/* ── Generate preview ── */}
+      {/* ── Generate preview (select employees) ── */}
       {preview && (
         <div className="bg-white border border-brand-border rounded-2xl overflow-hidden mb-6 shadow-sm">
           <div className="px-5 py-4 border-b border-brand-border bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -588,6 +575,7 @@ export default function PaySlipsPage() {
             <div className="flex items-center gap-2 shrink-0">
               <Button
                 onClick={confirmGenerate}
+                loading={generateMut.isPending}
                 disabled={checkedIds.size === 0}
                 rightIcon={
                   <span className="bg-white/20 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
@@ -616,7 +604,7 @@ export default function PaySlipsPage() {
                       className="h-4 w-4 rounded border-gray-300 accent-brand-purple cursor-pointer"
                     />
                   </th>
-                  {["Employee", "Dept", "Basic Salary", "Housing", "Transport", "Meal", "PAYE", "Pension", "NHF", "Loan", "Net Pay", ""].map((h) => (
+                  {["Employee", "Dept", "Basic Salary", "Housing", "Transport", "Meal", "PAYE", "Pension", "NHF", "Loan", "Net Pay"].map((h) => (
                     <th key={h} className="px-4 py-3 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide whitespace-nowrap">
                       {h}
                     </th>
@@ -626,7 +614,6 @@ export default function PaySlipsPage() {
               <tbody>
                 {preview.map((slip) => {
                   const isChecked = checkedIds.has(slip.id);
-                  const isDone    = alreadyDone.has(slip.employee);
                   return (
                     <tr
                       key={slip.id}
@@ -657,13 +644,6 @@ export default function PaySlipsPage() {
                       <td className="px-4 py-3 text-red-500 whitespace-nowrap">{fmt(slip.nhf)}</td>
                       <td className="px-4 py-3 text-red-500 whitespace-nowrap">{fmt(slip.loan)}</td>
                       <td className="px-4 py-3 font-bold text-brand-purple whitespace-nowrap">{fmt(slip.net)}</td>
-                      <td className="px-4 py-3">
-                        {isDone && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
-                            Already generated
-                          </span>
-                        )}
-                      </td>
                     </tr>
                   );
                 })}
@@ -683,24 +663,27 @@ export default function PaySlipsPage() {
         </div>
       )}
 
-      {/* ── Confirmed payslips table (hidden while preview is open) ── */}
+      {/* ── Payslips table (hidden while previewing) ── */}
       {!preview && (
         <DataTable
           columns={columns}
           data={filtered}
+          isLoading={isLoading}
           hideStatusFilter
-          emptyMessage={`No pay slips for ${filterPeriod}`}
+          emptyMessage={effectivePeriod ? `No pay slips for ${effectivePeriod}` : "No pay slips yet"}
           emptyDescription="Select a period and click Generate Payslip"
           toolbarExtra={
             <div className="flex items-center gap-2 shrink-0">
-              <div className="w-44">
-                <FormSelect
-                  id="period-filter"
-                  options={filterOptions}
-                  value={filterPeriod}
-                  onValueChange={setFilterPeriod}
-                />
-              </div>
+              {filterOptions.length > 0 && (
+                <div className="w-44">
+                  <FormSelect
+                    id="period-filter"
+                    options={filterOptions}
+                    value={effectivePeriod}
+                    onValueChange={setFilterPeriod}
+                  />
+                </div>
+              )}
               {filtered.length > 0 && (
                 <Button
                   variant="outline"

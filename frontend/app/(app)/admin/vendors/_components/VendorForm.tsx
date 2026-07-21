@@ -9,6 +9,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
+import FormPhoneInput from "@/components/forms/FormPhoneInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormSelect from "@/components/forms/FormSelect";
 import type { VendorCategory } from "@/types";
@@ -56,7 +57,11 @@ export default function VendorForm({ title, description, initial, loading, onSub
   const [errors, setErrors] = useState<Partial<Record<keyof VendorFormValues, string>>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>(initial.logo_url || "");
+  const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_LOGO_SIZE_MB = 2;
+  const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
 
   function set(field: keyof VendorFormValues, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -66,6 +71,13 @@ export default function VendorForm({ title, description, initial, loading, onSub
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      setLogoError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_LOGO_SIZE_MB} MB.`);
+      // Clear the input so the same file can be re-selected after they pick a smaller one
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setLogoError(null);
     setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
   }
@@ -82,6 +94,7 @@ export default function VendorForm({ title, description, initial, loading, onSub
     if (!form.bank_name.trim())      e.bank_name      = "Bank name is required";
     if (!form.account_name.trim())   e.account_name   = "Account name is required";
     if (!form.account_number.trim()) e.account_number = "Account number is required";
+    else if (!/^\d{10}$/.test(form.account_number)) e.account_number = "Account number must be exactly 10 digits";
     return e;
   }
 
@@ -125,27 +138,33 @@ export default function VendorForm({ title, description, initial, loading, onSub
                 className="hidden"
                 onChange={handleLogoChange}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                leftIcon={<Upload size={14} />}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {logoPreview ? "Change Logo" : "Upload Logo"}
-              </Button>
-              {logoPreview && (
+              <div className="flex items-center gap-3">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  leftIcon={<X size={13} />}
-                  onClick={() => { setLogoPreview(""); setLogoFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                  leftIcon={<Upload size={14} />}
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  Remove logo
+                  {logoPreview ? "Change Logo" : "Upload Logo"}
                 </Button>
-              )}
-              <p className="text-xs text-brand-text-secondary">PNG, JPG, SVG or WebP. Max 2MB.</p>
+                {logoPreview && (
+                  <>
+                    <span className="w-px h-5 bg-brand-border shrink-0" />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      leftIcon={<X size={13} />}
+                      onClick={() => { setLogoPreview(""); setLogoFile(null); setLogoError(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    >
+                      Remove logo
+                    </Button>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-brand-text-secondary">PNG, JPG, SVG or WebP. Max 2 MB.</p>
+              {logoError && <p className="text-xs text-red-600">{logoError}</p>}
             </div>
           </div>
         </FormSection>
@@ -181,7 +200,7 @@ export default function VendorForm({ title, description, initial, loading, onSub
               onChange={(e) => set("contact_person", e.target.value)}
               error={errors.contact_person}
             />
-            <FormInput
+            <FormPhoneInput
               label="Phone"
               required
               placeholder="+234 (0) 800 000 0000"
@@ -232,12 +251,25 @@ export default function VendorForm({ title, description, initial, loading, onSub
               onChange={(e) => set("account_name", e.target.value)}
               error={errors.account_name}
             />
-            <FormInput
+            <FormPhoneInput
               label="Account Number"
               required
               placeholder="10-digit account number"
+              inputMode="numeric"
+              maxLength={10}
               value={form.account_number}
-              onChange={(e) => set("account_number", e.target.value)}
+              onChange={(e) => set("account_number", e.target.value.replace(/\D/g, ""))}
+              onKeyDown={(e) => {
+                // Tighten to digits only — block +, -, (, ), space that FormPhoneInput permits
+                if (!e.ctrlKey && !e.metaKey && e.key.length === 1 && !/\d/.test(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 10);
+                set("account_number", digits);
+              }}
               error={errors.account_number}
             />
           </div>

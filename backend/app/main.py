@@ -12,6 +12,9 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 
 # Import all models so SQLAlchemy can resolve relationships at startup
+from app.shared.models import approval, document, reference_counter, token, user, setup  # noqa: F401
+from app.hr import models as _hr_models  # noqa: F401
+from app.finance import models as _finance_models  # noqa: F401
 from app.shared.models import approval, document, reference_counter, token, user  # noqa: F401
 # approval.py now contains all workflow engine models (ApprovalWorkflow, WorkflowStep,
 # ApprovalRequest, ApprovalHistory, WorkflowAuditTrail, AllRequest, Notification, etc.)
@@ -56,6 +59,8 @@ from app.products.router import router as products_router
 from app.orders.router import router as orders_router
 from app.invoices.router import router as invoices_router
 from app.payments.router import router as payments_router
+from app.hr.router import router as hr_router
+from app.finance.router import router as finance_router
 from app.audit.router import router as audit_router
 from app.inventory.router import router as inventory_router
 from app.fleet.drivers.router import router as drivers_router
@@ -146,6 +151,8 @@ app.include_router(products_router, prefix="/api/products", tags=["Products"])
 app.include_router(orders_router,   prefix="/api/orders",   tags=["Orders"])
 app.include_router(invoices_router, prefix="/api/invoices", tags=["Invoices"])
 app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
+app.include_router(hr_router, tags=["HR Management"])
+app.include_router(finance_router, tags=["Finance"])
 app.include_router(audit_router,     prefix="/api/audit",     tags=["Audit"])
 app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
 app.include_router(drivers_router, prefix="/api/fleet/drivers", tags=["Drivers"])

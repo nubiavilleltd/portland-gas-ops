@@ -1,0 +1,673 @@
+from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException
+from sqlalchemy.orm import Session
+from typing import Optional
+from datetime import date
+
+from app.core.database import get_db
+from app.shared.dependencies import get_current_user, require_roles
+from app.shared.models.user import User
+from app.shared.models.document import Document
+from app.shared.services.cloudinary_service import upload_file
+from app.hr.models import LeaveRequest
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
+from app.hr import service
+from app.employees.models import Employee
+from app.employees.service import get_employee_by_user_id
+
+router = APIRouter(prefix="/api/hr", tags=["HR Management"])
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# CREATE - POST /api/hr/leave-types
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/leave-types",
+    response_model=LeaveTypeRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_leave_type(
+    payload: LeaveTypeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """
+    Create a new leave type.
+
+    **Required Roles:** super_admin, admin, or hr
+
+    **Body Parameters:**
+    - leave_type_name: str (e.g., "Annual Leave")
+    - entitlement_days: int (e.g., 21)
+    - description: str (optional)
+    - is_active: bool (default: True)
+
+    **Example Request:**
+    ```json
+    {
+        "leave_type_name": "Annual Leave",
+        "entitlement_days": 21,
+        "description": "Paid annual leave",
+        "is_active": true
+    }
+    ```
+    """
+    leave_type = service.create_leave_type(db, payload)
+    db.commit()
+    db.refresh(leave_type)
+    return leave_type
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# READ ALL - GET /api/hr/leave-types
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    "/leave-types",
+    response_model=dict,
+)
+def list_leave_types(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    is_active: Optional[bool] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List all leave types with pagination.
+
+    **Query Parameters:**
+    - skip: int (default: 0) - Skip N records
+    - limit: int (default: 100, max: 200) - Return N records
+    - is_active: bool (optional) - Filter by active status
+
+    **Response:**
+    ```json
+    {
+        "data": [
+            {
+                "id": 1,
+                "leave_type_name": "Annual Leave",
+                "entitlement_days": 21,
+                "description": "Paid annual leave",
+                "is_active": true,
+                "created_at": "2026-07-01T10:30:00",
+                "updated_at": "2026-07-01T10:30:00"
+            }
+        ],
+        "total": 10,
+        "skip": 0,
+        "limit": 100
+    }
+    ```
+    """
+    leave_types, total = service.get_all_leave_types(
+        db,
+        skip=skip,
+        limit=limit,
+        is_active=is_active,
+    )
+
+    return {
+        "data": [LeaveTypeRead.model_validate(lt) for lt in leave_types],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# READ ONE - GET /api/hr/leave-types/{leave_type_id}
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    "/leave-types/{leave_type_id}",
+    response_model=LeaveTypeRead,
+)
+def get_leave_type(
+    leave_type_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get a single leave type by ID.
+
+    **Path Parameters:**
+    - leave_type_id: int
+
+    **Response:** Single LeaveTypeRead object
+    """
+    return service.get_leave_type(db, leave_type_id)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# UPDATE - PUT /api/hr/leave-types/{leave_type_id}
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.put(
+    "/leave-types/{leave_type_id}",
+    response_model=LeaveTypeRead,
+)
+def update_leave_type(
+    leave_type_id: int,
+    payload: LeaveTypeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """
+    Update an existing leave type.
+
+    **Path Parameters:**
+    - leave_type_id: int
+
+    **Body Parameters:** (all optional)
+    - leave_type_name: str
+    - entitlement_days: int
+    - description: str
+    - is_active: bool
+
+    **Required Roles:** super_admin, admin, or hr
+    """
+    leave_type = service.update_leave_type(db, leave_type_id, payload)
+    db.commit()
+    db.refresh(leave_type)
+    return leave_type
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# DEACTIVATE - PATCH /api/hr/leave-types/{leave_type_id}/deactivate
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.patch(
+    "/leave-types/{leave_type_id}/deactivate",
+    response_model=LeaveTypeRead,
+)
+def deactivate_leave_type(
+    leave_type_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """
+    Deactivate a leave type (soft delete).
+
+    **Path Parameters:**
+    - leave_type_id: int
+
+    **Required Roles:** super_admin, admin, or hr
+    """
+    leave_type = service.deactivate_leave_type(db, leave_type_id)
+    db.commit()
+    db.refresh(leave_type)
+    return leave_type
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# REACTIVATE - PATCH /api/hr/leave-types/{leave_type_id}/reactivate
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.patch(
+    "/leave-types/{leave_type_id}/reactivate",
+    response_model=LeaveTypeRead,
+)
+def reactivate_leave_type(
+    leave_type_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """
+    Reactivate a deactivated leave type.
+
+    **Path Parameters:**
+    - leave_type_id: int
+
+    **Required Roles:** super_admin, admin, or hr
+    """
+    leave_type = service.reactivate_leave_type(db, leave_type_id)
+    db.commit()
+    db.refresh(leave_type)
+    return leave_type
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# LEAVE BALANCES
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.get(
+    "/leave-balances/me",
+    response_model=list[LeaveBalanceRead],
+)
+def get_my_leave_balances(
+    fiscal_year: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Current employee's leave balances for a fiscal year — every active leave
+    type with its recorded used/remaining, defaulting to full entitlement for
+    types not yet drawn on. Fiscal year defaults to the current calendar year.
+    """
+    employee = get_employee_by_user_id(current_user.id, db)
+    year = fiscal_year if fiscal_year is not None else date.today().year
+    return service.get_my_leave_balances(db, employee.id, year)
+
+
+@router.get(
+    "/leave-balances",
+    response_model=list[EmployeeLeaveBalancesRead],
+)
+def get_all_leave_balances(
+    fiscal_year: Optional[int] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(500, ge=1, le=1000),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """
+    All-employees leave balances for a fiscal year (HR/admin only) — one entry
+    per employee with every active leave type. Fiscal year defaults to the
+    current calendar year.
+    """
+    year = fiscal_year if fiscal_year is not None else date.today().year
+    return service.get_all_leave_balances(db, year, skip=skip, limit=limit)
+
+
+@router.get(
+    "/leave-balances/employee/{employee_id}",
+    response_model=list[LeaveBalanceRead],
+)
+def get_employee_leave_balances(
+    employee_id: str,
+    fiscal_year: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    A specific employee's leave balances for a fiscal year. Used when raising a
+    leave request "for others" so the form reflects the target employee's balance
+    (the days count against them). Available to any authenticated user.
+    """
+    year = fiscal_year if fiscal_year is not None else date.today().year
+    return service.get_my_leave_balances(db, employee_id, year)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# LEAVE REQUESTS
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/leave-requests",
+    response_model=LeaveRequestRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_leave_request(
+    payload: LeaveRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Create a new leave request (draft status).
+
+    **Body Parameters:**
+    - employee_id: str (UUID)
+    - leave_type_id: int
+    - reliever_id: str (UUID)
+    - start_date: date (YYYY-MM-DD)
+    - end_date: date (YYYY-MM-DD)
+    - reason: str (optional)
+    - document_id: int (optional)
+    """
+    # NOTE: requester_id stores the User id by design — submit_leave_request_for_approval
+    # resolves the employee via Employee.user_id == requester_id.
+    leave_request = service.create_leave_request(db, payload, current_user.id)
+    db.commit()
+    db.refresh(leave_request)
+    return leave_request
+
+
+@router.get(
+    "/leave-requests",
+    response_model=dict,
+)
+def list_leave_requests(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    sort_by: str = Query("created_at", pattern="^(created_at|start_date|end_date|days|status)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    employee_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List all leave requests with pagination.
+
+    **Query Parameters:**
+    - skip: int (default: 0)
+    - limit: int (default: 100, max: 200)
+
+    **Response:**
+    ```json
+    {
+        "data": [
+            {
+                "id": "uuid",
+                "reference": "LRQ-2026-0001",
+                "employee_id": "uuid",
+                "employee_name": "John Doe",
+                "leave_type_id": 1,
+                "leave_type_name": "Annual Leave",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-10",
+                "days": 10,
+                "status": "draft",
+                ...
+            }
+        ],
+        "total": 42,
+        "skip": 0,
+        "limit": 100
+    }
+    ```
+    """
+    leave_requests, total = service.get_all_leave_requests(
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, employee_id=employee_id
+    )
+
+    # Enrich with the current pending approver ("next actor") in one query
+    next_actors = service.get_next_actors(db, [lr.id for lr in leave_requests])
+
+    items = []
+    for lr in leave_requests:
+        item = LeaveRequestRead.model_validate(lr)
+        info = next_actors.get(lr.id)
+        if info:
+            item.next_actor_name = info["name"]
+            item.current_step_name = info["step_name"]
+        items.append(item)
+
+    return {
+        "data": items,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@router.get(
+    "/leave-requests/{leave_request_id}",
+    response_model=LeaveRequestRead,
+)
+def get_leave_request(
+    leave_request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get a single leave request by its UUID (detail routes use id, matching
+    Safety & Compliance). Falls back to reference for backward compat.
+
+    **Path Parameters:**
+    - leave_request_id: str (UUID, or reference for backward compat)
+
+    **Response:** Single LeaveRequestRead object
+    """
+    lr = service.get_leave_request_by_id(db, leave_request_id)
+    result = LeaveRequestRead.model_validate(lr)
+    # Enrich with the current pending approver ("next actor") for the header
+    info = service.get_next_actors(db, [lr.id]).get(lr.id)
+    if info:
+        result.next_actor_name = info["name"]
+        result.current_step_name = info["step_name"]
+    return result
+
+
+@router.post(
+    "/leave-requests/{leave_request_id}/resubmit",
+    response_model=LeaveRequestRead,
+)
+def resubmit_leave_request(
+    leave_request_id: str,
+    payload: LeaveRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Edit and resubmit a returned leave request. Restarts the approval workflow
+    from step 1. Only the original requester may resubmit.
+    """
+    lr = service.resubmit_leave_request(db, leave_request_id, payload, current_user.id)
+    db.commit()
+    db.refresh(lr)
+    return lr
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# UPLOAD DOCUMENT - POST /api/hr/leave-requests/{id}/upload-document
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/leave-requests/{leave_request_id}/upload-document",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_leave_request_document(
+    leave_request_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Upload a supporting document for a leave request.
+
+    **Path Parameters:**
+    - leave_request_id: str (UUID)
+
+    **Body:**
+    - file: UploadFile (multipart/form-data)
+
+    **Response:**
+    ```json
+    {
+        "document_id": 123,
+        "file_name": "document.pdf",
+        "file_url": "https://res.cloudinary.com/..."
+    }
+    ```
+    """
+    # Validate leave request exists
+    leave_request = db.query(LeaveRequest).filter(LeaveRequest.id == leave_request_id).first()
+    if not leave_request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave request not found")
+
+    # Validate file type
+    ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp", "application/msword",
+                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="File type not allowed. Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX")
+
+    # Validate file size (max 10 MB)
+    file_bytes = file.file.read()
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size must be 10 MB or smaller")
+
+    # Upload to Cloudinary (non-blocking - allow upload to fail gracefully)
+    url = None
+    try:
+        url = upload_file(file_bytes, file.filename or "document", folder="portland-gas/leave-requests")
+    except Exception as e:
+        print(f"Cloudinary upload error: {str(e)}")
+        # Store file locally or with fallback URL if Cloudinary fails
+        url = f"file://{file.filename}" if file.filename else "file://document"
+
+    # Get uploader employee
+    uploader_employee = get_employee_by_user_id(current_user.id, db)
+
+    # Create Document record
+    doc = Document(
+        type="file",
+        name=file.filename or "leave_request_document",
+        category="hr",
+        file_path=url,
+        file_size=len(file_bytes),
+        mime_type=file.content_type,
+        uploaded_by=uploader_employee.id if uploader_employee else None,
+    )
+    db.add(doc)
+    db.flush()
+
+    # Update leave request with document_id
+    leave_request.document_id = doc.id
+    db.commit()  # Commit changes
+    db.refresh(leave_request)  # Refresh to get latest state
+
+    return {
+        "document_id": doc.id,
+        "file_name": file.filename or "document",
+        "file_url": url,
+    }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# SUBMIT FOR APPROVAL - POST /api/hr/leave-requests/{id}/submit-for-approval
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/leave-requests/{leave_request_id}/submit-for-approval",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+)
+def submit_leave_request_for_approval(
+    leave_request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Submit a leave request for approval via the workflow engine.
+
+    Creates ApprovalRequest and AllRequest entries to start the approval workflow.
+
+    **Path Parameters:**
+    - leave_request_id: str (UUID)
+
+    **Response:**
+    ```json
+    {
+        "approval_request_id": "uuid",
+        "reference": "LRQ-2026-0001",
+        "status": "pending"
+    }
+    ```
+    """
+    approval_request = service.submit_leave_request_for_approval(db, leave_request_id)
+    db.commit()
+    db.refresh(approval_request)
+
+    return {
+        "approval_request_id": approval_request.id,
+        "request_type": approval_request.request_type,
+        "request_id": approval_request.request_id,
+        "status": approval_request.overall_status,
+        "current_step_number": approval_request.current_step_number,
+    }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PAYSLIPS
+# ════════════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/payslips/generate",
+    response_model=list[PayslipRead],
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_payslips(
+    payload: PayslipGenerate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Generate payslips for all active salaried employees for a period."""
+    prepared_by = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or current_user.email
+    slips = service.generate_payslips(db, payload, prepared_by)
+    db.commit()
+    return slips
+
+
+@router.get("/payslips/periods", response_model=list[str])
+def list_payslip_periods(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Distinct periods that have payslips — for the filter dropdown."""
+    return service.get_payslip_periods(db)
+
+
+# ── Employee self-service: the caller's OWN payslips (scoped by token) ──────────
+# Declared before /payslips/{payslip_id} so "me" isn't captured as a payslip id.
+
+@router.get("/payslips/me", response_model=dict)
+def list_my_payslips(
+    period: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The current employee's own payslips. Empty (not 404) if the account has no employee profile."""
+    emp_id = db.query(Employee.id).filter(Employee.user_id == current_user.id).scalar()
+    if not emp_id:
+        return {"data": [], "total": 0, "skip": skip, "limit": limit}
+    rows, total = service.get_all_payslips(
+        db, period=period, employee_id=emp_id, skip=skip, limit=limit
+    )
+    return {
+        "data": [PayslipRead.model_validate(p) for p in rows],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@router.get("/payslips/me/periods", response_model=list[str])
+def list_my_payslip_periods(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Distinct periods the current employee actually has payslips for — for the filter dropdown."""
+    emp_id = db.query(Employee.id).filter(Employee.user_id == current_user.id).scalar()
+    if not emp_id:
+        return []
+    return service.get_payslip_periods(db, employee_id=emp_id)
+
+
+@router.get("/payslips", response_model=dict)
+def list_payslips(
+    period: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List payslips, optionally filtered by period and employee-name search."""
+    rows, total = service.get_all_payslips(db, period=period, search=search, skip=skip, limit=limit)
+    return {
+        "data": [PayslipRead.model_validate(p) for p in rows],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@router.get("/payslips/{payslip_id}", response_model=PayslipRead)
+def get_payslip(
+    payslip_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a single payslip by id."""
+    return service.get_payslip_by_id(db, payslip_id)
