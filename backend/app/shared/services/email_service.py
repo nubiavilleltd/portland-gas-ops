@@ -156,15 +156,15 @@ _REQUEST_TYPE_LABELS: dict[str, str] = {
 
 # Maps request_type → frontend URL path segment
 _REQUEST_TYPE_PATHS: dict[str, str] = {
-    "procurement":      "procurement",
-    "asset":            "assets",
-    "leave":            "leave",
-    "cash_requisition": "cash-requisitions",
-    "invoice":          "invoices",
-    "work_initiation":  "safety/work-initiation",
+    "procurement":        "procurement",
+    "asset":              "assets/requests",
+    "leave":              "hr-management/leave-requests",
+    "cash_requisition":   "finance/cash-requisitions",
+    "invoice":            "finance/invoices",
+    "work_initiation":    "safety/work-initiation",
     "work_authorization": "safety/work-authorization",
-    "work_closeout":    "safety/work-close-out",
-    "safety":           "safety",
+    "work_closeout":      "safety/work-close-out",
+    "safety":             "safety",
 }
 
 
@@ -246,6 +246,12 @@ def send_approval_result(
             "color":   "#d97706",
             "heading": "Your Request Needs Revision",
             "message": "Your request has been returned for revision. Please review the comment below, make the necessary changes, and resubmit.",
+        },
+        "loan_returned": {
+            "label":   "Return Confirmed",
+            "color":   "#16a34a",
+            "heading": "Asset Return Confirmed",
+            "message": "",  # always overridden by result_message_override
         },
     }
     meta = _ACTION_META.get(action, {

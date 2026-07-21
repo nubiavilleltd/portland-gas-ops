@@ -53,6 +53,7 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   onValueChange?: (value: string) => void;
   triggerClassName?: string;
   dropdownClassName?: string;
+  dropdownPosition?: "bottom" | "top" | "auto";
 }
 
 type CalendarView = "days" | "months" | "years";
@@ -106,6 +107,7 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
       className,
       triggerClassName,
       dropdownClassName,
+      dropdownPosition = "auto",
       id,
       value,
       defaultValue,
@@ -124,9 +126,11 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
     const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
     const hiddenInputRef = useRef<HTMLInputElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
     const today = useMemo(() => new Date(), []);
     const isControlled = value !== undefined;
     const [open, setOpen] = useState(false);
+    const [resolvedPosition, setResolvedPosition] = useState<"bottom" | "top">("bottom");
     const [internalValue, setInternalValue] = useState(
       typeof defaultValue === "string" ? defaultValue : ""
     );
@@ -306,10 +310,19 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
         />
 
         <button
+          ref={triggerRef}
           type="button"
           id={inputId}
           disabled={disabled}
-          onClick={() => setOpen((current) => !current)}
+          onClick={() => {
+            const next = !open;
+            if (next && dropdownPosition === "auto" && triggerRef.current) {
+              const rect = triggerRef.current.getBoundingClientRect();
+              // Calendar dropdown is ~360px tall — use that as the threshold
+              setResolvedPosition(window.innerHeight - rect.bottom >= 360 ? "bottom" : "top");
+            }
+            setOpen(next);
+          }}
           className={cn(
             "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left transition-shadow",
             "flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent",
@@ -336,7 +349,10 @@ const DatePicker = forwardRef<HTMLInputElement, Props>(
         {open && !disabled && (
           <div
             className={cn(
-              "absolute top-full z-50 mt-1 w-full max-w-[320px] overflow-hidden rounded-2xl border border-brand-border bg-white shadow-xl",
+              "absolute z-50 w-full max-w-[320px] overflow-hidden rounded-2xl border border-brand-border bg-white shadow-xl",
+              (dropdownPosition === "top" || (dropdownPosition === "auto" && resolvedPosition === "top"))
+                ? "bottom-full mb-1"
+                : "top-full mt-1",
               dropdownClassName
             )}
           >

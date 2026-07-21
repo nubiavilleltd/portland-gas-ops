@@ -1,4 +1,5 @@
 import time
+import uuid as uuid_lib
 import bleach
 from urllib.parse import urlparse
 from datetime import datetime, timezone
@@ -109,7 +110,7 @@ class IntranetNewsService:
         """Base query with cover_image eagerly loaded to avoid lazy-load outside session."""
         return self.db.query(IntranetNews).options(joinedload(IntranetNews.cover_image))
 
-    def _get_or_404(self, news_id: int) -> IntranetNews:
+    def _get_or_404(self, news_id: str) -> IntranetNews:
         item = self._base_query().filter(IntranetNews.id == news_id).first()
         if not item:
             raise HTTPException(status_code=404, detail="News article not found")
@@ -125,7 +126,7 @@ class IntranetNewsService:
             .all()
         )
 
-    def get_published(self, news_id: int) -> IntranetNews:
+    def get_published(self, news_id: str) -> IntranetNews:
         item = self._get_or_404(news_id)
         if not item.is_published:
             raise HTTPException(status_code=404, detail="News article not found")
@@ -142,6 +143,7 @@ class IntranetNewsService:
 
     def create(self, data: NewsCreate, created_by: str | None = None) -> IntranetNews:
         item = IntranetNews(
+            id=str(uuid_lib.uuid4()),
             title=data.title,
             body=_sanitize_body(data.body),
             category=data.category,
@@ -155,7 +157,7 @@ class IntranetNewsService:
         self.db.flush()
         return item
 
-    def update(self, news_id: int, data: NewsUpdate) -> IntranetNews:
+    def update(self, news_id: str, data: NewsUpdate) -> IntranetNews:
         item = self._get_or_404(news_id)
         patch = data.model_dump(exclude_unset=True)
         if "body" in patch:
@@ -164,11 +166,11 @@ class IntranetNewsService:
             setattr(item, field, value)
         return item
 
-    def delete(self, news_id: int) -> None:
+    def delete(self, news_id: str) -> None:
         item = self._get_or_404(news_id)
         self.db.delete(item)
 
-    def toggle_published(self, news_id: int) -> IntranetNews:
+    def toggle_published(self, news_id: str) -> IntranetNews:
         item = self._get_or_404(news_id)
         item.is_published = not item.is_published
         if item.is_published and not item.published_at:

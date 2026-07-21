@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Eye, EyeOff, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
+import SortableList, { SortableAction, type SortableColumn } from "@/components/ui/SortableList";
 import ActionModal from "@/components/ui/ActionModal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Button from "@/components/ui/Button";
@@ -48,7 +48,7 @@ export default function IntranetFAQsPage() {
     addFaq,
     updateFaq,
     removeFaq,
-    moveFaq,
+    reorderFaqs,
   } = useIntranetFAQs();
   const toast = useToast();
   const toggleMutation = useToggleFAQPublished();
@@ -199,62 +199,19 @@ export default function IntranetFAQsPage() {
     toast.success("Category deleted.");
   }
 
-  const columns: Column<FAQRow>[] = [
+  const sortableColumns: SortableColumn<FAQRow>[] = [
     {
-      key: "question",
       label: "Question",
-      render: (_, row) => (
+      render: (row) => (
         <p className="text-sm font-medium text-brand-text-primary max-w-lg">{row.question}</p>
       ),
     },
     {
-      key: "is_published",
       label: "Status",
-      render: (_, row) => (
+      className: "w-36 shrink-0",
+      render: (row) => (
         <Badge variant={row.is_published ? "success" : "neutral"} label={row.is_published ? "Visible" : "Hidden"} />
       ),
-    },
-  ];
-
-  const tableActions: DataTableAction<FAQRow>[] = [
-    {
-      key: "up",
-      label: "",
-      icon: <Tip label="Move Up"><ChevronUp size={14} /></Tip>,
-      variant: "ghost",
-      onClick: (row) => moveFaq(row._numId, "up"),
-    },
-    {
-      key: "down",
-      label: "",
-      icon: <Tip label="Move Down"><ChevronDown size={14} /></Tip>,
-      variant: "ghost",
-      onClick: (row) => moveFaq(row._numId, "down"),
-    },
-    {
-      key: "toggle",
-      label: "",
-      icon: (row) =>
-        toggleMutation.isPending && toggleTarget === row._numId
-          ? <Loader2 size={14} className="animate-spin" />
-          : <Tip label={row.is_published ? "Hide FAQ" : "Show FAQ"}>{row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}</Tip>,
-      variant: "ghost",
-      onClick: (row) => setToggleConfirmTarget(row),
-    },
-    {
-      key: "edit",
-      label: "",
-      icon: <Tip label="Edit FAQ"><Pencil size={14} /></Tip>,
-      variant: "ghost",
-      onClick: (row) => openEdit(row),
-    },
-    {
-      key: "delete",
-      label: "",
-      icon: <Tip label="Delete FAQ"><Trash2 size={14} /></Tip>,
-      variant: "ghost",
-      className: "hover:bg-red-50 hover:text-red-600",
-      onClick: (row) => setDeleteId(row._numId),
     },
   ];
 
@@ -274,7 +231,7 @@ export default function IntranetFAQsPage() {
         }
       />
 
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Category sidebar */}
         <div className="w-56 shrink-0 space-y-2">
           <div className="flex items-center justify-between px-1 mb-3">
@@ -360,17 +317,33 @@ export default function IntranetFAQsPage() {
               <Badge variant="neutral" label="Category hidden on intranet" />
             )}
           </div>
-          <DataTable<FAQRow>
-            columns={columns}
-            data={rows}
-            isLoading={isLoading || isFetching}
-            showActions
-            actions={tableActions}
-            actionsLabel="Actions"
-            searchable
-            searchPlaceholder="Search FAQs…"
-            emptyMessage="No FAQs in this category."
-            emptyDescription="Click 'New FAQ' to add one."
+          <SortableList<FAQRow>
+            items={rows}
+            onReorder={(newRows) => reorderFaqs(newRows.map((r) => r._numId))}
+            columns={sortableColumns}
+            isLoading={isLoading}
+            emptyMessage="No FAQs in this category. Click 'New FAQ' to add one."
+            actions={(row) => (
+              <>
+                {toggleMutation.isPending && toggleTarget === row._numId ? (
+                  <div className="h-7 w-7 flex items-center justify-center">
+                    <Loader2 size={14} className="animate-spin text-brand-text-secondary" />
+                  </div>
+                ) : (
+                  <SortableAction onClick={() => setToggleConfirmTarget(row)}>
+                    <Tip label={row.is_published ? "Hide FAQ" : "Show FAQ"}>
+                      {row.is_published ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </Tip>
+                  </SortableAction>
+                )}
+                <SortableAction onClick={() => openEdit(row)}>
+                  <Tip label="Edit FAQ"><Pencil size={14} /></Tip>
+                </SortableAction>
+                <SortableAction className="hover:bg-red-50 hover:text-red-600" onClick={() => setDeleteId(row._numId)}>
+                  <Tip label="Delete FAQ"><Trash2 size={14} /></Tip>
+                </SortableAction>
+              </>
+            )}
           />
         </div>
       </div>

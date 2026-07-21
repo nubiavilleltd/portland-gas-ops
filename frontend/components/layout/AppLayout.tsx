@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AppSidebar from "./AppSidebar";
 import AppHeader from "./AppHeader";
+import NotificationToaster from "./NotificationToaster";
 
 interface Props {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ export default function AppLayout({ children, pageTitle }: Props) {
 
   return (
     <div className="flex min-h-screen bg-brand-bg">
+      <NotificationToaster />
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Mobile backdrop */}

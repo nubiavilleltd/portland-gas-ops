@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, AlertCircle, Package, Boxes, CheckCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, AlertCircle, Package, Boxes, RotateCcw, Tag } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import FormSection from "@/components/ui/FormSection";
@@ -20,6 +20,7 @@ import {
   useWorkflowReject,
 } from "@/lib/modules/workflow/mutations";
 import { useToast } from "@/hooks/useToast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { formatDate, capitalize } from "@/lib/utils";
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ export default function AssetRequestDetailPage() {
   const workflowReject  = useWorkflowReject();
 
   const { data: auditTrail = [] } = useAuditTrail("asset", id);
+  const { user } = useCurrentUser();
 
   async function handleApprovalAction(action: "approve" | "reject", comment: string) {
     if (!approvalRequestId) return;
@@ -102,11 +104,14 @@ export default function AssetRequestDetailPage() {
     );
   }
 
+  const isAdmin = ["admin", "super_admin", "asset_admin"].includes(user?.role ?? "");
+
   const showApprovalPanel  = !!approvalRequestId && req.status === "pending";
-  const showAllocateBanner = req.status === "approved";
+  const showAllocateBanner = req.status === "approved" && isAdmin;
   const canMarkReturn =
     req.status === "allocated" &&
-    req.request_type === "loan";
+    req.request_type === "loan" &&
+    req.requested_by === user?.id;
 
   const isBusy =
     workflowApprove.isPending ||
@@ -229,6 +234,7 @@ export default function AssetRequestDetailPage() {
             showApprove
             rejectLabel="Deny"
             approveLabel="Approve"
+            requireCommentForRejectReturn
             onReject={(comment)  => handleApprovalAction("reject",  comment)}
             onApprove={(comment) => handleApprovalAction("approve", comment)}
             rejectLoading={workflowReject.isPending}
@@ -258,21 +264,77 @@ export default function AssetRequestDetailPage() {
           </div>
         )}
 
-        {/* ── Allocated confirmation ────────────────────────────────────────── */}
-        {req.status === "allocated" && (
-          <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5 flex items-start gap-3">
-            <div className="mt-0.5 flex items-center justify-center h-8 w-8 rounded-full bg-teal-100 shrink-0">
-              <CheckCircle size={15} className="text-teal-700" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-teal-800">Assets allocated</p>
-              <p className="text-xs text-teal-700 mt-0.5">
-                {req.allocated_by_name ? `Allocated by ${req.allocated_by_name}` : "Assets have been allocated"}
-                {req.allocated_at ? ` on ${formatDate(req.allocated_at)}` : ""}.
-              </p>
-            </div>
-          </div>
-        )}
+        {/* ── Allocated Assets ──────────────────────────────────────────────── */}
+        {req.status === "allocated" && (() => {
+          const allocatedItems = req.items.filter((item) => item.asset !== null);
+          return (
+            <FormSection
+              title="Allocated Assets"
+              description={
+                req.allocated_by_name
+                  ? `Allocated by ${req.allocated_by_name}${req.allocated_at ? ` on ${formatDate(req.allocated_at)}` : ""}`
+                  : req.allocated_at ? `Allocated on ${formatDate(req.allocated_at)}` : undefined
+              }
+              bodyClassName="p-0"
+            >
+              {allocatedItems.length === 0 ? (
+                <div className="px-5 py-4 text-sm text-brand-text-secondary">No asset details recorded.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-brand-border bg-gray-50/60">
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Asset</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Tag</th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Condition</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-border">
+                      {allocatedItems.map((item) => (
+                        <tr key={item.id}>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-3">
+                              {item.asset!.attachment_url ? (
+                                <img
+                                  src={item.asset!.attachment_url}
+                                  alt={item.asset!.name}
+                                  className="h-8 w-8 rounded-lg object-cover shrink-0 border border-brand-border"
+                                />
+                              ) : (
+                                <div className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                                  <Package size={14} className="text-gray-400" />
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-medium text-brand-text-primary">{item.asset!.name}</p>
+                                {item.asset!.asset_type?.name && (
+                                  <p className="text-xs text-brand-text-secondary">{item.asset!.asset_type.name}</p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {item.asset!.asset_tag ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-xs font-mono font-medium text-brand-text-primary">
+                                <Tag size={10} />
+                                {item.asset!.asset_tag}
+                              </span>
+                            ) : (
+                              <span className="text-brand-text-secondary">—</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5 text-sm text-brand-text-secondary capitalize">
+                            {item.asset!.condition ?? "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </FormSection>
+          );
+        })()}
 
         {/* ── Requester — Mark as Returned (loan only) ──────────────────────── */}
         {canMarkReturn && (

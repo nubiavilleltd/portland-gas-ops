@@ -59,8 +59,8 @@ function CategoryModal({ initial, onClose }: CategoryModalProps) {
         toast.success("Category created");
       }
       onClose();
-    } catch {
-      toast.error(`Failed to ${isEditing ? "update" : "create"} category`);
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 
@@ -145,8 +145,8 @@ function AddTypeInline({ categoryId, onDone }: { categoryId: string; onDone: () 
       toast.success("Asset type added");
       setTypeName("");
       onDone();
-    } catch {
-      toast.error("Failed to add asset type");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 
@@ -197,8 +197,8 @@ function CategoryCard({
     try {
       await deleteType.mutateAsync(typeId);
       toast.success(`"${typeName}" removed`);
-    } catch {
-      toast.error("Failed to remove asset type");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 
@@ -329,10 +329,11 @@ export default function AssetCategoriesPage() {
     try {
       await deleteCategory.mutateAsync(deleteTarget.id);
       toast.success(`"${deleteTarget.name}" deleted`);
-    } catch {
-      toast.error("Failed to delete category");
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error((err as Error).message);
+      setDeleteTarget(null);
     }
-    setDeleteTarget(null);
   }
 
   return (
@@ -400,7 +401,7 @@ export default function AssetCategoriesPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete Category"
-        message={`Delete "${deleteTarget?.name}"? All asset types within this category will also be deleted. Assets will become uncategorised.`}
+        message={`Remove "${deleteTarget?.name}"? This will only succeed if all types within it have already been removed.`}
         confirmLabel="Delete"
         destructive
         onConfirm={handleDelete}

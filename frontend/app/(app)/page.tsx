@@ -22,7 +22,6 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
-import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import ActionModal from "@/components/ui/ActionModal";
 import Avatar from "@/components/ui/Avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -370,10 +369,6 @@ export default function IntranetHomePage() {
           </h1>
           <p className="text-white/50 text-sm mb-6">The Clean Energy Standard — stay informed, stay connected.</p>
 
-          <div className="max-w-md">
-            <IntranetSearchBar value={q} onChange={setQ} placeholder="Search news, events, policies, people…" />
-          </div>
-
           <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mt-6 mb-2">Quick Links</p>
           <div className="flex flex-wrap gap-2">
             {QUICK_LINKS.map(({ icon: Icon, label, href }) => (
@@ -524,7 +519,14 @@ export default function IntranetHomePage() {
                 <h3 className="font-bold text-[#1C043B] text-sm">Employee Spotlight</h3>
                 <Link href="/people" className="text-xs text-[#7234BD] font-semibold hover:underline">View all →</Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+              <div className={cn(
+                "grid gap-4 flex-1",
+                SPOTLIGHTS.length === 1
+                  ? "grid-cols-1 sm:grid-cols-1 sm:max-w-xs"
+                  : SPOTLIGHTS.length === 2
+                    ? "grid-cols-1 sm:grid-cols-2"
+                    : "grid-cols-1 sm:grid-cols-3"
+              )}>
                 {peopleLoading ? (
                   [1, 2, 3].map((i) => (
                     <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col items-center animate-pulse h-full">
@@ -728,7 +730,7 @@ export default function IntranetHomePage() {
                   {feed[0] && (
                     <Link
                       href={`/news/${feed[0].id}`}
-                      className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-all mb-4"
+                      className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border border-gray-200 shadow-md hover:shadow-lg transition-all mb-4"
                     >
                       <div className="relative w-full h-52 sm:w-[240px] sm:h-auto sm:min-h-[200px] shrink-0">
                         <Image src={feed[0].img} alt={feed[0].title} fill sizes="(max-width:640px) 100vw, 240px" className="object-cover" />
@@ -1018,7 +1020,7 @@ export default function IntranetHomePage() {
               </p>
             </div>
             <button
-              onClick={openFeedback}
+              onClick={() => window.dispatchEvent(new Event("open-feedback-modal"))}
               className="mt-auto self-start bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors"
             >
               Submit Feedback
@@ -1102,7 +1104,7 @@ export default function IntranetHomePage() {
               Thank you! 💜
             </button>
 
-            <p className="text-[10px] text-gray-300 mt-4">
+            <p className="text-[11px] text-gray-500 mt-4">
               From the entire Portland Gas family
             </p>
           </div>

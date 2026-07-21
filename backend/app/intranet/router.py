@@ -195,16 +195,9 @@ def list_published_news(
     return _news_svc(db).list_published()
 
 
-@router.get("/news/{news_id}", response_model=NewsResponse)
-def get_news_article(
-    news_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(login_required),
-):
-    return _news_svc(db).get_published(news_id)
-
-
 # ── Admin endpoints ────────────────────────────────────────────────────────────
+# NOTE: /news/admin MUST be registered before /news/{news_uuid} to avoid
+# the string path parameter swallowing the literal "admin" segment.
 
 @router.get("/news/admin", response_model=List[NewsResponse])
 def list_all_news(
@@ -212,6 +205,15 @@ def list_all_news(
     current_user: User = Depends(require_admin),
 ):
     return _news_svc(db).list_all()
+
+
+@router.get("/news/{news_id}", response_model=NewsResponse)
+def get_news_article(
+    news_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(login_required),
+):
+    return _news_svc(db).get_published(news_id)
 
 
 @router.post("/news", response_model=NewsResponse, status_code=status.HTTP_201_CREATED)
@@ -230,7 +232,7 @@ def create_news(
 
 @router.patch("/news/{news_id}", response_model=NewsResponse)
 def update_news(
-    news_id: int,
+    news_id: str,
     data: NewsUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -242,7 +244,7 @@ def update_news(
 
 @router.delete("/news/{news_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_news(
-    news_id: int,
+    news_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -252,7 +254,7 @@ def delete_news(
 
 @router.patch("/news/{news_id}/publish", response_model=NewsResponse)
 def toggle_news_published(
-    news_id: int,
+    news_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):

@@ -46,7 +46,7 @@ def list_vendors(
     limit: int = Query(100, ge=1, le=200),
     search: Optional[str] = Query(None, description="Search vendors by name"),
     include_inactive: bool = Query(False, description="Include inactive vendors — admin only"),
-    vendor_type: Optional[VendorType] = Query(None, description="Filter by vendor type: permanent or temporary"),
+    vendor_type: Optional[VendorType] = Query(None, description="Filter by vendor type: approved or adhoc"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -67,9 +67,9 @@ def create_vendor(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Non-admins can only create temporary vendors (inline during procurement)
+    # Non-admins can only create ad-hoc vendors (inline during procurement)
     if current_user.role not in (UserRole.admin, UserRole.super_admin):
-        data = data.model_copy(update={"vendor_type": VendorType.temporary})
+        data = data.model_copy(update={"vendor_type": VendorType.adhoc})
     vendor = _svc(db).create_vendor(data, added_by=current_user.id)
     db.commit()
     db.refresh(vendor)

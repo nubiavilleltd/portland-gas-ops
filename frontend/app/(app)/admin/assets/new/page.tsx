@@ -137,8 +137,8 @@ export default function AdminRegisterAssetPage() {
       });
       toast.success("Asset registered successfully");
       router.push("/admin/assets");
-    } catch {
-      toast.error("Failed to register asset. Please try again.");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 
@@ -224,6 +224,7 @@ export default function AdminRegisterAssetPage() {
             <FormDatePicker
               label="Purchase Date"
               required
+              max={new Date().toISOString().split("T")[0]}
               error={errors.purchase_date?.message}
               {...register("purchase_date")}
             />

@@ -30,6 +30,7 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   onValueChange?: (value: string) => void;
   triggerClassName?: string;
   dropdownClassName?: string;
+  dropdownPosition?: "bottom" | "top" | "auto";
 }
 
 function setNativeInputValue(input: HTMLInputElement, nextValue: string) {
@@ -59,6 +60,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       className,
       triggerClassName,
       dropdownClassName,
+      dropdownPosition = "auto",
       id,
       value,
       defaultValue,
@@ -74,7 +76,9 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     const inputId = id ?? (label ? label.toLowerCase().replace(/\s+/g, "-") : "select-input");
     const hiddenInputRef = useRef<HTMLInputElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
     const [open, setOpen] = useState(false);
+    const [resolvedPosition, setResolvedPosition] = useState<"bottom" | "top">("bottom");
     const [searchQuery, setSearchQuery] = useState("");
     const isControlled = value !== undefined;
     const [internalValue, setInternalValue] = useState(
@@ -211,10 +215,19 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
 
         <div className="relative">
           <button
+            ref={triggerRef}
             type="button"
             id={inputId}
             disabled={disabled}
-            onClick={() => setOpen((current) => !current)}
+            onClick={() => {
+              const next = !open;
+              if (next && dropdownPosition === "auto" && triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - rect.bottom;
+                setResolvedPosition(spaceBelow >= 260 ? "bottom" : "top");
+              }
+              setOpen(next);
+            }}
             className={cn(
               "h-10 w-full rounded-lg border border-brand-border bg-white px-3 pr-16 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
               "flex items-center gap-3",
@@ -252,7 +265,8 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
         {open && !disabled && (
           <div
             className={cn(
-              "absolute top-full z-50 mt-1 w-full rounded-2xl border border-brand-border bg-white p-2 shadow-xl",
+              "absolute z-50 w-full rounded-2xl border border-brand-border bg-white p-2 shadow-xl",
+              (dropdownPosition === "top" || (dropdownPosition === "auto" && resolvedPosition === "top")) ? "bottom-full mb-1" : "top-full mt-1",
               dropdownClassName
             )}
           >

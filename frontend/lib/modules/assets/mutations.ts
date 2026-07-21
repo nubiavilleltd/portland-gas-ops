@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { assetKeys } from "./queries";
+import { ASSET_ERRORS, resolveAssetError } from "./errors";
 import type { AssetCreateInput, AssetTransferInput, MaintenanceType, AssetRequestStatus } from "@/types";
 
 // ── Asset CRUD ─────────────────────────────────────────────────────────────────
@@ -19,14 +20,18 @@ export function useCreateAsset() {
       image?: File | null;
       to_employee_name?: string;
     }) => {
-      const form = new FormData();
-      form.append("data", JSON.stringify(data));
-      if (image) form.append("file", image);
-      if (to_employee_name) form.append("to_employee_name", to_employee_name);
-      const { data: res } = await api.post("/api/assets", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      return res;
+      try {
+        const form = new FormData();
+        form.append("data", JSON.stringify(data));
+        if (image) form.append("file", image);
+        if (to_employee_name) form.append("to_employee_name", to_employee_name);
+        const { data: res } = await api.post("/api/assets", form, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.CREATE_ASSET));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assetKeys.all });
@@ -39,13 +44,17 @@ export function useUpdateAsset(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ data, image }: { data: Partial<AssetCreateInput>; image?: File | null }) => {
-      const form = new FormData();
-      form.append("data", JSON.stringify(data));
-      if (image) form.append("file", image);
-      const { data: res } = await api.patch(`/api/assets/${id}`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      return res;
+      try {
+        const form = new FormData();
+        form.append("data", JSON.stringify(data));
+        if (image) form.append("file", image);
+        const { data: res } = await api.patch(`/api/assets/${id}`, form, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.UPDATE_ASSET));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assetKeys.list() });
@@ -57,8 +66,12 @@ export function useUpdateAsset(id: string) {
 export function useDeleteAsset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/assets/${id}`);
+    mutationFn: async (assetId: string) => {
+      try {
+        await api.delete(`/api/assets/${assetId}`);
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.DELETE_ASSET));
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.all }),
   });
@@ -70,8 +83,12 @@ export function useTransferAsset() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: AssetTransferInput }) => {
-      const { data: res } = await api.post(`/api/assets/${id}/transfer`, data);
-      return res;
+      try {
+        const { data: res } = await api.post(`/api/assets/${id}/transfer`, data);
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.TRANSFER_ASSET));
+      }
     },
     onSuccess: (_r, { id }) => {
       qc.invalidateQueries({ queryKey: assetKeys.list() });
@@ -88,8 +105,12 @@ export function useCreateAssetCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name: string; colour: string }) => {
-      const { data: res } = await api.post("/api/assets/categories", data);
-      return res;
+      try {
+        const { data: res } = await api.post("/api/assets/categories", data);
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.CREATE_CATEGORY));
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.categories }),
   });
@@ -99,8 +120,12 @@ export function useUpdateAssetCategory(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name?: string; colour?: string }) => {
-      const { data: res } = await api.patch(`/api/assets/categories/${id}`, data);
-      return res;
+      try {
+        const { data: res } = await api.patch(`/api/assets/categories/${id}`, data);
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.UPDATE_CATEGORY));
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.categories }),
   });
@@ -109,8 +134,12 @@ export function useUpdateAssetCategory(id: string) {
 export function useDeleteAssetCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/assets/categories/${id}`);
+    mutationFn: async (categoryId: string) => {
+      try {
+        await api.delete(`/api/assets/categories/${categoryId}`);
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.DELETE_CATEGORY));
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.categories }),
   });
@@ -122,8 +151,12 @@ export function useCreateAssetType() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name: string; category_id: string; prefix: string }) => {
-      const { data: res } = await api.post("/api/assets/types", data);
-      return res;
+      try {
+        const { data: res } = await api.post("/api/assets/types", data);
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.CREATE_TYPE));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assetKeys.categories });
@@ -135,8 +168,12 @@ export function useCreateAssetType() {
 export function useDeleteAssetType() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/assets/types/${id}`);
+    mutationFn: async (typeId: string) => {
+      try {
+        await api.delete(`/api/assets/types/${typeId}`);
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.DELETE_TYPE));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assetKeys.categories });
@@ -157,13 +194,61 @@ export function useCreateMaintenanceLog(assetId: string) {
       cost?: number;
       notes?: string;
     }) => {
-      const { data: res } = await api.post(`/api/assets/${assetId}/maintenance-logs/`, data);
-      return res;
+      try {
+        const { data: res } = await api.post(`/api/assets/${assetId}/maintenance-logs/`, data);
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.CREATE_LOG));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assetKeys.maintenanceLogs(assetId) });
       qc.invalidateQueries({ queryKey: assetKeys.detail(assetId) });
       qc.invalidateQueries({ queryKey: assetKeys.list() });
+    },
+  });
+}
+
+export function useUpdateMaintenanceLog(assetId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ logId, data }: {
+      logId: string;
+      data: {
+        performed_date: string;
+        maintenance_type: MaintenanceType;
+        technician?: string;
+        cost?: number;
+        notes?: string;
+      };
+    }) => {
+      try {
+        const { data: res } = await api.put(`/api/assets/${assetId}/maintenance-logs/${logId}`, data);
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.UPDATE_LOG));
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: assetKeys.maintenanceLogs(assetId) });
+      qc.invalidateQueries({ queryKey: assetKeys.detail(assetId) });
+    },
+  });
+}
+
+export function useDeleteMaintenanceLog(assetId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (logId: string) => {
+      try {
+        await api.delete(`/api/assets/${assetId}/maintenance-logs/${logId}`);
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.DELETE_LOG));
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: assetKeys.maintenanceLogs(assetId) });
+      qc.invalidateQueries({ queryKey: assetKeys.detail(assetId) });
     },
   });
 }
@@ -190,7 +275,6 @@ export function useUpdateAssetRequestStatus(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { status: AssetRequestStatus; rejection_reason?: string; auditEntry?: unknown }) => {
-      // auditEntry is ignored — not sent to backend (audit trail not yet implemented)
       const { status, rejection_reason } = data;
       const { data: res } = await api.patch(`/api/assets/requests/${id}/status`, { status, rejection_reason });
       return res;

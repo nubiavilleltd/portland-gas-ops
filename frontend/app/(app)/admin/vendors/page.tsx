@@ -112,23 +112,25 @@ const TABLE_COLUMNS: Column<Vendor>[] = [
             }
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-brand-text-primary">{v.name}</span>
-              {!v.is_active && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>}
-            </div>
+            <span className="text-sm font-medium text-brand-text-primary">{v.name}</span>
             {v.vendor_code && <p className="text-xs font-mono text-brand-text-secondary">{v.vendor_code}</p>}
           </div>
         </div>
       );
     },
   },
-  { key: "category", label: "Category", render: (_, v) => { const cc = CATEGORY_COLOURS[v.category] ?? "bg-gray-100 text-gray-600"; return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cc}`}>{v.category.replace(/_/g, " ").toUpperCase()}</span>; } },
+  { key: "category", label: "Category", render: (_, v) => { const cc = CATEGORY_COLOURS[v.category] ?? "bg-gray-100 text-gray-600"; return <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${cc}`}>{v.category.replace(/_/g, " ").toUpperCase()}</span>; } },
   { key: "contact_person", label: "Contact", render: (_, v) => v.contact_person ? <span className="text-sm text-brand-text-primary">{v.contact_person}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "phone", label: "Phone", render: (_, v) => v.phone ? <span className="text-sm text-brand-text-primary">{v.phone}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "email", label: "Email", render: (_, v) => v.email ? <span className="text-sm text-brand-text-primary">{v.email}</span> : <span className="text-brand-text-secondary">—</span> },
-  { key: "vendor_type", label: "Type", render: (_, v) => (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${v.vendor_type === "permanent" ? "bg-brand-purple/10 text-brand-purple" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-      {v.vendor_type === "permanent" ? "Permanent" : "Temporary"}
+  { key: "vendor_type", label: "Source", render: (_, v) => (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${v.vendor_type === "approved" ? "bg-brand-purple/10 text-brand-purple" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+      {v.vendor_type === "approved" ? "Approved" : "Ad-hoc"}
+    </span>
+  )},
+  { key: "is_active", label: "Status", render: (_, v) => (
+    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${v.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+      {v.is_active ? "Active" : "Inactive"}
     </span>
   )},
 ];
@@ -228,8 +230,8 @@ export default function AdminVendorsPage() {
               placeholder="All Types"
               options={[
                 { value: "all",       label: "All Types" },
-                { value: "permanent", label: "Permanent" },
-                { value: "temporary", label: "Temporary" },
+                { value: "approved", label: "Approved" },
+                { value: "adhoc",    label: "Ad-hoc" },
               ]}
               onValueChange={(v) => setTypeFilter(v as VendorTypeFilter)}
               sortOptions={false}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Tag, X, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, X, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column, type DataTableAction } from "@/components/ui/DataTable";
@@ -194,6 +194,20 @@ export default function SpotlightPage() {
     const e: Record<string, string> = {};
     if (!employee)            e.employee = "Please select an employee";
     if (!form.message.trim()) e.message  = "Recognition message is required";
+
+    if (employee && form.message.trim() && form.tag) {
+      const exactDuplicate = cards.some(
+        (c) =>
+          String(c.employee_id) === String(employee.id) &&
+          (c.tag ?? "").toLowerCase() === form.tag.toLowerCase() &&
+          c.message.trim().toLowerCase() === form.message.trim().toLowerCase() &&
+          c.id !== editTarget?.id
+      );
+      if (exactDuplicate) {
+        e.message = "An identical spotlight already exists for this employee with the same tag and recognition.";
+      }
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -360,17 +374,38 @@ export default function SpotlightPage() {
         }
       >
         <div className="space-y-5">
-          <EmployeePicker
-            employees={EMPLOYEES}
-            value={employee}
-            onChange={(emp) => {
-              setEmployee(emp);
-              if (emp) setErrors((p) => ({ ...p, employee: "" }));
-            }}
-            label="Employee"
-            required
-            error={errors.employee}
-          />
+          {(() => {
+            const alreadySpotlit = employee
+              ? cards.some(
+                  (c) =>
+                    String(c.employee_id) === String(employee.id) &&
+                    c.id !== editTarget?.id
+                )
+              : false;
+            return (
+              <>
+                <EmployeePicker
+                  employees={EMPLOYEES}
+                  value={employee}
+                  onChange={(emp) => {
+                    setEmployee(emp);
+                    if (emp) setErrors((p) => ({ ...p, employee: "" }));
+                  }}
+                  label="Employee"
+                  required
+                  error={errors.employee}
+                />
+                {alreadySpotlit && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 -mt-2">
+                    <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      <span className="font-semibold">{employee!.name}</span> already has an active spotlight. You can still add this one for a different recognition.
+                    </p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <FormTextarea
             label="Recognition"

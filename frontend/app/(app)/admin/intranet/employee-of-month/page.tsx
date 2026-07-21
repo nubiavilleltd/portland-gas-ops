@@ -10,7 +10,6 @@ import FormTextarea from "@/components/forms/FormTextarea";
 import FormSelect from "@/components/forms/FormSelect";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { BackButton } from "@/components/ui/BackButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useIntranetSpotlightAdmin } from "@/lib/modules/intranet/queries";
 import { useCreateSpotlight, useUpdateSpotlight } from "@/lib/modules/intranet/mutations";
 import { useToast } from "@/hooks/useToast";
@@ -140,7 +139,49 @@ export default function EmployeeOfMonthPage() {
   if (isLoading) {
     return (
       <AppLayout pageTitle="Employee of the Month">
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        <div className="h-6 w-24 rounded bg-gray-200 animate-pulse mb-6" />
+        <div className="h-7 w-56 rounded bg-gray-200 animate-pulse mb-1" />
+        <div className="h-4 w-80 rounded bg-gray-100 animate-pulse mb-8" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Form skeleton */}
+          <div className="lg:col-span-2 space-y-5">
+            <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-3">
+              <div className="h-4 w-32 rounded bg-gray-200 animate-pulse" />
+              <div className="h-10 w-full rounded-lg bg-gray-100 animate-pulse mt-2" />
+            </div>
+            <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-4">
+              <div className="h-4 w-36 rounded bg-gray-200 animate-pulse" />
+              <div className="h-10 w-full rounded-lg bg-gray-100 animate-pulse" />
+              <div className="h-24 w-full rounded-lg bg-gray-100 animate-pulse" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-10 rounded-lg bg-gray-100 animate-pulse" />
+                <div className="h-10 rounded-lg bg-gray-100 animate-pulse" />
+              </div>
+              <div className="h-4 w-40 rounded bg-gray-100 animate-pulse" />
+            </div>
+            <div className="flex justify-end">
+              <div className="h-9 w-28 rounded-lg bg-gray-200 animate-pulse" />
+            </div>
+          </div>
+          {/* Preview skeleton */}
+          <div className="lg:col-span-1">
+            <div className="h-3 w-16 rounded bg-gray-200 animate-pulse mb-3" />
+            <div className="rounded-xl border border-brand-border bg-white p-5 space-y-3">
+              <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
+              <div className="space-y-1.5">
+                <div className="h-4 w-32 rounded bg-gray-200 animate-pulse" />
+                <div className="h-3 w-48 rounded bg-gray-100 animate-pulse" />
+              </div>
+              <div className="h-5 w-36 rounded-full bg-gray-100 animate-pulse" />
+              <div className="space-y-1.5">
+                <div className="h-3 w-full rounded bg-gray-100 animate-pulse" />
+                <div className="h-3 w-5/6 rounded bg-gray-100 animate-pulse" />
+                <div className="h-3 w-4/6 rounded bg-gray-100 animate-pulse" />
+              </div>
+              <div className="h-3 w-20 rounded bg-gray-100 animate-pulse" />
+            </div>
+          </div>
+        </div>
       </AppLayout>
     );
   }

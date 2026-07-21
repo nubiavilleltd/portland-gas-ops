@@ -22,9 +22,8 @@ const COLOR_BADGE_CLASS: Record<NewsCategoryColor, string> = {
 export default function NewsDetailPage() {
   const { id }  = useParams<{ id: string }>();
   const router  = useRouter();
-  const numId   = Number(id);
 
-  const { data: item, isLoading, isError } = useIntranetNewsDetail(numId);
+  const { data: item, isLoading, isError } = useIntranetNewsDetail(id);
   const { data: allNews   = [] }           = useIntranetNewsPublished();
   const { data: categories = [] }          = useIntranetNewsCategories();
 
@@ -32,7 +31,7 @@ export default function NewsDetailPage() {
   const badge = item ? (COLOR_BADGE_CLASS[colorByName[item.category] ?? "gray"] ?? "bg-gray-100 text-[#1C043B]") : "";
 
   const related = allNews
-    .filter((n) => n.id !== numId)
+    .filter((n) => n.id !== id)
     .slice(0, 3)
     .map((n) => ({
       ...n,
@@ -133,13 +132,15 @@ export default function NewsDetailPage() {
 
         {/* Related */}
         {related.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-gray-100">
-            <h2
-              className="text-base font-bold text-[#1C043B] mb-5"
-              style={{ fontFamily: "var(--font-mulish, sans-serif)" }}
-            >
-              More from Portland Gas
-            </h2>
+          <div className="mt-12">
+            {/* Divider banner */}
+            <div className="relative flex items-center gap-4 mb-8">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="shrink-0 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400 px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50">
+                More from Portland Gas
+              </span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {related.map((r) => (
                 <Link key={r.id} href={`/news/${r.id}`} className="group flex flex-col gap-3">
