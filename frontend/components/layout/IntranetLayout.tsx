@@ -235,7 +235,7 @@ export default function IntranetLayout({ children }: Props) {
             {/* ── Feedback CTA ── */}
             <button
               onClick={openFeedback}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-white/20 text-white/60 text-xs font-semibold hover:bg-white/10 hover:text-white transition-all duration-150 btn-press"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#FFBC00]/60 text-[#FFBC00] text-xs font-semibold hover:bg-[#FFBC00]/10 hover:border-[#FFBC00] transition-all duration-150 btn-press"
             >
               <MessageSquarePlus size={13} />
               Feedback

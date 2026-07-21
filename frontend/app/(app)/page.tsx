@@ -321,6 +321,11 @@ export default function IntranetHomePage() {
   // Events for the currently viewed month
   const monthEvents = EVENTS.filter(e => e.year === calYear && e.monthNum === calMonth);
 
+  // Upcoming events — in the current month, only show today and future; future months show all
+  const upcomingMonthEvents = isCurrentMo
+    ? monthEvents.filter(ev => ev.day >= todayNum)
+    : monthEvents;
+
   // Map day → events[] for cells (multiple events can share a day)
   const dayEventsMap: Record<number, typeof EVENTS> = {};
   monthEvents.forEach(e => {
@@ -343,7 +348,7 @@ export default function IntranetHomePage() {
       {/* ── Hero — Background image + split layout ──────────────────────── */}
       {/* -mt-16 pulls the hero behind the fixed transparent header; pt-16 inside keeps text clear */}
       <section
-        className="flex flex-col lg:flex-row w-full relative overflow-hidden -mt-16"
+        className="w-full relative overflow-hidden -mt-16"
         style={{ minHeight: 460, backgroundColor: "#1C043B" }}
       >
         {/* Background photo — inline styles so no Next.js domain config needed */}
@@ -359,8 +364,11 @@ export default function IntranetHomePage() {
         {/* Dark overlay */}
         <div className="absolute inset-0" style={{ backgroundColor: "rgba(28, 4, 59, 0.85)" }} />
 
+        {/* Content constrained to same max-width as body */}
+        <div className="relative z-10 max-w-[1400px] mx-auto px-4 lg:px-8 flex flex-col lg:flex-row w-full" style={{ minHeight: 460 }}>
+
         {/* Left panel — pt-16 extra to clear the fixed navbar */}
-        <div className="relative z-10 flex-1 lg:w-[55%] px-10 pt-24 pb-12 flex flex-col justify-center">
+        <div className="flex-1 lg:w-[55%] px-6 pt-24 pb-12 flex flex-col justify-center">
           <p className="text-[#FFBC00] text-xs font-bold uppercase tracking-widest mb-3" suppressHydrationWarning>
             {mounted ? todayStr() : ""}
           </p>
@@ -385,7 +393,7 @@ export default function IntranetHomePage() {
         </div>
 
         {/* Right panel — Leadership carousel — pt-16 to clear navbar */}
-        <div className="relative z-10 lg:w-[45%] flex items-center justify-center pt-20 pb-4 px-4">
+        <div className="lg:w-[45%] flex items-center justify-center pt-20 pb-4 px-4">
           <div className="bg-white/5 rounded-2xl p-7 w-full relative overflow-hidden flex flex-col" style={{ minHeight: 300 }}>
             <span
               className="text-white/5 font-serif leading-none absolute top-2 right-4 pointer-events-none select-none"
@@ -449,6 +457,7 @@ export default function IntranetHomePage() {
             </div>
           </div>
         </div>
+        </div>{/* end max-width container */}
       </section>
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
@@ -913,11 +922,11 @@ export default function IntranetHomePage() {
                     </div>
                   ))}
                 </div>
-              ) : monthEvents.length === 0 ? (
-                <p className="text-xs text-gray-400 py-4 text-center">No events this month.</p>
+              ) : upcomingMonthEvents.length === 0 ? (
+                <p className="text-xs text-gray-400 py-4 text-center">No upcoming events this month.</p>
               ) : (
                 <div className="space-y-1.5 overflow-y-auto pr-0.5 flex-1 min-h-0">
-                  {monthEvents.map((ev) => {
+                  {upcomingMonthEvents.map((ev) => {
                     const isActive  = selectedDay === null || ev.day === selectedDay;
                     const isHighlit = selectedDay === ev.day;
                     return (
