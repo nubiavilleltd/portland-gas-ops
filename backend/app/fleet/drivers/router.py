@@ -209,3 +209,29 @@ def reinstate_driver(
     db.refresh(driver)
 
     return driver
+
+
+@router.patch(
+    "/{driver_id}/off-duty",
+    response_model=DriverResponse,
+)
+def set_off_duty(
+    driver_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    driver = driver_service.set_off_duty(
+        db=db,
+        driver_id=driver_id,
+    )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver

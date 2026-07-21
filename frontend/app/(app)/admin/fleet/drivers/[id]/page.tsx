@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Avatar from "@/components/ui/Avatar";
 import FormSection from "@/components/ui/FormSection";
 
-import { useDriverById, useDrivers, useReinstateDriver, useSuspendDriver } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useDriverById, useDrivers, useReinstateDriver, useSetDriverOffDuty, useSuspendDriver } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useTripsByDriver } from "@/lib/modules/fleet/hooks/useTrips";
 import { DriverStatusBadge } from "@/lib/modules/fleet/badges/DriverStatusBadge";
 import { formatDate, toTitleCase } from "@/lib/utils";
@@ -38,6 +38,7 @@ export default function DriverDetailPage() {
 
   const { suspendDriver, isLoading: isSuspending } = useSuspendDriver();
   const { reinstateDriver, isLoading: isReinstating } = useReinstateDriver();
+  const { setDriverOffDuty, isLoading: isSettingOffDuty } = useSetDriverOffDuty();
 
 
   const { trips: driverTrips } = useTripsByDriver(driver?.id as string);
@@ -117,18 +118,26 @@ export default function DriverDetailPage() {
     },
   ];
 
-  async function handleSuspendDriver(){
-     try {
+  async function handleSuspendDriver() {
+    try {
       await suspendDriver(id);
       toast.success("Driver suspended");
     } catch (error) {
       toast.error(parseError(error));
     }
   }
-  async function handleReinstateDriver(){
-     try {
+  async function handleReinstateDriver() {
+    try {
       await reinstateDriver(id);
       toast.success("Driver reinstated");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
+  async function handleSetDriverOffDuty() {
+    try {
+      await setDriverOffDuty(id);
+      toast.success("Driver now off-duty");
     } catch (error) {
       toast.error(parseError(error));
     }
@@ -150,11 +159,11 @@ export default function DriverDetailPage() {
         action={
           <div className="flex gap-2">
             <Button variant="outline" href={`/admin${FLEET_ROUTES.driverEdit(driver.id)}`}>
-              Edit Driver
+              Edit Driver →
             </Button>
 
             {canGoOffDuty && (
-              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
+              <Button variant="outline" loading={isSettingOffDuty} onClick={handleSetDriverOffDuty}>
                 Set Off Duty
               </Button>
             )}
@@ -166,13 +175,13 @@ export default function DriverDetailPage() {
             )}
 
             {canSuspend && (
-             <Button
-  variant="outline"
-  loading={isSuspending}
-  onClick={handleSuspendDriver}
->
-  Suspend Driver
-</Button>
+              <Button
+                variant="outline"
+                loading={isSuspending}
+                onClick={handleSuspendDriver}
+              >
+                Suspend Driver
+              </Button>
             )}
 
             {canReinstate && (

@@ -145,3 +145,30 @@ export function useReinstateDriver() {
     isLoading: mutation.isPending,
   };
 }
+
+export function useSetDriverOffDuty() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => DriversService.setDriverOffDuty(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    setDriverOffDuty: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}

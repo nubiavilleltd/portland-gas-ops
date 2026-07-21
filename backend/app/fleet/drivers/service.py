@@ -221,6 +221,31 @@ class DriverService:
             driver,
             status=DriverStatus.available,
         )
+    
+
+    def set_off_duty(
+            self,
+            db: Session,
+            driver_id: str,
+        ) -> Driver:
+
+            driver = self.get_or_raise(db, driver_id)
+
+            # Only available drivers can go off duty
+            if driver.status != DriverStatus.available:
+                raise AppException(
+                    400,
+                    DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                    "Only available drivers can be set off duty.",
+                )
+
+            return self.repo.update(
+                db,
+                driver,
+                status=DriverStatus.off_duty,
+            )
+    
+
     # ------------------------------------------------------------------
     # Validation helpers
     # ------------------------------------------------------------------

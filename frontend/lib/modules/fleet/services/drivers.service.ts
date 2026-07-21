@@ -88,6 +88,14 @@ static async reinstateDriver(id: string): Promise<Driver> {
     throw new Error(getErrorMessage(err, "Failed to reinstate driver"));
   }
 }
+static async setDriverOffDuty(id: string): Promise<Driver> {
+  try {
+    const raw = await fleetApi.setDriverOffDuty(id);
+    return adaptDriver(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to set driver off duty"));
+  }
+}
 
 }
 
