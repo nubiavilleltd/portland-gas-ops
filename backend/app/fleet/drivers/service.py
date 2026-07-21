@@ -165,6 +165,39 @@ class DriverService:
             driver,
             status=DriverStatus.available,
         )
+    
+    def suspend(
+        self,
+        db: Session,
+        driver_id: str,
+    ) -> Driver:
+
+        driver = self.get_or_raise(db, driver_id)
+
+        # Cannot suspend while assigned or driving
+        if driver.status in (
+            DriverStatus.assigned,
+            DriverStatus.in_transit,
+        ):
+            raise AppException(
+                400,
+                DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                "Driver cannot be suspended while assigned or in transit.",
+            )
+
+        # Already suspended
+        if driver.status == DriverStatus.suspended:
+            raise AppException(
+                400,
+                DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                "Driver is already suspended.",
+            )
+
+        return self.repo.update(
+            db,
+            driver,
+            status=DriverStatus.suspended,
+        )
 
     # ------------------------------------------------------------------
     # Validation helpers

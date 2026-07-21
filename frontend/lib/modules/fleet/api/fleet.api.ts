@@ -31,6 +31,15 @@ export const fleetApi = {
     return data;
   },
 
+  suspendDriver: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/drivers/${id}/suspend`);
+  return data;
+},
+  resinstateDriver: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/drivers/${id}/reinstate`);
+  return data;
+},
+
   // ── Vehicles ─────────────────────────────────────────────
   listVehicles: async (params: { status?: string } = {}) => {
     const { data } = await api.get("/api/fleet/vehicles", { params });
@@ -60,6 +69,8 @@ export const fleetApi = {
   });
   return data;
 },
+
+
 
   // ── Trips ─────────────────────────────────────────────────
   listTrips: async (params: { status?: string } = {}) => {

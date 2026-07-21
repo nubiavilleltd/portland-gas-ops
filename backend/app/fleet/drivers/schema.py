@@ -20,7 +20,6 @@ class DriverUpdate(BaseModel):
     license_expiry_date: Optional[date] = None
     experience_years: Optional[int] = None
     address: Optional[str] = None
-    status: Optional[DriverStatus] = None
 
 
 

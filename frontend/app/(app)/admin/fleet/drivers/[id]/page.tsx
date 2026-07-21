@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Avatar from "@/components/ui/Avatar";
 import FormSection from "@/components/ui/FormSection";
 
-import { useDriverById, useDrivers } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useDriverById, useDrivers, useSuspendDriver } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useTripsByDriver } from "@/lib/modules/fleet/hooks/useTrips";
 import { DriverStatusBadge } from "@/lib/modules/fleet/badges/DriverStatusBadge";
 import { formatDate, toTitleCase } from "@/lib/utils";
@@ -20,6 +20,10 @@ import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { BackButton } from "@/components/ui/BackButton";
+import { parseError } from "@/lib/errors";
+
+
+
 
 export default function DriverDetailPage() {
   const params = useParams();
@@ -31,6 +35,8 @@ export default function DriverDetailPage() {
     isLoading: driversLoading,
   } = useDriverById(id);
   // const { trips } = useTrips();
+
+  const { suspendDriver, isLoading: isSuspending } = useSuspendDriver();
 
 
   const { trips: driverTrips } = useTripsByDriver(driver?.id as string);
@@ -110,6 +116,16 @@ export default function DriverDetailPage() {
     },
   ];
 
+  async function handleSuspendDriver(){
+     try {
+      await suspendDriver(id);
+      toast.success("Driver suspended");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
+
+
   return (
     <AppLayout pageTitle={driver.full_name}>
 
@@ -141,9 +157,13 @@ export default function DriverDetailPage() {
             )}
 
             {canSuspend && (
-              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
-                Suspend Driver
-              </Button>
+             <Button
+  variant="outline"
+  loading={isSuspending}
+  onClick={handleSuspendDriver}
+>
+  Suspend Driver
+</Button>
             )}
 
             {canReinstate && (

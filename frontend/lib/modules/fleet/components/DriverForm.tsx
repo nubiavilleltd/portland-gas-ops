@@ -2,40 +2,74 @@
 
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormSection from "@/components/ui/FormSection";
-import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { toast } from "sonner";
 
-export type DriverFormValues = {
-  employee_id: string;
-  license_number: string;
-  license_expiry_date: string;
-  experience_years: string;
-  address: string;
-};
 
-export const DEFAULT_DRIVER_FORM_VALUES: DriverFormValues = {
-  employee_id: "",
-  license_number: "",
-  license_expiry_date: "",
-  experience_years: "",
-  address: "",
-};
 
-interface DriverFormProps {
-  defaultValues?: Partial<DriverFormValues>;
-  employees: PickedEmployee[];              // ← new prop
-  defaultEmployee?: PickedEmployee | null;   // ← new prop, for edit mode
-  onSubmit: (data: DriverFormValues) => Promise<void>;   // ← no more profilePic param
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import {
+  createDriverSchema,
+  editDriverSchema,
+  type CreateDriverFormInput,
+  type CreateDriverFormData,
+  type EditDriverFormInput,
+  type EditDriverFormData,
+  type DriverFormInput,
+  type DriverFormData,
+} from "../schemas/driver.schema";
+import FormSelect from "@/components/forms/FormSelect";
+
+export type DriverFormValues = DriverFormData;
+
+
+
+// interface DriverFormProps {
+//   defaultValues?: Partial<CreateDriverFormInput>;
+//   employees: PickedEmployee[];              // ← new prop
+//   defaultEmployee?: PickedEmployee | null;   // ← new prop, for edit mode
+//   onSubmit: (data: CreateDriverFormData) => Promise<void>;
+//   onCancel: () => void;
+//   submitLabel?: string;
+//   submitLoadingLabel?: string;
+//   isEdit?: boolean;
+//   status?: "off_duty" | "suspended";
+// }
+
+
+
+interface DriverFormBaseProps {
+  employees: PickedEmployee[];
+  defaultEmployee?: PickedEmployee | null;
   onCancel: () => void;
   submitLabel?: string;
   submitLoadingLabel?: string;
+  status:string;
 }
+
+type CreateDriverFormProps = DriverFormBaseProps & {
+  isEdit?: false;
+  defaultValues?: Partial<CreateDriverFormInput>;
+  onSubmit: (data: CreateDriverFormData) => Promise<void>;
+};
+
+type EditDriverFormProps = DriverFormBaseProps & {
+  isEdit: true;
+  status: "available" | "assigned" | "in_transit" | "off_duty" | "suspended"
+  defaultValues?: Partial<EditDriverFormInput>;
+  onSubmit: (data: EditDriverFormData) => Promise<void>;
+};
+
+type DriverFormProps =
+  | CreateDriverFormProps
+  | EditDriverFormProps;
 
 export default function DriverForm({
   defaultValues,
@@ -43,46 +77,46 @@ export default function DriverForm({
   defaultEmployee,
   onSubmit,
   onCancel,
+  status,
+  isEdit,
   submitLabel = "Add Driver",
   submitLoadingLabel = "Saving...",
 }: DriverFormProps) {
-  const [form, setForm] = useState<DriverFormValues>({
-    ...DEFAULT_DRIVER_FORM_VALUES,
-    ...defaultValues,
+
+
+  const schema = isEdit ? editDriverSchema : createDriverSchema;
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<DriverFormInput, unknown, DriverFormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      employee_id: defaultEmployee?.id ?? "",
+      license_number: "",
+      license_expiry_date: "",
+      experience_years: "0",
+      address: "",
+      ...(isEdit ? { status: "off_duty" as const } : {}),
+      ...defaultValues,
+    },
   });
 
- const [pickedEmployee, setPickedEmployee] = useState<PickedEmployee | null>(null);
 
-const selectedEmployee = pickedEmployee ?? defaultEmployee ?? null;
-  const [loading, setLoading] = useState(false);
+  // const employeeMap = useMemo(
+  //   () => new Map(employees.map((e) => [e.id, e])),
+  //   [employees]
+  // );
 
-  function patch(field: keyof DriverFormValues, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-
-    if (
-      !selectedEmployee ||
-      !form.license_number ||
-      !form.license_expiry_date ||
-      !form.experience_years
-    ) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await onSubmit({ ...form, employee_id: selectedEmployee?.id as string});
-    } finally {
-      setLoading(false);
-    }
+  async function submit(data: DriverFormData) {
+    await onSubmit(data as CreateDriverFormData & EditDriverFormData);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit(submit)} noValidate className="space-y-6">
 
       <FormSection
         title="Driver Profile"
@@ -90,49 +124,35 @@ const selectedEmployee = pickedEmployee ?? defaultEmployee ?? null;
       >
         <div className="space-y-5">
 
-          {/* <ProfilePicUpload
-            value={profilePic}
-            onChange={setProfilePic}
-            shape="circle"
-            size={110}
-            fallback={form.full_name?.[0] ?? "D"}
-            label="Driver Profile Picture"
-          /> */}
-
           <div className="grid grid-cols-2 gap-5">
-            <EmployeePicker
-              label="Employee"
-              required
-              employees={employees}
-              value={selectedEmployee}
-              onChange={setPickedEmployee}
-              disabled={!!defaultEmployee}
+            <Controller
+              control={control}
+              name="employee_id"
+              render={({ field, fieldState }) => (
+                <EmployeePicker
+                  label="Employee"
+                  required
+                  employees={employees}
+                  disabled={!!defaultEmployee}
+                  value={
+                    employees.find((e) => e.id === field.value) ??
+                    defaultEmployee ??
+                    null
+                  }
+                  onChange={(employee) => field.onChange(employee?.id ?? "")}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
 
             <FormInput
               label="Home Address"
               placeholder="e.g. 14 Bode Thomas Street, Lagos"
-              value={form.address}
-              onChange={(e) => patch("address", e.target.value)}
+              error={errors.address?.message}
+              {...register("address")}
             />
           </div>
 
-          {/* <div className="grid grid-cols-2 gap-5">
-            <FormInput
-              label="Phone Number"
-              required
-              placeholder="e.g. 08031234567"
-              value={form.phone_number}
-              onChange={(e) => patch("phone_number", e.target.value)}
-            />
-
-            <FormInput
-              label="Home Address"
-              placeholder="e.g. 14 Bode Thomas Street, Lagos"
-              value={form.address}
-              onChange={(e) => patch("address", e.target.value)}
-            />
-          </div> */}
 
         </div>
       </FormSection>
@@ -148,36 +168,98 @@ const selectedEmployee = pickedEmployee ?? defaultEmployee ?? null;
               label="License Number"
               required
               placeholder="e.g. DRV-20394-LA"
-              value={form.license_number}
-              onChange={(e) => patch("license_number", e.target.value)}
+              error={errors.license_number?.message}
+              {...register("license_number")}
             />
 
-            <FormDatePicker
-              label="License Expiry Date"
-              required
-              value={form.license_expiry_date}
-              onValueChange={(v) => patch("license_expiry_date", v)}
+            <Controller
+              control={control}
+              name="license_expiry_date"
+              render={({ field, fieldState }) => (
+                <FormDatePicker
+                  label="License Expiry Date"
+                  required
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  min={new Date().toISOString().split("T")[0]}
+
+                />
+              )}
             />
           </div>
 
-          <FormInput
-            label="Experience (Years)"
-            required
-            type="number"
-            placeholder="e.g. 5"
-            value={form.experience_years}
-            onChange={(e) => patch("experience_years", e.target.value)}
+          <div className="grid grid-cols-2 gap-5">
+       <Controller
+            control={control}
+            name="experience_years"
+            render={({ field, fieldState }) => (
+              <FormInput
+                label="Experience (Years)"
+                required
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 5"
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
           />
+
+
+          {/* {isEdit && (
+            <Controller
+              control={control}
+              name="status"
+              render={({ field, fieldState }) => (
+                <FormSelect
+                  label="Driver Status"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={fieldState.error?.message}
+                  disabled={status === "assigned" || status === "in_transit"}
+                  options={[
+                    {
+                      label: "Off Duty",
+                      value: "off_duty",
+                    },
+                    {
+                      label: "Suspended",
+                      value: "suspended",
+                    },
+                    {
+                      label: "Assigned",
+                      value: "assigned",
+                    },
+                    {
+                      label: "Available",
+                      value: "available",
+                    },
+                    {
+                      label: "In Transit",
+                      value: "in_transit",
+                    },
+                  ]}
+                />
+              )}
+            />
+          )} */}
+          </div>
+
+     
 
         </div>
       </FormSection>
 
-      <div className="flex justify-end gap-3 pb-10">
+      <div className="flex gap-3 pb-10">
         {/* <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button> */}
-        <Button type="submit" disabled={loading}>
-          {loading ? submitLoadingLabel : submitLabel}
+        <Button type="submit" loading={isSubmitting}>
+          {isSubmitting ? submitLoadingLabel : submitLabel}
         </Button>
       </div>
 
