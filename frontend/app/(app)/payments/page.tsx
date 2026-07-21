@@ -19,8 +19,8 @@ import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 export default function PaymentsPage() {
   const router = useRouter();
 
-  const { payments } = usePayments()
-  const { invoices } = useInvoices()
+  const { payments, isLoading:isLoadingPayments } = usePayments()
+  const { invoices, isLoading:isLoadingInvoices } = useInvoices()
 
   const invoiceMap = Object.fromEntries(
   invoices.map((invoice) => [
@@ -105,6 +105,7 @@ const columns: Column<Payment>[] = [
       <div className="bg-white border border-brand-border rounded-2xl p-6">
         <DataTable<Payment>
           columns={columns}
+          isLoading={isLoadingPayments || isLoadingInvoices}
           data={payments}
           rowHref={(payment) => PAYMENT_ROUTES.detail(payment.id)}
           emptyMessage="No payments recorded yet."

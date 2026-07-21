@@ -17,7 +17,7 @@ import FormSection from "@/components/ui/FormSection";
 import { formatCurrency } from "@/lib/utils";
 import { PaymentForm, PaymentFormInput, paymentSchema } from "@/lib/modules/payments/schemas/payment.schema";
 
-import { useInvoiceById, useInvoiceByNo, useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
+import { useInvoiceById, useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
 import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 // import { useRecordPayment } from "@/lib/modules/payments/hooks/useRecordPayment";
@@ -97,8 +97,8 @@ function CreatePaymentPageContent() {
   const searchParams = useSearchParams();
   const { invoices } = useInvoices();
 
-  const initialInvoiceNo = searchParams.get("invoiceId");
-const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
+  const initialInvoiceId = searchParams.get("invoiceId");
+const { invoice } = useInvoiceById(initialInvoiceId ?? "");
   // const { recordPayment, isLoading: isRecording, error: recordError } =
   //   useRecordPayment();
 
@@ -159,7 +159,7 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
         payment_method: "bank_transfer",
       });
 
-     router.replace(`/payments/new?invoiceId=${invoice.invoice_number}`);
+     router.replace(`/payments/new?invoiceId=${invoice.id}`);
     },
     [reset, router, summary.amountPaid]
   );
@@ -196,18 +196,18 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
 
 
 
-              <div className="flex justify-end">
+             {/* { !initialInvoiceId && (<div className="flex justify-end">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     setSelectedInvoice(null);
-                    router.replace("/payments/new");
+                    // router.replace("/payments/new");
                   }}
                 >
                   Change Invoice
                 </Button>
-              </div>
+              </div>)} */}
               <div className="grid grid-cols-3 gap-5 text-sm">
                 <InfoRow
                   label="Total"
@@ -289,7 +289,7 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
                   </div>
                 )} */}
 
-                <div className="md:col-span-2 flex justify-end">
+                <div className="md:col-span-2 flex mt-5">
                   <Button
                     type="submit"
                     loading={isSubmitting || isPending}

@@ -23,7 +23,7 @@ export default function PaymentReceiptPage() {
   const { id } = useParams<{ id: string }>();
   const [downloading, setDownloading] = useState(false);
 
-  const { payment, isLoading: paymentLoading, error } = usePaymentByNo(id);
+  const { payment, isLoading: paymentLoading, error } = usePaymentById(id);
   const { invoice, isLoading: invoiceLoading } = useInvoiceById(payment?.invoiceId ?? "");
   const { order } = useOrderById(invoice?.order_id ?? "");
   const { payments: allInvoicePayments } = usePaymentsByInvoice(payment?.invoiceId ?? "");
@@ -184,7 +184,7 @@ export default function PaymentReceiptPage() {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" href={`/invoices/${invoice.invoice_number}`}>
+          <Button variant="outline" size="sm" href={`/invoices/${invoice.id}`}>
             View Invoice →
           </Button>
         </FormSection>
@@ -229,7 +229,7 @@ export default function PaymentReceiptPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            href={`/payments/${p.paymentNo}/receipt`}
+                            href={`/payments/${p.id}/receipt`}
                           >
                             View
                           </Button>
