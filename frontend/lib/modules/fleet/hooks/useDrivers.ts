@@ -123,7 +123,7 @@ export function useReinstateDriver() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (id: string) => DriversService.suspendDriver(id),
+    mutationFn: (id: string) => DriversService.reinstateDriver(id),
 
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({
@@ -141,7 +141,7 @@ export function useReinstateDriver() {
   });
 
   return {
-    suspendDriver: mutation.mutateAsync,
+    reinstateDriver: mutation.mutateAsync,
     isLoading: mutation.isPending,
   };
 }

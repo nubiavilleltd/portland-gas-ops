@@ -183,3 +183,29 @@ def suspend_driver(
     db.refresh(driver)
 
     return driver
+
+
+@router.patch(
+    "/{driver_id}/reinstate",
+    response_model=DriverResponse,
+)
+def reinstate_driver(
+    driver_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    driver = driver_service.reinstate(
+        db=db,
+        driver_id=driver_id,
+    )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver

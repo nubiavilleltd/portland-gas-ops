@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Avatar from "@/components/ui/Avatar";
 import FormSection from "@/components/ui/FormSection";
 
-import { useDriverById, useDrivers, useSuspendDriver } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useDriverById, useDrivers, useReinstateDriver, useSuspendDriver } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useTripsByDriver } from "@/lib/modules/fleet/hooks/useTrips";
 import { DriverStatusBadge } from "@/lib/modules/fleet/badges/DriverStatusBadge";
 import { formatDate, toTitleCase } from "@/lib/utils";
@@ -37,6 +37,7 @@ export default function DriverDetailPage() {
   // const { trips } = useTrips();
 
   const { suspendDriver, isLoading: isSuspending } = useSuspendDriver();
+  const { reinstateDriver, isLoading: isReinstating } = useReinstateDriver();
 
 
   const { trips: driverTrips } = useTripsByDriver(driver?.id as string);
@@ -124,6 +125,14 @@ export default function DriverDetailPage() {
       toast.error(parseError(error));
     }
   }
+  async function handleReinstateDriver(){
+     try {
+      await reinstateDriver(id);
+      toast.success("Driver reinstated");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
 
 
   return (
@@ -167,7 +176,7 @@ export default function DriverDetailPage() {
             )}
 
             {canReinstate && (
-              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
+              <Button variant="outline" loading={isReinstating} onClick={handleReinstateDriver}>
                 Reinstate Driver
               </Button>
             )}

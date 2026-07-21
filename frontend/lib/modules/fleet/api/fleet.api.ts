@@ -35,7 +35,7 @@ export const fleetApi = {
   const { data } = await api.patch(`/api/fleet/drivers/${id}/suspend`);
   return data;
 },
-  resinstateDriver: async (id: string) => {
+  reinstateDriver: async (id: string) => {
   const { data } = await api.patch(`/api/fleet/drivers/${id}/reinstate`);
   return data;
 },

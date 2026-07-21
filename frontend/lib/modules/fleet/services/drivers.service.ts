@@ -82,7 +82,7 @@ static async suspendDriver(id: string): Promise<Driver> {
 
 static async reinstateDriver(id: string): Promise<Driver> {
   try {
-    const raw = await fleetApi.suspendDriver(id);
+    const raw = await fleetApi.reinstateDriver(id);
     return adaptDriver(raw);
   } catch (err) {
     throw new Error(getErrorMessage(err, "Failed to reinstate driver"));

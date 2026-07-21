@@ -198,7 +198,29 @@ class DriverService:
             driver,
             status=DriverStatus.suspended,
         )
+    
 
+    def reinstate(
+        self,
+        db: Session,
+        driver_id: str,
+    ) -> Driver:
+
+        driver = self.get_or_raise(db, driver_id)
+
+        # Only suspended drivers can be reinstated
+        if driver.status != DriverStatus.suspended:
+            raise AppException(
+                400,
+                DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                "Only suspended drivers can be reinstated.",
+            )
+
+        return self.repo.update(
+            db,
+            driver,
+            status=DriverStatus.available,
+        )
     # ------------------------------------------------------------------
     # Validation helpers
     # ------------------------------------------------------------------
