@@ -235,3 +235,29 @@ def set_off_duty(
     db.refresh(driver)
 
     return driver
+
+
+@router.patch(
+    "/{driver_id}/available",
+    response_model=DriverResponse,
+)
+def set_available(
+    driver_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    driver = driver_service.set_available(
+        db=db,
+        driver_id=driver_id,
+    )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver

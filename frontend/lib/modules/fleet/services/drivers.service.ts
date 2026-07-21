@@ -96,6 +96,14 @@ static async setDriverOffDuty(id: string): Promise<Driver> {
     throw new Error(getErrorMessage(err, "Failed to set driver off duty"));
   }
 }
+static async setDriverAvailable(id: string): Promise<Driver> {
+  try {
+    const raw = await fleetApi.setDriverAvailable(id);
+    return adaptDriver(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to make driver available"));
+  }
+}
 
 }
 

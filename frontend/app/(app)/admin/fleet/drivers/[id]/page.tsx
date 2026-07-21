@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import Avatar from "@/components/ui/Avatar";
 import FormSection from "@/components/ui/FormSection";
 
-import { useDriverById, useDrivers, useReinstateDriver, useSetDriverOffDuty, useSuspendDriver } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useDriverById, useDrivers, useReinstateDriver, useSetDriverAvailable, useSetDriverOffDuty, useSuspendDriver } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useTripsByDriver } from "@/lib/modules/fleet/hooks/useTrips";
 import { DriverStatusBadge } from "@/lib/modules/fleet/badges/DriverStatusBadge";
 import { formatDate, toTitleCase } from "@/lib/utils";
@@ -39,6 +39,7 @@ export default function DriverDetailPage() {
   const { suspendDriver, isLoading: isSuspending } = useSuspendDriver();
   const { reinstateDriver, isLoading: isReinstating } = useReinstateDriver();
   const { setDriverOffDuty, isLoading: isSettingOffDuty } = useSetDriverOffDuty();
+  const { setDriverAvailable, isLoading: isSettingAvailable } = useSetDriverAvailable();
 
 
   const { trips: driverTrips } = useTripsByDriver(driver?.id as string);
@@ -142,6 +143,14 @@ export default function DriverDetailPage() {
       toast.error(parseError(error));
     }
   }
+  async function handleSetDriverAvailable() {
+    try {
+      await setDriverAvailable(id);
+      toast.success("Driver now available");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
 
 
   return (
@@ -169,7 +178,7 @@ export default function DriverDetailPage() {
             )}
 
             {canGoAvailable && (
-              <Button variant="outline" onClick={() => toast.info("Coming soon")}>
+              <Button variant="outline" loading={isSettingAvailable} onClick={handleSetDriverAvailable}>
                 Set Available
               </Button>
             )}

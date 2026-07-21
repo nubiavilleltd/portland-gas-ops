@@ -43,6 +43,10 @@ setDriverOffDuty: async (id: string) => {
   const { data } = await api.patch(`/api/fleet/drivers/${id}/off-duty`);
   return data;
 },
+setDriverAvailable: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/drivers/${id}/available`);
+  return data;
+},
 
   // ── Vehicles ─────────────────────────────────────────────
   listVehicles: async (params: { status?: string } = {}) => {

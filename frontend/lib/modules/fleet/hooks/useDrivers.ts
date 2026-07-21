@@ -172,3 +172,31 @@ export function useSetDriverOffDuty() {
     isLoading: mutation.isPending,
   };
 }
+
+
+export function useSetDriverAvailable() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => DriversService.setDriverAvailable(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    setDriverAvailable: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
