@@ -159,7 +159,8 @@ async def create_vehicle(
         db=db,
         data=payload,
         image=image_data,
-        actor_id=current_user.employee.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -206,7 +207,8 @@ async def update_vehicle(
         vehicle_id=vehicle_id,
         data=payload,
         image=image_data,
-        actor_id=current_user.employee.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()

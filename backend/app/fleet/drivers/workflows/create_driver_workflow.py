@@ -22,7 +22,8 @@ class CreateDriverWorkflow:
         self,
         db: Session,
         data: DriverCreate,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
         profile_image_document_id: int | None = None,
     ):
 
@@ -39,7 +40,8 @@ class CreateDriverWorkflow:
             action="created",
             description=f"Driver profile created ({driver.license_number})",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return driver

@@ -12,7 +12,6 @@ import { FLEET_ROUTES } from "@/lib/routes";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
 import { useMemo } from "react";
-import { toTitleCase } from "@/lib/utils";
 
 export default function EditDriverPage() {
   const params = useParams();
@@ -72,20 +71,7 @@ async function handleSubmit(data: DriverFormValues) {
     <AppLayout pageTitle="Edit Driver">
       <BackButton href={`/admin/${FLEET_ROUTES.driverDetail(id)}`} label="Back to Driver" />
       <PageHeader title={`Edit — ${driver.full_name}`} description={driver.license_number} className="mb-6" />
-      {/* <DriverForm
-        employees={employeeOptions}
-        defaultEmployee={defaultEmployee}
-        defaultValues={{
-          license_number: driver.license_number,
-          license_expiry_date: driver.license_expiry_date,
-          experience_years: String(driver.experience_years),
-          address: driver.address ?? "",
-        }}
-        onSubmit={handleSubmit}
-        onCancel={() => router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`)}
-        submitLabel="Save Changes"
-        submitLoadingLabel="Saving..."
-      /> */}
+ 
 
       <DriverForm
         isEdit
@@ -97,7 +83,6 @@ async function handleSubmit(data: DriverFormValues) {
           license_expiry_date: driver.license_expiry_date,
           experience_years: String(driver.experience_years),
           address: driver.address ?? "",
-          status: driver.status === "off_duty" || driver.status === "suspended" ?"off_duty": toTitleCase(driver.status) as "available" | "assigned" | "in_transit" | "off_duty" | "suspended",
         }}
         onSubmit={handleSubmit}
         onCancel={() => router.push(`/admin/${FLEET_ROUTES.driverDetail(id)}`)}

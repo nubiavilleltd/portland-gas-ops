@@ -31,7 +31,8 @@ class CompleteTripWorkflow:
         db: Session,
         trip_id: str,
         proof_notes: str | None,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
         #
@@ -104,7 +105,8 @@ class CompleteTripWorkflow:
             action="completed",
             description="Trip completed — all deliveries confirmed",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

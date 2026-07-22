@@ -16,6 +16,10 @@ from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.payments.enums import PaymentStatus
 from app.audit.service import AuditService
 from app.audit.schema import AuditEntityType, AuditActorType, AuditLogResponse
+from app.orders.error_codes import OrderErrorCode
+
+from app.core.exceptions import AppException, ErrorCode
+
 
 router  = APIRouter()
 service = OrderService()
@@ -160,8 +164,15 @@ def cancel_order(
     # Cascade: void linked invoice if exists
     if order.invoice_id:
         invoice = invoice_service.get_or_none(db, order.invoice_id)
-        if invoice:
-            invoice_service.void(db, invoice)
+        if invoice and invoice.status in (
+            PaymentStatus.paid,
+            PaymentStatus.partially_paid,
+        ):
+            raise AppException(
+                400,
+                OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
+                "Orders with paid or partially paid invoices cannot be cancelled."
+            )
     
     AuditService.record(
     db, AuditEntityType.order, order.id,

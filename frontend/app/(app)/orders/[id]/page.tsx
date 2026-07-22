@@ -298,7 +298,7 @@ export default function OrderDetailPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    href={FLEET_ROUTES.tripDetail(trip?.trip_number as string)}
+                    href={FLEET_ROUTES.tripDetail(trip?.id as string)}
                   >
                     View Trip →
                   </Button>

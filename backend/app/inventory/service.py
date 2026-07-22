@@ -116,6 +116,7 @@ class InventoryService:
         db: Session,
         data: CheckInTrackedInput,
         recorded_by: str,
+        recorded_by_name: str,
     ):
         from app.products.service import ProductService
 
@@ -164,6 +165,7 @@ class InventoryService:
             quantity=Decimal(data.quantity),
             location_id=data.location_id,
             recorded_by=recorded_by,
+            recorded_by_name=recorded_by_name,
             notes=data.notes,
         )
 
@@ -181,6 +183,7 @@ class InventoryService:
             description=f"{data.quantity} {product.name} unit(s) checked into inventory",
             actor_type=AuditActorType.employee,
             actor_employee_id=recorded_by,
+            actor_name=recorded_by_name,
         )
 
         return created_items
@@ -194,6 +197,7 @@ class InventoryService:
         db: Session,
         data: CheckInConsumableInput,
         recorded_by: str,
+        recorded_by_name: str,
     ) -> ConsumableStock:
         from app.products.service import ProductService
 
@@ -230,6 +234,7 @@ class InventoryService:
             quantity=data.quantity,
             location_id=data.location_id,
             recorded_by=recorded_by,
+            recorded_by_name=recorded_by_name,
             notes=data.notes,
         )
 
@@ -244,6 +249,7 @@ class InventoryService:
             ),
             actor_type=AuditActorType.employee,
             actor_employee_id=recorded_by,
+            actor_name=recorded_by_name,
         )
 
         return stock
@@ -258,6 +264,7 @@ class InventoryService:
         item_id: int,
         data: ReturnItemInput,
         recorded_by: str,
+        recorded_by_name: str,
     ) -> InventoryItem:
         item = self.get_item_or_raise(db, item_id)
 
@@ -295,6 +302,7 @@ class InventoryService:
             quantity=Decimal("1"),
             location_id=item.location_id,
             recorded_by=recorded_by,
+            recorded_by_name=recorded_by_name,
             notes=data.notes,
         )
 
@@ -315,6 +323,7 @@ class InventoryService:
             ),
             actor_type=AuditActorType.employee,
             actor_employee_id=recorded_by,
+            actor_name=recorded_by_name,
         )
 
         return updated_item
@@ -333,6 +342,7 @@ class InventoryService:
         db: Session,
         trip_id: str,
         actor_id: str,
+        actor_name: str,
     ):
         """
         Checks out every tracked inventory item already reserved for a trip.
@@ -375,6 +385,7 @@ class InventoryService:
                         trip_id=trip_id,
                         order_item_id=order_item.id,
                         actor_id=actor_id,
+                        actor_name=actor_name,
                     )
                 else:
                     self._check_out_consumable(
@@ -382,6 +393,7 @@ class InventoryService:
                         trip_id=trip_id,
                         order_item=order_item,
                         actor_id=actor_id,
+                        actor_name=actor_name,
                     )
 
 
@@ -391,6 +403,7 @@ class InventoryService:
         trip_id: str,
         order_item_id: int,
         actor_id: str,
+        actor_name: str,
     ):
         """
         Checks out inventory already allocated to an order item.
@@ -442,6 +455,7 @@ class InventoryService:
             quantity=Decimal(len(allocations)),
             location_id=first_item.location_id,
             recorded_by=actor_id,
+            recorded_by_name=actor_name,
             reference_type=ReferenceType.trip,
             reference_id=str(trip_id),
             notes=(
@@ -494,6 +508,7 @@ class InventoryService:
         trip_id: str,
         order_item: OrderItem,
         actor_id: str,
+        actor_name: str,
     ):
         """
         Records checkout of consumable stock.
@@ -535,6 +550,7 @@ class InventoryService:
             quantity=quantity,
             location_id=order_item.location_id,
             recorded_by=actor_id,
+            recorded_by_name=actor_name,
             reference_type=ReferenceType.trip,
             reference_id=str(trip_id),
             notes=(
@@ -554,6 +570,7 @@ class InventoryService:
             ),
             actor_type=AuditActorType.employee,
             actor_employee_id=actor_id,
+            actor_name=actor_name,
         )
 
 

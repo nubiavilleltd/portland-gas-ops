@@ -77,7 +77,6 @@ export default function DriverForm({
   defaultEmployee,
   onSubmit,
   onCancel,
-  status,
   isEdit,
   submitLabel = "Add Driver",
   submitLoadingLabel = "Saving...",
@@ -104,11 +103,6 @@ export default function DriverForm({
     },
   });
 
-
-  // const employeeMap = useMemo(
-  //   () => new Map(employees.map((e) => [e.id, e])),
-  //   [employees]
-  // );
 
 
   async function submit(data: DriverFormData) {
@@ -183,7 +177,7 @@ export default function DriverForm({
                   onValueChange={field.onChange}
                   onBlur={field.onBlur}
                   error={fieldState.error?.message}
-                  ={new Date().toISOString().split("T")[0]}min
+                  min={new Date().toISOString().split("T")[0]}
 
                 />
               )}

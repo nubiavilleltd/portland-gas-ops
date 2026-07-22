@@ -26,7 +26,8 @@ class CreateTripWorkflow:
         self,
         db: Session,
         data: TripCreate,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
         #
@@ -79,7 +80,8 @@ class CreateTripWorkflow:
                 action="assigned_to_trip",
                 description=f"Order assigned to trip {trip.trip_no}",
                 actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
+                actor_employee_id=actor_employee_id,
+                actor_name=actor_name,
             )
 
         #
@@ -92,7 +94,8 @@ class CreateTripWorkflow:
             action="created",
             description=f"Trip created ({trip.trip_no})",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

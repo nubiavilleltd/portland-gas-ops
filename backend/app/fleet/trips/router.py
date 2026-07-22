@@ -141,7 +141,8 @@ def create_trip(
     trip = create_trip_workflow.execute(
         db=db,
         data=data,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -174,7 +175,8 @@ def assign_resources(
         trip_id=trip_id,
         driver_id=data.driver_id,
         vehicle_id=data.vehicle_id,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -207,7 +209,8 @@ def mark_ready(
         db=db,
         trip_id=trip_id,
         assignments=data.assignments,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -237,7 +240,8 @@ def dispatch_trip(
     trip = dispatch_trip_workflow.execute(
         db=db,
         trip_id=trip_id,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -263,7 +267,8 @@ def start_trip(
     trip = start_trip_workflow.execute(
         db=db,
         trip_id=trip_id,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -295,7 +300,8 @@ def complete_trip(
         db=db,
         trip_id=trip_id,
         proof_notes=data.proof_notes,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -328,7 +334,8 @@ def cancel_trip(
         db=db,
         trip_id=trip_id,
         reason=data.reason,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -361,7 +368,8 @@ def add_order_to_trip(
         db=db,
         trip_id=trip_id,
         order_id=data.order_id,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()

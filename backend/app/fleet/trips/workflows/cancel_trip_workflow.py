@@ -29,7 +29,8 @@ class CancelTripWorkflow:
         db: Session,
         trip_id: str,
         reason: str | None,
-        actor_id: str,
+        actor_employee_id:str,
+        actor_name: str,
     ):
 
         #
@@ -112,6 +113,8 @@ class CancelTripWorkflow:
                     action="removed_from_trip",
                     description=f"Order removed from cancelled trip {trip.trip_no}",
                     actor_type=AuditActorType.system,
+                    actor_employee_id=None,
+                    actor_name=None,
                 )
 
         #
@@ -136,7 +139,8 @@ class CancelTripWorkflow:
                 else "Trip cancelled"
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

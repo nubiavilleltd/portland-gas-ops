@@ -117,7 +117,8 @@ def create_driver(
     driver = create_driver_workflow.execute(
         db=db,
         data=data,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -149,7 +150,8 @@ def update_driver(
         db=db,
         driver_id=driver_id,
         data=data,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()

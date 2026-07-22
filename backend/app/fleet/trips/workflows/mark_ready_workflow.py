@@ -35,6 +35,7 @@ class MarkReadyWorkflow:
         assignment,
         order_item,
         actor_id: str,
+        actor_name: str,
         assigned_item_ids: set[str],
     ):
 
@@ -99,6 +100,7 @@ class MarkReadyWorkflow:
                 quantity=Decimal("1"),
                 location_id=item.location_id,
                 recorded_by=actor_id,
+                recorded_by_name=actor_name,
                 reference_type=ReferenceType.trip,
                 reference_id=str(trip.id),
                 notes=(
@@ -126,6 +128,7 @@ class MarkReadyWorkflow:
         assignment,
         order_item,
         actor_id: str,
+        actor_name: str,
     ):
 
         if assignment.location_id is None:
@@ -148,6 +151,7 @@ class MarkReadyWorkflow:
             quantity=Decimal(str(order_item.quantity)),
             location_id=assignment.location_id,
             recorded_by=actor_id,
+            recorded_by_name=actor_name,
             reference_type=ReferenceType.trip,
             reference_id=str(trip.id),
             notes=(
@@ -161,7 +165,8 @@ class MarkReadyWorkflow:
         db: Session,
         trip_id: str,
         assignments: list[TripInventoryAssignment],
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
         trip = self.trip_service.get_or_raise(
@@ -180,7 +185,7 @@ class MarkReadyWorkflow:
 
             if assignment.order_id not in trip_order_ids:
                 raise ValueError(
-                    f"Order {assignment.order_id} is not assigned to trip {trip_id}."
+                    f"Order {assignment.order_id} is not assigned to trip {trip.trip_no}."
                 )
 
             order_items = self.order_service.get_order_items(
@@ -209,7 +214,8 @@ class MarkReadyWorkflow:
                     trip=trip,
                     assignment=assignment,
                     order_item=order_item,
-                    actor_id=actor_id,
+                    actor_id=actor_employee_id,
+                    actor_name=actor_name,
                     assigned_item_ids=assigned_item_ids,
                 )
             else:
@@ -218,7 +224,8 @@ class MarkReadyWorkflow:
                     trip=trip,
                     assignment=assignment,
                     order_item=order_item,
-                    actor_id=actor_id,
+                    actor_id=actor_employee_id,
+                    actor_name=actor_name,
                 )
 
 
@@ -247,7 +254,8 @@ class MarkReadyWorkflow:
                     f"Inventory assigned for trip {trip.trip_no}."
                 ),
                 actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
+                actor_employee_id=actor_employee_id,
+                actor_name=actor_name,
             )
 
         trip = self.trip_service.mark_ready(
@@ -262,7 +270,8 @@ class MarkReadyWorkflow:
             action="marked_ready",
             description="Trip marked ready for dispatch.",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

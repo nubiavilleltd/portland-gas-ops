@@ -25,10 +25,11 @@ class AssignResourcesWorkflow:
     def execute(
         self,
         db: Session,
-        trip_id: int,
-        driver_id: int,
-        vehicle_id: int,
-        actor_id: str,
+        trip_id: str,
+        driver_id: str,
+        vehicle_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
 
@@ -128,7 +129,8 @@ class AssignResourcesWorkflow:
                 f"and vehicle '{vehicle.name}' assigned."
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         notify_driver_assigned(

@@ -125,7 +125,8 @@ def return_inventory_item(
         db,
         item_id,
         data,
-        recorded_by=current_user.id,
+        recorded_by=current_user.employee.id,
+        recorded_by_name=current_user.full_name,
     )
 
     db.commit()
@@ -188,7 +189,8 @@ def check_in_tracked_items(
     items = service.check_in_tracked(
         db,
         data,
-        recorded_by=current_user.id,
+        recorded_by=current_user.employee.id,
+        recorded_by_name=current_user.full_name,
     )
 
     db.commit()
@@ -211,7 +213,8 @@ def check_in_consumable_stock(
     stock = service.check_in_consumable(
         db,
         data,
-        recorded_by=current_user.id,
+        recorded_by=current_user.employee.id,
+        recorded_by_name=current_user.full_name,
     )
 
     db.commit()

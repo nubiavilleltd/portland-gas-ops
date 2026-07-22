@@ -268,6 +268,10 @@ class StockMovement(Base):
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    recorded_by_name = Column(
+        String(255),
+        nullable=False,
+    )
 
     created_at = Column(
         DateTime(timezone=True),

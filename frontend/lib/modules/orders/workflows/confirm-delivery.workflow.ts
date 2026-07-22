@@ -7,5 +7,5 @@ export async function confirmDeliveryWorkflow(order: Order): Promise<Order> {
     throw new Error("Delivery cannot be confirmed for this order");
   }
   // Backend sets delivered + auto-closes if paid — single endpoint, single transaction
-  return OrdersService.confirmDelivery(order.orderNumber);
+  return OrdersService.confirmDelivery(order.id);
 }
