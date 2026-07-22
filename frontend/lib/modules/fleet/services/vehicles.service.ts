@@ -63,4 +63,45 @@ export class VehiclesService {
     throw new Error(getErrorMessage(err, "Failed to update vehicle"));
   }
 }
+
+static async activateVehicle(id: string): Promise<Vehicle> {
+  try {
+    const raw = await fleetApi.activateVehicle(id);
+    return adaptVehicle(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to activate vehicle"));
+  }
 }
+static async deactivateVehicle(id: string): Promise<Vehicle> {
+  try {
+    const raw = await fleetApi.deactivateVehicle(id);
+    return adaptVehicle(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to deactivate vehicle"));
+  }
+}
+static async sendVehicleForMaintenance(id: string): Promise<Vehicle> {
+  try {
+    const raw = await fleetApi.sendVehicleForMaintenance(id);
+    return adaptVehicle(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to send vehicle for maintenance"));
+  }
+}
+static async returnVehicleFromMaintenance(id: string): Promise<Vehicle> {
+  try {
+    const raw = await fleetApi.returnVehicleFromMaintenance(id);
+    return adaptVehicle(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to return vehicle from maintenance"));
+  }
+}
+
+}
+
+
+
+
+
+
+

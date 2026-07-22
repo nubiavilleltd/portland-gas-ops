@@ -139,3 +139,112 @@ export function useVehiclesInMaintenance() {
     refetch,
   };
 }
+
+
+export function useActivateVehicle() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => VehiclesService.activateVehicle(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    activateVehicle: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+export function useDeactivateVehicle() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => VehiclesService.deactivateVehicle(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    deactivateVehicle: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+export function useSendVehicleForMaintenance() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => VehiclesService.sendVehicleForMaintenance(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    sendVehicleForMaintenance: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+
+export function useReturnVehicleFromMaintenance() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => VehiclesService.returnVehicleFromMaintenance(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: VEHICLE_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    returnVehicleFromMaintenance: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}

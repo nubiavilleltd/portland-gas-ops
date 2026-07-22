@@ -33,6 +33,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
 import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
 import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
+import TripDetailSkeleton from "@/lib/modules/fleet/components/TripDetailSkeleton";
 
 
 const STATUS_ORDER = [
@@ -52,11 +53,10 @@ export default function TripDetailPage() {
 
 
   // ── React Query hooks (single sources of truth) ─────────
-  const { trip } = useTripById(id);
+  const { trip, isLoading, error } = useTripById(id);
   const { entries } = useAuditByEntity("trip", id);
 
   const { orders } = useOrders();
-  const { customers } = useCustomers();
 
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
@@ -66,17 +66,32 @@ export default function TripDetailPage() {
 // console.log("trip.order_ids", trip?.order_ids);
 // console.log("orders", orders);
 
-  if (!trip) {
-    return (
-      <AppLayout pageTitle="Trip Not Found">
-        <p className="text-brand-text-secondary">Trip not found.</p>
-      </AppLayout>
-    );
-  }
+  // if (!trip) {
+  //   return (
+  //     <AppLayout pageTitle="Trip Not Found">
+  //       <p className="text-brand-text-secondary">Trip not found.</p>
+  //     </AppLayout>
+  //   );
+  // }
+
+
+
+  if (isLoading) {
+  return <TripDetailSkeleton />;
+}
+
+if (error || !trip) {
+  return (
+    <AppLayout pageTitle="Trip Not Found">
+      <p className="text-brand-text-secondary">
+        Trip not found.
+      </p>
+    </AppLayout>
+  );
+}
 
   const ordersMap = new Map(orders.map((o) => [o.id, o]));
 
-  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
   const linkedOrders = trip.order_ids
     .map((id) => ordersMap.get(id))
@@ -93,7 +108,7 @@ export default function TripDetailPage() {
     {
       label: "Customer",
       render: (order) =>
-        customerMap.get(order.customerId)?.name ?? "Unknown Customer",
+        order.customerName ?? "-",
     },
     {
       label: "Amount",
@@ -109,7 +124,7 @@ export default function TripDetailPage() {
       label: "",
       align: "right",
       render: (order) => (
-        <Button size="sm" variant="outline" href={`/orders/${order.orderNumber}`}>
+        <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
           View
         </Button>
       ),

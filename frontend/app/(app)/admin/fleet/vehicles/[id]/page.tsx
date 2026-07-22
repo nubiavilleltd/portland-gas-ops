@@ -11,7 +11,7 @@ import { formatDate, toTitleCase } from "@/lib/utils";
 // import { FleetVehicleStatusBadge } from "@/lib/modules/fleet/badges/FleetVehicleStatusBadge";
 import FormSection from "@/components/ui/FormSection";
 import { useTripsByVehicle } from "@/lib/modules/fleet/hooks/useTrips";
-import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
+import { useActivateVehicle, useDeactivateVehicle, useReturnVehicleFromMaintenance, useSendVehicleForMaintenance, useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { FleetStatusBadge } from "@/lib/modules/fleet/badges/FleetStatusBadge";
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { canAssignVehicle } from "@/lib/modules/fleet/guards/trip.guards";
@@ -26,12 +26,18 @@ import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { BackButton } from "@/components/ui/BackButton";
+import { parseError } from "@/lib/errors";
 
 export default function VehicleDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
   const { vehicle } = useVehicleById(id);
+  const { activateVehicle, isLoading: isActivatingVehicle } = useActivateVehicle();
+  const { deactivateVehicle, isLoading: isdeactivatingVehicle } = useDeactivateVehicle();
+  const { sendVehicleForMaintenance, isLoading: isSendingVehicleForMaintenance } = useSendVehicleForMaintenance();
+  const { returnVehicleFromMaintenance, isLoading: isReturningVehicleFromMaintenance } = useReturnVehicleFromMaintenance();
+
   const canAssign = canAssignVehicle(vehicle);
 
 
@@ -93,14 +99,49 @@ export default function VehicleDetailPage() {
     },
   ];
 
+
+
+  async function handleActivateVehicle() {
+    try {
+      await activateVehicle(id);
+      toast.success("Vehicle activated");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
+  async function handleDeactivateVehicle() {
+    try {
+      await deactivateVehicle(id);
+      toast.success("Vehicle deactivated");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
+  async function handleSendVehicleForMaintenance() {
+    try {
+      await sendVehicleForMaintenance(id);
+      toast.success("Vehicle sent for maintenance");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
+  async function handleRetunVehicleFromMaintenance() {
+    try {
+      await returnVehicleFromMaintenance(id);
+      toast.success("Vehicle returned from maintenance");
+    } catch (error) {
+      toast.error(parseError(error));
+    }
+  }
+
   return (
     <AppLayout pageTitle={vehicle.name}>
       {/* HEADER */}
 
-        <BackButton
-              href={`/admin${FLEET_ROUTES.vehicleList()}`}
-              label="Back to Vehicles"
-            />
+      <BackButton
+        href={`/admin${FLEET_ROUTES.vehicleList()}`}
+        label="Back to Vehicles"
+      />
       <PageHeader
         title={vehicle.name}
         description={`${vehicle.plate_number} • ${toTitleCase(vehicle.type)}`}
@@ -115,7 +156,8 @@ export default function VehicleDetailPage() {
             {canSendMaintenance && (
               <Button
                 variant="outline"
-                onClick={() => toast.info("Coming soon")}
+                loading={isSendingVehicleForMaintenance}
+                onClick={handleSendVehicleForMaintenance}
               >
                 Send for Maintenance
               </Button>
@@ -124,7 +166,8 @@ export default function VehicleDetailPage() {
             {canReturnMaintenance && (
               <Button
                 variant="outline"
-                onClick={() => toast.info("Coming soon")}
+                loading={isReturningVehicleFromMaintenance}
+                onClick={handleRetunVehicleFromMaintenance}
               >
                 Return from Maintenance
               </Button>
@@ -132,8 +175,8 @@ export default function VehicleDetailPage() {
 
             {canActivate && (
               <Button
-                variant="success"
-                onClick={() => toast.info("Coming soon")}
+                variant="success" loading={isActivatingVehicle}
+                onClick={handleActivateVehicle}
               >
                 Activate Vehicle
               </Button>
@@ -141,7 +184,8 @@ export default function VehicleDetailPage() {
             {canDeactivate && (
               <Button
                 variant="danger"
-                onClick={() => toast.info("Coming soon")}
+                loading={isdeactivatingVehicle}
+                onClick={handleDeactivateVehicle}
               >
                 Deactivate Vehicle
               </Button>

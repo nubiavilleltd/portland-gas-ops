@@ -213,3 +213,104 @@ async def update_vehicle(
     db.refresh(vehicle)
 
     return _to_response(vehicle)
+
+@router.patch(
+    "/{vehicle_id}/activate",
+    response_model=VehicleResponse,
+)
+def activate(
+    vehicle_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    vehicle = vehicle_service.activate(
+        db=db,
+        vehicle_id=vehicle_id,
+    )
+
+    db.commit()
+    db.refresh(vehicle)
+
+    return vehicle
+
+@router.patch(
+    "/{vehicle_id}/deactivate",
+    response_model=VehicleResponse,
+)
+def deactivate(
+    vehicle_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    vehicle = vehicle_service.deactivate(
+        db=db,
+        vehicle_id=vehicle_id,
+    )
+
+    db.commit()
+    db.refresh(vehicle)
+
+    return vehicle
+
+
+@router.patch(
+    "/{vehicle_id}/maintenance",
+    response_model=VehicleResponse,
+)
+def send_for_maintenance(
+    vehicle_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    vehicle = vehicle_service.send_for_maintenance(
+        db=db,
+        vehicle_id=vehicle_id,
+    )
+
+    db.commit()
+    db.refresh(vehicle)
+
+    return vehicle
+
+@router.patch(
+    "/{vehicle_id}/return-from-maintenance",
+    response_model=VehicleResponse,
+)
+def return_from_maintenance(
+    vehicle_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    vehicle = vehicle_service.return_from_maintenance(
+        db=db,
+        vehicle_id=vehicle_id,
+    )
+
+    db.commit()
+    db.refresh(vehicle)
+
+    return vehicle

@@ -78,6 +78,23 @@ setDriverAvailable: async (id: string) => {
   return data;
 },
 
+activateVehicle: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/activate`);
+  return data;
+},
+deactivateVehicle: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/deactivate`);
+  return data;
+},
+sendVehicleForMaintenance: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/maintenance`);
+  return data;
+},
+returnVehicleFromMaintenance: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/return-from-maintenance`);
+  return data;
+},
+
 
 
   // ── Trips ─────────────────────────────────────────────────
