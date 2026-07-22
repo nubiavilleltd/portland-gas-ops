@@ -144,6 +144,7 @@ export interface AssetCreateInput {
   purchase_date: string;
   purchase_cost: number;
   condition: AssetCondition;
+  status?: AssetStatus;
   description?: string;
   location: string;
   assigned_to?: string;              // employee ID — status auto-set to "assigned" if provided
