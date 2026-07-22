@@ -504,6 +504,7 @@ export class InventoryService {
 
  static async getItems(): Promise<InventoryItem[]> {
   const raw = await inventoryApi.listItems();
+
   return raw.map(adaptInventoryItem);
 }
 

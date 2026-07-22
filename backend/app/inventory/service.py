@@ -116,6 +116,7 @@ class InventoryService:
         db: Session,
         data: CheckInTrackedInput,
         recorded_by: str,
+        actor_employee_id: str,
         recorded_by_name: str,
     ):
         from app.products.service import ProductService
@@ -182,7 +183,7 @@ class InventoryService:
             action="check_in",
             description=f"{data.quantity} {product.name} unit(s) checked into inventory",
             actor_type=AuditActorType.employee,
-            actor_employee_id=recorded_by,
+            actor_employee_id=actor_employee_id,
             actor_name=recorded_by_name,
         )
 
@@ -197,6 +198,7 @@ class InventoryService:
         db: Session,
         data: CheckInConsumableInput,
         recorded_by: str,
+        actor_employee_id:str,
         recorded_by_name: str,
     ) -> ConsumableStock:
         from app.products.service import ProductService
@@ -248,7 +250,7 @@ class InventoryService:
                 f"{product.name} checked into inventory"
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=recorded_by,
+            actor_employee_id=actor_employee_id,
             actor_name=recorded_by_name,
         )
 

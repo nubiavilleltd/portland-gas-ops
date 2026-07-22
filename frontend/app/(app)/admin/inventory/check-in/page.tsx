@@ -66,8 +66,6 @@ export default function CheckInPage() {
     description: isTracked(p) ? "Tracked Asset" : "Consumable",
   }));
 
-    console.log("locations", locations);
-console.log("locationOptions", locationOptions);
 
   // ── Tracked form ──────────────────────────────────────────
   const trackedForm = useForm<CheckInTrackedFormInput, unknown, CheckInTrackedFormOutput>({
@@ -218,15 +216,18 @@ console.log("locationOptions", locationOptions);
                     : `Consumable — stock level will be updated in ${selectedProduct.unit}`
                   : "Select a product to continue"
               }
+              searchable
             />
 
             {/* ── Tracked form fields ─────────────────────── */}
             {productType === "tracked" && (
               <form
                 onSubmit={trackedForm.handleSubmit(handleTrackedSubmit)}
-                className="space-y-5"
+                className="space-y-3"
               >
-                <Controller
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <Controller
                   control={trackedForm.control}
                   name="location_id"
                   render={({ field }) => (
@@ -251,6 +252,8 @@ console.log("locationOptions", locationOptions);
                   {...trackedForm.register("quantity")}
                 />
 
+                </div>
+            
                 <Controller
                   control={trackedForm.control}
                   name="condition"
@@ -262,6 +265,7 @@ console.log("locationOptions", locationOptions);
                       value={field.value}
                       onValueChange={field.onChange}
                       error={trackedForm.formState.errors.condition?.message}
+                      searchable
                     />
                   )}
                 />
@@ -280,7 +284,6 @@ console.log("locationOptions", locationOptions);
                   type="submit"
                   loading={trackedForm.formState.isSubmitting}
                   loadingText="Checking in…"
-                  className="w-full"
                 >
                   Check In Items
                 </Button>
@@ -293,6 +296,8 @@ console.log("locationOptions", locationOptions);
                 onSubmit={consumableForm.handleSubmit(handleConsumableSubmit)}
                 className="space-y-5"
               >
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Controller
                   control={consumableForm.control}
                   name="location_id"
@@ -319,6 +324,8 @@ console.log("locationOptions", locationOptions);
                   {...consumableForm.register("quantity")}
                 />
 
+                </div>
+              
                 <FormTextarea
                   label="Notes"
                   placeholder="Supplier reference, delivery note number, etc."
@@ -333,7 +340,6 @@ console.log("locationOptions", locationOptions);
                   type="submit"
                   loading={consumableForm.formState.isSubmitting}
                   loadingText="Updating stock…"
-                  className="w-full"
                 >
                   Update Stock
                 </Button>

@@ -101,7 +101,8 @@ def record_payment(
         "recorded",
         f"Payment {payment.payment_no} recorded.",
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name
     )
 
     AuditService.record(
@@ -114,7 +115,8 @@ def record_payment(
             f"recorded for ₦{payment.amount:,.2f}."
         ),
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     AuditService.record(
@@ -128,7 +130,8 @@ def record_payment(
             f"via {payment.method.value}."
         ),
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     db.commit()

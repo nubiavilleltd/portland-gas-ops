@@ -85,7 +85,8 @@ def create_invoice(
         "created",
         f"Invoice {invoice.invoice_no} generated",
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     AuditService.record(
@@ -95,7 +96,8 @@ def create_invoice(
         "invoice_generated",
         f"Invoice {invoice.invoice_no} generated",
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     db.commit()
@@ -158,7 +160,8 @@ def void_invoice(
         "voided",
         f"Invoice {invoice.invoice_no} voided",
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     db.commit()

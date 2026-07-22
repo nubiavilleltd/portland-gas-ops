@@ -67,7 +67,8 @@ def create_draft(
     AuditService.record(
     db, AuditEntityType.order, order.id,
     "created", "Order created as draft",
-    AuditActorType.employee, current_user.id)
+    AuditActorType.employee, current_user.employee.id,
+    current_user.full_name)
 
     db.commit()
     db.refresh(order)
@@ -79,17 +80,17 @@ def create_and_submit_order(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.create_and_submit(db, data, created_by=current_user.id)
+    order = service.create_and_submit(db, data, created_by=current_user.employee.id)
 
     AuditService.record(
         db, AuditEntityType.order, order.id,
         "created", "Order created",
-        AuditActorType.employee, current_user.id)
+        AuditActorType.employee, current_user.employee.id, current_user.full_name)
 
     AuditService.record(
         db, AuditEntityType.order, order.id,
         "submitted", "Order submitted for processing",
-        AuditActorType.employee, current_user.id)
+        AuditActorType.employee, current_user.employee.id, current_user.full_name)
 
     db.commit()
     db.refresh(order)
@@ -139,7 +140,7 @@ def submit_order(
     AuditService.record(
     db, AuditEntityType.order, order.id,
     "submitted", "Order submitted for processing",
-    AuditActorType.employee, current_user.id)
+    AuditActorType.employee, current_user.employee.id, current_user.full_name)
 
     db.commit()
     db.refresh(order)
@@ -178,7 +179,7 @@ def cancel_order(
     db, AuditEntityType.order, order.id,
     "cancelled",
     f"Order cancelled: {body.reason}" if body.reason else "Order cancelled",
-    AuditActorType.employee, current_user.id)
+    AuditActorType.employee, current_user.employee.id, current_user.full_name)
 
     db.commit()
     db.refresh(order)
@@ -201,7 +202,7 @@ def confirm_delivery(
     AuditService.record(
     db, AuditEntityType.order, order.id,
     "delivered", "Delivery confirmed",
-    AuditActorType.employee, current_user.id)
+    AuditActorType.employee, current_user.employee.id, current_user.full_name)
 
     if order.order_status.value == "completed":
         AuditService.record(

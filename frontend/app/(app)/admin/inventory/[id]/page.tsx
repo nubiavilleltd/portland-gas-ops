@@ -55,13 +55,15 @@ const CONDITION_VARIANT: Record<InventoryItem["condition"], BadgeVariant> = {
 function InfoRow({
   label,
   value,
+  toolTip
 }: {
   label: string;
   value: React.ReactNode;
+  toolTip?:string;
 }) {
   return (
     <div>
-      <p className="text-xs text-brand-text-secondary">{label}</p>
+      <p className="text-xs text-brand-text-secondary" title={toolTip ?? ""}>{label}</p>
       <div className="font-medium mt-0.5 text-sm">{value ?? "—"}</div>
     </div>
   );
@@ -149,10 +151,10 @@ export default function InventoryItemDetailPage() {
               label="Product"
               value={product?.name}
             />
-            <InfoRow
+            {/* <InfoRow
               label="Serial Number"
               value={item.serial_number}
-            />
+            /> */}
             <InfoRow
               label="Status"
               value={
@@ -174,10 +176,11 @@ export default function InventoryItemDetailPage() {
             <InfoRow
               label="Disposition"
               value={item.disposition ?? "—"}
+              toolTip="The mode of check-out e.g sold or loaned"
             />
             <InfoRow
               label="Location"
-              value="Main Warehouse"
+              value={item.location_name}
             />
             <InfoRow
               label="Received"
@@ -221,7 +224,7 @@ export default function InventoryItemDetailPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      href={`/orders/${order?.orderNumber}`}
+                      href={`/orders/${order?.id}`}
                     >
                       View Order
                     </Button>
@@ -231,7 +234,7 @@ export default function InventoryItemDetailPage() {
               {item.customer_id && (
                 <InfoRow
                   label="Customer"
-                  value={item.customer_id}
+                  value={order?.customerName}
                 />
               )}
             </div>
@@ -286,7 +289,7 @@ export default function InventoryItemDetailPage() {
                           </p>
                         )}
                         <p className="text-xs text-brand-text-secondary">
-                          By {movement.recorded_by}
+                          By {movement.recorded_by_name}
                         </p>
                       </div>
                       <span className="text-xs text-brand-text-secondary shrink-0">

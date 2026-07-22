@@ -51,14 +51,17 @@ export interface InventoryAssignment {
 export interface InventoryItem {
   id: string;
   product_id: string;
+  product_name: string;
   tag_number: string;           // auto-generated, editable
   serial_number?: string;       // optional — supplier serial or barcode
   status: InventoryItemStatus;
   condition: "new" | "used" | "refurbished" | "damaged";
   disposition?: ItemDisposition; // set at check-out
   location_id: string;
+  location_name: string;
   order_id?: string;            // which order it went out on
   customer_id?: string;         // which customer has it
+  customer_name?: string;         // which customer has it
   checked_out_at?: string;
   expected_return_date?: string;
   received_at: string;
@@ -90,6 +93,7 @@ export interface StockMovement {
   location_id: string;
   notes?: string;
   recorded_by: string;
+  recorded_by_name: string;
   created_at: string;
 }
 

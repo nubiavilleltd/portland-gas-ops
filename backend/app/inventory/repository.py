@@ -169,6 +169,8 @@ class InventoryRepository:
                 joinedload(InventoryItem.product),
                 joinedload(InventoryItem.location),
                 joinedload(InventoryItem.customer),
+                joinedload(InventoryItem.order),
+                joinedload(InventoryItem.trip),
             )
         )
 
@@ -185,8 +187,8 @@ class InventoryRepository:
 
         items = (
             q.order_by(
-                InventoryItem.received_into_inventory_at.asc(),
-                InventoryItem.tag_number.asc(),
+                InventoryItem.received_into_inventory_at.desc(),
+                # InventoryItem.tag_number.desc(),
             )
             .offset((page - 1) * page_size)
             .limit(page_size)

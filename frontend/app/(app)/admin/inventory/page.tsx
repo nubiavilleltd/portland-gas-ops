@@ -21,7 +21,7 @@ import {
   getActiveProducts,
 } from "@/lib/modules/products/selectors/products.selectors";
 import { isTracked } from "@/lib/modules/products/types/product.types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
@@ -179,16 +179,14 @@ const trackedColumns: Column<InventoryItem>[] = [
     ),
   },
   {
-    key: "product_id",
+    key: "product_name",
     label: "Product",
-    render: (value) =>
-      getProductById(products, value as string)?.name ?? "—",
   },
-  {
-    key: "serial_number",
-    label: "Serial No.",
-    render: (value) => (value as string) ?? "—",
-  },
+  // {
+  //   key: "serial_number",
+  //   label: "Serial No.",
+  //   render: (value) => (value as string) ?? "—",
+  // },
   {
     key: "condition",
     label: "Condition",
@@ -210,13 +208,13 @@ const trackedColumns: Column<InventoryItem>[] = [
     },
   },
   {
-    key: "location_id",
+    key: "location_name",
     label: "Location",
-    render: () => "Main Warehouse",
   },
   {
     key: "received_at",
     label: "Received",
+    render:(value) => formatDate(value as string)
   },
 ];
 

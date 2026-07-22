@@ -7,17 +7,20 @@ import type {
 interface BackendInventoryItem {
     id: string;
     product_id: string;
+    product_name: string;
     tag_number: string;
     serial_number: string | null;
     status: string;
     condition: string;
     disposition: string | null;
     location_id: number;
+    location_name: string;
     order_id: string | null;
     customer_id: string | null;
+    customer_name: string | null;
     checked_out_at: string | null;
     expected_return_date: string | null;
-    received_at: string;
+    received_into_inventory_at: string;
     notes: string | null;
 }
 
@@ -39,6 +42,7 @@ interface BackendStockMovement {
     location_id: string;
     notes: string | null;
     recorded_by: string;
+    recorded_by_name: string;
     item_ids: string[];
     created_at: string;
 }
@@ -49,17 +53,20 @@ export function adaptInventoryItem(raw: BackendInventoryItem): InventoryItem {
     return {
         id: raw.id,
         product_id: raw.product_id,
+        product_name: raw.product_name,
         tag_number: raw.tag_number,
         serial_number: raw.serial_number ?? undefined,
         status: raw.status as InventoryItem["status"],
         condition: raw.condition as InventoryItem["condition"],
         disposition: raw.disposition as any ?? undefined,
         location_id: String(raw.location_id),
+        location_name: String(raw.location_name),
         order_id: raw.order_id ?? undefined,
         customer_id: raw.customer_id ?? undefined,
+        customer_name: raw.customer_name ?? undefined,
         checked_out_at: raw.checked_out_at ?? undefined,
         expected_return_date: raw.expected_return_date ?? undefined,
-        received_at: raw.received_at,
+        received_at: raw.received_into_inventory_at,
         notes: raw.notes ?? undefined,
     };
 }
@@ -85,6 +92,7 @@ export function adaptStockMovement(raw: BackendStockMovement): StockMovement {
         location_id: String(raw.location_id),
         notes: raw.notes ?? undefined,
         recorded_by: raw.recorded_by,
+        recorded_by_name: raw.recorded_by_name,
         item_ids: raw.item_ids ?? [],
         created_at: raw.created_at,
     };

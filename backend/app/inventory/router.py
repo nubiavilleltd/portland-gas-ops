@@ -39,6 +39,28 @@ def _movement_to_response(movement) -> StockMovementResponse:
     )
     return response
 
+def _inventory_item_to_response(item) -> InventoryItemResponse:
+    response = InventoryItemResponse.model_validate(item)
+
+    response.product_name = item.product.name if item.product else None
+    response.product_code = item.product.code if item.product else None
+
+    response.location_name = item.location.name if item.location else None
+
+    response.customer_name = (
+        item.customer.name if item.customer else None
+    )
+
+    response.order_no = (
+        item.order.order_no if item.order else None
+    )
+
+    response.trip_no = (
+        item.trip.trip_no if item.trip else None
+    )
+
+    return response
+
 
 # -------------------------------------------------------------------------
 # Warehouse Locations
@@ -95,11 +117,14 @@ def list_inventory_items(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.list_items(
+    items = service.list_items(
         db,
         product_id=product_id,
         status=status,
     )
+
+
+    return [_inventory_item_to_response(item) for item in items]
 
 
 @router.get("/items/{item_id}", response_model=InventoryItemResponse)
@@ -108,7 +133,8 @@ def get_inventory_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.get_item_or_raise(db, item_id)
+    item = service.get_item_or_raise(db, item_id)
+    return _inventory_item_to_response(item)
 
 
 @router.post(
@@ -189,7 +215,8 @@ def check_in_tracked_items(
     items = service.check_in_tracked(
         db,
         data,
-        recorded_by=current_user.employee.id,
+        recorded_by=current_user.id,
+        actor_employee_id=current_user.employee.id,
         recorded_by_name=current_user.full_name,
     )
 
@@ -213,7 +240,8 @@ def check_in_consumable_stock(
     stock = service.check_in_consumable(
         db,
         data,
-        recorded_by=current_user.employee.id,
+        recorded_by=current_user.id,
+        actor_employee_id=current_user.employee.id,
         recorded_by_name=current_user.full_name,
     )
 
