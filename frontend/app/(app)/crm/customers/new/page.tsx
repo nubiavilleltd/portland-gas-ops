@@ -124,10 +124,10 @@ export default function NewCustomerPage() {
       status: "draft",
     });
 
-    toast.success("Customer onboarding request has been saved as a draft.");
+    toast.success("Customer information has been saved as a draft.");
 
     setTimeout(() => {
-      router.push("/admin/crm/onboarding");
+      router.push("/crm/customers");
     }, 1000);
   }
 
@@ -139,35 +139,30 @@ export default function NewCustomerPage() {
       status: "submitted",
     });
 
-    toast.success(
-      "Customer onboarding request has been submitted successfully.",
-    );
+    toast.success("Customer information has been submitted successfully.");
 
     setTimeout(() => {
-      router.push("/admin/crm/onboarding");
+      router.push("/crm/customers");
     }, 1000);
   }
 
   return (
     <AppLayout pageTitle="New Customer">
-      <BackButton
-        href="/admin/crm/onboarding"
-        label="Back to Customer Onboarding"
-      />
+      <BackButton href="/crm/customers" label="Back to Customer Onboarding" />
       <PageHeader
         title="New Customer"
         description="Register a new customer for review and activation."
       />
 
       <div className="space-y-6">
-        <RequesterDetailsSection
+        {/* <RequesterDetailsSection
           requester={{
             name: "Magdalene Princess",
             department: "Commercial",
             role: "Sales Executive",
             requestDate: "2026-07-13",
           }}
-        />
+        /> */}
         <CustomerInformationCard
           values={{
             customerName: form.customerName,
@@ -226,10 +221,10 @@ export default function NewCustomerPage() {
           errors={errors}
           onChange={handleChange}
         />
-        <CustomerAttachmentsCard
+        {/* <CustomerAttachmentsCard
           values={form.attachments}
           onChange={(attachments) => handleChange("attachments", attachments)}
-        />
+        /> */}
 
         <InternalNotesCard
           value={form.internalNotes}

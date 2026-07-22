@@ -201,7 +201,7 @@ const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
     submitted_by: "John Doe",
     submitted_at: "2026-07-11",
 
-    status: "acknowledged",
+    status: "active",
 
     activities: [
       {
@@ -540,9 +540,7 @@ export function useCustomers() {
 
     queryFn: async () =>
       MOCK_CUSTOMER_ONBOARDING.filter(
-        (customer) =>
-          customer.status === "acknowledged" ||
-          customer.customer_status === "active",
+        (customer) => customer.customer_status === "active",
       ),
   });
 }
@@ -554,9 +552,7 @@ export function useCustomerDetails(id: string) {
     queryFn: async () =>
       MOCK_CUSTOMER_ONBOARDING.find(
         (customer) =>
-          customer.id === id &&
-          (customer.status === "acknowledged" ||
-            customer.customer_status === "active"),
+          customer.id === id && customer.customer_status === "active",
       ),
   });
 }

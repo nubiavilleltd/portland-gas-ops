@@ -13,7 +13,7 @@ export default function CRMQuickActions() {
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Button
-          href="/admin/crm/contacts/new"
+          href="/crm/contacts/new"
           variant="secondary"
           leftIcon={<UserPlus size={18} />}
           className="justify-start"
@@ -22,7 +22,7 @@ export default function CRMQuickActions() {
         </Button>
 
         <Button
-          href="/admin/crm/customers"
+          href="/crm/customers"
           variant="secondary"
           leftIcon={<Users size={18} />}
           className="justify-start"
@@ -31,7 +31,7 @@ export default function CRMQuickActions() {
         </Button>
 
         <Button
-          href="/admin/crm/contacts"
+          href="/crm/contacts"
           variant="secondary"
           leftIcon={<Contact size={18} />}
           className="justify-start"
@@ -40,7 +40,7 @@ export default function CRMQuickActions() {
         </Button>
 
         <Button
-          href="/admin/crm/onboarding/new"
+          href="/crm/customers/new"
           variant="secondary"
           leftIcon={<UserPlus size={18} />}
           className="justify-start"

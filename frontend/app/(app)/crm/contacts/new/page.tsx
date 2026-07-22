@@ -57,7 +57,7 @@ export default function NewCustomerContactPage() {
         .filter(
           (c) =>
             c.status === "approved" ||
-            c.status === "acknowledged" ||
+            c.status === "active" ||
             c.customer_status === "active",
         )
         .map((customer) => ({
@@ -176,7 +176,7 @@ export default function NewCustomerContactPage() {
     toast.success("Customer contact has been saved as draft.");
 
     setTimeout(() => {
-      router.push("/admin/crm/contacts");
+      router.push("/crm/contacts");
     }, 1000);
   }
 
@@ -191,13 +191,13 @@ export default function NewCustomerContactPage() {
     toast.success("Customer contact has been submitted successfully.");
 
     setTimeout(() => {
-      router.push("/admin/crm/contacts");
+      router.push("/crm/contacts");
     }, 1000);
   }
 
   return (
     <AppLayout pageTitle="New Contact">
-      <BackButton href="/admin/crm/contacts" label="Back to Contacts" />
+      <BackButton href="/crm/contacts" label="Back to Contacts" />
 
       <PageHeader
         title="New Contact"

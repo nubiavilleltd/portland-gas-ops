@@ -49,8 +49,7 @@ export default function CRMDashboardPage() {
 
   const activeCustomers = customers.filter(
     (customer) =>
-      customer.status === "acknowledged" ||
-      customer.customer_status === "active",
+      customer.status === "active" || customer.customer_status === "active",
   );
 
   const pendingCustomers = customers.filter(

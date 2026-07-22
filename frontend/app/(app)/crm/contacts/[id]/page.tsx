@@ -93,7 +93,7 @@ export default function ContactDetailsPage() {
   return (
     <AppLayout pageTitle="Customer Contact Details">
       <div className="flex gap-3 justify-between mb-2">
-        <BackButton href="/admin/crm/contacts" label="Back to Contacts" />
+        <BackButton href="/crm/contacts" label="Back to Contacts" />
         {!isEditing && form.status == "active" && (
           <Button variant="primary" onClick={() => setIsEditing(true)}>
             Edit

@@ -4,7 +4,6 @@ export type CustomerEntityType = "company" | "individual";
 export type CustomerOnboardingStatus =
   | "draft"
   | "submitted"
-  | "acknowledged"
   | "returned"
   | "approved"
   | "active"
