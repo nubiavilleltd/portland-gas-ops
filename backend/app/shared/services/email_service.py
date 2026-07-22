@@ -12,6 +12,7 @@ import logging
 import httpx
 from pathlib import Path
 from app.core.config import settings
+from collections.abc import Mapping
 
 # Force a basic logging config so email logs always appear in the terminal.
 logging.basicConfig(
@@ -328,4 +329,21 @@ def send_incident_notification(
         "action_label": action_label,
         "action_url": action_url,
     })
+    _send(to_email, subject, html)
+
+def send_template_email(
+    *,
+    to_email: str,
+    subject: str,
+    template_name: str,
+    variables: Mapping[str, object],
+) -> None:
+    html = _render(
+        template_name,
+        {
+            **variables,
+            "subject": subject,
+        },
+    )
+
     _send(to_email, subject, html)
