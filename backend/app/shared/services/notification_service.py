@@ -31,6 +31,22 @@ def create_notification(
         is_read=False,
     )
     db.add(notif)
+
+    # Fire OS-level push notification (fire-and-forget — never raises)
+    try:
+        from app.shared.services.push_service import fire_push_for_recipient
+        fire_push_for_recipient(
+            db,
+            recipient_id,
+            title,
+            message,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            notif_id=notif.id,
+        )
+    except Exception:
+        pass  # push must never affect the main request
+
     # Caller is responsible for committing the session
     return notif
 
