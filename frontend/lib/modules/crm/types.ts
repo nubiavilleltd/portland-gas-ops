@@ -12,14 +12,16 @@ export type CustomerOnboardingStatus =
 
 export interface CustomerOnboarding {
   id: string;
-
+  referrer: string;
+  sales_contact: string;
   onboarding_number: string;
   company_email: string;
   // Customer Information
   customer_name: string;
   entity_type: CustomerEntityType;
   category: CustomerCategory;
-
+  position: string;
+  role: string;
   // Business Information
   rc_number: string;
   tin: string;
@@ -301,3 +303,4 @@ export interface ContactActivity {
 export type PreferredChannel = "Email" | "Phone" | "WhatsApp";
 
 export type ContactPersonStatus = "active" | "inactive";
+export type CustomerType = "potential" | "purchased";

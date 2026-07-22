@@ -6,7 +6,6 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 import { useCustomerOnboarding, useCustomerContacts } from "@/lib/modules/crm";
 import { Users, UserCheck, Clock3, Contact } from "lucide-react";
-import CRMStatCards from "@/lib/modules/crm/components/CRMStatCards";
 import ActiveCustomersTable from "@/lib/modules/crm/components/ActiveCustomersTable";
 import RecentContactsTable from "@/lib/modules/crm/components/RecentContactsTable";
 import CRMQuickActions from "@/lib/modules/crm/components/CRMQuickActions";
@@ -47,6 +46,18 @@ export default function CRMDashboardPage() {
     );
   }
 
+  const topSales = customers.reduce<Record<string, number>>((acc, customer) => {
+    if (!customer.sales_contact) return acc;
+
+    acc[customer.sales_contact] = (acc[customer.sales_contact] || 0) + 1;
+
+    return acc;
+  }, {});
+
+  const topSalesPerson = Object.entries(topSales).sort(
+    (a, b) => b[1] - a[1],
+  )[0];
+
   const activeCustomers = customers.filter(
     (customer) =>
       customer.status === "active" || customer.customer_status === "active",
@@ -55,6 +66,21 @@ export default function CRMDashboardPage() {
   const pendingCustomers = customers.filter(
     (customer) => customer.status === "submitted",
   );
+
+  const topReferrer = customers.reduce<Record<string, number>>(
+    (acc, customer) => {
+      if (!customer.referrer) return acc;
+
+      acc[customer.referrer] = (acc[customer.referrer] || 0) + 1;
+
+      return acc;
+    },
+    {},
+  );
+
+  const topReferrerPerson = Object.entries(topReferrer).sort(
+    (a, b) => b[1] - a[1],
+  )[0];
 
   return (
     <AppLayout pageTitle="CRM Dashboard">
@@ -105,13 +131,27 @@ export default function CRMDashboardPage() {
             }
           />
         </div>
-        {/* <CRMStatCards
-          totalCustomers={customers.length}
-          activeCustomers={activeCustomers.length}
-          pendingCustomers={pendingCustomers.length}
-          totalContacts={contacts.length}
-        /> */}
+
         <CRMQuickActions />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card
+            title="Top Sales Contact"
+            description={
+              topSalesPerson
+                ? `${topSalesPerson[0]} • ${topSalesPerson[1]} Customers`
+                : "No data available"
+            }
+          />
+
+          <Card
+            title="Top Referrer"
+            description={
+              topReferrerPerson
+                ? `${topReferrerPerson[0]} • ${topReferrerPerson[1]} Referrals`
+                : "No data available"
+            }
+          />
+        </div>
         <ActiveCustomersTable customers={activeCustomers.slice(0, 5)} />
         <RecentContactsTable
           contacts={contacts

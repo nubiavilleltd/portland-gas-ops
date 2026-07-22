@@ -22,9 +22,9 @@ type ContactForm = {
   email: string;
   phone: string;
   alternatePhone: string;
-
+  position: string;
+  role: string;
   department: string;
-
   preferred_channel: string;
 };
 
@@ -36,7 +36,8 @@ function emptyContact(): ContactForm {
     email: "",
     phone: "",
     alternatePhone: "",
-
+    position: "",
+    role: "",
     department: "",
 
     preferred_channel: "Email",
@@ -99,7 +100,8 @@ export default function NewCustomerContactPage() {
       primaryContact: {
         firstName: names.firstName,
         lastName: names.lastName,
-
+        position: customer.position,
+        role: customer.role,
         email: customer.email,
 
         phone: customer.phone,
@@ -237,6 +239,8 @@ export default function NewCustomerContactPage() {
             <EmploymentInformationCard
               values={{
                 department: form.primaryContact.department,
+                position: form.primaryContact.position,
+                role: form.primaryContact.role,
                 preferred_channel: form.primaryContact.preferred_channel,
               }}
               onChange={(field, value) =>
@@ -294,6 +298,8 @@ export default function NewCustomerContactPage() {
                     values={{
                       department: contact.department,
                       preferred_channel: contact.preferred_channel,
+                      position: contact.position,
+                      role: contact.role,
                     }}
                     onChange={(field, value) =>
                       updateAdditional(index, field as keyof ContactForm, value)
