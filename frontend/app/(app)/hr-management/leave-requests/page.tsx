@@ -20,6 +20,9 @@ import DataTable from "@/components/ui/DataTable";
 import { leaveRequestColumns } from "../_components/columns";
 import { useCreateLeaveRequest, useLeaveRequests, useLeaveRequest, useCurrentEmployee } from "@/lib/modules/leave-requests/hooks";
 import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
 import { useMyLeaveBalances, useEmployeeLeaveBalances } from "@/lib/modules/leave-balances/hooks";
 import { useEmployees } from "@/lib/modules/employees/hooks";
@@ -58,7 +61,8 @@ const schema = z.object({
   leave_type:    z.string().min(1, "Select a leave type"),
   start_date:    z.string().min(1, "Start date is required"),
   end_date:      z.string().min(1, "End date is required"),
-  reliever_id:   z.string().min(1, "Select a reliever"),
+  // The reliever is chosen via the workflow Approvers section (requester_pick step),
+  // not a bespoke field — see useApproverPicker below.
   reason:        z.string().optional(),
 });
 
@@ -94,6 +98,11 @@ function LeaveRequestsPageContent() {
   // Edit & Resubmit mode — driven by ?edit=<reference> (from a returned request)
   const editRef = searchParams.get("edit");
   const { data: editRecord } = useLeaveRequest(editRef ?? "", !!editRef);
+
+  // Workflow-driven approver picks (the Reliever is the requester_pick step).
+  // Reads the active leave_request workflow, so reordering or adding pick
+  // steps in the admin UI is picked up here without a code change.
+  const approverPicker = useApproverPicker("leave_request", editRecord?.id);
 
   const createLeaveRequest = useCreateLeaveRequest();
   const { data: leaveRequestsResponse, isLoading: isLoadingRequests } = useLeaveRequests({
@@ -152,19 +161,15 @@ function LeaveRequestsPageContent() {
     label: lt.leave_type_name,
   }));
 
-  // Convert real employees to form options
-  const realEmployeeOptions = employees.map((e) => ({
-    value: e.id,
-    label: `${e.user?.first_name || ""} ${e.user?.last_name || ""} — ${e.job_title || ""}`,
+  // Employees for the "raise for others" picker — same shape the approver
+  // pickers use, so both fields look and behave identically.
+  const employeePickerList: PickedEmployee[] = employees.map((e) => ({
+    id:         e.id,
+    name:       [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+    role:       e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
   }));
-
-  // Reliever options (all employees except self)
-  const relieverOptions = employees
-    .filter((e) => e.id !== currentUserEmployee?.id) // Exclude current user
-    .map((e) => ({
-      value: e.id,
-      label: `${e.user?.first_name || ""} ${e.user?.last_name || ""} — ${e.job_title || ""}`,
-    }));
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
@@ -178,7 +183,6 @@ function LeaveRequestsPageContent() {
         leave_type: String(editRecord.leave_type_id),
         start_date: editRecord.start_date,
         end_date: editRecord.end_date,
-        reliever_id: editRecord.reliever_id || "",
         reason: editRecord.reason || "",
       });
       setRemovedExistingDoc(false);
@@ -191,6 +195,11 @@ function LeaveRequestsPageContent() {
   const watchStart       = form.watch("start_date");
   const watchEnd         = form.watch("end_date");
   const watchLeaveType   = form.watch("leave_type");
+
+  // Derive the picker's selection from the form field so resubmit pre-fill
+  // (form.reset) flows through without a second piece of state to keep in sync.
+  const pickedEmployee =
+    employeePickerList.find((e) => e.id === form.watch("employee_id")) ?? null;
 
   // Keep the range valid: if a newly picked start date is after the current end
   // date, clear the end date so the user re-selects it.
@@ -248,10 +257,16 @@ function LeaveRequestsPageContent() {
   async function onSubmit(data: FormData) {
     try {
       const employeeId = isOthers ? data.employee_id : currentUserEmployee?.id;
-      const reliever_id = data.reliever_id;
 
-      if (!employeeId || !reliever_id) {
-        toast.error("Employee and reliever are required");
+      if (!employeeId) {
+        toast.error("Employee is required");
+        return;
+      }
+
+      // Every requester_pick step on the workflow must have an approver chosen
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
         return;
       }
 
@@ -270,11 +285,11 @@ function LeaveRequestsPageContent() {
         const updated = await leaveRequestsApi.resubmit(editRef, {
           employee_id: employeeId,
           leave_type_id: leaveTypeId,
-          reliever_id: reliever_id,
           start_date: startDateISO,
           end_date: endDateISO,
           request_type: data.request_type,
           reason: data.reason,
+          picked_approvers: approverPicker.picksPayload,
         });
 
         // Upload any newly attached files to the existing request
@@ -300,11 +315,11 @@ function LeaveRequestsPageContent() {
       const leaveRequest = await createLeaveRequest.mutateAsync({
         employee_id: employeeId,
         leave_type_id: leaveTypeId,
-        reliever_id: reliever_id,
         start_date: startDateISO,
         end_date: endDateISO,
         request_type: data.request_type,
         reason: data.reason,
+        picked_approvers: approverPicker.picksPayload,
       });
 
       // Upload supporting files if any
@@ -350,6 +365,9 @@ function LeaveRequestsPageContent() {
                 "Authorization": `Bearer ${useAuthStore.getState().accessToken}`,
               },
               credentials: "include",
+              // The engine starts here — send the picks so each requester_pick
+              // step is assigned the approver the requester chose.
+              body: JSON.stringify({ picked_approvers: approverPicker.picksPayload }),
             }
           );
 
@@ -598,15 +616,16 @@ function LeaveRequestsPageContent() {
 
                 {/* Employee fields — only when Others */}
                 {isOthers && (
-                  <FormSelect
+                  <EmployeePicker
                     label="Employee Name"
                     required
-                    options={realEmployeeOptions}
-                    sortOptions={false}
-                    placeholder="Select employee"
+                    employees={employeePickerList}
+                    placeholder="Search all employees..."
                     error={errors.employee_id?.message}
-                    {...form.register("employee_id")}
-                    value={form.watch("employee_id") ?? ""}
+                    value={pickedEmployee}
+                    onChange={(emp) =>
+                      form.setValue("employee_id", emp?.id ?? "", { shouldValidate: true })
+                    }
                   />
                 )}
 
@@ -643,16 +662,6 @@ function LeaveRequestsPageContent() {
                   )}
                 </div>
 
-                <FormSelect
-                  label="Reliever"
-                  required
-                  options={relieverOptions}
-                  sortOptions={false}
-                  placeholder="Select reliever"
-                  error={errors.reliever_id?.message}
-                  {...form.register("reliever_id")}
-                  value={form.watch("reliever_id") ?? ""}
-                />
                 {/* Existing document (edit mode) — kept unless removed */}
                 {editRef && editRecord?.document && !removedExistingDoc && (
                   <div className="md:col-span-2">
@@ -705,6 +714,10 @@ function LeaveRequestsPageContent() {
                 </div>
               </div>
             </FormSection>
+
+            {/* Workflow approvers (Reliever) — renders nothing if the workflow
+                has no requester_pick steps. */}
+            <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance}>

@@ -39,12 +39,15 @@ export interface LeaveRequestDetail extends LeaveRequestListItem {}
 export interface LeaveRequestCreatePayload {
   employee_id: string;
   leave_type_id: number;
-  reliever_id: string;
+  /** Derived server-side from picked_approvers when omitted. */
+  reliever_id?: string;
   start_date: string;
   end_date: string;
   request_type?: string;
   reason?: string;
   document_id?: number;
+  /** Approver picks for requester_pick workflow steps: { "<step_number>": employee_id } */
+  picked_approvers?: Record<string, string>;
 }
 
 export interface LeaveRequestListResponse {

@@ -9,7 +9,7 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
 from app.hr import service
 from app.employees.models import Employee
 from app.employees.service import get_employee_by_user_id
@@ -542,6 +542,7 @@ def upload_leave_request_document(
 )
 def submit_leave_request_for_approval(
     leave_request_id: str,
+    body: LeaveRequestSubmit | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -562,7 +563,9 @@ def submit_leave_request_for_approval(
     }
     ```
     """
-    approval_request = service.submit_leave_request_for_approval(db, leave_request_id)
+    approval_request = service.submit_leave_request_for_approval(
+        db, leave_request_id, body.picked_approvers if body else None
+    )
     db.commit()
     db.refresh(approval_request)
 

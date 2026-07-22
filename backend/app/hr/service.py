@@ -170,6 +170,47 @@ def _next_leave_request_reference(db: Session) -> str:
     return f"LRQ-{year}-{num:04d}"
 
 
+def _reliever_from_picks(picked_approvers: dict[int, str] | None) -> str | None:
+    """
+    The reliever is the approver chosen for the workflow's requester_pick step.
+    Leave has a single requester_pick step, so take the lowest step number.
+    """
+    if not picked_approvers:
+        return None
+    first_step = min(picked_approvers)
+    return picked_approvers[first_step]
+
+
+def _requester_pick_steps(db: Session, request_type: str) -> list[int]:
+    """
+    Step numbers of the requester_pick steps on the workflow assigned to
+    request_type. Used so we never hard-code a step number — an admin can
+    reorder steps without breaking submission.
+    """
+    from app.shared.models.approval import (
+        WorkflowAssignment, WorkflowStep, AssigneeType,
+    )
+
+    assignment = (
+        db.query(WorkflowAssignment)
+        .filter(WorkflowAssignment.request_type == request_type)
+        .first()
+    )
+    if not assignment:
+        return []
+
+    steps = (
+        db.query(WorkflowStep)
+        .filter(
+            WorkflowStep.workflow_id == assignment.workflow_id,
+            WorkflowStep.assignee_type == AssigneeType.requester_pick,
+        )
+        .order_by(WorkflowStep.step_number)
+        .all()
+    )
+    return [s.step_number for s in steps]
+
+
 def create_leave_request(
     db: Session,
     payload: LeaveRequestCreate,
@@ -215,13 +256,22 @@ def create_leave_request(
     # Generate reference
     reference = _next_leave_request_reference(db)
 
+    # The reliever is the approver picked for the workflow's requester_pick step.
+    # The form sends picked_approvers; fall back to an explicit reliever_id.
+    reliever_id = payload.reliever_id or _reliever_from_picks(payload.picked_approvers)
+    if not reliever_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select a reliever before submitting this request",
+        )
+
     # Create request
     leave_request = LeaveRequest(
         reference=reference,
         requester_id=requester_id,
         employee_id=payload.employee_id,
         leave_type_id=payload.leave_type_id,
-        reliever_id=payload.reliever_id,
+        reliever_id=reliever_id,
         document_id=payload.document_id,
         request_type=payload.request_type,
         department=employee.department,
@@ -369,6 +419,7 @@ def get_leave_request_by_id(db: Session, leave_request_id: str) -> LeaveRequest:
 def submit_leave_request_for_approval(
     db: Session,
     leave_request_id: str,
+    picked_approvers: dict[int, str] | None = None,
 ) -> ApprovalRequest:
     """
     Submit a leave request for approval by entering the workflow engine.
@@ -400,18 +451,24 @@ def submit_leave_request_for_approval(
     # Submit to workflow engine
     engine = WorkflowEngine(db)
 
-    # The workflow step 1 expects requester_pick (reliever selection)
-    # The reliever is already specified on the leave_request
-    picked_approvers = {
-        1: leave_request.reliever_id  # Step 1: Reliever approval
-    } if leave_request.reliever_id else None
+    # Prefer the picks the requester made on the form. If none were sent
+    # (older clients, or a draft submitted later), fall back to assigning the
+    # stored reliever to whichever step is requester_pick — resolved from the
+    # workflow config rather than hard-coded, so reordering steps is safe.
+    if picked_approvers:
+        resolved_picks = picked_approvers
+    elif leave_request.reliever_id:
+        pick_steps = _requester_pick_steps(db, "leave_request")
+        resolved_picks = {step: leave_request.reliever_id for step in pick_steps[:1]}
+    else:
+        resolved_picks = None
 
     approval_request = engine.start(
         request_type="leave_request",
         request_id=leave_request_id,
         title=title,
         requester=requester,
-        picked_approvers=picked_approvers,
+        picked_approvers=resolved_picks,
     )
 
     return approval_request
@@ -461,9 +518,16 @@ def resubmit_leave_request(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
 
     # Apply edits
+    reliever_id = payload.reliever_id or _reliever_from_picks(payload.picked_approvers)
+    if not reliever_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select a reliever before resubmitting this request",
+        )
+
     lr.employee_id = payload.employee_id
     lr.leave_type_id = payload.leave_type_id
-    lr.reliever_id = payload.reliever_id
+    lr.reliever_id = reliever_id
     lr.request_type = payload.request_type
     lr.department = employee.department
     lr.job_title = employee.job_title
@@ -477,7 +541,7 @@ def resubmit_leave_request(
     db.flush()
 
     # Restart the workflow (engine.start creates a new attempt from step 1)
-    submit_leave_request_for_approval(db, lr.id)
+    submit_leave_request_for_approval(db, lr.id, payload.picked_approvers)
 
     return lr
 

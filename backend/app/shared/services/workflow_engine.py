@@ -145,7 +145,7 @@ def _resolve_assignee(
 _REQUEST_TYPE_PREFIX = {
     "procurement":    "REQ-PROC",
     "asset":          "REQ-ASSET",
-    "leave":          "REQ-LEAVE",
+    "leave_request":  "REQ-LEAVE",
     "cash_requisition":   "REQ-CASH",
     "invoice":            "REQ-INV",
     "work_initiation":    "REQ-WI",

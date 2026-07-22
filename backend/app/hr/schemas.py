@@ -74,13 +74,20 @@ class EmployeeLeaveBalancesRead(BaseModel):
 class LeaveRequestCreate(BaseModel):
     employee_id: str
     leave_type_id: int
-    reliever_id: str
+    # The reliever is the approver chosen for the workflow's requester_pick step.
+    # It may be omitted when picked_approvers is supplied — it is derived from it.
+    reliever_id: Optional[str] = None
     start_date: date
     end_date: date
     request_type: str = "self"  # "self" or "others"
     reason: Optional[str] = None
     document_id: Optional[int] = None
     picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
+
+
+class LeaveRequestSubmit(BaseModel):
+    """Body for submit-for-approval — carries the requester's approver picks."""
+    picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id}
 
 
 class LeaveRequestRead(BaseModel):

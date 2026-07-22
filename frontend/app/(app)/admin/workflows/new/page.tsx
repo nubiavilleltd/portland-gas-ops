@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/useToast";
 const REQUEST_TYPES = [
   { value: "procurement",      label: "Procurement Requests" },
   { value: "asset",            label: "Asset Requests" },
-  { value: "leave",            label: "Leave Requests" },
+  { value: "leave_request",    label: "Leave Requests" },
   { value: "cash_requisition", label: "Cash Requisitions" },
   { value: "invoice",          label: "Invoice Approvals" },
   { value: "work_initiation",  label: "Work Initiation" },
