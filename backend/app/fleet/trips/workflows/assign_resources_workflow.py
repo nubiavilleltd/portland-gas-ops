@@ -11,7 +11,7 @@ from app.orders.service import OrderService
 from app.fleet.drivers.service import DriverService
 from app.fleet.vehicles.service import VehicleService
 from app.fleet.trips.service import TripService
-
+from app.fleet.trips.email_content import notify_driver_assigned
 
 class AssignResourcesWorkflow:
 
@@ -72,6 +72,10 @@ class AssignResourcesWorkflow:
             awaiting_inventory=awaiting_inventory,
         )
 
+        print("After assign_resources")
+        print("trip.driver_id:", trip.driver_id)
+        print("trip.driver:", trip.driver)
+
         #
         # Update driver & vehicle
         #
@@ -80,6 +84,11 @@ class AssignResourcesWorkflow:
             driver_id=driver.id,
             trip_id=trip.id,
         )
+
+        db.refresh(trip)
+        print("After driver assignment")
+        print("trip.driver_id:", trip.driver_id)
+        print("trip.driver:", trip.driver)
 
         self.vehicle_service.assign_to_trip(
             db=db,
@@ -102,7 +111,7 @@ class AssignResourcesWorkflow:
 
             self.order_service.update_fulfillment_status(
                 db=db,
-                order_no=order.order_no,
+                order_id=order.id,
                 status="assigned",
             )
 
@@ -120,6 +129,11 @@ class AssignResourcesWorkflow:
             ),
             actor_type=AuditActorType.employee,
             actor_employee_id=actor_id,
+        )
+
+        notify_driver_assigned(
+            db=db,
+            trip_id=trip.id,
         )
 
         return trip

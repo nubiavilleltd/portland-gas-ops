@@ -95,13 +95,13 @@ class CancelTripWorkflow:
 
                 self.order_service.update_fulfillment_status(
                     db=db,
-                    order_no=order.order_no,
+                    order_id=order.id,
                     status="pending",
                 )
 
                 self.order_service.set_trip(
                     db=db,
-                    order_no=order.order_no,
+                    order_id=order.id,
                     trip_id=None,
                 )
 

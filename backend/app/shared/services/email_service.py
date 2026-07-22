@@ -338,6 +338,19 @@ def send_template_email(
     template_name: str,
     variables: Mapping[str, object],
 ) -> None:
+    """
+    Render an HTML email template and send it.
+
+    Args:
+        to_email: Recipient email address.
+        subject: Email subject.
+        template_name: Path to the template relative to app/templates/email/.
+            Example:
+                "fleet/trip_dispatched.html"
+                "fleet/driver_assigned.html"
+                "customers/welcome.html"
+        variables: Template placeholders.
+    """
     html = _render(
         template_name,
         {

@@ -26,7 +26,7 @@ export function useCancelTripWorkflow() {
       queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.items() });
       queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.movements() });
       toast.success("Trip cancelled");
-      router.push(FLEET_ROUTES.tripDetail(updatedTrip.trip_number));
+      router.push(FLEET_ROUTES.tripDetail(updatedTrip.id));
     },
 
     onError: (err: any) => {

@@ -74,7 +74,7 @@ export function useDispatchTripWorkflow() {
 
       toast.success("Trip dispatched successfully");
 
-      router.push(FLEET_ROUTES.tripDetail(updatedTrip.trip_number));
+      router.push(FLEET_ROUTES.tripDetail(updatedTrip.id));
     },
 
     onError: (err: any) => {

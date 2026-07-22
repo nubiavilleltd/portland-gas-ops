@@ -62,13 +62,13 @@ class CreateTripWorkflow:
 
             self.order_service.set_trip(
                 db=db,
-                order_no=order.order_no,
+                order_id=order.id,
                 trip_id=str(trip.id),
             )
 
             self.order_service.update_fulfillment_status(
                 db=db,
-                order_no=order.order_no,
+                order_id=order.id,
                 status="assigned",
             )
 

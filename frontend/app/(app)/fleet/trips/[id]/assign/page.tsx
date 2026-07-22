@@ -208,7 +208,7 @@ export default function AssignResourcesPage() {
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pb-10">
+        <div className="flex gap-3 pb-10">
           <Button
             onClick={handleAssign}
             disabled={!canSubmit || assignResources.isPending}
