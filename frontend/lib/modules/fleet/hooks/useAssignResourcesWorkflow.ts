@@ -16,6 +16,7 @@ import { FLEET_KEYS } from "../constants/query-keys";
 import { ORDER_KEYS } from "@/lib/modules/orders/constants/query-keys";
 
 import { FLEET_ROUTES } from "../constants/routes";
+import { AUDIT_KEYS } from "../../audit/constants/query-keys";
 
 export function useAssignResourcesWorkflow() {
   const queryClient = useQueryClient();
@@ -33,26 +34,27 @@ export function useAssignResourcesWorkflow() {
       );
 
       // ✅ UPDATE TRIPS LIST CACHE
-    //   queryClient.setQueriesData(
-    //     { queryKey: FLEET_KEYS.trips() },
-    //     (old?: Trip[]) =>
-    //       old?.map((trip) =>
-    //         trip.id === updatedTrip.id
-    //           ? updatedTrip
-    //           : trip
-    //       )
-    //   );
+      //   queryClient.setQueriesData(
+      //     { queryKey: FLEET_KEYS.trips() },
+      //     (old?: Trip[]) =>
+      //       old?.map((trip) =>
+      //         trip.id === updatedTrip.id
+      //           ? updatedTrip
+      //           : trip
+      //       )
+      //   );
 
-    queryClient.setQueriesData(
-  { queryKey: FLEET_KEYS.trips() },
-  (old: Trip[] | undefined) => {
-    if (!Array.isArray(old)) return old;
+      queryClient.setQueriesData(
+        { queryKey: FLEET_KEYS.trips() },
+        (old: Trip[] | undefined) => {
+          if (!Array.isArray(old)) return old;
 
-    return old.map((trip) =>
-      trip.id === updatedTrip.id ? updatedTrip : trip
-    );
-  }
-);
+          return old.map((trip) =>
+            trip.id === updatedTrip.id ? updatedTrip : trip
+          );
+        }
+      );
+
 
       // ✅ DRIVER + VEHICLE STATUS CHANGED
       queryClient.invalidateQueries({
@@ -68,6 +70,10 @@ export function useAssignResourcesWorkflow() {
         queryKey: ORDER_KEYS.lists(),
       });
 
+      queryClient.invalidateQueries({
+        queryKey: AUDIT_KEYS.entity("trip", updatedTrip.id),
+      });
+
       toast.success(
         "Driver and vehicle assigned successfully"
       );
@@ -80,7 +86,7 @@ export function useAssignResourcesWorkflow() {
     onError: (err: any) => {
       toast.error(
         err?.message ??
-          "Failed to assign driver and vehicle"
+        "Failed to assign driver and vehicle"
       );
     },
   });

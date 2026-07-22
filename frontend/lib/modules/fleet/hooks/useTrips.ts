@@ -3,16 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { TripsService } from "../services/trips.service";
 import { parseError } from "@/lib/errors";
 import { getActiveTrips, getPendingTrips, getTripByNo, getTripsByDriver, getTripsByVehicle } from "../selectors/trips.selectors";
+import { FLEET_KEYS } from "../constants/query-keys";
 
-export const TRIP_KEYS = {
-  all:    ["trips"],
-  lists:  () => [...TRIP_KEYS.all, "list"],
-  detail: (id: string) => [...TRIP_KEYS.all, id],
-};
+
 
 export function useTrips() {
   const query = useQuery({
-    queryKey: TRIP_KEYS.lists(),
+    queryKey: FLEET_KEYS.trips(),
     queryFn:  TripsService.getTrips,
     staleTime: 30_000,
   });
@@ -27,7 +24,7 @@ export function useTrips() {
 
 export function useTripById(id: string) {
   const query = useQuery({
-    queryKey: TRIP_KEYS.detail(id),
+    queryKey: FLEET_KEYS.trip(id),
     queryFn:  () => TripsService.getTripById(id),
     enabled:  !!id,
     staleTime: 30_000,

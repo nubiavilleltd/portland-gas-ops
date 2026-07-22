@@ -10,6 +10,7 @@ import { ORDER_KEYS } from "@/lib/modules/orders/constants/query-keys";
 import { INVENTORY_KEYS } from "@/lib/modules/inventory/constants/inventory-query-keys";
 import { FLEET_ROUTES } from "../constants/routes";
 import type { Trip } from "../types/trip.types";
+import { AUDIT_KEYS } from "../../audit/constants/query-keys";
 
 export function useAssignInventoryWorkflow() {
   const queryClient = useQueryClient();
@@ -30,6 +31,9 @@ export function useAssignInventoryWorkflow() {
       queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.items() });
       queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.movements() });
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.lists() });
+      queryClient.invalidateQueries({
+        queryKey: AUDIT_KEYS.entity("trip", updatedTrip.id),
+      });
 
       toast.success("Inventory assigned — trip is ready to dispatch");
       router.push(FLEET_ROUTES.tripDetail(updatedTrip.id));
