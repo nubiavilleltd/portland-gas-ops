@@ -61,7 +61,7 @@ export default function ProcurementDetailPage() {
       const response = await api.get(`/api/procurement/${id}/attachment/download`, {
         responseType: "blob",
       });
-      const blob     = new Blob([response.data], { type: response.headers["content-type"] || "application/pdf" });
+      const blob     = new Blob([response.data], { type: String(response.headers["content-type"] || "application/pdf") });
       const url      = URL.createObjectURL(blob);
       const filename = req?.attachment?.name ?? "attachment";
       const a        = document.createElement("a");
