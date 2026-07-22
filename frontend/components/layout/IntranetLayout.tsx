@@ -31,6 +31,7 @@ import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import { useSubmitFeedback } from "@/lib/modules/intranet/mutations";
+import PushManager from "./PushManager";
 import { useToast } from "@/hooks/useToast";
 import NotificationToaster from "./NotificationToaster";
 
@@ -176,6 +177,7 @@ export default function IntranetLayout({ children }: Props) {
     <div className="min-h-screen bg-[#F5F4F7]" style={{ fontFamily: "var(--font-mulish, var(--font-sans))" }}>
 
       <NotificationToaster />
+      <PushManager />
 
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
       <header className={cn(
