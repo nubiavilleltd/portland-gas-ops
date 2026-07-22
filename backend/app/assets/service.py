@@ -92,9 +92,9 @@ def get_category(db: Session, category_id: str) -> AssetCategory:
 
 
 def create_category(db: Session, data: AssetCategoryCreate) -> AssetCategory:
-    existing = db.query(AssetCategory).filter(AssetCategory.name == data.name).first()
+    existing = db.query(AssetCategory).filter(AssetCategory.name == data.name, AssetCategory.is_active == True).first()
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Category name already exists")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A category with this name already exists")
     cat = AssetCategory(**data.model_dump())
     db.add(cat)
     db.commit()
@@ -113,6 +113,31 @@ def update_category(db: Session, category_id: str, data: AssetCategoryUpdate) ->
 
 def delete_category(db: Session, category_id: str):
     cat = get_category(db, category_id)
+
+    active_type_count = (
+        db.query(AssetType)
+        .filter(AssetType.category_id == category_id, AssetType.is_active == True)
+        .count()
+    )
+    if active_type_count > 0:
+        noun = "type" if active_type_count == 1 else "types"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot remove this category — it still has {active_type_count} active {noun}. Remove all types first.",
+        )
+
+    active_asset_count = (
+        db.query(Asset)
+        .filter(Asset.category_id == category_id, Asset.is_active == True)
+        .count()
+    )
+    if active_asset_count > 0:
+        noun = "asset" if active_asset_count == 1 else "assets"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot remove this category — {active_asset_count} active {noun} still belong to it.",
+        )
+
     cat.is_active = False
     db.commit()
 
@@ -145,6 +170,19 @@ def delete_asset_type(db: Session, type_id: str):
     asset_type = db.query(AssetType).filter(AssetType.id == type_id, AssetType.is_active == True).first()
     if not asset_type:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset type not found")
+
+    active_count = (
+        db.query(Asset)
+        .filter(Asset.asset_type_id == type_id, Asset.is_active == True)
+        .count()
+    )
+    if active_count > 0:
+        noun = "asset" if active_count == 1 else "assets"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot remove this type — {active_count} active {noun} still use it. Reassign or retire those assets first.",
+        )
+
     asset_type.is_active = False
     db.commit()
 
@@ -160,9 +198,12 @@ def list_assets(
     status_filter: AssetStatus | None = None,
     search: str | None = None,
     employee_id: str | None = None,  # when set: return available OR assigned to this employee
+    include_inactive: bool = False,
 ):
     from sqlalchemy import or_
-    query = db.query(Asset).filter(Asset.is_active == True)
+    query = db.query(Asset)
+    if not include_inactive:
+        query = query.filter(Asset.is_active == True)
     if employee_id:
         query = query.filter(
             or_(Asset.status == AssetStatus.available, Asset.assigned_to == employee_id)
@@ -178,8 +219,11 @@ def list_assets(
     return query.order_by(Asset.created_at.desc()).offset(skip).limit(limit).all()
 
 
-def get_asset(db: Session, asset_id: str) -> Asset:
-    asset = db.query(Asset).filter(Asset.id == asset_id, Asset.is_active == True).first()
+def get_asset(db: Session, asset_id: str, include_inactive: bool = False) -> Asset:
+    query = db.query(Asset).filter(Asset.id == asset_id)
+    if not include_inactive:
+        query = query.filter(Asset.is_active == True)
+    asset = query.first()
     if not asset:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
     return asset
@@ -289,7 +333,7 @@ def create_asset(
     return asset
 
 
-def update_asset(db: Session, asset_id: str, data: AssetUpdate, attachment_id: int | None = None) -> Asset:
+def update_asset(db: Session, asset_id: str, data: AssetUpdate, attachment_id: int | None = None, performed_by_id: str | None = None) -> Asset:
     asset = get_asset(db, asset_id)
 
     update_data = data.model_dump(exclude_unset=True)
@@ -297,6 +341,11 @@ def update_asset(db: Session, asset_id: str, data: AssetUpdate, attachment_id: i
     if "total_quantity" in update_data:
         diff = update_data["total_quantity"] - asset.total_quantity
         asset.available_quantity = max(0, asset.available_quantity + diff)
+
+    # Detect status change before applying updates
+    new_status = update_data.get("status")
+    old_status = asset.status
+    status_changed = new_status is not None and new_status != old_status
 
     for field, value in update_data.items():
         setattr(asset, field, value)
@@ -312,14 +361,36 @@ def update_asset(db: Session, asset_id: str, data: AssetUpdate, attachment_id: i
     elif not asset.maintenance_type or not freq:
         asset.next_maintenance_due = None
 
+    if status_changed and performed_by_id:
+        old_label = old_status.value.replace("_", " ") if hasattr(old_status, "value") else str(old_status).replace("_", " ")
+        new_label = new_status.value.replace("_", " ") if hasattr(new_status, "value") else str(new_status).replace("_", " ")
+        _log_assignment_event(
+            db, asset,
+            event_type=AssetAssignmentEventType.status_changed,
+            performed_by_id=performed_by_id,
+            notes=f"Status changed from {old_label} to {new_label}",
+        )
+
     db.commit()
     db.refresh(asset)
     return asset
 
 
-def delete_asset(db: Session, asset_id: str):
+def delete_asset(db: Session, asset_id: str, performed_by_id: str | None = None):
     asset = get_asset(db, asset_id)
+    if asset.assigned_to:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot deactivate an asset that is currently assigned. Transfer or return it first.",
+        )
     asset.is_active = False
+    if performed_by_id:
+        _log_assignment_event(
+            db, asset,
+            event_type=AssetAssignmentEventType.status_changed,
+            performed_by_id=performed_by_id,
+            notes="Asset deactivated",
+        )
     db.commit()
 
 
@@ -599,7 +670,7 @@ def update_request_status(
     # Admin actions: approve, reject, allocate
     # Requester action: return (their own loan)
     if data.status == AssetRequestStatus.returned:
-        if not is_requester and not is_admin:
+        if not is_requester:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the requester can mark a loan as returned")
     else:
         if not is_admin:
@@ -635,6 +706,14 @@ def update_request_status(
                     if specific:
                         specific.status = AssetStatus.available
                         specific.assigned_to = None
+                        _log_assignment_event(
+                            db, specific,
+                            event_type=AssetAssignmentEventType.returned,
+                            performed_by_id=current_user.id,
+                            from_employee_id=requester_emp.id,
+                            from_employee_name=requester_emp.user.full_name if requester_emp.user else None,
+                            notes=f"Returned to stock via request {req.reference}",
+                        )
                     continue
                 type_id = item.asset_type_id or (item.asset.asset_type_id if item.asset else None)
                 if not type_id:
@@ -647,6 +726,14 @@ def update_request_status(
                 for asset in assigned_assets:
                     asset.status = AssetStatus.available
                     asset.assigned_to = None
+                    _log_assignment_event(
+                        db, asset,
+                        event_type=AssetAssignmentEventType.returned,
+                        performed_by_id=current_user.id,
+                        from_employee_id=requester_emp.id,
+                        from_employee_name=requester_emp.user.full_name if requester_emp.user else None,
+                        notes=f"Returned to stock via request {req.reference}",
+                    )
 
     req.status = data.status
     if data.rejection_reason:
@@ -680,7 +767,7 @@ def update_request_status(
                     requester_name=requester_user.full_name or requester_user.email,
                     request_type_label="Asset",
                     request_title=_req_ref,
-                    action="approved",
+                    action="loan_returned",
                     comment=None,
                     action_url=req_url,
                     result_message_override=(
@@ -733,6 +820,12 @@ def allocate_request(db: Session, request_id: str, data, current_user: User) -> 
                 to_employee_id=requester_emp.id if requester_emp else None,
                 to_employee_name=req.requester.full_name if req.requester else None,
             )
+
+        # Link the first allocated asset back to the item so the detail endpoint
+        # can return it. For quantity > 1 the schema supports one asset per item;
+        # the primary/first unit is sufficient to identify what was issued.
+        if alloc.asset_ids:
+            item.asset_id = alloc.asset_ids[0]
 
     req.status = AssetRequestStatus.allocated
     req.allocated_by = current_user.id
@@ -811,3 +904,29 @@ def create_maintenance_log(
     db.commit()
     db.refresh(log)
     return log
+
+
+def update_maintenance_log(
+    db: Session,
+    log_id: str,
+    data: MaintenanceLogCreate,
+) -> AssetMaintenanceLog:
+    log = db.query(AssetMaintenanceLog).filter(AssetMaintenanceLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Maintenance log not found")
+    log.performed_date = data.performed_date
+    log.maintenance_type = data.maintenance_type
+    log.technician = data.technician
+    log.cost = data.cost
+    log.notes = data.notes
+    db.commit()
+    db.refresh(log)
+    return log
+
+
+def delete_maintenance_log(db: Session, log_id: str) -> None:
+    log = db.query(AssetMaintenanceLog).filter(AssetMaintenanceLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Maintenance log not found")
+    db.delete(log)
+    db.commit()

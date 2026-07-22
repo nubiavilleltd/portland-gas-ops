@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +96,13 @@ export default function PickerModal<T>({
   if (!open && prevOpen) {
     setPrevOpen(false);
   }
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [open]);
 
   if (!open) return null;
 

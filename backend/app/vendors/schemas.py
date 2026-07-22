@@ -19,7 +19,7 @@ from app.vendors.models import VendorCategory, VendorStatus, VendorType
 class VendorCreate(BaseModel):
     name: str
     category: VendorCategory
-    vendor_type: VendorType = VendorType.permanent
+    vendor_type: VendorType = VendorType.approved
     contact_person: str
     phone: str
     email: EmailStr

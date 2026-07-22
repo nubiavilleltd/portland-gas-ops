@@ -1,16 +1,19 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { ChevronDown } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import FormSection from "@/components/ui/FormSection";
 import DynamicLineItems, { type LineItemColumn } from "@/components/ui/DynamicLineItems";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
+import AssetTypePickerModal from "@/components/ui/AssetTypePickerModal";
 import { useCreateAssetRequest, useAssetTypes, useAssetAvailability } from "@/lib/modules/assets";
 import { useToast } from "@/hooks/useToast";
 import { capitalize } from "@/lib/utils";
@@ -44,19 +47,25 @@ const DEFAULT_LINE_ITEM: LineItem = { asset_type_id: "", quantity: 1 };
 
 function NewAssetRequestForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedTypeId = searchParams.get("type_id") ?? "";
   const toast = useToast();
   const createRequest = useCreateAssetRequest();
-  const { data: assetTypes = [] } = useAssetTypes();
-  const availability = useAssetAvailability();
+  const { data: assetTypes = [], isLoading: typesLoading } = useAssetTypes();
+  const { availability, isLoading: availabilityLoading } = useAssetAvailability();
+  const dataLoading = typesLoading || availabilityLoading;
 
-  const [items, setItems] = useState<LineItem[]>([{ ...DEFAULT_LINE_ITEM }]);
+  const [items, setItems] = useState<LineItem[]>([
+    preselectedTypeId ? { asset_type_id: preselectedTypeId, quantity: 1 } : { ...DEFAULT_LINE_ITEM },
+  ]);
   const [itemsError, setItemsError] = useState<string | null>(null);
+  const [pickerOpenIdx, setPickerOpenIdx] = useState<number | null>(null);
 
   // Only show asset types that have at least 1 unit available
   const availableAssetTypes = assetTypes.filter((t) => (availability[t.id] ?? 0) > 0);
 
-  // Items where requested qty exceeds available stock
-  const stockErrors = items.filter(
+  // Only check stock errors after availability data has loaded — avoids false positives on first render
+  const stockErrors = availabilityLoading ? [] : items.filter(
     (item) => item.asset_type_id && item.quantity > (availability[item.asset_type_id] ?? 0)
   );
   const hasStockErrors = stockErrors.length > 0;
@@ -100,13 +109,43 @@ function NewAssetRequestForm() {
       });
       toast.success("Request submitted successfully");
       router.push("/assets/requests");
-    } catch {
-      toast.error("Failed to submit request. Please try again.");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
+  }
+
+  if (dataLoading) {
+    return (
+      <AppLayout pageTitle="Assets">
+        <BackButton label="Back to Assets" href="/assets" />
+        <PageHeader
+          title="New Asset Request"
+          description="Submit a loan or requisition request for company assets"
+          className="mb-6"
+        />
+        <div className="animate-pulse space-y-6">
+          <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-3">
+            <div className="h-4 w-32 rounded bg-gray-200" />
+            <div className="h-3 w-64 rounded bg-gray-100" />
+            <div className="h-32 w-full rounded-lg bg-gray-100 mt-2" />
+          </div>
+          <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-3">
+            <div className="h-4 w-36 rounded bg-gray-200" />
+            <div className="h-3 w-72 rounded bg-gray-100" />
+            <div className="h-48 w-full rounded-xl bg-gray-100 mt-2" />
+          </div>
+          <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-3">
+            <div className="h-4 w-40 rounded bg-gray-200" />
+            <div className="h-44 w-full rounded-lg bg-gray-100 mt-2" />
+          </div>
+        </div>
+      </AppLayout>
+    );
   }
 
   return (
     <AppLayout pageTitle="Assets">
+      <BackButton label="Back to Assets" href="/assets" />
       <PageHeader
         title="New Asset Request"
         description="Submit a loan or requisition request for company assets"
@@ -153,7 +192,7 @@ function NewAssetRequestForm() {
                 key: "asset_type_id",
                 label: "Asset Type",
                 width: "3fr",
-                render: (value, onChange) => {
+                render: (value, onChange, _row, rowIndex) => {
                   // Exclude types already selected in other rows
                   const selectedElsewhere = new Set(
                     items
@@ -163,22 +202,37 @@ function NewAssetRequestForm() {
                   const options = availableAssetTypes.filter(
                     (t) => !selectedElsewhere.has(t.id)
                   );
+                  const selectedType = assetTypes.find((t) => t.id === value);
+                  const avail = selectedType ? (availability[selectedType.id] ?? 0) : 0;
+
                   return (
-                    <select
-                      value={value as string}
-                      onChange={(e) => onChange(e.target.value)}
-                      className="w-full text-sm bg-transparent outline-none"
-                    >
-                      <option value="">Select asset type…</option>
-                      {options.map((t) => {
-                        const avail = availability[t.id] ?? 0;
-                        return (
-                          <option key={t.id} value={t.id}>
-                            {t.name} — {avail} available
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpenIdx(rowIndex)}
+                        className="w-full flex items-center justify-between gap-2 text-sm text-left"
+                      >
+                        {selectedType ? (
+                          <span className="text-brand-text-primary truncate">
+                            {selectedType.name}
+                            <span className="text-brand-text-secondary font-normal ml-1.5">· {avail} available</span>
+                          </span>
+                        ) : (
+                          <span className="text-brand-text-secondary">Select asset type…</span>
+                        )}
+                        <ChevronDown size={14} className="text-brand-text-secondary shrink-0" />
+                      </button>
+                      {pickerOpenIdx === rowIndex && (
+                        <AssetTypePickerModal
+                          open
+                          onClose={() => setPickerOpenIdx(null)}
+                          onSelect={(type) => { onChange(type.id); setPickerOpenIdx(null); }}
+                          items={options}
+                          availability={availability}
+                          selectedId={value as string}
+                        />
+                      )}
+                    </>
                   );
                 },
               },
@@ -235,6 +289,7 @@ function NewAssetRequestForm() {
             <FormDatePicker
               label="Return Date"
               required
+              min={new Date().toISOString().split("T")[0]}
               error={errors.return_date?.message}
               {...register("return_date")}
             />
@@ -263,9 +318,32 @@ function NewAssetRequestForm() {
   );
 }
 
+function RequestFormSkeleton() {
+  return (
+    <AppLayout pageTitle="Assets">
+      <div className="animate-pulse space-y-6">
+        <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-3">
+          <div className="h-4 w-32 rounded bg-gray-200" />
+          <div className="h-3 w-64 rounded bg-gray-100" />
+          <div className="h-32 w-full rounded-lg bg-gray-100 mt-2" />
+        </div>
+        <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-3">
+          <div className="h-4 w-36 rounded bg-gray-200" />
+          <div className="h-3 w-72 rounded bg-gray-100" />
+          <div className="h-48 w-full rounded-xl bg-gray-100 mt-2" />
+        </div>
+        <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-3">
+          <div className="h-4 w-40 rounded bg-gray-200" />
+          <div className="h-44 w-full rounded-lg bg-gray-100 mt-2" />
+        </div>
+      </div>
+    </AppLayout>
+  );
+}
+
 export default function NewAssetRequestPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<RequestFormSkeleton />}>
       <NewAssetRequestForm />
     </Suspense>
   );

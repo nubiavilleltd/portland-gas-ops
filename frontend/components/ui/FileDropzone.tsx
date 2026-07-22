@@ -43,6 +43,15 @@ interface Props {
   className?: string;
 }
 
+function isFileTypeAccepted(file: File, accept: string): boolean {
+  const accepted = accept.split(",").map((t) => t.trim().toLowerCase());
+  return accepted.some((type) => {
+    if (type.startsWith(".")) return file.name.toLowerCase().endsWith(type);
+    if (type.endsWith("/*")) return file.type.toLowerCase().startsWith(type.slice(0, -1));
+    return file.type.toLowerCase() === type;
+  });
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -70,6 +79,16 @@ export default function FileDropzone({
   function addFiles(incoming: FileList | File[]) {
     setLocalError(null);
     const list = Array.from(incoming);
+
+    // File type check
+    if (accept) {
+      const rejected = list.find((f) => !isFileTypeAccepted(f, accept));
+      if (rejected) {
+        const allowed = accept.replace(/\./g, "").toUpperCase().replace(/,/g, ", ");
+        setLocalError(`"${rejected.name}" is not an allowed file type. Accepted: ${allowed}.`);
+        return;
+      }
+    }
 
     // Size check
     const tooBig = list.find((f) => f.size > maxBytes);

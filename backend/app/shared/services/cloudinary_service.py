@@ -173,6 +173,74 @@ def upload_pdf(pdf_bytes: bytes, filename: str) -> Optional[str]:
         return None
 
 
+def download_via_admin_api(file_path: str) -> tuple[bytes, str]:
+    """
+    Download a Cloudinary file using the Admin API (api.cloudinary.com).
+
+    The CDN delivery URL (res.cloudinary.com) returns 401 on accounts flagged as
+    "untrusted" by Cloudinary, even with signed URLs.  The Admin API accepts a
+    signed request and returns the raw file bytes directly — bypassing the CDN
+    restriction entirely.
+    """
+    _configure()
+    import re
+    import time
+    import httpx
+    import cloudinary.utils
+
+    # URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/v{version}/{public_id}
+    # Signed URLs also contain s--signature-- before v{version}
+    match = re.search(
+        r"https?://res\.cloudinary\.com/[^/]+/(raw|image|video)/upload/(?:s--[^/]+--/)?(?:v\d+/)?(.+)",
+        file_path,
+    )
+    if not match:
+        raise ValueError(f"Cannot parse Cloudinary URL: {file_path}")
+
+    resource_type = match.group(1)
+    public_id     = match.group(2)
+
+    # private_download_url generates a signed Admin API URL that serves file bytes
+    admin_url = cloudinary.utils.private_download_url(
+        public_id,
+        "",                      # format — empty because raw public_ids include the extension
+        resource_type=resource_type,
+        type="upload",
+        expires_at=int(time.time()) + 300,  # 5-minute window
+    )
+
+    try:
+        response = httpx.get(admin_url, timeout=30, follow_redirects=True)
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        return response.content, content_type
+    except Exception as exc:
+        logger.error("Cloudinary admin download failed for %s: %s", file_path, exc)
+        raise HTTPException(status_code=502, detail="Failed to fetch file from storage")
+
+
+def download_file(file_path: str) -> tuple[bytes, str]:
+    """
+    Fetch a Cloudinary file by its delivery URL.
+    Cloudinary delivery URLs (res.cloudinary.com) are publicly accessible —
+    Basic Auth is not used here (that's only for the Admin API).
+    Returns (file_bytes, content_type).
+    """
+    import httpx
+    try:
+        response = httpx.get(
+            file_path,
+            timeout=30,
+            follow_redirects=True,
+        )
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        return response.content, content_type
+    except Exception as exc:
+        logger.error("Cloudinary download failed for %s: %s", file_path, exc)
+        raise HTTPException(status_code=502, detail="Failed to fetch file from storage")
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # STRUCTURED INTERFACE — used by products (and future domains needing metadata)
 # Returns UploadResult with url, public_id, file_size, format.

@@ -10,7 +10,7 @@ export type VendorCategory =
 
 export type VendorStatus = "active" | "inactive";
 
-export type VendorType = "permanent" | "temporary";
+export type VendorType = "approved" | "adhoc";
 
 export interface Vendor {
   id: string;

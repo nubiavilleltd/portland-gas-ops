@@ -28,6 +28,8 @@ import {
   useTransferAsset,
   useMaintenanceLogs,
   useCreateMaintenanceLog,
+  useUpdateMaintenanceLog,
+  useDeleteMaintenanceLog,
   useAssetCategories,
   useAssetTypes,
   useAssignmentLogs,
@@ -42,6 +44,9 @@ import type {
   AssetAssignmentLog,
 } from "@/types";
 import CurrencyInput from "@/components/forms/CurrencyInput";
+import FormDatePicker from "@/components/forms/FormDatePicker";
+import FormSelect from "@/components/forms/FormSelect";
+import FormTextarea from "@/components/forms/FormTextarea";
 
 const conditionOptions = [
   { value: "new", label: "New" },
@@ -204,6 +209,7 @@ function EditModal({
             ? parseFloat(form.purchase_cost)
             : undefined,
           condition: form.condition as import("@/types").AssetCondition,
+          status: form.status as import("@/types").AssetStatus,
           location: form.location || undefined,
           assigned_to: assignedEmployee?.id || undefined,
           description: form.description || undefined,
@@ -217,8 +223,8 @@ function EditModal({
       });
       toast.success("Asset updated successfully");
       onClose();
-    } catch {
-      toast.error("Failed to update asset");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 
@@ -253,43 +259,21 @@ function EditModal({
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Category
-              </label>
-              <select
-                value={form.category_id}
-                onChange={(e) => setCategory(e.target.value)}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
-              >
-                <option value="">No category</option>
-                {categoryOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Asset Type
-              </label>
-              <select
-                value={form.asset_type_id}
-                onChange={(e) => set("asset_type_id", e.target.value)}
-                disabled={!form.category_id || assetTypes.length === 0}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white disabled:opacity-50"
-              >
-                <option value="">
-                  {form.category_id ? "No type" : "Select a category first"}
-                </option>
-                {assetTypes.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormSelect
+              label="Category"
+              value={form.category_id}
+              onValueChange={(v) => setCategory(v)}
+              options={categoryOptions}
+              placeholder="No category"
+            />
+            <FormSelect
+              label="Asset Type"
+              value={form.asset_type_id}
+              onValueChange={(v) => set("asset_type_id", v)}
+              options={assetTypes.map((t) => ({ value: t.id, label: t.name }))}
+              placeholder={form.category_id ? "No type" : "Select a category first"}
+              disabled={!form.category_id || assetTypes.length === 0}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-brand-text-primary">
@@ -303,60 +287,32 @@ function EditModal({
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Condition
-              </label>
-              <select
-                value={form.condition}
-                onChange={(e) => set("condition", e.target.value)}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
-              >
-                {conditionOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) => set("status", e.target.value)}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
-              >
-                {statusOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormSelect
+              label="Condition"
+              value={form.condition}
+              onValueChange={(v) => set("condition", v)}
+              options={conditionOptions}
+            />
+            <FormSelect
+              label="Status"
+              value={form.status}
+              onValueChange={(v) => set("status", v)}
+              options={statusOptions}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Purchase Date
-              </label>
-              <input
-                type="date"
-                value={form.purchase_date}
-                onChange={(e) => set("purchase_date", e.target.value)}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-              />
-            </div>
-            {/* <div className="flex flex-col gap-1"><label className="text-sm font-medium text-brand-text-primary">Purchase Cost (NGN)</label><input type="number" min="0" step="0.01" value={form.purchase_cost} onChange={(e) => set("purchase_cost", e.target.value)} placeholder="0.00" className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple" /></div> */}
-            <div className="flex flex-col gap-1">
-              <CurrencyInput
-                label="Purchase Cost (NGN)"
-                value={form.purchase_cost}
-                onValueChange={(value) => set("purchase_cost", value)}
-                placeholder="0.00"
-              />
-            </div>
+            <FormDatePicker
+              label="Purchase Date"
+              value={form.purchase_date}
+              onValueChange={(v) => set("purchase_date", v)}
+              dropdownClassName="min-w-[280px]"
+            />
+            <CurrencyInput
+              label="Purchase Cost (NGN)"
+              value={form.purchase_cost}
+              onValueChange={(value) => set("purchase_cost", value)}
+              placeholder="0.00"
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-brand-text-primary">
@@ -376,7 +332,13 @@ function EditModal({
               value={assignedEmployee}
               onChange={setAssignedEmployee}
               placeholder="Search employee (optional)"
+              disabled={!!asset.assigned_to}
             />
+            {asset.assigned_to && (
+              <p className="text-xs text-brand-text-secondary">
+                Use the <span className="font-medium">Transfer</span> action to reassign this asset.
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-brand-text-primary">
@@ -391,43 +353,23 @@ function EditModal({
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Maintenance Type
-              </label>
-              <select
-                value={form.maintenance_type}
-                onChange={(e) => set("maintenance_type", e.target.value)}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
-              >
-                <option value="">None</option>
-                {maintenanceTypeOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Frequency
-              </label>
-              <select
-                value={form.maintenance_frequency_months}
-                onChange={(e) =>
-                  set("maintenance_frequency_months", e.target.value)
-                }
-                disabled={!form.maintenance_type}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white disabled:opacity-50"
-              >
-                <option value="">Not set</option>
-                {frequencyOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormSelect
+              label="Maintenance Type"
+              value={form.maintenance_type}
+              onValueChange={(v) => set("maintenance_type", v)}
+              options={maintenanceTypeOptions}
+              placeholder="None"
+              dropdownPosition="top"
+            />
+            <FormSelect
+              label="Frequency"
+              value={form.maintenance_frequency_months}
+              onValueChange={(v) => set("maintenance_frequency_months", v)}
+              options={frequencyOptions}
+              placeholder="Not set"
+              disabled={!form.maintenance_type}
+              dropdownPosition="top"
+            />
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-white sticky bottom-0 z-10 rounded-b-2xl">
@@ -475,13 +417,15 @@ function TransferModal({
   const toast = useToast();
   const transfer = useTransferAsset();
   const { data: employeeList = [] } = useEmployees();
-  const employees: PickedEmployee[] = employeeList.map((e) => ({
-    id: e.id,
-    name: [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
-    role: e.job_title ?? e.user?.role ?? "",
-    department: e.department ?? "",
-    avatar_url: e.user?.profile_picture_url,
-  }));
+  const employees: PickedEmployee[] = employeeList
+    .filter((e) => e.id !== asset.assigned_to)
+    .map((e) => ({
+      id: e.id,
+      name: [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+      role: e.job_title ?? e.user?.role ?? "",
+      department: e.department ?? "",
+      avatar_url: e.user?.profile_picture_url,
+    }));
   const [toEmployee, setToEmployee] = useState<PickedEmployee | null>(null);
   const [form, setForm] = useState({
     to_location: "",
@@ -507,8 +451,8 @@ function TransferModal({
       });
       toast.success("Asset transferred successfully");
       onClose();
-    } catch {
-      toast.error("Failed to transfer asset");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
   return (
@@ -560,18 +504,14 @@ function TransferModal({
               className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-brand-text-primary">
-              Notes (optional)
-            </label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              rows={2}
-              placeholder="Reason for transfer…"
-              className="rounded-lg border border-brand-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
-            />
-          </div>
+          <FormTextarea
+            label="Notes (optional)"
+            rows={2}
+            maxLength={500}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="Reason for transfer…"
+          />
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-gray-50/50 rounded-b-2xl">
           <button
@@ -636,8 +576,8 @@ function LogMaintenanceModal({
       });
       toast.success("Maintenance log added");
       onClose();
-    } catch {
-      toast.error("Failed to save maintenance log");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
   return (
@@ -661,32 +601,22 @@ function LogMaintenanceModal({
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Date Performed <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
+              <FormDatePicker
+                label="Date Performed"
+                required
+                max={new Date().toISOString().split("T")[0]}
                 value={form.performed_date}
-                onChange={(e) => set("performed_date", e.target.value)}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                onValueChange={(value) => set("performed_date", value)}
+                dropdownClassName="min-w-[280px]"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-brand-text-primary">
-                Type
-              </label>
-              <select
-                value={form.maintenance_type}
-                onChange={(e) => set("maintenance_type", e.target.value)}
-                className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
-              >
-                {maintenanceTypeOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormSelect
+              label="Type"
+              value={form.maintenance_type}
+              onValueChange={(v) => set("maintenance_type", v)}
+              options={maintenanceTypeOptions}
+              sortOptions={false}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-brand-text-primary">
@@ -713,18 +643,14 @@ function LogMaintenanceModal({
               className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-brand-text-primary">
-              Notes
-            </label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              rows={3}
-              placeholder="What was done, parts replaced, observations…"
-              className="rounded-lg border border-brand-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
-            />
-          </div>
+          <FormTextarea
+            label="Notes"
+            rows={3}
+            maxLength={1000}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="What was done, parts replaced, observations…"
+          />
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-gray-50/50 rounded-b-2xl">
           <button
@@ -755,6 +681,122 @@ function LogMaintenanceModal({
   );
 }
 
+function EditMaintenanceLogModal({
+  assetId,
+  log,
+  onClose,
+}: {
+  assetId: string;
+  log: AssetMaintenanceLog;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const updateLog = useUpdateMaintenanceLog(assetId);
+  const [form, setForm] = useState({
+    performed_date: log.performed_date,
+    maintenance_type: log.maintenance_type as MaintenanceType,
+    technician: log.technician ?? "",
+    cost: log.cost != null ? String(log.cost) : "",
+    notes: log.notes ?? "",
+  });
+  function set(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+  async function handleSave() {
+    if (!form.performed_date) { toast.error("Date performed is required"); return; }
+    try {
+      await updateLog.mutateAsync({
+        logId: log.id,
+        data: {
+          performed_date: form.performed_date,
+          maintenance_type: form.maintenance_type,
+          technician: form.technician || undefined,
+          cost: form.cost ? parseFloat(form.cost) : undefined,
+          notes: form.notes || undefined,
+        },
+      });
+      toast.success("Maintenance log updated");
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+          <h3 className="text-base font-semibold text-brand-text-primary">Edit Maintenance Log</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={18} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <FormDatePicker
+                label="Date Performed"
+                required
+                max={new Date().toISOString().split("T")[0]}
+                value={form.performed_date}
+                onValueChange={(value) => set("performed_date", value)}
+                dropdownClassName="min-w-[280px]"
+              />
+            </div>
+            <FormSelect
+              label="Type"
+              value={form.maintenance_type}
+              onValueChange={(v) => set("maintenance_type", v)}
+              options={maintenanceTypeOptions}
+              sortOptions={false}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">Technician / Company</label>
+            <input
+              value={form.technician}
+              onChange={(e) => set("technician", e.target.value)}
+              placeholder="e.g. ABC Services Ltd"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">Cost (NGN)</label>
+            <input
+              type="number" min="0" step="0.01"
+              value={form.cost}
+              onChange={(e) => set("cost", e.target.value)}
+              placeholder="0.00"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <FormTextarea
+            label="Notes"
+            rows={3}
+            maxLength={1000}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="What was done, parts replaced, observations…"
+          />
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-gray-50/50 rounded-b-2xl">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={updateLog.isPending}
+            className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {updateLog.isPending ? (
+              <><span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
+            ) : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminAssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -767,10 +809,13 @@ export default function AdminAssetDetailPage() {
   const qrRef = useRef<HTMLDivElement>(null);
 
   const searchParams = useSearchParams();
+  const deleteLog = useDeleteMaintenanceLog(id);
   const [editOpen, setEditOpen] = useState(() => searchParams.get("edit") === "true");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [editLogTarget, setEditLogTarget] = useState<AssetMaintenanceLog | null>(null);
+  const [deleteLogTarget, setDeleteLogTarget] = useState<AssetMaintenanceLog | null>(null);
   const [activeTab, setActiveTab] = useState<"details" | "log" | "maintenance">(
     "details",
   );
@@ -810,8 +855,8 @@ export default function AdminAssetDetailPage() {
       await deleteAsset.mutateAsync(id);
       toast.success("Asset deleted");
       router.push("/admin/assets");
-    } catch {
-      toast.error("Failed to delete asset");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
     setDeleteOpen(false);
   }
@@ -1294,20 +1339,40 @@ export default function AdminAssetDetailPage() {
                             </p>
                           )}
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-medium text-brand-text-primary">
-                            {formatDate(log.performed_date)}
-                          </p>
-                          {log.cost != null && (
-                            <p className="text-xs text-brand-text-secondary mt-0.5">
-                              {formatCurrency(Number(log.cost))}
+                        <div className="flex items-start gap-3 shrink-0">
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-brand-text-primary">
+                              {formatDate(log.performed_date)}
                             </p>
-                          )}
-                          {log.logged_by_name && (
-                            <p className="text-[10px] text-brand-text-secondary mt-1">
-                              Logged by {log.logged_by_name}
-                            </p>
-                          )}
+                            {log.cost != null && (
+                              <p className="text-xs text-brand-text-secondary mt-0.5">
+                                {formatCurrency(Number(log.cost))}
+                              </p>
+                            )}
+                            {log.logged_by_name && (
+                              <p className="text-[10px] text-brand-text-secondary mt-1">
+                                Logged by {log.logged_by_name}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditLogTarget(log)}
+                              className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+                              title="Edit log"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteLogTarget(log)}
+                              className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-500 transition-colors"
+                              title="Delete log"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1332,11 +1397,36 @@ export default function AdminAssetDetailPage() {
       {logOpen && (
         <LogMaintenanceModal assetId={id} onClose={() => setLogOpen(false)} />
       )}
+      {editLogTarget && (
+        <EditMaintenanceLogModal
+          assetId={id}
+          log={editLogTarget}
+          onClose={() => setEditLogTarget(null)}
+        />
+      )}
+      <ConfirmDialog
+        open={!!deleteLogTarget}
+        title="Delete Maintenance Log"
+        message={`Remove the ${deleteLogTarget?.maintenance_type.replace(/_/g, " ")} log from ${formatDate(deleteLogTarget?.performed_date ?? "")}? This cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={async () => {
+          if (!deleteLogTarget) return;
+          try {
+            await deleteLog.mutateAsync(deleteLogTarget.id);
+            toast.success("Maintenance log deleted");
+          } catch (err) {
+            toast.error((err as Error).message);
+          }
+          setDeleteLogTarget(null);
+        }}
+        onCancel={() => setDeleteLogTarget(null)}
+      />
       <ConfirmDialog
         open={deleteOpen}
-        title="Delete Asset"
-        message={`Are you sure you want to delete "${asset.name}"? This action cannot be undone.`}
-        confirmLabel="Delete Asset"
+        title="Deactivate Asset"
+        message={`Deactivate "${asset.name}"? It will be hidden from all users and requests but remain in the system for record-keeping. The asset must not be currently assigned.`}
+        confirmLabel="Deactivate"
         destructive
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}

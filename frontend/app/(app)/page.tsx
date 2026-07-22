@@ -22,7 +22,6 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
-import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import ActionModal from "@/components/ui/ActionModal";
 import Avatar from "@/components/ui/Avatar";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -322,6 +321,11 @@ export default function IntranetHomePage() {
   // Events for the currently viewed month
   const monthEvents = EVENTS.filter(e => e.year === calYear && e.monthNum === calMonth);
 
+  // Upcoming events — in the current month, only show today and future; future months show all
+  const upcomingMonthEvents = isCurrentMo
+    ? monthEvents.filter(ev => ev.day >= todayNum)
+    : monthEvents;
+
   // Map day → events[] for cells (multiple events can share a day)
   const dayEventsMap: Record<number, typeof EVENTS> = {};
   monthEvents.forEach(e => {
@@ -344,7 +348,7 @@ export default function IntranetHomePage() {
       {/* ── Hero — Background image + split layout ──────────────────────── */}
       {/* -mt-16 pulls the hero behind the fixed transparent header; pt-16 inside keeps text clear */}
       <section
-        className="flex flex-col lg:flex-row w-full relative overflow-hidden -mt-16"
+        className="w-full relative overflow-hidden -mt-16"
         style={{ minHeight: 460, backgroundColor: "#1C043B" }}
       >
         {/* Background photo — inline styles so no Next.js domain config needed */}
@@ -360,8 +364,11 @@ export default function IntranetHomePage() {
         {/* Dark overlay */}
         <div className="absolute inset-0" style={{ backgroundColor: "rgba(28, 4, 59, 0.85)" }} />
 
+        {/* Content constrained to same max-width as body */}
+        <div className="relative z-10 max-w-[1400px] mx-auto px-4 lg:px-8 flex flex-col lg:flex-row w-full" style={{ minHeight: 460 }}>
+
         {/* Left panel — pt-16 extra to clear the fixed navbar */}
-        <div className="relative z-10 flex-1 lg:w-[55%] px-10 pt-24 pb-12 flex flex-col justify-center">
+        <div className="flex-1 lg:w-[55%] px-6 pt-24 pb-12 flex flex-col justify-center">
           <p className="text-[#FFBC00] text-xs font-bold uppercase tracking-widest mb-3" suppressHydrationWarning>
             {mounted ? todayStr() : ""}
           </p>
@@ -369,10 +376,6 @@ export default function IntranetHomePage() {
             Welcome back, {firstName} 👋
           </h1>
           <p className="text-white/50 text-sm mb-6">The Clean Energy Standard — stay informed, stay connected.</p>
-
-          <div className="max-w-md">
-            <IntranetSearchBar value={q} onChange={setQ} placeholder="Search news, events, policies, people…" />
-          </div>
 
           <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mt-6 mb-2">Quick Links</p>
           <div className="flex flex-wrap gap-2">
@@ -390,7 +393,7 @@ export default function IntranetHomePage() {
         </div>
 
         {/* Right panel — Leadership carousel — pt-16 to clear navbar */}
-        <div className="relative z-10 lg:w-[45%] flex items-center justify-center pt-20 pb-4 px-4">
+        <div className="lg:w-[45%] flex items-center justify-center pt-20 pb-4 px-4">
           <div className="bg-white/5 rounded-2xl p-7 w-full relative overflow-hidden flex flex-col" style={{ minHeight: 300 }}>
             <span
               className="text-white/5 font-serif leading-none absolute top-2 right-4 pointer-events-none select-none"
@@ -454,6 +457,7 @@ export default function IntranetHomePage() {
             </div>
           </div>
         </div>
+        </div>{/* end max-width container */}
       </section>
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
@@ -524,7 +528,14 @@ export default function IntranetHomePage() {
                 <h3 className="font-bold text-[#1C043B] text-sm">Employee Spotlight</h3>
                 <Link href="/people" className="text-xs text-[#7234BD] font-semibold hover:underline">View all →</Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+              <div className={cn(
+                "grid gap-4 flex-1",
+                SPOTLIGHTS.length === 1
+                  ? "grid-cols-1 sm:grid-cols-1 sm:max-w-xs"
+                  : SPOTLIGHTS.length === 2
+                    ? "grid-cols-1 sm:grid-cols-2"
+                    : "grid-cols-1 sm:grid-cols-3"
+              )}>
                 {peopleLoading ? (
                   [1, 2, 3].map((i) => (
                     <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col items-center animate-pulse h-full">
@@ -728,7 +739,7 @@ export default function IntranetHomePage() {
                   {feed[0] && (
                     <Link
                       href={`/news/${feed[0].id}`}
-                      className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-all mb-4"
+                      className="flex flex-col sm:flex-row rounded-2xl overflow-hidden border border-gray-200 shadow-md hover:shadow-lg transition-all mb-4"
                     >
                       <div className="relative w-full h-52 sm:w-[240px] sm:h-auto sm:min-h-[200px] shrink-0">
                         <Image src={feed[0].img} alt={feed[0].title} fill sizes="(max-width:640px) 100vw, 240px" className="object-cover" />
@@ -911,11 +922,11 @@ export default function IntranetHomePage() {
                     </div>
                   ))}
                 </div>
-              ) : monthEvents.length === 0 ? (
-                <p className="text-xs text-gray-400 py-4 text-center">No events this month.</p>
+              ) : upcomingMonthEvents.length === 0 ? (
+                <p className="text-xs text-gray-400 py-4 text-center">No upcoming events this month.</p>
               ) : (
                 <div className="space-y-1.5 overflow-y-auto pr-0.5 flex-1 min-h-0">
-                  {monthEvents.map((ev) => {
+                  {upcomingMonthEvents.map((ev) => {
                     const isActive  = selectedDay === null || ev.day === selectedDay;
                     const isHighlit = selectedDay === ev.day;
                     return (
@@ -1018,7 +1029,7 @@ export default function IntranetHomePage() {
               </p>
             </div>
             <button
-              onClick={openFeedback}
+              onClick={() => window.dispatchEvent(new Event("open-feedback-modal"))}
               className="mt-auto self-start bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors"
             >
               Submit Feedback
@@ -1102,7 +1113,7 @@ export default function IntranetHomePage() {
               Thank you! 💜
             </button>
 
-            <p className="text-[10px] text-gray-300 mt-4">
+            <p className="text-[11px] text-gray-500 mt-4">
               From the entire Portland Gas family
             </p>
           </div>

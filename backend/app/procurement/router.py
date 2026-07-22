@@ -16,7 +16,11 @@ Endpoints:
   PATCH  /purchase-orders/{po_id}/status  update PO delivery status (admin)
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Form, File, UploadFile
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -26,7 +30,7 @@ from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 from app.procurement.schemas import (
     ProcurementCreate, ProcurementUpdate,
-    IssuePORequest, POStatusUpdate,
+    IssuePORequest, POStatusUpdate, ConfirmDeliveryBody,
     ProcurementResponse, ProcurementListItem, PurchaseOrderResponse,
 )
 from app.procurement.repository import ProcurementRepository
@@ -251,6 +255,29 @@ def update_request(
     return req
 
 
+@router.get("/{request_id}/attachment/download")
+def download_attachment(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Stream the attachment through the backend using the Cloudinary Admin API.
+    The CDN delivery URL returns 401 on accounts flagged as untrusted by Cloudinary;
+    the Admin API bypasses this restriction."""
+    from fastapi.responses import Response
+    from app.shared.services import cloudinary_service
+    employee = get_employee_by_user_id(current_user.id, db)
+    req = _svc(db).get_request(request_id, current_user, employee)
+    if not req.attachment or not req.attachment.file_path:
+        raise HTTPException(status_code=404, detail="No attachment found for this request")
+    file_bytes, content_type = cloudinary_service.download_via_admin_api(req.attachment.file_path)
+    return Response(
+        content=file_bytes,
+        media_type=content_type,
+        headers={"Content-Disposition": f'inline; filename="{req.attachment.name}"'},
+    )
+
+
 @router.delete("/{request_id}/attachment", response_model=ProcurementResponse)
 def remove_attachment(
     request_id: str,
@@ -343,7 +370,7 @@ def approve_and_issue_po(
     svc_instance = _svc(db)
 
     # Approve step 4 — engine advances to step 5 (not final, so on_final_approval won't fire)
-    result = engine.approve(approval_request_id, employee, comment=None)
+    result = engine.approve(approval_request_id, employee, comment=body.comment)
 
     # Manually set to "approved" so issue_po_internal's status check passes,
     # then issue_po_internal sets it to "awaiting_confirmation"
@@ -364,6 +391,7 @@ def approve_and_issue_po(
 @router.post("/{request_id}/confirm-delivery", response_model=ProcurementResponse)
 def confirm_delivery(
     request_id: str,
+    body: ConfirmDeliveryBody = ConfirmDeliveryBody(),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -391,7 +419,7 @@ def confirm_delivery(
     def on_final_approval():
         svc_instance.confirm_delivery_internal(request_id)
 
-    engine.approve(approval_request_id, employee, comment=None, on_final_approval=on_final_approval)
+    engine.approve(approval_request_id, employee, comment=body.comment, on_final_approval=on_final_approval)
 
     db.commit()
 
@@ -399,6 +427,29 @@ def confirm_delivery(
     db.refresh(proc_req)
 
     return proc_req
+
+
+@router.get("/{request_id}/po/download")
+def download_po(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Stream the PO PDF through the backend via Cloudinary Admin API."""
+    from fastapi.responses import Response
+    from app.shared.services import cloudinary_service
+    employee = get_employee_by_user_id(current_user.id, db)
+    req = _svc(db).get_request(request_id, current_user, employee)
+    po = next((p for p in req.purchase_orders if p.document and p.document.file_path), None)
+    if not po:
+        raise HTTPException(status_code=404, detail="No PO document found for this request")
+    file_bytes, content_type = cloudinary_service.download_via_admin_api(po.document.file_path)
+    filename = f"{po.po_number}.pdf"
+    return Response(
+        content=file_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{request_id}/purchase-orders/{po_id}/regenerate-pdf", response_model=ProcurementResponse)

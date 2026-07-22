@@ -13,13 +13,13 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import FormSelect from "@/components/forms/FormSelect";
 import FormInput from "@/components/forms/FormInput";
+import FormPhoneInput from "@/components/forms/FormPhoneInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import { useCreateProcurement, useUpdateProcurement, useSubmitProcurement, useProcurement, useRemoveProcurementAttachment, useUploadProcurementAttachment, PROCUREMENT_ERRORS, PROCUREMENT_MESSAGES } from "@/lib/modules/procurement";
+import { useCreateProcurement, useUpdateProcurement, useSubmitProcurement, useProcurement, useRemoveProcurementAttachment, useUploadProcurementAttachment, PROCUREMENT_MESSAGES } from "@/lib/modules/procurement";
 import type { AttachmentInProcurement } from "@/types";
 import { useVendors, useCreateVendor } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
-import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency, capitalize } from "@/lib/utils";
 import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
 import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
@@ -128,6 +128,7 @@ function NewProcurementContent() {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
+      required_by: "",
       items: [{ description: "", quantity: "", unit: "pieces", unit_cost: "", total_cost: "0" }],
     },
   });
@@ -264,7 +265,7 @@ function NewProcurementContent() {
         const newVendor = await createVendor.mutateAsync({
           name:           formData.new_vendor_name.trim(),
           category:       formData.category,
-          vendor_type:    "temporary",
+          vendor_type:    "adhoc",
           contact_person: formData.new_vendor_contact_person || undefined,
           phone:          formData.new_vendor_phone          || undefined,
           email:          formData.new_vendor_email          || undefined,
@@ -320,7 +321,7 @@ function NewProcurementContent() {
       }
       router.push("/procurement");
     } catch (err) {
-      toast.error(getErrorMessage(err, PROCUREMENT_ERRORS));
+      toast.error((err as Error).message);
     }
   }
 
@@ -368,6 +369,7 @@ function NewProcurementContent() {
                 <FormDatePicker
                   label="Required By"
                   required
+                  min={new Date().toISOString().split("T")[0]}
                   error={errors.required_by?.message}
                   name={field.name}
                   value={field.value}
@@ -493,7 +495,7 @@ function NewProcurementContent() {
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <FormInput
+                <FormPhoneInput
                   label="Phone"
                   required
                   placeholder="+234 xxx xxx xxxx"

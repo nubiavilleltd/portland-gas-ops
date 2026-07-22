@@ -18,6 +18,7 @@ import {
   Info,
   Clock,
   Cake,
+  MessageSquarePlus,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +26,16 @@ import { cn } from "@/lib/utils";
 import Avatar from "@/components/ui/Avatar";
 import { useNotifications, useMarkNotificationRead, useMarkAllRead } from "@/lib/modules/notifications/hooks";
 import type { AppNotification, NotificationType } from "@/lib/modules/notifications/types";
+import ActionModal from "@/components/ui/ActionModal";
+import Button from "@/components/ui/Button";
+import FormInput from "@/components/forms/FormInput";
+import FormTextarea from "@/components/forms/FormTextarea";
+import { useSubmitFeedback } from "@/lib/modules/intranet/mutations";
+import { useToast } from "@/hooks/useToast";
+import NotificationToaster from "./NotificationToaster";
+
+type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
+const FEEDBACK_CATEGORIES: FeedbackCategory[] = ["General", "IT", "HR", "Suggestion", "Complaint"];
 
 const DEMO_NAME = "Portland Gas";
 
@@ -54,7 +65,8 @@ function getTypeMeta(n: AppNotification) {
 }
 
 function timeAgo(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
+  const utc  = isoString.endsWith("Z") ? isoString : isoString + "Z";
+  const diff = Date.now() - new Date(utc).getTime();
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins} min ago`;
@@ -77,12 +89,61 @@ export default function IntranetLayout({ children }: Props) {
   const notifRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  const toast = useToast();
+  const submitFeedbackMutation = useSubmitFeedback();
+  const [feedbackOpen,       setFeedbackOpen]       = useState(false);
+  const [feedbackCategory,   setFeedbackCategory]   = useState<FeedbackCategory>("General");
+  const [feedbackSubject,    setFeedbackSubject]    = useState("");
+  const [feedbackMessage,    setFeedbackMessage]    = useState("");
+  const [feedbackAnonymous,  setFeedbackAnonymous]  = useState(false);
+  const [feedbackErrors,     setFeedbackErrors]     = useState<Record<string, string>>({});
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
+  function openFeedback() {
+    setFeedbackCategory("General");
+    setFeedbackSubject("");
+    setFeedbackMessage("");
+    setFeedbackAnonymous(false);
+    setFeedbackErrors({});
+    setFeedbackOpen(true);
+  }
+
+  async function submitFeedback() {
+    const errs: Record<string, string> = {};
+    if (!feedbackSubject.trim()) errs.subject = "Subject is required";
+    if (!feedbackMessage.trim()) errs.message = "Please enter your feedback";
+    setFeedbackErrors(errs);
+    if (Object.keys(errs).length) return;
+    setFeedbackSubmitting(true);
+    try {
+      await submitFeedbackMutation.mutateAsync({
+        category: feedbackCategory,
+        subject: feedbackSubject,
+        message: feedbackMessage,
+        is_anonymous: feedbackAnonymous,
+      });
+      setFeedbackOpen(false);
+      toast.success("Feedback submitted. Thank you!");
+    } catch {
+      toast.error("Could not submit feedback. Please try again.");
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }
+
   // Real notifications
   const { data: notifications = [] } = useNotifications({ limit: 30 });
   const markRead    = useMarkNotificationRead();
   const markAllRead = useMarkAllRead();
 
   const unread = notifications.filter((n) => !n.is_read).length;
+
+  // Allow any page inside the layout to open the feedback modal via a custom event
+  useEffect(() => {
+    const handler = () => openFeedback();
+    window.addEventListener("open-feedback-modal", handler);
+    return () => window.removeEventListener("open-feedback-modal", handler);
+  }, []);
 
   // Blend with hero when at top; solidify on scroll
   useEffect(() => {
@@ -113,6 +174,8 @@ export default function IntranetLayout({ children }: Props) {
 
   return (
     <div className="min-h-screen bg-[#F5F4F7]" style={{ fontFamily: "var(--font-mulish, var(--font-sans))" }}>
+
+      <NotificationToaster />
 
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
       <header className={cn(
@@ -168,6 +231,15 @@ export default function IntranetLayout({ children }: Props) {
               <LayoutDashboard size={13} />
               Workflow
             </Link>
+
+            {/* ── Feedback CTA ── */}
+            <button
+              onClick={openFeedback}
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#FFBC00]/60 text-[#FFBC00] text-xs font-semibold hover:bg-[#FFBC00]/10 hover:border-[#FFBC00] transition-all duration-150 btn-press"
+            >
+              <MessageSquarePlus size={13} />
+              Feedback
+            </button>
 
             {/* ── Notifications ── */}
             <div ref={notifRef} className="relative">
@@ -326,6 +398,84 @@ export default function IntranetLayout({ children }: Props) {
 
       {/* pt-16 offsets the fixed header (h-16 = 64px) */}
       <main className="animate-page-enter pt-16">{children}</main>
+
+      {/* ── Feedback Modal ─────────────────────────────────────────────────── */}
+      <ActionModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        title="Submit Feedback"
+        variant="dialog"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setFeedbackOpen(false)} disabled={feedbackSubmitting}>Cancel</Button>
+            <Button onClick={submitFeedback} loading={feedbackSubmitting} loadingText="Submitting…">Submit Feedback</Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          {/* Category pills */}
+          <div>
+            <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide mb-2">Category</p>
+            <div className="flex flex-wrap gap-2">
+              {FEEDBACK_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setFeedbackCategory(cat)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    feedbackCategory === cat
+                      ? "bg-brand-purple text-white border-brand-purple"
+                      : "bg-white text-brand-text-secondary border-brand-border hover:border-brand-purple/40"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <FormInput
+            label="Subject"
+            required
+            placeholder="Brief summary of your feedback"
+            value={feedbackSubject}
+            onChange={(e) => { setFeedbackSubject(e.target.value); setFeedbackErrors((p) => ({ ...p, subject: "" })); }}
+            error={feedbackErrors.subject}
+          />
+
+          <FormTextarea
+            label="Message"
+            required
+            placeholder="Provide details about your feedback, suggestion, or issue…"
+            value={feedbackMessage}
+            onChange={(e) => { setFeedbackMessage(e.target.value); setFeedbackErrors((p) => ({ ...p, message: "" })); }}
+            rows={5}
+            error={feedbackErrors.message}
+          />
+
+          <label
+            className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+              feedbackAnonymous ? "bg-brand-purple/5 border-brand-purple/20" : "bg-gray-50 border-brand-border"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={feedbackAnonymous}
+              onChange={(e) => setFeedbackAnonymous(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-brand-purple"
+            />
+            <div>
+              <p className="text-sm font-medium text-brand-text-primary">Submit anonymously</p>
+              <p className="text-xs text-brand-text-secondary mt-0.5">
+                {feedbackAnonymous
+                  ? "Your name and department will not be attached to this feedback."
+                  : "Your name and department will be visible to administrators."}
+              </p>
+            </div>
+          </label>
+        </div>
+      </ActionModal>
     </div>
   );
 }
