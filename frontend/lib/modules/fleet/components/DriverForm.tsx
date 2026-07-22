@@ -183,7 +183,7 @@ export default function DriverForm({
                   onValueChange={field.onChange}
                   onBlur={field.onBlur}
                   error={fieldState.error?.message}
-                  min={new Date().toISOString().split("T")[0]}
+                  ={new Date().toISOString().split("T")[0]}min
 
                 />
               )}

@@ -2,18 +2,9 @@
 
 import AppLayout from "@/components/layout/AppLayout";
 import FormSection from "@/components/ui/FormSection";
+import Skeleton from "@/components/ui/Skeleton";
 
-function Skeleton({
-  className = "",
-}: {
-  className?: string;
-}) {
-  return (
-    <div
-      className={`animate-pulse rounded-md bg-brand-border/60 ${className}`}
-    />
-  );
-}
+
 
 export default function TripDetailSkeleton() {
   return (

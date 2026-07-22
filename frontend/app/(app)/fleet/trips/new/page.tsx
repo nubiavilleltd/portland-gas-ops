@@ -187,7 +187,7 @@ function CreateTripForm() {
           title="Trip Details"
           description="Configure trip type, destination, and scheduling information"
         >
-          <div className="space-y-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               control={control}
               name="type"
@@ -232,12 +232,14 @@ function CreateTripForm() {
 
             <FormInput
               label="Start Location"
+              required
               {...register("start_location")}
               error={errors.start_location?.message}
             />
 
             <FormInput
               label="End Location"
+              required
               {...register("end_location")}
               error={errors.end_location?.message}
             />
@@ -246,6 +248,8 @@ function CreateTripForm() {
               label="Scheduled Date"
               required
               {...register("scheduled_date")}
+              min={new Date().toISOString().split("T")[0]}
+              error={errors.scheduled_date?.message}
             />
 
             <FormTextarea
@@ -257,7 +261,7 @@ function CreateTripForm() {
 
         <ErrorBanner message={errors.root?.message} />
 
-        <div className="flex justify-end gap-3 pb-10">
+        <div className="flex gap-3 pb-10 mt-5">
           <Button
             type="submit"
             loading={isSubmitting || createTrip.isPending}

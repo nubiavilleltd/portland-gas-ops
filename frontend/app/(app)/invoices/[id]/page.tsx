@@ -36,19 +36,20 @@ import { needsPayment } from "@/lib/modules/payments/types/payments.types";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { generateInvoicePdf } from "@/lib/pdf/invoice.pdf";
+import InvoiceDetailSkeleton from "@/lib/modules/invoices/components/InvoiceDetailSkeleton";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-    const { invoice } = useInvoiceById(id);
+    const { invoice, isLoading } = useInvoiceById(id);
 
-  const { order } = useOrderById(
+  const { order, isLoading:isLoadingOrders } = useOrderById(
     invoice?.order_id ?? ""
   );
-  const { customer } = useCustomerById(order?.customerId as string)
-  const { products } = useProducts();
+  const { customer, isLoading:isLoadingCustomers } = useCustomerById(order?.customerId as string)
+  const { products, isLoading:isLoadingProducts } = useProducts();
 
     const { summary: paymentSummary } =
     usePaymentSummary(invoice?.id);
@@ -64,6 +65,18 @@ export default function InvoiceDetailPage() {
   const productMap = new Map(products.map((p) => [p.id, p]));
 
 
+
+
+
+
+if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
+  return (
+    <AppLayout pageTitle="Invoice">
+      <InvoiceDetailSkeleton />
+    </AppLayout>
+  );
+}
+
   if (!invoice) {
     return (
       <AppLayout pageTitle="Invoice Not Found">
@@ -73,6 +86,8 @@ export default function InvoiceDetailPage() {
       </AppLayout>
     );
   }
+
+
 
   const amountPaid =
     paymentSummary?.amountPaid ?? 0;
@@ -136,7 +151,7 @@ export default function InvoiceDetailPage() {
       label: "",
       align: "right",
       render: (payment) => (
-        <Button size="sm" variant="outline" href={`/payments/${payment.paymentNo}/receipt`}>
+        <Button size="sm" variant="outline" href={`/payments/${payment.id}/receipt`}>
           View Receipt →
         </Button>
       ),
@@ -318,7 +333,7 @@ export default function InvoiceDetailPage() {
               />
             </div>
 
-            <Button variant="outline" href={`/orders/${order.orderNumber}`}>
+            <Button variant="outline" href={`/orders/${order.id}`}>
               View Order →
             </Button>
           </FormSection>
@@ -330,7 +345,7 @@ export default function InvoiceDetailPage() {
             {needsPayment(invoice.status) && canPay && (
               <Button
                 size="sm"
-                href={`/payments/new?invoiceId=${invoice.invoice_number}`}
+                href={`/payments/new?invoiceId=${invoice.id}`}
               >
                 Make Payment →
               </Button>
