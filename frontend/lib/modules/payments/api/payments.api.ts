@@ -7,24 +7,18 @@ export const paymentsApi = {
         return data;
     },
 
-    get: async (paymentNo: string) => {
-        const { data } = await api.get(`/api/payments/${paymentNo}`);
+    get: async (id: string) => {
+        const { data } = await api.get(`/api/payments/${id}`);
         return data;
     },
 
-    getByInvoice: async (invoiceNo: string) => {
-        const { data } = await api.get(`/api/payments/by-invoice/${invoiceNo}`);
+    getByInvoice: async (id: string) => {
+        const { data } = await api.get(`/api/payments/by-invoice/${id}`);
         return data;
     },
 
     record: async (
-        input: {
-            invoice_id: string;
-            amount: number;
-            method: PaymentMethod;
-            payment_date: string;
-            reference?: string;
-        },
+        input: FormData,
         idempotencyKey: string,
     ) => {
         const { data } = await api.post("/api/payments", input, {

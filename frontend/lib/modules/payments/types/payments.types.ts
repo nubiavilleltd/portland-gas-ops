@@ -7,6 +7,15 @@ export type PaymentStatus =
   | "overdue"
   | "void";
 
+
+  export interface PaymentAttachment {
+    id: string;
+    fileName: string;
+    url: string;
+}
+
+
+
 export interface Payment {
   id: string;
 
@@ -27,6 +36,7 @@ export interface Payment {
   recordedBy: string;
 
   createdAt: string;
+  attachments: PaymentAttachment[];
 }
 
 
@@ -36,7 +46,10 @@ export interface CreatePaymentInput {
   payment_method: PaymentMethod
   payment_date: string;
   reference?: string;
+  attachment?: File;
   recorded_by?: string;
+
+  paymentProofs: File[];
 }
 
 

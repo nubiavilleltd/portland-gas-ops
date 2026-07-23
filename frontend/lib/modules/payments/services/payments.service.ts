@@ -39,14 +39,22 @@ export class PaymentsService {
   static async recordPayment(input: CreatePaymentInput): Promise<Payment> {
     try {
       const idempotencyKey = getIdempotencyKey(input.invoice_id);
+      const formData = new FormData();
+
+      formData.append("invoice_id", input.invoice_id);
+      formData.append("amount", input.amount.toString());
+      formData.append("method", input.payment_method);
+      formData.append("payment_date", input.payment_date);
+
+      if (input.reference) {
+        formData.append("reference", input.reference);
+      }
+
+      input.paymentProofs.forEach((file) => {
+        formData.append("payment_proofs", file);
+      });
       const raw = await paymentsApi.record(
-        {
-          invoice_id:   input.invoice_id,
-          amount:       input.amount,
-          method:       input.payment_method as any,
-          payment_date: input.payment_date,
-          reference:    input.reference,
-        },
+        formData,
         idempotencyKey,
       );
       // Rotate key after success so next payment on same invoice is fresh

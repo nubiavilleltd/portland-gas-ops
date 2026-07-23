@@ -1,4 +1,4 @@
-import type { Payment, PaymentMethod } from "../types/payments.types";
+import type { Payment, PaymentAttachment, PaymentMethod } from "../types/payments.types";
 
 interface BackendPayment {
     id: string;
@@ -10,6 +10,7 @@ interface BackendPayment {
     payment_date: string;
     reference: string | null;
     recorded_by: string;
+    attachments?: BackendPaymentAttachment[];
     created_at: string;
 }
 
@@ -19,6 +20,22 @@ interface BackendPaymentList {
     page: number;
     page_size: number;
     has_next: boolean;
+}
+
+interface BackendPaymentAttachment {
+  id: string;
+  file_name: string;
+  file_url: string;
+}
+
+function adaptPaymentAttachment(
+  raw: BackendPaymentAttachment
+): PaymentAttachment {
+  return {
+    id: raw.id,
+    fileName: raw.file_name,
+    url: raw.file_url,
+  };
 }
 
 export function adaptPayment(raw: BackendPayment): Payment {
@@ -40,6 +57,7 @@ export function adaptPayment(raw: BackendPayment): Payment {
     paymentDate: raw.payment_date,
 
     recordedBy: raw.recorded_by,
+    attachments: (raw.attachments ?? []).map(adaptPaymentAttachment),
 
     createdAt: raw.created_at,
   };
