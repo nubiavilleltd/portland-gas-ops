@@ -153,3 +153,25 @@ export interface ReturnItemInput {
   notes?: string;
   recorded_by: string;
 }
+
+
+
+// ── KPI TYPES ────────────────────────────────────────────
+
+export interface TrackedInventoryKPIs {
+  totalTrackedItems: number;
+  availableItems: number;
+  reservedItems: number;
+  checkedOutItems: number;
+  withCustomerItems: number;
+  maintenanceItems: number;
+  retiredItems: number;
+}
+
+export interface ConsumableInventoryKPIs {
+  totalProducts: number;
+  totalQuantity: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+  warehouseCount: number;
+}

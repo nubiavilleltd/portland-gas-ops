@@ -44,13 +44,13 @@ import { useState } from "react";
 export default function CheckInPage() {
   const router = useRouter();
 
-  const { products,  isLoading: productsLoading  } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts();
   const { locations, isLoading: locationsLoading } = useLocations();
 
-  const checkInTracked    = useCheckInTracked();
+  const checkInTracked = useCheckInTracked();
   const checkInConsumable = useCheckInConsumable();
 
-  const activeProducts    = getActiveProducts(products);
+  const activeProducts = getActiveProducts(products);
   const defaultLocationId = locations.find((l) => l.is_default)?.id ?? "";
 
 
@@ -72,11 +72,11 @@ export default function CheckInPage() {
     resolver: zodResolver(checkInTrackedSchema),
     mode: "onTouched",
     defaultValues: {
-      product_id:  "",
+      product_id: "",
       location_id: defaultLocationId,
-      quantity:    "",
-      condition:   "new",
-      notes:       "",
+      quantity: "",
+      condition: "new",
+      notes: "",
     },
   });
 
@@ -85,15 +85,15 @@ export default function CheckInPage() {
     resolver: zodResolver(checkInConsumableSchema),
     mode: "onTouched",
     defaultValues: {
-      product_id:  "",
+      product_id: "",
       location_id: defaultLocationId,
-      quantity:    "",
-      notes:       "",
+      quantity: "",
+      notes: "",
     },
   });
 
   // ── Watch selected product across both forms ──────────────
-  const trackedProductId    = trackedForm.watch("product_id");
+  const trackedProductId = trackedForm.watch("product_id");
   const consumableProductId = consumableForm.watch("product_id");
 
   // The "active" product drives which form is shown
@@ -102,7 +102,7 @@ export default function CheckInPage() {
     useState<string>("");
 
   const selectedProduct = getProductById(products, selectedProductId);
-  const productType     = selectedProduct
+  const productType = selectedProduct
     ? isTracked(selectedProduct) ? "tracked" : "consumable"
     : null;
 
@@ -117,21 +117,21 @@ export default function CheckInPage() {
       trackedForm.setValue("location_id", defaultLocationId);
       // Reset consumable form
       consumableForm.reset({
-        product_id:  "",
+        product_id: "",
         location_id: defaultLocationId,
-        quantity:    "",
-        notes:       "",
+        quantity: "",
+        notes: "",
       });
     } else {
       consumableForm.setValue("product_id", productId);
       consumableForm.setValue("location_id", defaultLocationId);
       // Reset tracked form
       trackedForm.reset({
-        product_id:  "",
+        product_id: "",
         location_id: defaultLocationId,
-        quantity:    "",
-        condition:   "new",
-        notes:       "",
+        quantity: "",
+        condition: "new",
+        notes: "",
       });
     }
   }
@@ -143,11 +143,13 @@ export default function CheckInPage() {
       await checkInTracked.mutateAsync({
         ...data,
         product_code: product?.code ?? data.product_id.toUpperCase().slice(0, 3),
-        recorded_by:  "Warehouse Staff",
+        recorded_by: "Warehouse Staff",
       });
       trackedForm.reset();
       setSelectedProductId("");
-      router.push(INVENTORY_ROUTES.list());
+      router.push(
+        INVENTORY_ROUTES.list("tracked"),
+      );
     } catch (err) {
       trackedForm.setError("root", {
         message: err instanceof Error ? err.message : "Failed to check in items",
@@ -164,7 +166,9 @@ export default function CheckInPage() {
       });
       consumableForm.reset();
       setSelectedProductId("");
-      router.push(INVENTORY_ROUTES.list());
+      router.push(
+        INVENTORY_ROUTES.list("consumable"),
+      );
     } catch (err) {
       consumableForm.setError("root", {
         message: err instanceof Error ? err.message : "Failed to update stock",
@@ -227,33 +231,33 @@ export default function CheckInPage() {
               >
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <Controller
-                  control={trackedForm.control}
-                  name="location_id"
-                  render={({ field }) => (
-                    <FormSelect
-                      label="Location"
-                      required
-                      options={locationOptions}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      error={trackedForm.formState.errors.location_id?.message}
-                    />
-                  )}
-                />
+                  <Controller
+                    control={trackedForm.control}
+                    name="location_id"
+                    render={({ field }) => (
+                      <FormSelect
+                        label="Location"
+                        required
+                        options={locationOptions}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        error={trackedForm.formState.errors.location_id?.message}
+                      />
+                    )}
+                  />
 
-                <FormInput
-                  label="Quantity"
-                  type="number"
-                  required
-                  placeholder="How many units arriving?"
-                  hint="A tag number will be generated for each unit"
-                  error={trackedForm.formState.errors.quantity?.message}
-                  {...trackedForm.register("quantity")}
-                />
+                  <FormInput
+                    label="Quantity"
+                    type="number"
+                    required
+                    placeholder="How many units arriving?"
+                    hint="A tag number will be generated for each unit"
+                    error={trackedForm.formState.errors.quantity?.message}
+                    {...trackedForm.register("quantity")}
+                  />
 
                 </div>
-            
+
                 <Controller
                   control={trackedForm.control}
                   name="condition"
@@ -298,34 +302,34 @@ export default function CheckInPage() {
               >
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Controller
-                  control={consumableForm.control}
-                  name="location_id"
-                  render={({ field }) => (
-                    <FormSelect
-                      label="Location"
-                      required
-                      options={locationOptions}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      error={consumableForm.formState.errors.location_id?.message}
-                    />
-                  )}
-                />
+                  <Controller
+                    control={consumableForm.control}
+                    name="location_id"
+                    render={({ field }) => (
+                      <FormSelect
+                        label="Location"
+                        required
+                        options={locationOptions}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        error={consumableForm.formState.errors.location_id?.message}
+                      />
+                    )}
+                  />
 
-                <FormInput
-                  label="Quantity"
-                  type="text"
-                  inputMode="numeric"
-                  required
-                  placeholder="e.g. 5,000"
-                  hint={`Unit: ${selectedProduct?.unit ?? ""}`}
-                  error={consumableForm.formState.errors.quantity?.message}
-                  {...consumableForm.register("quantity")}
-                />
+                  <FormInput
+                    label="Quantity"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    placeholder="e.g. 5,000"
+                    hint={`Unit: ${selectedProduct?.unit ?? ""}`}
+                    error={consumableForm.formState.errors.quantity?.message}
+                    {...consumableForm.register("quantity")}
+                  />
 
                 </div>
-              
+
                 <FormTextarea
                   label="Notes"
                   placeholder="Supplier reference, delivery note number, etc."

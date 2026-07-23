@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import {
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { Plus } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -11,23 +15,25 @@ import Badge from "@/components/ui/Badge";
 
 import {
   useInventoryItems,
-  useInventoryKPIs,
   useConsumableStock,
+  useTrackedInventoryKPIs,
+  useConsumableInventoryKPIs,
 } from "@/lib/modules/inventory/hooks/useInventory";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 
 import {
   getProductById,
-  getActiveProducts,
 } from "@/lib/modules/products/selectors/products.selectors";
-import { isTracked } from "@/lib/modules/products/types/product.types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import type { ConsumableStock } from "@/lib/modules/inventory/types/inventory.types";
 import { BadgeVariant } from "@/config/badge.config";
 import { KpiCard } from "@/lib/modules/orders/components/KpiCard";
+import TrackedInventoryKpis from "@/lib/modules/inventory/components/TrackedInventoryKpis";
+import ConsumableInventoryKpis from "@/lib/modules/inventory/components/ConsumableInventoryKpis";
+import { InventoryTab } from "@/lib/modules/inventory/constants/inventory-tabs";
 
 // ── Status badge map ──────────────────────────────────────
 const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
@@ -50,20 +56,36 @@ const STATUS_LABEL: Record<InventoryItem["status"], string> = {
   returned:       "Returned",
 };
 
-// ── Tab type ──────────────────────────────────────────────
-type Tab = "tracked" | "consumable";
-
 // ── Page ──────────────────────────────────────────────────
 export default function InventoryListPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("tracked");
+  const router = useRouter();
+const pathname = usePathname();
+const searchParams = useSearchParams();
+
+const activeTab: InventoryTab =
+  searchParams.get("tab") === "consumable"
+    ? "consumable"
+    : "tracked";
 
   const { items,   isLoading: itemsLoading   } = useInventoryItems();
   const { stock,   isLoading: stockLoading   } = useConsumableStock();
-  const { kpis,    isLoading: kpisLoading    } = useInventoryKPIs();
   const { products, isLoading: productsLoading } = useProducts();
 
-  const isLoading = itemsLoading || stockLoading || productsLoading;
 
+
+
+  const {
+  kpis: trackedKpis,
+} = useTrackedInventoryKPIs();
+
+const {
+  kpis: consumableKpis,
+} = useConsumableInventoryKPIs();
+
+  const isLoading =
+  itemsLoading ||
+  stockLoading ||
+  productsLoading;
 
 
 const trackedColumns: Column<InventoryItem>[] = [
@@ -165,6 +187,15 @@ const consumableColumns: Column<ConsumableStock>[] = [
   },
 ];
 
+function handleTabChange(tab: InventoryTab) {
+  router.replace(
+    `${pathname}?tab=${tab}`,
+    {
+      scroll: false,
+    },
+  );
+}
+
 
   return (
     <AppLayout pageTitle="Inventory">
@@ -182,46 +213,18 @@ const consumableColumns: Column<ConsumableStock>[] = [
         className="mb-6"
       />
 
-      {/* KPI Cards — tracked items only */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        <KpiCard
-          label="Total Items"
-          value={kpis.totalTrackedItems}
-          variant="primary"
-        />
-        <KpiCard
-          label="Available"
-          value={kpis.availableItems}
-          variant="success"
-        />
-        <KpiCard
-          label="Reserved"
-          value={kpis.reservedItems}
-          variant="warning"
-        />
-        <KpiCard
-          label="Checked Out"
-          value={kpis.checkedOutItems}
-          variant="info"
-        />
-        <KpiCard
-          label="With Customer"
-          value={kpis.withCustomerItems}
-          variant="info"
-        />
-        <KpiCard
-          label="Maintenance"
-          value={kpis.maintenanceItems}
-          variant="warning"
-        />
-      </div>
+     {activeTab === "tracked" ? (
+  <TrackedInventoryKpis kpis={trackedKpis} />
+) : (
+  <ConsumableInventoryKpis kpis={consumableKpis} />
+)}
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit mb-6">
-        {(["tracked", "consumable"] as Tab[]).map((tab) => (
+        {(["tracked", "consumable"] as InventoryTab[]).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => handleTabChange(tab)}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
               activeTab === tab
                 ? "bg-white text-brand-text-primary shadow-sm"

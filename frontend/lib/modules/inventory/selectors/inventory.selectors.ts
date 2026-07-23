@@ -6,7 +6,12 @@ import type {
   ConsumableStock,
   StockMovement,
   WarehouseLocation,
+  TrackedInventoryKPIs,
+  ConsumableInventoryKPIs,
 } from "../types/inventory.types";
+
+import type { Product } from "@/lib/modules/products/types/product.types";
+
 
 // ── LOCATIONS ────────────────────────────────────────────
 
@@ -119,24 +124,53 @@ export function getMovementsByItem(
 
 // ── KPIs ─────────────────────────────────────────────────
 
-export interface InventoryKPIs {
-  totalTrackedItems: number;
-  availableItems: number;
-  reservedItems: number;
-  checkedOutItems: number;
-  withCustomerItems: number;
-  maintenanceItems: number;
-  retiredItems: number;
-}
-
-export function getInventoryKPIs(items: InventoryItem[]): InventoryKPIs {
+export function getTrackedInventoryKPIs(
+  items: InventoryItem[],
+): TrackedInventoryKPIs {
   return {
     totalTrackedItems: items.length,
-    availableItems:    items.filter((i) => i.status === "available").length,
-    reservedItems:     items.filter((i) => i.status === "reserved").length,
-    checkedOutItems:   items.filter((i) => i.status === "checked_out").length,
+    availableItems: items.filter((i) => i.status === "available").length,
+    reservedItems: items.filter((i) => i.status === "reserved").length,
+    checkedOutItems: items.filter((i) => i.status === "checked_out").length,
     withCustomerItems: items.filter((i) => i.status === "with_customer").length,
-    maintenanceItems:  items.filter((i) => i.status === "maintenance").length,
-    retiredItems:      items.filter((i) => i.status === "retired").length,
+    maintenanceItems: items.filter((i) => i.status === "maintenance").length,
+    retiredItems: items.filter((i) => i.status === "retired").length,
+  };
+}
+
+
+
+
+
+export function getConsumableInventoryKPIs(
+  stock: ConsumableStock[],
+  products: Product[],
+): ConsumableInventoryKPIs {
+  const lowStockProducts = stock.filter((item) => {
+    const product = products.find((p) => p.id === item.product_id);
+
+    return (
+      product?.minimumStock != null &&
+      item.quantity <= product.minimumStock
+    );
+  }).length;
+
+  const outOfStockProducts = stock.filter(
+    (item) => item.quantity <= 0,
+  ).length;
+
+  const warehouseCount = new Set(
+    stock.map((s) => s.location_id),
+  ).size;
+
+  return {
+    totalProducts: stock.length,
+    totalQuantity: stock.reduce(
+      (sum, item) => sum + item.quantity,
+      0,
+    ),
+    lowStockProducts,
+    outOfStockProducts,
+    warehouseCount,
   };
 }

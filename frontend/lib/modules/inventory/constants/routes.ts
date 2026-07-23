@@ -1,5 +1,8 @@
 export const INVENTORY_ROUTES = {
-  list: () => "/admin/inventory",
+  list: (tab?: "tracked" | "consumable") =>
+    tab
+      ? `/admin/inventory?tab=${tab}`
+      : "/admin/inventory",
 
   checkIn: () => "/admin/inventory/check-in",
 
