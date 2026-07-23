@@ -244,9 +244,9 @@ const EMPTY_TRACKED_KPIS: TrackedInventoryKPIs = {
   availableItems: 0,
   reservedItems: 0,
   checkedOutItems: 0,
-  withCustomerItems: 0,
-  maintenanceItems: 0,
-  retiredItems: 0,
+  // withCustomerItems: 0,
+  // maintenanceItems: 0,
+  // retiredItems: 0,
 };
 
 const EMPTY_CONSUMABLE_KPIS: ConsumableInventoryKPIs = {
@@ -254,8 +254,10 @@ const EMPTY_CONSUMABLE_KPIS: ConsumableInventoryKPIs = {
   totalQuantity: 0,
   lowStockProducts: 0,
   outOfStockProducts: 0,
-  warehouseCount: 0,
+  // outOfStockItems: 0,
 };
+
+
 
 export function useTrackedInventoryKPIs() {
   const { items, isLoading, error, refetch } = useInventoryItems();

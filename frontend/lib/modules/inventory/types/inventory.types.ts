@@ -163,15 +163,20 @@ export interface TrackedInventoryKPIs {
   availableItems: number;
   reservedItems: number;
   checkedOutItems: number;
-  withCustomerItems: number;
-  maintenanceItems: number;
-  retiredItems: number;
+  // withCustomerItems: number;
+  // maintenanceItems: number;
+  // retiredItems: number;
 }
+
 
 export interface ConsumableInventoryKPIs {
   totalProducts: number;
   totalQuantity: number;
   lowStockProducts: number;
   outOfStockProducts: number;
-  warehouseCount: number;
+  // warehouseCount: number;
 }
+
+
+
+

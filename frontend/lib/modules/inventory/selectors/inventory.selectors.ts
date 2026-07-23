@@ -132,9 +132,9 @@ export function getTrackedInventoryKPIs(
     availableItems: items.filter((i) => i.status === "available").length,
     reservedItems: items.filter((i) => i.status === "reserved").length,
     checkedOutItems: items.filter((i) => i.status === "checked_out").length,
-    withCustomerItems: items.filter((i) => i.status === "with_customer").length,
-    maintenanceItems: items.filter((i) => i.status === "maintenance").length,
-    retiredItems: items.filter((i) => i.status === "retired").length,
+    // withCustomerItems: items.filter((i) => i.status === "with_customer").length,
+    // maintenanceItems: items.filter((i) => i.status === "maintenance").length,
+    // retiredItems: items.filter((i) => i.status === "retired").length,
   };
 }
 
@@ -159,9 +159,9 @@ export function getConsumableInventoryKPIs(
     (item) => item.quantity <= 0,
   ).length;
 
-  const warehouseCount = new Set(
-    stock.map((s) => s.location_id),
-  ).size;
+  // const warehouseCount = new Set(
+  //   stock.map((s) => s.location_id),
+  // ).size;
 
   return {
     totalProducts: stock.length,
@@ -171,6 +171,6 @@ export function getConsumableInventoryKPIs(
     ),
     lowStockProducts,
     outOfStockProducts,
-    warehouseCount,
+    // warehouseCount,
   };
 }
