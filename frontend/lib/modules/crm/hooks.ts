@@ -318,7 +318,7 @@ export function useCustomerOnboardingDetails(id: string) {
     queryKey: ["crm", "customer-onboarding", id],
 
     queryFn: async () =>
-      MOCK_CUSTOMER_ONBOARDING.find((customer) => customer.id === id),
+      MOCK_CUSTOMER_ONBOARDING.find((customer) => customer.id === id) ?? null,
   });
 }
 
@@ -544,7 +544,7 @@ export function useCustomerContactDetails(id: string) {
   return useQuery({
     queryKey: ["crm", "customer-contact", id],
     queryFn: async () =>
-      MOCK_CUSTOMER_CONTACTS.find((contact) => contact.id === id),
+      MOCK_CUSTOMER_CONTACTS.find((contact) => contact.id === id) ?? null,
   });
 }
 
@@ -972,6 +972,7 @@ export function useCustomerContactsByCustomer(customerId?: string) {
 export function useCustomerVisitDetails(id: string) {
   return useQuery({
     queryKey: ["customer-visit", id],
-    queryFn: async () => customerVisits.find((visit) => visit.id === id),
+    queryFn: async () =>
+      customerVisits.find((visit) => visit.id === id) ?? null,
   });
 }

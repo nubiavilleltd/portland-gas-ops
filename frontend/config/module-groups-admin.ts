@@ -24,6 +24,7 @@ import {
   Users2,
   Warehouse,
   SlidersHorizontal,
+  TrendingUp,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -52,8 +53,16 @@ export const moduleGroups: readonly ModuleGroup[] = [
         icon: BarChart2,
         href: "/admin/crm/",
       },
+      {
+        name: "Purchase Trends",
+        description:
+          "Analyze customer purchasing behaviour and spending trends",
+        icon: TrendingUp,
+        href: "/admin/crm/purchase-trends",
+      },
     ],
   },
+
   {
     title: "Intranet CMS",
     routePrefixes: ["/admin/intranet"],

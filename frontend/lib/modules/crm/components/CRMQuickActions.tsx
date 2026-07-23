@@ -1,6 +1,12 @@
 "use client";
 
-import { UserPlus, Users, Contact, CalendarPlus } from "lucide-react";
+import {
+  UserPlus,
+  Users,
+  Contact,
+  CalendarPlus,
+  ShoppingCart,
+} from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
@@ -11,7 +17,7 @@ export default function CRMQuickActions() {
       title="Quick Actions"
       description="Frequently used CRM actions."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Button
           href="/crm/customers/new"
           variant="secondary"
@@ -46,6 +52,15 @@ export default function CRMQuickActions() {
           className="justify-start"
         >
           View Visits
+        </Button>
+
+        <Button
+          href="/admin/crm/purchase-trends"
+          variant="secondary"
+          leftIcon={<ShoppingCart size={18} />}
+          className="justify-start"
+        >
+          Purchase Trends
         </Button>
       </div>
     </FormSection>

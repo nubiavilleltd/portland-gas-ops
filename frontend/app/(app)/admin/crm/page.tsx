@@ -20,12 +20,18 @@ import {
   CheckCircle2,
   RotateCw,
   XCircle,
+  Wallet,
+  ShoppingCart,
+  TrendingUp,
+  BadgeDollarSign,
 } from "lucide-react";
 
 import RecentContactsTable from "@/lib/modules/crm/components/RecentContactsTable";
 import ActiveCustomersTable from "@/lib/modules/crm/components/ActiveCustomersTable";
 import CRMQuickActions from "@/lib/modules/crm/components/CRMQuickActions";
 import UpcomingVisitsTable from "@/lib/modules/crm/components/UpcomingVisitsTable";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
+
 export default function CRMDashboardPage() {
   const {
     data: customers = [],
@@ -44,8 +50,13 @@ export default function CRMDashboardPage() {
     isLoading: loadingVisits,
     isError: visitError,
   } = useCustomerVisits();
-
-  const loading = loadingCustomers || loadingContacts || loadingVisits;
+  const {
+    orders = [],
+    isLoading: loadingOrders,
+    error: orderError,
+  } = useOrders();
+  const loading =
+    loadingCustomers || loadingContacts || loadingVisits || loadingOrders;
 
   if (loading) {
     return (
@@ -56,8 +67,7 @@ export default function CRMDashboardPage() {
       </AppLayout>
     );
   }
-
-  if (customerError || contactError || visitError) {
+  if (customerError || contactError || visitError || orderError) {
     return (
       <AppLayout pageTitle="CRM Dashboard">
         <div className="py-20 text-center text-brand-text-secondary">
@@ -118,6 +128,31 @@ export default function CRMDashboardPage() {
   const mostVisitedCustomer = Object.entries(customerVisitCounts).sort(
     (a, b) => b[1] - a[1],
   )[0];
+
+  const totalOrders = orders.length;
+
+  const totalRevenue = orders.reduce(
+    (sum, order) => sum + Number(order.totalAmount || 0),
+    0,
+  );
+
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  const customerPurchaseCounts = orders.reduce<Record<string, number>>(
+    (acc, order) => {
+      if (!order.customerName) return acc;
+
+      acc[order.customerName] =
+        (acc[order.customerName] || 0) + Number(order.totalAmount || 0);
+
+      return acc;
+    },
+    {},
+  );
+
+  const topPurchasingCustomer = Object.entries(customerPurchaseCounts).sort(
+    (a, b) => b[1] - a[1],
+  )[0];
   return (
     <AppLayout pageTitle="CRM Dashboard">
       <PageHeader
@@ -126,7 +161,8 @@ export default function CRMDashboardPage() {
       />
 
       <div className="space-y-8">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {/* Customer Overview */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Card
             icon={<Users className="h-5 w-5" />}
             title="Total Customers"
@@ -152,7 +188,56 @@ export default function CRMDashboardPage() {
               <span className="text-3xl font-bold">{contacts.length}</span>
             }
           />
+        </div>
 
+        {/* Sales & Purchase Performance */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card
+            icon={<BadgeDollarSign className="h-5 w-5" />}
+            title="Top Purchasing Customer"
+            description={
+              topPurchasingCustomer ? (
+                <span className="text-2xl font-bold">
+                  {topPurchasingCustomer[0]} • ₦
+                  {topPurchasingCustomer[1].toLocaleString()}
+                </span>
+              ) : (
+                <span className="text-2xl font-bold">
+                  No purchase data available
+                </span>
+              )
+            }
+          />
+          <Card
+            icon={<ShoppingCart className="h-5 w-5" />}
+            title="Total Orders"
+            description={
+              <span className="text-3xl font-bold">{totalOrders}</span>
+            }
+          />
+          <Card
+            icon={<Wallet className="h-5 w-5" />}
+            title="Total Revenue"
+            description={
+              <span className="text-3xl font-bold">
+                ₦{totalRevenue.toLocaleString()}
+              </span>
+            }
+          />
+
+          <Card
+            icon={<TrendingUp className="h-5 w-5" />}
+            title="Average Order Value"
+            description={
+              <span className="text-3xl font-bold">
+                ₦{averageOrderValue.toLocaleString()}
+              </span>
+            }
+          />
+        </div>
+
+        {/* Customer Engagement */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card
             icon={<CalendarDays className="h-5 w-5" />}
             title="Scheduled Visits"
@@ -162,7 +247,6 @@ export default function CRMDashboardPage() {
               </span>
             }
           />
-
           <Card
             icon={<CheckCircle2 className="h-5 w-5" />}
             title="Completed Visits"
@@ -191,17 +275,16 @@ export default function CRMDashboardPage() {
             }
           />
 
-          <Card
+          {/* <Card
             icon={<Clock3 className="h-5 w-5" />}
             title="Visits This Month"
             description={
               <span className="text-3xl font-bold">{visits.length}</span>
             }
-          />
+          /> */}
         </div>
 
-        <CRMQuickActions />
-
+        {/* Business Insights */}
         <div className="grid gap-6 lg:grid-cols-3">
           <Card
             title="Top Sales Executive"
@@ -230,13 +313,17 @@ export default function CRMDashboardPage() {
             }
           />
         </div>
+        <CRMQuickActions />
 
+        {/* Data Tables */}
         <ActiveCustomersTable customers={activeCustomers.slice(0, 5)} />
+
         <RecentContactsTable
           contacts={contacts
-            .filter((item) => item?.status?.toLowerCase() == "active")
+            .filter((item) => item?.status?.toLowerCase() === "active")
             .slice(0, 5)}
         />
+
         <UpcomingVisitsTable
           visits={scheduledVisits
             .sort(
