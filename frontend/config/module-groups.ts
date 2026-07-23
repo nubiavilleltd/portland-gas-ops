@@ -62,6 +62,12 @@ export const moduleGroups: readonly ModuleGroup[] = [
         icon: Users2,
         href: "/crm/contacts",
       },
+      {
+        name: "Customer Visits",
+        description: "Manage customer contact persons",
+        icon: Users2,
+        href: "/crm/visits",
+      },
     ],
   },
   {

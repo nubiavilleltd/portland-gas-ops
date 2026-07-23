@@ -267,7 +267,8 @@ export interface ContactPerson {
 
   phone: string;
   alternate_phone: string;
-
+  position: string;
+  role: string;
   department: string;
 
   preferred_channel: PreferredChannel;
@@ -304,3 +305,53 @@ export type PreferredChannel = "Email" | "Phone" | "WhatsApp";
 
 export type ContactPersonStatus = "active" | "inactive";
 export type CustomerType = "potential" | "purchased";
+
+export interface CustomerVisit {
+  id: string;
+
+  visit_number: string;
+
+  customer_id: string;
+  customer_name: string;
+
+  contact_person: string;
+
+  visit_type: string;
+
+  visit_date: string;
+  visit_time: string;
+
+  location: string;
+
+  purpose: string;
+
+  outcome: string;
+
+  next_action: string;
+
+  status: "Scheduled" | "Completed" | "Cancelled";
+
+  created_by: string;
+  created_at: string;
+
+  activities?: CustomerVisitActivity[];
+  related_visit_id?: string;
+  related_visit_number?: string;
+  related_visit_type?: string;
+  related_visit_date?: string;
+  related_visit_status?: string;
+}
+
+export interface CustomerVisitActivity {
+  id: string;
+
+  action: string;
+
+  performedBy: string;
+
+  performedByRole: string;
+
+  performedAt: string;
+
+  comment?: string;
+}

@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 
-import type { CustomerOnboarding, CustomerContact } from "./types";
+import type {
+  CustomerOnboarding,
+  CustomerContact,
+  CustomerVisit,
+} from "./types";
 
 const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [
   {
@@ -331,6 +335,8 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
       status: "inactive",
       first_name: "Ahmed",
       last_name: "Musa",
+      position: "",
+      role: "",
       is_primary: true,
       email: "ahmed@dangote.com",
       phone: "+2348012345678",
@@ -400,7 +406,8 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
 
     primary_contact: {
       id: "P1",
-
+      position: "",
+      role: "",
       first_name: "Grace",
       last_name: "Okafor",
       status: "active",
@@ -427,14 +434,16 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
 
         phone: "+2348011111111",
         alternate_phone: "",
-
+        position: "",
+        role: "",
         department: "Finance",
 
         preferred_channel: "Email",
       },
       {
         id: "Y1",
-
+        position: "",
+        role: "",
         first_name: "Omololu",
         last_name: "Ibrahim",
         is_primary: false,
@@ -450,7 +459,8 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
       },
       {
         id: "F1",
-
+        position: "",
+        role: "",
         first_name: "Felix",
         last_name: "Ibrahim",
         is_primary: false,
@@ -493,7 +503,8 @@ export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [
 
     primary_contact: {
       id: "P1",
-
+      position: "",
+      role: "",
       first_name: "Peace",
       last_name: "Okafor",
       status: "inactive",
@@ -564,5 +575,264 @@ export function useCustomerDetails(id: string) {
         (customer) =>
           customer.id === id && customer.customer_status === "active",
       ),
+  });
+}
+
+export const customerVisits: CustomerVisit[] = [
+  {
+    id: "1",
+    visit_number: "VIS-000001",
+    customer_id: "1",
+    customer_name: "Dangote Cement Plc",
+
+    contact_person: "Ahmed Musa",
+
+    visit_type: "Sales",
+
+    visit_date: "2026-07-24",
+    visit_time: "10:00 AM",
+
+    location: "Victoria Island, Lagos",
+
+    purpose: "Discuss annual AGO supply agreement and pricing.",
+
+    outcome: "",
+
+    next_action: "",
+
+    status: "Scheduled",
+
+    created_by: "Magdalene Edozie",
+
+    created_at: "2026-07-20",
+
+    activities: [
+      {
+        id: "1",
+        action: "Visit Scheduled",
+        performedBy: "Magdalene Edozie",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-20 09:10 AM",
+      },
+    ],
+  },
+
+  {
+    id: "2",
+    visit_number: "VIS-000002",
+    customer_id: "2",
+    customer_name: "Nestle Nigeria Plc",
+
+    contact_person: "Grace Okafor",
+
+    visit_type: "Follow-up",
+    related_visit_id: "1",
+    related_visit_number: "VIS-000001",
+    related_visit_type: "Sales",
+    related_visit_date: "2026-07-24",
+    related_visit_status: "Completed",
+    visit_date: "2026-07-18",
+    visit_time: "02:30 PM",
+
+    location: "Agbara Industrial Estate, Ogun",
+
+    purpose: "Review fuel supply performance and discuss contract renewal.",
+
+    outcome:
+      "Customer expressed satisfaction with deliveries and requested revised pricing for the next quarter.",
+
+    next_action:
+      "Prepare revised commercial proposal and schedule negotiation meeting.",
+
+    status: "Completed",
+
+    created_by: "John Doe",
+
+    created_at: "2026-07-15",
+
+    activities: [
+      {
+        id: "1",
+        action: "Visit Scheduled",
+        performedBy: "John Doe",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-15 11:15 AM",
+      },
+      {
+        id: "2",
+        action: "Visit Completed",
+        performedBy: "John Doe",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-18 04:45 PM",
+        comment: "Customer interested in expanding monthly volume.",
+      },
+    ],
+  },
+
+  {
+    id: "3",
+    visit_number: "VIS-000003",
+    customer_id: "3",
+    customer_name: "Cadbury Nigeria Plc",
+
+    contact_person: "Peace Okafor",
+
+    visit_type: "Complaint",
+
+    visit_date: "2026-07-16",
+    visit_time: "11:00 AM",
+
+    location: "Ikeja, Lagos",
+
+    purpose: "Resolve complaints regarding delayed AGO deliveries.",
+
+    outcome:
+      "Customer accepted the explanation but requested improved delivery visibility.",
+
+    next_action:
+      "Arrange logistics meeting and provide weekly delivery reports.",
+
+    status: "Completed",
+
+    created_by: "Sarah James",
+
+    created_at: "2026-07-13",
+
+    activities: [
+      {
+        id: "1",
+        action: "Visit Scheduled",
+        performedBy: "Sarah James",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-13 08:40 AM",
+      },
+      {
+        id: "2",
+        action: "Visit Conducted",
+        performedBy: "Sarah James",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-16 12:20 PM",
+      },
+      {
+        id: "3",
+        action: "Follow-up Required",
+        performedBy: "CRM Administrator",
+        performedByRole: "CRM Administrator",
+        performedAt: "2026-07-16 03:15 PM",
+        comment:
+          "Operations team to provide revised delivery schedule within 48 hours.",
+      },
+    ],
+  },
+
+  {
+    id: "4",
+    visit_number: "VIS-000004",
+    customer_id: "4",
+    customer_name: "ABC Logistics Ltd",
+
+    contact_person: "Samuel Ade",
+
+    visit_type: "Courtesy",
+
+    visit_date: "2026-07-14",
+    visit_time: "09:30 AM",
+
+    location: "Wuse II, Abuja",
+
+    purpose: "Relationship management visit and introduction of new products.",
+
+    outcome:
+      "Visit cancelled at customer's request due to an internal management meeting.",
+
+    next_action: "Reschedule visit for the first week of August.",
+
+    status: "Cancelled",
+
+    created_by: "Magdalene Edozie",
+
+    created_at: "2026-07-10",
+
+    activities: [
+      {
+        id: "1",
+        action: "Visit Scheduled",
+        performedBy: "Magdalene Edozie",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-10 02:10 PM",
+      },
+      {
+        id: "2",
+        action: "Visit Cancelled",
+        performedBy: "Samuel Ade",
+        performedByRole: "Customer",
+        performedAt: "2026-07-13 05:40 PM",
+        comment:
+          "Customer requested a new date because of an executive strategy meeting.",
+      },
+    ],
+  },
+
+  {
+    id: "5",
+    visit_number: "VIS-000005",
+    customer_id: "2",
+    customer_name: "Nestle Nigeria Plc",
+
+    contact_person: "Oluwaseun Ibrahim",
+
+    visit_type: "Collection",
+
+    visit_date: "2026-07-27",
+    visit_time: "01:00 PM",
+
+    location: "Agbara Industrial Estate, Ogun",
+
+    purpose: "Collect signed supply agreement and outstanding documents.",
+
+    outcome: "",
+
+    next_action: "",
+
+    status: "Scheduled",
+
+    created_by: "John Doe",
+
+    created_at: "2026-07-22",
+
+    activities: [
+      {
+        id: "1",
+        action: "Visit Scheduled",
+        performedBy: "John Doe",
+        performedByRole: "Sales Executive",
+        performedAt: "2026-07-22 10:00 AM",
+      },
+    ],
+  },
+];
+
+export function useCustomerVisits() {
+  return useQuery({
+    queryKey: ["customer-visits"],
+    queryFn: async () => customerVisits,
+  });
+}
+
+export function useCustomerContactsByCustomer(customerId?: string) {
+  return useQuery({
+    queryKey: ["crm", "customer-contacts", customerId],
+    enabled: !!customerId,
+    queryFn: async () =>
+      MOCK_CUSTOMER_CONTACTS.find(
+        (contact) => contact.customer_id === customerId,
+      ),
+  });
+}
+
+export function useCustomerVisitDetails(id: string) {
+  return useQuery({
+    queryKey: ["customer-visit", id],
+    queryFn: async () => customerVisits.find((visit) => visit.id === id),
   });
 }
