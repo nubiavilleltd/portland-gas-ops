@@ -119,23 +119,34 @@ class LeaveRequest(Base):
 
     @property
     def requester_job_title(self) -> Optional[str]:
-        # Get requester's job title through their employee record
-        if self.requester:
-            try:
-                from sqlalchemy.orm import object_session
-                from app.employees.models import Employee
-                session = object_session(self)
-                if session:
-                    employee = session.query(Employee).filter(Employee.user_id == self.requester.id).first()
-                    if employee:
-                        return employee.job_title
-            except Exception:
-                # Gracefully handle database errors if employee table is missing columns
-                pass
+        # Get requester's job title through their employee record.
+        if not self.requester:
+            return None
+        # Fast path: for a "self" request the requester IS the employee, whose
+        # record is already loaded — no extra query. (requester_id is a User id,
+        # employee.user_id is that same User id when they match.)
+        if self.employee and self.employee.user_id == self.requester_id:
+            return self.employee.job_title
+        # Fallback for "raise for others": look up the requester's employee row.
+        try:
+            from sqlalchemy.orm import object_session
+            from app.employees.models import Employee
+            session = object_session(self)
+            if session:
+                employee = session.query(Employee).filter(Employee.user_id == self.requester.id).first()
+                if employee:
+                    return employee.job_title
+        except Exception:
+            # Gracefully handle database errors if employee table is missing columns
+            pass
         return None
 
     @property
     def approval_request_id(self) -> Optional[str]:
+        # Fast path: a list query can prefetch this in bulk and stash it here,
+        # avoiding a per-row query. (Present even when the value is None.)
+        if "_ar_id_prefetched" in self.__dict__:
+            return self.__dict__["_ar_id_prefetched"]
         # Get the approval_request_id if this request is in the workflow
         try:
             from sqlalchemy.orm import object_session

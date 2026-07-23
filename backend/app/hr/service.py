@@ -297,9 +297,15 @@ def get_all_leave_requests(
     employee_id: Optional[str] = None,
 ) -> Tuple[list[LeaveRequest], int]:
     """Get all leave requests with pagination and sorting."""
+    # Eager-load every relationship the response schema reads, so serializing
+    # each row does not trigger per-row lazy loads (N+1). On remote MySQL this
+    # is the difference between one query and ~5 per row.
     query = db.query(LeaveRequest).options(
         joinedload(LeaveRequest.leave_type),
         joinedload(LeaveRequest.document),
+        joinedload(LeaveRequest.employee).joinedload(Employee.user),
+        joinedload(LeaveRequest.reliever).joinedload(Employee.user),
+        joinedload(LeaveRequest.requester),
     )
 
     # Optional filter: only a single employee's requests (used by the
@@ -317,7 +323,41 @@ def get_all_leave_requests(
     total = query.count()
     leave_requests = query.offset(skip).limit(limit).all()
 
+    # Prefetch the latest approval_request_id for every row in ONE query, so the
+    # per-row `approval_request_id` property doesn't fire a query each (N+1).
+    ar_ids = _latest_approval_request_ids(db, [lr.id for lr in leave_requests])
+    for lr in leave_requests:
+        lr.__dict__["_ar_id_prefetched"] = ar_ids.get(lr.id)
+
     return leave_requests, total
+
+
+def _latest_approval_request_ids(db: Session, request_ids: list[str]) -> dict[str, str]:
+    """{ leave_request_id: latest approval_request_id } in one query.
+
+    A resubmit creates multiple ApprovalRequest attempts; the newest attempt is
+    the active workflow, so we keep the highest attempt_number per request.
+    """
+    if not request_ids:
+        return {}
+    from app.shared.models.approval import ApprovalRequest
+    rows = (
+        db.query(
+            ApprovalRequest.request_id,
+            ApprovalRequest.id,
+        )
+        .filter(
+            ApprovalRequest.request_type == "leave_request",
+            ApprovalRequest.request_id.in_(request_ids),
+        )
+        .order_by(ApprovalRequest.request_id, ApprovalRequest.attempt_number.desc())
+        .all()
+    )
+    out: dict[str, str] = {}
+    for request_id, approval_id in rows:
+        if request_id not in out:  # first seen wins = highest attempt (ordered desc)
+            out[request_id] = approval_id
+    return out
 
 
 def get_next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
@@ -784,6 +824,18 @@ def generate_payslips(
 
     db.flush()
     return result
+
+
+def get_leave_balance_years(db: Session) -> list[int]:
+    """Distinct fiscal years that actually have leave-balance rows — for the
+    year filter dropdown. Newest first."""
+    rows = (
+        db.query(LeaveBalance.fiscal_year)
+        .distinct()
+        .order_by(LeaveBalance.fiscal_year.desc())
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 def get_payslip_periods(db: Session, employee_id: Optional[str] = None) -> list[str]:

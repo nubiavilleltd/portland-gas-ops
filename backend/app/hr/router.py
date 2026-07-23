@@ -236,6 +236,17 @@ def reactivate_leave_type(
 # LEAVE BALANCES
 # ════════════════════════════════════════════════════════════════════════════
 
+# Declared before /leave-balances/{...} paths so "years" is not captured as one.
+@router.get("/leave-balances/years", response_model=list[int])
+def list_leave_balance_years(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Distinct fiscal years that have leave-balance records — for the filter
+    dropdown. Newest first; empty if no balances exist yet."""
+    return service.get_leave_balance_years(db)
+
+
 @router.get(
     "/leave-balances/me",
     response_model=list[LeaveBalanceRead],

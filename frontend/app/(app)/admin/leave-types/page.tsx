@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Plus, PowerOff, Power, Eye } from "lucide-react";
+import { Plus, PowerOff, Power, Pencil } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable from "@/components/data-table/data-table";
@@ -201,7 +201,7 @@ export default function LeaveTypesPage() {
           rowActions={[
             {
               label: "Edit",
-              icon: Eye,
+              icon: Pencil,
               onClick: (row: any) => handleEdit(row),
               color: "default",
             },

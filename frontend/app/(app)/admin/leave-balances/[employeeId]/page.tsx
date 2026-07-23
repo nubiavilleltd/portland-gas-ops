@@ -51,6 +51,36 @@ const columns: Column<LeaveRequest>[] = [
     ),
   },
   {
+    key: "reliever",
+    label: "Reliever",
+    render: (v) =>
+      v ? (
+        <span className="whitespace-nowrap text-brand-text-secondary">{String(v)}</span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      ),
+  },
+  {
+    key: "nextActor",
+    label: "Next Approver",
+    render: (v, row) => {
+      // A returned request sits with the requester, mirroring the detail header.
+      const isReturned = row.status === "returned";
+      const actorName = isReturned ? (row.requester ?? row.employee) : v;
+      const actorRole = isReturned ? "Requester" : row.currentStepName;
+      return actorName ? (
+        <span className="whitespace-nowrap text-brand-text-primary">
+          {String(actorName)}
+          {actorRole ? (
+            <span className="block text-[11px] text-brand-text-secondary">{actorRole}</span>
+          ) : null}
+        </span>
+      ) : (
+        <span className="text-brand-text-secondary">—</span>
+      );
+    },
+  },
+  {
     key: "status",
     label: "Status",
     render: (_, row) => <ApprovalBadge status={row.status} />,
