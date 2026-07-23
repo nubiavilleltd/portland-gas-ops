@@ -248,6 +248,7 @@ const consumableColumns: Column<ConsumableStock>[] = [
           data={stock}
           isLoading={isLoading}
           emptyMessage="No consumable stock found."
+          rowHref={(stock) => INVENTORY_ROUTES.stockDetail(stock.id)}
         />
       )}
     </AppLayout>

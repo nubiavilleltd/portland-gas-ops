@@ -19,7 +19,6 @@ import { useToggleProductStatus } from "@/lib/modules/products/hooks/useProductM
 import { Product, ProductImage } from "@/lib/modules/products/types/product.types";
 import {
   useConsumableStockByProduct,
-  useStockMovementsByProduct,
 } from "@/lib/modules/inventory/hooks/useInventory";
 import Badge from "@/components/ui/Badge";
 import { isConsumable } from "@/lib/modules/products/types/product.types";
@@ -27,6 +26,7 @@ import { getStockStatus } from "@/lib/modules/products/selectors/products.select
 import PageErrorState from "@/components/ui/PageError";
 import ProductDetailsSkeleton from "@/lib/modules/products/components/ProductDetailsSkeleton";
 import { parseError } from "@/lib/errors";
+import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -35,7 +35,6 @@ export default function ProductDetailPage() {
 
   const { product, isLoading, error } = useProductById(id);
   const { stock, quantity } = useConsumableStockByProduct(id);
-  const { movements } = useStockMovementsByProduct(id);
   const isLow = getStockStatus(product as Product, quantity);
   // product?.minimumStock != null && quantity <= product?.minimumStock;
   // const [actionError, setActionError] = useState<string | null>(null);
@@ -102,15 +101,7 @@ export default function ProductDetailPage() {
           >
             Edit
           </Button>
-          {/* <Button
-            variant={isActive ? "danger" : "primary"}
-            loading={isToggling}
-            loadingText={isActive ? "Deactivating…" : "Activating…"}
-            onClick={() => toggleStatus(isActive ?? false)}
-            leftIcon={isActive ? <PowerOff size={14} /> : <Power size={14} />}
-          >
-            {isActive ? "Deactivate" : "Activate"}
-          </Button> */}
+
 
           <Button
             variant={isActive ? "danger" : "primary"}
@@ -193,7 +184,7 @@ export default function ProductDetailPage() {
       {isConsumable(product) && (
         <FormSection
           title="Stock Level"
-          description="Current stock and recent movement history"
+          description="Current inventory level for this product"
           className="mt-4"
         >
           <div className="flex items-center justify-between mb-5">
@@ -220,60 +211,22 @@ export default function ProductDetailPage() {
                 }
               />
             </div>
-            <Button
-              size="sm"
-              href="/admin/inventory/check-in"
-            >
-              Check In Stock →
-            </Button>
+            {stock ? (
+              <Button
+                size="sm"
+                href={INVENTORY_ROUTES.stockDetail(stock.id)}
+              >
+                View Stock →
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                href={INVENTORY_ROUTES.checkIn()}
+              >
+                Check In Stock →
+              </Button>
+            )}
           </div>
-
-          {/* Movement history */}
-          {movements.length === 0 ? (
-            <p className="text-sm text-brand-text-secondary py-4 text-center">
-              No movements recorded yet.
-            </p>
-          ) : (
-            <div className="divide-y divide-brand-border border-t border-brand-border">
-              {[...movements]
-                .sort(
-                  (a, b) =>
-                    new Date(b.created_at).getTime() -
-                    new Date(a.created_at).getTime(),
-                )
-                .slice(0, 10)
-                .map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">
-                        {m.movement_type === "check_in"
-                          ? "Check In"
-                          : "Check Out"}
-                      </p>
-                      {m.notes && (
-                        <p className="text-xs text-brand-text-secondary mt-0.5">
-                          {m.notes}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-sm font-medium ${m.movement_type === "check_in" ? "text-green-700" : "text-red-600"}`}
-                      >
-                        {m.movement_type === "check_in" ? "+" : "−"}
-                        {m.quantity.toLocaleString()} {product.unit}
-                      </p>
-                      <p className="text-xs text-brand-text-secondary">
-                        {formatDate(m.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
         </FormSection>
       )}
     </AppLayout>
