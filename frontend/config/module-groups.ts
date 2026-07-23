@@ -18,6 +18,9 @@ import {
   Users,
   UserPlus,
   Users2,
+  Building2,
+  Contact,
+  CalendarCheck2,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -53,19 +56,19 @@ export const moduleGroups: readonly ModuleGroup[] = [
       {
         name: "Customers",
         description: "Manage customer accounts and profiles",
-        icon: Users,
+        icon: User,
         href: "/crm/customers",
       },
       {
         name: "Contacts",
         description: "Manage customer contact persons",
-        icon: Users2,
+        icon: Contact,
         href: "/crm/contacts",
       },
       {
         name: "Customer Visits",
         description: "Manage customer contact persons",
-        icon: Users2,
+        icon: CalendarCheck2,
         href: "/crm/visits",
       },
     ],

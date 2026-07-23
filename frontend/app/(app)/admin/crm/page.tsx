@@ -3,14 +3,29 @@
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-
-import { useCustomerOnboarding, useCustomerContacts } from "@/lib/modules/crm";
-import { Users, UserCheck, Clock3, Contact } from "lucide-react";
-import ActiveCustomersTable from "@/lib/modules/crm/components/ActiveCustomersTable";
-import RecentContactsTable from "@/lib/modules/crm/components/RecentContactsTable";
-import CRMQuickActions from "@/lib/modules/crm/components/CRMQuickActions";
 import Card from "@/components/ui/Card";
 
+import {
+  useCustomerOnboarding,
+  useCustomerContacts,
+  useCustomerVisits,
+} from "@/lib/modules/crm";
+
+import {
+  Users,
+  UserCheck,
+  Clock3,
+  Contact,
+  CalendarDays,
+  CheckCircle2,
+  RotateCw,
+  XCircle,
+} from "lucide-react";
+
+import RecentContactsTable from "@/lib/modules/crm/components/RecentContactsTable";
+import ActiveCustomersTable from "@/lib/modules/crm/components/ActiveCustomersTable";
+import CRMQuickActions from "@/lib/modules/crm/components/CRMQuickActions";
+import UpcomingVisitsTable from "@/lib/modules/crm/components/UpcomingVisitsTable";
 export default function CRMDashboardPage() {
   const {
     data: customers = [],
@@ -24,7 +39,13 @@ export default function CRMDashboardPage() {
     isError: contactError,
   } = useCustomerContacts();
 
-  const loading = loadingCustomers || loadingContacts;
+  const {
+    data: visits = [],
+    isLoading: loadingVisits,
+    isError: visitError,
+  } = useCustomerVisits();
+
+  const loading = loadingCustomers || loadingContacts || loadingVisits;
 
   if (loading) {
     return (
@@ -36,7 +57,7 @@ export default function CRMDashboardPage() {
     );
   }
 
-  if (customerError || contactError) {
+  if (customerError || contactError || visitError) {
     return (
       <AppLayout pageTitle="CRM Dashboard">
         <div className="py-20 text-center text-brand-text-secondary">
@@ -45,6 +66,20 @@ export default function CRMDashboardPage() {
       </AppLayout>
     );
   }
+
+  const activeCustomers = customers.filter(
+    (c) => c.status === "active" || c.customer_status === "active",
+  );
+
+  const pendingCustomers = customers.filter((c) => c.status === "submitted");
+
+  const scheduledVisits = visits.filter((v) => v.status === "Scheduled");
+
+  const completedVisits = visits.filter((v) => v.status === "Completed");
+
+  const cancelledVisits = visits.filter((v) => v.status === "Cancelled");
+
+  const followUpsDue = visits.filter((v) => v.follow_up_required);
 
   const topSales = customers.reduce<Record<string, number>>((acc, customer) => {
     if (!customer.sales_contact) return acc;
@@ -57,15 +92,6 @@ export default function CRMDashboardPage() {
   const topSalesPerson = Object.entries(topSales).sort(
     (a, b) => b[1] - a[1],
   )[0];
-
-  const activeCustomers = customers.filter(
-    (customer) =>
-      customer.status === "active" || customer.customer_status === "active",
-  );
-
-  const pendingCustomers = customers.filter(
-    (customer) => customer.status === "submitted",
-  );
 
   const topReferrer = customers.reduce<Record<string, number>>(
     (acc, customer) => {
@@ -81,12 +107,22 @@ export default function CRMDashboardPage() {
   const topReferrerPerson = Object.entries(topReferrer).sort(
     (a, b) => b[1] - a[1],
   )[0];
+  const customerVisitCounts = visits.reduce<Record<string, number>>(
+    (acc, visit) => {
+      acc[visit.customer_name] = (acc[visit.customer_name] || 0) + 1;
+      return acc;
+    },
+    {},
+  );
 
+  const mostVisitedCustomer = Object.entries(customerVisitCounts).sort(
+    (a, b) => b[1] - a[1],
+  )[0];
   return (
     <AppLayout pageTitle="CRM Dashboard">
       <PageHeader
         title="CRM Dashboard"
-        description="Overview of customers, contacts and onboarding activities."
+        description="Overview of customers, contacts and visit activities."
       />
 
       <div className="space-y-8">
@@ -95,9 +131,7 @@ export default function CRMDashboardPage() {
             icon={<Users className="h-5 w-5" />}
             title="Total Customers"
             description={
-              <span className="text-3xl font-bold text-brand-text-primary">
-                {customers.length}
-              </span>
+              <span className="text-3xl font-bold">{customers.length}</span>
             }
           />
 
@@ -105,18 +139,8 @@ export default function CRMDashboardPage() {
             icon={<UserCheck className="h-5 w-5" />}
             title="Active Customers"
             description={
-              <span className="text-3xl font-bold text-brand-text-primary">
+              <span className="text-3xl font-bold">
                 {activeCustomers.length}
-              </span>
-            }
-          />
-
-          <Card
-            icon={<Clock3 className="h-5 w-5" />}
-            title="Pending Customers"
-            description={
-              <span className="text-3xl font-bold text-brand-text-primary">
-                {pendingCustomers.length}
               </span>
             }
           />
@@ -125,17 +149,62 @@ export default function CRMDashboardPage() {
             icon={<Contact className="h-5 w-5" />}
             title="Total Contacts"
             description={
-              <span className="text-3xl font-bold text-brand-text-primary">
-                {contacts.length}
+              <span className="text-3xl font-bold">{contacts.length}</span>
+            }
+          />
+
+          <Card
+            icon={<CalendarDays className="h-5 w-5" />}
+            title="Scheduled Visits"
+            description={
+              <span className="text-3xl font-bold">
+                {scheduledVisits.length}
               </span>
+            }
+          />
+
+          <Card
+            icon={<CheckCircle2 className="h-5 w-5" />}
+            title="Completed Visits"
+            description={
+              <span className="text-3xl font-bold">
+                {completedVisits.length}
+              </span>
+            }
+          />
+
+          <Card
+            icon={<RotateCw className="h-5 w-5" />}
+            title="Follow-ups Due"
+            description={
+              <span className="text-3xl font-bold">{followUpsDue.length}</span>
+            }
+          />
+
+          <Card
+            icon={<XCircle className="h-5 w-5" />}
+            title="Cancelled Visits"
+            description={
+              <span className="text-3xl font-bold">
+                {cancelledVisits.length}
+              </span>
+            }
+          />
+
+          <Card
+            icon={<Clock3 className="h-5 w-5" />}
+            title="Visits This Month"
+            description={
+              <span className="text-3xl font-bold">{visits.length}</span>
             }
           />
         </div>
 
         <CRMQuickActions />
-        <div className="grid gap-6 lg:grid-cols-2">
+
+        <div className="grid gap-6 lg:grid-cols-3">
           <Card
-            title="Top Sales Contact"
+            title="Top Sales Executive"
             description={
               topSalesPerson
                 ? `${topSalesPerson[0]} • ${topSalesPerson[1]} Customers`
@@ -144,18 +213,37 @@ export default function CRMDashboardPage() {
           />
 
           <Card
-            title="Top Referrer"
+            title="Top Referral Source"
             description={
               topReferrerPerson
                 ? `${topReferrerPerson[0]} • ${topReferrerPerson[1]} Referrals`
                 : "No data available"
             }
           />
+
+          <Card
+            title="Most Visited Customer"
+            description={
+              mostVisitedCustomer
+                ? `${mostVisitedCustomer[0]} • ${mostVisitedCustomer[1]} Visit${mostVisitedCustomer[1] > 1 ? "s" : ""}`
+                : "No visit data available"
+            }
+          />
         </div>
+
         <ActiveCustomersTable customers={activeCustomers.slice(0, 5)} />
         <RecentContactsTable
           contacts={contacts
             .filter((item) => item?.status?.toLowerCase() == "active")
+            .slice(0, 5)}
+        />
+        <UpcomingVisitsTable
+          visits={scheduledVisits
+            .sort(
+              (a, b) =>
+                new Date(a.visit_date).getTime() -
+                new Date(b.visit_date).getTime(),
+            )
             .slice(0, 5)}
         />
       </div>

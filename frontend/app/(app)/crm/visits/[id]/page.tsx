@@ -18,6 +18,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import { useToast } from "@/hooks/useToast";
 import AuditTrail from "@/components/forms/AuditTrail";
+import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 
 export default function CustomerVisitDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +29,15 @@ export default function CustomerVisitDetailsPage() {
   const [nextAction, setNextAction] = useState(visit?.next_action ?? "");
   const [status, setStatus] = useState("Completed");
   const [comment, setComment] = useState("");
+  const [customerFeedback, setCustomerFeedback] = useState("");
+  const [discussionPoints, setDiscussionPoints] = useState("");
+  const [recommendations, setRecommendations] = useState("");
+
+  const [opportunityCreated, setOpportunityCreated] = useState(false);
+  const [opportunityValue, setOpportunityValue] = useState("");
+  const [opportunityNotes, setOpportunityNotes] = useState("");
+
+  const [attachments, setAttachments] = useState([]);
   if (isLoading) {
     return (
       <AppLayout pageTitle="Visit Details">
@@ -42,8 +52,15 @@ export default function CustomerVisitDetailsPage() {
     console.log({
       outcome,
       nextAction,
-      status,
+      customerFeedback,
+      discussionPoints,
+      recommendations,
       comment,
+      opportunityCreated,
+      opportunityValue,
+      opportunityNotes,
+      attachments,
+      status,
     });
 
     toast.success("Customer visit updated successfully.");
@@ -119,113 +136,224 @@ export default function CustomerVisitDetailsPage() {
               options={[{ label: visit.visit_type, value: visit.visit_type }]}
               disabled
             />
-            {visit.visit_type === "Follow-up" && (
-              <FormInput
-                label="Related Visit"
-                value={
-                  visit.related_visit_number
-                    ? `${visit.related_visit_number} • ${visit.related_visit_type} • ${visit.related_visit_date} • ${visit.related_visit_status}`
-                    : "-"
-                }
-                disabled
-              />
-            )}
+
             <FormInput
               label="Contact Person"
               value={visit.contact_person}
               disabled
             />
 
-            <FormDatePicker
+            <FormDateTimeInput
               label="Visit Date"
               value={visit.visit_date}
               disabled
             />
 
-            <FormInput label="Visit Time" value={visit.visit_time} disabled />
-
             <FormInput label="Location" value={visit.location} disabled />
+
+            <FormTextarea
+              label="Purpose of Visit"
+              value={visit.purpose}
+              rows={5}
+              disabled
+            />
+
+            <FormTextarea
+              label="Participants"
+              value={visit.participants}
+              rows={3}
+              disabled
+            />
           </div>
-
-          <FormTextarea
-            label="Purpose of Visit"
-            value={visit.purpose}
-            rows={5}
-            disabled
-          />
         </FormSection>
-
-        {visit.status === "Scheduled" ? (
+        {visit.visit_type === "Follow-up" && (
           <FormSection
-            title="Visit Outcome"
-            description="Complete the visit by providing the outcome and next action."
+            title="Related Visit"
+            description="Previous visit associated with this follow-up."
           >
-            <div className="space-y-6">
-              <FormTextarea
-                label="Outcome"
-                rows={5}
-                value={outcome}
-                onChange={(e) => setOutcome(e.target.value)}
+            <div className="grid gap-6 md:grid-cols-2">
+              <FormInput
+                label="Visit Number"
+                value={visit.related_visit_number}
+                disabled
               />
 
-              <FormTextarea
-                label="Next Action"
-                rows={4}
-                value={nextAction}
-                onChange={(e) => setNextAction(e.target.value)}
+              <FormInput
+                label="Visit Type"
+                value={visit.related_visit_type}
+                disabled
               />
-              <FormTextarea
-                label="Comment"
-                rows={3}
-                placeholder="Add any additional observations or notes..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
+
+              <FormDatePicker
+                label="Visit Date"
+                value={visit.related_visit_date}
+                disabled
               />
+
               <FormSelect
                 label="Visit Status"
-                value={status}
+                value={visit.related_visit_status}
                 options={[
                   {
-                    label: "Completed",
-                    value: "Completed",
-                  },
-                  {
-                    label: "Follow-up Required",
-                    value: "Follow-up Required",
-                  },
-                  {
-                    label: "Cancelled",
-                    value: "Cancelled",
+                    label: visit.related_visit_status,
+                    value: visit.related_visit_status,
                   },
                 ]}
-                onValueChange={setStatus}
+                disabled
               />
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => router.back()}>
-                  Cancel
-                </Button>
-
-                <Button onClick={handleCompleteVisit}>Update Visit</Button>
-              </div>
             </div>
           </FormSection>
+        )}
+        <FormSection
+          title="Planning"
+          description="Additional scheduling information."
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <FormDatePicker
+              label="Reminder Date"
+              value={visit.reminder_date}
+              disabled
+            />
+
+            <FormSelect
+              label="Follow-up Required"
+              value={visit.follow_up_required ? "Yes" : "No"}
+              options={[
+                { label: "Yes", value: "Yes" },
+                { label: "No", value: "No" },
+              ]}
+              disabled
+            />
+
+            {visit.follow_up_required && (
+              <FormDatePicker
+                label="Expected Follow-up Date"
+                value={visit.follow_up_date}
+                disabled
+              />
+            )}
+          </div>
+        </FormSection>
+        {visit.status === "Scheduled" ? (
+          <>
+            <FormSection
+              title="Visit Outcome"
+              description="Complete the visit by providing the outcome and next action."
+            >
+              <div className="space-y-6">
+                <FormTextarea
+                  label="Outcome"
+                  rows={5}
+                  value={outcome}
+                  onChange={(e) => setOutcome(e.target.value)}
+                />
+                <FormTextarea
+                  label="Customer Feedback"
+                  rows={4}
+                  value={customerFeedback}
+                  onChange={(e) => setCustomerFeedback(e.target.value)}
+                />
+
+                <FormTextarea
+                  label="Key Discussion Points"
+                  rows={4}
+                  value={discussionPoints}
+                  onChange={(e) => setDiscussionPoints(e.target.value)}
+                />
+
+                <FormTextarea
+                  label="Recommendations"
+                  rows={4}
+                  value={recommendations}
+                  onChange={(e) => setRecommendations(e.target.value)}
+                />
+
+                <FormTextarea
+                  label="Next Action"
+                  rows={4}
+                  value={nextAction}
+                  onChange={(e) => setNextAction(e.target.value)}
+                />
+                <FormTextarea
+                  label="Comment"
+                  rows={3}
+                  placeholder="Add any additional observations or notes..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+                <FormSelect
+                  label="Visit Status"
+                  value={status}
+                  options={[
+                    {
+                      label: "Completed",
+                      value: "Completed",
+                    },
+                    {
+                      label: "Follow-up Required",
+                      value: "Follow-up Required",
+                    },
+                    {
+                      label: "Cancelled",
+                      value: "Cancelled",
+                    },
+                  ]}
+                  onValueChange={setStatus}
+                />
+              </div>
+            </FormSection>
+
+            <FormSection
+              title="Sales Opportunity"
+              description="Capture any opportunity identified during the visit."
+            >
+              <FormSelect
+                label="Opportunity Created?"
+                value={opportunityCreated ? "Yes" : "No"}
+                options={[
+                  { label: "Yes", value: "Yes" },
+                  { label: "No", value: "No" },
+                ]}
+                onValueChange={(value) =>
+                  setOpportunityCreated(value === "Yes")
+                }
+              />
+
+              {opportunityCreated && (
+                <>
+                  <FormInput
+                    label="Opportunity Value"
+                    value={opportunityValue}
+                    onChange={(e) => setOpportunityValue(e.target.value)}
+                  />
+
+                  <FormTextarea
+                    label="Opportunity Notes"
+                    rows={4}
+                    value={opportunityNotes}
+                    onChange={(e) => setOpportunityNotes(e.target.value)}
+                  />
+                </>
+              )}
+            </FormSection>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={() => router.back()}>
+                Cancel
+              </Button>
+
+              <Button onClick={handleCompleteVisit}>Update Visit</Button>
+            </div>
+          </>
         ) : (
           <FormSection
             title="Visit Outcome"
             description="Outcome recorded after the visit."
           >
             <FormTextarea
-              label="Outcome"
-              value={visit.outcome}
-              rows={5}
-              disabled
-            />
-
-            <FormTextarea
-              label="Next Action"
-              value={visit.next_action}
-              rows={5}
+              label="Cancellation Reason"
+              value={visit.comment}
+              rows={4}
               disabled
             />
 

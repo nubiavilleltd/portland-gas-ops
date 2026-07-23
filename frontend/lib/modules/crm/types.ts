@@ -308,38 +308,65 @@ export type CustomerType = "potential" | "purchased";
 
 export interface CustomerVisit {
   id: string;
-
   visit_number: string;
 
   customer_id: string;
   customer_name: string;
-
   contact_person: string;
 
   visit_type: string;
 
+  related_visit_id?: string;
+  related_visit_number?: string;
+  related_visit_type?: string;
+  related_visit_date?: string;
+  related_visit_status: string;
+
   visit_date: string;
   visit_time: string;
-
   location: string;
 
+  visit_objective: string;
   purpose: string;
 
   outcome: string;
-
   next_action: string;
+  comment?: string;
 
-  status: "Scheduled" | "Completed" | "Cancelled";
+  visit_result?: string;
+
+  follow_up_required: boolean;
+  follow_up_date?: string;
+
+  recommendation?: string;
+
+  opportunity_identified: boolean;
+  opportunity_value?: number;
+  interested_products?: string[];
+
+  customer_feedback?: string;
+  customer_comments?: string;
+
+  participants?: string[];
+
+  start_time?: string;
+  end_time?: string;
+  duration?: string;
+
+  reminder_date?: string;
+
+  attachments?: {
+    id: string;
+    name: string;
+    url: string;
+  }[];
+
+  status: string;
 
   created_by: string;
   created_at: string;
 
   activities?: CustomerVisitActivity[];
-  related_visit_id?: string;
-  related_visit_number?: string;
-  related_visit_type?: string;
-  related_visit_date?: string;
-  related_visit_status?: string;
 }
 
 export interface CustomerVisitActivity {
