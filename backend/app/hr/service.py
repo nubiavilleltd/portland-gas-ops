@@ -242,16 +242,22 @@ def create_leave_request(
             detail=f"'{leave_type.leave_type_name}' is not available for leave requests",
         )
 
-    # Validate dates
-    if payload.end_date < payload.start_date:
+    # Open-ended types (e.g. Sick Leave) may omit the End Date. Start + optional
+    # Expected Return: if no end date, it counts as 1 day until updated.
+    if payload.end_date is None and not leave_type.open_ended:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="End date is required for this leave type",
+        )
+    effective_end = payload.end_date or payload.start_date
+    if effective_end < payload.start_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="End date must be after start date",
         )
 
     # Calculate days (inclusive, calendar days)
-    delta = payload.end_date - payload.start_date
-    days = delta.days + 1
+    days = (effective_end - payload.start_date).days + 1
 
     # Generate reference
     reference = _next_leave_request_reference(db)
@@ -277,7 +283,7 @@ def create_leave_request(
         department=employee.department,
         job_title=employee.job_title,
         start_date=payload.start_date,
-        end_date=payload.end_date,
+        end_date=effective_end,
         days=days,
         reason=payload.reason,
         status=LeaveRequestStatus.pending,
@@ -295,8 +301,13 @@ def get_all_leave_requests(
     sort_by: str = "created_at",
     sort_order: str = "desc",
     employee_id: Optional[str] = None,
+    year: Optional[int] = None,
 ) -> Tuple[list[LeaveRequest], int]:
-    """Get all leave requests with pagination and sorting."""
+    """Get all leave requests with pagination and sorting.
+
+    `year` filters to requests whose leave falls in that fiscal year
+    (start_date year — the same basis used for leave balances).
+    """
     # Eager-load every relationship the response schema reads, so serializing
     # each row does not trigger per-row lazy loads (N+1). On remote MySQL this
     # is the difference between one query and ~5 per row.
@@ -312,6 +323,10 @@ def get_all_leave_requests(
     # per-employee balance/history view).
     if employee_id:
         query = query.filter(LeaveRequest.employee_id == employee_id)
+
+    if year is not None:
+        from sqlalchemy import extract
+        query = query.filter(extract("year", LeaveRequest.start_date) == year)
 
     # Apply sorting
     sort_column = getattr(LeaveRequest, sort_by, LeaveRequest.created_at)
@@ -550,7 +565,10 @@ def resubmit_leave_request(
             detail=f"'{leave_type.leave_type_name}' is not available for leave requests",
         )
 
-    if payload.end_date < payload.start_date:
+    if payload.end_date is None and not leave_type.open_ended:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date is required for this leave type")
+    effective_end = payload.end_date or payload.start_date
+    if effective_end < payload.start_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date must be after start date")
 
     employee = db.query(Employee).filter(Employee.id == payload.employee_id).first()
@@ -572,8 +590,8 @@ def resubmit_leave_request(
     lr.department = employee.department
     lr.job_title = employee.job_title
     lr.start_date = payload.start_date
-    lr.end_date = payload.end_date
-    lr.days = (payload.end_date - payload.start_date).days + 1
+    lr.end_date = effective_end
+    lr.days = (effective_end - payload.start_date).days + 1
     lr.reason = payload.reason
     if payload.document_id is not None:
         lr.document_id = payload.document_id

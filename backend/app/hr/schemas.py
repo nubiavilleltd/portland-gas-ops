@@ -19,18 +19,23 @@ class DocumentInfo(BaseModel):
 
 class LeaveTypeCreate(BaseModel):
     leave_type_name: str = Field(..., min_length=1, max_length=100)
-    entitlement_days: int = Field(..., gt=0)
+    # 0 is allowed for uncapped types (no entitlement limit).
+    entitlement_days: int = Field(0, ge=0)
     description: Optional[str] = None
     is_active: bool = True
+    is_uncapped: bool = False   # no entitlement cap (e.g. Sick Leave)
+    open_ended: bool = False    # no fixed End Date required
 
 
 # ── Full update (all fields optional) ────────────────────────────────────────
 
 class LeaveTypeUpdate(BaseModel):
     leave_type_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    entitlement_days: Optional[int] = Field(None, gt=0)
+    entitlement_days: Optional[int] = Field(None, ge=0)
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    is_uncapped: Optional[bool] = None
+    open_ended: Optional[bool] = None
 
 
 # ── Response (returned to client) ────────────────────────────────────────────
@@ -41,6 +46,8 @@ class LeaveTypeRead(BaseModel):
     entitlement_days: int
     description: Optional[str]
     is_active: bool
+    is_uncapped: bool = False
+    open_ended: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -78,7 +85,7 @@ class LeaveRequestCreate(BaseModel):
     # It may be omitted when picked_approvers is supplied — it is derived from it.
     reliever_id: Optional[str] = None
     start_date: date
-    end_date: date
+    end_date: Optional[date] = None  # optional for open-ended types (e.g. Sick Leave)
     request_type: str = "self"  # "self" or "others"
     reason: Optional[str] = None
     document_id: Optional[int] = None

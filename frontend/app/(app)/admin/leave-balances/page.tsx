@@ -16,7 +16,7 @@ export default function LeaveBalancesPage() {
         className="mb-6"
       />
       <LeaveBalancesTable
-        rowHref={(row) => `/admin/leave-balances/${row.id}`}
+        rowHref={(row) => `/admin/leave-balances/${row.id}?year=${year}`}
         year={year}
         onYearChange={setYear}
       />

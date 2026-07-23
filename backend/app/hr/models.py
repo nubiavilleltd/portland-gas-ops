@@ -30,6 +30,10 @@ class LeaveTypeSetup(Base):
     entitlement_days = Column(Integer, nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    # Sick-leave-style types: no entitlement cap, and no fixed end date required
+    # (Start Date + optional Expected Return).
+    is_uncapped = Column(Boolean, default=False, nullable=False, server_default="0")
+    open_ended = Column(Boolean, default=False, nullable=False, server_default="0")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

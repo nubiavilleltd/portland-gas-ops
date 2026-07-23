@@ -42,7 +42,7 @@ export interface LeaveRequestCreatePayload {
   /** Derived server-side from picked_approvers when omitted. */
   reliever_id?: string;
   start_date: string;
-  end_date: string;
+  end_date?: string;  // optional for open-ended types (e.g. Sick Leave)
   request_type?: string;
   reason?: string;
   document_id?: number;
@@ -63,4 +63,5 @@ export interface ListLeaveRequestsParams {
   sort_by?: string;
   sort_order?: "asc" | "desc";
   employee_id?: string;
+  year?: number;
 }

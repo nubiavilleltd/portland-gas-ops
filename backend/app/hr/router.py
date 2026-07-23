@@ -350,6 +350,7 @@ def list_leave_requests(
     sort_by: str = Query("created_at", pattern="^(created_at|start_date|end_date|days|status)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     employee_id: Optional[str] = Query(None),
+    year: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -385,7 +386,8 @@ def list_leave_requests(
     ```
     """
     leave_requests, total = service.get_all_leave_requests(
-        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, employee_id=employee_id
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order,
+        employee_id=employee_id, year=year,
     )
 
     # Enrich with the current pending approver ("next actor") in one query
