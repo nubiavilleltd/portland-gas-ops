@@ -16,12 +16,12 @@ export const inventoryApi = {
     return data;
   },
 
-  getItem: async (id: number) => {
+  getItem: async (id: string) => {
     const { data } = await api.get(`/api/inventory/items/${id}`);
     return data;
   },
 
-  returnItem: async (id: number, input: { condition: string; notes?: string }) => {
+  returnItem: async (id: string, input: { condition: string; notes?: string }) => {
     const { data } = await api.post(`/api/inventory/items/${id}/return`, input);
     return data;
   },
@@ -30,8 +30,13 @@ export const inventoryApi = {
     const { data } = await api.get("/api/inventory/stock");
     return data;
   },
+  
+  getStock: async (id: string) => {
+    const { data } = await api.get(`/api/inventory/stock/${id}`);
+    return data;
+  },
 
-  listMovements: async (params: { product_id?: string; item_id?: number } = {}) => {
+  listMovements: async (params: { product_id?: string; item_id?: string } = {}) => {
     const { data } = await api.get("/api/inventory/movements", { params });
     return data;
   },
@@ -57,7 +62,7 @@ export const inventoryApi = {
     return data;
   },
 
-  getItemAudit: async (itemId: number) => {
+  getItemAudit: async (itemId: string) => {
     const { data } = await api.get(`/api/inventory/items/${itemId}/audit`);
     return data;
   },

@@ -147,7 +147,7 @@ export default function ReturnItemPage() {
           </p>
           <Button
             variant="outline"
-            href={INVENTORY_ROUTES.detail(id)}
+            href={INVENTORY_ROUTES.trackedDetail(id)}
           >
             Back to Item
           </Button>
@@ -167,7 +167,7 @@ export default function ReturnItemPage() {
         notes:       data.notes,
         recorded_by: "Warehouse Staff",
       });
-      router.push(INVENTORY_ROUTES.detail(id));
+      router.push(INVENTORY_ROUTES.trackedDetail(id));
     } catch (err) {
       setError("root", {
         message:

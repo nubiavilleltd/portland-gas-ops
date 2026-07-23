@@ -102,9 +102,16 @@ export interface StockMovement {
 export interface ConsumableStock {
   id: string;
   product_id: string;
+  product_name: string;
   location_id: string;
+  location_name: string;
   quantity: number;    // always current level
   updated_at: string;
+}
+
+export interface ConsumableStockDetail extends ConsumableStock {
+  product_code?: string;
+  movements: StockMovement[];
 }
 
 // ── 7. INPUT TYPES ───────────────────────────────────────

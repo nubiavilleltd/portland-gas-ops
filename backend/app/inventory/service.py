@@ -23,6 +23,8 @@ from app.inventory.schema import (
     CheckInConsumableInput,
     CheckInTrackedInput,
     ReturnItemInput,
+    ConsumableStockDetailResponse,
+    StockMovementResponse
 )
 from app.orders.model import OrderItem
 
@@ -69,6 +71,26 @@ class InventoryService:
 
     def get_kpis(self, db: Session):
         return self.repo.get_kpis(db)
+    
+    def get_consumable_stock_detail(
+        self,
+        db: Session,
+        stock_id: str,
+    ):
+        stock = self.repo.get_consumable_stock_by_id(db=db, stock_id=stock_id)
+
+        if not stock:
+            raise AppException(
+                status_code=404,
+                error_code=InventoryErrorCode.CONSUMABLE_STOCK_NOT_FOUND,
+                message="Consumable stock record not found.",
+            )
+        movements = self.repo.list_stock_movements(
+                        db=db,
+                        product_id=stock.product_id,
+                        location_id=stock.location_id,
+                    )
+        return stock, movements
 
     def list_items(
         self,

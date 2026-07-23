@@ -64,123 +64,21 @@ export default function InventoryListPage() {
 
   const isLoading = itemsLoading || stockLoading || productsLoading;
 
-  // ── Tracked columns ───────────────────────────────────────
-//   const trackedColumns: Column<InventoryItem>[] = [
-//     {
-//       key: "tag_number",
-//       label: "Tag Number",
-//       render: (value) => (
-//         <span className="font-medium font-mono text-sm">{value as string}</span>
-//       ),
-//     },
-//     {
-//       key: "product_id",
-//       label: "Product",
-//       render: (value) =>
-//         getProductById(products, value as string)?.name ?? "—",
-//     },
-//     {
-//       key: "serial_number",
-//       label: "Serial No.",
-//       render: (value) => (value as string) ?? "—",
-//     },
-//     {
-//       key: "condition",
-//       label: "Condition",
-//       render: (value) => {
-//         const v = value as InventoryItem["condition"];
-//         const variant: BadgeVariant =
-//           v === "new"         ? "success"  :
-//           v === "refurbished" ? "info"     :
-//           v === "used"        ? "neutral"  : "danger";
-//         return <Badge variant={variant} label={v} />;
-//       },
-//     },
-//     {
-//       key: "status",
-//       label: "Status",
-//       render: (value) => {
-//         const v = value as InventoryItem["status"];
-//         return (
-//           <Badge
-//             variant={STATUS_VARIANT[v]}
-//             label={STATUS_LABEL[v]}
-//           />
-//         );
-//       },
-//     },
-//     {
-//       key: "location_id",
-//       label: "Location",
-//       render: () => "Main Warehouse",
-//     },
-//     {
-//       key: "received_at",
-//       label: "Received",
-//     },
-//   ];
-
-//   // ── Consumable columns ────────────────────────────────────
-//  const consumableColumns: Column<ConsumableStock>[] = [
-//   {
-//     key: "product_id",
-//     label: "Product",
-//     render: (_, row) => {
-//       const product = getProductById(products, row.product_id);
-//       return <span className="font-medium">{product?.name ?? "—"}</span>;
-//     },
-//   },
-//   {
-//     key: "quantity",
-//     label: "Current Stock",
-//     render: (value, row) => {
-//       const product = getProductById(products, row.product_id);
-//       return `${(value as number).toLocaleString()} ${product?.unit ?? ""}`;
-//     },
-//   },
-//   {
-//     key: "id",
-//     label: "Min. Stock",
-//     render: (_, row) => {
-//       const product = getProductById(products, row.product_id);
-//       return product?.minimum_stock
-//         ? `${product.minimum_stock.toLocaleString()} ${product.unit}`
-//         : "—";
-//     },
-//   },
-//   {
-//     key: "location_id",
-//     label: "Status",
-//     render: (_, row) => {
-//       const product  = getProductById(products, row.product_id);
-//       const minStock = product?.minimum_stock ?? 0;
-//       const isLow    = minStock > 0 && row.quantity <= minStock;
-//       return (
-//         <Badge
-//           variant={isLow ? "danger" : "success"}
-//           label={isLow ? "Low Stock" : "OK"}
-//         />
-//       );
-//     },
-//   },
-//   {
-//     key: "updated_at",
-//     label: "Last Updated",
-//   },
-// ];
 
 
 const trackedColumns: Column<InventoryItem>[] = [
+
   {
+    key: "product_name",
+    label: "Product",
+  },
+
+    {
     key: "tag_number",
     label: "Tag Number",
     render: (value) => (
       <span className="font-medium font-mono text-sm">{value as string}</span>
     ),
-  },
-  {
-    key: "product_name",
-    label: "Product",
   },
   // {
   //   key: "serial_number",
@@ -220,12 +118,12 @@ const trackedColumns: Column<InventoryItem>[] = [
 
 const consumableColumns: Column<ConsumableStock>[] = [
   {
-    key: "product_id",
+    key: "product_name",
     label: "Product",
-    render: (value) => {
-      const product = getProductById(products, value as string);
-      return <span className="font-medium">{product?.name ?? "—"}</span>;
-    },
+  },
+    {
+    key: "location_name",
+    label: "Location",
   },
   {
     key: "quantity",
@@ -236,7 +134,7 @@ const consumableColumns: Column<ConsumableStock>[] = [
     },
   },
   {
-    key: "updated_at",
+    key: "location_id",
     label: "Min. Stock",
     render: (_, row) => {
       const product = getProductById(products, row.product_id);
@@ -261,9 +159,9 @@ const consumableColumns: Column<ConsumableStock>[] = [
     },
   },
   {
-    key: "location_id",
+    key: "updated_at",
     label: "Last Updated",
-    render: (_, row) => row.updated_at,
+    render:(value) => formatDate(value as string)
   },
 ];
 
@@ -341,7 +239,7 @@ const consumableColumns: Column<ConsumableStock>[] = [
           columns={trackedColumns}
           data={items}
           isLoading={isLoading}
-          rowHref={(item) => INVENTORY_ROUTES.detail(item.id)}
+          rowHref={(item) => INVENTORY_ROUTES.trackedDetail(item.id)}
           emptyMessage="No inventory items found."
         />
       ) : (

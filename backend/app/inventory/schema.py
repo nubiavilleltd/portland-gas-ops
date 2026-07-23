@@ -132,7 +132,7 @@ class InventoryItemListResponse(BaseModel):
 # ============================================================================
 
 class ConsumableStockResponse(BaseModel):
-    id: int
+    id: str
 
     product_id: str
     product_name: Optional[str] = None
@@ -151,6 +151,30 @@ class ConsumableStockResponse(BaseModel):
 class ConsumableStockListResponse(BaseModel):
     items: List[ConsumableStockResponse]
     total: int
+
+
+# ============================================================================
+# Consumable Stock Detail
+# ============================================================================
+
+class ConsumableStockDetailResponse(BaseModel):
+    id: str
+
+    product_id: str
+    product_name: Optional[str] = None
+    product_code: Optional[str] = None
+
+    location_id: str
+    location_name: Optional[str] = None
+
+    quantity: Decimal
+
+    updated_at: datetime
+
+    movements: List[StockMovementResponse] = []
+
+    class Config:
+        from_attributes = True
 
 
 # ============================================================================

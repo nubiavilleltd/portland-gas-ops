@@ -376,6 +376,25 @@ class InventoryRepository:
             )
             .first()
         )
+    
+
+    def get_consumable_stock_by_id(
+        self,
+        db: Session,
+        stock_id: str,
+    ) -> Optional[ConsumableStock]:
+
+        return (
+            db.query(ConsumableStock)
+            .options(
+                joinedload(ConsumableStock.product),
+                joinedload(ConsumableStock.location),
+            )
+            .filter(
+                ConsumableStock.id == stock_id,
+            )
+            .first()
+        )
 
     def list_consumable_stock(
         self,
@@ -465,6 +484,7 @@ class InventoryRepository:
         self,
         db: Session,
         product_id: Optional[str] = None,
+        location_id: Optional[str] = None,
     ) -> List[StockMovement]:
 
         q = (
@@ -478,6 +498,8 @@ class InventoryRepository:
 
         if product_id:
             q = q.filter(StockMovement.product_id == product_id)
+        if location_id:
+            q = q.filter(StockMovement.location_id == location_id)
 
         return (
             q.order_by(StockMovement.created_at.desc())

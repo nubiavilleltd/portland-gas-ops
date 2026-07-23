@@ -124,7 +124,7 @@ export default function InventoryItemDetailPage() {
         className="mb-6"
         action={
           canReturn(item) ? (
-            <Button href={INVENTORY_ROUTES.return(id)}>
+            <Button href={INVENTORY_ROUTES.returnTracked(id)}>
               Return Item
             </Button>
           ) : undefined

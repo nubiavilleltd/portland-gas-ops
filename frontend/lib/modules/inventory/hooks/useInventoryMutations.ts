@@ -5,32 +5,36 @@ import { inventoryApi } from "../api/inventory.api";
 import { adaptInventoryItem, adaptConsumableStock } from "../adapters/inventory.adapter";
 import { getErrorMessage } from "@/lib/api/error";
 import { INVENTORY_ROUTES } from "../constants/routes";
+import { INVENTORY_KEYS } from "../constants/inventory-query-keys";
+import { InventoryService } from "../services/inventory.service";
 
-const INVENTORY_KEYS = {
-  items:     ["inventory", "items"],
-  stock:     ["inventory", "stock"],
-  movements: ["inventory", "movements"],
-  kpis:      ["inventory", "kpis"],
-};
+
 
 export function useCheckInTracked() {
   const queryClient = useQueryClient();
-  const router      = useRouter();
+  const router = useRouter();
 
   return useMutation({
-    mutationFn: (input: {
-      product_id: string; location_id: string; quantity: number;
-      condition: string; notes?: string; product_code?: string; recorded_by?: string;
-    }) => inventoryApi.checkInTracked(input).then((r: any[]) => r.map(adaptInventoryItem)),
+    mutationFn: InventoryService.checkInTracked,
 
     onSuccess: (items) => {
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.items });
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.movements });
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.kpis });
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.items(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.movements(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.kpis(),
+      });
+
       toast.success(`${items.length} item(s) checked in successfully`);
+
       router.push(INVENTORY_ROUTES.list());
     },
-    onError: (err: any) => {
+
+    onError: (err) => {
       toast.error(getErrorMessage(err, "Failed to check in items"));
     },
   });
@@ -40,17 +44,24 @@ export function useCheckInConsumable() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: {
-      product_id: string; location_id: string; quantity: number;
-      notes?: string; recorded_by?: string;
-    }) => inventoryApi.checkInConsumable(input).then(adaptConsumableStock),
+    mutationFn: InventoryService.checkInConsumable,
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.stock });
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.movements });
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.consumableStock(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.movements(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.kpis(),
+      });
+
       toast.success("Stock updated successfully");
     },
-    onError: (err: any) => {
+
+    onError: (err) => {
       toast.error(getErrorMessage(err, "Failed to update stock"));
     },
   });
@@ -60,17 +71,24 @@ export function useReturnItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ item_id, condition, notes }: {
-      item_id: string | number; condition: string; notes?: string; recorded_by?: string;
-    }) => inventoryApi.returnItem(Number(item_id), { condition, notes }).then(adaptInventoryItem),
+    mutationFn: InventoryService.returnItem,
 
-    onSuccess: (item) => {
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.items });
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.movements });
-      queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.kpis });
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.items(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.movements(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.kpis(),
+      });
+
       toast.success("Item returned successfully");
     },
-    onError: (err: any) => {
+
+    onError: (err) => {
       toast.error(getErrorMessage(err, "Failed to return item"));
     },
   });

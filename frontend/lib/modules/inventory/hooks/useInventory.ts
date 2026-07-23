@@ -170,6 +170,22 @@ export function useConsumableStock() {
   };
 }
 
+export function useConsumableStockDetail(id: string) {
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.consumableStockDetail(id),
+    queryFn: () => InventoryService.getConsumableStockById(id),
+    enabled: !!id,
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    stock: query.data,
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
 export function useConsumableStockByProduct(productId: string) {
   const { stock, isLoading, error, refetch } = useConsumableStock();
 

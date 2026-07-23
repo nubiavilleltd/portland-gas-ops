@@ -1,5 +1,6 @@
 import type {
     InventoryItem, ConsumableStock, StockMovement,
+    ConsumableStockDetail,
 } from "../types/inventory.types";
 
 // ── Backend shapes ─────────────────────────────────────────
@@ -27,9 +28,16 @@ interface BackendInventoryItem {
 interface BackendConsumableStock {
     id: string;
     product_id: string;
+    product_name: string;
     location_id: string;
+    location_name: string;
     quantity: string | number;
     updated_at: string;
+}
+
+interface BackendConsumableStockDetail extends BackendConsumableStock {
+  product_code?: string;
+  movements: BackendStockMovement[];
 }
 
 interface BackendStockMovement {
@@ -75,11 +83,25 @@ export function adaptConsumableStock(raw: BackendConsumableStock): ConsumableSto
     return {
         id: raw.id,
         product_id: raw.product_id,
+        product_name: raw.product_name,
         location_id: String(raw.location_id),
+        location_name: String(raw.location_name),
         quantity: Number(raw.quantity),
         updated_at: raw.updated_at,
     };
 }
+
+export function adaptConsumableStockDetail(
+  raw: BackendConsumableStockDetail,
+): ConsumableStockDetail {
+  return {
+    ...adaptConsumableStock(raw),
+    product_code: raw.product_code,
+    movements: raw.movements.map(adaptStockMovement),
+  };
+}
+
+
 
 export function adaptStockMovement(raw: BackendStockMovement): StockMovement {
     return {

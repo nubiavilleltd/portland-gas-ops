@@ -37,39 +37,39 @@ export default function ProductDetailPage() {
   const { stock, quantity } = useConsumableStockByProduct(id);
   const { movements } = useStockMovementsByProduct(id);
   const isLow = getStockStatus(product as Product, quantity);
-    // product?.minimumStock != null && quantity <= product?.minimumStock;
+  // product?.minimumStock != null && quantity <= product?.minimumStock;
   // const [actionError, setActionError] = useState<string | null>(null);
 
   const isActive = product?.status == "active";
   const { mutate: toggleStatus, isPending: isToggling } =
     useToggleProductStatus(id);
 
- if (isLoading) {
-  return (
-    <AppLayout pageTitle="Product">
-      <ProductDetailsSkeleton />
-    </AppLayout>
-  );
-}
+  if (isLoading) {
+    return (
+      <AppLayout pageTitle="Product">
+        <ProductDetailsSkeleton />
+      </AppLayout>
+    );
+  }
 
 
-if (error || !product) {
-  return (
-    <AppLayout pageTitle="Product">
-      <PageErrorState
-        title="Unable to load product"
-        message={error ?? "This product could not be found."}
-      >
-        <Button
-          variant="outline"
-          onClick={() => router.push(PRODUCT_ROUTES.list())}
+  if (error || !product) {
+    return (
+      <AppLayout pageTitle="Product">
+        <PageErrorState
+          title="Unable to load product"
+          message={error ?? "This product could not be found."}
         >
-          Back to Products
-        </Button>
-      </PageErrorState>
-    </AppLayout>
-  );
-}
+          <Button
+            variant="outline"
+            onClick={() => router.push(PRODUCT_ROUTES.list())}
+          >
+            Back to Products
+          </Button>
+        </PageErrorState>
+      </AppLayout>
+    );
+  }
 
 
   return (
@@ -113,35 +113,35 @@ if (error || !product) {
           </Button> */}
 
           <Button
-  variant={isActive ? "danger" : "primary"}
-  loading={isToggling}
-  loadingText={
-    isActive
-      ? "Deactivating…"
-      : "Activating…"
-  }
-  onClick={() =>
-    toggleStatus(isActive ?? false, {
-      onSuccess: () => {
-        toast.success(
-          isActive
-            ? "Product deactivated successfully."
-            : "Product activated successfully."
-        );
-      },
-      onError: (err) => {
-        toast.error(parseError(err));
-      },
-    })
-  }
-  leftIcon={
-    isActive
-      ? <PowerOff size={14} />
-      : <Power size={14} />
-  }
->
-  {isActive ? "Deactivate" : "Activate"}
-</Button>
+            variant={isActive ? "danger" : "primary"}
+            loading={isToggling}
+            loadingText={
+              isActive
+                ? "Deactivating…"
+                : "Activating…"
+            }
+            onClick={() =>
+              toggleStatus(isActive ?? false, {
+                onSuccess: () => {
+                  toast.success(
+                    isActive
+                      ? "Product deactivated successfully."
+                      : "Product activated successfully."
+                  );
+                },
+                onError: (err) => {
+                  toast.error(parseError(err));
+                },
+              })
+            }
+            leftIcon={
+              isActive
+                ? <PowerOff size={14} />
+                : <Power size={14} />
+            }
+          >
+            {isActive ? "Deactivate" : "Activate"}
+          </Button>
         </div>
       </div>
 

@@ -21,45 +21,21 @@ from app.inventory.schema import (
     CreateLocationInput,
     LocationResponse,
     InventoryKPIResponse,
+    ConsumableStockDetailResponse
 )
 
 from app.audit.schema import AuditLogResponse, AuditEntityType
 from app.audit.service import AuditService
 
+from app.inventory.mapper import (
+    inventory_item_to_response,
+    consumable_stock_to_response,
+    stock_movement_to_response,
+    consumable_stock_detail_to_response
+)
+
 router = APIRouter()
 service = InventoryService()
-
-
-def _movement_to_response(movement) -> StockMovementResponse:
-    response = StockMovementResponse.model_validate(movement)
-    response.item_ids = getattr(
-        movement,
-        "_item_ids",
-        [item.inventory_item_id for item in movement.items],
-    )
-    return response
-
-def _inventory_item_to_response(item) -> InventoryItemResponse:
-    response = InventoryItemResponse.model_validate(item)
-
-    response.product_name = item.product.name if item.product else None
-    response.product_code = item.product.code if item.product else None
-
-    response.location_name = item.location.name if item.location else None
-
-    response.customer_name = (
-        item.customer.name if item.customer else None
-    )
-
-    response.order_no = (
-        item.order.order_no if item.order else None
-    )
-
-    response.trip_no = (
-        item.trip.trip_no if item.trip else None
-    )
-
-    return response
 
 
 # -------------------------------------------------------------------------
@@ -124,7 +100,7 @@ def list_inventory_items(
     )
 
 
-    return [_inventory_item_to_response(item) for item in items]
+    return [inventory_item_to_response(item) for item in items]
 
 
 @router.get("/items/{item_id}", response_model=InventoryItemResponse)
@@ -134,7 +110,7 @@ def get_inventory_item(
     current_user: User = Depends(get_current_user),
 ):
     item = service.get_item_or_raise(db, item_id)
-    return _inventory_item_to_response(item)
+    return inventory_item_to_response(item)
 
 
 @router.post(
@@ -173,7 +149,32 @@ def list_consumable_stock(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.list_stock(db)
+    stock = service.list_stock(db)
+
+    return [
+        consumable_stock_to_response(item)
+        for item in stock
+    ]
+
+
+@router.get(
+    "/stock/{stock_id}",
+    response_model=ConsumableStockDetailResponse,
+)
+def get_consumable_stock(
+    stock_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stock, movements = service.get_consumable_stock_detail(
+        db=db,
+        stock_id=stock_id,
+    )
+
+    return consumable_stock_detail_to_response(
+        stock,
+        movements,
+    )
 
 
 # -------------------------------------------------------------------------
@@ -196,7 +197,7 @@ def list_stock_movements(
         item_id=item_id,
     )
 
-    return [_movement_to_response(m) for m in movements]
+    return [stock_movement_to_response(m) for m in movements]
 
 
 # -------------------------------------------------------------------------
