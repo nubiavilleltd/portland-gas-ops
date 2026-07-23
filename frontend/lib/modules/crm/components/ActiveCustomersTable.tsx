@@ -52,7 +52,7 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
     searchable: false,
     render: (_, customer) => (
       <Link
-        href={`/admin/crm/customers/${customer.id}`}
+        href={`/crm/customers/${customer.id}`}
         onClick={(e) => e.stopPropagation()}
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
         title="View Customer"
@@ -75,11 +75,11 @@ export default function ActiveCustomersTable({ customers }: Props) {
           <h2 className="text-lg font-semibold">Active Customers</h2>
 
           <p className="text-sm text-brand-text-secondary">
-            Recently acknowledged and active customers.
+            Recently active customers.
           </p>
         </div>
 
-        <Button size="sm" href="/admin/crm/customers">
+        <Button size="sm" href="/crm/customers">
           View All
         </Button>
       </div>
@@ -88,7 +88,7 @@ export default function ActiveCustomersTable({ customers }: Props) {
         <DataTable<CustomerOnboarding>
           columns={COLUMNS}
           data={customers}
-          rowHref={(customer) => `/admin/crm/customers/${customer.id}`}
+          rowHref={(customer) => `/crm/customers/${customer.id}`}
           searchPlaceholder="Search customers..."
           emptyMessage="No active customers found."
         />

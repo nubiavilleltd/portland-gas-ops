@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye } from "lucide-react";
+import { Eye, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -56,7 +56,7 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
     searchable: false,
     render: (_, customer) => (
       <Link
-        href={`/admin/crm/customers/${customer.id}`}
+        href={`/crm/customers/${customer.id}`}
         onClick={(e) => e.stopPropagation()}
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
         title="View Customer"
@@ -72,8 +72,7 @@ export default function CustomersPage() {
 
   const activeCustomers = customers.filter(
     (customer) =>
-      customer.status === "acknowledged" ||
-      customer.customer_status === "active",
+      customer.status === "active" || customer.customer_status === "active",
   );
 
   return (
@@ -81,6 +80,15 @@ export default function CustomersPage() {
       <PageHeader
         title="Customers"
         description="Manage active customers and their information."
+        action={
+          <Button
+            href="/crm/customers/new"
+            leftIcon={<Plus size={15} />}
+            size="sm"
+          >
+            New Customer
+          </Button>
+        }
       />
 
       {isLoading ? (
@@ -94,13 +102,13 @@ export default function CustomersPage() {
       ) : activeCustomers.length === 0 ? (
         <EmptyState
           title="No customers found"
-          description="There are no acknowledged customers available."
+          description="There are no active customers available."
         />
       ) : (
         <DataTable<CustomerOnboarding>
           columns={COLUMNS}
           data={activeCustomers}
-          rowHref={(customer) => `/admin/crm/customers/${customer.id}`}
+          rowHref={(customer) => `/crm/customers/${customer.id}`}
           searchPlaceholder="Search customers..."
           emptyMessage="No customers found."
         />

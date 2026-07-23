@@ -154,12 +154,10 @@ export default function EditCustomerPage() {
 
     // await updateCustomer(payload)
 
-    toast.success(
-      "Customer details have been submitted for approval successfully.",
-    );
+    toast.success("Customer details have been submitted successfully.");
 
     setTimeout(() => {
-      router.push("/admin/crm/onboarding");
+      router.push("/crm/customers");
     }, 1000);
   }
   function deactivateCustomer() {
@@ -176,7 +174,7 @@ export default function EditCustomerPage() {
     toast.success("Customer has been deactivated successfully.");
 
     setTimeout(() => {
-      router.push("/admin/crm/onboarding");
+      router.push("/crm/customers");
     }, 1000);
   }
 
@@ -185,7 +183,7 @@ export default function EditCustomerPage() {
   return (
     <AppLayout pageTitle="Edit Customer">
       <BackButton
-        href={`/admin/crm/onboarding/${id}`}
+        href={`/crm/customers/${id}`}
         label="Back to Customer Details"
       />
 
@@ -258,10 +256,10 @@ export default function EditCustomerPage() {
           onChange={handleChange}
         />
 
-        <CustomerAttachmentsCard
+        {/* <CustomerAttachmentsCard
           values={form.attachments}
           onChange={(attachments) => handleChange("attachments", attachments)}
-        />
+        /> */}
 
         <InternalNotesCard
           value={form.internalNotes}
@@ -278,9 +276,7 @@ export default function EditCustomerPage() {
               Cancel
             </Button>
 
-            <Button onClick={submitForApproval}>
-              Save & Submit for Approval
-            </Button>
+            <Button onClick={submitForApproval}>Save & Submit</Button>
           </div>
         </div>
       </div>

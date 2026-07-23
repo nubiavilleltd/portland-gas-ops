@@ -30,7 +30,7 @@ export default function CustomerDetailsPage() {
 
   const isReturned = customer?.status?.toLowerCase() === "returned";
   const isDraft = customer?.status?.toLowerCase() === "draft";
-  const isAcknowledged = customer?.status?.toLowerCase() === "acknowledged";
+  const isAcknowledged = customer?.status?.toLowerCase() === "active";
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const [form, setForm] = useState({
@@ -85,18 +85,18 @@ export default function CustomerDetailsPage() {
   return (
     <AppLayout pageTitle="Customer Details">
       <div className="flex justify-between mb-2">
-        <BackButton href="/admin/crm/customers" label="Back to Customers" />
+        <BackButton href="/crm/customers" label="Back to Customers" />
 
         <div>
           <Button
             variant="outline"
             className="mr-2"
-            href={`/admin/crm/onboarding/${customer.id}/edit`}
+            href={`/crm/customers/${customer.id}/edit`}
           >
             Edit Customer
           </Button>
           {isAcknowledged && (
-            <Button href={`/admin/crm/contacts/${customer.id}`}>
+            <Button href={`/crm/contacts/${customer.id}`}>
               Manage Contacts
             </Button>
           )}
@@ -231,9 +231,9 @@ export default function CustomerDetailsPage() {
             onChange={(attachments) => handleChange("attachments", attachments)}
           />
         )}
-        {!isReturned && !isDraft && (
+        {/* {!isReturned && !isDraft && (
           <CustomerAttachmentsSection attachments={customer.attachments} />
-        )}
+        )} */}
         <InternalNotesCard
           readOnly={readOnly}
           value={customer.internal_notes}

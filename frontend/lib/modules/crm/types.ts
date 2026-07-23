@@ -4,7 +4,6 @@ export type CustomerEntityType = "company" | "individual";
 export type CustomerOnboardingStatus =
   | "draft"
   | "submitted"
-  | "acknowledged"
   | "returned"
   | "approved"
   | "active"
@@ -13,14 +12,16 @@ export type CustomerOnboardingStatus =
 
 export interface CustomerOnboarding {
   id: string;
-
+  referrer: string;
+  sales_contact: string;
   onboarding_number: string;
   company_email: string;
   // Customer Information
   customer_name: string;
   entity_type: CustomerEntityType;
   category: CustomerCategory;
-
+  position: string;
+  role: string;
   // Business Information
   rc_number: string;
   tin: string;
@@ -266,7 +267,8 @@ export interface ContactPerson {
 
   phone: string;
   alternate_phone: string;
-
+  position: string;
+  role: string;
   department: string;
 
   preferred_channel: PreferredChannel;
@@ -302,3 +304,81 @@ export interface ContactActivity {
 export type PreferredChannel = "Email" | "Phone" | "WhatsApp";
 
 export type ContactPersonStatus = "active" | "inactive";
+export type CustomerType = "potential" | "purchased";
+
+export interface CustomerVisit {
+  id: string;
+  visit_number: string;
+
+  customer_id: string;
+  customer_name: string;
+  contact_person: string;
+
+  visit_type: string;
+
+  related_visit_id?: string;
+  related_visit_number?: string;
+  related_visit_type?: string;
+  related_visit_date?: string;
+  related_visit_status: string;
+
+  visit_date: string;
+  visit_time: string;
+  location: string;
+
+  visit_objective: string;
+  purpose: string;
+
+  outcome: string;
+  next_action: string;
+  comment?: string;
+
+  visit_result?: string;
+
+  follow_up_required: boolean;
+  follow_up_date?: string;
+
+  recommendation?: string;
+
+  opportunity_identified: boolean;
+  opportunity_value?: number;
+  interested_products?: string[];
+
+  customer_feedback?: string;
+  customer_comments?: string;
+
+  participants?: string[];
+
+  start_time?: string;
+  end_time?: string;
+  duration?: string;
+
+  reminder_date?: string;
+
+  attachments?: {
+    id: string;
+    name: string;
+    url: string;
+  }[];
+
+  status: string;
+
+  created_by: string;
+  created_at: string;
+
+  activities?: CustomerVisitActivity[];
+}
+
+export interface CustomerVisitActivity {
+  id: string;
+
+  action: string;
+
+  performedBy: string;
+
+  performedByRole: string;
+
+  performedAt: string;
+
+  comment?: string;
+}

@@ -24,6 +24,7 @@ import {
   Users2,
   Warehouse,
   SlidersHorizontal,
+  TrendingUp,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -47,31 +48,21 @@ export const moduleGroups: readonly ModuleGroup[] = [
     routePrefixes: ["/admin/crm"],
     processes: [
       {
-        name: "Customer Onboarding",
-        description: "Register and onboard new customers",
-        icon: UserPlus,
-        href: "/admin/crm/onboarding",
-      },
-      {
-        name: "Customers",
-        description: "Manage customer accounts and profiles",
-        icon: Users,
-        href: "/admin/crm/customers",
-      },
-      {
-        name: "Contacts",
-        description: "Manage customer contact persons",
-        icon: Users2,
-        href: "/admin/crm/contacts",
-      },
-      {
         name: "CRM Dashboard",
         description: "Customer insights and relationship metrics",
         icon: BarChart2,
         href: "/admin/crm/",
       },
+      {
+        name: "Purchase Trends",
+        description:
+          "Analyze customer purchasing behaviour and spending trends",
+        icon: TrendingUp,
+        href: "/admin/crm/purchase-trends",
+      },
     ],
   },
+
   {
     title: "Intranet CMS",
     routePrefixes: ["/admin/intranet"],
@@ -289,7 +280,8 @@ export const moduleGroups: readonly ModuleGroup[] = [
       },
       {
         name: "Groups",
-        description: "Named lists of people for workflow steps and other processes",
+        description:
+          "Named lists of people for workflow steps and other processes",
         icon: Users2,
         href: "/admin/setups/groups",
         routePrefixes: ["/admin/setups/groups"],

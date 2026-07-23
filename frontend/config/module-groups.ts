@@ -16,6 +16,11 @@ import {
   User,
   UserCircle,
   Users,
+  UserPlus,
+  Users2,
+  Building2,
+  Contact,
+  CalendarCheck2,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -46,8 +51,36 @@ export const moduleGroups: readonly ModuleGroup[] = [
   //   ],
   // },
   {
+    title: "Customer Relationship Management",
+    processes: [
+      {
+        name: "Customers",
+        description: "Manage customer accounts and profiles",
+        icon: User,
+        href: "/crm/customers",
+      },
+      {
+        name: "Contacts",
+        description: "Manage customer contact persons",
+        icon: Contact,
+        href: "/crm/contacts",
+      },
+      {
+        name: "Customer Visits",
+        description: "Manage customer contact persons",
+        icon: CalendarCheck2,
+        href: "/crm/visits",
+      },
+    ],
+  },
+  {
     title: "Finance & HR Management",
-    routePrefixes: ["/finance", "/hr-management/leave-requests", "/hr-management/my-payslips", "/hr-management/my-profile"],
+    routePrefixes: [
+      "/finance",
+      "/hr-management/leave-requests",
+      "/hr-management/my-payslips",
+      "/hr-management/my-profile",
+    ],
     processes: [
       {
         name: "Cash Requisition",
@@ -109,7 +142,7 @@ export const moduleGroups: readonly ModuleGroup[] = [
         icon: FileText,
         href: "/invoices",
       },
-        {
+      {
         name: "Payments",
         description: "Record and review payments",
         icon: DollarSign,
@@ -124,7 +157,8 @@ export const moduleGroups: readonly ModuleGroup[] = [
     processes: [
       {
         name: "Incident & Hazard Report",
-        description: "Report incidents, hazards, near misses, and HSE corrective actions",
+        description:
+          "Report incidents, hazards, near misses, and HSE corrective actions",
         icon: AlertTriangle,
         href: "/safety/incidents",
       },
@@ -170,7 +204,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
 export const homeModuleGroups = moduleGroups
   .map((group) => ({
     ...group,
-    processes: group.processes.filter((process) => process.showOnHome !== false).sort((a, b) => a.name.localeCompare(b.name)),
+    processes: group.processes
+      .filter((process) => process.showOnHome !== false)
+      .sort((a, b) => a.name.localeCompare(b.name)),
   }))
   .filter((group) => group.processes.length > 0);
 
@@ -178,7 +214,9 @@ function matchesPath(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-export function getModuleGroupForPathname(pathname: string): ModuleGroup | undefined {
+export function getModuleGroupForPathname(
+  pathname: string,
+): ModuleGroup | undefined {
   for (const group of moduleGroups) {
     const ownsProcessPath = group.processes.some((process) =>
       [process.href, ...(process.routePrefixes ?? [])].some((prefix) =>
