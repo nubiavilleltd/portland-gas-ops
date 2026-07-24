@@ -6,14 +6,13 @@ import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import { BackButton } from "@/components/ui/BackButton";
 import Button from "@/components/ui/Button";
-
+import AccountManagementCard from "@/lib/modules/crm/components/AccountManagementCard";
 import CustomerInformationCard from "@/lib/modules/crm/components/CustomerInformationCard";
 import BusinessInformationCard from "@/lib/modules/crm/components/BusinessInformationCard";
 import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard";
 import AddressInformationCard from "@/lib/modules/crm/components/AddressInformationCard";
 import CommercialInformationCard from "@/lib/modules/crm/components/CommercialInformationCard";
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
-import CustomerAttachmentsCard from "@/lib/modules/crm/components/CustomerAttachmentsCard";
 import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
 import { useToast } from "@/hooks/useToast";
 import { useCustomerOnboardingDetails } from "@/lib/modules/crm";
@@ -35,7 +34,10 @@ export default function EditCustomerPage() {
     tin: "",
     vatNumber: "",
     industry: "",
-
+    salesContact: "",
+    referrerType: "employee",
+    referrer: "",
+    customerType: "potential",
     contactPerson: "",
     department: "",
     email: "",
@@ -76,7 +78,10 @@ export default function EditCustomerPage() {
       tin: customer.tin ?? "",
       vatNumber: customer.vat_number ?? "",
       industry: customer.industry ?? "",
-
+      salesContact: customer.sales_contact ?? "",
+      referrerType: customer.referrer_type ?? "employee",
+      referrer: customer.referrer ?? "",
+      customerType: customer.customer_type ?? "potential",
       contactPerson: customer.contact_person ?? "",
       department: customer.department ?? "",
       email: customer.email ?? "",
@@ -130,7 +135,11 @@ export default function EditCustomerPage() {
     if (!form.contactPerson) error.contactPerson = "Contact person is required";
 
     if (!form.email) error.email = "Email is required";
+    if (!form.salesContact) error.salesContact = "Sales contact is required";
 
+    if (!form.referrerType) error.referrerType = "Referrer type is required";
+
+    if (!form.referrer) error.referrer = "Referrer is required";
     if (!form.phone) error.phone = "Phone number is required";
 
     if (!form.addressLine1) error.addressLine1 = "Address is required";
@@ -255,12 +264,16 @@ export default function EditCustomerPage() {
           errors={errors}
           onChange={handleChange}
         />
-
-        {/* <CustomerAttachmentsCard
-          values={form.attachments}
-          onChange={(attachments) => handleChange("attachments", attachments)}
-        /> */}
-
+        <AccountManagementCard
+          values={{
+            customerType: form.customerType,
+            salesContact: form.salesContact,
+            referrerType: form.referrerType,
+            referrer: form.referrer,
+          }}
+          errors={errors}
+          onChange={handleChange}
+        />
         <InternalNotesCard
           value={form.internalNotes}
           onChange={(value) => handleChange("internalNotes", value)}

@@ -27,7 +27,8 @@ export interface CustomerOnboarding {
   tin: string;
   vat_number: string;
   industry: string;
-
+  customer_type: string;
+  referrer_type: string;
   // Primary Contact
   contact_person: string;
   department: string;

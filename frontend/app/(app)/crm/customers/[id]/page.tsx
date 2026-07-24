@@ -8,7 +8,6 @@ import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard"
 import AddressInformationCard from "@/lib/modules/crm/components/AddressInformationCard";
 import CommercialInformationCard from "@/lib/modules/crm/components/CommercialInformationCard";
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
-import CustomerAttachmentsSection from "@/lib/modules/crm/components/CustomerAttachmentsSection";
 import { BackButton } from "@/components/ui/BackButton";
 import {
   useCustomerOnboardingDetails,
@@ -21,6 +20,7 @@ import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import Button from "@/components/ui/Button";
 import CustomerAttachmentsCard from "@/lib/modules/crm/components/CustomerAttachmentsCard";
 import FormSection from "@/components/ui/FormSection";
+import AccountManagementCard from "@/lib/modules/crm/components/AccountManagementCard";
 
 export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -225,15 +225,17 @@ export default function CustomerDetailsPage() {
             estimatedMonthlyDemand: customer.estimated_monthly_demand,
           }}
         />
-        {(isReturned || isDraft) && (
-          <CustomerAttachmentsCard
-            values={form.attachments}
-            onChange={(attachments) => handleChange("attachments", attachments)}
-          />
-        )}
-        {/* {!isReturned && !isDraft && (
-          <CustomerAttachmentsSection attachments={customer.attachments} />
-        )} */}
+        <AccountManagementCard
+          readOnly={readOnly}
+          values={{
+            customerType: customer.customer_type,
+            salesContact: customer.sales_contact,
+            referrerType: customer.referrer_type,
+            referrer: customer.referrer,
+          }}
+          onChange={() => {}}
+        />
+
         <InternalNotesCard
           readOnly={readOnly}
           value={customer.internal_notes}
