@@ -73,7 +73,9 @@ function calcDays(start: string, end: string): number {
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
   if (e < s) return 0;
-  return Math.round((e - s) / (1000 * 60 * 60 * 24));
+  // Inclusive of both start and end (same day = 1), matching the backend:
+  // days = (end - start).days + 1.
+  return Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
 }
 
 export default function LeaveRequestsPage() {
