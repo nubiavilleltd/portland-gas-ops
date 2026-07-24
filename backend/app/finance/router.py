@@ -11,6 +11,7 @@ from app.finance.models import CashRequisition, InvoiceProcessing
 from app.finance.schemas import (
     CashRequisitionCreate, CashRequisitionRead,
     InvoiceProcessingCreate, InvoiceProcessingRead, POOption, VendorOption,
+    FinanceSubmit,
 )
 from app.finance import service
 from app.employees.service import get_employee_by_user_id
@@ -156,11 +157,14 @@ def upload_cash_requisition_document(
 )
 def submit_cash_requisition_for_approval(
     cash_requisition_id: str,
+    body: FinanceSubmit | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Submit a cash requisition into the workflow engine (starts approval)."""
-    approval_request = service.submit_cash_requisition_for_approval(db, cash_requisition_id)
+    approval_request = service.submit_cash_requisition_for_approval(
+        db, cash_requisition_id, body.picked_approvers if body else None
+    )
     db.commit()
     db.refresh(approval_request)
     return {
@@ -322,11 +326,14 @@ def upload_invoice_document(
 )
 def submit_invoice_for_approval(
     invoice_id: str,
+    body: FinanceSubmit | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Submit an invoice into the workflow engine (starts approval)."""
-    approval_request = service.submit_invoice_for_approval(db, invoice_id)
+    approval_request = service.submit_invoice_for_approval(
+        db, invoice_id, body.picked_approvers if body else None
+    )
     db.commit()
     db.refresh(approval_request)
     return {

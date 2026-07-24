@@ -19,6 +19,8 @@ import SelectInput from "@/components/forms/SelectInput";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
 import { useCashRequisitions, useCreateCashRequisition } from "@/lib/modules/cash-requisitions/hooks";
 import cashRequisitionsApi from "@/lib/modules/cash-requisitions/api";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -60,6 +62,9 @@ export default function CashRequisitionsPage() {
   const { data: myEmployee } = useMyEmployee();
   const queryClient = useQueryClient();
   const createCashRequisition = useCreateCashRequisition();
+  // Workflow-driven approver picks for any requester_pick steps on the
+  // cash_requisition workflow (reads the active workflow config).
+  const approverPicker = useApproverPicker("cash_requisition");
   // Reuse the draft on retry if only the submit step failed (avoids duplicates).
   const draftRef = useRef<{ id: string; reference?: string } | null>(null);
 
@@ -98,6 +103,13 @@ export default function CashRequisitionsPage() {
         return;
       }
 
+      // Every requester_pick step on the workflow must have an approver chosen.
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
       // 1. Create the requisition — or reuse a draft from a failed attempt.
       let cr: { id: string; reference?: string };
       if (draftRef.current) {
@@ -127,7 +139,7 @@ export default function CashRequisitionsPage() {
 
       // 3. Submit for approval (enters the workflow)
       if (cr?.id) {
-        await cashRequisitionsApi.submitForApproval(cr.id);
+        await cashRequisitionsApi.submitForApproval(cr.id, approverPicker.picksPayload);
       }
       draftRef.current = null; // fully submitted — next request is fresh
 
@@ -282,6 +294,8 @@ export default function CashRequisitionsPage() {
                 </div>
               </div>
             </FormSection>
+
+            <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">

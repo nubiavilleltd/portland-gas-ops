@@ -19,6 +19,8 @@ import DataTable from "@/components/ui/DataTable";
 import { invoiceColumns } from "@/components/data-table/columns";
 import { useInvoices, useCreateInvoice, usePoOptions, useVendorOptions } from "@/lib/modules/invoices-processing/hooks";
 import invoicesApi from "@/lib/modules/invoices-processing/api";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -65,6 +67,8 @@ export default function InvoicesPage() {
   const { data: myEmployee } = useMyEmployee();
   const queryClient = useQueryClient();
   const createInvoice = useCreateInvoice();
+  // Approver picks for any requester_pick steps on the invoice workflow.
+  const approverPicker = useApproverPicker("invoice");
   // Reuse the draft on retry if only the submit step failed (avoids duplicates).
   const draftRef = useRef<{ id: string; reference?: string } | null>(null);
 
@@ -116,6 +120,13 @@ export default function InvoicesPage() {
         return;
       }
 
+      // Every requester_pick step on the workflow must have an approver chosen.
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
       // Create — or reuse a draft from a failed attempt.
       let inv: { id: string; reference?: string };
       if (draftRef.current) {
@@ -147,7 +158,7 @@ export default function InvoicesPage() {
         }
       }
 
-      if (inv?.id) await invoicesApi.submitForApproval(inv.id);
+      if (inv?.id) await invoicesApi.submitForApproval(inv.id, approverPicker.picksPayload);
       draftRef.current = null; // fully submitted — next request is fresh
 
       // Refetch AFTER the workflow starts so the list shows Next Actor now.
@@ -344,6 +355,8 @@ export default function InvoicesPage() {
 
               </div>
             </FormSection>
+
+            <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
