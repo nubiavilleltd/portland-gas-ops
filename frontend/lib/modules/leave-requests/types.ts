@@ -30,6 +30,8 @@ export interface LeaveRequestListItem {
   approval_request_id?: string;
   next_actor_name?: string;
   current_step_name?: string;
+  open_ended?: boolean;         // leave type has no fixed end date
+  returned_at?: string | null;  // set once the employee marked they are back
   created_at: string;
   updated_at?: string;
 }

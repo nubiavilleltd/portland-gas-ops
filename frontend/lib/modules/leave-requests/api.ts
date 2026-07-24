@@ -58,6 +58,12 @@ const leaveRequestsApi = {
     return response.data;
   },
 
+  // Employee marks they are back from open-ended leave (finalizes the End Date).
+  async markReturned(id: string, endDate: string): Promise<LeaveRequestDetail> {
+    const response = await api.post(`/api/hr/leave-requests/${id}/mark-returned`, { end_date: endDate });
+    return response.data;
+  },
+
   // Start the approval workflow for a draft. Uses the shared axios client so it
   // carries the same base URL + auth as every other call (a raw fetch here
   // failed with "Failed to fetch" in production).

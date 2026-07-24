@@ -649,6 +649,62 @@ def apply_leave_balance_on_approval(db: Session, leave_request_id: str) -> Leave
     return balance
 
 
+def mark_leave_returned(
+    db: Session,
+    leave_request_id: str,
+    end_date,
+    current_user_id: str,
+) -> LeaveRequest:
+    """
+    Employee marks that they are back from an open-ended leave (e.g. Sick Leave).
+    Finalizes the actual End Date + number of days, stamps returned_at, and keeps
+    the recorded balance `used` accurate by the change in days.
+    """
+    from datetime import datetime, timezone
+
+    lr = get_leave_request_by_id(db, leave_request_id)
+
+    if lr.requester_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Only the requester can mark this leave as returned")
+    if not (lr.leave_type and lr.leave_type.open_ended):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This leave type does not require marking a return")
+    if lr.status != LeaveRequestStatus.approved:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Only approved leave can be marked as returned")
+    if lr.returned_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This leave has already been marked as returned")
+    if end_date < lr.start_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="The last day of leave cannot be before the start date")
+
+    old_days = lr.days or 0
+    lr.end_date = end_date
+    lr.days = (end_date - lr.start_date).days + 1
+    lr.returned_at = datetime.now(timezone.utc)
+
+    # Keep recorded usage accurate — adjust the balance by the change in days.
+    delta = lr.days - old_days
+    if delta:
+        balance = (
+            db.query(LeaveBalance)
+            .filter(
+                LeaveBalance.employee_id == lr.employee_id,
+                LeaveBalance.leave_type_id == lr.leave_type_id,
+                LeaveBalance.fiscal_year == lr.start_date.year,
+            )
+            .first()
+        )
+        if balance:
+            balance.used = (balance.used or 0) + delta
+            balance.remaining = balance.entitlement - balance.used
+
+    db.flush()
+    return lr
+
+
 def get_my_leave_balances(db: Session, employee_id: str, fiscal_year: int) -> list[dict]:
     """
     Merged leave-balance view for an employee: every ACTIVE leave type with its

@@ -9,7 +9,7 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveMarkReturned, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
 from app.hr import service
 from app.employees.models import Employee
 from app.employees.service import get_employee_by_user_id
@@ -589,6 +589,21 @@ def submit_leave_request_for_approval(
         "status": approval_request.overall_status,
         "current_step_number": approval_request.current_step_number,
     }
+
+
+@router.post("/leave-requests/{leave_request_id}/mark-returned", response_model=LeaveRequestRead)
+def mark_leave_returned(
+    leave_request_id: str,
+    body: LeaveMarkReturned,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Employee marks that they are back from an open-ended leave (e.g. Sick
+    Leave). Finalizes the actual End Date and the number of days."""
+    lr = service.mark_leave_returned(db, leave_request_id, body.end_date, current_user.id)
+    db.commit()
+    db.refresh(lr)
+    return lr
 
 
 # ════════════════════════════════════════════════════════════════════════════

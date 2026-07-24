@@ -80,6 +80,8 @@ class LeaveRequest(Base):
     reason = Column(Text, nullable=True)
 
     status = Column(SAEnum(LeaveRequestStatus), default=LeaveRequestStatus.draft)
+    # Set when the employee marks they are back (open-ended leave, e.g. Sick).
+    returned_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -90,6 +92,11 @@ class LeaveRequest(Base):
     leave_type = relationship("LeaveTypeSetup")
     reliever = relationship("Employee", foreign_keys=[reliever_id])
     document = relationship("Document", foreign_keys=[document_id])
+
+    @property
+    def open_ended(self) -> bool:
+        """Whether this request's leave type has no fixed end date."""
+        return bool(self.leave_type and self.leave_type.open_ended)
 
     @property
     def employee_name(self) -> Optional[str]:

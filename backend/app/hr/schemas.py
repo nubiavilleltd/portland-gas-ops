@@ -123,11 +123,18 @@ class LeaveRequestRead(BaseModel):
     approval_request_id: Optional[str] = None
     next_actor_name: Optional[str] = None      # who currently holds the request (pending step assignee)
     current_step_name: Optional[str] = None    # name of the current pending step
+    open_ended: bool = False                   # leave type has no fixed end date
+    returned_at: Optional[datetime] = None     # set when the employee marked they are back
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class LeaveMarkReturned(BaseModel):
+    """Body for marking an open-ended leave as returned (finalizes the End Date)."""
+    end_date: date  # the last day of leave (employee resumes work the next day)
 
 
 # ── Payslip Schemas ──────────────────────────────────────────────────────────
