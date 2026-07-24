@@ -13,10 +13,9 @@ import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard"
 import AddressInformationCard from "@/lib/modules/crm/components/AddressInformationCard";
 import CommercialInformationCard from "@/lib/modules/crm/components/CommercialInformationCard";
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
-import CustomerAttachmentsCard from "@/lib/modules/crm/components/CustomerAttachmentsCard";
 import { BackButton } from "@/components/ui/BackButton";
-import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
 import { useToast } from "@/hooks/useToast";
+import AccountManagementCard from "@/lib/modules/crm/components/AccountManagementCard";
 
 export default function NewCustomerPage() {
   const router = useRouter();
@@ -30,7 +29,11 @@ export default function NewCustomerPage() {
     tin: "",
     vatNumber: "",
     industry: "",
+    salesContact: "",
+    referrerType: "employee",
+    referrer: "",
 
+    customerType: "potential",
     contactPerson: "",
     department: "",
     email: "",
@@ -109,7 +112,13 @@ export default function NewCustomerPage() {
     if (!form.state.trim()) nextErrors.state = "State is required.";
 
     if (!form.city.trim()) nextErrors.city = "City is required.";
+    if (!form.salesContact)
+      nextErrors.salesContact = "Sales contact is required.";
 
+    if (!form.referrerType)
+      nextErrors.referrerType = "Referrer type is required.";
+
+    if (!form.referrer.trim()) nextErrors.referrer = "Referrer is required.";
     if (!form.addressLine1.trim())
       nextErrors.addressLine1 = "Address is required.";
 
@@ -221,10 +230,16 @@ export default function NewCustomerPage() {
           errors={errors}
           onChange={handleChange}
         />
-        {/* <CustomerAttachmentsCard
-          values={form.attachments}
-          onChange={(attachments) => handleChange("attachments", attachments)}
-        /> */}
+        <AccountManagementCard
+          values={{
+            customerType: form.customerType,
+            salesContact: form.salesContact,
+            referrerType: form.referrerType,
+            referrer: form.referrer,
+          }}
+          errors={errors}
+          onChange={handleChange}
+        />
 
         <InternalNotesCard
           value={form.internalNotes}
