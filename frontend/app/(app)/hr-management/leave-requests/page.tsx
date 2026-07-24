@@ -72,10 +72,8 @@ function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
-  if (e < s) return 0;
-  // Inclusive of both start and end (same day = 1), matching the backend:
-  // days = (end - start).days + 1.
-  return Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+  if (e <= s) return 0;  // same-day / invalid range — flagged as a validation error
+  return Math.round((e - s) / (1000 * 60 * 60 * 24));
 }
 
 export default function LeaveRequestsPage() {
@@ -251,6 +249,8 @@ function LeaveRequestsPageContent() {
 
   const days = calcDays(watchStart ?? "", watchEnd ?? "");
   const exceedsBalance = !isUncapped && days > 0 && activeBal !== null && days > activeBal.remaining;
+  // End Date must be after Start Date — a same-day range is invalid.
+  const invalidRange = Boolean(watchStart && watchEnd && new Date(watchEnd) <= new Date(watchStart));
 
   async function onSubmit(data: FormData) {
     try {
@@ -271,6 +271,11 @@ function LeaveRequestsPageContent() {
       // End Date is required unless this is an open-ended type (e.g. Sick Leave).
       if (!isOpenEnded && !data.end_date) {
         toast.error("End date is required for this leave type");
+        return;
+      }
+      // The end date must be after the start date (no same-day range).
+      if (data.end_date && new Date(data.end_date) <= new Date(data.start_date)) {
+        toast.error("End date must be after the start date");
         return;
       }
 
@@ -630,6 +635,11 @@ function LeaveRequestsPageContent() {
                     disabled
                     placeholder="Auto-calculated"
                   />
+                  {invalidRange && (
+                    <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      End date must be after the start date.
+                    </p>
+                  )}
                   {exceedsBalance && activeBal && (
                     <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                       Requested {days} day{days !== 1 ? "s" : ""} exceeds {balancePossessive} available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {leaveTypeName}.
@@ -695,7 +705,7 @@ function LeaveRequestsPageContent() {
             <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
-              <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance}>
+              <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance || invalidRange}>
                 {editRef ? "Resubmit for Approval" : "Submit for Approval"}
               </Button>
             </div>
