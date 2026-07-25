@@ -141,12 +141,7 @@ class PaymentService:
         # Business guards
         # --------------------------------------------------------------
 
-        if not guards.can_record_payment(invoice):
-            raise AppException(
-                400,
-                PaymentErrorCode.INVOICE_ALREADY_PAID,
-                "This invoice cannot accept additional payments.",
-            )
+        guards.ensure_can_record_payment(invoice)
 
         # --------------------------------------------------------------
         # Outstanding balance
@@ -159,16 +154,10 @@ class PaymentService:
 
         remaining_balance = invoice.total_amount - total_paid
 
-        if data.amount > remaining_balance:
-            raise AppException(
-                400,
-                PaymentErrorCode.PAYMENT_EXCEEDS_BALANCE,
-                f"Payment exceeds outstanding balance of ₦{remaining_balance:,.2f}.",
-                details={
-                    "remaining_balance": str(remaining_balance),
-                    "attempted_amount": str(data.amount),
-                },
-            )
+        guards.ensure_payment_does_not_exceed_balance(
+            amount=data.amount,
+            remaining_balance=remaining_balance,
+        )
 
         # --------------------------------------------------------------
         # Create payment

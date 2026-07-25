@@ -4,6 +4,8 @@ from typing import Optional, List
 import json
 
 from fastapi import APIRouter, Depends, Query, Request, status as http_status, UploadFile, File, Form
+from fastapi.responses import Response
+from app.shared.services import cloudinary_service
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -19,7 +21,8 @@ from app.payments.schema import (
     PaymentAttachmentResponse
 )
 from app.payments.service import PaymentService
-from app.shared.dependencies import require_roles
+# from app.shared.dependencies import require_roles
+from app.payments.permissions import permissions
 from app.shared.models.user import User
 
 from app.payments.constants import (
@@ -118,6 +121,10 @@ def list_payments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    
+    permissions.ensure_can_list_payments(
+        current_user,
+    )
     items, total = service.list(
         db=db,
         invoice_id=invoice_id,
@@ -144,9 +151,7 @@ async def record_payment(
     attachments: List[UploadFile] = File(default=[]),
     request: Request = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_roles("super_admin", "admin")
-    ),
+    current_user: User = Depends(get_current_user),
 ):
     
     try:
@@ -160,6 +165,9 @@ async def record_payment(
             message="Invalid payment data.",
             details={"error": str(exc)},
         )
+    permissions.ensure_can_record_payment(
+        current_user,
+    )
 
     attachment_files = _validate_attachments(
         attachments
@@ -167,14 +175,6 @@ async def record_payment(
 
     uploaded_by = _uploaded_by(current_user)
     idempotency_key = request.headers.get("idempotency-key")
-
-    print(current_user.id)
-    print(current_user.employee)
-    print(type(current_user.employee))
-
-    if current_user.employee:
-        print("employee.id =", current_user.employee.id)
-        print("employee.user_id =", current_user.employee.user_id)
 
     payment = service.record(
         db=db,
@@ -263,6 +263,11 @@ def get_payments_by_invoice(
         invoice_no,
     )
 
+    permissions.ensure_can_view_invoice_payments(
+        current_user,
+        invoice,
+    )
+
     payments = service.get_payments_by_invoice(
         db,
         invoice.id,
@@ -291,7 +296,13 @@ def get_payment_by_no(
         payment_no,
     )
 
+    permissions.ensure_can_view_payment(
+        current_user,
+        payment,
+    )
+
     return _to_response(db, payment)
+
 @router.get(
     "/{payment_id}",
     response_model=PaymentResponse,
@@ -304,6 +315,10 @@ def get_payment(
     payment = service.get_or_raise(
         db,
         payment_id,
+    )
+    permissions.ensure_can_view_payment(
+        current_user,
+        payment,
     )
 
     return _to_response(db, payment)
@@ -323,13 +338,16 @@ def get_payment_attachments(
         payment_id,
     )
 
+    permissions.ensure_can_view_payment(
+        current_user,
+        payment,
+    )
+
     return service.get_attachments(
         db,
         payment,
     )
 
-from fastapi.responses import Response
-from app.shared.services import cloudinary_service
 
 
 @router.get(
@@ -342,9 +360,14 @@ def download_attachment(
     current_user: User = Depends(get_current_user),
 ):
     # Ensure payment exists
-    service.get_or_raise(
+    payment = service.get_or_raise(
         db,
         payment_id,
+    )
+
+    permissions.ensure_can_view_payment(
+        current_user,
+        payment,
     )
 
     attachment = service.get_attachment_or_raise(

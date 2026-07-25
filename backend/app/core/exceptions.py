@@ -10,6 +10,7 @@ class ErrorCode(str, Enum):
     NOT_FOUND = "NOT_FOUND"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     TRANSACTION_FAILED = "TRANSACTION_FAILED"
+    FORBIDDEN = "FORBIDDEN"
 
 
 class AppException(HTTPException):
