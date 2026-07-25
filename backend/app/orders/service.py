@@ -1,6 +1,7 @@
 from __future__ import annotations
 from app.customers.error_codes import CustomerErrorCode
 from app.customers.repository import CustomerRepository
+from app.orders import policies
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional, Union
@@ -67,16 +68,29 @@ class OrderService:
             **fields,
         )
 
-    def list(self, db: Session, filters: OrderFilters):
+    def list(self, db: Session, filters: OrderFilters, current_user) -> tuple[list[Order], int]:
+        if policies.can_manage_orders(current_user):
+            return self.repo.list(
+                db,
+                search=filters.search,
+                order_status=filters.order_status,
+                fulfillment_status=filters.fulfillment_status,
+                payment_status=filters.payment_status,
+                customer_id=filters.customer_id,
+                page=filters.page,
+                page_size=filters.page_size,
+            )
+
         return self.repo.list(
             db,
-            search             = filters.search,
-            order_status       = filters.order_status.value if filters.order_status else None,
-            fulfillment_status = filters.fulfillment_status.value if filters.fulfillment_status else None,
-            payment_status     = filters.payment_status.value if filters.payment_status else None,
-            customer_id        = filters.customer_id,
-            page               = filters.page,
-            page_size          = filters.page_size,
+            created_by=current_user.id,
+            search=filters.search,
+            order_status=filters.order_status,
+            fulfillment_status=filters.fulfillment_status,
+            payment_status=filters.payment_status,
+            customer_id=filters.customer_id,
+            page=filters.page,
+            page_size=filters.page_size,
         )
 
     def create_draft(self, db: Session, data: Union[OrderCreate, OrderDraftCreate], created_by: str) -> Order:
@@ -124,16 +138,12 @@ class OrderService:
 
     def create_and_submit(self, db: Session, data: OrderCreate, created_by: str) -> Order:
         order = self.create_draft(db, data, created_by)
-        if not guards.can_submit(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
-                            "Only draft orders can be submitted")
+        guards.ensure_can_submit(order)
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
-    def update_draft(self, db: Session, order_id: str, data: OrderUpdate) -> Order:
+    def update_draft(self, db: Session, order: Order, data: OrderUpdate) -> Order:
         """Update a draft order - handles partial updates gracefully."""
-        order = self.get_or_raise(db, order_id)
-        if not guards.can_edit(order):
-            raise AppException(400, OrderErrorCode.ORDER_NOT_EDITABLE, "Only draft orders can be edited")
+        guards.ensure_can_edit(order)
 
         updates = {}
         
@@ -210,19 +220,15 @@ class OrderService:
 
         return self.repo.update(db, order, **updates)
 
-    def submit(self, db: Session, order_id: str) -> Order:
-        order = self.get_or_raise(db, order_id)
-        if not guards.can_submit(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
-                               "Only draft orders can be submitted")
+    def submit(self, db: Session, order: Order) -> Order:
+        # order = self.get_or_raise(db, order_id)
+        guards.ensure_can_submit(order)
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
     def confirm(self, db: Session, order_id: str, confirmed_by: str) -> Order:
         """Manual confirmation — submitted → confirmed."""
         order = self.get_or_raise(db, order_id)
-        if not guards.can_confirm(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_CONFIRMED,
-                               "Only submitted orders can be confirmed")
+        guards.ensure_can_confirm(order)
         return self.repo.update(
             db, order,
             order_status = OrderStatus.confirmed,
@@ -230,16 +236,14 @@ class OrderService:
             confirmed_at = datetime.now(timezone.utc),
         )
 
-    def cancel(self, db: Session, order_id: str, reason: Optional[str]) -> Order:
+    def cancel(self, db: Session, order: Order, reason: Optional[str]) -> Order:
         """
         Cancel order. Backend handles the cascade:
         - Sets order cancelled
         - Voids any linked invoice (handled in invoice service, called from router)
-        """
-        order = self.get_or_raise(db, order_id)
-        if not guards.can_cancel(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
-                               "This order cannot be cancelled in its current state")
+        """        
+        guards.ensure_can_cancel(order)
+
         return self.repo.update(
             db, order,
             order_status        = OrderStatus.cancelled,
@@ -247,17 +251,15 @@ class OrderService:
             cancelled_at        = datetime.now(timezone.utc),
         )
 
-    def confirm_delivery(self, db: Session, order_id: str) -> Order:
+    def confirm_delivery(self, db: Session, order: Order) -> Order:
         """
         Confirm delivery.
         Sets fulfillment=delivered, delivered_at=now.
         If payment_status==paid: auto-close (set order_status=completed).
         This is what the frontend confirmDeliveryWorkflow does — both steps in one.
         """
-        order = self.get_or_raise(db, order_id)
-        if not guards.can_confirm_delivery(order):
-            raise AppException(400, OrderErrorCode.ORDER_NOT_EDITABLE,
-                               "Delivery cannot be confirmed for this order")
+
+        guards.ensure_can_confirm_delivery(order)
 
         self.repo.update(
             db, order,
@@ -286,16 +288,22 @@ class OrderService:
 
         return self.repo.update(db, order, **updates)
 
-    def update_fulfillment_status(self, db: Session, order_id: str, status: FulfillmentStatus) -> Order:
+    def update_fulfillment_status(self, db: Session, order: Order, status: FulfillmentStatus) -> Order:
         """Called by trips module when trip status changes."""
-        order = self.get_or_raise(db, order_id)
+        
+        guards.ensure_can_update_fulfillment(
+            order,
+            status,
+        )
         return self.repo.update(db, order, fulfillment_status=status)
 
     def set_trip(self, db: Session, order_id: str, trip_id: Optional[str]) -> Order:
         order = self.get_or_raise(db, order_id)
+        guards.ensure_can_assign_trip(order)
         return self.repo.update(db, order, trip_id=trip_id)
 
     def set_invoice(self, db: Session, order: Order, invoice_id: str) -> Order:
+        guards.ensure_can_generate_invoice(order)
         return self.repo.update(db, order, invoice_id=invoice_id)
     
     

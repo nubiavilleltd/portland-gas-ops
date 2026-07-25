@@ -1,10 +1,10 @@
 from __future__ import annotations
+from app.orders.permissions import OrderPermissions
 from fastapi import APIRouter, Depends, Query, status as http_status
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.dependencies import get_db, get_current_user
-from app.shared.dependencies import require_roles
 from app.shared.models.user import User
 from app.orders.service import OrderService
 from app.orders.schema import (
@@ -23,6 +23,7 @@ from app.core.exceptions import AppException, ErrorCode
 
 router  = APIRouter()
 service = OrderService()
+permissions = OrderPermissions()
 
 
 def _to_response(order) -> OrderResponse:
@@ -46,7 +47,7 @@ def list_orders(
         fulfillment_status=fulfillment_status, payment_status=payment_status,
         customer_id=customer_id, page=page, page_size=page_size,
     )
-    items, total = service.list(db, filters)
+    items, total = service.list(db, filters, current_user)
     return OrderListResponse(
         items     = [_to_response(o) for o in items],
         total     = total,
@@ -62,6 +63,9 @@ def create_draft(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
+    permissions.ensure_can_create_order(
+        current_user,
+    )
     order = service.create_draft(db, data, created_by=current_user.id)
 
     AuditService.record(
@@ -80,7 +84,10 @@ def create_and_submit_order(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.create_and_submit(db, data, created_by=current_user.employee.id)
+    permissions.ensure_can_create_order(
+        current_user,
+    )
+    order = service.create_and_submit(db, data, created_by=current_user.id)
 
     AuditService.record(
         db, AuditEntityType.order, order.id,
@@ -103,7 +110,12 @@ def get_order(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
+
     order = service.get_or_raise(db, order_id)
+    permissions.ensure_can_view_order(
+        current_user,
+        order,
+    )
     return _to_response(order)
 
 
@@ -114,6 +126,10 @@ def get_order_by_no(
     current_user: User = Depends(get_current_user),
 ):
     order = service.get_by_no_or_raise(db, order_no)
+    permissions.ensure_can_view_order(
+        current_user,
+        order,
+    )
     return _to_response(order)
 
 
@@ -124,10 +140,17 @@ def update_draft(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.update_draft(db, order_id, data)
+    existing_order = service.get_or_raise(db, order_id)
+    permissions.ensure_can_edit_order(
+        current_user,
+        existing_order,
+    )
+
+    updated_order = service.update_draft(db, existing_order, data)
+   
     db.commit()
-    db.refresh(order)
-    return _to_response(order)
+    db.refresh(updated_order)
+    return _to_response(updated_order)
 
 
 @router.post("/{order_id}/submit", response_model=OrderResponse)
@@ -136,7 +159,12 @@ def submit_order(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.submit(db, order_id)
+    existing_order = service.get_or_raise(db, order_id)
+    permissions.ensure_can_submit_order(
+        current_user,
+        existing_order
+    )
+    order = service.submit(db, order)
     AuditService.record(
     db, AuditEntityType.order, order.id,
     "submitted", "Order submitted for processing",
@@ -151,7 +179,7 @@ def cancel_order(
     order_id:     str,
     body:         CancelOrderRequest,
     db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
+    current_user: User    = Depends(get_current_user),
 ):
     """
     Cancel order. Backend also voids any linked invoice atomically.
@@ -160,7 +188,15 @@ def cancel_order(
     from app.invoices.service import InvoiceService
     invoice_service = InvoiceService()
 
-    order = service.cancel(db, order_id, reason=body.reason)
+    existing_order = service.get_or_raise(db, order_id)
+
+
+    permissions.ensure_can_cancel_order(
+        current_user,
+        existing_order
+    )
+
+    order = service.cancel(db, existing_order, reason=body.reason)
 
     # Cascade: void linked invoice if exists
     if order.invoice_id:
@@ -190,14 +226,20 @@ def cancel_order(
 def confirm_delivery(
     order_id:     str,
     db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
+    current_user: User    = Depends(get_current_user),
 ):
     """
     Confirm delivery. Sets fulfillment=delivered.
     If payment_status==paid: auto-completes the order.
     Mirrors confirmDeliveryWorkflow exactly.
     """
-    order = service.confirm_delivery(db, order_id)
+    existing_order = service.get_or_raise(db, order_id)
+
+    permissions.ensure_can_confirm_delivery(
+        current_user,
+        existing_order
+    )
+    order = service.confirm_delivery(db, existing_order)
 
     AuditService.record(
     db, AuditEntityType.order, order.id,
@@ -221,10 +263,15 @@ def update_fulfillment(
     order_id:     str,
     body:         UpdateFulfillmentRequest,
     db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
+   current_user: User = Depends(get_current_user)
 ):
     """Called by trips module when trip status changes."""
-    order = service.update_fulfillment_status(db, order_id, body.fulfillment_status)
+    existing_order = service.get_or_raise(db, order_id)
+    permissions.ensure_can_update_fulfillment(
+        current_user,
+        existing_order
+    )
+    order = service.update_fulfillment_status(db, existing_order, body.fulfillment_status)
     db.commit()
     db.refresh(order)
     return _to_response(order)
@@ -235,8 +282,12 @@ def set_trip(
     order_id:     str,
     body:         SetTripRequest,
     db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
+    current_user: User    = Depends(get_current_user),
 ):
+    
+    permissions.ensure_can_assign_trip(
+        current_user,
+    )
     order = service.set_trip(db, order_id, body.trip_id)
     db.commit()
     db.refresh(order)
@@ -248,9 +299,12 @@ def set_invoice(
     order_id:     str,
     body:         SetInvoiceRequest,
     db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
+    current_user: User    = Depends(get_current_user),
 ):
-    order = service.get_by_no_or_raise(db, order_id)
+    order = service.get_or_raise(db, order_id)
+    permissions.ensure_can_set_invoice(
+        current_user,
+    )
     updated = service.set_invoice(db, order, body.invoice_id)
     db.commit()
     db.refresh(updated)
@@ -262,5 +316,9 @@ def get_order_audit(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    order = service.get_by_no_or_raise(db, order_id)
+    order = service.get_or_raise(db, order_id)
+    permissions.ensure_can_view_order(
+        current_user,
+        order,
+    )
     return AuditService.get_by_entity(db, AuditEntityType.order, order.id)

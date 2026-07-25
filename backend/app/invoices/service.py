@@ -90,19 +90,7 @@ class InvoiceService:
 
         order = self.order_service.get_or_raise(db, data.order_id)
 
-        if not order_guards.can_generate_invoice(order):
-            if order.invoice_id:
-                raise AppException(
-                    409,
-                    InvoiceErrorCode.INVOICE_ALREADY_EXISTS,
-                    "An invoice already exists for this order",
-                )
-
-            raise AppException(
-                400,
-                InvoiceErrorCode.ORDER_NOT_INVOICEABLE,
-                "This order cannot be invoiced",
-            )
+        order_guards.ensure_can_generate_invoice(order)
 
         invoice = self.repo.create(
             db=db,

@@ -3,8 +3,8 @@ from __future__ import annotations
 from app.core.exceptions import AppException
 from app.core.exceptions import ErrorCode
 from app.shared.models.user import User
-from backend.app.invoices.model import Invoice
-from backend.app.payments.model import Payment
+from app.invoices.model import Invoice
+from app.payments.model import Payment
 
 
 class PaymentPermissions:
