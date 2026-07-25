@@ -312,3 +312,4 @@ class ProductService:
                 first_doc_id = doc.id
 
         return first_doc_id
+    

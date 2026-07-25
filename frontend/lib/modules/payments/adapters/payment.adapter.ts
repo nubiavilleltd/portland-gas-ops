@@ -22,19 +22,23 @@ interface BackendPaymentList {
     has_next: boolean;
 }
 
+// interface BackendPaymentAttachment {
+//   id: string;
+//   file_name: string;
+//   file_url: string;
+// }
 interface BackendPaymentAttachment {
   id: string;
-  file_name: string;
-  file_url: string;
+  name: string;
+  url: string;
 }
 
 function adaptPaymentAttachment(
-  raw: BackendPaymentAttachment
+  raw: BackendPaymentAttachment,
 ): PaymentAttachment {
   return {
     id: raw.id,
-    fileName: raw.file_name,
-    url: raw.file_url,
+    fileName: raw.name,
   };
 }
 
@@ -57,7 +61,9 @@ export function adaptPayment(raw: BackendPayment): Payment {
     paymentDate: raw.payment_date,
 
     recordedBy: raw.recorded_by,
-    attachments: (raw.attachments ?? []).map(adaptPaymentAttachment),
+    attachments: (raw.attachments ?? []).map((attachment) =>
+  adaptPaymentAttachment(attachment)
+),
 
     createdAt: raw.created_at,
   };

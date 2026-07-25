@@ -11,7 +11,6 @@ export type PaymentStatus =
   export interface PaymentAttachment {
     id: string;
     fileName: string;
-    url: string;
 }
 
 

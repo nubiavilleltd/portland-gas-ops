@@ -103,7 +103,6 @@ function CreatePaymentPageContent() {
   const initialInvoiceId = searchParams.get("invoiceId");
   const { invoice, isLoading: isLoadingInvoice, } = useInvoiceById(initialInvoiceId ?? "");
   const selectedInvoice = invoice ?? null;
-  const [paymentProofs, setPaymentProofs] = useState<File[]>([]);
   // const [proofError, setProofError] = useState("");
   // const { recordPayment, isLoading: isRecording, error: recordError } =
   //   useRecordPayment();
@@ -141,7 +140,7 @@ function CreatePaymentPageContent() {
       amount: 0,
       reference: "",
       payment_method: "",
-      paymentProofs: [], 
+      paymentProofs: [],
     },
   });
 
@@ -161,12 +160,11 @@ function CreatePaymentPageContent() {
     paymentMethod === "card" ||
     paymentMethod === "cheque";
 
-  useEffect(() => {
-    if (!requiresProof) {
-      setPaymentProofs([]);
-      // setProofError("");
-    }
-  }, [requiresProof]);
+useEffect(() => {
+  if (!requiresProof) {
+    setValue("paymentProofs", []);
+  }
+}, [requiresProof, setValue]);
 
   const selectInvoice = useCallback(
     (invoice: Invoice) => {
@@ -188,19 +186,17 @@ function CreatePaymentPageContent() {
   );
 
 
-  async function onSubmit(data: PaymentForm) {
-    if (!selectedInvoice) return;
 
-    if (requiresProof && paymentProofs.length === 0) {
-      toast.error("Please upload proof of payment.");
-      // setProofError("Payment proof is required.");
-      return;
-    }
-    recordPayment({
-      ...data,
-      paymentProofs,
-    });
+  async function onSubmit(data: PaymentForm) {
+  if (!selectedInvoice) return;
+
+  if (requiresProof && data.paymentProofs.length === 0) {
+    toast.error("Please upload proof of payment.");
+    return;
   }
+
+  recordPayment(data);
+}
 
   return (
     <AppLayout pageTitle="Record Payment">
@@ -213,122 +209,122 @@ function CreatePaymentPageContent() {
       />
 
       <div className="space-y-6">
-  {initialInvoiceId && isLoadingInvoice ? (
-    <FormSection
-      title="Loading Invoice"
-      description="Please wait while we retrieve the invoice..."
-    >
-      <InvoiceSkeleton />
-    </FormSection>
-  ) : !selectedInvoice ? (
-    <InvoiceSelector
-      invoices={invoices}
-      onSelect={selectInvoice}
-    />
-  ) : (
-    <>
-      {/* INVOICE SUMMARY */}
-      <FormSection
-        title={selectedInvoice.invoice_number}
-        description="Selected Invoice"
-      >
-        <div className="grid grid-cols-3 gap-5 text-sm">
-          <InfoRow
-            label="Total"
-            value={formatCurrency(selectedInvoice.total_amount)}
+        {initialInvoiceId && isLoadingInvoice ? (
+          <FormSection
+            title="Loading Invoice"
+            description="Please wait while we retrieve the invoice..."
+          >
+            <InvoiceSkeleton />
+          </FormSection>
+        ) : !selectedInvoice ? (
+          <InvoiceSelector
+            invoices={invoices}
+            onSelect={selectInvoice}
           />
-          <InfoRow
-            label="Already Paid"
-            value={formatCurrency(summary.amountPaid)}
-            className="text-green-600"
-          />
-          <InfoRow
-            label="Outstanding Balance"
-            value={formatCurrency(balance)}
-            className="text-red-600"
-          />
-        </div>
-      </FormSection>
-
-      {/* PAYMENT FORM */}
-      <FormSection
-        title="Payment Details"
-        description="Capture payment information"
-      >
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="grid grid-cols-1 md:grid-cols-2 gap-5"
-          noValidate
-        >
-          <FormDatePicker
-            label="Payment Date"
-            value={paymentDate}
-            onValueChange={(v) => setValue("payment_date", v)}
-            {...register("payment_date")}
-            max={new Date().toISOString().split("T")[0]}
-            required
-          />
-
-          <FormCurrencyInput
-            control={control}
-            name="amount"
-            label="Amount (₦)"
-            error={errors.amount?.message}
-            required
-          />
-
-          <FormInput
-            label={
-              requiresProof
-                ? "Transaction Reference"
-                : "Reference (Optional)"
-            }
-            placeholder="Auto-generated if left empty"
-            {...register("reference")}
-            required={requiresProof}
-          />
-
-          <FormSelect
-            required
-            searchable
-            label="Payment Method"
-            options={PAYMENT_METHOD_OPTIONS}
-            placeholder="Select payment method"
-            error={errors.payment_method?.message}
-            {...register("payment_method")}
-          />
-
-          {requiresProof && (
-            <FileDropzone
-              value={watch("paymentProofs")}
-              onChange={(files) =>
-                setValue("paymentProofs", files, {
-                  shouldValidate: true,
-                })
-              }
-              label="Payment Proof"
-              hint="Upload the payment receipt or proof of payment."
-              accept=".pdf,.png,.jpg,.jpeg"
-              maxFiles={1}
-              maxSizeMB={5}
-              required
-              error={errors.paymentProofs?.message}
-            />
-          )}
-
-          <div className="md:col-span-2 flex mt-5">
-            <Button
-              type="submit"
-              loading={isSubmitting || isPending}
+        ) : (
+          <>
+            {/* INVOICE SUMMARY */}
+            <FormSection
+              title={selectedInvoice.invoice_number}
+              description="Selected Invoice"
             >
-              Record Payment
-            </Button>
-          </div>
-        </form>
-      </FormSection>
-    </>
-  )}
-</div>
+              <div className="grid grid-cols-3 gap-5 text-sm">
+                <InfoRow
+                  label="Total"
+                  value={formatCurrency(selectedInvoice.total_amount)}
+                />
+                <InfoRow
+                  label="Already Paid"
+                  value={formatCurrency(summary.amountPaid)}
+                  className="text-green-600"
+                />
+                <InfoRow
+                  label="Outstanding Balance"
+                  value={formatCurrency(balance)}
+                  className="text-red-600"
+                />
+              </div>
+            </FormSection>
+
+            {/* PAYMENT FORM */}
+            <FormSection
+              title="Payment Details"
+              description="Capture payment information"
+            >
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="grid grid-cols-1 md:grid-cols-2 gap-5"
+                noValidate
+              >
+                <FormDatePicker
+                  label="Payment Date"
+                  value={paymentDate}
+                  onValueChange={(v) => setValue("payment_date", v)}
+                  {...register("payment_date")}
+                  max={new Date().toISOString().split("T")[0]}
+                  required
+                />
+
+                <FormCurrencyInput
+                  control={control}
+                  name="amount"
+                  label="Amount (₦)"
+                  error={errors.amount?.message}
+                  required
+                />
+
+                <FormInput
+                  label={
+                    requiresProof
+                      ? "Transaction Reference"
+                      : "Reference (Optional)"
+                  }
+                  placeholder="Auto-generated if left empty"
+                  {...register("reference")}
+                  required={requiresProof}
+                />
+
+                <FormSelect
+                  required
+                  searchable
+                  label="Payment Method"
+                  options={PAYMENT_METHOD_OPTIONS}
+                  placeholder="Select payment method"
+                  error={errors.payment_method?.message}
+                  {...register("payment_method")}
+                />
+
+                {requiresProof && (
+                  <FileDropzone
+                    value={watch("paymentProofs")}
+                    onChange={(files) =>
+                      setValue("paymentProofs", files, {
+                        shouldValidate: true,
+                      })
+                    }
+                    label="Payment Proof"
+                    hint="Upload the payment receipt or proof of payment."
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    maxFiles={1}
+                    maxSizeMB={5}
+                    required
+                    error={errors.paymentProofs?.message}
+                  />
+                )}
+
+                <div className="md:col-span-2 flex mt-5">
+                  <Button
+                    type="submit"
+                    loading={isSubmitting || isPending}
+                  >
+                    Record Payment
+                  </Button>
+                </div>
+              </form>
+            </FormSection>
+          </>
+        )}
+      </div>
     </AppLayout>
   );
 }

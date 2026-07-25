@@ -18,6 +18,7 @@ import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { generateReceiptPdf } from "@/lib/pdf/receipt.pdf";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 import ErrorBanner from "@/components/ui/ErrorBanner";
+import { PaymentsService } from "@/lib/modules/payments/services/payments.service";
 
 export default function PaymentReceiptPage() {
   const { id } = useParams<{ id: string }>();
@@ -73,7 +74,7 @@ export default function PaymentReceiptPage() {
 
   async function handleDownload() {
 
-     if (!payment || !invoice || downloading) return;
+    if (!payment || !invoice || downloading) return;
     setDownloading(true);
     try {
       await generateReceiptPdf({
@@ -249,6 +250,40 @@ export default function PaymentReceiptPage() {
                 </tr>
               </tbody>
             </table>
+          </FormSection>
+        )}
+
+
+        {payment.attachments.length > 0 && (
+          <FormSection
+            title="Payment Proof"
+            description="Uploaded proof of payment"
+          >
+            <div className="space-y-2">
+              {payment.attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <span>{attachment.fileName}</span>
+
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    leftIcon={<Download size={14} />}
+                    onClick={() =>
+                      PaymentsService.downloadAttachment(
+                        payment.id,
+                        attachment.id,
+                        attachment.fileName,
+                      )
+                    }
+                  >
+                    Download
+                  </Button>
+                </div>
+              ))}
+            </div>
           </FormSection>
         )}
       </div>

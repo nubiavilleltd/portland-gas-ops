@@ -22,8 +22,30 @@ export const paymentsApi = {
         idempotencyKey: string,
     ) => {
         const { data } = await api.post("/api/payments", input, {
-            headers: { "Idempotency-Key": idempotencyKey },
+            headers: { "Idempotency-Key": idempotencyKey, "Content-Type": "multipart/form-data", },
+
         });
         return data;
     },
+
+    downloadAttachment: async (
+        paymentId: string,
+        attachmentId: string,
+    ) => {
+        const response = await api.get(
+            `/api/payments/${paymentId}/attachments/${attachmentId}/download`,
+            {
+                responseType: "blob",
+            }
+        );
+
+        return response.data;
+    },
+
+    // getAttachments: async (id: string) => {
+    //     const { data } = await api.get(
+    //         `/api/payments/${id}/attachments`
+    //     );
+    //     return data;
+    // },
 };

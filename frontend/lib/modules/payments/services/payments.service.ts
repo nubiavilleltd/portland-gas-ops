@@ -1,7 +1,7 @@
 import { paymentsApi } from "../api/payments.api";
 import { adaptPayment, adaptPaymentList } from "../adapters/payment.adapter";
 import { getErrorMessage } from "@/lib/api/error";
-import type { Payment, CreatePaymentInput } from "../types/payments.types";
+import type { Payment, CreatePaymentInput, PaymentAttachment } from "../types/payments.types";
 const uuidv4 = () => crypto.randomUUID();
 
 // Per-session idempotency key store
@@ -39,20 +39,28 @@ export class PaymentsService {
   static async recordPayment(input: CreatePaymentInput): Promise<Payment> {
     try {
       const idempotencyKey = getIdempotencyKey(input.invoice_id);
+  
       const formData = new FormData();
 
-      formData.append("invoice_id", input.invoice_id);
-      formData.append("amount", input.amount.toString());
-      formData.append("method", input.payment_method);
-      formData.append("payment_date", input.payment_date);
+      const payload = {
+        invoice_id: input.invoice_id,
+        amount: input.amount,
+        method: input.payment_method,
+        payment_date: input.payment_date,
+        reference: input.reference,
+        // notes: input.notes,
+      };
 
-      if (input.reference) {
-        formData.append("reference", input.reference);
-      }
+      formData.append(
+        "data",
+        JSON.stringify(payload),
+      );
 
       input.paymentProofs.forEach((file) => {
-        formData.append("payment_proofs", file);
+        formData.append("attachments", file);
       });
+
+
       const raw = await paymentsApi.record(
         formData,
         idempotencyKey,
@@ -65,4 +73,50 @@ export class PaymentsService {
       throw new Error(getErrorMessage(err, "Failed to record payment"));
     }
   }
+
+
+    static async downloadAttachment(
+    paymentId: string,
+    attachmentId: string,
+    fileName: string,
+  ): Promise<void> {
+    try {
+      const blob = await paymentsApi.downloadAttachment(
+        paymentId,
+        attachmentId,
+      );
+
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, "Failed to download attachment"),
+      );
+    }
+  }
+
+//   static async getAttachments(
+//   paymentId: string,
+// ): Promise<PaymentAttachment[]> {
+//   try {
+//     const raw = await paymentsApi.getAttachments(paymentId);
+//     return adaptPaymentAttachment(raw)
+//   } catch (err) {
+//     throw new Error(
+//       getErrorMessage(
+//         err,
+//         "Failed to load payment attachments",
+//       ),
+//     );
+//   }
+// }
 }
