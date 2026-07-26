@@ -21,6 +21,9 @@ import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
 import { ORDER_ROUTES } from "@/lib/routes";
 import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
+import { canCurrentUserConfirmDelivery } from "@/lib/modules/fleet/permissions/trips.permissions";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 
 export default function OrderDeliveryPage() {
   const params = useParams();
@@ -30,6 +33,10 @@ export default function OrderDeliveryPage() {
 
   const {invoice} = useInvoiceById(order?.invoiceId || "");
   const confirmDelivery = useConfirmDeliveryWorkflow()
+   const {user:currentUser, isLoading:isLoadingUser} = useCurrentUser()
+     const { trip, isFetching: isFetchingTrip } = useTripById(
+       order?.tripId as string,
+     );
 
 
   const [proofNotes, setProofNotes] = useState("");
@@ -47,6 +54,8 @@ export default function OrderDeliveryPage() {
   const alreadyDelivered = order.fulfillmentStatus === "delivered";
 
   const canConfirm = canConfirmDelivery(order)
+  const ensureUserCanConfirmDelivery = canCurrentUserConfirmDelivery(currentUser, trip)
+ 
 
 
 
@@ -217,12 +226,12 @@ export default function OrderDeliveryPage() {
         )}
 
         {/* ACTIONS */}
-        <div className="flex justify-end gap-3 pb-10">
+        <div className="flex gap-3 pb-10">
           {/* <Button variant="outline" onClick={() => router.back()}>
             {alreadyDelivered ? "Back" : "Cancel"}
           </Button> */}
 
-          {!alreadyDelivered && canConfirm && (
+          {!alreadyDelivered && canConfirm && ensureUserCanConfirmDelivery && (
             // <Button onClick={handleConfirmDelivery} disabled={isSubmitting}>
             //   {isSubmitting ? "Confirming..." : "Confirm Delivery"}
             // </Button>
@@ -236,13 +245,13 @@ export default function OrderDeliveryPage() {
           )}
 
           {alreadyDelivered && !order.invoiceId && (
-            <Button href={`/invoices/new?orderNo=${order.orderNumber}`}>
+            <Button href={`/invoices/new?orderId=${order.id}`}>
               Create Invoice →
             </Button>
           )}
 
           {alreadyDelivered && order.invoiceId && (
-            <Button href={`/invoices/${invoice?.invoice_number || order.invoiceId}`} variant="outline">
+            <Button href={`/invoices/${invoice?.id || order.invoiceId}`} variant="outline">
               View Invoice →
             </Button>
           )}

@@ -110,9 +110,9 @@ class AssignResourcesWorkflow:
                 order_id=order_id,
             )
 
-            self.order_service.update_fulfillment_status(
+            self.order_service.progress_fulfillment_status(
                 db=db,
-                order_id=order.id,
+                order=order,
                 status="assigned",
             )
 

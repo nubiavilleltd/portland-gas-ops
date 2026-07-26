@@ -288,19 +288,42 @@ class OrderService:
 
         return self.repo.update(db, order, **updates)
 
-    def update_fulfillment_status(self, db: Session, order: Order, status: FulfillmentStatus) -> Order:
+    def progress_fulfillment_status(self, db: Session, order: Order, status: FulfillmentStatus) -> Order:
         """Called by trips module when trip status changes."""
         
-        guards.ensure_can_update_fulfillment(
+        guards.ensure_can_progress_fulfillment(
             order,
             status,
         )
         return self.repo.update(db, order, fulfillment_status=status)
 
-    def set_trip(self, db: Session, order_id: str, trip_id: Optional[str]) -> Order:
+    def revert_fulfillment_to_pending(
+        self,
+        db: Session,
+        order: Order,
+        status:FulfillmentStatus
+    ) -> Order:
+        guards.ensure_can_revert_fulfillment(order)
+        return self.repo.update(db, order, fulfillment_status=status)
+
+    def assign_to_trip(self, db: Session, order_id: str, trip_id: Optional[str]) -> Order:
         order = self.get_or_raise(db, order_id)
         guards.ensure_can_assign_trip(order)
         return self.repo.update(db, order, trip_id=trip_id)
+    
+    def remove_from_trip(
+        self,
+        db: Session,
+        order_id: str,
+    ) -> Order:
+
+        order = self.get_or_raise(db, order_id)
+
+        return self.repo.update(
+            db,
+            order,
+            trip_id=None,
+        )
 
     def set_invoice(self, db: Session, order: Order, invoice_id: str) -> Order:
         guards.ensure_can_generate_invoice(order)

@@ -30,8 +30,6 @@ export default function OrdersListPage() {
   const { orders, isLoading, error, refetch } = useOrders();
   const kpis = getOrderKPIs(orders);
 
-  console.log("orders", { orders });
-
   if (error) {
     return (
       <AppLayout pageTitle="Orders">

@@ -94,16 +94,15 @@ class CancelTripWorkflow:
                 if order.fulfillment_status.value == "delivered":
                     continue
 
-                self.order_service.update_fulfillment_status(
+                self.order_service.revert_fulfillment_to_pending(
                     db=db,
-                    order_id=order.id,
+                    order=order,
                     status="pending",
                 )
 
-                self.order_service.set_trip(
+                self.order_service.remove_from_trip(
                     db=db,
                     order_id=order.id,
-                    trip_id=None,
                 )
 
                 self.audit_service.record(

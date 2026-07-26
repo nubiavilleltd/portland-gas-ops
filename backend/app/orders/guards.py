@@ -5,6 +5,12 @@ from app.core.exceptions import AppException
 from app.orders.error_codes import OrderErrorCode
 
 
+def _status_label(status: str | FulfillmentStatus) -> str:
+    if isinstance(status, FulfillmentStatus):
+        return status.value
+    return status
+
+
 def ensure_can_submit(
     order: Order,
 ) -> None:
@@ -116,7 +122,7 @@ def ensure_can_generate_invoice(
 
 
 
-def ensure_can_update_fulfillment(
+def ensure_can_progress_fulfillment(
     order: Order,
     new_status: FulfillmentStatus,
 ) -> None:
@@ -144,9 +150,25 @@ def ensure_can_update_fulfillment(
     }
 
     current = order.fulfillment_status
+    print("current", current, "new", new_status )
+
+    # current_label = (
+    #     current.value
+    #     if isinstance(current, FulfillmentStatus)
+    #     else str(current)
+    # )
+
+    # new_label = (
+    #     new_status.value
+    #     if isinstance(new_status, FulfillmentStatus)
+    #     else str(new_status)
+    # )
+
+    current_label = _status_label(current)
+    new_label = _status_label(new_status)
 
     # No-op updates are allowed.
-    if current == new_status:
+    if current_label == new_label:
         return
 
     if new_status not in allowed_transitions.get(current, set()):
@@ -155,6 +177,27 @@ def ensure_can_update_fulfillment(
             error_code=OrderErrorCode.INVALID_FULFILLMENT_TRANSITION,
             message=(
                 f"Cannot change fulfillment status "
-                f"from '{current.value}' to '{new_status.value}'."
+                f"from '{current_label}' to '{new_label}'."
+            ),
+        )
+
+
+def ensure_can_revert_fulfillment(
+    order: Order,
+) -> None:
+    """
+    Ensures an order can be returned to Pending because
+    its trip is being cancelled.
+    """
+
+    if order.fulfillment_status not in (
+        FulfillmentStatus.assigned,
+    ):
+        raise AppException(
+            status_code=400,
+            error_code=OrderErrorCode.INVALID_FULFILLMENT_TRANSITION,
+            message=(
+                "Only assigned or dispatched orders "
+                "can be returned to pending."
             ),
         )

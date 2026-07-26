@@ -47,6 +47,8 @@ import {
   OrderSummarySkeleton,
   PaymentsSkeleton,
 } from "@/lib/modules/orders/components/OrderDetailSkeleton";
+import { canCurrentUserConfirmDelivery } from "@/lib/modules/fleet/permissions/trips.permissions";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -58,6 +60,7 @@ export default function OrderDetailPage() {
     "order",
     id,
   );
+  const {user:currentUser, isLoading:isLoadingUser} = useCurrentUser()
 
   const { invoice, isFetching: isFetchingInvoice } = useInvoiceByOrderId(id);
   const { summary: paymentSummary, isFetching: isFetchingPayment } =
@@ -103,6 +106,9 @@ export default function OrderDetailPage() {
   const canPay = canMakePayment(invoice as Invoice, order);
   const canDeliver = canConfirmDelivery(order);
   const canCancel = canCancelOrder(order);
+
+  //Permissions
+  const ensureUserCanConfirmDelivery = canCurrentUserConfirmDelivery(currentUser, trip)
 
   const balance = invoice
     ? invoice.total_amount - paymentSummary.amountPaid
@@ -152,7 +158,7 @@ export default function OrderDetailPage() {
                 Edit
               </Button>
             )}
-            {canDeliver && (
+            {canDeliver && ensureUserCanConfirmDelivery && (
               <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
                 Confirm Delivery →
               </Button>
