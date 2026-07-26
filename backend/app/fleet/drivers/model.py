@@ -64,6 +64,7 @@ class Driver(Base):
 
     employee = relationship(
         "Employee",
+        back_populates="driver",
         foreign_keys=[employee_id],
     )
 

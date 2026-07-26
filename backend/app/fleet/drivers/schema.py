@@ -52,3 +52,10 @@ class DriverListResponse(BaseModel):
     page: int
     page_size: int
     has_next: bool
+
+class DriverReference(BaseModel):
+    id: str
+    driver_no: str
+
+    class Config:
+        from_attributes = True

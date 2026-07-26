@@ -52,6 +52,7 @@ class Employee(Base):
     operating_manager = relationship("Employee", remote_side="Employee.id", foreign_keys=[operating_manager_id])
     direct_reports = relationship("Employee", foreign_keys=[operating_manager_id], back_populates="operating_manager")
     documents    = relationship("Document", back_populates="uploaded_by_employee", foreign_keys="Document.uploaded_by")
+    driver = relationship("Driver", back_populates="employee", uselist=False)
 
     @property
     def department(self) -> str | None:
