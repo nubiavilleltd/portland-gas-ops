@@ -106,6 +106,15 @@ def create_invoice(
     db.commit()
     db.refresh(invoice)
 
+    from app.invoices.email_content import (
+        send_invoice_email,
+    )
+
+    send_invoice_email(
+        db,
+        invoice.id,
+    )
+
     return _to_response(invoice)
 
 

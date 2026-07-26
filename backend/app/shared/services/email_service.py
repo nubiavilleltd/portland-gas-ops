@@ -13,6 +13,14 @@ import httpx
 from pathlib import Path
 from app.core.config import settings
 from collections.abc import Mapping
+from dataclasses import dataclass
+import base64
+
+@dataclass(frozen=True)
+class EmailAttachment:
+    filename: str
+    content: bytes
+    mime_type: str = "application/pdf"
 
 # Force a basic logging config so email logs always appear in the terminal.
 logging.basicConfig(
@@ -56,7 +64,7 @@ def _render(template_name: str, variables: dict) -> str:
     return _load_base(subject, body)
 
 
-def _send(to_email: str, subject: str, html: str) -> None:
+def _send(to_email: str, subject: str, html: str, attachments: list[EmailAttachment] | None = None) -> None:
     """
     Send an email via Brevo, or log to console if API key not configured.
     Drop your BREVO_API_KEY into .env and this will start sending live emails
@@ -65,23 +73,52 @@ def _send(to_email: str, subject: str, html: str) -> None:
     if not settings.BREVO_API_KEY:
         logger.warning("BREVO_API_KEY not set — email not sent. To: %s | Subject: %s", to_email, subject)
         return
+    
+    if attachments:
+        logger.info(
+            "Attachments: %s",
+            ", ".join(a.filename for a in attachments),
+        )
 
     try:
+
+
+        payload = {
+            "sender": {
+                "name": settings.BREVO_FROM_NAME,
+                "email": settings.BREVO_FROM_EMAIL,
+            },
+            "to": [
+                {
+                    "email": to_email,
+                }
+            ],
+            "subject": subject,
+            "htmlContent": html,
+        }
+
+        if attachments:
+
+            payload["attachment"] = [
+
+                {
+                    "name": attachment.filename,
+
+                    "content": base64.b64encode(
+                        attachment.content,
+                    ).decode("utf-8"),
+                }
+
+                for attachment in attachments
+            ]
+
         response = httpx.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={
                 "api-key": settings.BREVO_API_KEY,
                 "Content-Type": "application/json",
             },
-            json={
-                "sender": {
-                    "name": settings.BREVO_FROM_NAME,
-                    "email": settings.BREVO_FROM_EMAIL,
-                },
-                "to": [{"email": to_email}],
-                "subject": subject,
-                "htmlContent": html,
-            },
+            json=payload,
             timeout=10,
         )
         if not response.is_success:
@@ -337,6 +374,7 @@ def send_template_email(
     subject: str,
     template_name: str,
     variables: Mapping[str, object],
+    attachments: list[EmailAttachment] | None = None,
 ) -> None:
     """
     Render an HTML email template and send it.
@@ -359,4 +397,4 @@ def send_template_email(
         },
     )
 
-    _send(to_email, subject, html)
+    _send(to_email, subject, html, attachments=attachments)
