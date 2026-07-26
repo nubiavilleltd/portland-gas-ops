@@ -412,13 +412,10 @@ class PdfBuilder:
         row_height: float = 8 * mm,
     ) -> None:
         """
-        Draw a simple reusable table.
+        Draw a reusable table.
 
-        Each TableColumn supplies:
-            header
-            width
-            align
-            renderer(row)
+        Left-aligned cells automatically wrap onto multiple lines,
+        while centered and right-aligned cells remain single-line.
         """
 
         table_width = sum(col.width for col in columns)
@@ -477,6 +474,7 @@ class PdfBuilder:
             x = x_positions[i]
 
             if column.align == "right":
+
                 self.canvas.drawRightString(
                     x + column.width - 2 * mm,
                     y - 6 * mm,
@@ -484,6 +482,7 @@ class PdfBuilder:
                 )
 
             elif column.align == "center":
+
                 self.canvas.drawCentredString(
                     x + column.width / 2,
                     y - 6 * mm,
@@ -491,6 +490,7 @@ class PdfBuilder:
                 )
 
             else:
+
                 self.canvas.drawString(
                     x + 2 * mm,
                     y - 6 * mm,
@@ -500,21 +500,74 @@ class PdfBuilder:
         y -= header_height
 
         #
-        # Rows
+        # Body
         #
         for index, row in enumerate(rows):
+
+            #
+            # Determine row height based on wrapped cells
+            #
+            max_lines = 1
+
+            for column in columns:
+
+                if column.align != "left":
+                    continue
+
+                text = str(column.renderer(row))
+
+                words = text.split()
+
+                current = ""
+                lines = 0
+
+                for word in words:
+
+                    candidate = (
+                        word
+                        if not current
+                        else f"{current} {word}"
+                    )
+
+                    if (
+                        stringWidth(
+                            candidate,
+                            "Helvetica",
+                            9,
+                        )
+                        <= column.width - 4 * mm
+                    ):
+                        current = candidate
+
+                    else:
+                        lines += 1
+                        current = word
+
+                if current:
+                    lines += 1
+
+                max_lines = max(
+                    max_lines,
+                    lines,
+                )
+
+            actual_row_height = max(
+                row_height,
+                max_lines * 4 * mm + 4 * mm,
+            )
 
             #
             # Alternate background
             #
             if index % 2 == 1:
+
                 self.canvas.setFillColor(ROW_ALT)
 
                 self.canvas.rect(
                     self.margin_left,
-                    y - row_height,
+                    y - actual_row_height,
                     table_width,
-                    row_height,
+                    actual_row_height,
                     fill=1,
                     stroke=0,
                 )
@@ -522,13 +575,15 @@ class PdfBuilder:
             #
             # Bottom border
             #
-            self.canvas.setStrokeColor(colors.HexColor("#EBEBEB"))
+            self.canvas.setStrokeColor(
+                colors.HexColor("#EBEBEB")
+            )
 
             self.canvas.line(
                 self.margin_left,
-                y - row_height,
+                y - actual_row_height,
                 self.margin_left + table_width,
-                y - row_height,
+                y - actual_row_height,
             )
 
             self.canvas.setFont(
@@ -538,6 +593,9 @@ class PdfBuilder:
 
             self.canvas.setFillColor(DARK_TEXT)
 
+            #
+            # Draw cells
+            #
             for i, column in enumerate(columns):
 
                 text = str(
@@ -564,16 +622,56 @@ class PdfBuilder:
 
                 else:
 
-                    self.canvas.drawString(
-                        x + 2 * mm,
-                        y - 5.5 * mm,
-                        text,
-                    )
+                    #
+                    # Wrap text
+                    #
+                    words = text.split()
 
-            y -= row_height
+                    current = ""
+
+                    lines: list[str] = []
+
+                    for word in words:
+
+                        candidate = (
+                            word
+                            if not current
+                            else f"{current} {word}"
+                        )
+
+                        if (
+                            stringWidth(
+                                candidate,
+                                "Helvetica",
+                                9,
+                            )
+                            <= column.width - 4 * mm
+                        ):
+                            current = candidate
+
+                        else:
+                            if current:
+                                lines.append(current)
+                            current = word
+
+                    if current:
+                        lines.append(current)
+
+                    line_y = y - 5.5 * mm
+
+                    for line in lines:
+
+                        self.canvas.drawString(
+                            x + 2 * mm,
+                            line_y,
+                            line,
+                        )
+
+                        line_y -= 4 * mm
+
+            y -= actual_row_height
 
         self.cursor_y = y
-
 
     def draw_total_row(
         self,
