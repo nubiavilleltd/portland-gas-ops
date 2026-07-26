@@ -19,10 +19,7 @@ def notify_driver_assigned(
     
     """
 
-    print("notify_driver_assigned called")
-
     context = get_driver_assignment_context(db, trip_id)
-    print("context", context)
 
     if not context:
         return

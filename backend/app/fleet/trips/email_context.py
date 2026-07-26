@@ -17,8 +17,6 @@ def _load_trip(
     Load a trip with all relationships commonly required for Fleet emails.
     """
 
-    print("calling load_trip", trip_id)
-
     return (
         db.query(Trip)
         .options(
@@ -67,15 +65,8 @@ def get_driver_assignment_context(
     Build the template context for the Driver Assigned email.
     """
 
-    print("get_driver_assignment_context get called", trip_id)
 
     trip = _load_trip(db, trip_id)
-
-    print("trip loaded", trip)
-
-    print("driver:", trip.driver)
-    print("driver email:", trip.driver.email if trip.driver else None)
-    print("driver name:", trip.driver.full_name if trip.driver else None)
 
     if not trip:
         return None

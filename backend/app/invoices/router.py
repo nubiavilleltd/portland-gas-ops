@@ -4,6 +4,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
+from fastapi.responses import Response
+
+from app.shared.pdf.invoice_pdf import generate_invoice_pdf
 
 from app.audit.schema import AuditActorType, AuditEntityType
 from app.audit.service import AuditService
@@ -168,3 +171,49 @@ def void_invoice(
     db.refresh(invoice)
 
     return _to_response(invoice)
+
+
+
+
+@router.get("/{invoice_id}/pdf")
+def download_invoice_pdf(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+):
+    from app.orders.service import OrderService
+    from app.customers.service import CustomerService
+    from app.invoices.service import InvoiceService
+
+    invoice_service = InvoiceService()
+    order_service = OrderService()
+    customer_service = CustomerService()
+    invoice = invoice_service.get_or_raise(
+        db=db,
+        invoice_id=invoice_id,
+    )
+
+    order = order_service.get_or_raise(
+        db=db,
+        order_id=invoice.order_id,
+    )
+
+    customer = customer_service.get_or_raise(
+        db=db,
+        customer_id=order.customer_id,
+    )
+
+    pdf = generate_invoice_pdf(
+        invoice=invoice,
+        order=order,
+        customer=customer,
+    )
+
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{invoice.invoice_no}.pdf"'
+            )
+        },
+    )
