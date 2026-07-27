@@ -34,7 +34,7 @@ class MarkReadyWorkflow:
         trip,
         assignment,
         order_item,
-        actor_id: str,
+        actor_user_id: str,
         actor_name: str,
         assigned_item_ids: set[str],
     ):
@@ -99,7 +99,7 @@ class MarkReadyWorkflow:
                 movement_type=MovementType.reservation,
                 quantity=Decimal("1"),
                 location_id=item.location_id,
-                recorded_by=actor_id,
+                recorded_by=actor_user_id,
                 recorded_by_name=actor_name,
                 reference_type=ReferenceType.trip,
                 reference_id=str(trip.id),
@@ -127,7 +127,7 @@ class MarkReadyWorkflow:
         trip,
         assignment,
         order_item,
-        actor_id: str,
+        actor_user_id: str,
         actor_name: str,
     ):
 
@@ -135,6 +135,13 @@ class MarkReadyWorkflow:
             raise ValueError(
                 "A warehouse must be selected for consumable products."
             )
+        print("=" * 80)
+        print("CONSUMABLE ASSIGNMENT")
+        print("Trip:", trip.trip_no)
+        print("Product:", assignment.product_id)
+        print("Location:", assignment.location_id)
+        print("Order Item Qty:", order_item.quantity)
+        print("=" * 80)
 
         self.inventory_repo.deduct_consumable_stock(
             db=db,
@@ -150,7 +157,7 @@ class MarkReadyWorkflow:
             movement_type=MovementType.reservation,
             quantity=Decimal(str(order_item.quantity)),
             location_id=assignment.location_id,
-            recorded_by=actor_id,
+            recorded_by=actor_user_id,
             recorded_by_name=actor_name,
             reference_type=ReferenceType.trip,
             reference_id=str(trip.id),
@@ -165,6 +172,7 @@ class MarkReadyWorkflow:
         db: Session,
         trip_id: str,
         assignments: list[TripInventoryAssignment],
+        actor_user_id: str,
         actor_employee_id: str,
         actor_name: str,
     ):
@@ -174,6 +182,12 @@ class MarkReadyWorkflow:
             trip_id=trip_id,
         )
 
+        print("=" * 80)
+        print("MARK READY")
+        print("Trip:", trip.trip_no)
+        print("Assignments:", len(assignments))
+        print("=" * 80)
+
         trip_order_ids = {
             trip_order.order_id
             for trip_order in trip.trip_orders
@@ -182,6 +196,12 @@ class MarkReadyWorkflow:
         assigned_item_ids: set[str] = set()
 
         for assignment in assignments:
+
+            print(
+                "Assignment:",
+                assignment.order_id,
+                assignment.product_id,
+            )
 
             if assignment.order_id not in trip_order_ids:
                 raise ValueError(
@@ -202,11 +222,23 @@ class MarkReadyWorkflow:
                 None,
             )
 
+            print(
+                "Order item:",
+                order_item.id,
+                order_item.product.name,
+                order_item.quantity,
+            )
+
             if order_item is None:
                 raise ValueError(
                     f"Product {assignment.product_id} "
                     f"does not exist on order {assignment.order_id}."
                 )
+            print(
+                "Tracked?"
+                if assignment.item_ids
+                else "Consumable"
+            )
 
             if assignment.item_ids:
                 self._process_tracked_assignment(
@@ -214,9 +246,13 @@ class MarkReadyWorkflow:
                     trip=trip,
                     assignment=assignment,
                     order_item=order_item,
-                    actor_id=actor_employee_id,
+                    actor_user_id=actor_user_id,
                     actor_name=actor_name,
                     assigned_item_ids=assigned_item_ids,
+                )
+                print(
+                    "Reserved items:",
+                    assignment.item_ids,
                 )
             else:
                 self._process_consumable_assignment(
@@ -224,8 +260,12 @@ class MarkReadyWorkflow:
                     trip=trip,
                     assignment=assignment,
                     order_item=order_item,
-                    actor_id=actor_employee_id,
+                    actor_user_id=actor_user_id,
                     actor_name=actor_name,
+                )
+                print(
+                    "Reserved consumable:",
+                    assignment.location_id,
                 )
 
 
@@ -258,9 +298,19 @@ class MarkReadyWorkflow:
                 actor_name=actor_name,
             )
 
+        print(
+            "Trip status before mark_ready:",
+            trip.status,
+        )
+
         trip = self.trip_service.mark_ready(
             db=db,
             trip_id=trip_id,
+        )
+
+        print(
+            "Trip status after mark_ready:",
+            trip.status,
         )
 
         self.audit_service.record(

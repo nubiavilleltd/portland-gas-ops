@@ -21,7 +21,8 @@ from app.inventory.schema import (
     CreateLocationInput,
     LocationResponse,
     InventoryKPIResponse,
-    ConsumableStockDetailResponse
+    ConsumableStockDetailResponse,
+    AvailableConsumableLocationResponse
 )
 
 from app.audit.schema import AuditLogResponse, AuditEntityType
@@ -174,6 +175,19 @@ def get_consumable_stock(
     return consumable_stock_detail_to_response(
         stock,
         movements,
+    )
+
+@router.get(
+    "/products/{product_id}/available-locations",
+    response_model=list[AvailableConsumableLocationResponse],
+)
+def get_available_locations(
+    product_id: str,
+    db: Session = Depends(get_db),
+):
+    return service.list_available_consumable_locations(
+        db=db,
+        product_id=product_id,
     )
 
 

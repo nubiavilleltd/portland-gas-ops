@@ -28,7 +28,7 @@ import { z } from "zod";
 import type { NewsItem, NewsCategory, NewsCategoryColor } from "@/lib/modules/intranet/types/intranet.types";
 
 // DataTable requires id: string
-type NewsRow = Omit<NewsItem, "id"> & { id: string; _numId: number };
+type NewsRow = Omit<NewsItem, "id"> & { id: string; _numId: string };
 
 // Map legacy label-based colors to hex (for backward compat with old DB rows)
 const LEGACY_COLOR_MAP: Record<string, string> = {
@@ -171,7 +171,7 @@ export default function IntranetNewsPage() {
 
   const [modalOpen,      setModalOpen]      = useState(false);
   const [catPanelOpen,   setCatPanelOpen]   = useState(false);
-  const [deleteId,       setDeleteId]       = useState<number | null>(null);
+  const [deleteId,       setDeleteId]       = useState<string | null>(null);
   const [editTarget,     setEditTarget]     = useState<NewsItem | null>(null);
   const [form,           setForm]           = useState<FormState>(EMPTY_FORM);
   const [formErrors,     setFormErrors]     = useState<ArticleErrors>({});
@@ -179,10 +179,10 @@ export default function IntranetNewsPage() {
   const [newCatColor,    setNewCatColor]    = useState<NewsCategoryColor>("#6B7280");
   const [editCat,        setEditCat]        = useState<NewsCategory | null>(null);
   const [deleteCatId,    setDeleteCatId]    = useState<number | null>(null);
-  const [toggleConfirm,  setToggleConfirm]  = useState<{ id: number; isPublished: boolean } | null>(null);
+  const [toggleConfirm,  setToggleConfirm]  = useState<{ id: string; isPublished: boolean } | null>(null);
 
   // update mutation at top level with stable id
-  const updateMutation = useUpdateNews(editTarget?.id ?? 0);
+  const updateMutation = useUpdateNews(editTarget?.id ?? "");
   const uploading      = uploadFileMutation.isPending || uploadUrlMutation.isPending;
   const saving         = createMutation.isPending || updateMutation.isPending || uploading;
 

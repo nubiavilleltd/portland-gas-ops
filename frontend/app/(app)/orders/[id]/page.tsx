@@ -110,6 +110,10 @@ export default function OrderDetailPage() {
   //Permissions
   const ensureUserCanConfirmDelivery = canCurrentUserConfirmDelivery(currentUser, trip)
 
+
+    console.log("can dl", {canDeliver, ensureUserCanConfirmDelivery})
+
+
   const balance = invoice
     ? invoice.total_amount - paymentSummary.amountPaid
     : 0;

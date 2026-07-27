@@ -57,7 +57,7 @@ class AssignResourcesWorkflow:
         #
         # Does this trip require inventory?
         #
-        awaiting_inventory = self.trip_service.requires_inventory(
+        awaiting_inventory = self.trip_service.requires_inventory_assignment(
             db=db,
             trip_id=trip.id,
         )
@@ -73,9 +73,7 @@ class AssignResourcesWorkflow:
             awaiting_inventory=awaiting_inventory,
         )
 
-        print("After assign_resources")
-        print("trip.driver_id:", trip.driver_id)
-        print("trip.driver:", trip.driver)
+      
 
         #
         # Update driver & vehicle
@@ -87,9 +85,7 @@ class AssignResourcesWorkflow:
         )
 
         db.refresh(trip)
-        print("After driver assignment")
-        print("trip.driver_id:", trip.driver_id)
-        print("trip.driver:", trip.driver)
+ 
 
         self.vehicle_service.assign_to_trip(
             db=db,
@@ -99,11 +95,12 @@ class AssignResourcesWorkflow:
 
         #
         # Update linked orders
-        #
-        for order_id in self.trip_service.get_order_ids(
+        order_ids = self.trip_service.get_order_ids(
             db=db,
             trip_id=trip.id,
-        ):
+        )
+        #
+        for order_id in order_ids:
 
             order = self.order_service.get_or_raise(
                 db=db,
@@ -115,6 +112,7 @@ class AssignResourcesWorkflow:
                 order=order,
                 status="assigned",
             )
+        print("Linked orders:", order_ids)
 
         #
         # Audit

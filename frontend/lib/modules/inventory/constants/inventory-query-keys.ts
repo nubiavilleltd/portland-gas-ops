@@ -28,4 +28,9 @@ export const INVENTORY_KEYS = {
 
   // Locations
   locations: () => [...INVENTORY_KEYS.all, "locations"] as const,
+  consumableLocations: (productId: string) => [
+    "inventory",
+    "consumable-locations",
+    productId,
+],
 } as const;

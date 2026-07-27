@@ -15,6 +15,7 @@ import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import {
+  useConsumableLocations,
   useInventoryItems,
   useLocations,
 } from "@/lib/modules/inventory/hooks/useInventory";
@@ -63,18 +64,25 @@ function lineItemKey(orderId: string, productId: string) {
 // }
 
 function ConsumableLineItem({
+  productId,
   productName,
-  quantity,
+  available_quantity,
   value,
-  locations,
   onChange,
 }: {
+  productId: string;
   productName: string;
-  quantity: number;
+  available_quantity: number;
   value?: string;
-  locations: { value: string; label: string }[];
   onChange: (locationId: string) => void;
 }) {
+
+    const { locations } = useConsumableLocations(productId);
+
+    const options = locations.map(location => ({
+        value: location.location_id,
+        label: `${location.location_name} (${(location.available_quantity)})`,
+    }));
   return (
     <div className="border border-brand-border rounded-xl">
       <div className="px-4 py-3 bg-gray-50 border-b border-brand-border">
@@ -82,7 +90,7 @@ function ConsumableLineItem({
           <span className="font-medium">{productName}</span>
           <Badge
             variant="neutral"
-            label={`Consumable × ${quantity}`}
+            label={`Consumable × ${available_quantity}`}
           />
         </div>
       </div>
@@ -92,7 +100,7 @@ function ConsumableLineItem({
           label="Warehouse"
           required
           placeholder="Select warehouse"
-          options={locations}
+          options={options}
           value={value ?? ""}
           onValueChange={onChange}
           hint="Choose the warehouse this stock will be deducted from during dispatch."
@@ -145,7 +153,6 @@ export default function AssignInventoryPage() {
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products, isLoading: productsLoading } = useProducts();
   const { items, isLoading: itemsLoading } = useInventoryItems();
-  const { locations } = useLocations();
 
   const [selection, setSelection] = useState<SelectionMap>({});
   const [activePicker, setActivePicker] = useState<{
@@ -156,10 +163,7 @@ export default function AssignInventoryPage() {
   } | null>(null);
 
   const productMap = new Map(products.map((p) => [p.id, p]));
-  const locationOptions = locations.map((location) => ({
-    value: location.id,
-    label: location.name,
-  }));
+
 
   function handleLocationChange(key: string, locationId: string) {
     setSelection((prev) => ({
@@ -382,10 +386,10 @@ export default function AssignInventoryPage() {
                     return (
                       <ConsumableLineItem
                         key={lineItem.productId}
+                        productId={lineItem.productId}
                         productName={product.name}
-                        quantity={lineItem.quantity}
+                        available_quantity={lineItem.quantity}
                         value={selection[key]?.locationId}
-                        locations={locationOptions}
                         onChange={(locationId) =>
                           handleLocationChange(key, locationId)
                         }

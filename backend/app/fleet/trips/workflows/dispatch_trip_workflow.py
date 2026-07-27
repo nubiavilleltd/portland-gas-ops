@@ -25,6 +25,7 @@ class DispatchTripWorkflow:
         db: Session,
         trip_id: str,
         actor_employee_id: str,
+        actor_user_id: str,
         actor_name: str,
     ):
 
@@ -75,8 +76,9 @@ class DispatchTripWorkflow:
         #
         self.inventory_service.check_out_for_trip(
             db=db,
-            trip_id=trip.id,
-            actor_id=actor_employee_id,
+            trip=trip,
+            actor_user_id=actor_user_id,
+            actor_employee_id=actor_employee_id,
             actor_name=actor_name
         )
 

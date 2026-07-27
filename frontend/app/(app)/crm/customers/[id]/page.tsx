@@ -8,7 +8,6 @@ import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard"
 import AddressInformationCard from "@/lib/modules/crm/components/AddressInformationCard";
 import CommercialInformationCard from "@/lib/modules/crm/components/CommercialInformationCard";
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
-import CustomerAttachmentsSection from "@/lib/modules/crm/components/CustomerAttachmentsSection";
 import { BackButton } from "@/components/ui/BackButton";
 import {
   useCustomerOnboardingDetails,
@@ -21,6 +20,7 @@ import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import Button from "@/components/ui/Button";
 import CustomerAttachmentsCard from "@/lib/modules/crm/components/CustomerAttachmentsCard";
 import FormSection from "@/components/ui/FormSection";
+import AccountManagementCard from "@/lib/modules/crm/components/AccountManagementCard";
 
 export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +30,7 @@ export default function CustomerDetailsPage() {
 
   const isReturned = customer?.status?.toLowerCase() === "returned";
   const isDraft = customer?.status?.toLowerCase() === "draft";
-  const isAcknowledged = customer?.status?.toLowerCase() === "acknowledged";
+  const isAcknowledged = customer?.status?.toLowerCase() === "active";
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const [form, setForm] = useState({
@@ -85,18 +85,18 @@ export default function CustomerDetailsPage() {
   return (
     <AppLayout pageTitle="Customer Details">
       <div className="flex justify-between mb-2">
-        <BackButton href="/admin/crm/customers" label="Back to Customers" />
+        <BackButton href="/crm/customers" label="Back to Customers" />
 
         <div>
           <Button
             variant="outline"
             className="mr-2"
-            href={`/admin/crm/onboarding/${customer.id}/edit`}
+            href={`/crm/customers/${customer.id}/edit`}
           >
             Edit Customer
           </Button>
           {isAcknowledged && (
-            <Button href={`/admin/crm/contacts/${customer.id}`}>
+            <Button href={`/crm/contacts/${customer.id}`}>
               Manage Contacts
             </Button>
           )}
@@ -225,15 +225,17 @@ export default function CustomerDetailsPage() {
             estimatedMonthlyDemand: customer.estimated_monthly_demand,
           }}
         />
-        {(isReturned || isDraft) && (
-          <CustomerAttachmentsCard
-            values={form.attachments}
-            onChange={(attachments) => handleChange("attachments", attachments)}
-          />
-        )}
-        {!isReturned && !isDraft && (
-          <CustomerAttachmentsSection attachments={customer.attachments} />
-        )}
+        <AccountManagementCard
+          readOnly={readOnly}
+          values={{
+            customerType: customer.customer_type,
+            salesContact: customer.sales_contact,
+            referrerType: customer.referrer_type,
+            referrer: customer.referrer,
+          }}
+          onChange={() => {}}
+        />
+
         <InternalNotesCard
           readOnly={readOnly}
           value={customer.internal_notes}

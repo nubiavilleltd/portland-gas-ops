@@ -58,3 +58,24 @@ watchfiles==1.2.0
 webencodings==0.5.1
 websockets==16.0
 wrapt==2.2.2
+# Python 3.12 required. Run: python --version to confirm before installing.
+fastapi
+slowapi
+cloudinary
+fpdf2
+uvicorn[standard]
+sqlalchemy
+sqlalchemy2-stubs
+alembic
+pymysql
+python-dotenv
+pydantic
+pydantic[email]
+pydantic-settings
+passlib[bcrypt]
+bcrypt<4
+python-jose[cryptography]
+python-multipart
+httpx
+bleach
+pywebpush

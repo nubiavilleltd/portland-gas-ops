@@ -22,9 +22,9 @@ type ContactForm = {
   email: string;
   phone: string;
   alternatePhone: string;
-
+  position: string;
+  role: string;
   department: string;
-
   preferred_channel: string;
 };
 
@@ -36,7 +36,8 @@ function emptyContact(): ContactForm {
     email: "",
     phone: "",
     alternatePhone: "",
-
+    position: "",
+    role: "",
     department: "",
 
     preferred_channel: "Email",
@@ -57,7 +58,7 @@ export default function NewCustomerContactPage() {
         .filter(
           (c) =>
             c.status === "approved" ||
-            c.status === "acknowledged" ||
+            c.status === "active" ||
             c.customer_status === "active",
         )
         .map((customer) => ({
@@ -99,7 +100,8 @@ export default function NewCustomerContactPage() {
       primaryContact: {
         firstName: names.firstName,
         lastName: names.lastName,
-
+        position: customer.position,
+        role: customer.role,
         email: customer.email,
 
         phone: customer.phone,
@@ -176,7 +178,7 @@ export default function NewCustomerContactPage() {
     toast.success("Customer contact has been saved as draft.");
 
     setTimeout(() => {
-      router.push("/admin/crm/contacts");
+      router.push("/crm/contacts");
     }, 1000);
   }
 
@@ -191,13 +193,13 @@ export default function NewCustomerContactPage() {
     toast.success("Customer contact has been submitted successfully.");
 
     setTimeout(() => {
-      router.push("/admin/crm/contacts");
+      router.push("/crm/contacts");
     }, 1000);
   }
 
   return (
     <AppLayout pageTitle="New Contact">
-      <BackButton href="/admin/crm/contacts" label="Back to Contacts" />
+      <BackButton href="/crm/contacts" label="Back to Contacts" />
 
       <PageHeader
         title="New Contact"
@@ -237,6 +239,8 @@ export default function NewCustomerContactPage() {
             <EmploymentInformationCard
               values={{
                 department: form.primaryContact.department,
+                position: form.primaryContact.position,
+                role: form.primaryContact.role,
                 preferred_channel: form.primaryContact.preferred_channel,
               }}
               onChange={(field, value) =>
@@ -294,6 +298,8 @@ export default function NewCustomerContactPage() {
                     values={{
                       department: contact.department,
                       preferred_channel: contact.preferred_channel,
+                      position: contact.position,
+                      role: contact.role,
                     }}
                     onChange={(field, value) =>
                       updateAdditional(index, field as keyof ContactForm, value)

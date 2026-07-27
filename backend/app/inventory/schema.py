@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 from app.inventory.enums import (
     DispositionStatus,
@@ -229,4 +229,12 @@ class InventoryKPIResponse(BaseModel):
     checked_out_items: int
     with_customer_items: int
     maintenance_items: int
+
+
+class AvailableConsumableLocationResponse(BaseModel):
+    location_id: str
+    location_name: str
+    available_quantity: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
 

@@ -66,4 +66,13 @@ export const inventoryApi = {
     const { data } = await api.get(`/api/inventory/items/${itemId}/audit`);
     return data;
   },
+
+  // inventory.api.ts
+
+getConsumableLocations: async (productId: string) => {
+  const { data } = await api.get(
+    `/api/inventory/products/${productId}/available-locations`,
+  );
+  return data;
+},
 };

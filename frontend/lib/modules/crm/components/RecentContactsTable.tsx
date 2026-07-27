@@ -35,7 +35,7 @@ const COLUMNS: Column<CustomerContact>[] = [
     key: "department",
     label: "Department",
     render: (_, contact) => (
-      <td className="">{contact.primary_contact.department}</td>
+      <p className="">{contact.primary_contact.department}</p>
     ),
   },
 
@@ -52,7 +52,7 @@ const COLUMNS: Column<CustomerContact>[] = [
     searchable: false,
     render: (_, contact) => (
       <Link
-        href={`/admin/crm/contacts/${contact.id}`}
+        href={`/crm/contacts/${contact.id}`}
         onClick={(e) => e.stopPropagation()}
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
         title="View Customer"
@@ -79,7 +79,7 @@ export default function RecentContactsTable({ contacts }: Props) {
           </p>
         </div>
 
-        <Button size="sm" href="/admin/crm/contacts">
+        <Button size="sm" href="/crm/contacts">
           View All
         </Button>
       </div>
@@ -87,7 +87,7 @@ export default function RecentContactsTable({ contacts }: Props) {
         <DataTable<CustomerContact>
           columns={COLUMNS}
           data={contacts}
-          rowHref={(contact) => `/admin/crm/contacts/${contact.id}`}
+          rowHref={(contact) => `/crm/contacts/${contact.id}`}
           searchPlaceholder="Search contacts..."
           emptyMessage="No contacts found."
         />

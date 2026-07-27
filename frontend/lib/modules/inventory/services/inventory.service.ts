@@ -7,13 +7,14 @@ import {
 } from "../adapters/inventory.adapter";
 import { getErrorMessage } from "@/lib/api/error";
 import type {
-  InventoryItem, ConsumableStock,
-  StockMovement, WarehouseLocation,
+  InventoryItem,
+  ConsumableStock,
+  StockMovement,
+  WarehouseLocation,
   ConsumableStockDetail,
 } from "../types/inventory.types";
 
 export class InventoryService {
-
   static async getLocations(): Promise<WarehouseLocation[]> {
     const raw = await inventoryApi.getLocations();
     return raw;
@@ -24,17 +25,19 @@ export class InventoryService {
     return locations.find((l: WarehouseLocation) => l.is_default);
   }
 
- static async getItems(): Promise<InventoryItem[]> {
-  const raw = await inventoryApi.listItems();
+  static async getItems(): Promise<InventoryItem[]> {
+    const raw = await inventoryApi.listItems();
 
-  return raw.map(adaptInventoryItem);
-}
+    return raw.map(adaptInventoryItem);
+  }
 
   static async getItemById(id: string): Promise<InventoryItem | undefined> {
     try {
       const raw = await inventoryApi.getItem(id);
       return adaptInventoryItem(raw);
-    } catch { return undefined; }
+    } catch {
+      return undefined;
+    }
   }
 
   static async getConsumableStock(): Promise<ConsumableStock[]> {
@@ -42,16 +45,18 @@ export class InventoryService {
     return raw.map(adaptConsumableStock);
   }
 
-static async getConsumableStockById(
-  id: string,
-): Promise<ConsumableStockDetail> {
-  const raw = await inventoryApi.getStock(id);
-  return adaptConsumableStockDetail(raw);
-}
+  static async getConsumableStockById(
+    id: string,
+  ): Promise<ConsumableStockDetail> {
+    const raw = await inventoryApi.getStock(id);
+    return adaptConsumableStockDetail(raw);
+  }
 
-  static async getConsumableStockByProduct(productId: string): Promise<ConsumableStock | undefined> {
+  static async getConsumableStockByProduct(
+    productId: string,
+  ): Promise<ConsumableStock | undefined> {
     const all = await InventoryService.getConsumableStock();
-    return all.find(s => s.product_id === productId);
+    return all.find((s) => s.product_id === productId);
   }
 
   static async getConsumableStockLevel(productId: string): Promise<number> {
@@ -59,13 +64,27 @@ static async getConsumableStockById(
     return stock?.quantity ?? 0;
   }
 
-  static async getMovements(params: { product_id?: string; item_id?: string } = {}): Promise<StockMovement[]> {
+  static async getMovements(
+    params: { product_id?: string; item_id?: string } = {},
+  ): Promise<StockMovement[]> {
     const raw = await inventoryApi.listMovements(params);
     return raw.map(adaptStockMovement);
   }
 
-  static async getMovementsByProduct(productId: string): Promise<StockMovement[]> {
+  static async getMovementsByProduct(
+    productId: string,
+  ): Promise<StockMovement[]> {
     return InventoryService.getMovements({ product_id: productId });
+  }
+
+  static async getConsumableLocations(productId: string): Promise<
+    {
+      location_id: string;
+      location_name: string;
+      available_quantity: number;
+    }[]
+  > {
+    return inventoryApi.getConsumableLocations(productId);
   }
 
   static async checkInTracked(input: {
@@ -79,11 +98,11 @@ static async getConsumableStockById(
   }): Promise<InventoryItem[]> {
     try {
       const raw = await inventoryApi.checkInTracked({
-        product_id:  input.product_id,
+        product_id: input.product_id,
         location_id: input.location_id,
-        quantity:    input.quantity,
-        condition:   input.condition,
-        notes:       input.notes,
+        quantity: input.quantity,
+        condition: input.condition,
+        notes: input.notes,
       });
       return raw.map(adaptInventoryItem);
     } catch (err) {
@@ -100,10 +119,10 @@ static async getConsumableStockById(
   }): Promise<ConsumableStock> {
     try {
       const raw = await inventoryApi.checkInConsumable({
-        product_id:  input.product_id,
+        product_id: input.product_id,
         location_id: input.location_id,
-        quantity:    input.quantity,
-        notes:       input.notes,
+        quantity: input.quantity,
+        notes: input.notes,
       });
       return adaptConsumableStock(raw);
     } catch (err) {
@@ -120,15 +139,11 @@ static async getConsumableStockById(
     try {
       const raw = await inventoryApi.returnItem(input.item_id, {
         condition: input.condition,
-        notes:     input.notes,
+        notes: input.notes,
       });
       return adaptInventoryItem(raw);
     } catch (err) {
       throw new Error(getErrorMessage(err, "Failed to return item"));
     }
   }
-
-
 }
-
-

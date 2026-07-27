@@ -24,15 +24,35 @@ from app.inventory.schema import (
     CheckInTrackedInput,
     ReturnItemInput,
     ConsumableStockDetailResponse,
-    StockMovementResponse
+    StockMovementResponse,
+    AvailableConsumableLocationResponse
 )
 from app.orders.model import OrderItem
+from app.fleet.trips.model import Trip
 
 
 class InventoryService:
 
     def __init__(self):
         self.repo = InventoryRepository()
+    def list_available_consumable_locations(
+        self,
+        db: Session,
+        product_id: str,
+    ):
+        rows = self.repo.get_available_consumable_locations(
+            db=db,
+            product_id=product_id,
+        )
+
+        return [
+            AvailableConsumableLocationResponse(
+                location_id=row.location.id,
+                location_name=row.location.name,
+                available_quantity=row.quantity,
+            )
+            for row in rows
+        ]
 
     def create_location(
         self,
@@ -71,6 +91,21 @@ class InventoryService:
 
     def get_kpis(self, db: Session):
         return self.repo.get_kpis(db)
+
+    def get_available_consumable_locations(
+        self,
+        db: Session,
+        product_id: str,
+    ):
+        """
+        Returns only warehouse locations that currently have
+        available stock for the given consumable product.
+        """
+
+        return self.repo.get_available_consumable_locations(
+            db=db,
+            product_id=product_id,
+        )
     
     def get_consumable_stock_detail(
         self,
@@ -364,8 +399,9 @@ class InventoryService:
     def check_out_for_trip(
         self,
         db: Session,
-        trip_id: str,
-        actor_id: str,
+        trip: Trip,
+        actor_user_id: str,
+        actor_employee_id: str,
         actor_name: str,
     ):
         """
@@ -385,7 +421,7 @@ class InventoryService:
 
         order_ids = trip_service.get_order_ids(
             db=db,
-            trip_id=trip_id,
+            trip_id=trip.id,
         )
 
         for order_id in order_ids:
@@ -406,17 +442,19 @@ class InventoryService:
                 if product.product_type.value == "tracked":
                     self._check_out_order_item(
                         db=db,
-                        trip_id=trip_id,
+                        trip=trip,
                         order_item_id=order_item.id,
-                        actor_id=actor_id,
+                        actor_user_id=actor_user_id,
+                        actor_employee_id=actor_employee_id,
                         actor_name=actor_name,
                     )
                 else:
                     self._check_out_consumable(
                         db=db,
-                        trip_id=trip_id,
+                        trip=trip,
                         order_item=order_item,
-                        actor_id=actor_id,
+                        actor_user_id=actor_user_id,
+                        actor_employee_id=actor_employee_id,
                         actor_name=actor_name,
                     )
 
@@ -424,9 +462,10 @@ class InventoryService:
     def _check_out_order_item(
         self,
         db: Session,
-        trip_id: str,
+        trip: Trip,
         order_item_id: int,
-        actor_id: str,
+        actor_user_id: str,
+        actor_employee_id: str,
         actor_name: str,
     ):
         """
@@ -478,13 +517,13 @@ class InventoryService:
             movement_type=MovementType.check_out,
             quantity=Decimal(len(allocations)),
             location_id=first_item.location_id,
-            recorded_by=actor_id,
+            recorded_by=actor_user_id,
             recorded_by_name=actor_name,
             reference_type=ReferenceType.trip,
-            reference_id=str(trip_id),
+            reference_id=str(trip.id),
             notes=(
                 f"Checked out {len(allocations)} reserved inventory item(s) "
-                f"for trip {trip_id}"
+                f"for trip {trip.trip_no}"
             ),
         )
 
@@ -500,7 +539,7 @@ class InventoryService:
                 item=item,
                 status=InventoryItemStatus.checked_out,
                 checked_out_at=datetime.now(timezone.utc),
-                trip_id=trip_id,
+                trip_id=trip.id,
             )
 
             checked_out_ids.append(item.id)
@@ -518,10 +557,11 @@ class InventoryService:
             action="checked_out",
             description=(
                 f"{len(checked_out_ids)} inventory item(s) "
-                f"checked out for trip {trip_id}"
+                f"checked out for trip {trip.trip_no}"
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return checked_out_ids
@@ -529,9 +569,10 @@ class InventoryService:
     def _check_out_consumable(
         self,
         db: Session,
-        trip_id: str,
+        trip: Trip,
         order_item: OrderItem,
-        actor_id: str,
+        actor_user_id: str,
+        actor_employee_id: str,
         actor_name: str,
     ):
         """
@@ -573,13 +614,13 @@ class InventoryService:
             movement_type=MovementType.check_out,
             quantity=quantity,
             location_id=order_item.location_id,
-            recorded_by=actor_id,
+            recorded_by=actor_user_id,
             recorded_by_name=actor_name,
             reference_type=ReferenceType.trip,
-            reference_id=str(trip_id),
+            reference_id=str(trip.id),
             notes=(
-                f"Checked out {quantity} consumable unit(s) "
-                f"for trip {trip_id}"
+                f"Checked out {quantity:.2f} of {order_item.product_name} "
+                f"for trip {trip.trip_no}"
             ),
         )
 
@@ -589,11 +630,11 @@ class InventoryService:
             entity_id=str(order_item.order_id),
             action="consumable_checked_out",
             description=(
-                f"Checked out {quantity} consumable unit(s) "
-                f"for trip {trip_id}"
+                f"Checked out {quantity:.2f} of {order_item.product_name} "
+                f"for trip {trip.trip_no}"
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
             actor_name=actor_name,
         )
 

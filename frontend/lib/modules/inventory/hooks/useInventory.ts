@@ -310,6 +310,23 @@ export function useConsumableInventoryKPIs() {
 }
 
 
+export function useConsumableLocations(productId: string) {
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.consumableLocations(productId),
+    queryFn: () => InventoryService.getConsumableLocations(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    locations: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
+
 
 
 
