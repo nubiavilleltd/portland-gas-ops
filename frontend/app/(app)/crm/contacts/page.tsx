@@ -67,7 +67,7 @@ const COLUMNS: Column<CustomerContact>[] = [
     searchable: false,
     render: (_, record) => (
       <Link
-        href={`/admin/crm/contacts/${record.id}`}
+        href={`/crm/contacts/${record.id}`}
         onClick={(e) => e.stopPropagation()}
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
         title="View Contact"
@@ -88,7 +88,7 @@ export default function ContactsPage() {
         description="Manage customer contacts."
         action={
           <Button
-            href="/admin/crm/contacts/new"
+            href="/crm/contacts/new"
             size="sm"
             leftIcon={<Plus size={15} />}
           >
@@ -114,7 +114,7 @@ export default function ContactsPage() {
         <DataTable<CustomerContact>
           columns={COLUMNS}
           data={contacts}
-          rowHref={(record) => `/admin/crm/contacts/${record.id}`}
+          rowHref={(record) => `/crm/contacts/${record.id}`}
           searchPlaceholder="Search customer or primary contact..."
           emptyMessage="No contacts found."
         />

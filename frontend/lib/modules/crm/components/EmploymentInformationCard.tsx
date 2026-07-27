@@ -7,6 +7,8 @@ import FormSection from "@/components/ui/FormSection";
 interface Values {
   department: string;
   preferred_channel: string;
+  position: string;
+  role: string;
 }
 
 interface Props {
@@ -36,7 +38,22 @@ export default function EmploymentInformationCard({
           error={errors.department}
           onChange={(e) => onChange?.("department", e.target.value)}
         />
-
+        <FormInput
+          label="Position"
+          value={values.position}
+          placeholder="Enter Position"
+          disabled={readOnly}
+          error={errors.position}
+          onChange={(e) => onChange?.("position", e.target.value)}
+        />{" "}
+        <FormInput
+          label="Role"
+          value={values.role}
+          placeholder="Enter Role"
+          disabled={readOnly}
+          error={errors.role}
+          onChange={(e) => onChange?.("role", e.target.value)}
+        />
         <FormSelect
           label="Preferred Contact Channel"
           value={values.preferred_channel}

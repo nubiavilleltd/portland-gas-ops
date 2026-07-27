@@ -93,7 +93,7 @@ export default function ContactDetailsPage() {
   return (
     <AppLayout pageTitle="Customer Contact Details">
       <div className="flex gap-3 justify-between mb-2">
-        <BackButton href="/admin/crm/contacts" label="Back to Contacts" />
+        <BackButton href="/crm/contacts" label="Back to Contacts" />
         {!isEditing && form.status == "active" && (
           <Button variant="primary" onClick={() => setIsEditing(true)}>
             Edit
@@ -155,6 +155,8 @@ export default function ContactDetailsPage() {
             readOnly={!isEditing}
             values={{
               department: form.primary_contact.department,
+              position: form.primary_contact.position,
+              role: form.primary_contact.role,
               preferred_channel: form.primary_contact.preferred_channel,
             }}
             onChange={(field, value) => {
@@ -270,6 +272,8 @@ export default function ContactDetailsPage() {
                   readOnly={!isEditing}
                   values={{
                     department: person.department,
+                    position: form.primary_contact.position,
+                    role: form.primary_contact.role,
                     preferred_channel: person.preferred_channel,
                   }}
                   onChange={(field, value) => {
@@ -311,6 +315,8 @@ export default function ContactDetailsPage() {
                           first_name: "",
                           last_name: "",
                           email: "",
+                          position: "",
+                          role: "",
                           phone: "",
                           alternate_phone: "",
                           department: "",

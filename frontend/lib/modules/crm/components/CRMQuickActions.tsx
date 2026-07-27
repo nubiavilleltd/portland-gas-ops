@@ -1,6 +1,12 @@
 "use client";
 
-import { UserPlus, Users, Contact, LayoutGrid } from "lucide-react";
+import {
+  UserPlus,
+  Users,
+  Contact,
+  CalendarPlus,
+  ShoppingCart,
+} from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
@@ -11,41 +17,50 @@ export default function CRMQuickActions() {
       title="Quick Actions"
       description="Frequently used CRM actions."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Button
-          href="/admin/crm/contacts/new"
+          href="/crm/customers/new"
           variant="secondary"
           leftIcon={<UserPlus size={18} />}
+          className="justify-start"
+        >
+          New Customer
+        </Button>
+
+        <Button
+          href="/crm/contacts/new"
+          variant="secondary"
+          leftIcon={<Contact size={18} />}
           className="justify-start"
         >
           New Contact
         </Button>
 
         <Button
-          href="/admin/crm/customers"
+          href="/crm/visits/new"
+          variant="secondary"
+          leftIcon={<CalendarPlus size={18} />}
+          className="justify-start"
+        >
+          Schedule Visit
+        </Button>
+
+        <Button
+          href="/crm/visits"
           variant="secondary"
           leftIcon={<Users size={18} />}
           className="justify-start"
         >
-          Customers
+          View Visits
         </Button>
 
         <Button
-          href="/admin/crm/contacts"
+          href="/admin/crm/purchase-trends"
           variant="secondary"
-          leftIcon={<Contact size={18} />}
+          leftIcon={<ShoppingCart size={18} />}
           className="justify-start"
         >
-          Contacts
-        </Button>
-
-        <Button
-          href="/admin/crm/onboarding/new"
-          variant="secondary"
-          leftIcon={<UserPlus size={18} />}
-          className="justify-start"
-        >
-          Onboard Customer
+          Purchase Trends
         </Button>
       </div>
     </FormSection>
