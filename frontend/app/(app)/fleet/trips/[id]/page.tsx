@@ -24,9 +24,11 @@ import {
   canCompleteTrip,
   canDispatchTrip,
   canStartTrip,
-  canCancelTrip
+  canCancelTrip,
 } from "@/lib/modules/fleet/guards/trip.guards";
-import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
+import SimpleTable, {
+  type SimpleTableColumn,
+} from "@/components/ui/SimpleTable";
 
 import type { Order } from "@/lib/modules/orders/types/orders.types";
 import { BackButton } from "@/components/ui/BackButton";
@@ -34,7 +36,11 @@ import { FLEET_ROUTES } from "@/lib/routes";
 import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
 import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
 import TripDetailSkeleton from "@/lib/modules/fleet/components/TripDetailSkeleton";
-
+import { useState } from "react";
+import StartTripDialog from "@/lib/modules/fleet/components/StartTripModal";
+import DispatchTripDialog from "@/lib/modules/fleet/components/DispatchTripDialog";
+import CompleteTripDialog from "@/lib/modules/fleet/components/CompleteTripDialog";
+import CancelTripDialog from "@/lib/modules/fleet/components/CancelTripDialog";
 
 const STATUS_ORDER = [
   "pending",
@@ -50,7 +56,10 @@ export default function TripDetailPage() {
   const params = useParams();
 
   const id = params.id as string;
-
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [dispatchDialogOpen, setDispatchDialogOpen] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   // ── React Query hooks (single sources of truth) ─────────
   const { trip, isLoading, error } = useTripById(id);
@@ -61,10 +70,9 @@ export default function TripDetailPage() {
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
-
-//   console.log("trip", trip);
-// console.log("trip.order_ids", trip?.order_ids);
-// console.log("orders", orders);
+  //   console.log("trip", trip);
+  // console.log("trip.order_ids", trip?.order_ids);
+  // console.log("orders", orders);
 
   // if (!trip) {
   //   return (
@@ -74,29 +82,23 @@ export default function TripDetailPage() {
   //   );
   // }
 
-
-
   if (isLoading) {
-  return <TripDetailSkeleton />;
-}
+    return <TripDetailSkeleton />;
+  }
 
-if (error || !trip) {
-  return (
-    <AppLayout pageTitle="Trip Not Found">
-      <p className="text-brand-text-secondary">
-        Trip not found.
-      </p>
-    </AppLayout>
-  );
-}
+  if (error || !trip) {
+    return (
+      <AppLayout pageTitle="Trip Not Found">
+        <p className="text-brand-text-secondary">Trip not found.</p>
+      </AppLayout>
+    );
+  }
 
   const ordersMap = new Map(orders.map((o) => [o.id, o]));
-
 
   const linkedOrders = trip.order_ids
     .map((id) => ordersMap.get(id))
     .filter(Boolean);
-
 
   const orderColumns: SimpleTableColumn<Order>[] = [
     {
@@ -107,8 +109,7 @@ if (error || !trip) {
     },
     {
       label: "Customer",
-      render: (order) =>
-        order.customerName ?? "-",
+      render: (order) => order.customerName ?? "-",
     },
     {
       label: "Amount",
@@ -124,7 +125,11 @@ if (error || !trip) {
       label: "",
       align: "right",
       render: (order) => (
-        <Button size="sm" variant="outline" href={`/orders/${order.id}`}>
+        <Button
+          size="sm"
+          variant="outline"
+          href={`/orders/${order.id}`}
+        >
           View
         </Button>
       ),
@@ -144,7 +149,6 @@ if (error || !trip) {
 
   return (
     <AppLayout pageTitle={trip.trip_number}>
-
       <BackButton
         href={`${FLEET_ROUTES.tripList()}`}
         label="Back to Trips"
@@ -154,23 +158,21 @@ if (error || !trip) {
         description="Trip execution and dispatch control center"
         action={
           <div className="flex gap-2">
-
-
             {canDispatch && (
-              <Button href={`/fleet/trips/${id}/dispatch`}>
-                Dispatch Trip →
+              <Button onClick={() => setDispatchDialogOpen(true)}>
+                Dispatch Trip
               </Button>
             )}
 
             {canStart && (
-              <Button href={`/fleet/trips/${id}/start`}>
-                Start Transit →
+              <Button onClick={() => setStartDialogOpen(true)}>
+                Start Trip
               </Button>
             )}
 
             {canComplete && (
-              <Button href={`/fleet/trips/${id}/complete`}>
-                Complete Trip →
+              <Button onClick={() => setCompleteDialogOpen(true)}>
+                Complete Trip
               </Button>
             )}
 
@@ -180,8 +182,11 @@ if (error || !trip) {
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" href={`/fleet/trips/${id}/cancel`}>
-                Cancel Trip →
+              <Button
+                variant="danger"
+                onClick={() => setCancelDialogOpen(true)}
+              >
+                Cancel Trip
               </Button>
             )}
           </div>
@@ -220,8 +225,6 @@ if (error || !trip) {
           title="Status Flow"
           description="Track the current stage of the trip lifecycle"
         >
-
-
           {/* {trip.status === "cancelled" ? (
             <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 inline-block">
               Cancelled
@@ -271,12 +274,13 @@ if (error || !trip) {
                     className="flex items-center gap-2"
                   >
                     <div
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${isCurrent
-                        ? "bg-brand-purple text-white"
-                        : isActive
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-400"
-                        }`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                        isCurrent
+                          ? "bg-brand-purple text-white"
+                          : isActive
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-400"
+                      }`}
                     >
                       {isActive && !isCurrent && <span>✓ </span>}
                       <span className="capitalize">
@@ -288,7 +292,6 @@ if (error || !trip) {
               })}
             </div>
           )}
-
         </FormSection>
 
         {/* ASSIGNMENT */}
@@ -296,7 +299,6 @@ if (error || !trip) {
           title="Assignment"
           description="Driver and vehicle allocation"
         >
-
           {canAssign && (
             <div className="flex justify-end">
               <Button href={`/fleet/trips/${id}/assign`}>
@@ -353,10 +355,43 @@ if (error || !trip) {
           </FormSection>
         )}
 
-        <FormSection title="Activity" description="Timeline of actions taken on this trip">
+        <FormSection
+          title="Activity"
+          description="Timeline of actions taken on this trip"
+        >
           <AuditTimeline entries={entries} />
         </FormSection>
       </div>
+
+      {trip && (
+        <DispatchTripDialog
+          open={dispatchDialogOpen}
+          onClose={() => setDispatchDialogOpen(false)}
+          trip={trip}
+        />
+      )}
+
+      <StartTripDialog
+        open={startDialogOpen}
+        onClose={() => setStartDialogOpen(false)}
+        trip={trip}
+      />
+
+      {trip && (
+        <CompleteTripDialog
+          open={completeDialogOpen}
+          onClose={() => setCompleteDialogOpen(false)}
+          trip={trip}
+        />
+      )}
+
+      {trip && (
+        <CancelTripDialog
+          open={cancelDialogOpen}
+          onClose={() => setCancelDialogOpen(false)}
+          trip={trip}
+        />
+      )}
     </AppLayout>
   );
 }

@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import type { ItemDisposition } from "@/lib/modules/inventory/types/inventory.types";
 import FormSelect from "@/components/forms/FormSelect";
+import CollapsibleTagList from "@/components/ui/CollapsibleTagList";
+import AssignmentProgress from "@/components/ui/AssignmentProgress";
 
 // ── Types ─────────────────────────────────────────────────
 // Each tracked line item now carries its own disposition alongside selected unit ids
@@ -76,13 +78,12 @@ function ConsumableLineItem({
   value?: string;
   onChange: (locationId: string) => void;
 }) {
+  const { locations } = useConsumableLocations(productId);
 
-    const { locations } = useConsumableLocations(productId);
-
-    const options = locations.map(location => ({
-        value: location.location_id,
-        label: `${location.location_name} (${(location.available_quantity)})`,
-    }));
+  const options = locations.map((location) => ({
+    value: location.location_id,
+    label: `${location.location_name} (${location.available_quantity})`,
+  }));
   return (
     <div className="border border-brand-border rounded-xl">
       <div className="px-4 py-3 bg-gray-50 border-b border-brand-border">
@@ -163,7 +164,6 @@ export default function AssignInventoryPage() {
   } | null>(null);
 
   const productMap = new Map(products.map((p) => [p.id, p]));
-
 
   function handleLocationChange(key: string, locationId: string) {
     setSelection((prev) => ({
@@ -296,6 +296,17 @@ export default function AssignInventoryPage() {
     return isTrackedInventoryAssigned() && isConsumablesAssigned();
   }
 
+  const trackedItems = getTrackedLineItems();
+  const consumableItems = getConsumableLineItems();
+
+  const trackedAssigned = trackedItems.filter(({ key, required }) => {
+    return (selection[key]?.itemIds.length ?? 0) >= required;
+  }).length;
+
+  const consumablesAssigned = consumableItems.filter(({ key }) => {
+    return Boolean(selection[key]?.locationId);
+  }).length;
+
   // ── Submit ────────────────────────────────────────────────
   async function handleSubmit() {
     if (!isTrackedInventoryAssigned()) {
@@ -356,27 +367,25 @@ export default function AssignInventoryPage() {
         className="mb-6"
       />
 
-      <div className="space-y-8">
+      <div className="divide-y divide-brand-border">
         {tripOrders.map((order) => {
           if (!order) return null;
 
           return (
-            <div
+            <section
               key={order.id}
-              className="bg-white border border-brand-border rounded-2xl"
+              className="py-6 first:pt-0"
             >
-              {/* Order header */}
-              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-                <h2 className="text-sm font-semibold text-brand-text-primary">
-                  {order.orderNumber}
-                </h2>
-                <p className="text-xs text-brand-text-secondary mt-0.5">
-                  {order.customerName ?? "-"}
-                </p>
+              <div className="flex items-center justify-between pb-2 border-b border-brand-border">
+                <h2 className="text-base font-semibold">{order.orderNumber}</h2>
+
+                <span className="text-sm text-brand-text-secondary">
+                  {order.orderItems.length} item(s)
+                </span>
               </div>
 
               {/* Line items */}
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-3">
                 {order.orderItems?.map((lineItem) => {
                   const product = productMap.get(lineItem.productId);
                   if (!product) return null;
@@ -430,28 +439,27 @@ export default function AssignInventoryPage() {
 
                       {/* Unit selection trigger */}
                       <div className="px-4 py-4 flex items-center justify-between">
-                        <div className="flex flex-wrap gap-2">
-                          {selectedIds.length === 0 ? (
-                            <p className="text-sm text-brand-text-secondary">
-                              No units selected yet
-                            </p>
-                          ) : (
-                            selectedIds.map((itemId) => {
-                              const unit = items.find((i) => i.id === itemId);
-                              return (
-                                <span
-                                  key={itemId}
-                                  className="text-xs font-mono bg-brand-purple/10 text-brand-purple px-2 py-1 rounded-lg"
-                                >
-                                  {unit?.tag_number ?? itemId}
-                                </span>
-                              );
-                            })
+                        <div>
+                          <p className="text-sm text-brand-text-secondary">
+                            {selectedIds.length === 0
+                              ? "No units selected"
+                              : `${selectedIds.length} of ${required} unit(s) selected`}
+                          </p>
+
+                          {selectedIds.length > 0 && (
+                            <CollapsibleTagList
+                              tags={selectedIds.map(
+                                (itemId) =>
+                                  items.find((item) => item.id === itemId)
+                                    ?.tag_number ?? itemId,
+                              )}
+                            />
                           )}
                         </div>
 
-                        <button
-                          type="button"
+                        <Button
+                          size="sm"
+                          variant={selectedIds.length ? "outline" : "primary"}
                           onClick={() =>
                             setActivePicker({
                               orderId: order.id,
@@ -460,12 +468,11 @@ export default function AssignInventoryPage() {
                               required,
                             })
                           }
-                          className="shrink-0 ml-4 text-sm text-brand-purple font-medium hover:underline"
                         >
                           {selectedIds.length === 0
-                            ? "Select units →"
-                            : "Change →"}
-                        </button>
+                            ? "Select Units"
+                            : "Review Units"}
+                        </Button>
                       </div>
 
                       {/* Disposition — only shown once at least one unit is selected */}
@@ -479,45 +486,44 @@ export default function AssignInventoryPage() {
                   );
                 })}
               </div>
-            </div>
+            </section>
           );
         })}
 
-        <div className="space-y-2">
-          {!isTrackedInventoryAssigned() && (
-            <p className="text-sm text-amber-700 flex items-center gap-1.5">
-              <AlertCircle size={14} />
-              Assign all required tracked inventory before proceeding.
-            </p>
-          )}
-
-          {!isConsumablesAssigned() && (
-            <p className="text-sm text-amber-700 flex items-center gap-1.5">
-              <AlertCircle size={14} />
-              Select a warehouse for all consumable items.
-            </p>
-          )}
-
-          {isTrackedInventoryAssigned() && isConsumablesAssigned() && (
-            <p className="text-sm text-green-700 flex items-center gap-1.5">
-              <CheckCircle size={14} />
-              Inventory assignment complete — ready to proceed.
-            </p>
-          )}
-        </div>
+        <AssignmentProgress
+          trackedAssigned={trackedAssigned}
+          trackedTotal={trackedItems.length}
+          consumablesAssigned={consumablesAssigned}
+          consumablesTotal={consumableItems.length}
+        />
 
         {/* Actions */}
-        <div className="flex pb-10">
-          <Button
-            onClick={handleSubmit}
-            loading={assignInventory.isPending}
-            loadingText="Saving…"
-            disabled={!isAllAssigned() || assignInventory.isPending}
-          >
-            Confirm & Mark Ready
-          </Button>
-        </div>
+   <div className="sticky bottom-0 z-20 -mx-6 mt-8 border-t border-brand-border bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
+    <div className="mx-auto flex items-center justify-between px-6 py-4">
+        {/* <div>
+            <p className="text-sm font-medium text-brand-text-primary">
+                {statusMessage}
+            </p>
+        </div> */}
 
+        <div className="flex gap-3">
+            <Button
+                variant="outline"
+                onClick={() => router.back()}
+            >
+                Cancel
+            </Button>
+
+            <Button
+                onClick={handleSubmit}
+                disabled={!isAllAssigned()}
+                loading={assignInventory.isPending}
+            >
+                Confirm &amp; Mark Ready
+            </Button>
+        </div>
+    </div>
+</div>
         {/* Inventory Unit Picker Modal */}
         {activePicker && (
           <InventoryUnitPickerModal
