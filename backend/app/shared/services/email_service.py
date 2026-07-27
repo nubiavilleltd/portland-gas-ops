@@ -183,7 +183,7 @@ def send_account_setup(
 _REQUEST_TYPE_LABELS: dict[str, str] = {
     "procurement":      "Procurement",
     "asset":            "Asset",
-    "leave":            "Leave",
+    "leave_request":    "Leave",
     "cash_requisition": "Cash Requisition",
     "invoice":          "Invoice",
     "work_initiation":  "Work Initiation",
@@ -196,7 +196,7 @@ _REQUEST_TYPE_LABELS: dict[str, str] = {
 _REQUEST_TYPE_PATHS: dict[str, str] = {
     "procurement":        "procurement",
     "asset":              "assets/requests",
-    "leave":              "hr-management/leave-requests",
+    "leave_request":      "hr-management/leave-requests",
     "cash_requisition":   "finance/cash-requisitions",
     "invoice":            "finance/invoices",
     "work_initiation":    "safety/work-initiation",
@@ -211,13 +211,14 @@ def get_request_type_label(request_type: str) -> str:
 
 
 def get_request_url(request_type: str, request_id: str, db=None) -> str:
-    """Build the deep-link URL for a request's detail page."""
+    """
+    Build the deep-link URL for a request's detail page.
+
+    Every detail route is keyed by the record UUID, so the path segment is all
+    that varies — see _REQUEST_TYPE_PATHS. `db` is accepted for call-site
+    compatibility and is no longer needed to resolve a URL.
+    """
     base = settings.FRONTEND_URL.rstrip("/")
-
-    # Detail routes are keyed by UUID (matching Safety & Compliance)
-    if request_type == "leave_request":
-        return f"{base}/hr-management/leave-requests/{request_id}"
-
     path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
     return f"{base}/{path}/{request_id}"
 

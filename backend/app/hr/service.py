@@ -170,6 +170,47 @@ def _next_leave_request_reference(db: Session) -> str:
     return f"LRQ-{year}-{num:04d}"
 
 
+def _reliever_from_picks(picked_approvers: dict[int, str] | None) -> str | None:
+    """
+    The reliever is the approver chosen for the workflow's requester_pick step.
+    Leave has a single requester_pick step, so take the lowest step number.
+    """
+    if not picked_approvers:
+        return None
+    first_step = min(picked_approvers)
+    return picked_approvers[first_step]
+
+
+def _requester_pick_steps(db: Session, request_type: str) -> list[int]:
+    """
+    Step numbers of the requester_pick steps on the workflow assigned to
+    request_type. Used so we never hard-code a step number — an admin can
+    reorder steps without breaking submission.
+    """
+    from app.shared.models.approval import (
+        WorkflowAssignment, WorkflowStep, AssigneeType,
+    )
+
+    assignment = (
+        db.query(WorkflowAssignment)
+        .filter(WorkflowAssignment.request_type == request_type)
+        .first()
+    )
+    if not assignment:
+        return []
+
+    steps = (
+        db.query(WorkflowStep)
+        .filter(
+            WorkflowStep.workflow_id == assignment.workflow_id,
+            WorkflowStep.assignee_type == AssigneeType.requester_pick,
+        )
+        .order_by(WorkflowStep.step_number)
+        .all()
+    )
+    return [s.step_number for s in steps]
+
+
 def create_leave_request(
     db: Session,
     payload: LeaveRequestCreate,
@@ -201,19 +242,34 @@ def create_leave_request(
             detail=f"'{leave_type.leave_type_name}' is not available for leave requests",
         )
 
-    # Validate dates
-    if payload.end_date < payload.start_date:
+    # Open-ended types (e.g. Sick Leave) may omit the End Date. Start + optional
+    # Expected Return: if no end date, it counts as 1 day until updated.
+    if payload.end_date is None and not leave_type.open_ended:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="End date is required for this leave type",
+        )
+    effective_end = payload.end_date or payload.start_date
+    if effective_end < payload.start_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="End date must be after start date",
         )
 
     # Calculate days (inclusive, calendar days)
-    delta = payload.end_date - payload.start_date
-    days = delta.days + 1
+    days = (effective_end - payload.start_date).days + 1
 
     # Generate reference
     reference = _next_leave_request_reference(db)
+
+    # The reliever is the approver picked for the workflow's requester_pick step.
+    # The form sends picked_approvers; fall back to an explicit reliever_id.
+    reliever_id = payload.reliever_id or _reliever_from_picks(payload.picked_approvers)
+    if not reliever_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select a reliever before submitting this request",
+        )
 
     # Create request
     leave_request = LeaveRequest(
@@ -221,13 +277,13 @@ def create_leave_request(
         requester_id=requester_id,
         employee_id=payload.employee_id,
         leave_type_id=payload.leave_type_id,
-        reliever_id=payload.reliever_id,
+        reliever_id=reliever_id,
         document_id=payload.document_id,
         request_type=payload.request_type,
         department=employee.department,
         job_title=employee.job_title,
         start_date=payload.start_date,
-        end_date=payload.end_date,
+        end_date=effective_end,
         days=days,
         reason=payload.reason,
         status=LeaveRequestStatus.pending,
@@ -245,17 +301,32 @@ def get_all_leave_requests(
     sort_by: str = "created_at",
     sort_order: str = "desc",
     employee_id: Optional[str] = None,
+    year: Optional[int] = None,
 ) -> Tuple[list[LeaveRequest], int]:
-    """Get all leave requests with pagination and sorting."""
+    """Get all leave requests with pagination and sorting.
+
+    `year` filters to requests whose leave falls in that fiscal year
+    (start_date year — the same basis used for leave balances).
+    """
+    # Eager-load every relationship the response schema reads, so serializing
+    # each row does not trigger per-row lazy loads (N+1). On remote MySQL this
+    # is the difference between one query and ~5 per row.
     query = db.query(LeaveRequest).options(
         joinedload(LeaveRequest.leave_type),
         joinedload(LeaveRequest.document),
+        joinedload(LeaveRequest.employee).joinedload(Employee.user),
+        joinedload(LeaveRequest.reliever).joinedload(Employee.user),
+        joinedload(LeaveRequest.requester),
     )
 
     # Optional filter: only a single employee's requests (used by the
     # per-employee balance/history view).
     if employee_id:
         query = query.filter(LeaveRequest.employee_id == employee_id)
+
+    if year is not None:
+        from sqlalchemy import extract
+        query = query.filter(extract("year", LeaveRequest.start_date) == year)
 
     # Apply sorting
     sort_column = getattr(LeaveRequest, sort_by, LeaveRequest.created_at)
@@ -267,7 +338,41 @@ def get_all_leave_requests(
     total = query.count()
     leave_requests = query.offset(skip).limit(limit).all()
 
+    # Prefetch the latest approval_request_id for every row in ONE query, so the
+    # per-row `approval_request_id` property doesn't fire a query each (N+1).
+    ar_ids = _latest_approval_request_ids(db, [lr.id for lr in leave_requests])
+    for lr in leave_requests:
+        lr.__dict__["_ar_id_prefetched"] = ar_ids.get(lr.id)
+
     return leave_requests, total
+
+
+def _latest_approval_request_ids(db: Session, request_ids: list[str]) -> dict[str, str]:
+    """{ leave_request_id: latest approval_request_id } in one query.
+
+    A resubmit creates multiple ApprovalRequest attempts; the newest attempt is
+    the active workflow, so we keep the highest attempt_number per request.
+    """
+    if not request_ids:
+        return {}
+    from app.shared.models.approval import ApprovalRequest
+    rows = (
+        db.query(
+            ApprovalRequest.request_id,
+            ApprovalRequest.id,
+        )
+        .filter(
+            ApprovalRequest.request_type == "leave_request",
+            ApprovalRequest.request_id.in_(request_ids),
+        )
+        .order_by(ApprovalRequest.request_id, ApprovalRequest.attempt_number.desc())
+        .all()
+    )
+    out: dict[str, str] = {}
+    for request_id, approval_id in rows:
+        if request_id not in out:  # first seen wins = highest attempt (ordered desc)
+            out[request_id] = approval_id
+    return out
 
 
 def get_next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
@@ -369,6 +474,7 @@ def get_leave_request_by_id(db: Session, leave_request_id: str) -> LeaveRequest:
 def submit_leave_request_for_approval(
     db: Session,
     leave_request_id: str,
+    picked_approvers: dict[int, str] | None = None,
 ) -> ApprovalRequest:
     """
     Submit a leave request for approval by entering the workflow engine.
@@ -400,18 +506,24 @@ def submit_leave_request_for_approval(
     # Submit to workflow engine
     engine = WorkflowEngine(db)
 
-    # The workflow step 1 expects requester_pick (reliever selection)
-    # The reliever is already specified on the leave_request
-    picked_approvers = {
-        1: leave_request.reliever_id  # Step 1: Reliever approval
-    } if leave_request.reliever_id else None
+    # Prefer the picks the requester made on the form. If none were sent
+    # (older clients, or a draft submitted later), fall back to assigning the
+    # stored reliever to whichever step is requester_pick — resolved from the
+    # workflow config rather than hard-coded, so reordering steps is safe.
+    if picked_approvers:
+        resolved_picks = picked_approvers
+    elif leave_request.reliever_id:
+        pick_steps = _requester_pick_steps(db, "leave_request")
+        resolved_picks = {step: leave_request.reliever_id for step in pick_steps[:1]}
+    else:
+        resolved_picks = None
 
     approval_request = engine.start(
         request_type="leave_request",
         request_id=leave_request_id,
         title=title,
         requester=requester,
-        picked_approvers=picked_approvers,
+        picked_approvers=resolved_picks,
     )
 
     return approval_request
@@ -453,7 +565,10 @@ def resubmit_leave_request(
             detail=f"'{leave_type.leave_type_name}' is not available for leave requests",
         )
 
-    if payload.end_date < payload.start_date:
+    if payload.end_date is None and not leave_type.open_ended:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date is required for this leave type")
+    effective_end = payload.end_date or payload.start_date
+    if effective_end < payload.start_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date must be after start date")
 
     employee = db.query(Employee).filter(Employee.id == payload.employee_id).first()
@@ -461,15 +576,22 @@ def resubmit_leave_request(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
 
     # Apply edits
+    reliever_id = payload.reliever_id or _reliever_from_picks(payload.picked_approvers)
+    if not reliever_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select a reliever before resubmitting this request",
+        )
+
     lr.employee_id = payload.employee_id
     lr.leave_type_id = payload.leave_type_id
-    lr.reliever_id = payload.reliever_id
+    lr.reliever_id = reliever_id
     lr.request_type = payload.request_type
     lr.department = employee.department
     lr.job_title = employee.job_title
     lr.start_date = payload.start_date
-    lr.end_date = payload.end_date
-    lr.days = (payload.end_date - payload.start_date).days + 1
+    lr.end_date = effective_end
+    lr.days = (effective_end - payload.start_date).days + 1
     lr.reason = payload.reason
     if payload.document_id is not None:
         lr.document_id = payload.document_id
@@ -477,7 +599,7 @@ def resubmit_leave_request(
     db.flush()
 
     # Restart the workflow (engine.start creates a new attempt from step 1)
-    submit_leave_request_for_approval(db, lr.id)
+    submit_leave_request_for_approval(db, lr.id, payload.picked_approvers)
 
     return lr
 
@@ -525,6 +647,62 @@ def apply_leave_balance_on_approval(db: Session, leave_request_id: str) -> Leave
     balance.remaining = balance.entitlement - balance.used
     db.flush()
     return balance
+
+
+def mark_leave_returned(
+    db: Session,
+    leave_request_id: str,
+    end_date,
+    current_user_id: str,
+) -> LeaveRequest:
+    """
+    Employee marks that they are back from an open-ended leave (e.g. Sick Leave).
+    Finalizes the actual End Date + number of days, stamps returned_at, and keeps
+    the recorded balance `used` accurate by the change in days.
+    """
+    from datetime import datetime, timezone
+
+    lr = get_leave_request_by_id(db, leave_request_id)
+
+    if lr.requester_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Only the requester can mark this leave as returned")
+    if not (lr.leave_type and lr.leave_type.open_ended):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This leave type does not require marking a return")
+    if lr.status != LeaveRequestStatus.approved:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Only approved leave can be marked as returned")
+    if lr.returned_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This leave has already been marked as returned")
+    if end_date < lr.start_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="The last day of leave cannot be before the start date")
+
+    old_days = lr.days or 0
+    lr.end_date = end_date
+    lr.days = (end_date - lr.start_date).days + 1
+    lr.returned_at = datetime.now(timezone.utc)
+
+    # Keep recorded usage accurate — adjust the balance by the change in days.
+    delta = lr.days - old_days
+    if delta:
+        balance = (
+            db.query(LeaveBalance)
+            .filter(
+                LeaveBalance.employee_id == lr.employee_id,
+                LeaveBalance.leave_type_id == lr.leave_type_id,
+                LeaveBalance.fiscal_year == lr.start_date.year,
+            )
+            .first()
+        )
+        if balance:
+            balance.used = (balance.used or 0) + delta
+            balance.remaining = balance.entitlement - balance.used
+
+    db.flush()
+    return lr
 
 
 def get_my_leave_balances(db: Session, employee_id: str, fiscal_year: int) -> list[dict]:
@@ -720,6 +898,18 @@ def generate_payslips(
 
     db.flush()
     return result
+
+
+def get_leave_balance_years(db: Session) -> list[int]:
+    """Distinct fiscal years that actually have leave-balance rows — for the
+    year filter dropdown. Newest first."""
+    rows = (
+        db.query(LeaveBalance.fiscal_year)
+        .distinct()
+        .order_by(LeaveBalance.fiscal_year.desc())
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 def get_payslip_periods(db: Session, employee_id: Optional[str] = None) -> list[str]:

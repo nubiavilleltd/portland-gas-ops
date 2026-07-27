@@ -30,6 +30,8 @@ export interface LeaveRequestListItem {
   approval_request_id?: string;
   next_actor_name?: string;
   current_step_name?: string;
+  open_ended?: boolean;         // leave type has no fixed end date
+  returned_at?: string | null;  // set once the employee marked they are back
   created_at: string;
   updated_at?: string;
 }
@@ -39,12 +41,15 @@ export interface LeaveRequestDetail extends LeaveRequestListItem {}
 export interface LeaveRequestCreatePayload {
   employee_id: string;
   leave_type_id: number;
-  reliever_id: string;
+  /** Derived server-side from picked_approvers when omitted. */
+  reliever_id?: string;
   start_date: string;
-  end_date: string;
+  end_date?: string;  // optional for open-ended types (e.g. Sick Leave)
   request_type?: string;
   reason?: string;
   document_id?: number;
+  /** Approver picks for requester_pick workflow steps: { "<step_number>": employee_id } */
+  picked_approvers?: Record<string, string>;
 }
 
 export interface LeaveRequestListResponse {
@@ -60,4 +65,5 @@ export interface ListLeaveRequestsParams {
   sort_by?: string;
   sort_order?: "asc" | "desc";
   employee_id?: string;
+  year?: number;
 }

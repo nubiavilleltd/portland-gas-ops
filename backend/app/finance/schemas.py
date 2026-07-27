@@ -23,6 +23,12 @@ class CashRequisitionCreate(BaseModel):
     currency: str = "NGN"              # NGN, USD, EUR, GBP
     expected_retirement: Optional[date] = None
     document_id: Optional[int] = None
+    picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
+
+
+class FinanceSubmit(BaseModel):
+    """Body for submit-for-approval — carries the requester's approver picks."""
+    picked_approvers: Optional[dict[int, str]] = None
 
 
 class CashRequisitionRead(BaseModel):
@@ -65,6 +71,7 @@ class InvoiceProcessingCreate(BaseModel):
     amount: float                          # net amount
     currency: str = "NGN"
     document_id: Optional[int] = None
+    picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
 
 
 class InvoiceProcessingRead(BaseModel):

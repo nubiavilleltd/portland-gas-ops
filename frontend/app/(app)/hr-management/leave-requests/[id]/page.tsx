@@ -188,6 +188,29 @@ export default function LeaveRequestDetailPage({
   const [removedDoc, setRemovedDoc] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
 
+  // "Mark as returned" — only the requester, for approved open-ended leave that
+  // hasn't been closed yet. Finalizes the End Date and number of days.
+  const [returnDate, setReturnDate] = useState("");
+  const [isMarkingReturned, setIsMarkingReturned] = useState(false);
+  const canMarkReturned = Boolean(
+    isRequester && apiRecord?.open_ended && record?.status === "approved" && !apiRecord?.returned_at
+  );
+
+  async function handleMarkReturned() {
+    const endISO = (returnDate ? new Date(returnDate) : new Date()).toISOString().split("T")[0];
+    setIsMarkingReturned(true);
+    try {
+      await leaveRequestsApi.markReturned(id, endISO);
+      await queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      toast.success("Welcome back — your leave has been closed.");
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail || "Could not mark as returned");
+    } finally {
+      setIsMarkingReturned(false);
+    }
+  }
+
   const { data: leaveTypesResponse } = useLeaveTypes({ limit: 100, is_active: true });
   const { data: employeesForResubmit = [] } = useEmployees({ limit: 200 });
 
@@ -328,6 +351,29 @@ export default function LeaveRequestDetailPage({
             }
             showRoleSwitcher={false}
           />
+
+          {/* Back from open-ended leave (e.g. Sick Leave) — requester marks return */}
+          {canMarkReturned && (
+            <div className="rounded-2xl border border-brand-purple/40 bg-brand-purple-faint p-4">
+              <p className="text-sm font-semibold text-brand-text-primary">Back from leave?</p>
+              <p className="mt-0.5 text-xs text-brand-text-secondary">
+                This is open-ended leave. Mark your return to record your last day of leave — the number of days updates automatically. Defaults to today if left blank.
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <div className="w-52">
+                  <FormDatePicker
+                    label="Last day of leave"
+                    min={record.startDate}
+                    value={returnDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleMarkReturned} loading={isMarkingReturned} loadingText="Saving...">
+                  Mark as Returned
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Access note — hidden once the request reaches a terminal state
               (approved / denied); the status badge + outcome banner cover it. */}

@@ -19,18 +19,23 @@ class DocumentInfo(BaseModel):
 
 class LeaveTypeCreate(BaseModel):
     leave_type_name: str = Field(..., min_length=1, max_length=100)
-    entitlement_days: int = Field(..., gt=0)
+    # 0 is allowed for uncapped types (no entitlement limit).
+    entitlement_days: int = Field(0, ge=0)
     description: Optional[str] = None
     is_active: bool = True
+    is_uncapped: bool = False   # no entitlement cap (e.g. Sick Leave)
+    open_ended: bool = False    # no fixed End Date required
 
 
 # ── Full update (all fields optional) ────────────────────────────────────────
 
 class LeaveTypeUpdate(BaseModel):
     leave_type_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    entitlement_days: Optional[int] = Field(None, gt=0)
+    entitlement_days: Optional[int] = Field(None, ge=0)
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    is_uncapped: Optional[bool] = None
+    open_ended: Optional[bool] = None
 
 
 # ── Response (returned to client) ────────────────────────────────────────────
@@ -41,6 +46,8 @@ class LeaveTypeRead(BaseModel):
     entitlement_days: int
     description: Optional[str]
     is_active: bool
+    is_uncapped: bool = False
+    open_ended: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -74,13 +81,20 @@ class EmployeeLeaveBalancesRead(BaseModel):
 class LeaveRequestCreate(BaseModel):
     employee_id: str
     leave_type_id: int
-    reliever_id: str
+    # The reliever is the approver chosen for the workflow's requester_pick step.
+    # It may be omitted when picked_approvers is supplied — it is derived from it.
+    reliever_id: Optional[str] = None
     start_date: date
-    end_date: date
+    end_date: Optional[date] = None  # optional for open-ended types (e.g. Sick Leave)
     request_type: str = "self"  # "self" or "others"
     reason: Optional[str] = None
     document_id: Optional[int] = None
     picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
+
+
+class LeaveRequestSubmit(BaseModel):
+    """Body for submit-for-approval — carries the requester's approver picks."""
+    picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id}
 
 
 class LeaveRequestRead(BaseModel):
@@ -109,11 +123,18 @@ class LeaveRequestRead(BaseModel):
     approval_request_id: Optional[str] = None
     next_actor_name: Optional[str] = None      # who currently holds the request (pending step assignee)
     current_step_name: Optional[str] = None    # name of the current pending step
+    open_ended: bool = False                   # leave type has no fixed end date
+    returned_at: Optional[datetime] = None     # set when the employee marked they are back
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class LeaveMarkReturned(BaseModel):
+    """Body for marking an open-ended leave as returned (finalizes the End Date)."""
+    end_date: date  # the last day of leave (employee resumes work the next day)
 
 
 # ── Payslip Schemas ──────────────────────────────────────────────────────────

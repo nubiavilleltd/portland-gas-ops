@@ -11,6 +11,14 @@ export function useMyLeaveBalances(fiscalYear?: number) {
   });
 }
 
+export function useLeaveBalanceYears() {
+  return useQuery({
+    queryKey: ["leave-balances", "years"],
+    queryFn: () => leaveBalancesApi.listYears(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useAllLeaveBalances(fiscalYear?: number) {
   return useQuery({
     queryKey: ["leave-balances", "all", fiscalYear ?? "current"],

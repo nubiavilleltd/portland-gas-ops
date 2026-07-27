@@ -74,8 +74,8 @@ const invoicesApi = {
     return response.data;
   },
 
-  async submitForApproval(id: string): Promise<{ approval_request_id: string; status: string }> {
-    const response = await api.post(`/api/finance/invoices/${id}/submit-for-approval`);
+  async submitForApproval(id: string, pickedApprovers?: Record<string, string>): Promise<{ approval_request_id: string; status: string }> {
+    const response = await api.post(`/api/finance/invoices/${id}/submit-for-approval`, { picked_approvers: pickedApprovers });
     return response.data;
   },
 
