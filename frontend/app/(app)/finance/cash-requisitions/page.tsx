@@ -144,8 +144,11 @@ export default function CashRequisitionsPage() {
       draftRef.current = null; // fully submitted — next request is fresh
 
       // Refetch AFTER the workflow starts so the list shows Next Actor now
-      // (the create mutation invalidated before this step ran).
-      queryClient.invalidateQueries({ queryKey: ["cash-requisitions"] });
+      // (the create mutation invalidated before this step ran, caching a
+      // pre-workflow snapshot with no assignee). Awaited so the list isn't
+      // shown until fresh data is in cache — otherwise it paints that stale
+      // snapshot and Next Actor reads "—" until the refetch lands.
+      await queryClient.invalidateQueries({ queryKey: ["cash-requisitions"] });
       toast.success(`Request submitted for approval${cr.reference ? ` — ${cr.reference}` : ""}`);
       form.reset();
       setSupportingFiles([]);

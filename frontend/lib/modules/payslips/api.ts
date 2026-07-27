@@ -22,6 +22,9 @@ export function adaptPayslip(item: PayslipItem): PayslipDisplay {
     pension: Number(item.pension),
     nhf: Number(item.nhf),
     loan: Number(item.loan),
+    loan_description: item.loan_description ?? null,
+    loan_total: item.loan_total != null ? Number(item.loan_total) : null,
+    loan_outstanding: item.loan_outstanding != null ? Number(item.loan_outstanding) : null,
     net: Number(item.net),
   };
 }

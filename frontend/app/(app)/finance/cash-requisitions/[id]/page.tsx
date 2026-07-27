@@ -201,6 +201,7 @@ export default function CashRequisitionDetailPage({
           {/* Header */}
           <RoleBasedRecordHeader
             id={apiRecord.reference}
+            showCurrentAccess={false}
             currentRole={currentRole}
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}

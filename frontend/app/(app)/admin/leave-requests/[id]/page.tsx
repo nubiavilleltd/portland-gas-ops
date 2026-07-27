@@ -81,6 +81,7 @@ export default function LeaveRequestDetailPage({
           {/* Header */}
           <RoleBasedRecordHeader
             id={record.ref}
+            showCurrentAccess={false}
             currentRole={currentRole}
             onRoleChange={setCurrentRole}
             roleLabel={currentRole === "approver" ? "Approver" : currentRole === "admin" ? "Admin" : "Requester"}

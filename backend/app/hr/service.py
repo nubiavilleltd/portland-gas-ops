@@ -6,8 +6,14 @@ from datetime import datetime
 from decimal import Decimal
 import uuid
 
-from app.hr.models import LeaveTypeSetup, LeaveRequest, LeaveRequestStatus, LeaveBalance, Payslip, PayslipStatus
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveRequestCreate, PayslipGenerate
+from app.hr.models import (
+    LeaveTypeSetup, LeaveRequest, LeaveRequestStatus, LeaveBalance, Payslip, PayslipStatus,
+    EmployeeLoan, LoanRepaymentCharge, LoanStatus, LoanMode,
+)
+from app.hr.schemas import (
+    LeaveTypeCreate, LeaveTypeUpdate, LeaveRequestCreate, PayslipGenerate,
+    LoanCreate, LoanUpdate,
+)
 from app.employees.models import Employee
 from app.shared.services.workflow_engine import WorkflowEngine
 from app.shared.models.approval import ApprovalRequest
@@ -832,6 +838,74 @@ def _next_payroll_ref(period: str, year: int) -> str:
     return f"PAY-{_period_yyyymm(period, year)}-{uuid.uuid4().hex[:6].upper()}"
 
 
+def _loan_installment(loan: EmployeeLoan, repaid: Decimal, zero: Decimal) -> Decimal:
+    """The amount an active, started loan deducts this period, before it is booked.
+
+    Standing loans (no total) always deduct their monthly amount; installment/one-off
+    loans are capped at the outstanding balance so the final payment never overshoots.
+    Shared by the generation (write) path and the preview (read-only) path so the two
+    can never disagree.
+    """
+    if loan.total_amount is None:
+        return loan.monthly_amount or zero
+    outstanding = (loan.total_amount or zero) - repaid
+    if outstanding < zero:
+        outstanding = zero
+    return min(loan.monthly_amount or zero, outstanding)
+
+
+def _accrue_loan_deduction(
+    db: Session,
+    loans: list[EmployeeLoan],
+    slip: Payslip,
+    period: str,
+    year: int,
+    run_yyyymm: int,
+    repaid_to_date: dict[str, Decimal],
+    charge_this_period: dict[str, LoanRepaymentCharge],
+    zero: Decimal,
+) -> Decimal:
+    """Sum this period's deduction across an employee's loans.
+
+    A period already charged for a loan is reused (idempotent — regeneration never
+    double-charges, and the charge still counts even after the loan completes). New
+    charges accrue only for active loans, are capped at the outstanding balance, and
+    auto-complete an installment loan once its total is repaid. Returns the total loan
+    deduction to place on the payslip.
+    """
+    total = zero
+    for loan in loans:
+        existing = charge_this_period.get(loan.id)
+        if existing is not None:
+            # Already charged this period — reuse regardless of the loan's current status.
+            total += existing.amount or zero
+            continue
+
+        # Only active loans accrue a NEW charge; completed/cancelled loans not charged
+        # this period contribute nothing.
+        if loan.status != LoanStatus.active:
+            continue
+
+        # Respect the loan's start period (NULL ⇒ deduct from the first run).
+        if loan.start_period_yyyymm is not None and loan.start_period_yyyymm > run_yyyymm:
+            continue
+
+        installment = _loan_installment(loan, repaid_to_date.get(loan.id, zero), zero)
+
+        if installment > zero:
+            charge = LoanRepaymentCharge(
+                loan_id=loan.id, payslip=slip, period=period, year=year, amount=installment,
+            )
+            db.add(charge)
+            repaid_to_date[loan.id] = repaid_to_date.get(loan.id, zero) + installment
+            charge_this_period[loan.id] = charge
+            if loan.total_amount is not None and repaid_to_date[loan.id] >= loan.total_amount:
+                loan.status = LoanStatus.completed
+
+        total += installment
+    return total
+
+
 def generate_payslips(
     db: Session,
     payload: PayslipGenerate,
@@ -869,7 +943,32 @@ def generate_payslips(
 
     payroll_ref = _next_payroll_ref(period, year)
     zero = Decimal("0")
+    run_yyyymm = int(_period_yyyymm(period, year))
     result: list[Payslip] = []
+
+    # Batch-load structured loans + their charge ledger once (remote MySQL: avoid N+1).
+    # Load ALL loans (any status), not just active: a completed loan still owns the
+    # charge it made in a past period, so regenerating that period must reuse it.
+    loans_by_emp: dict[str, list[EmployeeLoan]] = {}
+    for ln in (
+        db.query(EmployeeLoan)
+        .filter(EmployeeLoan.employee_id.in_(payload.employee_ids))
+        .all()
+    ):
+        loans_by_emp.setdefault(ln.employee_id, []).append(ln)
+
+    repaid_to_date: dict[str, Decimal] = {}          # loan_id -> total charged across all periods
+    charge_this_period: dict[str, LoanRepaymentCharge] = {}  # loan_id -> charge for THIS run
+    loan_ids = [ln.id for lst in loans_by_emp.values() for ln in lst]
+    if loan_ids:
+        for ch in (
+            db.query(LoanRepaymentCharge)
+            .filter(LoanRepaymentCharge.loan_id.in_(loan_ids))
+            .all()
+        ):
+            repaid_to_date[ch.loan_id] = repaid_to_date.get(ch.loan_id, zero) + (ch.amount or zero)
+            if ch.period == period and ch.year == year:
+                charge_this_period[ch.loan_id] = ch
 
     for emp in employees:
         basic     = emp.basic_salary or zero
@@ -879,11 +978,44 @@ def generate_payslips(
         paye      = emp.paye or zero
         pension   = emp.pension or zero
         nhf       = emp.nhf or zero
-        loan      = emp.loan_repayment or zero
-        net = (basic + housing + transport + meal) - (paye + pension + nhf + loan)
 
         is_new = emp.id not in existing_by_emp
         slip = existing_by_emp.get(emp.id) or Payslip(employee_id=emp.id, period=period, year=year)
+        if is_new:
+            db.add(slip)
+
+        # Loan deduction: sum structured loans (installments auto-stop once repaid; charges
+        # recorded per period so regeneration is idempotent). The structured model owns this
+        # employee's loan line when they have an active loan OR a charge already booked for this
+        # period; otherwise fall back to the legacy flat loan_repayment field — unchanged behaviour.
+        emp_loans = loans_by_emp.get(emp.id, [])
+        structured = any(ln.status == LoanStatus.active for ln in emp_loans) or \
+            any(ln.id in charge_this_period for ln in emp_loans)
+        if structured:
+            loan = _accrue_loan_deduction(
+                db, emp_loans, slip, period, year, run_yyyymm,
+                repaid_to_date, charge_this_period, zero,
+            )
+        else:
+            loan = emp.loan_repayment or zero
+
+        # Snapshot the deducted loan's context onto the slip (one active loan per the
+        # one-loan rule) so the payslip PDF is a self-contained historical record.
+        slip.loan_description = None
+        slip.loan_total = None
+        slip.loan_outstanding = None
+        if structured:
+            charged = [ln for ln in emp_loans if ln.id in charge_this_period]
+            if charged:
+                cl = charged[0]
+                slip.loan_description = cl.description or cl.mode.value.replace("_", " ").title()
+                slip.loan_total = cl.total_amount
+                if cl.total_amount is not None:
+                    # repaid_to_date includes this period's charge → outstanding AFTER payment.
+                    slip.loan_outstanding = cl.total_amount - repaid_to_date.get(cl.id, zero)
+
+        net = (basic + housing + transport + meal) - (paye + pension + nhf + loan)
+
         slip.payroll_ref = payroll_ref
         slip.emp_code = emp.employee_no
         slip.department = emp.department
@@ -892,11 +1024,184 @@ def generate_payslips(
         slip.net = net
         slip.payroll_status = PayslipStatus.processed
         slip.prepared_by = prepared_by
-        if is_new:
-            db.add(slip)
         result.append(slip)
 
     db.flush()
+    return result
+
+
+# ─── Employee loans: CRUD + read-only period projection ───────────────────────
+
+
+def _decorate_loan(loan: EmployeeLoan, amount_repaid: Decimal) -> EmployeeLoan:
+    """Attach computed amount_repaid/outstanding onto the ORM instance so LoanRead
+    (from_attributes) can serialize them. Outstanding is None for standing loans."""
+    zero = Decimal("0")
+    loan.amount_repaid = amount_repaid or zero
+    if loan.total_amount is None:
+        loan.outstanding = None
+    else:
+        out = (loan.total_amount or zero) - (amount_repaid or zero)
+        loan.outstanding = out if out > zero else zero
+    return loan
+
+
+def _repaid_by_loan(db: Session, loan_ids: list[str]) -> dict[str, Decimal]:
+    """loan_id -> total amount charged across all periods (one batched query)."""
+    zero = Decimal("0")
+    totals: dict[str, Decimal] = {}
+    if not loan_ids:
+        return totals
+    for ch in db.query(LoanRepaymentCharge).filter(LoanRepaymentCharge.loan_id.in_(loan_ids)).all():
+        totals[ch.loan_id] = totals.get(ch.loan_id, zero) + (ch.amount or zero)
+    return totals
+
+
+def list_employee_loans(db: Session, employee_id: str) -> list[EmployeeLoan]:
+    loans = (
+        db.query(EmployeeLoan)
+        .filter(EmployeeLoan.employee_id == employee_id)
+        .order_by(EmployeeLoan.created_at.desc())
+        .all()
+    )
+    repaid = _repaid_by_loan(db, [ln.id for ln in loans])
+    zero = Decimal("0")
+    return [_decorate_loan(ln, repaid.get(ln.id, zero)) for ln in loans]
+
+
+def _get_loan_or_404(db: Session, loan_id: str) -> EmployeeLoan:
+    loan = db.query(EmployeeLoan).filter(EmployeeLoan.id == loan_id).first()
+    if not loan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    return loan
+
+
+def create_employee_loan(
+    db: Session, employee_id: str, payload: LoanCreate, created_by: Optional[str],
+) -> EmployeeLoan:
+    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+
+    # One active loan at a time — an employee must finish or cancel the current loan first.
+    active_exists = (
+        db.query(EmployeeLoan)
+        .filter(EmployeeLoan.employee_id == employee_id, EmployeeLoan.status == LoanStatus.active)
+        .first()
+    )
+    if active_exists:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This employee already has an active loan. Complete or cancel it before adding another.",
+        )
+
+    loan = EmployeeLoan(
+        employee_id=employee_id,
+        description=payload.description,
+        mode=LoanMode(payload.mode),
+        monthly_amount=Decimal(str(payload.monthly_amount)),
+        total_amount=Decimal(str(payload.total_amount)) if payload.total_amount is not None else None,
+        start_period_yyyymm=payload.start_period_yyyymm,
+        status=LoanStatus.active,
+        created_by=created_by,
+    )
+    db.add(loan)
+    db.commit()
+    db.refresh(loan)
+    return _decorate_loan(loan, Decimal("0"))
+
+
+def update_employee_loan(db: Session, loan_id: str, payload: LoanUpdate) -> EmployeeLoan:
+    loan = _get_loan_or_404(db, loan_id)
+    if payload.monthly_amount is not None:
+        loan.monthly_amount = Decimal(str(payload.monthly_amount))
+    if payload.total_amount is not None:
+        loan.total_amount = Decimal(str(payload.total_amount))
+    if payload.start_period_yyyymm is not None:
+        loan.start_period_yyyymm = payload.start_period_yyyymm
+    if payload.description is not None:
+        loan.description = payload.description
+    if payload.status is not None:
+        loan.status = LoanStatus(payload.status)
+    db.commit()
+    db.refresh(loan)
+    repaid = _repaid_by_loan(db, [loan.id]).get(loan.id, Decimal("0"))
+    return _decorate_loan(loan, repaid)
+
+
+def delete_employee_loan(db: Session, loan_id: str) -> None:
+    loan = _get_loan_or_404(db, loan_id)
+    has_charges = (
+        db.query(LoanRepaymentCharge).filter(LoanRepaymentCharge.loan_id == loan_id).first() is not None
+    )
+    if has_charges:
+        # Preserve deduction history — cancel rather than hard-delete a charged loan.
+        loan.status = LoanStatus.cancelled
+    else:
+        db.delete(loan)
+    db.commit()
+
+
+def list_loan_charges(db: Session, loan_id: str) -> list[LoanRepaymentCharge]:
+    """Repayment history for a loan — one row per period it was deducted, oldest first."""
+    _get_loan_or_404(db, loan_id)
+    return (
+        db.query(LoanRepaymentCharge)
+        .filter(LoanRepaymentCharge.loan_id == loan_id)
+        .order_by(LoanRepaymentCharge.year.asc(), LoanRepaymentCharge.created_at.asc())
+        .all()
+    )
+
+
+def project_loans_for_period(
+    db: Session, period: str, year: int, employee_ids: Optional[list[str]] = None,
+) -> dict[str, Decimal]:
+    """Read-only projection of each employee's loan line for a period: what
+    ``generate_payslips`` WOULD deduct, without writing anything. Powers the payslip
+    generate preview so it matches the slip that generation later produces."""
+    zero = Decimal("0")
+    run_yyyymm = int(_period_yyyymm(period, year))
+
+    q = db.query(EmployeeLoan)
+    if employee_ids:
+        q = q.filter(EmployeeLoan.employee_id.in_(employee_ids))
+    loans = q.all()
+    if not loans:
+        return {}
+
+    loan_ids = [ln.id for ln in loans]
+    repaid = _repaid_by_loan(db, loan_ids)
+    charge_this_period: dict[str, Decimal] = {}
+    for ch in db.query(LoanRepaymentCharge).filter(LoanRepaymentCharge.loan_id.in_(loan_ids)).all():
+        if ch.period == period and ch.year == year:
+            charge_this_period[ch.loan_id] = ch.amount or zero
+
+    by_emp: dict[str, list[EmployeeLoan]] = {}
+    for loan in loans:
+        by_emp.setdefault(loan.employee_id, []).append(loan)
+
+    # Mirror generate_payslips per-employee: the structured model owns the loan line
+    # (even if it sums to 0) whenever the employee has an active loan or a charge this
+    # period — so callers know to suppress the legacy loan_repayment field. Employees
+    # with only completed/cancelled loans and no charge this period are omitted (legacy applies).
+    result: dict[str, Decimal] = {}
+    for emp_id, emp_loans in by_emp.items():
+        has_charge = any(ln.id in charge_this_period for ln in emp_loans)
+        has_active = any(ln.status == LoanStatus.active for ln in emp_loans)
+        if not (has_charge or has_active):
+            continue
+        total = zero
+        for loan in emp_loans:
+            existing = charge_this_period.get(loan.id)
+            if existing is not None:
+                total += existing                # already booked this period — reuse
+            elif loan.status != LoanStatus.active:
+                continue
+            elif loan.start_period_yyyymm is not None and loan.start_period_yyyymm > run_yyyymm:
+                continue
+            else:
+                total += _loan_installment(loan, repaid.get(loan.id, zero), zero)
+        result[emp_id] = total
     return result
 
 

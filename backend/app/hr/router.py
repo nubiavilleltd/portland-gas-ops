@@ -9,7 +9,7 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveMarkReturned, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveMarkReturned, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead, LoanCreate, LoanUpdate, LoanRead, LoanChargeRead
 from app.hr import service
 from app.employees.models import Employee
 from app.employees.service import get_employee_by_user_id
@@ -702,3 +702,84 @@ def get_payslip(
 ):
     """Get a single payslip by id."""
     return service.get_payslip_by_id(db, payslip_id)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# EMPLOYEE LOANS / RECURRING DEDUCTIONS
+# ════════════════════════════════════════════════════════════════════════════
+
+# Declared before /loans/{loan_id} so "preview" isn't captured as a loan id.
+@router.get("/loans/preview", response_model=dict[str, float])
+def preview_loan_deductions(
+    period: str = Query(..., description='e.g. "January 2026"'),
+    year: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Projected loan deduction per employee for a period — what generation WOULD
+    deduct, without writing. Returns {employee_id: amount}."""
+    projected = service.project_loans_for_period(db, period, year)
+    return {emp_id: float(amt) for emp_id, amt in projected.items()}
+
+
+@router.get("/employees/{employee_id}/loans", response_model=list[LoanRead])
+def list_employee_loans(
+    employee_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """List an employee's loans, each with computed amount_repaid and outstanding."""
+    return service.list_employee_loans(db, employee_id)
+
+
+@router.post(
+    "/employees/{employee_id}/loans",
+    response_model=LoanRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_employee_loan(
+    employee_id: str,
+    payload: LoanCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Create a loan / recurring deduction for an employee."""
+    created_by = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or current_user.email
+    return service.create_employee_loan(db, employee_id, payload, created_by)
+
+
+@router.get("/loans/{loan_id}/charges", response_model=list[LoanChargeRead])
+def list_loan_charges(
+    loan_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Repayment history for a loan — the periods it has been deducted."""
+    return service.list_loan_charges(db, loan_id)
+
+
+@router.patch("/loans/{loan_id}", response_model=LoanRead)
+def update_employee_loan(
+    loan_id: str,
+    payload: LoanUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Edit a loan, or cancel it (status='cancelled')."""
+    return service.update_employee_loan(db, loan_id, payload)
+
+
+@router.delete("/loans/{loan_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee_loan(
+    loan_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Delete a loan (or cancel it if it already has deduction history)."""
+    service.delete_employee_loan(db, loan_id)

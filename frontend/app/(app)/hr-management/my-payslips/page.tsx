@@ -10,124 +10,12 @@ import DataTable from "@/components/data-table/data-table";
 import { createPaySlipColumns } from "../_components/columns";
 import { type PaySlip } from "../_components/_data";
 import { useMyPayslips, useMyPayslipPeriods } from "@/lib/modules/payslips/hooks";
+import { generatePayslipPdf } from "@/lib/pdf/payslip.pdf";
 
 const fmt = (n: number) => `₦${n.toLocaleString("en-NG")}`;
 
-async function buildSlipPdf(s: PaySlip) {
-  const { default: jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-
-  const W = 210;
-  const L = 20;
-  const R = W - 20;
-  const col2 = 130;
-  const naira = (n: number) => `NGN ${n.toLocaleString("en-NG")}`;
-
-  doc.setFillColor(88, 28, 135);
-  doc.rect(0, 0, W, 18, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(255, 255, 255);
-  doc.text("PORTLAND GAS OPERATIONS", L, 8);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text("PAY SLIP", L, 14);
-
-  doc.setTextColor(30, 30, 30);
-  doc.setFontSize(9);
-
-  let y = 28;
-  const field = (label: string, value: string, x: number, cy: number) => {
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(100, 100, 100);
-    doc.text(label, x, cy);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(30, 30, 30);
-    doc.text(value, x, cy + 5);
-  };
-
-  field("EMPLOYEE", s.employee, L, y);
-  field("EMPLOYEE ID", s.empId, col2, y);
-  y += 14;
-  field("DEPARTMENT", s.department, L, y);
-  field("PAY PERIOD", s.period, col2, y);
-  y += 10;
-
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.3);
-  doc.line(L, y, R, y);
-  y += 8;
-
-  const gross = s.basic + s.housing + s.transport + s.meal;
-  const ded   = s.paye  + s.pension + s.nhf       + s.loan;
-
-  const sectionHeader = (title: string, r: number, g: number, b: number, cy: number) => {
-    doc.setFillColor(r, g, b);
-    doc.roundedRect(L, cy, R - L, 7, 1, 1, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(255, 255, 255);
-    doc.text(title, L + 3, cy + 4.8);
-    return cy + 10;
-  };
-
-  const row = (label: string, value: number, cy: number, bold = false, vr = 30, vg = 30, vb = 30) => {
-    doc.setFont("helvetica", bold ? "bold" : "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(bold ? 30 : 70, bold ? 30 : 70, bold ? 30 : 70);
-    doc.text(label, L + 3, cy);
-    doc.setTextColor(vr, vg, vb);
-    doc.text(naira(value), R, cy, { align: "right" });
-    doc.setTextColor(30, 30, 30);
-    if (bold) {
-      doc.setDrawColor(200, 200, 200);
-      doc.line(L, cy - 5.5, R, cy - 5.5);
-    }
-    return cy + 6.5;
-  };
-
-  y = sectionHeader("EARNINGS", 5, 150, 105, y);
-  y = row("Basic Salary", s.basic, y);
-  y = row("Housing Allowance", s.housing, y);
-  y = row("Transport Allowance", s.transport, y);
-  y = row("Meal Allowance", s.meal, y);
-  y += 1;
-  y = row("Total Earnings", gross, y, true);
-  y += 6;
-
-  y = sectionHeader("DEDUCTIONS", 220, 38, 38, y);
-  y = row("PAYE Tax", s.paye, y, false, 180, 30, 30);
-  y = row("Pension", s.pension, y, false, 180, 30, 30);
-  y = row("NHF", s.nhf, y, false, 180, 30, 30);
-  y = row("Loan Repayment", s.loan, y, false, 180, 30, 30);
-  y += 1;
-  y = row("Total Deductions", ded, y, true);
-  y += 8;
-
-  doc.setFillColor(245, 240, 255);
-  doc.setDrawColor(88, 28, 135);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(L, y, R - L, 14, 2, 2, "FD");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(30, 30, 30);
-  doc.text("NET PAY", L + 4, y + 9);
-  doc.setTextColor(88, 28, 135);
-  doc.text(naira(s.net), R - 4, y + 9, { align: "right" });
-  y += 22;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(150, 150, 150);
-  const today = new Date().toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" });
-  doc.text(`Generated on ${today}  ·  Portland Gas Operations`, L, y);
-
-  return doc;
-}
-
 async function downloadSinglePdf(slip: PaySlip) {
-  const doc = await buildSlipPdf(slip);
-  doc.save(`${slip.employee.replace(/\s+/g, "_")}_${slip.period.replace(/\s+/g, "_")}.pdf`);
+  await generatePayslipPdf(slip);
 }
 
 export default function MyPaySlipsPage() {

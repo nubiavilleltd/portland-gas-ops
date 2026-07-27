@@ -162,7 +162,9 @@ export default function InvoicesPage() {
       draftRef.current = null; // fully submitted — next request is fresh
 
       // Refetch AFTER the workflow starts so the list shows Next Actor now.
-      queryClient.invalidateQueries({ queryKey: ["invoices-processing"] });
+      // Awaited — an unawaited invalidate lets the list paint the pre-workflow
+      // snapshot cached by the create mutation, showing "—" for Next Actor.
+      await queryClient.invalidateQueries({ queryKey: ["invoices-processing"] });
 
       toast.success(`Invoice submitted for approval${inv.reference ? ` — ${inv.reference}` : ""}`);
       form.reset();

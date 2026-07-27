@@ -332,6 +332,7 @@ export default function LeaveRequestDetailPage({
           {/* Header — matches Safety & Compliance (Current Access + Next Approver) */}
           <RoleBasedRecordHeader
             id={record.ref}
+            showCurrentAccess={false}
             currentRole={currentRole}
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}
@@ -462,7 +463,7 @@ export default function LeaveRequestDetailPage({
               <form onSubmit={resubmitForm.handleSubmit(handleResubmit)} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormSelect
-                    label="Leave Type" required options={leaveTypeOptions} sortOptions={false}
+                    label="Leave Type" required options={leaveTypeOptions}
                     placeholder="Select leave type"
                     {...resubmitForm.register("leave_type")} value={rWatch("leave_type") ?? ""}
                   />

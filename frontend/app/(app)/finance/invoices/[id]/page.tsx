@@ -201,6 +201,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <div className="space-y-5">
           <RoleBasedRecordHeader
             id={apiRecord.reference}
+            showCurrentAccess={false}
             currentRole={currentRole}
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}

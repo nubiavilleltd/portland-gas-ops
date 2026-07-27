@@ -379,7 +379,9 @@ function LeaveRequestsPageContent() {
           );
           draftIdRef.current = null; // fully submitted — next request is fresh
           // Refetch AFTER the workflow starts so the list shows the Next Actor now.
-          queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+          // Awaited — an unawaited invalidate lets the list paint the pre-workflow
+          // snapshot cached by the create mutation, showing "—" for Next Actor.
+          await queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
           toast.success("Leave request submitted for approval!");
         } catch (submissionError: unknown) {
           // Keep draftIdRef so a retry reuses this draft instead of duplicating.
@@ -538,7 +540,6 @@ function LeaveRequestsPageContent() {
                   label="Leave Type"
                   required
                   options={realLeaveTypeOptions}
-                  sortOptions={false}
                   placeholder="Select leave type"
                   error={errors.leave_type?.message}
                   {...form.register("leave_type")}
