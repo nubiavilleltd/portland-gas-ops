@@ -1,0 +1,45 @@
+<!-- Injected into base.html {{body_content}} -->
+<!-- Sent for Safety Incident/Hazard notifications -->
+
+<h1>{{heading}}</h1>
+
+<p>Hi {{recipient_name}},</p>
+
+<p>{{message}}</p>
+
+<table style="width:100%; border:1px solid #e5e7eb; border-radius:8px; border-collapse:collapse; margin:20px 0;">
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; width:40%; border-bottom:1px solid #e5e7eb;">Reference</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{incident_reference}}</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Incident/Hazard</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{incident_title}}</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Severity</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{severity}}</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Location</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{location}}</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600;">Details</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118;">{{details}}</td>
+  </tr>
+</table>
+
+<a href="{{action_url}}" class="btn">{{action_label}}</a>
+
+<p>
+  Open the incident record to review the full details and take the required
+  safety action.
+</p>
+
+<hr class="divider" />
+
+<p style="font-size:12px; color:#9ca3af;">
+  If the button above does not work, copy and paste this link into your browser:<br />
+  <a href="{{action_url}}" style="color:#7c3aed; word-break:break-all;">{{action_url}}</a>
+</p>

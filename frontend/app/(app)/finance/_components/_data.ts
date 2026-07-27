@@ -4,16 +4,16 @@ export const DEPARTMENTS = [
 ] as const;
 
 export const APPROVERS: Record<string, { lineManager: string; financeReview: string }> = {
-  Finance:     { lineManager: "Magdalene Edozie",  financeReview: "Oluwaseun Sowemimo" },
-  Operations:  { lineManager: "Johnson Ibikunle",  financeReview: "Oluwaseun Sowemimo" },
-  Marketing:   { lineManager: "Chioma Okafor",     financeReview: "Oluwaseun Sowemimo" },
-  HR:          { lineManager: "Adaeze Nwosu",      financeReview: "Oluwaseun Sowemimo" },
-  IT:          { lineManager: "Emeka Udoh",        financeReview: "Oluwaseun Sowemimo" },
-  Sales:       { lineManager: "Bola Adeyemi",      financeReview: "Oluwaseun Sowemimo" },
-  Procurement: { lineManager: "Ifeanyi Chukwu",    financeReview: "Oluwaseun Sowemimo" },
-  Admin:       { lineManager: "Grace Obi",         financeReview: "Oluwaseun Sowemimo" },
-  Safety:      { lineManager: "David Okeke",       financeReview: "Oluwaseun Sowemimo" },
-  Engineering: { lineManager: "Samuel Eze",        financeReview: "Oluwaseun Sowemimo" },
+  Finance:     { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Operations:  { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Marketing:   { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  HR:          { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  IT:          { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Sales:       { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Procurement: { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Admin:       { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Safety:      { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
+  Engineering: { lineManager: "Samuel Eze", financeReview: "Oluwaseun Sowemimo" },
 };
 
 export const DEPT_OPTIONS = DEPARTMENTS.map((d) => ({ value: d, label: d }));
@@ -47,10 +47,25 @@ export const GRN_OPTIONS = [
   { value: "N/A", label: "N/A — Not Applicable" },
 ];
 
+export const VENDOR_OPTIONS = [
+  { value: "Total Energies Nigeria", label: "Total Energies Nigeria" },
+  { value: "SafeGuard Supplies Ltd", label: "SafeGuard Supplies Ltd" },
+  { value: "Atlas Copco Nigeria",    label: "Atlas Copco Nigeria" },
+  { value: "Dangote PPE Supplies",   label: "Dangote PPE Supplies" },
+  { value: "TechHub IT Solutions",   label: "TechHub IT Solutions" },
+  { value: "Swift Logistics Ltd",    label: "Swift Logistics Ltd" },
+];
+
+export const PURCHASE_ORDERS: { value: string; label: string; title: string }[] = [
+  { value: "PR-2025-001", label: "PR-2025-001", title: "Generator fuel supply — Q2 2025" },
+  { value: "PR-2025-002", label: "PR-2025-002", title: "PPE restock — safety helmets and gloves" },
+  { value: "PR-2025-003", label: "PR-2025-003", title: "IT equipment upgrade — 3 laptops" },
+];
+
 export function genRef(prefix: string): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
-  const hex = Math.random().toString(16).substring(2, 6).toUpperCase();
+  const hex = Math.random().toString(16).substring(2, 10).toUpperCase();
   return `${prefix}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${hex}`;
 }
 
@@ -63,26 +78,41 @@ export interface CashRequest {
   department: string;
   amount: number;
   requester: string;
+  jobTitle?: string;
   date: string;
   status: string;
-  budgetCode?: string;
-  priority?: string;
+  currency?: string;
+  expectedRetirement?: string;
   description?: string;
+  supportingDocuments?: string[];
+  requesterId?: string;      // user id of who raised the request
+  nextActor?: string;        // current pending step assignee
+  currentStepName?: string;  // name of the current pending step
 }
 
 export interface InvoiceRequest {
   id: string;
   ref: string;
   title: string;
+  description?: string;
   department: string;
   amount: number;
   vendor: string;
+  invoiceId?: string;
   invoiceNo: string;
   requester: string;
+  jobTitle?: string;
   date: string;
   status: string;
   poNumber?: string;
   paymentTerms?: string;
+  currency?: string;
+  grossAmount?: number;
+  taxAmount?: number;
+  supportingDocuments?: string[];
+  requesterId?: string;      // user id of who raised the request
+  nextActor?: string;        // current pending step assignee
+  currentStepName?: string;  // name of the current pending step
 }
 
 // ── Seed data ─────────────────────────────────────────────────────────────────
@@ -90,98 +120,113 @@ export interface InvoiceRequest {
 export const SEED_CASH_REQUESTS: CashRequest[] = [
   {
     id: "1",
-    ref: "CRQ-20260510-A1B2",
+    ref: "CRQ-20260512-J1K2",
     title: "Office supplies — Lagos HQ",
-    department: "Admin",
+    department: "Finance",
     amount: 185000,
     requester: "Joseph Chika",
-    date: "2026-05-10",
-    status: "pending",
-    budgetCode: "OPEX-2026-ADM",
-    priority: "Medium",
+    jobTitle: "Finance Manager",
+    date: "2026-05-12",
+    status: "approved",
+    currency: "NGN",
+    expectedRetirement: "2026-05-19",
     description: "Replenishment of stationery and office consumables for Q2.",
+    supportingDocuments: ["stationery-quote.pdf", "vendor-list.xlsx"],
   },
   {
     id: "2",
-    ref: "CRQ-20260507-C3D4",
-    title: "Generator fuel — Q2 2026",
-    department: "Operations",
-    amount: 4500000,
-    requester: "Ngozi Ibe",
-    date: "2026-05-07",
-    status: "approved",
-    budgetCode: "OPEX-2026-OPS",
-    priority: "High",
-    description: "Diesel procurement for all generator sets across operational sites.",
+    ref: "CRQ-20260510-J3L4",
+    title: "Equipment maintenance supplies",
+    department: "Finance",
+    amount: 250000,
+    requester: "Joseph Chika",
+    jobTitle: "Finance Manager",
+    date: "2026-05-10",
+    status: "pending",
+    currency: "NGN",
+    expectedRetirement: "2026-05-17",
+    description: "Maintenance supplies for office equipment and IT infrastructure.",
   },
   {
     id: "3",
-    ref: "CRQ-20260503-E5F6",
-    title: "Staff transport — site visit PH",
-    department: "Engineering",
-    amount: 320000,
-    requester: "Emeka Udoh",
-    date: "2026-05-03",
-    status: "in_progress",
-    budgetCode: "OPEX-2026-ENG",
-    priority: "Medium",
-    description: "Transportation for engineering team to Port Harcourt depot inspection.",
-  },
-  {
-    id: "4",
-    ref: "CRQ-20260428-G7H8",
-    title: "Safety training materials",
-    department: "Safety",
-    amount: 150000,
-    requester: "David Okeke",
-    date: "2026-04-28",
-    status: "draft",
-    budgetCode: "OPEX-2026-SAF",
-    priority: "Low",
-    description: "Printed manuals and PPE for Q2 safety induction program.",
+    ref: "CRQ-20260508-J5M6",
+    title: "Training materials — Finance team",
+    department: "Finance",
+    amount: 120000,
+    requester: "Joseph Chika",
+    jobTitle: "Finance Manager",
+    date: "2026-05-08",
+    status: "denied",
+    currency: "NGN",
+    expectedRetirement: "2026-05-15",
+    description: "Professional development materials for finance staff.",
   },
 ];
 
 export const SEED_INVOICES: InvoiceRequest[] = [
   {
     id: "1",
-    ref: "INV-20260512-X1Y2",
-    title: "Diesel supply — May batch",
-    department: "Operations",
-    amount: 7800000,
-    vendor: "Total Energies Nigeria",
-    invoiceNo: "TE-2026-0587",
-    requester: "Ada Nwosu",
+    ref: "INV-20260512-J1K2",
+    title: "Office equipment supplies",
+    description: "Office furniture and computer peripherals for finance department.",
+    department: "Finance",
+    amount: 450000,
+    vendor: "TechOffice Solutions Ltd",
+    invoiceId: "IID-20260512-J1K2",
+    invoiceNo: "TOS-2026-0145",
+    requester: "Joseph Chika",
+    jobTitle: "Finance Manager",
     date: "2026-05-12",
-    status: "pending",
-    poNumber: "PO-2026-0312",
+    status: "approved",
+    poNumber: "PO-2026-0425",
     paymentTerms: "Net 30",
+    currency: "NGN",
+    grossAmount: 495000,
+    taxAmount: 45000,
+    supportingDocuments: ["TOS-2026-0145.pdf"],
   },
   {
     id: "2",
-    ref: "INV-20260509-Z3A4",
-    title: "PPE restock — Apapa terminal",
-    department: "Safety",
-    amount: 820000,
-    vendor: "SafeGuard Supplies Ltd",
-    invoiceNo: "SG-4421",
-    requester: "Emeka Obi",
-    date: "2026-05-09",
-    status: "approved",
-    paymentTerms: "Net 15",
+    ref: "INV-20260510-J3L4",
+    title: "Software licenses — Finance systems",
+    description: "Annual renewal of accounting and financial management software licenses.",
+    department: "Finance",
+    amount: 680000,
+    vendor: "CloudTech Solutions",
+    invoiceId: "IID-20260510-J3L4",
+    invoiceNo: "CTS-2026-0234",
+    requester: "Joseph Chika",
+    jobTitle: "Finance Manager",
+    date: "2026-05-10",
+    status: "pending",
+    poNumber: "PO-2026-0418",
+    paymentTerms: "Net 45",
+    currency: "NGN",
+    grossAmount: 748000,
+    taxAmount: 68000,
+    supportingDocuments: ["CTS-2026-0234.pdf", "license-agreement.pdf"],
   },
   {
     id: "3",
-    ref: "INV-20260505-B5C6",
-    title: "Compressor parts — PH depot",
-    department: "Engineering",
-    amount: 2100000,
-    vendor: "Atlas Copco Nigeria",
-    invoiceNo: "AC-NG-1190",
+    ref: "INV-20260508-J5M6",
+    title: "Audit services — Q1 2026",
+    description: "Professional audit services for Q1 2026 financial statements and compliance review.",
+    department: "Finance",
+    amount: 950000,
+    vendor: "Ernst & Young Nigeria",
+    invoiceId: "IID-20260508-J5M6",
+    invoiceNo: "EY-2026-0089",
     requester: "Joseph Chika",
-    date: "2026-05-05",
-    status: "in_progress",
-    poNumber: "PO-2026-0295",
-    paymentTerms: "Net 45",
+    jobTitle: "Finance Manager",
+    date: "2026-05-08",
+    status: "denied",
+    paymentTerms: "Net 30",
+    currency: "NGN",
+    grossAmount: 1045000,
+    taxAmount: 95000,
+    supportingDocuments: ["EY-2026-0089.pdf"],
   },
 ];
+
+export const CASH_STORE: CashRequest[] = [...SEED_CASH_REQUESTS];
+export const INVOICE_STORE: InvoiceRequest[] = [...SEED_INVOICES];

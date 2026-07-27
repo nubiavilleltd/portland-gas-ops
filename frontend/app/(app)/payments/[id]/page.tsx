@@ -1,39 +1,55 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
+import { usePaymentById, usePaymentsByInvoice } from "@/lib/modules/payments/hooks/usePayments";
+import { INVOICE_ROUTES, PAYMENT_ROUTES } from "@/lib/routes";
+import ErrorBanner from "@/components/ui/ErrorBanner";
+import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
+import { BackButton } from "@/components/ui/BackButton";
 
 export default function PaymentDetailPage() {
   const params = useParams();
+  const router = useRouter()
   const id = params.id as string;
 
-  // MOCK
-  const payment = {
-    id,
-    invoice_id: "inv-001",
-    reference: "PAY-123456",
-    amount: 5000000,
-    payment_date: "2026-05-10",
-    payment_method: "bank_transfer",
-  };
+  const {payment, error} = usePaymentById(id)
 
-  const invoice = {
-    id: "inv-001",
-    invoice_number: "INV-2026-0001",
-  };
+  const {invoice} = useInvoiceById(payment?.invoiceId as string)
+
+
+  if (error || !payment) {
+    return (
+      <AppLayout pageTitle="Payment Not Found">
+        <ErrorBanner message={error ?? "This payment could not be found."} />
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => router.push(PAYMENT_ROUTES.list())}
+        >
+          Back to Payments
+        </Button>
+      </AppLayout>
+    );
+  }
+
 
   return (
     <AppLayout pageTitle="Payment Details">
+
+      <BackButton label="Back" />
+
       <PageHeader
-        title={payment.reference}
+        title={payment?.reference as string}
         description="Payment transaction record"
         action={
-          <Button href={`/payments/${id}/receipt`}>
+          <Button href={PAYMENT_ROUTES.receipt(payment.id)}>
             View Receipt
           </Button>
         }
@@ -61,7 +77,7 @@ export default function PaymentDetailPage() {
                 Amount
               </p>
               <p className="font-medium mt-1">
-                {formatCurrency(payment.amount)}
+                {formatCurrency(payment?.amount || 0)}
               </p>
             </div>
 
@@ -70,7 +86,7 @@ export default function PaymentDetailPage() {
                 Date
               </p>
               <p className="font-medium mt-1">
-                {formatDate(payment.payment_date)}
+                {formatDate(payment?.paymentDate ?? "")}
               </p>
             </div>
 
@@ -79,7 +95,7 @@ export default function PaymentDetailPage() {
                 Method
               </p>
               <p className="font-medium mt-1">
-                {payment.payment_method}
+                {formatPaymentMethodLabel(payment.method)}
               </p>
             </div>
           </div>
@@ -92,10 +108,10 @@ export default function PaymentDetailPage() {
           </h3>
 
           <p className="text-sm text-brand-text-secondary mb-4">
-            {invoice.invoice_number}
+            {invoice?.invoice_number}
           </p>
 
-          <Button href={`/invoices/${invoice.id}`}>
+          <Button href={INVOICE_ROUTES.detail(invoice?.id ?? "")}>
             View Invoice
           </Button>
         </div>

@@ -1,176 +1,191 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Plus, FileText, Download } from "lucide-react";
-import { API_URL } from "@/lib/constants";
-import { useAuthStore } from "@/store/authStore";
+import { Plus, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import EmptyState from "@/components/ui/EmptyState";
-import { formatDate, capitalize } from "@/lib/utils";
-import { useProcurementList } from "@/hooks/useProcurement";
+import SelectInput from "@/components/forms/SelectInput";
+import { formatDateTime, formatCurrency, capitalize } from "@/lib/utils";
+import { useProcurementList } from "@/lib/modules/procurement";
+import api from "@/lib/api";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { ProcurementListItem, ProcurementStatus } from "@/types";
 
-const STATUS_TABS: { label: string; value: ProcurementStatus | undefined }[] = [
-  { label: "All", value: undefined },
-  { label: "Submitted", value: "submitted" },
-  { label: "Ordered", value: "ordered" },
-  { label: "Delivered", value: "delivered" },
-  { label: "Cancelled", value: "cancelled" },
+const STATUS_OPTIONS = [
+  { value: "pending",   label: "Pending Approval" },
+  { value: "approved",  label: "Approved" },
+  { value: "awaiting_confirmation", label: "Awaiting Confirmation" },
+  { value: "completed", label: "Completed" },
+  { value: "rejected",  label: "Rejected" },
+  { value: "returned",  label: "Returned" },
 ];
-
-const columns: Column<ProcurementListItem>[] = [
-  { key: "reference", label: "Reference", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
-  { key: "title", label: "Title" },
-  {
-    key: "category",
-    label: "Category",
-    render: (v) => <span className="capitalize">{String(v).replace(/_/g, " ")}</span>,
-  },
-  {
-    key: "priority",
-    label: "Priority",
-    render: (v) => {
-      const colours: Record<string, string> = {
-        routine: "text-gray-500",
-        urgent: "text-amber-600 font-medium",
-        emergency: "text-red-600 font-semibold",
-      };
-      return <span className={colours[String(v)] ?? ""}>{capitalize(String(v))}</span>;
-    },
-  },
-  {
-    key: "vendor",
-    label: "Vendor",
-    render: (v) => (v as ProcurementListItem["vendor"])?.name ?? <span className="text-brand-text-secondary">—</span>,
-  },
-  {
-    key: "required_by",
-    label: "Required By",
-    render: (v) => formatDate(v as string | null),
-  },
-  {
-    key: "status",
-    label: "Status",
-    render: (v) => <ApprovalBadge status={String(v)} />,
-  },
-  {
-    key: "po_url",
-    label: "PO",
-    render: (v, row) =>
-      v ? (
-        <PODownloadCell requestId={row.id} reference={row.reference} />
-      ) : (
-        <span className="text-brand-text-secondary text-xs">—</span>
-      ),
-  },
-];
-
-function PODownloadCell({ requestId, reference }: { requestId: string; reference: string }) {
-  const [loading, setLoading] = useState(false);
-  const token = useAuthStore((s) => s.accessToken);
-
-  async function handleDownload(e: React.MouseEvent) {
-    e.stopPropagation();
-    setLoading(true);
-    try {
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_URL}/api/procurement/${requestId}/download-po`, {
-        headers,
-        credentials: "include",   // sends access_token cookie, same as axios withCredentials
-      });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${reference}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert("Could not download the PDF. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <button
-      onClick={handleDownload}
-      disabled={loading}
-      className="inline-flex items-center gap-1 text-xs text-brand-purple hover:underline disabled:opacity-50"
-    >
-      <Download size={12} />
-      {loading ? "…" : "Download"}
-    </button>
-  );
-}
 
 export default function ProcurementPage() {
   const [activeStatus, setActiveStatus] = useState<ProcurementStatus | undefined>(undefined);
   const { data, isLoading, isError } = useProcurementList(activeStatus);
+  const { user } = useCurrentUser();
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+
+  const columns = useMemo<Column<ProcurementListItem>[]>(() => {
+    const base: Column<ProcurementListItem>[] = [
+      {
+        key: "reference",
+        label: "Reference",
+        render: (v) => <span className="font-mono text-xs">{String(v)}</span>,
+      },
+      {
+        key: "category",
+        label: "Category",
+        render: (v) => <span className="text-sm text-brand-text-primary capitalize">{v ? String(v).replace(/_/g, " ") : "—"}</span>,
+      },
+    ];
+
+    if (isAdmin) {
+      base.push({
+        key: "raiser",
+        label: "Requester",
+        render: (_, row) => {
+          if (!row.raiser?.user) return <span className="text-brand-text-secondary">—</span>;
+          const { first_name, last_name } = row.raiser.user;
+          const name = [first_name, last_name].filter(Boolean).join(" ") || row.raiser.user.email;
+          return (
+            <div>
+              <p className="text-sm text-brand-text-primary">{name}</p>
+              {row.raiser.department && (
+                <p className="text-xs text-brand-text-secondary">{row.raiser.department}</p>
+              )}
+            </div>
+          );
+        },
+      });
+    }
+
+    base.push(
+      {
+        key: "vendor",
+        label: "Vendor",
+        render: (_, row) =>
+          row.vendor?.name
+            ? <span className="text-sm">{row.vendor.name}</span>
+            : <span className="text-brand-text-secondary">—</span>,
+      },
+      {
+        key: "estimated_amount",
+        label: "Est. Amount",
+        render: (v) =>
+          v != null
+            ? <span className="text-sm font-medium">{formatCurrency(Number(v))}</span>
+            : <span className="text-brand-text-secondary">—</span>,
+      },
+      {
+        key: "created_at",
+        label: "Submitted",
+        render: (v) => <span className="text-xs text-brand-text-secondary">{formatDateTime(v as string)}</span>,
+      },
+      {
+        key: "status",
+        label: "Status",
+        render: (v) => <ApprovalBadge status={String(v)} />,
+      },
+      {
+        key: "po_document_url",
+        label: "PO",
+        render: (_, row) =>
+          row.po_document_url ? (
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const response = await api.get(`/api/procurement/${row.id}/po/download`, { responseType: "blob" });
+                  const blob = new Blob([response.data], { type: "application/pdf" });
+                  const url  = URL.createObjectURL(blob);
+                  const a    = document.createElement("a");
+                  a.href     = url;
+                  a.download = row.po_number ? `${row.po_number}.pdf` : "purchase-order.pdf";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+                } catch {
+                  alert("Could not download PO. Please try again.");
+                }
+              }}
+              className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-purple-50 text-brand-purple hover:bg-purple-100 transition-colors"
+              title="Download Purchase Order"
+            >
+              <Download size={14} />
+            </button>
+          ) : row.po_number ? (
+            <span className="text-xs font-mono text-brand-text-secondary" title="PO issued — PDF not yet available">
+              {row.po_number}
+            </span>
+          ) : (
+            <span className="text-brand-text-secondary">—</span>
+          ),
+      },
+      {
+        key: "next_actor_name",
+        label: "Next Actor",
+        render: (_, row) =>
+          row.next_actor_name ? (
+            <div>
+              <p className="text-sm text-brand-text-primary">{row.next_actor_name}</p>
+              {row.current_step_name && (
+                <p className="text-xs text-brand-text-secondary">{row.current_step_name}</p>
+              )}
+            </div>
+          ) : (
+            <span className="text-brand-text-secondary">—</span>
+          ),
+      },
+    );
+
+    return base;
+  }, [isAdmin]);
 
   return (
     <AppLayout pageTitle="Procurement">
       <PageHeader
-        title="Purchase Requests"
-        description="Raise and manage purchase requisitions"
+        title="Purchase & Service Requests"
+        description="Raise and manage purchase and service requisitions"
         action={
-          <Link
-            href="/procurement/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors w-fit"
-          >
-            <Plus size={16} /> New Request
-          </Link>
+          <Button href="/procurement/new" leftIcon={<Plus size={15} />} size="sm">
+            New Request
+          </Button>
         }
         className="mb-6"
       />
 
-      {/* Status filter tabs */}
-      <div className="inline-flex gap-1 mb-4 bg-white border border-brand-border rounded-xl p-1 max-w-full overflow-x-auto">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.label}
-            onClick={() => setActiveStatus(tab.value)}
-            className={[
-              "px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap",
-              activeStatus === tab.value
-                ? "bg-brand-purple text-white font-medium"
-                : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
-            ].join(" ")}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <LoadingSpinner />
-        </div>
-      ) : isError ? (
-        <EmptyState title="Could not load requests" description="Check your connection and try again." />
-      ) : !data?.length ? (
-        <EmptyState
-          title="No procurement requests"
-          description={activeStatus ? `No requests with status "${activeStatus}".` : "Raise your first request to get started."}
-        />
-      ) : (
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <DataTable
-            columns={columns}
-            data={data}
-            rowHref={(row) => `/procurement/${row.id}`}
-          />
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        minWidthClassName="min-w-max"
+        rowHref={(row) => `/procurement/${row.id}`}
+        emptyMessage={isError ? "Could not load requests" : "No procurement requests"}
+        emptyDescription={
+          isError
+            ? "Check your connection and try again."
+            : activeStatus
+              ? `No requests with status "${capitalize(activeStatus)}".`
+              : "Raise your first request to get started."
+        }
+        toolbarActions={
+          <div className="w-52 shrink-0">
+            <SelectInput
+              placeholder="All Statuses"
+              sortOptions={false}
+              value={activeStatus ?? ""}
+              onValueChange={(v) => setActiveStatus((v || undefined) as ProcurementStatus | undefined)}
+              options={STATUS_OPTIONS}
+            />
+          </div>
+        }
+      />
     </AppLayout>
   );
 }

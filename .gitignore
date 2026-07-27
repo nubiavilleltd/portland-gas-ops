@@ -45,6 +45,14 @@ coverage.xml
 dist/
 build/
 
+# ─── Local database ──────────────────────────────────────────
+# Local SQLite scratch DB — the app uses remote MySQL (DATABASE_URL)
+backend/portland_gas.db
+*.sqlite3
+
+# ─── Office temp / lock files ────────────────────────────────
+~$*
+
 # ─── Alembic ─────────────────────────────────────────────────
 # Keep versions folder but ignore auto-generated __pycache__
 backend/alembic/versions/__pycache__/
@@ -61,8 +69,13 @@ Thumbs.db
 *.swp
 *.swo
 
+# ─── Claude local session notes ───────────────────────────────
+CLAUDE_PROGRESS.md
+
 # ─── Misc ─────────────────────────────────────────────────────
 *.log
 *.pid
 *.seed
 *.pid.lock
+.claude/
+.claude/

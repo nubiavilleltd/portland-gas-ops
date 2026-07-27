@@ -1,120 +1,120 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { Suspense, useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Paperclip, X, ChevronDown, UserPlus } from "lucide-react";
+import { Plus, Trash2, X, ChevronDown, ArrowLeft } from "lucide-react";
+import FileDropzone from "@/components/ui/FileDropzone";
+import FormSection from "@/components/ui/FormSection";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
+import FormInput from "@/components/forms/FormInput";
+import FormPhoneInput from "@/components/forms/FormPhoneInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import { useCreateProcurement } from "@/hooks/useProcurement";
-import { useVendors, useCreateVendor } from "@/hooks/useVendors";
+import { useCreateProcurement, useUpdateProcurement, useSubmitProcurement, useProcurement, useRemoveProcurementAttachment, useUploadProcurementAttachment, PROCUREMENT_MESSAGES } from "@/lib/modules/procurement";
+import type { AttachmentInProcurement } from "@/types";
+import { useVendors, useCreateVendor } from "@/lib/modules/vendors";
 import { useToast } from "@/hooks/useToast";
-import { formatCurrency } from "@/lib/utils";
-import type { ProcurementCategory, ProcurementPriority, ItemUnit } from "@/types";
+import { formatCurrency, capitalize } from "@/lib/utils";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
 
 // ── Zod schema ─────────────────────────────────────────────────────────────────
 
 const itemSchema = z.object({
-  description: z.string().min(1, "Description is required").max(500, "Max 500 characters"),
+  description: z.string().min(1, PROCUREMENT_MESSAGES.ITEM_DESCRIPTION_REQUIRED).max(500, PROCUREMENT_MESSAGES.ITEM_DESCRIPTION_MAX),
   quantity: z.string()
-    .min(1, "Required")
-    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, "Must be greater than 0"),
-  unit: z.string().min(1, "Required"),
+    .min(1, PROCUREMENT_MESSAGES.ITEM_QUANTITY_REQUIRED)
+    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, PROCUREMENT_MESSAGES.ITEM_QUANTITY_MIN),
+  unit: z.string().min(1, PROCUREMENT_MESSAGES.ITEM_UNIT_REQUIRED),
   unit_cost: z.string()
-    .min(1, "Required")
-    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, "Must be greater than 0"),
+    .min(1, PROCUREMENT_MESSAGES.ITEM_COST_REQUIRED)
+    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, PROCUREMENT_MESSAGES.ITEM_COST_MIN),
   total_cost: z.string(),
 });
 
-const MAX_FILE_MB = 10;
-const ALLOWED_FILE_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "image/png",
-  "image/jpeg",
-];
-
 const schema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(255, "Max 255 characters"),
-  category: z.string().min(1, "Select a category"),
-  priority: z.string().min(1, "Select priority"),
-  justification: z.string().max(2000, "Max 2000 characters").optional(),
-  required_by: z.string().optional(),
+  category: z.string().min(1, PROCUREMENT_MESSAGES.CATEGORY_REQUIRED),
+  justification: z.string().min(1, PROCUREMENT_MESSAGES.JUSTIFICATION_REQUIRED).max(2000, "Max 2000 characters"),
+  required_by: z.string().min(1, PROCUREMENT_MESSAGES.REQUIRED_BY_REQUIRED),
   vendor_id: z.string().optional(),
+  // one-time vendor fields
+  new_vendor_name: z.string().optional(),
+  new_vendor_contact_person: z.string().optional(),
+  new_vendor_address: z.string().optional(),
+  new_vendor_phone: z.string().optional(),
+  new_vendor_email: z.string().optional(),
+  new_vendor_bank_name: z.string().optional(),
+  new_vendor_account_name: z.string().optional(),
+  new_vendor_account_number: z.string().optional(),
   items: z.array(itemSchema).min(1, "Add at least one item"),
 });
 
 type FormData = z.infer<typeof schema>;
+type VendorMode = "existing" | "new";
 
 // ── Options ────────────────────────────────────────────────────────────────────
 
 const categoryOptions = [
   { value: "consumables", label: "Consumables" },
-  { value: "technical", label: "Technical" },
-  { value: "services", label: "Services" },
-  { value: "capital", label: "Capital" },
+  { value: "technical",   label: "Technical" },
+  { value: "services",    label: "Services" },
 ];
 
-const priorityOptions = [
-  { value: "routine", label: "Routine" },
-  { value: "urgent", label: "Urgent" },
-  { value: "emergency", label: "Emergency" },
-];
-
-const vendorCategoryOptions = [
-  { value: "equipment", label: "Equipment" },
-  { value: "ppe", label: "PPE" },
-  { value: "technical", label: "Technical" },
-  { value: "consumables", label: "Consumables" },
-  { value: "food_beverage", label: "Food & Beverage" },
-  { value: "services", label: "Services" },
-  { value: "it", label: "IT" },
-  { value: "logistics", label: "Logistics" },
-];
-
-const unitOptions = [
-  { value: "pieces", label: "Pieces" },
-  { value: "litres", label: "Litres" },
-  { value: "kg", label: "KG" },
-  { value: "boxes", label: "Boxes" },
-  { value: "metres", label: "Metres" },
-  { value: "hours", label: "Hours" },
-  { value: "sets", label: "Sets" },
+const goodsUnitOptions = [
+  { value: "pieces",  label: "Pieces" },
+  { value: "litres",  label: "Litres" },
+  { value: "kg",      label: "KG" },
+  { value: "boxes",   label: "Boxes" },
+  { value: "metres",  label: "Metres" },
+  { value: "sets",    label: "Sets" },
   { value: "cartons", label: "Cartons" },
-  { value: "units", label: "Units" },
+  { value: "units",   label: "Units" },
+];
+
+const serviceUnitOptions = [
+  { value: "days",   label: "Days" },
+  { value: "hours",  label: "Hours" },
+  { value: "months", label: "Months" },
 ];
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function NewProcurementPage() {
-  const router = useRouter();
+function NewProcurementContent() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const editId       = searchParams.get("edit"); // present when editing a returned request
+  const isEditMode   = !!editId;
   const toast = useToast();
-  const createMutation = useCreateProcurement();
-  const createVendorMutation = useCreateVendor();
-  const { data: vendors = [] } = useVendors();
 
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const createMutation           = useCreateProcurement();
+  const updateMutation           = useUpdateProcurement(editId ?? "");
+  const submitMutation           = useSubmitProcurement();
+  const removeAttachmentMutation = useRemoveProcurementAttachment();
+  const uploadAttachmentMutation = useUploadProcurementAttachment();
+  const createVendor             = useCreateVendor();
+  const { data: vendors = [] }   = useVendors();
+  const { data: existingReq }    = useProcurement(editId ?? "", { enabled: isEditMode });
+
+  const [attachedFiles, setAttachedFiles]         = useState<File[]>([]);
+  const [existingAttachment, setExistingAttachment] = useState<AttachmentInProcurement | null>(null);
+  const [attachmentRemoved, setAttachmentRemoved]   = useState(false);
+  const [qtyDisplays, setQtyDisplays] = useState<Record<number, string>>({});
+  const [costDisplays, setCostDisplays] = useState<Record<number, string>>({});
+
+  // Workflow-driven approver picks — reusable across all request form types
+  const approverPicker = useApproverPicker("procurement", editId ?? undefined);
+
+  const [vendorMode, setVendorMode] = useState<VendorMode>("existing");
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [selectedVendorName, setSelectedVendorName] = useState<string>("");
-
-  // "select" | "create" — which vendor mode is active
-  const [vendorMode, setVendorMode] = useState<"select" | "create">("select");
-  const [newVendor, setNewVendor] = useState({
-    name: "", category: "", phone: "", email: "", address: "",
-    contact_person: "",
-  });
-  const [newVendorErrors, setNewVendorErrors] = useState<Record<string, string>>({});
+  const [vendorError, setVendorError] = useState<string>("");
 
   const {
     register,
@@ -122,22 +122,70 @@ export default function NewProcurementPage() {
     control,
     watch,
     setValue,
+    setError,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      priority: "routine",
-      items: [{ description: "", quantity: "1", unit: "pieces", unit_cost: "0", total_cost: "0" }],
+      required_by: "",
+      items: [{ description: "", quantity: "", unit: "pieces", unit_cost: "", total_cost: "0" }],
     },
   });
 
+  // Pre-populate form when editing an existing returned request
+  useEffect(() => {
+    if (!existingReq || !isEditMode) return;
+
+    const mappedItems = existingReq.items.length > 0
+      ? existingReq.items.map((item) => ({
+          description: item.description,
+          quantity:    String(item.quantity),
+          unit:        item.unit ?? "pieces",
+          unit_cost:   item.unit_price  != null ? String(item.unit_price)  : "",
+          total_cost:  item.total_price != null ? String(item.total_price) : "0",
+        }))
+      : [{ description: "", quantity: "", unit: "pieces", unit_cost: "", total_cost: "0" }];
+
+    reset({
+      category:      existingReq.category    ?? "",
+      justification: existingReq.description ?? "",
+      required_by:   existingReq.required_by != null ? String(existingReq.required_by) : "",
+      vendor_id:     existingReq.vendor_id   ?? "",
+      items:         mappedItems,
+    });
+
+    // Populate qty and unit cost display states (these are separate from form state)
+    const newQtyDisplays: Record<number, string>  = {};
+    const newCostDisplays: Record<number, string> = {};
+    existingReq.items.forEach((item, i) => {
+      newQtyDisplays[i]  = applyCommas(String(item.quantity));
+      if (item.unit_price != null) newCostDisplays[i] = applyCommas(String(item.unit_price));
+    });
+    setQtyDisplays(newQtyDisplays);
+    setCostDisplays(newCostDisplays);
+
+    // Pre-select existing vendor
+    if (existingReq.vendor) {
+      setSelectedVendorName(existingReq.vendor.name);
+      setVendorMode("existing");
+    }
+
+    // Set existing attachment
+    if (existingReq.attachment) {
+      setExistingAttachment(existingReq.attachment);
+    }
+  }, [existingReq, isEditMode, reset]);
+
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const watchedItems = watch("items");
+  const watchedCategory = watch("category");
+  const isServices = watchedCategory === "services";
+  const unitOptions = isServices ? serviceUnitOptions : goodsUnitOptions;
 
-  // Auto-calculate total_cost when qty or unit_cost changes
   const updateTotal = useCallback(
     (index: number) => {
-      const qty = parseFloat(watchedItems[index]?.quantity ?? "0") || 0;
+      const qty  = parseFloat(watchedItems[index]?.quantity ?? "0") || 0;
       const cost = parseFloat(watchedItems[index]?.unit_cost ?? "0") || 0;
       setValue(`items.${index}.total_cost`, String(qty * cost));
     },
@@ -146,7 +194,13 @@ export default function NewProcurementPage() {
 
   const grandTotal = watchedItems.reduce((sum, item) => sum + (parseFloat(item.total_cost) || 0), 0);
 
-  // Vendor picker helpers
+  function applyCommas(raw: string): string {
+    const clean = raw.replace(/[^0-9.]/g, "");
+    const [int, dec] = clean.split(".");
+    const formatted = (int || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return dec !== undefined ? `${formatted}.${dec}` : formatted;
+  }
+
   const filteredVendors = vendors.filter((v) =>
     v.name.toLowerCase().includes(vendorSearch.toLowerCase())
   );
@@ -156,6 +210,7 @@ export default function NewProcurementPage() {
     setSelectedVendorName(name);
     setVendorDropdownOpen(false);
     setVendorSearch("");
+    setVendorError("");
   }
 
   function clearVendor() {
@@ -163,354 +218,379 @@ export default function NewProcurementPage() {
     setSelectedVendorName("");
   }
 
-  async function saveNewVendor() {
-    const errs: Record<string, string> = {};
-    if (!newVendor.name.trim()) errs.name = "Vendor name is required";
-    if (!newVendor.category) errs.category = "Category is required";
-    if (Object.keys(errs).length) { setNewVendorErrors(errs); return; }
-    setNewVendorErrors({});
-
-    try {
-      const created = await createVendorMutation.mutateAsync({
-        name: newVendor.name.trim(),
-        category: newVendor.category,
-        contact_person: newVendor.contact_person || undefined,
-        phone: newVendor.phone || undefined,
-        email: newVendor.email || undefined,
-        address: newVendor.address || undefined,
-      } as never);
-      selectVendor(created.id, created.name);
-      setVendorMode("select");
-      setNewVendor({ name: "", category: "", phone: "", email: "", address: "", contact_person: "" });
-      toast.success(`Vendor "${created.name}" created and selected`);
-    } catch {
-      toast.error("Failed to create vendor. Please try again.");
-    }
+  function switchVendorMode(mode: VendorMode) {
+    setVendorMode(mode);
+    clearVendor();
+    setValue("new_vendor_name", "");
+    setVendorError("");
   }
 
   async function onSubmit(formData: FormData) {
+    // Validate vendor — required in both modes
+    if (vendorMode === "existing" && !formData.vendor_id?.trim()) {
+      setVendorError(PROCUREMENT_MESSAGES.VENDOR_REQUIRED);
+      return;
+    }
+    if (vendorMode === "new") {
+      const newVendorRequired: Array<{ field: keyof FormData; message: string }> = [
+        { field: "new_vendor_name",           message: PROCUREMENT_MESSAGES.VENDOR_NAME_REQUIRED },
+        { field: "new_vendor_contact_person", message: PROCUREMENT_MESSAGES.VENDOR_CONTACT_PERSON_REQUIRED },
+        { field: "new_vendor_address",        message: PROCUREMENT_MESSAGES.VENDOR_ADDRESS_REQUIRED },
+        { field: "new_vendor_phone",          message: PROCUREMENT_MESSAGES.VENDOR_PHONE_REQUIRED },
+        { field: "new_vendor_email",          message: PROCUREMENT_MESSAGES.VENDOR_EMAIL_REQUIRED },
+        { field: "new_vendor_bank_name",      message: PROCUREMENT_MESSAGES.VENDOR_BANK_NAME_REQUIRED },
+        { field: "new_vendor_account_name",   message: PROCUREMENT_MESSAGES.VENDOR_ACCOUNT_NAME_REQUIRED },
+        { field: "new_vendor_account_number", message: PROCUREMENT_MESSAGES.VENDOR_ACCOUNT_NUMBER_REQUIRED },
+      ];
+      let hasVendorError = false;
+      for (const { field, message } of newVendorRequired) {
+        if (!(formData[field] as string | undefined)?.trim()) {
+          setError(field, { message });
+          hasVendorError = true;
+        }
+      }
+      if (hasVendorError) return;
+    }
+    setVendorError("");
+
+    // Validate approver picks for any requester_pick steps
+    const picksError = approverPicker.validate();
+    if (picksError) { toast.error(picksError); return; }
+
     try {
-      await createMutation.mutateAsync({
-        data: {
-          title: formData.title,
-          category: formData.category as ProcurementCategory,
-          priority: formData.priority as ProcurementPriority,
-          justification: formData.justification,
-          required_by: formData.required_by || undefined,
-          vendor_id: formData.vendor_id || undefined,
-          items: formData.items.map((item) => ({
-            description: item.description,
-            quantity: parseFloat(item.quantity) || 0,
-            unit: item.unit as ItemUnit,
-            unit_cost: parseFloat(item.unit_cost) || 0,
-            total_cost: parseFloat(item.total_cost) || 0,
-          })),
-        },
-        file: attachedFile,
-      });
-      toast.success("Purchase request submitted successfully");
+      let vendorId = vendorMode === "existing" ? formData.vendor_id || undefined : undefined;
+
+      // For new vendor mode: create the vendor first, then use its ID
+      if (vendorMode === "new" && formData.new_vendor_name?.trim()) {
+        const newVendor = await createVendor.mutateAsync({
+          name:           formData.new_vendor_name.trim(),
+          category:       formData.category,
+          vendor_type:    "adhoc",
+          contact_person: formData.new_vendor_contact_person || undefined,
+          phone:          formData.new_vendor_phone          || undefined,
+          email:          formData.new_vendor_email          || undefined,
+          address:        formData.new_vendor_address        || undefined,
+          bank_name:      formData.new_vendor_bank_name      || undefined,
+          account_name:   formData.new_vendor_account_name   || undefined,
+          account_number: formData.new_vendor_account_number || undefined,
+        } as Parameters<typeof createVendor.mutateAsync>[0]);
+        vendorId = newVendor.id;
+      }
+
+      // Map form fields to backend schema:
+      //   justification → description
+      //   unit_cost     → unit_price
+      //   total_cost    → total_price
+      const payload = {
+        category:         formData.category,
+        description:      formData.justification || undefined,
+        required_by:      formData.required_by   || undefined,
+        estimated_amount: grandTotal > 0 ? grandTotal : undefined,
+        vendor_id:        vendorId,
+        items: formData.items.map((item) => ({
+          description: item.description,
+          quantity:    parseFloat(item.quantity) || 1,
+          unit:        item.unit || undefined,
+          unit_price:  parseFloat(item.unit_cost) || null,
+          total_price: parseFloat(item.total_cost) || null,
+        })),
+        picked_approvers: approverPicker.picksPayload,
+      };
+      if (isEditMode && editId) {
+        // Edit mode: PATCH to update fields
+        await updateMutation.mutateAsync(payload);
+        // Handle attachment changes
+        if (attachedFiles[0]) {
+          // Upload new file (backend will delete the old one if it exists)
+          await uploadAttachmentMutation.mutateAsync({ id: editId, file: attachedFiles[0] });
+        } else if (attachmentRemoved) {
+          // Remove existing attachment with no replacement
+          await removeAttachmentMutation.mutateAsync(editId);
+        }
+        await submitMutation.mutateAsync(editId);
+        toast.success("Request updated and resubmitted for approval");
+      } else {
+        // Create mode: POST with file
+        const fd = new FormData();
+        fd.append("data", JSON.stringify(payload));
+        if (attachedFiles[0]) {
+          fd.append("attachment", attachedFiles[0]);
+        }
+        await createMutation.mutateAsync(fd);
+        toast.success("Purchase request submitted successfully");
+      }
       router.push("/procurement");
-    } catch {
-      toast.error("Failed to submit request. Please try again.");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 
   return (
     <AppLayout pageTitle="Procurement">
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
+      >
+        <ArrowLeft size={14} /> Back to Procurement
+      </button>
       <PageHeader
-        title="New Purchase Request"
-        description="Fill in the details below and submit for procurement review"
+        title={isEditMode ? "Edit Purchase & Service Request" : "New Purchase & Service Request"}
+        description={isEditMode ? "Update the details below and resubmit for approval" : "Fill in the details below and submit for approval"}
         className="mb-6"
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
         {/* ── Section 1: Request Details ───────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Request Details</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Basic information about this purchase request</p>
-          </div>
-          <div className="p-6 space-y-5">
-            <FormInput
-              label="Request Title"
-              required
-              placeholder="e.g. Generator fuel supply — Q3 2025"
-              error={errors.title?.message}
-              {...register("title")}
+        <FormSection title="Request Details" description="Basic information about this request">
+          <div className="grid grid-cols-2 gap-4">
+            <Controller
+              control={control}
+              name="category"
+              render={({ field }) => (
+                <FormSelect
+                  label="Category"
+                  required
+                  options={categoryOptions}
+                  placeholder="Select category"
+                  error={errors.category?.message}
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
             />
-            <div className="grid grid-cols-2 gap-4">
-              <FormSelect
-                label="Category"
-                required
-                options={categoryOptions}
-                placeholder="Select category"
-                error={errors.category?.message}
-                {...register("category")}
-              />
-              <FormSelect
-                label="Priority"
-                required
-                options={priorityOptions}
-                error={errors.priority?.message}
-                {...register("priority")}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormDatePicker label="Required By" {...register("required_by")} />
-            </div>
-            <FormTextarea
-              label="Justification / Purpose"
-              placeholder="Describe what is needed and why — this appears on the Purchase Order document"
-              rows={3}
-              {...register("justification")}
+            <Controller
+              control={control}
+              name="required_by"
+              render={({ field }) => (
+                <FormDatePicker
+                  label="Required By"
+                  required
+                  min={new Date().toISOString().split("T")[0]}
+                  error={errors.required_by?.message}
+                  name={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
             />
           </div>
-        </div>
+          <FormTextarea
+            label="Justification / Purpose"
+            required
+            placeholder="Describe what is needed and why — this appears on the Purchase Order document"
+            rows={3}
+            error={errors.justification?.message}
+            {...register("justification")}
+          />
+        </FormSection>
 
-        {/* ── Section 2: Vendor ────────────────────────────────────────────── */}
-        {/* No overflow-hidden — dropdown needs to escape the card boundary */}
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-brand-text-primary">Vendor</h2>
-              <p className="text-xs text-brand-text-secondary mt-0.5">Optional — select an existing vendor or add a new one</p>
-            </div>
-            {/* Toggle between select and create */}
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        {/* ── Section 2: Preferred Vendor ──────────────────────────────────── */}
+        <FormSection title="Preferred Vendor" required description="Select an existing vendor from the list or enter a new vendor" bodyClassName="p-6 space-y-0">
+
+          {/* Toggle */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-5">
+            {(["existing", "new"] as VendorMode[]).map((mode) => (
               <button
+                key={mode}
                 type="button"
-                onClick={() => setVendorMode("select")}
-                className={["px-3 py-1 text-xs font-medium rounded-md transition-colors", vendorMode === "select" ? "bg-white text-brand-text-primary shadow-sm" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}
+                onClick={() => switchVendorMode(mode)}
+                className={[
+                  "px-4 py-1.5 text-sm rounded-md transition-colors font-medium",
+                  vendorMode === mode
+                    ? "bg-white text-brand-text-primary shadow-sm"
+                    : "text-brand-text-secondary hover:text-brand-text-primary",
+                ].join(" ")}
               >
-                Select existing
+                {mode === "existing" ? "Use Existing" : "Enter New"}
               </button>
-              <button
-                type="button"
-                onClick={() => setVendorMode("create")}
-                className={["flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors", vendorMode === "create" ? "bg-white text-brand-text-primary shadow-sm" : "text-brand-text-secondary hover:text-brand-text-primary"].join(" ")}
-              >
-                <UserPlus size={11} /> Add new
-              </button>
-            </div>
+            ))}
           </div>
 
-          <div className="p-6">
-            {vendorMode === "select" ? (
-              /* ── Select existing vendor ─────────────────────────────────── */
-              <div className="relative">
-                <label className="block text-sm font-medium text-brand-text-primary mb-1">Vendor</label>
+          {vendorError && (
+            <p className="text-xs text-red-600 mb-3">{vendorError}</p>
+          )}
 
-                {selectedVendorName ? (
-                  <div className="flex items-center justify-between h-10 px-3 rounded-lg border border-brand-border bg-white text-sm text-brand-text-primary">
-                    <span>{selectedVendorName}</span>
-                    <button type="button" onClick={clearVendor} className="text-gray-400 hover:text-gray-600">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div
-                      className="flex items-center h-10 px-3 rounded-lg border border-brand-border bg-white gap-2 cursor-text"
-                      onClick={() => setVendorDropdownOpen(true)}
-                    >
-                      <input
-                        type="text"
-                        placeholder="Search vendors…"
-                        value={vendorSearch}
-                        onChange={(e) => { setVendorSearch(e.target.value); setVendorDropdownOpen(true); }}
-                        onFocus={() => setVendorDropdownOpen(true)}
-                        className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
-                      />
-                      <ChevronDown size={14} className="text-gray-400 shrink-0" />
-                    </div>
-
-                    {vendorDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setVendorDropdownOpen(false)} />
-                        <div className="absolute z-20 top-full mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden">
-                          {filteredVendors.length === 0 ? (
-                            <div className="px-4 py-3">
-                              <p className="text-sm text-brand-text-secondary">No vendors found</p>
-                              <button
-                                type="button"
-                                className="mt-2 text-xs text-brand-purple font-medium hover:underline"
-                                onClick={() => { setVendorDropdownOpen(false); setVendorMode("create"); if (vendorSearch) setNewVendor((v) => ({ ...v, name: vendorSearch })); }}
-                              >
-                                + Add &quot;{vendorSearch}&quot; as new vendor
-                              </button>
-                            </div>
-                          ) : (
-                            <ul className="max-h-52 overflow-y-auto">
-                              {filteredVendors.map((vendor) => (
-                                <li key={vendor.id}>
-                                  <button
-                                    type="button"
-                                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition-colors"
-                                    onClick={() => selectVendor(vendor.id, vendor.name)}
-                                  >
-                                    <span className="font-medium text-brand-text-primary">{vendor.name}</span>
-                                    <span className="ml-2 text-xs text-brand-text-secondary capitalize">
-                                      {vendor.category.replace(/_/g, " ")}
-                                    </span>
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-                <p className="text-xs text-brand-text-secondary mt-1">
-                  Vendor details will be included on the Purchase Order PDF
-                </p>
-              </div>
-            ) : (
-              /* ── Create new vendor ──────────────────────────────────────── */
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">
-                      Vendor Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Atlas Copco Nigeria"
-                      value={newVendor.name}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, name: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                    {newVendorErrors.name && <p className="text-xs text-red-600">{newVendorErrors.name}</p>}
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={newVendor.category}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, category: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple bg-white"
-                    >
-                      <option value="">Select category</option>
-                      {vendorCategoryOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                    {newVendorErrors.category && <p className="text-xs text-red-600">{newVendorErrors.category}</p>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Contact Person</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Emeka Okonkwo"
-                      value={newVendor.contact_person}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, contact_person: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Phone</label>
-                    <input
-                      type="text"
-                      placeholder="+234 800 000 0000"
-                      value={newVendor.phone}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, phone: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Email</label>
-                    <input
-                      type="email"
-                      placeholder="vendor@company.com"
-                      value={newVendor.email}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, email: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-brand-text-primary">Address</label>
-                    <input
-                      type="text"
-                      placeholder="Street, City, State"
-                      value={newVendor.address}
-                      onChange={(e) => setNewVendor((v) => ({ ...v, address: e.target.value }))}
-                      className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={saveNewVendor}
-                    disabled={createVendorMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
-                  >
-                    {createVendorMutation.isPending ? (
-                      <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <UserPlus size={14} />
-                    )}
-                    {createVendorMutation.isPending ? "Saving…" : "Save & Select Vendor"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVendorMode("select")}
-                    className="text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
-                  >
-                    Cancel
+          {vendorMode === "existing" ? (
+            <div className="relative">
+              {selectedVendorName ? (
+                <div className="flex items-center justify-between h-10 px-3 rounded-lg border border-brand-border bg-white text-sm text-brand-text-primary">
+                  <span>{selectedVendorName}</span>
+                  <button type="button" onClick={clearVendor} className="text-gray-400 hover:text-gray-600">
+                    <X size={14} />
                   </button>
                 </div>
-                <p className="text-xs text-brand-text-secondary">
-                  Bank details can be added later from the Vendors page
-                </p>
+              ) : (
+                <div>
+                  <div
+                    className="flex items-center h-10 px-3 rounded-lg border border-brand-border bg-white gap-2 cursor-text"
+                    onClick={() => setVendorDropdownOpen(true)}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Search vendors…"
+                      value={vendorSearch}
+                      onChange={(e) => { setVendorSearch(e.target.value); setVendorDropdownOpen(true); }}
+                      onFocus={() => setVendorDropdownOpen(true)}
+                      className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400"
+                    />
+                    <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                  </div>
+
+                  {vendorDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setVendorDropdownOpen(false)} />
+                      <div className="absolute z-20 top-full mt-1 w-full bg-white border border-brand-border rounded-xl shadow-lg overflow-hidden">
+                        {filteredVendors.length === 0 ? (
+                          <div className="px-4 py-3">
+                            <p className="text-sm text-brand-text-secondary">No vendors found</p>
+                          </div>
+                        ) : (
+                          <ul className="max-h-52 overflow-y-auto">
+                            {filteredVendors.map((vendor) => (
+                              <li key={vendor.id}>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition-colors"
+                                  onClick={() => selectVendor(vendor.id, vendor.name)}
+                                >
+                                  <span className="font-medium text-brand-text-primary">{vendor.name}</span>
+                                  <span className="ml-2 text-xs text-brand-text-secondary capitalize">
+                                    {vendor.category.replace(/_/g, " ")}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-brand-text-secondary mt-1.5">
+                Vendor details will be included on the Purchase Order PDF
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormInput
+                  label="Vendor Name"
+                  required
+                  placeholder="e.g. MRS Filling Station"
+                  error={errors.new_vendor_name?.message}
+                  {...register("new_vendor_name")}
+                />
+                <FormInput
+                  label="Contact Person"
+                  required
+                  placeholder="e.g. John Adeyemi"
+                  error={errors.new_vendor_contact_person?.message}
+                  {...register("new_vendor_contact_person")}
+                />
               </div>
-            )}
-          </div>
-        </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormPhoneInput
+                  label="Phone"
+                  required
+                  placeholder="+234 xxx xxx xxxx"
+                  error={errors.new_vendor_phone?.message}
+                  {...register("new_vendor_phone")}
+                />
+                <FormInput
+                  label="Email"
+                  type="email"
+                  required
+                  placeholder="vendor@example.com"
+                  error={errors.new_vendor_email?.message}
+                  {...register("new_vendor_email")}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <FormInput
+                  label="Address"
+                  required
+                  placeholder="Street, City"
+                  error={errors.new_vendor_address?.message}
+                  {...register("new_vendor_address")}
+                />
+              </div>
+              <div className="pt-1">
+                <p className="text-xs font-medium text-brand-text-secondary uppercase tracking-wide mb-3">Bank Details</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <FormInput
+                    label="Bank Name"
+                    required
+                    placeholder="e.g. First Bank"
+                    error={errors.new_vendor_bank_name?.message}
+                    {...register("new_vendor_bank_name")}
+                  />
+                  <FormInput
+                    label="Account Name"
+                    required
+                    placeholder="Account holder name"
+                    error={errors.new_vendor_account_name?.message}
+                    {...register("new_vendor_account_name")}
+                  />
+                  <FormInput
+                    label="Account Number"
+                    required
+                    placeholder="0123456789"
+                    error={errors.new_vendor_account_number?.message}
+                    {...register("new_vendor_account_number")}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </FormSection>
 
         {/* ── Section 3: Line Items ────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Line Items</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Add each item being requested — costs are in Nigerian Naira (₦)</p>
-          </div>
-          <div className="p-6">
+        <FormSection
+          title={isServices ? "Service Items" : "Line Items"}
+          required
+          description={isServices
+            ? "Add each service being requested — specify duration and rate"
+            : "Add each item being requested — costs are in Nigerian Naira (₦)"
+          }
+          className="overflow-hidden"
+          bodyClassName="p-6 space-y-0"
+        >
+          <div>
             {errors.items?.root && (
               <p className="text-xs text-red-600 mb-3">{errors.items.root.message}</p>
             )}
 
-            {/* Items table */}
             <div className="border border-brand-border rounded-xl overflow-hidden mb-4">
               {/* Header */}
-              <div className="grid grid-cols-[1fr_80px_100px_120px_120px_40px] gap-0 bg-gray-50 border-b border-brand-border">
-                {["Description", "Qty", "Unit", "Unit Cost (₦)", "Total (₦)", ""].map((h) => (
+              <div className="grid grid-cols-[1fr_80px_100px_130px_130px_40px] gap-0 bg-gray-50 border-b border-brand-border">
+                {[
+                  "Description",
+                  isServices ? "Duration" : "Qty",
+                  "Unit",
+                  isServices ? "Rate (₦)" : "Unit Cost (₦)",
+                  "Total (₦)",
+                  "",
+                ].map((h) => (
                   <div key={h} className="px-3 py-2.5 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
                     {h}
                   </div>
                 ))}
               </div>
 
-              {/* Rows */}
               {fields.map((field, i) => (
                 <div
                   key={field.id}
                   className={[
-                    "grid grid-cols-[1fr_80px_100px_120px_120px_40px] gap-0 border-b border-brand-border last:border-b-0",
+                    "grid grid-cols-[1fr_80px_100px_130px_130px_40px] gap-0 border-b border-brand-border last:border-b-0",
                     i % 2 === 1 ? "bg-gray-50/40" : "bg-white",
                   ].join(" ")}
                 >
-                  {/* Description */}
                   <div className="px-3 py-2">
                     <input
                       {...register(`items.${i}.description`)}
@@ -522,63 +602,46 @@ export default function NewProcurementPage() {
                     )}
                   </div>
 
-                  {/* Quantity */}
                   <div className="px-3 py-2 border-l border-brand-border/50">
                     <input
-                      {...register(`items.${i}.quantity`)}
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="1"
-                      className={[
-                        "w-full text-sm outline-none bg-transparent placeholder:text-gray-400",
-                        errors.items?.[i]?.quantity ? "text-red-500" : "",
-                      ].join(" ")}
+                      value={qtyDisplays[i] ?? ""}
+                      className={["w-full text-sm outline-none bg-transparent placeholder:text-gray-400", errors.items?.[i]?.quantity ? "text-red-500" : ""].join(" ")}
                       onChange={(e) => {
-                        register(`items.${i}.quantity`).onChange(e);
+                        const raw = e.target.value.replace(/[^0-9.]/g, "");
+                        setQtyDisplays((prev) => ({ ...prev, [i]: applyCommas(e.target.value) }));
+                        setValue(`items.${i}.quantity`, raw);
                         setTimeout(() => updateTotal(i), 0);
                       }}
                     />
-                    {errors.items?.[i]?.quantity && (
-                      <p className="text-[10px] text-red-500 mt-0.5">{errors.items[i]?.quantity?.message}</p>
-                    )}
                   </div>
 
-                  {/* Unit */}
                   <div className="px-2 py-2 border-l border-brand-border/50">
-                    <select
-                      {...register(`items.${i}.unit`)}
-                      className="w-full text-sm outline-none bg-transparent"
-                    >
+                    <select {...register(`items.${i}.unit`)} className="w-full text-sm outline-none bg-transparent">
                       {unitOptions.map((u) => (
                         <option key={u.value} value={u.value}>{u.label}</option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Unit Cost */}
                   <div className="px-3 py-2 border-l border-brand-border/50">
                     <input
-                      {...register(`items.${i}.unit_cost`)}
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="0.00"
-                      className={[
-                        "w-full text-sm outline-none bg-transparent placeholder:text-gray-400",
-                        errors.items?.[i]?.unit_cost ? "text-red-500" : "",
-                      ].join(" ")}
+                      value={costDisplays[i] ?? ""}
+                      className={["w-full text-sm outline-none bg-transparent placeholder:text-gray-400", errors.items?.[i]?.unit_cost ? "text-red-500" : ""].join(" ")}
                       onChange={(e) => {
-                        register(`items.${i}.unit_cost`).onChange(e);
+                        const raw = e.target.value.replace(/[^0-9.]/g, "");
+                        setCostDisplays((prev) => ({ ...prev, [i]: applyCommas(e.target.value) }));
+                        setValue(`items.${i}.unit_cost`, raw);
                         setTimeout(() => updateTotal(i), 0);
                       }}
                     />
-                    {errors.items?.[i]?.unit_cost && (
-                      <p className="text-[10px] text-red-500 mt-0.5">{errors.items[i]?.unit_cost?.message}</p>
-                    )}
                   </div>
 
-                  {/* Total */}
                   <div className="px-3 py-2 border-l border-brand-border/50 flex items-center">
                     <span className="text-sm text-brand-text-primary">
                       {parseFloat(watchedItems[i]?.total_cost ?? "0") > 0
@@ -587,14 +650,9 @@ export default function NewProcurementPage() {
                     </span>
                   </div>
 
-                  {/* Remove */}
                   <div className="flex items-center justify-center border-l border-brand-border/50">
                     {fields.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => remove(i)}
-                        className="text-gray-300 hover:text-red-400 transition-colors p-1"
-                      >
+                      <button type="button" onClick={() => remove(i)} className="text-gray-300 hover:text-red-400 transition-colors p-1">
                         <Trash2 size={14} />
                       </button>
                     )}
@@ -603,7 +661,7 @@ export default function NewProcurementPage() {
               ))}
 
               {/* Grand total row */}
-              <div className="grid grid-cols-[1fr_80px_100px_120px_120px_40px] gap-0 bg-brand-purple/5 border-t-2 border-brand-purple/20">
+              <div className="grid grid-cols-[1fr_80px_100px_130px_130px_40px] gap-0 bg-brand-purple/5 border-t-2 border-brand-purple/20">
                 <div className="col-span-4 px-3 py-2.5 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
                   Estimated Total
                 </div>
@@ -616,100 +674,95 @@ export default function NewProcurementPage() {
 
             <button
               type="button"
-              onClick={() => append({ description: "", quantity: "1", unit: "pieces", unit_cost: "0", total_cost: "0" })}
+              onClick={() => append({ description: "", quantity: "", unit: isServices ? "days" : "pieces", unit_cost: "", total_cost: "0" })}
               className="flex items-center gap-2 text-sm text-brand-purple hover:text-brand-purple-dark transition-colors font-medium"
             >
-              <Plus size={15} /> Add Item
+              <Plus size={15} /> {isServices ? "Add Service Item" : "Add Item"}
             </button>
           </div>
-        </div>
+        </FormSection>
 
         {/* ── Section 4: Attachment ────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-            <h2 className="text-sm font-semibold text-brand-text-primary">Supporting Document</h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">Optional — attach a quote, spec sheet, or any supporting file</p>
-          </div>
-          <div className="p-6">
-            {attachedFile ? (
-              <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl">
-                <Paperclip size={14} className="text-brand-purple shrink-0" />
-                <span className="text-sm text-brand-text-primary flex-1 truncate">{attachedFile.name}</span>
-                <span className="text-xs text-brand-text-secondary">
-                  {(attachedFile.size / 1024).toFixed(0)} KB
-                </span>
+        <FormSection title="Supporting Document" description="Optional — attach a quote, spec sheet, or any supporting file" bodyClassName="p-6 space-y-0">
+          {isEditMode && existingAttachment && !attachmentRemoved ? (
+            <div className="flex items-center justify-between rounded-lg border border-brand-border bg-gray-50 px-4 py-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-brand-text-primary truncate">{existingAttachment.name}</p>
+                  <p className="text-xs text-brand-text-secondary mt-0.5">
+                    {existingAttachment.mime_type ?? "Unknown type"}
+                    {existingAttachment.file_size != null && ` · ${(existingAttachment.file_size / 1024).toFixed(1)} KB`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-4">
+                <a
+                  href={existingAttachment.file_path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-brand-purple hover:text-brand-purple-dark transition-colors"
+                >
+                  Open
+                </a>
                 <button
                   type="button"
-                  onClick={() => { setAttachedFile(null); setFileError(null); }}
-                  className="text-gray-400 hover:text-red-500 transition-colors"
+                  onClick={() => {
+                    setAttachmentRemoved(true);
+                    setExistingAttachment(null);
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700 transition-colors"
                 >
-                  <X size={14} />
+                  Remove
                 </button>
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-brand-border rounded-xl py-8 cursor-pointer hover:border-brand-purple hover:bg-purple-50/30 transition-colors">
-                <Paperclip size={20} className="text-gray-400" />
-                <p className="text-sm text-brand-text-secondary">
-                  <span className="text-brand-purple font-medium">Click to attach</span> or drag and drop
-                </p>
-                <p className="text-xs text-gray-400">PDF, Word, Excel, images — max 10 MB</p>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    if (file) {
-                      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-                        setFileError("File type not allowed. Use PDF, Word, Excel, PNG or JPG.");
-                        e.target.value = "";
-                        return;
-                      }
-                      if (file.size > MAX_FILE_MB * 1024 * 1024) {
-                        setFileError(`File too large. Maximum size is ${MAX_FILE_MB} MB.`);
-                        e.target.value = "";
-                        return;
-                      }
-                    }
-                    setFileError(null);
-                    setAttachedFile(file);
-                  }}
-                />
-              </label>
-            )}
-            {fileError && (
-              <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                <span>⚠</span> {fileError}
-              </p>
-            )}
-          </div>
-        </div>
+            </div>
+          ) : (
+            <FileDropzone
+              value={attachedFiles}
+              onChange={setAttachedFiles}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+              maxFiles={1}
+              maxSizeMB={10}
+              hint="PDF, Word, Excel, or images — max 10 MB"
+            />
+          )}
+        </FormSection>
+
+        {/* ── Approvers (rendered by reusable hook + component) ───────────── */}
+        <WorkflowApproversSection {...approverPicker} />
 
         {/* ── Actions ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between py-2">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
+        <div className="py-2">
           <button
             type="submit"
-            disabled={isSubmitting || createMutation.isPending || !!fileError}
+            disabled={isSubmitting || createMutation.isPending || createVendor.isPending || updateMutation.isPending || submitMutation.isPending || uploadAttachmentMutation.isPending || removeAttachmentMutation.isPending}
             className="px-6 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
           >
-            {createMutation.isPending ? (
+            {isSubmitting || createMutation.isPending || createVendor.isPending || updateMutation.isPending || submitMutation.isPending || uploadAttachmentMutation.isPending || removeAttachmentMutation.isPending ? (
               <>
                 <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Submitting…
               </>
             ) : (
-              "Submit Purchase Request"
+              isEditMode ? "Update & Resubmit" : "Submit Request"
             )}
           </button>
         </div>
       </form>
     </AppLayout>
+  );
+}
+
+export default function NewProcurementPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppLayout pageTitle="Procurement">
+          <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        </AppLayout>
+      }
+    >
+      <NewProcurementContent />
+    </Suspense>
   );
 }

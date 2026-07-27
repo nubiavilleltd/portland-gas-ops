@@ -3,12 +3,23 @@ import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import {
   AlertTriangle,
-  ClipboardCheck,
   CheckCircle2,
-  ShieldCheck,
+  ClipboardCheck,
 } from "lucide-react";
 
 const safetyProcesses = [
+  {
+    title: "Incident & Hazard Report",
+    description: "Report incidents, hazards, near misses, and HSE corrective actions",
+    href: "/safety/incidents",
+    icon: <AlertTriangle className="h-5 w-5 md:h-6 md:w-6" />,
+  },
+  {
+    title: "Work Initiation",
+    description: "Define, review, and assign operational work",
+    href: "/safety/work-initiation",
+    icon: <ClipboardCheck className="h-5 w-5 md:h-6 md:w-6" />,
+  },
   {
     title: "Work Authorization",
     description: "Request and approve work before it starts",
@@ -20,19 +31,7 @@ const safetyProcesses = [
     description: "Confirm completed work, monitoring, and final close-out approval",
     href: "/safety/work-close-out",
     icon: <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6" />,
-  }
-  // {
-  //   title: "Incident & Hazard Report",
-  //   description: "Report incidents, hazards, near misses, and HSE corrective actions",
-  //   href: "/safety/incidents",
-  //   icon: <AlertTriangle className="h-5 w-5 md:h-6 md:w-6" />,
-  // }
-  // {
-  //   title: "Regulatory Compliance",
-  //   description: "Raise compliance requests, certifications, inspections, and HSE approvals",
-  //   href: "/safety/regulatory-compliance",
-  //   icon: <ShieldCheck className="h-5 w-5 md:h-6 md:w-6" />,
-  // },
+  },
 ];
 
 export default function SafetyPage() {
@@ -40,20 +39,20 @@ export default function SafetyPage() {
     <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Safety & Compliance"
-        description="Work authorizations, compliance processes, and close-outs"
+        description="Raise and manage your safety and compliance requests"
       />
 
-      <div className="mt-8 rounded-xl border border-brand-border bg-white p-4 md:p-6">
-        <div className="mb-6">
+      <section className="mt-6 rounded-xl border border-brand-border bg-white p-4 md:p-5">
+        <div className="mb-4">
           <h2 className="text-base font-semibold text-brand-text-primary">
             Safety Processes
           </h2>
           <p className="mt-1 text-sm text-brand-text-secondary">
-            Select a process to start or manage a safety and compliance request.
+            Open a workflow to create or manage your safety and compliance records.
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {safetyProcesses.map((process) => (
             <Card
               key={process.href}
@@ -65,7 +64,7 @@ export default function SafetyPage() {
             />
           ))}
         </div>
-      </div>
+      </section>
     </AppLayout>
   );
 }

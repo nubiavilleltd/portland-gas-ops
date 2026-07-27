@@ -1,22 +1,43 @@
-
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, AlertCircle, Package } from "lucide-react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Package, User, Truck } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormInput from "@/components/forms/FormInput";
+import FormSelect from "@/components/forms/FormSelect";
+import FormTextarea from "@/components/forms/FormTextarea";
+import ErrorBanner from "@/components/ui/ErrorBanner";
+import FormSection from "@/components/ui/FormSection";
+import FormDatePicker from "@/components/forms/FormDatePicker";
 
-import { getOrderById } from "@/lib/modules/orders/selectors/orders.selectors";
-import { getVehicleById } from "@/lib/modules/fleet/selectors/vehicles.selectors";
-import { getDriverById } from "@/lib/modules/fleet/selectors/drivers.selectors";
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
-import { TripsService } from "@/lib/services/api/trips.service";
 
-const TRIP_TYPE_OPTIONS: { value: Trip["type"]; label: string }[] = [
+import {
+  createTripSchema,
+  type CreateTripFormData,
+} from "@/lib/modules/fleet/schemas/trip.schema";
+
+import { parseError } from "@/lib/errors";
+
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
+import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+
+import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
+import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
+
+import { useCreateTripWorkflow } from "@/lib/modules/fleet/hooks/useCreateTripWorkflow";
+import { canAssignToTrip } from "@/lib/modules/orders/guards/orders.guards";
+import { BackButton } from "@/components/ui/BackButton";
+import { FLEET_ROUTES } from "@/lib/routes";
+
+// ── Constants ─────────────────────────────────────────────
+const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
   { value: "order_delivery", label: "Order Delivery" },
   { value: "maintenance", label: "Vehicle Maintenance" },
   { value: "station_transfer", label: "Station Transfer" },
@@ -24,200 +45,230 @@ const TRIP_TYPE_OPTIONS: { value: Trip["type"]; label: string }[] = [
   { value: "emergency", label: "Emergency Response" },
 ];
 
+// ── Page wrapper ──────────────────────────────────────────
 export default function CreateTripPage() {
-  const router = useRouter();
+  return (
+    <Suspense fallback={null}>
+      <CreateTripForm />
+    </Suspense>
+  );
+}
+
+// ── Form ──────────────────────────────────────────────────
+function CreateTripForm() {
   const searchParams = useSearchParams();
 
-  // Context from URL: can come from order, vehicle, or driver page
+  const createTrip = useCreateTripWorkflow();
+
   const vehicleId = searchParams.get("vehicleId");
   const driverId = searchParams.get("driverId");
-  const orderId = searchParams.get("orderId");
+  const orderNo = searchParams.get("orderNo");
 
-  const vehicle = vehicleId ? getVehicleById(vehicleId) : null;
-  const driver = driverId ? getDriverById(driverId) : null;
-  const preloadedOrder = orderId ? getOrderById(orderId) : null;
+  // ── DATA HOOKS ─────────────────────────────────────────
+  const { orders } = useOrders();
+  const { customers } = useCustomers();
 
-  const [form, setForm] = useState({
-    trip_type: "order_delivery" as Trip["type"],
-    start_location: "",
-    end_location: preloadedOrder?.delivery_address ?? "",
-    scheduled_date: preloadedOrder?.delivery_date ?? "",
-    notes: "",
+  const { driver } = useDriverById(driverId ?? "");
+  const { vehicle } = useVehicleById(vehicleId ?? "");
+
+  // ── LOOKUP MAPS ────────────────────────────────────────
+
+  const orderMap = new Map(orders.map((o) => [o.id, o]));
+  const customerMap = new Map(customers.map((c) => [c.id, c]));
+
+  const preloadedOrder = orderNo
+    ? orders.find((o) => o.orderNumber === orderNo)
+    : null;
+
+  const isTripTypeLocked = !!orderNo;
+
+  const assignableOrders = orders
+    .filter(
+      (o) =>
+        canAssignToTrip(o),
+    )
+    .map((o) => ({
+      value: o.id,
+      label: `${o.orderNumber} — ${customerMap.get(o.customerId)?.name ?? o.customerName}`,
+    }));
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<CreateTripFormData>({
+    resolver: zodResolver(createTripSchema),
+    defaultValues: {
+      type: "order_delivery",
+      linked_order_id: preloadedOrder?.id ?? "",
+      start_location: "",
+      end_location: preloadedOrder?.deliveryAddress ?? "",
+      scheduled_date: preloadedOrder?.deliveryDate ?? "",
+      notes: "",
+    },
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const tripType = watch("type");
 
-  function update(field: keyof typeof form, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  async function handleCreate() {
-    if (!form.start_location || !form.end_location || !form.scheduled_date) {
-      setError("Please fill in Start Location, End Location, and Scheduled Date.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
+  async function onSubmit(data: CreateTripFormData) {
     try {
-      const newTrip = await TripsService.createTrip({
-        type: form.trip_type,
-        order_ids: orderId ? [orderId] : [],
-        start_location: form.start_location,
-        end_location: form.end_location,
-        scheduled_date: form.scheduled_date,
-        notes: form.notes,
+      await createTrip.mutateAsync({
+        type: data.type,
+        order_ids: data.linked_order_id ? [data.linked_order_id] : [],
+        start_location: data.start_location,
+        end_location: data.end_location,
+        scheduled_date: data.scheduled_date,
+        notes: data.notes,
       });
-
-      // If vehicle/driver were pre-selected from context, assign them immediately
-      if (vehicleId && driverId) {
-        await TripsService.assignDriverAndVehicle(newTrip.id, driverId, vehicleId);
-      }
-
-      router.push(`/fleet/trips/${newTrip.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create trip.");
-    } finally {
-      setIsSubmitting(false);
+      setError("root", { message: parseError(err) });
     }
   }
 
   return (
     <AppLayout pageTitle="Create Trip">
 
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </button>
-
+      <BackButton
+        href={`${FLEET_ROUTES.tripList()}`}
+        label="Back to Trips"
+      />
       <PageHeader
         title="Create Trip"
         description="Schedule a new logistics trip for order delivery or fleet operations"
         className="mb-6"
       />
 
-      <div className="space-y-6 max-w-2xl">
-
-        {/* CONTEXT PANEL — shows what was pre-selected from another page */}
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-6"
+      >
+        {/* PRE-FILLED CONTEXT */}
         {(vehicle || driver || preloadedOrder) && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2 text-sm">
             <p className="font-medium text-blue-800">Pre-filled context:</p>
+
             {preloadedOrder && (
               <div className="flex items-center gap-2 text-blue-700">
                 <Package size={14} />
+
                 <span>
-                  Order <strong>{preloadedOrder.order_number}</strong> — {preloadedOrder.customer_name} will be attached to this trip
+                  Order <strong>{preloadedOrder.orderNumber}</strong> —{" "}
+                  {customerMap.get(preloadedOrder.customerId)?.name ?? preloadedOrder.customerName}
                 </span>
               </div>
             )}
+
             {driver && (
-              <p className="text-blue-700">
-                Driver: <strong>{driver.full_name}</strong> — will be auto-assigned
-              </p>
+              <div className="flex items-center gap-2 text-blue-700">
+                <User size={14} />
+
+                <span>
+                  Driver: <strong>{driver.full_name}</strong>
+                </span>
+              </div>
             )}
+
             {vehicle && (
-              <p className="text-blue-700">
-                Vehicle: <strong>{vehicle.name}</strong> ({vehicle.plate_number}) — will be auto-assigned
-              </p>
+              <div className="flex items-center gap-2 text-blue-700">
+                <Truck size={14} />
+
+                <span>
+                  Vehicle: <strong>{vehicle.name}</strong> (
+                  {vehicle.plate_number})
+                </span>
+              </div>
             )}
           </div>
         )}
 
-        {/* TRIP DETAILS FORM */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6 space-y-5">
-          <h3 className="font-semibold">Trip Details</h3>
+        {/* TRIP DETAILS */}
+        <FormSection
+          title="Trip Details"
+          description="Configure trip type, destination, and scheduling information"
+        >
+          <div className="space-y-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Controller
+              control={control}
+              name="type"
+              render={({ field }) => (
+                <FormSelect
+                  label="Trip Type"
+                  options={TRIP_TYPE_OPTIONS}
+                  value={field.value}
+                  onValueChange={(v) => field.onChange(v as Trip["type"])}
+                  error={errors.type?.message}
+                  disabled={isTripTypeLocked}
+                />
+              )}
+            />
 
-          {/* Trip Type */}
-          <div>
-            <label className="block text-sm font-medium text-brand-text-primary mb-1">
-              Trip Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={form.trip_type}
-              onChange={(e) => update("trip_type", e.target.value)}
-              className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            >
-              {TRIP_TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            {tripType === "order_delivery" && !orderNo && (
+              <Controller
+                control={control}
+                name="linked_order_id"
+                render={({ field }) => (
+                  <FormSelect
+                    label="Link to Order"
+                    options={assignableOrders}
+                    value={field.value ?? ""}
+                    onValueChange={(v) => {
+                      field.onChange(v);
 
-          <FormInput
-            label="Start Location"
-            placeholder="e.g. Lagos Depot, Apapa"
-            value={form.start_location}
-            onChange={(e) => update("start_location", e.target.value)}
-          />
+                      const linked = orderMap.get(v);
 
-          <FormInput
-            label="End Location / Destination"
-            placeholder="e.g. Customer site, Ikorodu"
-            value={form.end_location}
-            onChange={(e) => update("end_location", e.target.value)}
-          />
+                      if (linked) {
+                        setValue("end_location", linked.deliveryAddress);
 
-          <FormInput
-            label="Scheduled Date"
-            type="date"
-            value={form.scheduled_date}
-            onChange={(e) => update("scheduled_date", e.target.value)}
-          />
+                        if (linked.deliveryDate) {
+                          setValue("scheduled_date", linked.deliveryDate);
+                        }
+                      }
+                    }}
+                  />
+                )}
+              />
+            )}
 
-          <div>
-            <label className="block text-sm font-medium text-brand-text-primary mb-1">
-              Notes
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Any special instructions for this trip..."
-              value={form.notes}
-              onChange={(e) => update("notes", e.target.value)}
-              className="w-full border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
+            <FormInput
+              label="Start Location"
+              {...register("start_location")}
+              error={errors.start_location?.message}
+            />
+
+            <FormInput
+              label="End Location"
+              {...register("end_location")}
+              error={errors.end_location?.message}
+            />
+
+            <FormDatePicker
+              label="Scheduled Date"
+              required
+              {...register("scheduled_date")}
+            />
+
+            <FormTextarea
+              label="Notes"
+              {...register("notes")}
             />
           </div>
-        </div>
+        </FormSection>
 
-        {/* NEXT STEPS INFO */}
-        <div className="bg-gray-50 border border-brand-border rounded-xl p-4 text-sm text-brand-text-secondary">
-          <p className="font-medium text-brand-text-primary mb-1">After creating this trip:</p>
-          <ol className="list-decimal ml-4 space-y-1">
-            {!driverId && !vehicleId && (
-              <li>Assign a driver and vehicle on the trip detail page</li>
-            )}
-            <li>Dispatch the trip when ready to leave the depot</li>
-            <li>Mark in transit when the driver departs</li>
-            <li>Complete the trip once all deliveries are confirmed</li>
-          </ol>
-        </div>
+        <ErrorBanner message={errors.root?.message} />
 
-        {/* ERROR */}
-        {error && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-            <AlertCircle size={16} className="shrink-0" />
-            {error}
-          </div>
-        )}
-
-        {/* ACTIONS */}
         <div className="flex justify-end gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-
-          <Button onClick={handleCreate} disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create Trip"}
+          <Button
+            type="submit"
+            loading={isSubmitting || createTrip.isPending}
+          >
+            Create Trip
           </Button>
         </div>
-
-      </div>
+      </form>
     </AppLayout>
   );
 }

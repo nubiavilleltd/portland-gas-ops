@@ -1,289 +1,423 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
-import FormDatePicker from "@/components/forms/FormDatePicker";
-import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
 import FormInput from "@/components/forms/FormInput";
-import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
-import type { SelectOption } from "@/components/forms/SelectInput";
 import { useToast } from "@/hooks/useToast";
+import {
+  safetyChecklistsApi,
+  useActiveSafetyChecklist,
+} from "@/lib/modules/safety/checklists";
+import type {
+  SafetyChecklistAnswerCreate,
+  SafetyChecklistItem,
+  SafetyChecklistTemplate,
+} from "@/lib/modules/safety/checklists";
+import {
+  useCreateWorkAuthorization,
+  useEligibleWorkInitiationsForAuthorization,
+  type WorkAuthorizationCreate,
+} from "@/lib/modules/safety/workAuthorization";
+import {
+  clearValidationError,
+  getFirstInvalidField,
+  scrollToValidationField,
+  type ValidationErrors,
+} from "@/lib/modules/safety/form-validation";
+import type { AssignedWorkInitiationSummary } from "@/types/safety";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+import SafetyChoiceTable from "./SafetyChoiceTable";
+import SafetyValidationSummary from "./SafetyValidationSummary";
 
-const requester = {
-  name: "Daniel Okoro",
-  department: "Engineering",
-  role: "CNG Conversion Technician",
-  requestDate: "2026-05-18",
-};
-
-const optionFromStrings = (items: string[]): SelectOption[] =>
-  items.map((item) => ({ value: item, label: item }));
-
-const employeeOptions = [
-  { value: "Mary James", label: "Mary James - Engineering Supervisor" },
-  { value: "Samuel Bassey", label: "Samuel Bassey - HSE Officer" },
-  { value: "Grace Bello", label: "Grace Bello - Operations Officer" },
-  { value: "Ibrahim Musa", label: "Ibrahim Musa - Technician" },
+const yesNoOptions = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
 ];
 
-const workLocationOptions = optionFromStrings([
-  "Conversion Bay 1",
-  "Conversion Bay 2",
-  "Vehicle Yard",
-  "Gas Storage Area",
-  "Maintenance Workshop",
-  "Electrical Room",
-  "Loading Area",
-  "Inspection Bay",
-]);
+type WorkAuthorizationValidationField = "selectedWorkInitiationId" | "riskChecklist";
 
-const priorityOptions = optionFromStrings(["Low", "Medium", "High", "Critical"]);
-const yesNoOptions = optionFromStrings(["Yes", "No"]);
-
-const workTypeOptions = optionFromStrings([
-  "CNG Conversion",
-  "CNG Cylinder Work",
-  "Gas System Work",
-  "Electrical Work",
-  "Hot Work",
-  "Lifting Work",
-  "Vehicle Inspection",
-  "Transport Preparation",
-  "Maintenance",
-  "Calibration",
-  "General Engineering Work",
-]);
-
-const toolsEquipmentOptions = optionFromStrings([
-  "Hand Tools",
-  "Diagnostic Tool",
-  "Welding Machine",
-  "Grinding Machine",
-  "Cylinder Lifting Equipment",
-  "Gas Detector",
-  "Pressure Gauge",
-  "Electrical Tester",
-  "Torque Wrench",
-  "PPE Kit",
-]);
-
-const contractorOptions = optionFromStrings([
-  "ABC Engineering Services",
-  "SafeGas Technical Ltd",
-  "Prime Mechanical Contractors",
-]);
+const workAuthorizationFieldOrder: WorkAuthorizationValidationField[] = [
+  "selectedWorkInitiationId",
+  "riskChecklist",
+];
 
 export default function WorkAuthorizationForm() {
   const router = useRouter();
   const toast = useToast();
-  const [contractorRequired, setContractorRequired] = useState("");
-  const [workAreaFiles, setWorkAreaFiles] = useState<File[]>([]);
-  const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
+  const workInitiationsQuery = useEligibleWorkInitiationsForAuthorization();
+  const createWorkAuthorization = useCreateWorkAuthorization();
+  const riskChecklist = useActiveSafetyChecklist(
+    "work_authorization",
+    "risk_assessment",
+  );
+  const approvedWorkInitiations = workInitiationsQuery.data ?? [];
+  const workInitiations: AssignedWorkInitiationSummary[] = approvedWorkInitiations
+    .map((request) => ({
+      id: request.id,
+      reference: request.reference,
+      title: request.title,
+      status: "approved",
+      workCategory:
+        request.workCategory === "Other" && request.otherWorkCategory
+          ? `Other - ${request.otherWorkCategory}`
+          : request.workCategory,
+      relatedIncidentHazardId: request.relatedIncidentHazardId,
+      workType: request.workType,
+      location: request.location,
+      exactWorkArea: request.exactWorkArea,
+      workDescription: request.workDescription,
+      assignedSupervisorId: request.assignment.assignedSupervisorId,
+      assignedSupervisor: request.assignment.assignedSupervisor,
+      assignedWorkerIds: request.assignment.assignedWorkerIds,
+      assignedWorkers: request.assignment.assignedWorkers,
+      contractorsNeeded: request.assignment.contractorsNeeded,
+      selectedContractor: request.assignment.selectedContractor,
+      contractorContactEmail: request.assignment.contractorContactEmail,
+      plannedStartDateTime: request.assignment.plannedStartDateTime,
+      plannedEndDateTime: request.assignment.plannedEndDateTime,
+    }));
+  const [selectedWorkInitiationId, setSelectedWorkInitiationId] = useState("");
+  const [validationErrors, setValidationErrors] = useState<
+    ValidationErrors<WorkAuthorizationValidationField>
+  >({});
+  const [riskAnswers, setRiskAnswers] = useState<Record<string, string>>({});
+  const [safetyNote, setSafetyNote] = useState("");
+  const [attachmentNotes, setAttachmentNotes] = useState("");
+  const [safetyFiles, setSafetyFiles] = useState<File[]>([]);
+  const workInitiationOptions = approvedWorkInitiations.map((item) => ({
+    value: item.id,
+    label: item.reference ? `${item.reference} - ${item.title}` : item.title,
+    description: `${item.requester.name} | ${item.requester.requestDate}`,
+  }));
+  const selectedWorkInitiation = workInitiations.find(
+    (item) => item.id === selectedWorkInitiationId,
+  );
+  const selectedWorkInitiationRef = useRef<HTMLInputElement | null>(null);
+  const riskChecklistRef = useRef<HTMLDivElement | null>(null);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    toast.success("Work authorization request submitted successfully.");
-    window.setTimeout(() => {
+    if (isSubmitting) return;
+
+    const nextValidationErrors = validateWorkAuthorizationForm({
+      selectedWorkInitiation,
+      riskAnswers,
+      checklist: riskChecklist.data,
+    });
+    setValidationErrors(nextValidationErrors);
+
+    const firstInvalidField = getFirstInvalidField(
+      nextValidationErrors,
+      workAuthorizationFieldOrder,
+    );
+    if (firstInvalidField) {
+      scrollToValidationField(
+        firstInvalidField === "selectedWorkInitiationId"
+          ? selectedWorkInitiationRef
+          : riskChecklistRef,
+      );
+      return;
+    }
+    if (!selectedWorkInitiation) return;
+
+    const payload: WorkAuthorizationCreate = {
+      work_initiation_id: selectedWorkInitiation.id,
+      gas_involved: riskAnswers.gas_involved === "Yes",
+      pressurized_system: riskAnswers.pressurized_system === "Yes",
+      heat_or_sparks: riskAnswers.heat_or_sparks === "Yes",
+      electrical_isolation: riskAnswers.electrical_isolation === "Yes",
+      lifting_equipment: riskAnswers.lifting_equipment === "Yes",
+      ppe_available: riskAnswers.ppe_available === "Yes",
+      additional_safety_note: emptyToNull(safetyNote),
+      attachment_notes: emptyToNull(attachmentNotes),
+    };
+
+    let authorizationWasSaved = false;
+    try {
+      setIsSubmitting(true);
+      const savedAuthorization = await createWorkAuthorization.mutateAsync({
+        payload,
+        attachments: safetyFiles,
+      });
+      authorizationWasSaved = true;
+      const checklistAnswers = riskChecklist.data
+        ? buildRiskChecklistAnswers(riskChecklist.data, riskAnswers, safetyNote)
+        : [];
+
+      if (checklistAnswers.length > 0) {
+        await safetyChecklistsApi.createResponses({
+          parent_type: "work_authorization",
+          parent_id: savedAuthorization.id,
+          answers: checklistAnswers,
+        });
+      }
+
+      toast.success("Work authorization request submitted successfully.");
       router.push("/safety/work-authorization");
-    }, 700);
+    } catch (error) {
+      toast.error(
+        authorizationWasSaved
+          ? "Work authorization was saved, but checklist answers could not be saved."
+          : getApiErrorMessage(error, "Work authorization request could not be submitted."),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (riskChecklist.isLoading || workInitiationsQuery.isLoading) {
+    return <SafetyProcessFormSkeleton sections={5} />;
   }
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full space-y-5">
-      <FormSection title="Requester Details">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Requester Name" value={requester.name} disabled />
-          <FormInput label="Department" value={requester.department} disabled />
-          <FormInput label="Job Title / Role" value={requester.role} disabled />
-          <FormDatePicker label="Request Date" value={requester.requestDate} disabled />
-        </div>
-      </FormSection>
+      <SafetyValidationSummary
+        errors={validationErrors}
+        fieldOrder={workAuthorizationFieldOrder}
+      />
 
-      <FormSection title="Request Details">
+      <FormSection title="Work Initiation Lookup" description="Select the approved work initiation that requires safety authorization.">
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput label="Request Title" required placeholder="Enter request title" />
           <FormSelect
-            label="Work Location"
+            ref={selectedWorkInitiationRef}
+            label="Work Initiation Reference"
             required
             searchable
-            creatable
-            options={workLocationOptions}
-            placeholder="Select or add location"
-          />
-          <FormTextarea label="Exact Work Area" required placeholder="Describe the exact area" />
-          <FormDateTimeInput label="Expected Start Date/Time" required />
-          <FormDateTimeInput label="Expected End Date/Time" required />
-          <FormSelect
-            label="Supervisor"
-            required
-            searchable
-            options={employeeOptions}
-            placeholder="Select supervisor"
-          />
-          <FormSelect
-            label="Priority"
-            required
-            options={priorityOptions}
-            placeholder="Select priority"
+            options={workInitiationOptions}
+            placeholder="Select approved work initiation"
+            dropdownClassName="md:min-w-[34rem]"
+            value={selectedWorkInitiationId}
+            error={validationErrors.selectedWorkInitiationId}
+            onValueChange={(value) => {
+              setSelectedWorkInitiationId(value);
+              clearValidationError("selectedWorkInitiationId", setValidationErrors);
+            }}
           />
         </div>
       </FormSection>
 
-      <FormSection title="Work Details">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormMultiSelect
-            label="Type of Work"
-            required
-            searchable
-            creatable
-            options={workTypeOptions}
-            placeholder="Select work type"
-          />
-          <FormMultiSelect
-            label="Workers Involved"
-            required
-            searchable
-            options={employeeOptions}
-            placeholder="Select workers"
-          />
-          <FormTextarea
-            label="Work Description"
-            required
-            placeholder="Describe the work to be performed"
-            className="md:min-h-28"
-          />
-          <FormTextarea
-            label="Reason for Work"
-            required
-            placeholder="Explain why the work is needed"
-            className="md:min-h-28"
-          />
-          <FormToggleGroup
-            label="Contractor Required?"
-            required
-            options={yesNoOptions}
-            value={contractorRequired}
-            onValueChange={setContractorRequired}
-          />
-          {contractorRequired === "Yes" ? (
-            <>
-              <FormSelect
-                label="Contractor Name"
-                required
-                searchable
-                creatable
-                options={contractorOptions}
-                placeholder="Select or add contractor"
-              />
-              <FormInput
-                label="Contractor Contact Email"
-                type="email"
-                placeholder="Enter contractor contact email"
-              />
-            </>
+      <AssignedWorkSummary workInitiation={selectedWorkInitiation} />
+
+      <FormSection title="Safety / Risk Indicators" description="Identify safety considerations that apply before the work begins.">
+        {riskChecklist.isError ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Risk assessment checklist template is not available.
+          </p>
+        ) : null}
+        <div
+          ref={riskChecklistRef}
+          className={
+            validationErrors.riskChecklist
+              ? "space-y-4 rounded-xl border border-red-400 p-2"
+              : "space-y-4"
+          }
+        >
+          {riskChecklist.data ? (
+            <SafetyChoiceTable
+              options={yesNoOptions}
+              rows={riskChecklist.data.items
+                .filter((item) => item.input_type === "boolean")
+                .map((item) => ({
+                  label: item.label,
+                  required: item.is_required,
+                  value: riskAnswers[item.item_key] ?? "",
+                  onValueChange: (value) => {
+                    setRiskAnswers((current) => ({
+                      ...current,
+                      [item.item_key]: value,
+                    }));
+                    clearValidationError("riskChecklist", setValidationErrors);
+                  },
+                }))}
+            />
           ) : null}
-          <FormMultiSelect
-            label="Tools/Equipment Required"
-            required
-            searchable
-            creatable
-            options={toolsEquipmentOptions}
-            placeholder="Select tools or equipment"
-          />
-          <FormTextarea
-            label="Special Instructions"
-            placeholder="Add any special instructions"
-          />
+          {validationErrors.riskChecklist ? (
+            <p className="text-xs text-red-600">{validationErrors.riskChecklist}</p>
+          ) : null}
+          {riskChecklist.data?.items
+            .filter((item) => item.input_type === "text")
+            .map((item: SafetyChecklistItem) => (
+              <FormTextarea
+                key={item.id}
+                label={item.label}
+                placeholder="Add any extra safety concern"
+                value={safetyNote}
+                onChange={(event) => setSafetyNote(event.target.value)}
+              />
+            ))}
         </div>
       </FormSection>
 
-      <FormSection title="Safety / Risk Indicators">
-        <div className="grid gap-4 md:grid-cols-2">
-          <FormToggleGroup
-            label="Is gas/CNG/LNG involved?"
-            required
-            options={yesNoOptions}
+      <FormSection title="Attachments / Safety Evidence" description="Attach supporting safety documents or work area evidence.">
+        <div className="space-y-3">
+          <FileDropzone
+            label="Safety-related Images/Documents"
+            value={safetyFiles}
+            onChange={setSafetyFiles}
+            accept="image/*,.pdf,.doc,.docx"
+            maxFiles={10}
+            hint="Area images, safety checklists, hazard photos, PDFs, and documents are accepted."
           />
-          <FormToggleGroup
-            label="Is a pressurized system involved?"
-            required
-            options={yesNoOptions}
-          />
-          <FormToggleGroup
-            label="Will the work involve heat, sparks, welding, cutting, or grinding?"
-            required
-            options={yesNoOptions}
-          />
-          <FormToggleGroup
-            label="Is electrical isolation required?"
-            required
-            options={yesNoOptions}
-          />
-          <FormToggleGroup
-            label="Is lifting/heavy equipment involved?"
-            required
-            options={yesNoOptions}
-          />
-          <FormTextarea
-            label="Additional Safety Note"
-            placeholder="Add any extra safety concern"
-          />
-        </div>
-      </FormSection>
-
-      <FormSection title="Attachments">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-3">
-            <FileDropzone
-              label="Work Area Images"
-              value={workAreaFiles}
-              onChange={setWorkAreaFiles}
-              accept="image/*,.pdf,.doc,.docx"
-              maxFiles={10}
-              hint="Images, PDFs, and documents are accepted. No upload will occur yet."
-            />
-          </div>
-          <div className="space-y-3">
-            <FileDropzone
-              label="Supporting Documents"
-              value={supportingFiles}
-              onChange={setSupportingFiles}
-              accept="image/*,.pdf,.doc,.docx"
-              maxFiles={10}
-              hint="Attach method statements, drawings, checklists, or photos."
-            />
-          </div>
           <FormTextarea
             label="Attachment Notes"
             placeholder="Add notes about the selected files"
-            className="md:col-span-2"
+            value={attachmentNotes}
+            onChange={(event) => setAttachmentNotes(event.target.value)}
           />
         </div>
       </FormSection>
 
       <div className="flex gap-3 pt-1">
-        <Button type="submit">Submit Request</Button>
+        <Button
+          type="submit"
+          loading={isSubmitting || createWorkAuthorization.isPending}
+          loadingText="Submitting..."
+        >
+          Submit Request
+        </Button>
       </div>
     </form>
   );
 }
 
+function AssignedWorkSummary({
+  workInitiation,
+}: {
+  workInitiation: AssignedWorkInitiationSummary | undefined;
+}) {
+  return (
+    <FormSection title="Assigned Work Summary" description="Approved work scope and assignments from the selected initiation request.">
+      {!workInitiation ? (
+        <p className="text-sm text-brand-text-secondary">
+          Select an approved Work Initiation to load work details.
+        </p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormInput label="Work Title" value={workInitiation.title} disabled />
+          <FormInput label="Work Category" value={workInitiation.workCategory} disabled />
+          {workInitiation.relatedIncidentHazardId ? (
+            <FormInput label="Related Incident/Hazard Request" value={workInitiation.relatedIncidentHazardId} disabled />
+          ) : null}
+          <FormInput label="Work Type" value={workInitiation.workType.join(", ")} disabled />
+          <FormInput label="Location" value={workInitiation.location} disabled />
+          <FormTextarea label="Exact Work Area" value={workInitiation.exactWorkArea} disabled />
+          <FormInput label="Assigned Supervisor" value={workInitiation.assignedSupervisor} disabled />
+          <FormInput label="Assigned Workers" value={workInitiation.assignedWorkers.join(", ")} disabled />
+          <FormInput label="Contractors Needed" value={workInitiation.contractorsNeeded ? "Yes" : "No"} disabled />
+          {workInitiation.contractorsNeeded ? (
+            <>
+              <FormInput label="Selected Contractor" value={workInitiation.selectedContractor} disabled />
+              <FormInput label="Contractor Contact Email" type="email" value={workInitiation.contractorContactEmail} disabled />
+            </>
+          ) : null}
+          <FormInput label="Planned Start Date/Time" value={workInitiation.plannedStartDateTime} disabled />
+          <FormInput label="Planned End Date/Time" value={workInitiation.plannedEndDateTime} disabled />
+          <FormTextarea label="Work Description" value={workInitiation.workDescription} disabled className="md:col-span-2" />
+        </div>
+      )}
+    </FormSection>
+  );
+}
+
+function validateWorkAuthorizationForm({
+  selectedWorkInitiation,
+  riskAnswers,
+  checklist,
+}: {
+  selectedWorkInitiation: AssignedWorkInitiationSummary | undefined;
+  riskAnswers: Record<string, string>;
+  checklist: { items: SafetyChecklistItem[] } | undefined;
+}): ValidationErrors<WorkAuthorizationValidationField> {
+  const errors: ValidationErrors<WorkAuthorizationValidationField> = {};
+
+  if (!selectedWorkInitiation) {
+    errors.selectedWorkInitiationId = "Select approved work initiation.";
+  }
+
+  const missingRiskAnswer = checklist?.items.some((item) => (
+    item.is_required &&
+    item.input_type === "boolean" &&
+    !riskAnswers[item.item_key]
+  ));
+
+  if (missingRiskAnswer) {
+    errors.riskChecklist = "Complete the required safety/risk checks.";
+  }
+
+  return errors;
+}
+
+function buildRiskChecklistAnswers(
+  template: SafetyChecklistTemplate,
+  values: Record<string, string>,
+  safetyNote: string,
+): SafetyChecklistAnswerCreate[] {
+  return template.items.reduce<SafetyChecklistAnswerCreate[]>((answers, item) => {
+    if (item.input_type === "boolean") {
+      const value = values[item.item_key];
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_boolean: value === "Yes",
+        });
+      }
+    } else if (item.input_type === "text") {
+      const value = safetyNote.trim();
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_text: value,
+        });
+      }
+    }
+    return answers;
+  }, []);
+}
+
+function emptyToNull(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response
+    ?.data?.detail;
+
+  if (typeof detail === "string") return detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    "message" in detail &&
+    typeof detail.message === "string"
+  ) {
+    return detail.message;
+  }
+
+  return fallback;
+}
+
 function FormSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h2 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h2>
-      {children}
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description ? <p className="mt-0.5 text-sm text-brand-text-secondary">{description}</p> : null}
+      </div>
+      <div className="px-6 pt-5 pb-6">{children}</div>
     </section>
   );
 }

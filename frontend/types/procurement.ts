@@ -2,92 +2,149 @@ import type { Vendor } from "./vendor";
 
 export type ProcurementStatus =
   | "draft"
-  | "submitted"
-  | "ordered"
-  | "delivered"
-  | "cancelled";
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "returned"
+  | "awaiting_confirmation"
+  | "completed";
 
-export type ProcurementCategory =
-  | "consumables"
-  | "technical"
-  | "services"
-  | "capital";
+export type POStatus = "issued" | "delivered" | "cancelled";
 
-export type ProcurementPriority = "routine" | "urgent" | "emergency";
+export interface EmployeeInProcurement {
+  id: string;
+  employee_no: string;
+  job_title: string | null;
+  department: string | null;
+  user: {
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+  } | null;
+}
 
-export type ItemUnit =
-  | "pieces"
-  | "litres"
-  | "kg"
-  | "boxes"
-  | "metres"
-  | "hours"
-  | "sets"
-  | "cartons"
-  | "units";
+export interface AttachmentInProcurement {
+  id: number;
+  name: string;
+  file_path: string;
+  mime_type: string | null;
+  file_size: number | null;
+}
+
+export interface VendorInProcurement {
+  id: string;
+  name: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  bank_name: string | null;
+  account_name: string | null;
+  account_number: string | null;
+}
 
 export interface ProcurementItem {
   id: string;
   description: string;
   quantity: number;
-  unit: ItemUnit;
-  unit_cost: number;
-  total_cost: number;
-  created_at: string;
+  unit: string | null;
+  unit_price: number | null;
+  total_price: number | null;
 }
 
-/** Full detail response — includes vendor object and items array */
+export interface PurchaseOrder {
+  id: string;
+  po_number: string;
+  procurement_request_id: string;
+  total_amount: number;
+  currency: string;
+  issued_at: string;
+  status: POStatus;
+  notes: string | null;
+  document_id: number | null;
+  document: { id: number; file_path: string | null; name: string } | null;
+  vendor: VendorInProcurement | null;
+  issuer: EmployeeInProcurement | null;
+}
+
+/** Full detail — includes items and POs */
 export interface ProcurementRequest {
   id: string;
   reference: string;
-  title: string;
-  category: ProcurementCategory;
-  priority: ProcurementPriority;
-  justification: string | null;
-  required_by: string | null;
+  category: string | null;
+  description: string | null;
+  estimated_amount: number | null;
+  currency: string;
   status: ProcurementStatus;
-  attachment_url: string | null;
-  attachment_name: string | null;
-  po_url: string | null;
-  created_by: string;
-  is_active: boolean;
+  raised_by: string;
+  required_by: string | null;
+  vendor_id: string | null;
+  attachment_id: number | null;
+  attachment: AttachmentInProcurement | null;
   created_at: string;
   updated_at: string | null;
-  vendor: Vendor | null;
+  raiser: EmployeeInProcurement | null;
+  vendor: VendorInProcurement | null;
   items: ProcurementItem[];
+  purchase_orders: PurchaseOrder[];
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
 }
 
-/** Lighter type used in list views — no items array */
+/** Lighter type for list views */
 export interface ProcurementListItem {
   id: string;
   reference: string;
-  title: string;
-  category: ProcurementCategory;
-  priority: ProcurementPriority;
+  category: string | null;
   status: ProcurementStatus;
+  estimated_amount: number | null;
+  currency: string;
+  raised_by: string;
   required_by: string | null;
-  attachment_url: string | null;
-  po_url: string | null;
-  created_by: string;
+  vendor_id: string | null;
+  attachment_id: number | null;
   created_at: string;
-  vendor: Vendor | null;
+  updated_at: string | null;
+  raiser: EmployeeInProcurement | null;
+  vendor: VendorInProcurement | null;
+  /** Who needs to act next in the workflow (only set when status is "pending") */
+  next_actor_name: string | null;
+  current_step_name: string | null;
+  /** PO number — set whenever a PO exists (even if PDF not yet generated) */
+  po_number: string | null;
+  /** PO document download URL — only set when the PDF is ready */
+  po_document_url: string | null;
 }
 
-/** What the create form sends */
 export interface ProcurementItemInput {
   description: string;
   quantity: number;
-  unit: ItemUnit;
-  unit_cost: number;
-  total_cost: number;
+  unit?: string;
+  unit_price: number | null;
+  total_price: number | null;
 }
 
 export interface ProcurementCreateInput {
-  title: string;
-  category: ProcurementCategory;
-  priority: ProcurementPriority;
-  justification?: string;
+  category?: string;
+  description?: string;
+  estimated_amount?: number;
+  currency?: string;
   required_by?: string;
   vendor_id?: string;
   items: ProcurementItemInput[];
+}
+
+export interface ProcurementUpdateInput {
+  category?: string;
+  description?: string;
+  estimated_amount?: number;
+  required_by?: string;
+  vendor_id?: string;
+  items?: ProcurementItemInput[];
+}
+
+export interface IssuePOInput {
+  notes?: string;
+  vendor_id?: string;
 }

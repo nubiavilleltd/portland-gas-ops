@@ -7,21 +7,24 @@ import {
   useRef,
   useState,
 } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn, toTitleCase } from "@/lib/utils";
 
 export interface SelectOption {
   value: string;
   label: string;
+  description?: string;
 }
 
 interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "onChange"> {
-  label: string;
+  label?: string;
   options: SelectOption[];
   placeholder?: string;
   error?: string;
   hint?: string;
   searchable?: boolean;
+  /** Allow clearing the selection (shows the × and the "clear" row). Default true. */
+  clearable?: boolean;
   sortOptions?: boolean;
   searchPlaceholder?: string;
   creatable?: boolean;
@@ -29,6 +32,7 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   onValueChange?: (value: string) => void;
   triggerClassName?: string;
   dropdownClassName?: string;
+  dropdownPosition?: "bottom" | "top" | "auto";
 }
 
 function setNativeInputValue(input: HTMLInputElement, nextValue: string) {
@@ -51,6 +55,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       error,
       hint,
       searchable,
+      clearable = true,
       sortOptions = true,
       searchPlaceholder = "Search options",
       creatable = false,
@@ -58,6 +63,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       className,
       triggerClassName,
       dropdownClassName,
+      dropdownPosition = "auto",
       id,
       value,
       defaultValue,
@@ -70,10 +76,12 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
     },
     ref
   ) => {
-    const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
+    const inputId = id ?? (label ? label.toLowerCase().replace(/\s+/g, "-") : "select-input");
     const hiddenInputRef = useRef<HTMLInputElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
     const [open, setOpen] = useState(false);
+    const [resolvedPosition, setResolvedPosition] = useState<"bottom" | "top">("bottom");
     const [searchQuery, setSearchQuery] = useState("");
     const isControlled = value !== undefined;
     const [internalValue, setInternalValue] = useState(
@@ -100,7 +108,8 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
 
       const query = searchQuery.trim().toLowerCase();
       return normalizedOptions.filter((option) =>
-        option.displayLabel.toLowerCase().includes(query)
+        option.displayLabel.toLowerCase().includes(query) ||
+        option.description?.toLowerCase().includes(query)
       );
     }, [enableSearch, normalizedOptions, searchQuery]);
 
@@ -172,12 +181,29 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
     }
 
+    function handleClearSelected() {
+      if (!isControlled) {
+        setInternalValue("");
+      }
+
+      if (hiddenInputRef.current) {
+        setNativeInputValue(hiddenInputRef.current, "");
+      }
+
+      onValueChange?.("");
+      setOpen(false);
+      setSearchQuery("");
+      onBlur?.({ target: hiddenInputRef.current } as React.FocusEvent<HTMLInputElement>);
+    }
+
     return (
       <div ref={containerRef} className={cn("relative flex w-full flex-col gap-1 self-start", className)}>
-        <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-medium text-brand-text-primary">
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+        )}
 
         <input
           {...props}
@@ -190,36 +216,60 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
           readOnly
         />
 
-        <button
-          type="button"
-          id={inputId}
-          disabled={disabled}
-          onClick={() => setOpen((current) => !current)}
-          className={cn(
-            "h-10 rounded-lg border border-brand-border bg-white px-3 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
-            "flex items-center justify-between gap-3",
-            error && "border-red-400 focus:ring-red-400",
-            disabled &&
-              "cursor-not-allowed border-gray-200  shadow-none opacity-100 focus:ring-0 focus:border-gray-200",
-            triggerClassName
-          )}
-        >
-          <span className={cn(!selectedOption && "text-brand-text-secondary")}>
-            {selectedOption ? selectedOption.displayLabel : placeholder}
-          </span>
+        <div className="relative">
+          <button
+            ref={triggerRef}
+            type="button"
+            id={inputId}
+            disabled={disabled}
+            onClick={() => {
+              const next = !open;
+              if (next && dropdownPosition === "auto" && triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - rect.bottom;
+                setResolvedPosition(spaceBelow >= 260 ? "bottom" : "top");
+              }
+              setOpen(next);
+            }}
+            className={cn(
+              "h-10 w-full rounded-lg border border-brand-border bg-white px-3 pr-16 text-sm text-left text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow",
+              "flex items-center gap-3",
+              error && "border-red-400 focus:ring-red-400",
+              disabled &&
+                "cursor-not-allowed border-gray-200 bg-gray-50 text-brand-text-secondary opacity-100 shadow-none focus:ring-0 focus:border-gray-200",
+              triggerClassName
+            )}
+          >
+            <span className={cn("min-w-0 flex-1 truncate", !selectedOption && "text-brand-text-secondary")}>
+              {selectedOption ? selectedOption.displayLabel : placeholder}
+            </span>
+          </button>
+
+          {selectedOption && !disabled && clearable ? (
+            <button
+              type="button"
+              aria-label={`Clear ${label}`}
+              onClick={handleClearSelected}
+              className="absolute right-9 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-brand-text-secondary transition-colors hover:bg-gray-100 hover:text-brand-text-primary"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+
           <ChevronDown
             size={16}
             className={cn(
-              "shrink-0 text-brand-text-secondary transition-transform",
+              "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 shrink-0 text-brand-text-secondary transition-transform",
               open && "rotate-180"
             )}
           />
-        </button>
+        </div>
 
         {open && !disabled && (
           <div
             className={cn(
-              "absolute top-full z-50 mt-1 w-full rounded-2xl border border-brand-border bg-white p-2 shadow-xl",
+              "absolute z-50 w-full rounded-2xl border border-brand-border bg-white p-2 shadow-xl",
+              (dropdownPosition === "top" || (dropdownPosition === "auto" && resolvedPosition === "top")) ? "bottom-full mb-1" : "top-full mt-1",
               dropdownClassName
             )}
           >
@@ -239,6 +289,22 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             )}
 
             <div className="max-h-60 overflow-y-auto">
+              {clearable ? (
+                <button
+                  type="button"
+                  onClick={handleClearSelected}
+                  className={cn(
+                    "mb-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                    selectedValue
+                      ? "text-brand-text-secondary hover:bg-gray-50"
+                      : "bg-gray-50 text-brand-text-secondary"
+                  )}
+                >
+                  <span>{placeholder}</span>
+                  {!selectedValue ? <Check size={15} className="shrink-0" /> : null}
+                </button>
+              ) : null}
+
               {canCreateOption ? (
                 <button
                   type="button"
@@ -262,13 +328,22 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
                       type="button"
                       onClick={() => handleSelect(option.value)}
                       className={cn(
-                        "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                        "flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors",
                         isSelected
                           ? "bg-brand-purple-faint text-brand-purple"
                           : "text-brand-text-primary hover:bg-gray-50"
                       )}
                     >
-                      <span>{option.displayLabel}</span>
+                      <span className="min-w-0">
+                        <span className={cn("block", option.description && "font-medium")}>
+                          {option.displayLabel}
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-xs text-brand-text-secondary">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </span>
                       {isSelected ? <Check size={15} className="shrink-0" /> : null}
                     </button>
                   );

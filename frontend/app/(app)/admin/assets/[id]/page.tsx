@@ -1,0 +1,1436 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import {
+  ArrowLeft,
+  Package,
+  Pencil,
+  Trash2,
+  X,
+  AlertCircle,
+  Wrench,
+  Plus,
+  ClipboardList,
+  ArrowRight,
+  History,
+  Download,
+} from "lucide-react";
+import QRCode from "react-qr-code";
+import AppLayout from "@/components/layout/AppLayout";
+import AdminAssetDetailSkeleton from "./AdminAssetDetailSkeleton";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import {
+  useAsset,
+  useUpdateAsset,
+  useDeleteAsset,
+  useTransferAsset,
+  useMaintenanceLogs,
+  useCreateMaintenanceLog,
+  useUpdateMaintenanceLog,
+  useDeleteMaintenanceLog,
+  useAssetCategories,
+  useAssetTypes,
+  useAssignmentLogs,
+} from "@/lib/modules/assets";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
+import { useEmployees } from "@/lib/modules/employees/hooks";
+import { useToast } from "@/hooks/useToast";
+import { formatCurrency, formatDate, capitalize } from "@/lib/utils";
+import type {
+  AssetMaintenanceLog,
+  MaintenanceType,
+  AssetAssignmentLog,
+} from "@/types";
+import CurrencyInput from "@/components/forms/CurrencyInput";
+import FormDatePicker from "@/components/forms/FormDatePicker";
+import FormSelect from "@/components/forms/FormSelect";
+import FormTextarea from "@/components/forms/FormTextarea";
+
+const conditionOptions = [
+  { value: "new", label: "New" },
+  { value: "good", label: "Good" },
+  { value: "fair", label: "Fair" },
+  { value: "poor", label: "Poor" },
+];
+const statusOptions = [
+  { value: "available",         label: "Available" },
+  { value: "assigned",          label: "Assigned" },
+  { value: "under_maintenance", label: "Under Maintenance" },
+  { value: "decommissioned",    label: "Decommissioned" },
+];
+const maintenanceTypeOptions = [
+  { value: "routine", label: "Routine Service" },
+  { value: "inspection", label: "Inspection" },
+  { value: "calibration", label: "Calibration" },
+  { value: "repair", label: "Repair" },
+];
+const frequencyOptions = [
+  { value: "1", label: "Every month" },
+  { value: "3", label: "Every 3 months" },
+  { value: "6", label: "Every 6 months" },
+  { value: "12", label: "Every year" },
+  { value: "24", label: "Every 2 years" },
+];
+
+const STATUS_STYLES: Record<string, string> = {
+  available:         "bg-green-100 text-green-700",
+  assigned:          "bg-blue-100 text-blue-700",
+  under_maintenance: "bg-amber-100 text-amber-700",
+  decommissioned:    "bg-gray-100 text-gray-500",
+};
+const CONDITION_STYLES: Record<string, string> = {
+  new: "bg-purple-100 text-purple-700",
+  good: "bg-green-100 text-green-700",
+  fair: "bg-yellow-100 text-yellow-700",
+  poor: "bg-red-100 text-red-700",
+};
+const LOG_EVENT_COLOURS: Record<string, string> = {
+  registered: "bg-green-100 text-green-700",
+  assigned: "bg-blue-100 text-blue-700",
+  transferred: "bg-purple-100 text-purple-700",
+  returned: "bg-teal-100 text-teal-700",
+  status_changed: "bg-amber-100 text-amber-700",
+  retired: "bg-gray-100 text-gray-500",
+};
+
+function logEventDescription(log: AssetAssignmentLog): string {
+  switch (log.event_type) {
+    case "registered":
+      return log.to_employee_name
+        ? `Registered — assigned to ${log.to_employee_name}${log.to_location ? ` at ${log.to_location}` : ""}`
+        : `Registered — available${log.to_location ? ` at ${log.to_location}` : ""}`;
+    case "assigned":
+      return `Assigned to ${log.to_employee_name ?? "—"}${log.to_location ? ` at ${log.to_location}` : ""}`;
+    case "transferred": {
+      const from =
+        [log.from_employee_name, log.from_location].filter(Boolean).join(" / ") || "—";
+      const to =
+        [log.to_employee_name, log.to_location].filter(Boolean).join(" / ") || "—";
+      return `Transferred: ${from} → ${to}`;
+    }
+    case "returned":
+      return `Returned / Repaired${log.to_location ? ` — available at ${log.to_location}` : ""}`;
+    case "status_changed":
+      return log.notes ?? "Status changed";
+    default:
+      return log.notes ?? capitalize(log.event_type);
+  }
+}
+
+function EditModal({
+  asset,
+  categoryOptions,
+  onClose,
+}: {
+  asset: {
+    id: string;
+    name: string;
+    category_id: string | null;
+    asset_type_id: string | null;
+    serial_number: string | null;
+    purchase_date: string | null;
+    purchase_cost: number | null;
+    condition: string;
+    status: string;
+    location: string | null;
+    assigned_to: string | null;
+    description: string | null;
+    maintenance_type: string | null;
+    maintenance_frequency_months: number | null;
+  };
+  categoryOptions: { value: string; label: string }[];
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const updateAsset = useUpdateAsset(asset.id);
+  const { data: employeeList = [] } = useEmployees();
+  const employees: PickedEmployee[] = employeeList.map((e) => ({
+    id: e.id,
+    name: [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+    role: e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
+  }));
+  const [assignedEmployee, setAssignedEmployee] = useState<PickedEmployee | null>(null);
+
+  useEffect(() => {
+    if (!asset.assigned_to || employees.length === 0) return;
+    const found = employees.find((e) => e.id === asset.assigned_to) ?? null;
+    if (found) setAssignedEmployee(found);
+  }, [employees.length, asset.assigned_to]);
+  const [form, setForm] = useState({
+    name: asset.name,
+    category_id: asset.category_id ?? "",
+    asset_type_id: asset.asset_type_id ?? "",
+    serial_number: asset.serial_number ?? "",
+    purchase_date: asset.purchase_date ?? "",
+    purchase_cost:
+      asset.purchase_cost !== null ? String(asset.purchase_cost) : "",
+    condition: asset.condition,
+    status: asset.status,
+    location: asset.location ?? "",
+    assigned_to: asset.assigned_to ?? "",
+    description: asset.description ?? "",
+    maintenance_type: asset.maintenance_type ?? "",
+    maintenance_frequency_months: asset.maintenance_frequency_months
+      ? String(asset.maintenance_frequency_months)
+      : "",
+  });
+  const { data: assetTypes = [] } = useAssetTypes(
+    form.category_id || undefined,
+  );
+  function set(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+  function setCategory(value: string) {
+    setForm((prev) => ({ ...prev, category_id: value, asset_type_id: "" }));
+  }
+
+  async function handleSave() {
+    if (!form.name.trim()) {
+      toast.error("Asset name is required");
+      return;
+    }
+    if (!form.location.trim()) {
+      toast.error("Location is required");
+      return;
+    }
+    try {
+      await updateAsset.mutateAsync({
+        data: {
+          name: form.name,
+          category_id: form.category_id || undefined,
+          asset_type_id: form.asset_type_id || undefined,
+          serial_number: form.serial_number || undefined,
+          purchase_date: form.purchase_date || undefined,
+          purchase_cost: form.purchase_cost
+            ? parseFloat(form.purchase_cost)
+            : undefined,
+          condition: form.condition as import("@/types").AssetCondition,
+          status: form.status as import("@/types").AssetStatus,
+          location: form.location || undefined,
+          assigned_to: assignedEmployee?.id || undefined,
+          description: form.description || undefined,
+          maintenance_type: (form.maintenance_type || undefined) as
+            | import("@/types").MaintenanceType
+            | undefined,
+          maintenance_frequency_months: form.maintenance_frequency_months
+            ? parseInt(form.maintenance_frequency_months)
+            : undefined,
+        },
+      });
+      toast.success("Asset updated successfully");
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-white rounded-t-2xl sticky top-0 z-10">
+          <h3 className="text-base font-semibold text-brand-text-primary">
+            Edit Asset
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">
+              Asset Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              placeholder="Asset name"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Category"
+              value={form.category_id}
+              onValueChange={(v) => setCategory(v)}
+              options={categoryOptions}
+              placeholder="No category"
+            />
+            <FormSelect
+              label="Asset Type"
+              value={form.asset_type_id}
+              onValueChange={(v) => set("asset_type_id", v)}
+              options={assetTypes.map((t) => ({ value: t.id, label: t.name }))}
+              placeholder={form.category_id ? "No type" : "Select a category first"}
+              disabled={!form.category_id || assetTypes.length === 0}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">
+              Serial Number
+            </label>
+            <input
+              value={form.serial_number}
+              onChange={(e) => set("serial_number", e.target.value)}
+              placeholder="Serial number"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Condition"
+              value={form.condition}
+              onValueChange={(v) => set("condition", v)}
+              options={conditionOptions}
+            />
+            <FormSelect
+              label="Status"
+              value={form.status}
+              onValueChange={(v) => set("status", v)}
+              options={statusOptions}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormDatePicker
+              label="Purchase Date"
+              value={form.purchase_date}
+              onValueChange={(v) => set("purchase_date", v)}
+              dropdownClassName="min-w-[280px]"
+            />
+            <CurrencyInput
+              label="Purchase Cost (NGN)"
+              value={form.purchase_cost}
+              onValueChange={(value) => set("purchase_cost", value)}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">
+              Location <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={form.location}
+              onChange={(e) => set("location", e.target.value)}
+              placeholder="e.g. Lekki Office, Floor 2"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <EmployeePicker
+              label="Assigned To"
+              employees={employees}
+              value={assignedEmployee}
+              onChange={setAssignedEmployee}
+              placeholder="Search employee (optional)"
+              disabled={!!asset.assigned_to}
+            />
+            {asset.assigned_to && (
+              <p className="text-xs text-brand-text-secondary">
+                Use the <span className="font-medium">Transfer</span> action to reassign this asset.
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">
+              Description
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              rows={3}
+              placeholder="Asset description…"
+              className="rounded-lg border border-brand-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple resize-none"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Maintenance Type"
+              value={form.maintenance_type}
+              onValueChange={(v) => set("maintenance_type", v)}
+              options={maintenanceTypeOptions}
+              placeholder="None"
+              dropdownPosition="top"
+            />
+            <FormSelect
+              label="Frequency"
+              value={form.maintenance_frequency_months}
+              onValueChange={(v) => set("maintenance_frequency_months", v)}
+              options={frequencyOptions}
+              placeholder="Not set"
+              disabled={!form.maintenance_type}
+              dropdownPosition="top"
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-white sticky bottom-0 z-10 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={updateAsset.isPending}
+            className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {updateAsset.isPending ? (
+              <>
+                <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving…
+              </>
+            ) : (
+              "Save Changes"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransferModal({
+  asset,
+  onClose,
+}: {
+  asset: {
+    id: string;
+    name: string;
+    assigned_to: string | null;
+    assigned_to_name: string | null;
+    location: string | null;
+  };
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const transfer = useTransferAsset();
+  const { data: employeeList = [] } = useEmployees();
+  const employees: PickedEmployee[] = employeeList
+    .filter((e) => e.id !== asset.assigned_to)
+    .map((e) => ({
+      id: e.id,
+      name: [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+      role: e.job_title ?? e.user?.role ?? "",
+      department: e.department ?? "",
+      avatar_url: e.user?.profile_picture_url,
+    }));
+  const [toEmployee, setToEmployee] = useState<PickedEmployee | null>(null);
+  const [form, setForm] = useState({
+    to_location: "",
+    notes: "",
+  });
+  function set(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+  async function handleTransfer() {
+    if (!toEmployee || !form.to_location.trim()) {
+      toast.error("Person and location are required");
+      return;
+    }
+    try {
+      await transfer.mutateAsync({
+        id: asset.id,
+        data: {
+          to_employee_id: toEmployee.id,
+          to_employee_name: toEmployee.name,
+          to_location: form.to_location,
+          notes: form.notes || undefined,
+        },
+      });
+      toast.success("Asset transferred successfully");
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+          <h3 className="text-base font-semibold text-brand-text-primary">
+            Transfer Asset
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        {(asset.assigned_to || asset.location) && (
+          <div className="px-6 pt-4">
+            <p className="text-xs text-brand-text-secondary mb-1">Current</p>
+            <p className="text-sm text-brand-text-primary">
+              {[asset.assigned_to_name ?? asset.assigned_to, asset.location]
+                .filter(Boolean)
+                .join(" — ")}
+            </p>
+          </div>
+        )}
+        <div className="p-6 space-y-4">
+          <div className="flex flex-col gap-1">
+            <EmployeePicker
+              label="Transfer To (Person/Team)"
+              employees={employees}
+              value={toEmployee}
+              onChange={setToEmployee}
+              placeholder="Search employee"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">
+              New Location <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={form.to_location}
+              onChange={(e) => set("to_location", e.target.value)}
+              placeholder="e.g. Apapa Depot Store"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <FormTextarea
+            label="Notes (optional)"
+            rows={2}
+            maxLength={500}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="Reason for transfer…"
+          />
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-gray-50/50 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleTransfer}
+            disabled={transfer.isPending}
+            className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {transfer.isPending ? (
+              <>
+                <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Transferring…
+              </>
+            ) : (
+              "Confirm Transfer"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LogMaintenanceModal({
+  assetId,
+  onClose,
+}: {
+  assetId: string;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const createLog = useCreateMaintenanceLog(assetId);
+  const [form, setForm] = useState({
+    performed_date: new Date().toISOString().split("T")[0],
+    maintenance_type: "routine" as MaintenanceType,
+    technician: "",
+    cost: "",
+    notes: "",
+  });
+  function set(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+  async function handleSave() {
+    if (!form.performed_date) {
+      toast.error("Date performed is required");
+      return;
+    }
+    try {
+      await createLog.mutateAsync({
+        performed_date: form.performed_date,
+        maintenance_type: form.maintenance_type,
+        technician: form.technician || undefined,
+        cost: form.cost ? parseFloat(form.cost) : undefined,
+        notes: form.notes || undefined,
+      });
+      toast.success("Maintenance log added");
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+          <h3 className="text-base font-semibold text-brand-text-primary">
+            Log Maintenance
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <FormDatePicker
+                label="Date Performed"
+                required
+                max={new Date().toISOString().split("T")[0]}
+                value={form.performed_date}
+                onValueChange={(value) => set("performed_date", value)}
+                dropdownClassName="min-w-[280px]"
+              />
+            </div>
+            <FormSelect
+              label="Type"
+              value={form.maintenance_type}
+              onValueChange={(v) => set("maintenance_type", v)}
+              options={maintenanceTypeOptions}
+              sortOptions={false}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">
+              Technician / Company
+            </label>
+            <input
+              value={form.technician}
+              onChange={(e) => set("technician", e.target.value)}
+              placeholder="e.g. ABC Services Ltd"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">
+              Cost (NGN)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.cost}
+              onChange={(e) => set("cost", e.target.value)}
+              placeholder="0.00"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <FormTextarea
+            label="Notes"
+            rows={3}
+            maxLength={1000}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="What was done, parts replaced, observations…"
+          />
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-gray-50/50 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={createLog.isPending}
+            className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {createLog.isPending ? (
+              <>
+                <span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving…
+              </>
+            ) : (
+              "Save Log"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditMaintenanceLogModal({
+  assetId,
+  log,
+  onClose,
+}: {
+  assetId: string;
+  log: AssetMaintenanceLog;
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const updateLog = useUpdateMaintenanceLog(assetId);
+  const [form, setForm] = useState({
+    performed_date: log.performed_date,
+    maintenance_type: log.maintenance_type as MaintenanceType,
+    technician: log.technician ?? "",
+    cost: log.cost != null ? String(log.cost) : "",
+    notes: log.notes ?? "",
+  });
+  function set(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+  async function handleSave() {
+    if (!form.performed_date) { toast.error("Date performed is required"); return; }
+    try {
+      await updateLog.mutateAsync({
+        logId: log.id,
+        data: {
+          performed_date: form.performed_date,
+          maintenance_type: form.maintenance_type,
+          technician: form.technician || undefined,
+          cost: form.cost ? parseFloat(form.cost) : undefined,
+          notes: form.notes || undefined,
+        },
+      });
+      toast.success("Maintenance log updated");
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+          <h3 className="text-base font-semibold text-brand-text-primary">Edit Maintenance Log</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={18} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <FormDatePicker
+                label="Date Performed"
+                required
+                max={new Date().toISOString().split("T")[0]}
+                value={form.performed_date}
+                onValueChange={(value) => set("performed_date", value)}
+                dropdownClassName="min-w-[280px]"
+              />
+            </div>
+            <FormSelect
+              label="Type"
+              value={form.maintenance_type}
+              onValueChange={(v) => set("maintenance_type", v)}
+              options={maintenanceTypeOptions}
+              sortOptions={false}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">Technician / Company</label>
+            <input
+              value={form.technician}
+              onChange={(e) => set("technician", e.target.value)}
+              placeholder="e.g. ABC Services Ltd"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-brand-text-primary">Cost (NGN)</label>
+            <input
+              type="number" min="0" step="0.01"
+              value={form.cost}
+              onChange={(e) => set("cost", e.target.value)}
+              placeholder="0.00"
+              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          </div>
+          <FormTextarea
+            label="Notes"
+            rows={3}
+            maxLength={1000}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            placeholder="What was done, parts replaced, observations…"
+          />
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border bg-gray-50/50 rounded-b-2xl">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium border border-brand-border rounded-lg text-brand-text-secondary hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={updateLog.isPending}
+            className="px-5 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {updateLog.isPending ? (
+              <><span className="inline-block h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving…</>
+            ) : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminAssetDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const toast = useToast();
+  const { data: asset, isLoading, isError } = useAsset(id);
+  const deleteAsset = useDeleteAsset();
+  const { data: logs = [] } = useMaintenanceLogs(id);
+  const { data: assignmentLogs = [] } = useAssignmentLogs(id);
+  const { data: categories = [] } = useAssetCategories();
+  const qrRef = useRef<HTMLDivElement>(null);
+
+  const searchParams = useSearchParams();
+  const deleteLog = useDeleteMaintenanceLog(id);
+  const [editOpen, setEditOpen] = useState(() => searchParams.get("edit") === "true");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [editLogTarget, setEditLogTarget] = useState<AssetMaintenanceLog | null>(null);
+  const [deleteLogTarget, setDeleteLogTarget] = useState<AssetMaintenanceLog | null>(null);
+  const [activeTab, setActiveTab] = useState<"details" | "log" | "maintenance">(
+    "details",
+  );
+
+  async function downloadQR() {
+    if (asset?.qr_url) {
+      try {
+        const res = await fetch(asset.qr_url);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${asset?.asset_tag ?? asset?.name ?? "asset"}-qr.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        window.open(asset.qr_url, "_blank");
+      }
+      return;
+    }
+    const container = qrRef.current;
+    if (!container) return;
+    const svg = container.querySelector("svg");
+    if (!svg) return;
+    const serialized = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([serialized], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${asset?.asset_tag ?? asset?.name ?? "asset"}-qr.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleDelete() {
+    try {
+      await deleteAsset.mutateAsync(id);
+      toast.success("Asset deleted");
+      router.push("/admin/assets");
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+    setDeleteOpen(false);
+  }
+
+  if (isLoading)
+    return (
+      <AppLayout pageTitle="Admin — Assets">
+        <AdminAssetDetailSkeleton />
+      </AppLayout>
+    );
+  if (isError || !asset) {
+    return (
+      <AppLayout pageTitle="Admin — Assets">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-brand-text-secondary">
+          <AlertCircle size={32} />
+          <p className="text-sm">Asset not found.</p>
+          <button
+            onClick={() => router.push("/admin/assets")}
+            className="text-brand-purple text-sm hover:underline"
+          >
+            Go back
+          </button>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const categoryOptions = categories.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+
+  return (
+    <AppLayout pageTitle="Admin — Assets">
+      <button
+        onClick={() => router.push("/admin/assets")}
+        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
+      >
+        <ArrowLeft size={14} /> Back to Assets
+      </button>
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="bg-white border border-brand-border rounded-2xl p-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-semibold text-brand-text-primary">
+                {asset.name}
+              </h1>
+              {asset.category && (
+                <p className="text-sm text-brand-text-secondary mt-0.5">
+                  {asset.category.name}
+                </p>
+              )}
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <span
+                  className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}
+                >
+                  {capitalize(asset.status.replace(/_/g, " "))}
+                </span>
+                <span
+                  className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}
+                >
+                  {capitalize(asset.condition)}
+                </span>
+                {asset.asset_tag && (
+                  <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full">
+                    {asset.asset_tag}
+                  </span>
+                )}
+                {asset.is_maintenance_due && (
+                  <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                    <Wrench size={10} /> Maintenance Due
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <button
+                onClick={() => setTransferOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary"
+              >
+                <ArrowRight size={13} /> Transfer
+              </button>
+              <button
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary"
+              >
+                <Pencil size={13} /> Edit
+              </button>
+              <button
+                onClick={() => setDeleteOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-white border border-brand-border rounded-xl p-1 w-fit">
+          {(["details", "log", "maintenance"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={[
+                "px-4 py-1.5 text-sm rounded-lg transition-colors capitalize",
+                activeTab === tab
+                  ? "bg-brand-purple text-white font-medium"
+                  : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
+              ].join(" ")}
+            >
+              {tab === "log"
+                ? "Activity Log"
+                : tab === "maintenance"
+                  ? "Maintenance"
+                  : "Details"}
+            </button>
+          ))}
+        </div>
+
+        {/* Details Tab */}
+        {activeTab === "details" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="lg:col-span-2 space-y-5">
+              <div className="bg-white border border-brand-border rounded-2xl">
+                <div className="relative h-64 bg-gray-50 flex items-center justify-center rounded-2xl overflow-hidden">
+                  {asset.attachment_url ? (
+                    <Image
+                      src={asset.attachment_url}
+                      alt={asset.name}
+                      fill
+                      className="object-contain"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-gray-300">
+                      <Package size={48} />
+                      <p className="text-sm">No image</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-white border border-brand-border rounded-2xl">
+                <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+                  <h2 className="text-sm font-semibold text-brand-text-primary">
+                    Asset Details
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
+                    {(
+                      [
+                        ["Category", asset.category?.name ?? "—"],
+                        ["Asset Type", asset.asset_type?.name ?? "—"],
+                        ["Asset Tag", asset.asset_tag ?? "—"],
+                        ["Serial Number", asset.serial_number ?? "—"],
+                        ["Location", asset.location ?? "—"],
+                        ["Assigned To", asset.assigned_to_name ?? asset.assigned_to ?? "—"],
+                        ["Purchase Date", formatDate(asset.purchase_date)],
+                        [
+                          "Purchase Cost",
+                          asset.purchase_cost
+                            ? formatCurrency(Number(asset.purchase_cost))
+                            : "—",
+                        ],
+                        ["Added", formatDate(asset.created_at)],
+                      ] as [string, string][]
+                    ).map(([label, value]) => (
+                      <div key={label}>
+                        <p className="text-xs text-brand-text-secondary mb-0.5">
+                          {label}
+                        </p>
+                        <p className="font-medium text-brand-text-primary">
+                          {value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {asset.description && (
+                    <div className="mt-5 pt-5 border-t border-brand-border">
+                      <p className="text-xs text-brand-text-secondary mb-1">
+                        Description
+                      </p>
+                      <p className="text-sm text-brand-text-primary">
+                        {asset.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="bg-white border border-brand-border rounded-2xl p-5">
+                <h3 className="text-sm font-semibold text-brand-text-primary mb-4">
+                  Quick Info
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-brand-text-secondary">Status</span>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}
+                    >
+                      {capitalize(asset.status.replace(/_/g, " "))}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-brand-text-secondary">Condition</span>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}
+                    >
+                      {capitalize(asset.condition)}
+                    </span>
+                  </div>
+                  {asset.assigned_to && (
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-brand-text-secondary shrink-0">
+                        Assigned To
+                      </span>
+                      <span className="font-medium text-brand-text-primary text-right">
+                        {asset.assigned_to_name ?? asset.assigned_to}
+                      </span>
+                    </div>
+                  )}
+                  {asset.location && (
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-brand-text-secondary shrink-0">
+                        Location
+                      </span>
+                      <span className="font-medium text-brand-text-primary text-right">
+                        {asset.location}
+                      </span>
+                    </div>
+                  )}
+                  {asset.category && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-brand-text-secondary">
+                        Category
+                      </span>
+                      <span className="font-medium text-brand-text-primary">
+                        {asset.category.name}
+                      </span>
+                    </div>
+                  )}
+                  {asset.asset_type && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-brand-text-secondary">
+                        Asset Type
+                      </span>
+                      <span className="font-medium text-brand-text-primary">
+                        {asset.asset_type.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-white border border-brand-border rounded-2xl p-5">
+                <h3 className="text-sm font-semibold text-brand-text-primary mb-4">
+                  QR Code
+                </h3>
+                <div className="flex flex-col items-center gap-3">
+                  <div
+                    ref={qrRef}
+                    className="p-3 bg-white border border-brand-border rounded-xl"
+                  >
+                    {asset.qr_url ? (
+                      <img src={asset.qr_url} alt="QR Code" width={140} height={140} />
+                    ) : (
+                      <QRCode
+                        value={`${typeof window !== "undefined" ? window.location.origin : ""}/assets/${asset.id}`}
+                        size={140}
+                        fgColor="#1a1a1a"
+                        bgColor="#ffffff"
+                      />
+                    )}
+                  </div>
+                  {asset.asset_tag && (
+                    <p className="text-xs font-mono text-brand-text-secondary">
+                      {asset.asset_tag}
+                    </p>
+                  )}
+                  <button
+                    onClick={downloadQR}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-brand-border text-brand-text-primary text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={13} /> Download QR
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Activity Log Tab */}
+        {activeTab === "log" && (
+          <div className="bg-white border border-brand-border rounded-2xl">
+            <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center gap-2">
+              <History size={14} className="text-brand-purple" />
+              <div>
+                <h2 className="text-sm font-semibold text-brand-text-primary">
+                  Activity Log
+                </h2>
+                <p className="text-xs text-brand-text-secondary mt-0.5">
+                  {assignmentLogs.length} event
+                  {assignmentLogs.length !== 1 ? "s" : ""} recorded
+                </p>
+              </div>
+            </div>
+            {assignmentLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-brand-text-secondary">
+                <History size={28} className="mb-2 text-gray-300" />
+                <p className="text-sm">No activity recorded yet</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-brand-border">
+                {assignmentLogs.map((log) => (
+                  <div key={log.id} className="px-6 py-4">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${LOG_EVENT_COLOURS[log.event_type] ?? "bg-gray-100 text-gray-500"}`}
+                          >
+                            {capitalize(log.event_type.replace(/_/g, " "))}
+                          </span>
+                        </div>
+                        <p className="text-sm text-brand-text-primary">
+                          {logEventDescription(log)}
+                        </p>
+                        {log.notes &&
+                          log.event_type !== "status_changed" && (
+                            <p className="text-xs text-brand-text-secondary mt-0.5">
+                              {log.notes}
+                            </p>
+                          )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-brand-text-secondary">
+                          {formatDate(log.performed_at)}
+                        </p>
+                        {log.performed_by_name && (
+                          <p className="text-[10px] text-brand-text-secondary mt-0.5">
+                            {log.performed_by_name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Maintenance Tab */}
+        {activeTab === "maintenance" && (
+          <div className="space-y-5">
+            <div className="bg-white border border-brand-border rounded-2xl">
+              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-brand-text-primary">
+                    Maintenance Schedule
+                  </h2>
+                  <p className="text-xs text-brand-text-secondary mt-0.5">
+                    Recurring maintenance configuration
+                  </p>
+                </div>
+                <button
+                  onClick={() => setLogOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
+                >
+                  <Plus size={14} /> Log Maintenance
+                </button>
+              </div>
+              <div className="p-6">
+                {asset.maintenance_type ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                    <div>
+                      <p className="text-xs text-brand-text-secondary mb-1">
+                        Type
+                      </p>
+                      <p className="text-sm font-medium text-brand-text-primary capitalize">
+                        {asset.maintenance_type.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-brand-text-secondary mb-1">
+                        Frequency
+                      </p>
+                      <p className="text-sm font-medium text-brand-text-primary">
+                        {asset.maintenance_frequency_months
+                          ? asset.maintenance_frequency_months === 1
+                            ? "Every month"
+                            : asset.maintenance_frequency_months === 12
+                              ? "Every year"
+                              : asset.maintenance_frequency_months === 24
+                                ? "Every 2 years"
+                                : `Every ${asset.maintenance_frequency_months} months`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-brand-text-secondary mb-1">
+                        Next Due
+                      </p>
+                      <p
+                        className={`text-sm font-medium ${asset.is_maintenance_due ? "text-red-600" : "text-brand-text-primary"}`}
+                      >
+                        {asset.next_maintenance_due
+                          ? formatDate(asset.next_maintenance_due)
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-brand-text-secondary mb-1">
+                        Status
+                      </p>
+                      {asset.is_maintenance_due ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                          Due Now
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                          On Schedule
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-brand-text-secondary">
+                    <Wrench size={28} className="mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">
+                      No maintenance schedule configured
+                    </p>
+                    <p className="text-xs mt-1">
+                      Edit the asset to add a maintenance schedule
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="bg-white border border-brand-border rounded-2xl">
+              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+                <h2 className="text-sm font-semibold text-brand-text-primary">
+                  Maintenance History
+                </h2>
+                <p className="text-xs text-brand-text-secondary mt-0.5">
+                  {logs.length} log{logs.length !== 1 ? "s" : ""} recorded
+                </p>
+              </div>
+              {logs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-brand-text-secondary">
+                  <ClipboardList size={28} className="mb-2 text-gray-300" />
+                  <p className="text-sm">No maintenance logs yet</p>
+                  <button
+                    onClick={() => setLogOpen(true)}
+                    className="mt-3 text-sm text-brand-purple hover:underline font-medium"
+                  >
+                    + Log first maintenance
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-brand-border">
+                  {logs.map((log) => (
+                    <div key={log.id} className="px-6 py-4">
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-brand-text-primary capitalize">
+                              {log.maintenance_type.replace(/_/g, " ")}
+                            </span>
+                          </div>
+                          {log.technician && (
+                            <p className="text-xs text-brand-text-secondary">
+                              By: {log.technician}
+                            </p>
+                          )}
+                          {log.notes && (
+                            <p className="text-sm text-brand-text-primary mt-1">
+                              {log.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-start gap-3 shrink-0">
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-brand-text-primary">
+                              {formatDate(log.performed_date)}
+                            </p>
+                            {log.cost != null && (
+                              <p className="text-xs text-brand-text-secondary mt-0.5">
+                                {formatCurrency(Number(log.cost))}
+                              </p>
+                            )}
+                            {log.logged_by_name && (
+                              <p className="text-[10px] text-brand-text-secondary mt-1">
+                                Logged by {log.logged_by_name}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditLogTarget(log)}
+                              className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+                              title="Edit log"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteLogTarget(log)}
+                              className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-500 transition-colors"
+                              title="Delete log"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {editOpen && (
+        <EditModal
+          asset={asset}
+          categoryOptions={categoryOptions}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
+      {transferOpen && (
+        <TransferModal asset={asset} onClose={() => setTransferOpen(false)} />
+      )}
+      {logOpen && (
+        <LogMaintenanceModal assetId={id} onClose={() => setLogOpen(false)} />
+      )}
+      {editLogTarget && (
+        <EditMaintenanceLogModal
+          assetId={id}
+          log={editLogTarget}
+          onClose={() => setEditLogTarget(null)}
+        />
+      )}
+      <ConfirmDialog
+        open={!!deleteLogTarget}
+        title="Delete Maintenance Log"
+        message={`Remove the ${deleteLogTarget?.maintenance_type.replace(/_/g, " ")} log from ${formatDate(deleteLogTarget?.performed_date ?? "")}? This cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={async () => {
+          if (!deleteLogTarget) return;
+          try {
+            await deleteLog.mutateAsync(deleteLogTarget.id);
+            toast.success("Maintenance log deleted");
+          } catch (err) {
+            toast.error((err as Error).message);
+          }
+          setDeleteLogTarget(null);
+        }}
+        onCancel={() => setDeleteLogTarget(null)}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Deactivate Asset"
+        message={`Deactivate "${asset.name}"? It will be hidden from all users and requests but remain in the system for record-keeping. The asset must not be currently assigned.`}
+        confirmLabel="Deactivate"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteOpen(false)}
+      />
+    </AppLayout>
+  );
+}

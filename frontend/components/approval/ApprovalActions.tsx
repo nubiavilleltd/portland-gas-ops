@@ -9,11 +9,12 @@ interface Props {
   onReject: (comment?: string) => void;
   onReturn: (comment?: string) => void;
   loading?: boolean;
+  approveLabel?: string;
 }
 
 type Action = "approve" | "reject" | "return" | null;
 
-export default function ApprovalActions({ onApprove, onReject, onReturn, loading }: Props) {
+export default function ApprovalActions({ onApprove, onReject, onReturn, loading, approveLabel = "Approve" }: Props) {
   const [pendingAction, setPendingAction] = useState<Action>(null);
   const [comment, setComment] = useState("");
 
@@ -66,7 +67,7 @@ export default function ApprovalActions({ onApprove, onReject, onReturn, loading
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-50"
         >
           <CheckCircle size={14} />
-          Approve
+          {approveLabel}
         </button>
       </div>
 

@@ -1,103 +1,181 @@
 // ============================================================
-//  ORDERS MODULE — CANONICAL TYPE DEFINITIONS
-//  All order-related types live here. Import from here, not from mock files.
+// ORDERS MODULE — CANONICAL TYPE DEFINITIONS
+//
+// These are the frontend domain models.
+//
+// RULES
+// - Frontend uses camelCase only.
+// - Backend adapters translate snake_case ↔ camelCase.
+// - Do not import types from mock files.
 // ============================================================
 
-// ── 1. ORDER LIFECYCLE STATUS ─────────────────────────────
-// Tracks the administrative state of the order itself.
+import { ItemDisposition } from "../../inventory/types/inventory.types";
+import type { PaymentStatus } from "../../payments/types/payments.types";
+
+// ─────────────────────────────────────────────────────────────
+// Order Status
+// Administrative lifecycle of an order
+// ─────────────────────────────────────────────────────────────
+
+
+export type DiscountType =
+  | "none"
+  | "percentage"
+  | "fixed";
+
 export type OrderStatus =
-  | "draft"       // Being created, not yet submitted
-  | "confirmed"   // Approved / ready for fulfillment
-  | "completed"   // Delivered + fully paid — terminal state
-  | "cancelled";  // Cancelled — terminal state
+  | "draft"
+  | "submitted"
+  | "confirmed"
+  | "completed"
+  | "cancelled";
 
-// ── 2. FULFILLMENT STATUS ─────────────────────────────────
-// Tracks where the physical delivery is in its journey.
+export type OrderStatusTransition = Record<
+  OrderStatus,
+  readonly OrderStatus[]
+>;
+
+// ─────────────────────────────────────────────────────────────
+// Fulfillment Status
+// Physical delivery lifecycle
+// ─────────────────────────────────────────────────────────────
+
 export type FulfillmentStatus =
-  | "pending"      // Confirmed but no trip assigned yet
-  | "assigned"     // Assigned to a trip (driver + vehicle selected)
-  | "dispatched"   // Trip has physically left the depot
-  | "in_transit"   // On the road
-  | "delivered"    // Successfully delivered to customer
-  | "failed";      // Delivery attempt failed
+  | "pending"
+  | "assigned"
+  | "dispatched"
+  | "in_transit"
+  | "delivered"
+  | "failed";
 
-// ── 3. PAYMENT STATUS ─────────────────────────────────────
-// Tracks the billing / cash-collection state.
-export type PaymentStatus =
-  | "unpaid"
-  | "partially_paid"
-  | "paid"
-  | "overdue";
 
-// ── 4. ORDER ENTITY ───────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// Approval
+// ─────────────────────────────────────────────────────────────
+
+export type ApprovalStatus =
+  | "pending"
+  | "approved"
+  | "rejected";
+
+// ─────────────────────────────────────────────────────────────
+// Order Line Item
+// ─────────────────────────────────────────────────────────────
+
+export interface OrderLineItem {
+  productId: string;
+  productName: string;
+
+  quantity: number;
+  unitPrice: number;
+  total: number;
+
+  inventoryItemIds?: string[];
+
+  disposition?: ItemDisposition;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Order Entity
+// ─────────────────────────────────────────────────────────────
+
 export interface Order {
   id: string;
-  order_number: string;
+
+  orderNumber: string;
 
   // Customer
-  customer_id: string;
-  customer_name: string;
+  customerId: string;
+  customerName: string;
 
-  // Product
-  order_type: string;
-  product_name?: string;
-  quantity: number;
-  unit_price: number;
-  total_amount: number;
+  // Products
+  orderItems: OrderLineItem[];
+
+  discountType: DiscountType;
+  discountValue: number;
+  discountAmount: number;
+
+  totalAmount: number;
 
   // Delivery
-  delivery_address: string;
-  delivery_date: string | null;
+  deliveryAddress: string;
+  deliveryDate: string | null;
   notes?: string;
 
-  // Three independent status dimensions
-  order_status: OrderStatus;
-  fulfillment_status: FulfillmentStatus;
-  payment_status: PaymentStatus;
+  // Cancellation
+  cancellationReason?: string;
 
-  // Foreign-key links (populated when related entity is created)
-  trip_id?: string;       // Set when order is added to a Trip
-  invoice_id?: string;    // Set when invoice is generated
+  // Status dimensions
+  orderStatus: OrderStatus;
+  fulfillmentStatus: FulfillmentStatus;
+  paymentStatus: PaymentStatus;
 
-  // Approval (future — fields are here so backend can add them painlessly)
-  requires_approval?: boolean;
-  approval_status?: "pending" | "approved" | "rejected";
-  approved_by?: string;
-  approved_at?: string;
-  rejection_reason?: string;
+  // Related entities
+  tripId?: string;
+  invoiceId?: string;
 
-  // Timestamps
-  created_at: string;
-  confirmed_at?: string;
-  delivered_at?: string;
+  // Approval
+  requiresApproval?: boolean;
+  approvalStatus?: ApprovalStatus;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+
+  // Audit timestamps
+  createdAt: string;
+  confirmedAt?: string;
+  deliveredAt?: string;
+  cancelledAt?: string;
 }
 
-// ── 5. INPUT / FORM TYPES ─────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Create / Update Inputs
+// ─────────────────────────────────────────────────────────────
+
+export interface CreateOrderLineItemInput {
+  productId: string;
+  quantity: number;
+}
+
 export interface CreateOrderInput {
-  customer_id: string;
-  order_type: string;
-  product_name: string;
-  quantity: string;       // String because HTML inputs are strings; service converts
-  unit_price: string;
-  delivery_address: string;
-  delivery_date?: string;
+  customerId: string;
+
+  orderItems: CreateOrderLineItemInput[];
+  discountType: DiscountType;
+  discountValue: number;
+
+  deliveryAddress: string;
+  deliveryDate?: string;
+
   notes?: string;
 }
 
-export interface UpdateOrderInput extends Partial<CreateOrderInput> {
-  order_status?: OrderStatus;
-  fulfillment_status?: FulfillmentStatus;
-  payment_status?: PaymentStatus;
-  trip_id?: string;
-  invoice_id?: string;
+export interface UpdateOrderInput
+  extends Partial<CreateOrderInput> {
+  orderStatus?: OrderStatus;
+  fulfillmentStatus?: FulfillmentStatus;
+  paymentStatus?: PaymentStatus;
+
+  tripId?: string | null;
+  invoiceId?: string;
+
+  cancellationReason?: string;
+  cancelledAt?: string;
 }
 
-// ── 6. DERIVED / COMPUTED TYPES ───────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Dashboard KPIs
+// ─────────────────────────────────────────────────────────────
+
 export interface OrderKPIs {
   totalOrders: number;
-  pendingDispatch: number;    // confirmed + pending fulfillment
+
+  pendingDispatch: number;
   inTransit: number;
   delivered: number;
+
   unpaidOrders: number;
+
   totalRevenue: number;
 }

@@ -6,7 +6,7 @@ import IncidentHazardReportsTable from "../components/IncidentHazardReportsTable
 
 export default function IncidentHazardPage() {
   return (
-    <AppLayout pageTitle="Incident & Hazard Reports">
+    <AppLayout pageTitle="Safety & Compliance">
       <PageHeader
         title="Incident & Hazard Reports"
         description="Report incidents, hazards, near misses, and HSE corrective actions."

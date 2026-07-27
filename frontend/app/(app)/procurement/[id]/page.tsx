@@ -1,105 +1,156 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Paperclip, Building2, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, Download, Loader2 } from "lucide-react";
+import api from "@/lib/api";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
+import FormSection from "@/components/ui/FormSection";
+import FormInput from "@/components/forms/FormInput";
+import FormTextarea from "@/components/forms/FormTextarea";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { useUpdateProcurementStatus, useCancelProcurement, useProcurement } from "@/hooks/useProcurement";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import ProcurementDetailSkeleton from "./ProcurementDetailSkeleton";
+import AuditTrail from "@/components/forms/AuditTrail";
+import {
+  useProcurement,
+  useApproveAndIssuePO,
+  useConfirmDelivery,
+} from "@/lib/modules/procurement";
+import {
+  useMyApprovals,
+  useAuditTrail,
+} from "@/lib/modules/workflow/queries";
+import {
+  useWorkflowApprove,
+  useWorkflowReject,
+  useWorkflowReturn,
+} from "@/lib/modules/workflow/mutations";
 import { useToast } from "@/hooks/useToast";
-import { formatDate, formatCurrency, capitalize } from "@/lib/utils";
-import { API_URL } from "@/lib/constants";
-import { useAuthStore } from "@/store/authStore";
+import { formatDate, formatDateTime, formatCurrency, capitalize } from "@/lib/utils";
+import { generatePO } from "@/lib/generatePO";
 import type { ProcurementStatus } from "@/types";
 
-function DownloadPOButton({ requestId, reference }: { requestId: string; reference: string }) {
-  const [loading, setLoading] = useState(false);
-  const token = useAuthStore((s) => s.accessToken);
+// ── Status badge colours ───────────────────────────────────────────────────────
 
-  async function handleDownload() {
-    setLoading(true);
-    try {
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_URL}/api/procurement/${requestId}/download-po`, {
-        headers,
-        credentials: "include",   // sends access_token cookie, same as axios withCredentials
-      });
-      if (!res.ok) throw new Error("Download failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${reference}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert("Could not download the PDF. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <button
-      onClick={handleDownload}
-      disabled={loading}
-      className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary disabled:opacity-50"
-    >
-      <Download size={14} />
-      {loading ? "Downloading…" : "Download PO"}
-    </button>
-  );
-}
-
-const STATUS_ACTIONS: Record<ProcurementStatus, { label: string; next: ProcurementStatus } | null> = {
-  submitted: { label: "Mark as Ordered", next: "ordered" },
-  ordered: { label: "Mark as Delivered", next: "delivered" },
-  delivered: null,
-  cancelled: null,
-  draft: { label: "Submit", next: "submitted" },
+const STATUS_LABELS: Record<ProcurementStatus, string> = {
+  draft:     "Draft",
+  pending:   "Pending Approval",
+  approved:  "Approved",
+  rejected:  "Rejected",
+  returned:  "Returned",
+  awaiting_confirmation: "Awaiting Confirmation",
+  completed: "Completed",
 };
 
+// ── Page ───────────────────────────────────────────────────────────────────────
+
 export default function ProcurementDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const toast = useToast();
-  const { user } = useCurrentUser();
+  const { id }  = useParams<{ id: string }>();
+  const router  = useRouter();
+  const toast   = useToast();
 
-  const { data: req, isLoading, isError } = useProcurement(id);
-  const updateStatus = useUpdateProcurementStatus(id);
-  const cancelRequest = useCancelProcurement(id);
+  const { data: req, isLoading, isFetching, isError } = useProcurement(id);
+  const [isActioning,       setIsActioning]       = useState(false);
+  const [openingAttachment, setOpeningAttachment] = useState(false);
 
-  const isManager = user?.role === "admin" || user?.role === "super_admin";
-
-  async function handleStatusUpdate(next: ProcurementStatus) {
+  async function openAttachment() {
+    setOpeningAttachment(true);
     try {
-      await updateStatus.mutateAsync(next);
-      toast.success(`Request marked as ${next}`);
+      const response = await api.get(`/api/procurement/${id}/attachment/download`, {
+        responseType: "blob",
+      });
+      const blob     = new Blob([response.data], { type: String(response.headers["content-type"] || "application/pdf") });
+      const url      = URL.createObjectURL(blob);
+      const filename = req?.attachment?.name ?? "attachment";
+      const a        = document.createElement("a");
+      a.href         = url;
+      a.download     = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch {
-      toast.error("Failed to update status");
+      toast.error("Could not open attachment. Please try again.");
+    } finally {
+      setOpeningAttachment(false);
     }
   }
 
-  async function handleCancel() {
-    if (!confirm("Are you sure you want to cancel this request?")) return;
+  useEffect(() => {
+    if (isActioning && !isFetching) setIsActioning(false);
+  }, [isFetching, isActioning]);
+  const approveAndIssuePO  = useApproveAndIssuePO();
+  const confirmDelivery    = useConfirmDelivery();
+
+  // Workflow: check if I'm the current step's approver for this request
+  const { data: myApprovals = [] } = useMyApprovals();
+  const myApprovalEntry = myApprovals.find(
+    (a) => a.request_type === "procurement" && a.request_id === id
+  );
+  const approvalRequestId = myApprovalEntry?.approval_request_id ?? null;
+  // The Issue PO step is always the second-to-last step in the procurement
+  // workflow (the last step is Confirm Delivery). Using total_steps from the
+  // backend means this stays correct if the admin adds or removes steps.
+  const isIssuePOStep =
+    myApprovalEntry?.request_type === "procurement" &&
+    myApprovalEntry.current_step_number === myApprovalEntry.total_steps - 1;
+
+  // Workflow approval actions (wired to engine, not direct admin bypass)
+  const workflowApprove = useWorkflowApprove();
+  const workflowReject  = useWorkflowReject();
+  const workflowReturn  = useWorkflowReturn();
+
+  // Audit trail
+  const { data: auditTrail = [] } = useAuditTrail("procurement", id);
+
+  // Goods received confirmation state
+  const [goodsConfirmed, setGoodsConfirmed] = useState(false);
+
+  function raiserName() {
+    if (!req?.raiser?.user) return "—";
+    const { first_name, last_name } = req.raiser.user;
+    return [first_name, last_name].filter(Boolean).join(" ") || req.raiser.user.email;
+  }
+
+  const grandTotal = req?.items.reduce(
+    (sum, item) => sum + (Number(item.total_price) || 0),
+    0
+  ) ?? 0;
+
+  async function handleAction(action: "approve" | "reject" | "return", comment: string) {
+    if (!approvalRequestId) return;
+    setIsActioning(true);
     try {
-      await cancelRequest.mutateAsync();
-      toast.success("Request cancelled");
-      router.push("/procurement");
-    } catch {
-      toast.error("Failed to cancel request");
+      if (action === "approve") {
+        await workflowApprove.mutateAsync({ approvalRequestId, comment: comment || undefined });
+        toast.success("Request approved");
+      } else if (action === "reject") {
+        await workflowReject.mutateAsync({ approvalRequestId, comment: comment || undefined });
+        toast.success("Request rejected");
+      } else {
+        await workflowReturn.mutateAsync({ approvalRequestId, comment: comment || undefined });
+        toast.success("Returned to requester for revision");
+      }
+    } catch (err) {
+      setIsActioning(false);
+      toast.error((err as Error).message);
     }
   }
 
-  if (isLoading) {
+  const isBusy =
+    workflowApprove.isPending   ||
+    workflowReject.isPending    ||
+    workflowReturn.isPending    ||
+    approveAndIssuePO.isPending ||
+    confirmDelivery.isPending;
+
+
+  if (isLoading || isActioning) {
     return (
       <AppLayout pageTitle="Procurement">
-        <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        <ProcurementDetailSkeleton />
       </AppLayout>
     );
   }
@@ -116,188 +167,342 @@ export default function ProcurementDetailPage() {
     );
   }
 
-  const grandTotal = req.items.reduce((sum, item) => sum + Number(item.total_cost), 0);
-  const statusAction = STATUS_ACTIONS[req.status];
-
   return (
     <AppLayout pageTitle="Procurement">
-      {/* Back */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} /> Back to Procurement
-      </button>
 
-      <div className="max-w-4xl space-y-5">
+      {/* ── Top bar ──────────────────────────────────────────────────────────── */}
+      <div className="mb-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary transition-colors"
+        >
+          <ArrowLeft size={14} /> Back to Procurement
+        </button>
+      </div>
 
-        {/* ── Header card ─────────────────────────────────────────────────── */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-mono text-brand-text-secondary mb-1">{req.reference}</p>
-              <h1 className="text-xl font-semibold text-brand-text-primary">{req.title}</h1>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <ApprovalBadge status={req.status} />
-              {req.po_url && (
-                <DownloadPOButton requestId={req.id} reference={req.reference} />
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 mt-6 text-sm">
-            {[
-              ["Category", capitalize(req.category)],
-              ["Priority", capitalize(req.priority)],
-              ["Required By", formatDate(req.required_by)],
-              ["Submitted", formatDate(req.created_at)],
-            ].map(([label, val]) => (
-              <div key={label}>
-                <p className="text-xs text-brand-text-secondary mb-0.5">{label}</p>
-                <p className="font-medium text-brand-text-primary">{val}</p>
-              </div>
-            ))}
-          </div>
-
-          {req.justification && (
-            <div className="mt-5 pt-5 border-t border-brand-border">
-              <p className="text-xs text-brand-text-secondary mb-1">Justification</p>
-              <p className="text-sm text-brand-text-primary">{req.justification}</p>
-            </div>
+      {/* ── Header card ───────────────────────────────────────────────────────── */}
+      <div className="bg-white border border-brand-border rounded-2xl px-6 py-5 mb-5 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-text-secondary mb-1">
+            Purchase &amp; Service Request
+          </p>
+          <h1 className="text-2xl font-bold text-brand-text-primary">{req.reference}</h1>
+          {req.category && (
+            <p className="text-sm text-brand-text-secondary mt-0.5">
+              {capitalize(req.category.replace(/_/g, " "))}
+            </p>
+          )}
+          <p className="text-xs text-brand-text-secondary mt-1">
+            {STATUS_LABELS[req.status] ?? req.status} · Raised {formatDate(req.created_at)}
+          </p>
+          {req.next_actor_name && (
+            <p className="text-xs text-brand-text-secondary mt-1">
+              Next Actor: <span className="font-medium text-brand-text-primary">{req.next_actor_name}</span>
+              {req.current_step_name && <span className="text-brand-text-secondary"> · {req.current_step_name}</span>}
+            </p>
           )}
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* ── Left: Line items + totals ──────────────────────────────────── */}
-          <div className="lg:col-span-2 space-y-5">
-            <div className="bg-white border border-brand-border rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50">
-                <h2 className="text-sm font-semibold text-brand-text-primary">Line Items</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-brand-border">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Description</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Qty</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Unit</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Unit Cost</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {req.items.map((item, i) => (
-                      <tr key={item.id} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
-                        <td className="px-4 py-3 text-brand-text-primary">{item.description}</td>
-                        <td className="px-4 py-3 text-center text-brand-text-secondary">{item.quantity}</td>
-                        <td className="px-4 py-3 text-center text-brand-text-secondary capitalize">{item.unit}</td>
-                        <td className="px-4 py-3 text-right text-brand-text-secondary">{formatCurrency(Number(item.unit_cost))}</td>
-                        <td className="px-4 py-3 text-right font-medium text-brand-text-primary">{formatCurrency(Number(item.total_cost))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-brand-purple/20 bg-brand-purple/5">
-                      <td colSpan={4} className="px-4 py-3 text-sm font-semibold text-brand-text-secondary text-right">
-                        Estimated Total
-                      </td>
-                      <td className="px-4 py-3 text-right font-bold text-brand-purple">
-                        {formatCurrency(grandTotal)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-
-            {/* Attachment */}
-            {req.attachment_url && (
-              <div className="bg-white border border-brand-border rounded-2xl p-5 flex items-center gap-4">
-                <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-                  <Paperclip size={16} className="text-brand-purple" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-brand-text-primary truncate">
-                    {req.attachment_name ?? "Supporting document"}
-                  </p>
-                  <p className="text-xs text-brand-text-secondary">Attached file</p>
-                </div>
-                <a
-                  href={req.attachment_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-sm font-medium text-brand-purple hover:underline shrink-0"
-                >
-                  <Download size={13} /> View
-                </a>
-              </div>
-            )}
-          </div>
-
-          {/* ── Right: Vendor + Actions ────────────────────────────────────── */}
-          <div className="space-y-5">
-            {/* Vendor card */}
-            {req.vendor ? (
-              <div className="bg-white border border-brand-border rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Building2 size={14} className="text-brand-purple" />
-                  <h3 className="text-sm font-semibold text-brand-text-primary">Vendor</h3>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <p className="font-medium text-brand-text-primary">{req.vendor.name}</p>
-                  {req.vendor.address && <p className="text-brand-text-secondary text-xs">{req.vendor.address}</p>}
-                  {req.vendor.phone && <p className="text-brand-text-secondary text-xs">{req.vendor.phone}</p>}
-                  {req.vendor.email && <p className="text-brand-text-secondary text-xs">{req.vendor.email}</p>}
-                  {req.vendor.bank_name && (
-                    <div className="pt-2 mt-2 border-t border-brand-border">
-                      <p className="text-xs text-brand-text-secondary">Bank Details</p>
-                      <p className="text-xs font-medium text-brand-text-primary mt-0.5">{req.vendor.bank_name}</p>
-                      <p className="text-xs text-brand-text-secondary">{req.vendor.account_name}</p>
-                      <p className="text-xs font-mono text-brand-text-primary">{req.vendor.account_number}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white border border-brand-border rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 size={14} className="text-gray-400" />
-                  <h3 className="text-sm font-semibold text-brand-text-primary">Vendor</h3>
-                </div>
-                <p className="text-sm text-brand-text-secondary">No vendor assigned</p>
-              </div>
-            )}
-
-            {/* Actions card */}
-            {(isManager || req.status === "submitted") && (
-              <div className="bg-white border border-brand-border rounded-2xl p-5 space-y-3">
-                <h3 className="text-sm font-semibold text-brand-text-primary">Actions</h3>
-
-                {isManager && statusAction && (
-                  <button
-                    onClick={() => handleStatusUpdate(statusAction.next)}
-                    disabled={updateStatus.isPending}
-                    className="w-full px-4 py-2.5 text-sm font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors disabled:opacity-60"
-                  >
-                    {updateStatus.isPending ? "Updating…" : statusAction.label}
-                  </button>
-                )}
-
-                {req.status !== "cancelled" && req.status !== "delivered" && (
-                  <button
-                    onClick={handleCancel}
-                    disabled={cancelRequest.isPending}
-                    className="w-full px-4 py-2.5 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60"
-                  >
-                    {cancelRequest.isPending ? "Cancelling…" : "Cancel Request"}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+        <div className="shrink-0 pt-1 flex flex-col items-end gap-2">
+          <ApprovalBadge status={req.status} />
+          {req.status === "returned" && (
+            <button
+              onClick={() => router.push(`/procurement/new?edit=${id}`)}
+              className="px-4 py-2 text-xs font-medium bg-brand-purple text-white rounded-lg hover:bg-brand-purple-dark transition-colors"
+            >
+              Edit &amp; Resubmit
+            </button>
+          )}
         </div>
       </div>
+
+      <div className="space-y-5">
+
+        {/* ── Requester Details ─────────────────────────────────────────────── */}
+        <FormSection
+          title="Requester Details"
+          description="Employee information for the person who raised this request."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormInput label="Requester Name" value={raiserName()}                    disabled />
+            <FormInput label="Department"     value={req.raiser?.department  ?? "—"} disabled />
+            <FormInput label="Job Title / Role" value={req.raiser?.job_title ?? "—"} disabled />
+            <FormInput label="Request Date"   value={formatDate(req.created_at)}      disabled />
+          </div>
+        </FormSection>
+
+        {/* ── Request Details ───────────────────────────────────────────────── */}
+        <FormSection
+          title="Request Details"
+          description="Core information about this procurement request."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormInput label="Reference"   value={req.reference}                                           disabled />
+            <FormInput label="Category"    value={req.category ? capitalize(req.category.replace(/_/g, " ")) : "—"} disabled />
+            <FormInput label="Required By" value={req.required_by ? formatDate(req.required_by) : "—"}    disabled />
+            {req.estimated_amount != null && (
+              <FormInput
+                label="Estimated Amount"
+                value={formatCurrency(Number(req.estimated_amount))}
+                disabled
+              />
+            )}
+          </div>
+          {req.description && (
+            <FormTextarea
+              label="Justification / Purpose"
+              value={req.description}
+              rows={3}
+              disabled
+            />
+          )}
+        </FormSection>
+
+        {/* ── Line Items ────────────────────────────────────────────────────── */}
+        <FormSection title="Line Items">
+          <div className="overflow-x-auto -mx-6">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-brand-border bg-gray-50/60">
+                  <th className="px-6 py-3 text-left   text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Description</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Qty</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Unit</th>
+                  <th className="px-4 py-3 text-right  text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Unit Cost</th>
+                  <th className="px-6 py-3 text-right  text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-border">
+                {req.items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-6 py-3.5 text-brand-text-primary">{item.description}</td>
+                    <td className="px-4 py-3.5 text-center text-brand-text-secondary">{item.quantity}</td>
+                    <td className="px-4 py-3.5 text-center text-brand-text-secondary">{item.unit ?? "—"}</td>
+                    <td className="px-4 py-3.5 text-right text-brand-text-secondary">
+                      {item.unit_price != null ? formatCurrency(Number(item.unit_price)) : "—"}
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-medium text-brand-text-primary">
+                      {item.total_price != null ? formatCurrency(Number(item.total_price)) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {grandTotal > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-brand-border bg-gray-50/60">
+                    <td colSpan={4} className="px-6 py-3.5 text-sm font-semibold text-brand-text-secondary text-right">Estimated Total</td>
+                    <td className="px-6 py-3.5 text-right font-bold text-brand-purple text-base">{formatCurrency(grandTotal)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </FormSection>
+
+        {/* ── Supporting Document ───────────────────────────────────────────── */}
+        {req.attachment && (
+          <FormSection title="Supporting Document" description="Attachment submitted with this request.">
+            <div className="overflow-x-auto -mx-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-brand-border bg-gray-50/60">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Document Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Size</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="px-6 py-4 text-brand-text-primary font-medium">{req.attachment.name}</td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        {req.attachment.mime_type
+                          ? req.attachment.mime_type === "application/pdf" ? "PDF"
+                          : req.attachment.mime_type.includes("word") ? "Word"
+                          : req.attachment.mime_type.includes("excel") || req.attachment.mime_type.includes("spreadsheet") ? "Excel"
+                          : req.attachment.mime_type.startsWith("image/") ? "Image"
+                          : "File"
+                          : "File"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-brand-text-secondary">
+                      {req.attachment.file_size != null
+                        ? req.attachment.file_size >= 1024 * 1024
+                          ? `${(req.attachment.file_size / (1024 * 1024)).toFixed(1)} MB`
+                          : `${Math.round(req.attachment.file_size / 1024)} KB`
+                        : "—"}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={openAttachment}
+                        disabled={openingAttachment}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-purple hover:underline disabled:opacity-50"
+                      >
+                        {openingAttachment
+                          ? <><Loader2 size={12} className="animate-spin" /> Downloading…</>
+                          : <><Download size={12} /> Download</>}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </FormSection>
+        )}
+
+        {/* ── Preferred Vendor ──────────────────────────────────────────────── */}
+        {req.vendor && (
+          <FormSection title="Preferred Vendor">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput label="Vendor Name"     value={req.vendor.name}                         disabled />
+              {req.vendor.contact_person && <FormInput label="Contact Person" value={req.vendor.contact_person} disabled />}
+              {req.vendor.address        && <FormInput label="Address"        value={req.vendor.address}        disabled />}
+              {req.vendor.phone          && <FormInput label="Phone"          value={req.vendor.phone}          disabled />}
+              {req.vendor.email          && <FormInput label="Email"          value={req.vendor.email}          disabled />}
+              {req.vendor.bank_name      && <FormInput label="Bank"           value={req.vendor.bank_name}      disabled />}
+              {req.vendor.account_name   && <FormInput label="Account Name"   value={req.vendor.account_name}   disabled />}
+              {req.vendor.account_number && <FormInput label="Account Number" value={req.vendor.account_number} disabled />}
+            </div>
+          </FormSection>
+        )}
+
+        {/* ── Purchase Orders ───────────────────────────────────────────────── */}
+        {req.purchase_orders.length > 0 && (
+          <FormSection title="Purchase Orders">
+            <div className="space-y-3">
+              {req.purchase_orders.map((p) => (
+                <div key={p.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-brand-border">
+                  <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+                    <FileText size={16} className="text-brand-purple" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-brand-text-primary">{p.po_number}</p>
+                    <p className="text-xs text-brand-text-secondary">
+                      {capitalize(p.status)} · Issued {formatDate(p.issued_at)}
+                      {p.vendor && ` · ${p.vendor.name}`}
+                      {p.total_amount && ` · ${formatCurrency(Number(p.total_amount))}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      p.status === "issued"    ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                      p.status === "delivered" ? "bg-green-50 text-green-700 border border-green-200" :
+                      "bg-gray-100 text-gray-500"
+                    }`}>
+                      {capitalize(p.status)}
+                    </span>
+                    <button
+                      onClick={() => generatePO(req, p)}
+                      className="flex items-center gap-1 text-xs text-brand-purple hover:underline"
+                    >
+                      <Download size={12} /> Download PO
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </FormSection>
+        )}
+
+        {/* ── Awaiting confirmation — info banner for non-assigned viewers ─── */}
+        {!approvalRequestId && req.status === "awaiting_confirmation" && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+            <p className="text-sm font-semibold text-blue-800">Awaiting delivery confirmation</p>
+            <p className="text-xs text-blue-700 mt-0.5">
+              The purchase order has been issued. The assigned officer must confirm goods received to complete this request.
+            </p>
+          </div>
+        )}
+
+        {/* ── Step 5: Delivery Confirmation (procurement officer assigned to step 5) ── */}
+        {approvalRequestId && req.status === "awaiting_confirmation" && (
+          <ApprovalPanel
+            title="Goods Received Confirmation"
+            description="Confirm that the goods or services have been received in full to close this request."
+            showReturn={false}
+            showReject={false}
+            showApprove
+            approveLabel="Confirm Goods Received"
+            onApprove={async (comment) => {
+              if (!goodsConfirmed) {
+                toast.error("Please check the confirmation box before proceeding.");
+                return;
+              }
+              try {
+                await confirmDelivery.mutateAsync({ id, comment: comment || undefined });
+                toast.success("Goods confirmed — request completed");
+              } catch (err) {
+                toast.error((err as Error).message);
+              }
+            }}
+            approveLoading={confirmDelivery.isPending}
+            disabled={isBusy}
+            extraFields={
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={goodsConfirmed}
+                  onChange={(e) => setGoodsConfirmed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-brand-border accent-brand-purple"
+                />
+                <span className="text-sm text-brand-text-primary">
+                  I confirm that the goods/services for this purchase order have been received in full and are satisfactory.
+                </span>
+              </label>
+            }
+          />
+        )}
+
+        {/* ── Steps 1–4: Approval Panel ─────────────────────────────────────── */}
+        {approvalRequestId && req.status === "pending" && (
+          <ApprovalPanel
+            title="Approval Decision"
+            description="Review the request details above and make your decision."
+            showReturn
+            showReject
+            showApprove
+            requireCommentForRejectReturn
+            returnLabel="Return for Revision"
+            approveLabel={isIssuePOStep ? "Issue PO" : "Approve"}
+            onReturn={(comment)  => handleAction("return",  comment)}
+            onReject={(comment)  => handleAction("reject",  comment)}
+            onApprove={async (comment) => {
+              if (isIssuePOStep) {
+                try {
+                  const result = await approveAndIssuePO.mutateAsync({ id, comment: comment || undefined });
+                  const issuedPO = result.purchase_orders?.[0];
+                  await generatePO(result, issuedPO);
+                  toast.success("PO issued — PDF downloading");
+                } catch (err) {
+                  toast.error((err as Error).message);
+                }
+              } else {
+                handleAction("approve", comment);
+              }
+            }}
+            returnLoading={workflowReturn.isPending}
+            rejectLoading={workflowReject.isPending}
+            approveLoading={workflowApprove.isPending || approveAndIssuePO.isPending}
+            disabled={isBusy}
+          />
+        )}
+
+        {/* ── Audit Trail ──────────────────────────────────────────────────── */}
+        <AuditTrail
+          title="Approval History"
+          description="A full record of every action taken on this request."
+          emptyMessage="No actions recorded yet."
+          items={auditTrail.map((entry) => ({
+            action:   entry.action.charAt(0).toUpperCase() + entry.action.slice(1).replace(/_/g, " "),
+            actor:    entry.actor_name ?? "System",
+            role:     entry.actor_role ?? "",
+            dateTime: formatDateTime(entry.acted_at),
+            comment:  entry.comment ?? "",
+          }))}
+        />
+
+      </div>
+
+
     </AppLayout>
   );
 }

@@ -1,0 +1,968 @@
+from datetime import datetime
+import uuid
+from typing import Optional
+
+from fastapi import HTTPException, status
+from sqlalchemy import and_, exists, or_
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload
+
+from app.employees.models import Employee
+from app.setups.models import Department as DepartmentModel
+from app.safety.dependencies import get_employee_for_user
+from app.safety.permissions import is_safety_hse_employee
+from app.shared.models.approval import (
+    ApprovalOverallStatus,
+    ApprovalRequest,
+    ApprovalStepAssignment,
+    AuditAction,
+    WorkflowAuditTrail,
+)
+from app.shared.models.document import Document
+from app.shared.models.reference_counter import ReferenceCounter
+from app.shared.models.user import AccountStatus, User
+from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.post_commit import queue_after_commit
+from app.safety.incidents import email_content as incident_email
+from app.safety.incidents.models import (
+    IncidentHseDecision,
+    IncidentReportStatus,
+    IncidentReportType,
+    SafetyIncidentHseReview,
+    SafetyIncidentReport,
+)
+from app.safety.incidents.schemas import (
+    IncidentHseVerificationCreate,
+    IncidentHseReviewCreate,
+    IncidentReportCreate,
+    IncidentReportUpdate,
+    IncidentResolveCreate,
+)
+from app.safety.work_authorizations.models import (
+    SafetyWorkAuthorization,
+    WorkAuthorizationStatus,
+)
+from app.safety.work_closeouts.models import SafetyWorkCloseOut, WorkCloseOutStatus
+from app.safety.work_initiations.models import (
+    SafetyWorkInitiation,
+    SafetyWorkInitiationWorker,
+    WorkInitiationStatus,
+)
+
+INCIDENT_REFERENCE_ENTITY = "incident_report"
+INCIDENT_REFERENCE_PREFIX = "IH"
+INCIDENT_DOCUMENT_CATEGORY_PREFIX = "safety_incident"
+INCIDENT_AUDIT_REQUEST_TYPE = "incident_report"
+INCIDENT_RELATED_AUTHORIZATION_REQUEST_TYPE = "work_authorization"
+INCIDENT_RELATED_AUTHORIZATION_STATUSES = (
+    WorkAuthorizationStatus.submitted,
+    WorkAuthorizationStatus.returned,
+)
+
+def incident_document_category(incident_id: str) -> str:
+    return f"{INCIDENT_DOCUMENT_CATEGORY_PREFIX}:{incident_id}"
+
+
+def actor_name(employee: Employee | None) -> str:
+    if employee and employee.user:
+        return employee.user.full_name or employee.user.email
+    return "Safety user"
+
+
+def actor_role(employee: Employee | None) -> str | None:
+    if not employee:
+        return None
+    return employee.job_title or (
+        employee.department_rel.name if employee.department_rel else None
+    )
+
+
+def add_incident_audit_event(
+    db: Session,
+    report: SafetyIncidentReport,
+    actor: Employee,
+    action: AuditAction,
+    comment: str | None = None,
+) -> None:
+    db.add(
+        WorkflowAuditTrail(
+            id=str(uuid.uuid4()),
+            workflow_id=None,
+            request_id=report.id,
+            request_type=INCIDENT_AUDIT_REQUEST_TYPE,
+            actor_id=actor.id,
+            actor_role=actor_role(actor),
+            step_number=None,
+            action=action,
+            comment=comment,
+        )
+    )
+
+
+def get_primary_hse_inspector(db: Session) -> Employee | None:
+    query = (
+        db.query(Employee)
+        .join(User, User.id == Employee.user_id)
+        .join(DepartmentModel, Employee.department_id == DepartmentModel.id)
+        .filter(
+            DepartmentModel.code == "safety",
+            User.account_status == AccountStatus.active,
+        )
+    )
+
+    inspector = (
+        query.filter(Employee.job_title == "HSE Inspector")
+        .order_by(Employee.created_at.asc())
+        .first()
+    )
+    return inspector or query.order_by(Employee.created_at.asc()).first()
+
+
+def reserve_incident_reference(db: Session) -> str:
+    year = datetime.utcnow().year
+    counter = (
+        db.query(ReferenceCounter)
+        .filter(
+            ReferenceCounter.entity_type == INCIDENT_REFERENCE_ENTITY,
+            ReferenceCounter.year == year,
+        )
+        .with_for_update()
+        .first()
+    )
+
+    if counter is None:
+        counter = ReferenceCounter(
+            entity_type=INCIDENT_REFERENCE_ENTITY,
+            year=year,
+            next_number=next_incident_number_from_existing_reports(db, year),
+        )
+        db.add(counter)
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            return reserve_incident_reference(db)
+
+    number = counter.next_number
+    counter.next_number += 1
+    db.flush()
+
+    return f"{INCIDENT_REFERENCE_PREFIX}-{year}-{number:04d}"
+
+
+def next_incident_number_from_existing_reports(db: Session, year: int) -> int:
+    prefix = f"{INCIDENT_REFERENCE_PREFIX}-{year}-"
+    references = (
+        db.query(SafetyIncidentReport.reference)
+        .filter(SafetyIncidentReport.reference.like(f"{prefix}%"))
+        .all()
+    )
+    highest = 0
+    for (reference,) in references:
+        suffix = reference.removeprefix(prefix)
+        if suffix.isdigit():
+            highest = max(highest, int(suffix))
+    return highest + 1
+
+
+def create_incident_report(
+    db: Session,
+    data: IncidentReportCreate,
+    current_user: User,
+    attachments: Optional[list[tuple[bytes, str, str, int]]] = None,
+) -> SafetyIncidentReport:
+    employee = get_employee_for_user(db, current_user)
+    attachments = attachments or []
+    validate_related_work_authorization_for_incident(
+        db,
+        data.related_work_authorization_id,
+        employee,
+    )
+
+    report = SafetyIncidentReport(
+        reference=reserve_incident_reference(db),
+        status=IncidentReportStatus.submitted,
+        title=data.title,
+        report_type=data.report_type,
+        location=data.location,
+        exact_location=data.exact_location,
+        observed_at=data.observed_at,
+        related_work_authorization_id=data.related_work_authorization_id,
+        description=data.description,
+        severity_estimate=data.severity_estimate,
+        anyone_injured=data.anyone_injured,
+        property_damaged=data.property_damaged,
+        gas_fire_environmental_concern=data.gas_fire_environmental_concern,
+        immediate_action_taken=data.immediate_action_taken,
+        people_involved=data.people_involved,
+        additional_notes=data.additional_notes,
+        reported_by=employee.id,
+    )
+
+    db.add(report)
+    db.flush()
+
+    create_incident_documents(
+        db=db,
+        incident_id=report.id,
+        files=attachments,
+        uploaded_by=employee.id,
+    )
+    add_incident_audit_event(
+        db=db,
+        report=report,
+        actor=employee,
+        action=AuditAction.submitted,
+        comment="Incident/hazard report submitted for HSE review.",
+    )
+    incident_id = report.id
+    queue_after_commit(
+        db,
+        lambda fresh_db: incident_email.notify_submitted(fresh_db, incident_id),
+        description=f"incident submission notifications for {incident_id}",
+    )
+
+    db.commit()
+    db.refresh(report)
+
+    return get_incident_report(db, report.id)
+
+
+def is_hse_employee(employee: Employee) -> bool:
+    return is_safety_hse_employee(employee)
+
+
+def can_employee_view_incident(
+    report: SafetyIncidentReport,
+    employee: Employee,
+) -> bool:
+    if is_hse_employee(employee):
+        return True
+
+    if report.reported_by == employee.id:
+        return True
+
+    return bool(
+        report.hse_review
+        and report.hse_review.action_owner_id == employee.id
+        and report.status
+        in (
+            IncidentReportStatus.recommended,
+            IncidentReportStatus.pending_hse_verification,
+            IncidentReportStatus.resolved,
+            IncidentReportStatus.closed,
+        )
+    )
+
+
+def require_incident_view_access(
+    report: SafetyIncidentReport,
+    employee: Employee,
+) -> None:
+    if can_employee_view_incident(report, employee):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have access to this incident report.",
+    )
+
+
+def require_incident_reporter_edit_access(
+    report: SafetyIncidentReport,
+    employee: Employee,
+) -> None:
+    if report.reported_by != employee.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the reporter can edit this incident report.",
+        )
+
+    if report.status != IncidentReportStatus.submitted or report.hse_review:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incident reports can only be edited before HSE review.",
+        )
+
+
+def create_hse_review(
+    db: Session,
+    incident_id: str,
+    data: IncidentHseReviewCreate,
+    inspector: Employee,
+) -> SafetyIncidentHseReview:
+    report = get_incident_report(db, incident_id)
+
+    if report.status != IncidentReportStatus.submitted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only submitted incident reports can be reviewed by HSE.",
+        )
+
+    if report.hse_review:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="HSE review already exists for this incident report.",
+        )
+
+    if data.corrective_action_required and data.decision != IncidentHseDecision.recommended:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Corrective action reviews must use recommended decision.",
+        )
+
+    if not data.corrective_action_required and data.decision == IncidentHseDecision.recommended:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Action recommended requires corrective action.",
+        )
+
+    if data.corrective_action_required:
+        if not data.corrective_action_details:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Corrective action details are required.",
+            )
+        if not data.assigned_department:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Assigned department is required for corrective action.",
+            )
+        if not data.action_owner_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Action owner is required for corrective action.",
+            )
+        if not data.target_completion_date:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Target completion date is required for corrective action.",
+            )
+
+    if data.action_owner_id:
+        action_owner = (
+            db.query(Employee)
+            .filter(Employee.id == data.action_owner_id)
+            .first()
+        )
+        if not action_owner:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Action owner not found.",
+            )
+        if (
+            data.assigned_department
+            and (
+                not action_owner.department_rel
+                or action_owner.department_rel.name != data.assigned_department
+            )
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Action owner must belong to the assigned department.",
+            )
+
+    review = SafetyIncidentHseReview(
+        incident_report_id=report.id,
+        inspector_id=inspector.id,
+        confirmed_report_type=data.confirmed_report_type,
+        confirmed_severity=data.confirmed_severity,
+        findings=data.findings,
+        root_cause=data.root_cause,
+        corrective_action_required=data.corrective_action_required,
+        corrective_action_details=data.corrective_action_details,
+        action_owner_id=data.action_owner_id,
+        assigned_department=data.assigned_department,
+        target_completion_date=data.target_completion_date,
+        decision=data.decision,
+        comment=data.comment,
+    )
+
+    report.status = incident_status_for_hse_decision(data.decision)
+    db.add(review)
+    add_incident_audit_event(
+        db=db,
+        report=report,
+        actor=inspector,
+        action=audit_action_for_hse_decision(data.decision),
+        comment=data.comment or data.findings,
+    )
+    incident_id = report.id
+    if data.decision == IncidentHseDecision.recommended:
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_recommended(fresh_db, incident_id),
+            description=f"incident recommendation notifications for {incident_id}",
+        )
+    elif data.decision == IncidentHseDecision.resolved:
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_closed(fresh_db, incident_id),
+            description=f"incident closure notifications for {incident_id}",
+        )
+    else:
+        queue_after_commit(
+            db,
+            lambda fresh_db: incident_email.notify_not_resolved(fresh_db, incident_id),
+            description=f"incident not-resolved notifications for {incident_id}",
+        )
+    db.commit()
+    db.refresh(review)
+
+    return get_hse_review(db, review.id)
+
+
+def incident_status_for_hse_decision(
+    decision: IncidentHseDecision,
+) -> IncidentReportStatus:
+    if decision == IncidentHseDecision.recommended:
+        return IncidentReportStatus.recommended
+    if decision == IncidentHseDecision.resolved:
+        return IncidentReportStatus.closed
+    return IncidentReportStatus.not_resolved
+
+
+def audit_action_for_hse_decision(decision: IncidentHseDecision) -> AuditAction:
+    if decision == IncidentHseDecision.recommended:
+        return AuditAction.recommended
+    if decision == IncidentHseDecision.resolved:
+        return AuditAction.closed
+    return AuditAction.not_resolved
+
+
+def get_hse_review(db: Session, review_id: str) -> SafetyIncidentHseReview:
+    review = (
+        db.query(SafetyIncidentHseReview)
+        .options(
+            joinedload(SafetyIncidentHseReview.inspector).joinedload(Employee.user),
+            joinedload(SafetyIncidentHseReview.action_owner).joinedload(Employee.user),
+        )
+        .filter(SafetyIncidentHseReview.id == review_id)
+        .first()
+    )
+    if not review:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="HSE review not found.",
+        )
+    return review
+
+
+def list_incident_reports(
+    db: Session,
+    current_user: User,
+    skip: int = 0,
+    limit: int = 20,
+    cursor_reported_at: Optional[datetime] = None,
+    cursor_id: Optional[str] = None,
+    status_filter: Optional[IncidentReportStatus] = None,
+    report_type: Optional[IncidentReportType] = None,
+    search: Optional[str] = None,
+) -> list[SafetyIncidentReport]:
+    employee = get_employee_for_user(db, current_user)
+    query = (
+        db.query(SafetyIncidentReport)
+        .options(
+            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.inspector)
+            .joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.action_owner)
+            .joinedload(Employee.user),
+        )
+        .filter(SafetyIncidentReport.is_active == True)
+    )
+
+    if not is_hse_employee(employee):
+        query = query.outerjoin(
+            SafetyIncidentHseReview,
+            SafetyIncidentHseReview.incident_report_id == SafetyIncidentReport.id,
+        ).filter(
+            or_(
+                SafetyIncidentReport.reported_by == employee.id,
+                and_(
+                    SafetyIncidentHseReview.action_owner_id == employee.id,
+                    SafetyIncidentReport.status.in_(
+                        (
+                            IncidentReportStatus.recommended,
+                            IncidentReportStatus.pending_hse_verification,
+                            IncidentReportStatus.resolved,
+                            IncidentReportStatus.closed,
+                        )
+                    ),
+                ),
+            )
+        )
+
+    if status_filter:
+        query = query.filter(SafetyIncidentReport.status == status_filter)
+
+    if report_type:
+        query = query.filter(SafetyIncidentReport.report_type == report_type)
+
+    if search:
+        search_value = f"%{search}%"
+        query = query.filter(
+            SafetyIncidentReport.reference.ilike(search_value)
+            | SafetyIncidentReport.title.ilike(search_value)
+            | SafetyIncidentReport.location.ilike(search_value)
+            | SafetyIncidentReport.description.ilike(search_value)
+        )
+
+    if cursor_reported_at and cursor_id:
+        query = query.filter(
+            or_(
+                SafetyIncidentReport.reported_at < cursor_reported_at,
+                and_(
+                    SafetyIncidentReport.reported_at == cursor_reported_at,
+                    SafetyIncidentReport.id < cursor_id,
+                ),
+            )
+        )
+
+    query = query.order_by(
+        SafetyIncidentReport.reported_at.desc(),
+        SafetyIncidentReport.id.desc(),
+    )
+
+    if skip > 0:
+        query = query.offset(skip)
+
+    return query.limit(limit).all()
+
+
+def list_eligible_work_authorizations_for_incident(
+    db: Session,
+    current_user: User,
+) -> list[SafetyWorkAuthorization]:
+    employee = get_employee_for_user(db, current_user)
+    active_closeout_exists = exists().where(
+        SafetyWorkCloseOut.work_authorization_id == SafetyWorkAuthorization.id,
+        SafetyWorkCloseOut.is_active == True,
+        SafetyWorkCloseOut.status.in_(
+            (
+                WorkCloseOutStatus.draft,
+                WorkCloseOutStatus.submitted,
+                WorkCloseOutStatus.pending,
+                WorkCloseOutStatus.returned,
+                WorkCloseOutStatus.approved,
+                WorkCloseOutStatus.acknowledged,
+            )
+        ),
+    )
+
+    authorizations = (
+        db.query(SafetyWorkAuthorization)
+        .options(
+            joinedload(SafetyWorkAuthorization.requester).joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.hse_inspector).joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.assigned_supervisor)
+            .joinedload(Employee.user),
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.workers)
+            .joinedload(SafetyWorkInitiationWorker.worker)
+            .joinedload(Employee.user),
+        )
+        .filter(
+            SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.status.in_(INCIDENT_RELATED_AUTHORIZATION_STATUSES),
+            ~active_closeout_exists,
+        )
+        .order_by(
+            SafetyWorkAuthorization.created_at.desc(),
+            SafetyWorkAuthorization.id.desc(),
+        )
+        .all()
+    )
+
+    return [
+        authorization
+        for authorization in authorizations
+        if can_view_related_work_authorization(db, authorization, employee)
+    ]
+
+
+def validate_related_work_authorization_for_incident(
+    db: Session,
+    work_authorization_id: Optional[str],
+    employee: Employee,
+) -> None:
+    if not work_authorization_id:
+        return
+
+    authorization = (
+        db.query(SafetyWorkAuthorization)
+        .options(
+            joinedload(SafetyWorkAuthorization.work_initiation)
+            .joinedload(SafetyWorkInitiation.workers),
+        )
+        .filter(
+            SafetyWorkAuthorization.id == work_authorization_id,
+            SafetyWorkAuthorization.is_active == True,
+        )
+        .first()
+    )
+
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Related work authorization not found.",
+        )
+
+    if authorization.status not in INCIDENT_RELATED_AUTHORIZATION_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Related work authorization is not eligible for incident reporting.",
+        )
+
+    active_closeout = (
+        db.query(SafetyWorkCloseOut.id)
+        .filter(
+            SafetyWorkCloseOut.work_authorization_id == authorization.id,
+            SafetyWorkCloseOut.is_active == True,
+            SafetyWorkCloseOut.status.in_(
+                (
+                    WorkCloseOutStatus.draft,
+                    WorkCloseOutStatus.submitted,
+                    WorkCloseOutStatus.pending,
+                    WorkCloseOutStatus.returned,
+                    WorkCloseOutStatus.approved,
+                    WorkCloseOutStatus.acknowledged,
+                )
+            ),
+        )
+        .first()
+    )
+    if active_closeout:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Related work authorization already has an active close-out.",
+        )
+
+    if not can_view_related_work_authorization(db, authorization, employee):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this related work authorization.",
+        )
+
+
+def can_view_related_work_authorization(
+    db: Session,
+    authorization: SafetyWorkAuthorization,
+    employee: Employee,
+) -> bool:
+    if authorization.requester_id == employee.id:
+        return True
+
+    initiation = authorization.work_initiation
+    if initiation:
+        if initiation.requester_id == employee.id:
+            return True
+        if initiation.assigned_supervisor_id == employee.id:
+            return True
+        if any(worker.worker_id == employee.id for worker in initiation.workers):
+            return True
+
+    return (
+        db.query(ApprovalStepAssignment.id)
+        .join(
+            ApprovalRequest,
+            ApprovalRequest.id == ApprovalStepAssignment.approval_request_id,
+        )
+        .filter(
+            ApprovalRequest.request_type == INCIDENT_RELATED_AUTHORIZATION_REQUEST_TYPE,
+            ApprovalRequest.request_id == authorization.id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+            ApprovalStepAssignment.step_number == ApprovalRequest.current_step_number,
+            ApprovalStepAssignment.assigned_to == employee.id,
+        )
+        .first()
+        is not None
+    )
+
+
+def get_incident_report(
+    db: Session,
+    incident_id: str,
+    current_user: Optional[User] = None,
+) -> SafetyIncidentReport:
+    report = (
+        db.query(SafetyIncidentReport)
+        .options(
+            joinedload(SafetyIncidentReport.reporter).joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.inspector)
+            .joinedload(Employee.user),
+            joinedload(SafetyIncidentReport.hse_review)
+            .joinedload(SafetyIncidentHseReview.action_owner)
+            .joinedload(Employee.user),
+        )
+        .filter(
+            SafetyIncidentReport.id == incident_id,
+            SafetyIncidentReport.is_active == True,
+        )
+        .first()
+    )
+
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident report not found",
+        )
+
+    if current_user is not None:
+        employee = get_employee_for_user(db, current_user)
+        require_incident_view_access(report, employee)
+
+    report.attachments = list_incident_documents(db, report.id)
+    report.has_active_work_initiation = (
+        db.query(SafetyWorkInitiation.id)
+        .filter(
+            SafetyWorkInitiation.related_incident_report_id == report.id,
+            SafetyWorkInitiation.is_active == True,
+            SafetyWorkInitiation.status.in_(
+                (
+                    WorkInitiationStatus.draft,
+                    WorkInitiationStatus.submitted,
+                    WorkInitiationStatus.pending,
+                    WorkInitiationStatus.returned,
+                    WorkInitiationStatus.approved,
+                )
+            ),
+        )
+        .first()
+        is not None
+    )
+
+    return report
+
+
+def list_incident_documents(db: Session, incident_id: str) -> list[Document]:
+    return (
+        db.query(Document)
+        .filter(
+            Document.category == incident_document_category(incident_id),
+            Document.type == "file",
+        )
+        .order_by(Document.created_at)
+        .all()
+    )
+
+
+def create_incident_documents(
+    db: Session,
+    incident_id: str,
+    files: list[tuple[bytes, str, str, int]],
+    uploaded_by: Optional[str],
+) -> list[Document]:
+    if not files:
+        return []
+
+    storage = get_storage_service()
+    documents: list[Document] = []
+    category = incident_document_category(incident_id)
+
+    for file_bytes, filename, mime_type, file_size in files:
+        result = storage.upload(
+            file_bytes=file_bytes,
+            filename=filename,
+            folder=f"safety/incidents/{incident_id}",
+            resource_type=ResourceType.AUTO,
+            overwrite=False,
+        )
+        document = Document(
+            type="file",
+            name=filename,
+            category=category,
+            file_path=result.url,
+            file_size=result.file_size or file_size,
+            mime_type=mime_type,
+            uploaded_by=uploaded_by,
+            parent_id=None,
+        )
+        db.add(document)
+        documents.append(document)
+
+    db.flush()
+    return documents
+
+
+def update_incident_report(
+    db: Session,
+    incident_id: str,
+    data: IncidentReportUpdate,
+    current_user: User,
+) -> SafetyIncidentReport:
+    report = get_incident_report(db, incident_id)
+    employee = get_employee_for_user(db, current_user)
+    require_incident_reporter_edit_access(report, employee)
+
+    update_data = data.model_dump(exclude_unset=True)
+    if "related_work_authorization_id" in update_data:
+        validate_related_work_authorization_for_incident(
+            db,
+            update_data["related_work_authorization_id"],
+            employee,
+        )
+
+    for field, value in update_data.items():
+        setattr(report, field, value)
+
+    db.commit()
+    db.refresh(report)
+
+    return get_incident_report(db, report.id)
+
+
+def resolve_incident_with_closeout(
+    db: Session,
+    incident_id: str,
+    data: IncidentResolveCreate,
+    current_user: User,
+) -> SafetyIncidentReport:
+    get_incident_report(db, incident_id)
+    get_employee_for_user(db, current_user)
+    _ = data
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=(
+            "Incident corrective action is resolved through approved work "
+            "close-out and final HSE verification."
+        ),
+    )
+
+
+def close_resolved_incident(
+    db: Session,
+    incident_id: str,
+    data: IncidentHseVerificationCreate,
+    inspector: Employee,
+) -> SafetyIncidentReport:
+    report = get_incident_report(db, incident_id)
+
+    if report.status != IncidentReportStatus.pending_hse_verification:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only incident reports pending HSE verification can be closed.",
+        )
+
+    if not report.hse_review or not report.hse_review.corrective_action_required:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only corrective-action incident reports can use HSE verification.",
+        )
+
+    report.hse_review.inspector_id = inspector.id
+    report.hse_review.comment = data.notes
+    report.hse_review.decision = IncidentHseDecision.resolved
+    report.status = IncidentReportStatus.closed
+    add_incident_audit_event(
+        db=db,
+        report=report,
+        actor=inspector,
+        action=AuditAction.closed,
+        comment=data.notes,
+    )
+    incident_id = report.id
+    queue_after_commit(
+        db,
+        lambda fresh_db: incident_email.notify_closed(fresh_db, incident_id),
+        description=f"incident closure notifications for {incident_id}",
+    )
+    db.commit()
+    db.refresh(report)
+
+    return get_incident_report(db, report.id)
+
+
+def mark_incident_not_resolved_after_verification(
+    db: Session,
+    incident_id: str,
+    data: IncidentHseVerificationCreate,
+    inspector: Employee,
+) -> SafetyIncidentReport:
+    report = get_incident_report(db, incident_id)
+
+    if report.status != IncidentReportStatus.pending_hse_verification:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only incident reports pending HSE verification can be marked not resolved.",
+        )
+
+    if not report.hse_review or not report.hse_review.corrective_action_required:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only corrective-action incident reports can use HSE verification.",
+        )
+
+    report.hse_review.inspector_id = inspector.id
+    report.hse_review.comment = data.notes
+    report.hse_review.decision = IncidentHseDecision.not_resolved
+    report.status = IncidentReportStatus.not_resolved
+    add_incident_audit_event(
+        db=db,
+        report=report,
+        actor=inspector,
+        action=AuditAction.not_resolved,
+        comment=data.notes,
+    )
+    incident_id = report.id
+    queue_after_commit(
+        db,
+        lambda fresh_db: incident_email.notify_not_resolved(fresh_db, incident_id),
+        description=f"incident not-resolved notifications for {incident_id}",
+    )
+    db.commit()
+    db.refresh(report)
+
+    return get_incident_report(db, report.id)
+
+
+def get_closeout_for_incident_resolution(
+    db: Session,
+    work_closeout_id: str,
+    incident_id: str,
+) -> SafetyWorkCloseOut:
+    closeout = (
+        db.query(SafetyWorkCloseOut)
+        .join(SafetyWorkCloseOut.work_authorization)
+        .join(SafetyWorkAuthorization.work_initiation)
+        .filter(
+            SafetyWorkCloseOut.id == work_closeout_id,
+            SafetyWorkCloseOut.is_active == True,
+            SafetyWorkCloseOut.status.in_(
+                (WorkCloseOutStatus.approved, WorkCloseOutStatus.acknowledged),
+            ),
+            SafetyWorkInitiation.related_incident_report_id == incident_id,
+        )
+        .first()
+    )
+
+    if not closeout:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Approved close-out linked to this incident report was not found.",
+        )
+
+    return closeout
+
+
+def deactivate_incident_report(
+    db: Session,
+    incident_id: str,
+    current_user: User,
+) -> None:
+    report = get_incident_report(db, incident_id)
+    employee = get_employee_for_user(db, current_user)
+    if not is_hse_employee(employee):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only HSE can deactivate incident reports.",
+        )
+
+    report.is_active = False
+
+    db.commit()

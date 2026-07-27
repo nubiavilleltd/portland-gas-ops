@@ -15,22 +15,34 @@ export function formatCurrency(amount: number, currency = "NGN"): string {
 
 export function formatDate(dateString: string | null): string {
   if (!dateString) return "—";
-  return new Intl.DateTimeFormat("en-NG", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(dateString));
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-NG", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "—";
+  }
 }
 
 export function formatDateTime(dateString: string | null): string {
   if (!dateString) return "—";
-  return new Intl.DateTimeFormat("en-NG", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(dateString));
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-NG", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  } catch {
+    return "—";
+  }
 }
 
 export function initials(name: string): string {
@@ -53,3 +65,14 @@ export function toTitleCase(str: string): string {
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
+
+// function capolizeFirstLetter(str: string): string {
+//   if (!str) return "";
+//   return str[0].toUpperCase() + str.slice(1).toLowerCase();
+
+
+//   render: (value) =>
+//   (value as string)
+//     .replaceAll("_", " ")
+//     .replace(/\b\w/g, (c) => c.toUpperCase()),
+// }

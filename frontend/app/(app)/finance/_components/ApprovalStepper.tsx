@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Submitted", "Line Manager", "Finance Review", "Processed"];
+const STEPS = ["Submitted", "Operations Manager", "Finance Review", "Processed"];
 
 interface Props {
   currentStep: number;

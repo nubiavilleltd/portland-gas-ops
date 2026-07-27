@@ -154,7 +154,7 @@ export default function DynamicLineItems<T extends Record<string, unknown>>({
                 <button
                   type="button"
                   onClick={() => removeRow(rowIndex)}
-                  className="text-gray-300 hover:text-red-400 transition-colors p-1"
+                  className="text-gray-400 hover:text-red-400 transition-colors p-1"
                   aria-label="Remove row"
                 >
                   <Trash2 size={14} />

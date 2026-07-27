@@ -1,73 +1,97 @@
 "use client";
 
 import { useParams } from "next/navigation";
-
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-
+import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
+import Button from "@/components/ui/Button";
+import { BackButton } from "@/components/ui/BackButton";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { usePaymentsByInvoice } from "@/lib/modules/payments/hooks/usePayments";
+import { useInvoiceById, useInvoiceByNo } from "@/lib/modules/invoices/hooks/useInvoices";
+import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
+import type { Payment } from "@/lib/modules/payments/types/payments.types";
 
 export default function InvoicePaymentsPage() {
-  const { id } = useParams();
-  const invoiceId = id as string;
+  const { id:invoiceNo } = useParams<{ id: string }>();
+  const { invoice } = useInvoiceByNo(invoiceNo);
+  const { payments, isLoading } = usePaymentsByInvoice(invoice?.id as string);
 
-  const payments = [
+  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+
+  const columns: SimpleTableColumn<Payment>[] = [
     {
-      id: "1",
-      amount: 2000000,
-      payment_date: "2026-05-10",
-      reference: "TXN-001",
-      method: "Bank Transfer",
+      label: "Date",
+      render: (p) => formatDate(p.paymentDate),
     },
     {
-      id: "2",
-      amount: 3000000,
-      payment_date: "2026-05-14",
-      reference: "TXN-002",
-      method: "Cash",
+      label: "Reference",
+      render: (p) => <span className="font-mono text-xs">{p.reference}</span>,
+    },
+    {
+      label: "Method",
+      render: (p) => formatPaymentMethodLabel(p.method),
+    },
+    {
+      label: "Amount",
+      align: "right",
+      render: (p) => (
+        <span className="font-medium">{formatCurrency(p.amount)}</span>
+      ),
+    },
+    {
+      label: "",
+      align: "right",
+      render: (p) => (
+        <Button size="sm" variant="outline" href={`/payments/${p.id}/receipt`}>
+          Receipt
+        </Button>
+      ),
     },
   ];
 
   return (
     <AppLayout pageTitle="Payment Transactions">
-
+      <BackButton label="Back" />
       <PageHeader
         title="Payment Transactions"
-        description={`Invoice ${invoiceId} payment history`}
+        description={
+          invoice
+            ? `All payments recorded against ${invoice.invoice_number}`
+            : "Payment history for this invoice"
+        }
+        className="mb-6"
       />
 
-      <div className="bg-white border border-brand-border rounded-2xl p-6">
-
-        <table className="w-full text-sm">
-
-          <thead>
-            <tr className="border-b text-left">
-              <th className="pb-3">Date</th>
-              <th className="pb-3">Reference</th>
-              <th className="pb-3">Method</th>
-              <th className="pb-3">Amount</th>
-            </tr>
-          </thead>
-
-          <tbody>
-
-            {payments.map((p) => (
-              <tr key={p.id} className="border-b">
-                <td className="py-3">{formatDate(p.payment_date)}</td>
-                <td>{p.reference}</td>
-                <td>{p.method}</td>
-                <td className="font-medium">
-                  {formatCurrency(p.amount)}
-                </td>
-              </tr>
-            ))}
-
-          </tbody>
-
-        </table>
-
+      <div className="bg-white border border-brand-border rounded-2xl">
+        <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+          <h2 className="text-sm font-semibold text-brand-text-primary">
+            Payments
+          </h2>
+        </div>
+        <div className="p-6">
+          <SimpleTable
+            columns={columns}
+            rows={payments}
+            keyExtractor={(p) => p.id}
+            // isLoading={isLoading}
+            emptyMessage="No payments recorded for this invoice yet."
+            footer={
+              payments.length > 0 ? (
+                <tr className="border-t-2 border-brand-border">
+                  <td colSpan={3} className="pt-3 font-semibold text-xs text-brand-text-secondary uppercase tracking-wide">
+                    Total Paid
+                  </td>
+                  <td className="pt-3 text-right font-semibold text-green-600">
+                    {formatCurrency(totalPaid)}
+                  </td>
+                  <td />
+                </tr>
+              ) : undefined
+            }
+          />
+        </div>
       </div>
-
     </AppLayout>
   );
 }

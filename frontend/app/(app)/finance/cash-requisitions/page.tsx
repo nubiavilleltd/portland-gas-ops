@@ -1,92 +1,168 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormDatePicker from "@/components/forms/FormDatePicker";
-import FormFileUpload from "@/components/forms/FormFileUpload";
-import DataTable from "@/components/data-table/data-table";
+import DataTable from "@/components/ui/DataTable";
+import SelectInput from "@/components/forms/SelectInput";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
-import WorkflowPath from "../_components/WorkflowPath";
-import ApprovalStepper from "../_components/ApprovalStepper";
-import ActivityHistory from "../_components/ActivityHistory";
-import {
-  DEPT_OPTIONS,
-  CURRENCY_OPTIONS,
-  PRIORITY_OPTIONS,
-  genRef,
-  SEED_CASH_REQUESTS,
-  type CashRequest,
-} from "../_components/_data";
+import { useCashRequisitions, useCreateCashRequisition } from "@/lib/modules/cash-requisitions/hooks";
+import cashRequisitionsApi from "@/lib/modules/cash-requisitions/api";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+import { useQueryClient } from "@tanstack/react-query";
+import { useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { CURRENCY_OPTIONS } from "../_components/_data";
+
+const TODAY = new Date().toISOString().split("T")[0];
+
+function applyCommas(raw: string): string {
+  const clean = raw.replace(/[^0-9.]/g, "");
+  const [int, dec] = clean.split(".");
+  const formatted = (int || "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dec !== undefined ? `${formatted}.${dec}` : formatted;
+}
+
+const STATUS_OPTIONS = [
+  { value: "pending",     label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "returned",    label: "Returned" },
+  { value: "approved",    label: "Approved" },
+  { value: "denied",      label: "Denied" },
+];
 
 const schema = z.object({
-  requester_name:      z.string().min(2, "Name is required"),
-  department:          z.string().min(1, "Select a department"),
-  date:                z.string().min(1, "Date is required"),
-  amount:              z.string().min(1, "Amount is required"),
-  currency:            z.string().min(1, "Select a currency"),
   title:               z.string().min(3, "Title is required"),
+  currency:            z.string().min(1, "Select a currency"),
+  amount:              z.string().min(1, "Amount is required"),
   description:         z.string().min(5, "Description is required"),
-  budget_code:         z.string().min(1, "Budget code is required"),
-  expected_retirement: z.string().min(1, "Date is required"),
-  priority:            z.string().min(1, "Select a priority"),
+  expected_retirement: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
-
-type View = "list" | "form" | "submitted";
-
-interface SubmittedInfo {
-  ref: string;
-  requester: string;
-  department: string;
-  submittedAt: Date;
-}
-
-const APPROVAL_ROUTE = ["Initiator (You)", "Line Manager", "Finance Review", "Processed"];
+type View = "list" | "form";
 
 export default function CashRequisitionsPage() {
   const [view, setView] = useState<View>("list");
-  const [items, setItems] = useState<CashRequest[]>(SEED_CASH_REQUESTS);
-  const [submitted, setSubmitted] = useState<SubmittedInfo | null>(null);
+  const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
+
+  const { user: currentUser } = useCurrentUser();
+  const { data: myEmployee } = useMyEmployee();
+  const queryClient = useQueryClient();
+  const createCashRequisition = useCreateCashRequisition();
+  // Workflow-driven approver picks for any requester_pick steps on the
+  // cash_requisition workflow (reads the active workflow config).
+  const approverPicker = useApproverPicker("cash_requisition");
+  // Reuse the draft on retry if only the submit step failed (avoids duplicates).
+  const draftRef = useRef<{ id: string; reference?: string } | null>(null);
+
+  const { data: response, isLoading } = useCashRequisitions({
+    limit: 100,
+    sort_by: "created_at",
+    sort_order: "desc",
+  });
+  const allItems = response?.data || [];
+
+  const [activeStatus, setActiveStatus] = useState<string>("");
+
+  const visibleItems = allItems.filter((i) => {
+    // Only the requests I raised. Requests awaiting my approval are in the
+    // sidebar "My Approvals" section.
+    const isMine = !i.requesterId || i.requesterId === currentUser?.id;
+    if (!isMine) return false;
+    if (activeStatus && i.status !== activeStatus) return false;
+    return true;
+  });
+
+  const requesterName = myEmployee?.user
+    ? `${myEmployee.user.first_name ?? ""} ${myEmployee.user.last_name ?? ""}`.trim()
+    : "";
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
+  // Expected Retirement Date is hidden for now:
+  // const watchRetirement = form.watch("expected_retirement");
 
-  function onSubmit(data: FormData) {
-    const ref = genRef("CRQ");
-    setItems((prev) => [
-      {
-        id: ref,
-        ref,
-        title: data.title,
-        department: data.department,
-        amount: parseFloat(data.amount),
-        requester: data.requester_name,
-        date: data.date,
-        status: "pending",
-        budgetCode: data.budget_code,
-        priority: data.priority,
-        description: data.description,
-      },
-      ...prev,
-    ]);
-    setSubmitted({ ref, requester: data.requester_name, department: data.department, submittedAt: new Date() });
-    setView("submitted");
+  async function onSubmit(data: FormData) {
+    try {
+      const amount = parseFloat(data.amount.replace(/,/g, ""));
+      if (!amount || amount <= 0) {
+        toast.error("Enter a valid amount");
+        return;
+      }
+
+      // Every requester_pick step on the workflow must have an approver chosen.
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
+      // 1. Create the requisition — or reuse a draft from a failed attempt.
+      let cr: { id: string; reference?: string };
+      if (draftRef.current) {
+        cr = draftRef.current;
+      } else {
+        const created = await createCashRequisition.mutateAsync({
+          title: data.title,
+          description: data.description,
+          amount,
+          currency: data.currency,
+          expected_retirement: data.expected_retirement || undefined,
+        });
+        draftRef.current = { id: created.id, reference: created.reference };
+        cr = draftRef.current;
+      }
+
+      // 2. Upload supporting files (best-effort)
+      if (supportingFiles.length > 0 && cr?.id) {
+        for (const file of supportingFiles) {
+          try {
+            await cashRequisitionsApi.uploadDocument(cr.id, file);
+          } catch {
+            toast.info(`Could not upload ${file.name}. Your request was still saved.`);
+          }
+        }
+      }
+
+      // 3. Submit for approval (enters the workflow)
+      if (cr?.id) {
+        await cashRequisitionsApi.submitForApproval(cr.id, approverPicker.picksPayload);
+      }
+      draftRef.current = null; // fully submitted — next request is fresh
+
+      // Refetch AFTER the workflow starts so the list shows Next Actor now
+      // (the create mutation invalidated before this step ran).
+      queryClient.invalidateQueries({ queryKey: ["cash-requisitions"] });
+      toast.success(`Request submitted for approval${cr.reference ? ` — ${cr.reference}` : ""}`);
+      form.reset();
+      setSupportingFiles([]);
+      setView("list");
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (error instanceof Error ? error.message : "Failed to submit cash requisition");
+      toast.error(message);
+    }
   }
 
   function goBack() {
     setView("list");
     form.reset();
-    setSubmitted(null);
+    setSupportingFiles([]);
+    draftRef.current = null; // abandon any half-created draft
   }
 
   return (
@@ -98,17 +174,35 @@ export default function CashRequisitionsPage() {
           <PageHeader
             title="Cash Requisitions"
             description="Manage cash requests and approvals"
+            action={
+              <Button leftIcon={<Plus size={16} />} onClick={() => { draftRef.current = null; setView("form"); }}>
+                New Request
+              </Button>
+            }
             className="mb-6"
           />
-          <DataTable
-            columns={cashRequisitionColumns}
-            data={items}
-            rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
-            onNewRequest={() => setView("form")}
-            newRequestLabel="New Request"
-            emptyMessage="No cash requisitions yet"
-            emptyDescription="Submit your first cash request to get started"
-          />
+
+          <div className="w-full overflow-hidden">
+            <DataTable
+              columns={cashRequisitionColumns}
+              data={visibleItems}
+              isLoading={isLoading}
+              rowHref={(row) => `/finance/cash-requisitions/${row.id}`}
+              toolbarActions={
+                <div className="w-52 shrink-0">
+                  <SelectInput
+                    placeholder="All Statuses"
+                    sortOptions={false}
+                    value={activeStatus}
+                    onValueChange={(v) => setActiveStatus(v)}
+                    options={STATUS_OPTIONS}
+                  />
+                </div>
+              }
+              emptyMessage="No cash requisitions yet"
+              emptyDescription="Submit your first cash request to get started"
+            />
+          </div>
         </>
       )}
 
@@ -129,203 +223,105 @@ export default function CashRequisitionsPage() {
             className="mb-6"
           />
 
-          <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden max-w-4xl">
-            <div className="h-1.5 w-full bg-linear-to-r from-brand-purple to-brand-purple-light" />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
-            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 lg:p-8 space-y-8">
+            <FormSection title="Requester Details" description="Your employee information for this cash requisition.">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormInput label="Requester Name" value={requesterName} disabled />
+                <FormInput label="Department" value={myEmployee?.department || ""} disabled />
+                <FormInput label="Job Title / Role" value={myEmployee?.job_title || ""} disabled />
+                <FormDatePicker label="Request Date" value={TODAY} disabled />
+              </div>
+            </FormSection>
 
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
-                  Requester Details
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <FormInput
-                    label="Requester Name"
+            <FormSection title="Request Details" description="Details about the cash being requested.">
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormInput
+                  label="Title / Purpose"
+                  required
+                  placeholder="Brief title for this request"
+                  error={errors.title?.message}
+                  {...form.register("title")}
+                />
+                <FormSelect
+                  label="Currency"
+                  required
+                  options={CURRENCY_OPTIONS}
+                  sortOptions={false}
+                  placeholder="Select currency"
+                  error={errors.currency?.message}
+                  {...form.register("currency")}
+                />
+                <FormInput
+                  label="Amount Requested"
+                  required
+                  placeholder="0.00"
+                  error={errors.amount?.message}
+                  {...form.register("amount", {
+                    onChange: (e) => {
+                      e.target.value = applyCommas(e.target.value);
+                    },
+                  })}
+                />
+                {/* Expected Retirement Date — hidden for now
+                <FormDatePicker
+                  label="Expected Retirement Date"
+                  min={TODAY}
+                  hint="When the cash is expected to be accounted for (optional)"
+                  {...form.register("expected_retirement")}
+                  value={form.watch("expected_retirement") ?? ""}
+                />
+                */}
+                <div className="md:col-span-2">
+                  <FormTextarea
+                    label="Description / Justification"
                     required
-                    placeholder="Your full name"
-                    error={errors.requester_name?.message}
-                    {...form.register("requester_name")}
+                    placeholder="Describe what is needed and why..."
+                    rows={4}
+                    error={errors.description?.message}
+                    {...form.register("description")}
                   />
-                  <FormSelect
-                    label="Department"
-                    required
-                    options={DEPT_OPTIONS}
-                    placeholder="Select department"
-                    error={errors.department?.message}
-                    {...form.register("department")}
+                </div>
+                <div className="md:col-span-2">
+                  <FileDropzone
+                    label="Supporting Documents"
+                    value={supportingFiles}
+                    onChange={setSupportingFiles}
+                    accept="image/*,.pdf,.doc,.docx"
+                    maxFiles={5}
+                    hint="Attach quotes, receipts, or any relevant documents (optional)"
                   />
                 </div>
               </div>
+            </FormSection>
 
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
-                  Request Details
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <FormInput
-                    label="Title / Purpose"
-                    required
-                    placeholder="Brief title for this request"
-                    error={errors.title?.message}
-                    {...form.register("title")}
-                  />
-                  <FormDatePicker
-                    label="Request Date"
-                    required
-                    error={errors.date?.message}
-                    {...form.register("date")}
-                  />
-                  <FormInput
-                    label="Amount Requested (₦)"
-                    type="number"
-                    required
-                    placeholder="0.00"
-                    error={errors.amount?.message}
-                    {...form.register("amount")}
-                  />
-                  <FormSelect
-                    label="Currency"
-                    required
-                    options={CURRENCY_OPTIONS}
-                    sortOptions={false}
-                    placeholder="Select currency"
-                    error={errors.currency?.message}
-                    {...form.register("currency")}
-                  />
-                  <FormSelect
-                    label="Priority"
-                    required
-                    options={PRIORITY_OPTIONS}
-                    sortOptions={false}
-                    placeholder="Select priority"
-                    error={errors.priority?.message}
-                    {...form.register("priority")}
-                  />
-                  <FormDatePicker
-                    label="Expected Retirement Date"
-                    required
-                    error={errors.expected_retirement?.message}
-                    {...form.register("expected_retirement")}
-                  />
-                </div>
-              </div>
+            <WorkflowApproversSection {...approverPicker} />
 
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-4">
-                  Financial & Justification
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <FormInput
-                    label="Budget Code / GL Account"
-                    required
-                    placeholder="e.g. OPEX-2026-OPS"
-                    error={errors.budget_code?.message}
-                    {...form.register("budget_code")}
-                  />
-                  <div className="md:col-span-1" />
-                  <div className="md:col-span-2">
-                    <FormTextarea
-                      label="Description / Justification"
-                      required
-                      placeholder="Describe what is needed and why..."
-                      rows={4}
-                      error={errors.description?.message}
-                      {...form.register("description")}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <FormFileUpload label="Supporting Documents" hint="Attach quotes, receipts, or any relevant documents (optional)" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-brand-border bg-gray-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
-                  Approval Route
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {APPROVAL_ROUTE.map((step, i, arr) => (
-                    <div key={step} className="flex items-center gap-2">
-                      <span
-                        className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-                          i === 0
-                            ? "bg-brand-purple-faint text-brand-purple border-brand-purple-mid"
-                            : "bg-white text-brand-text-secondary border-brand-border"
-                        }`}
-                      >
-                        {step}
-                      </span>
-                      {i < arr.length - 1 && (
-                        <span className="text-brand-text-secondary text-xs">→</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-brand-border">
-                <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
-                  Submit for Approval
-                </Button>
-                <Button type="button" variant="outline" onClick={() => form.reset()}>
-                  Clear Form
-                </Button>
-                <Button type="button" variant="ghost" className="sm:ml-auto" onClick={goBack}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </div>
-        </>
-      )}
-
-      {/* ── SUBMITTED ── */}
-      {view === "submitted" && submitted && (
-        <>
-          <button
-            onClick={goBack}
-            className="flex items-center gap-2 text-sm font-medium text-brand-text-secondary hover:text-brand-purple transition-colors mb-5"
-          >
-            <ArrowLeft size={16} />
-            Back to Cash Requisitions
-          </button>
-
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
-            <CheckCircle2 size={22} className="text-green-600 shrink-0 mt-0.5" />
-            <div>
-              <h2 className="font-semibold text-green-800">Request Submitted Successfully</h2>
-              <p className="text-sm text-green-700 mt-0.5">
-                Reference:{" "}
-                <span className="font-mono font-bold">{submitted.ref}</span> — Your request has been routed to the first approver.
-              </p>
+            <div className="flex gap-3 pt-1">
+              <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
+                Submit for Approval
+              </Button>
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <ApprovalStepper currentStep={1} />
-            <WorkflowPath
-              initiator={submitted.requester}
-              department={submitted.department}
-              currentStep={1}
-            />
-            <ActivityHistory
-              initiator={submitted.requester}
-              department={submitted.department}
-              submittedAt={submitted.submittedAt}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-3 mt-6">
-            <Button onClick={goBack}>View All Requests</Button>
-            <Button
-              variant="outline"
-              onClick={() => { form.reset(); setView("form"); }}
-            >
-              Submit Another
-            </Button>
-          </div>
+          </form>
         </>
       )}
+
     </AppLayout>
+  );
+}
+
+function FormSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-brand-border bg-white shadow-sm">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4">
+        <h2 className="text-base font-semibold text-brand-text-primary">{title}</h2>
+        {description && (
+          <p className="text-sm text-brand-text-secondary mt-0.5">{description}</p>
+        )}
+      </div>
+      <div className="px-6 pt-5 pb-6">
+        {children}
+      </div>
+    </section>
   );
 }

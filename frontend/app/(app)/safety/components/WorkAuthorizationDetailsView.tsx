@@ -1,227 +1,471 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, FileText, ImageIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
+import { getSafetyDisplayStatus } from "@/lib/modules/safety/presentation";
 import Button from "@/components/ui/Button";
 import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormToggleGroup from "@/components/forms/FormToggleGroup";
-import { fetchWorkAuthorizationRequest } from "@/lib/mock/work-authorization-api";
-import MockUserSwitcher from "./MockUserSwitcher";
+import AuditTrail from "@/components/forms/AuditTrail";
+import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import { useToast } from "@/hooks/useToast";
+import { mapWorkflowAuditTrail } from "@/lib/modules/workflow/audit";
+import { useAuditTrail, useMyApprovals } from "@/lib/modules/workflow/queries";
+import {
+  safetyChecklistsApi,
+  useActiveSafetyChecklist,
+  useSafetyChecklistResponses,
+} from "@/lib/modules/safety/checklists";
 import type {
-  WorkAuthorizationApprovalResult,
-  WorkAuthorizationAttachment,
-  WorkAuthorizationAuditTrailItem,
+  SafetyChecklistAnswerCreate,
+  SafetyChecklistItem,
+  SafetyChecklistResponse,
+  SafetyChecklistTemplate,
+} from "@/lib/modules/safety/checklists";
+import {
+  mapWorkAuthorizationToRequest,
+  useHseReviewWorkAuthorization,
+  useUpdateWorkAuthorization,
+  useWorkAuthorization,
+  type WorkAuthorizationDecision,
+  type WorkAuthorizationHseReviewCreate,
+  type WorkAuthorizationInspectionCheck,
+  type WorkAuthorizationInspectionResult,
+} from "@/lib/modules/safety/workAuthorization";
+import {
+  useSafetyCurrentEmployee,
+} from "@/lib/modules/safety/people";
+import { getWorkAuthorizationNextActor } from "@/lib/safety-next-actor";
+import SafetyProcessFormSkeleton from "./SafetyProcessFormSkeleton";
+import SafetyChecklistResponsesView from "./SafetyChecklistResponsesView";
+import SafetyAttachmentList from "./SafetyAttachmentList";
+import SafetyChoiceTable from "./SafetyChoiceTable";
+import type {
   WorkAuthorizationHseInspection,
   WorkAuthorizationRequest,
   WorkAuthorizationRole,
 } from "@/types/safety";
 
-const yesNoOptions = [
-  { value: "Yes", label: "Yes" },
-  { value: "No", label: "No" },
-];
-
-const decisionOptions = [
-  { value: "Approve", label: "Approve" },
-  { value: "Return", label: "Return" },
-  { value: "Deny", label: "Deny" },
+const riskIndicatorOptions = [
+  { value: "Gas/CNG/LNG involved", label: "Gas/CNG/LNG involved" },
+  { value: "Pressurized system involved", label: "Pressurized system involved" },
+  {
+    value: "Heat, sparks, welding, cutting, or grinding",
+    label: "Heat, sparks, welding, cutting, or grinding",
+  },
+  { value: "Electrical isolation required", label: "Electrical isolation required" },
+  { value: "Lifting/heavy equipment involved", label: "Lifting/heavy equipment involved" },
+  { value: "All required PPE available", label: "All required PPE available" },
 ];
 
 const inspectionCheckOptions = [
   { value: "Pass", label: "Pass" },
   { value: "Fail", label: "Fail" },
-  { value: "N/A", label: "N/A" },
 ];
 
 const inspectionResultOptions = [
   { value: "Passed", label: "Passed" },
-  { value: "Returned", label: "Returned" },
   { value: "Failed", label: "Failed" },
+];
+const workAuthorizationRoles: { value: WorkAuthorizationRole; label: string }[] = [
+  { value: "requester", label: "Requester" },
+  { value: "hse", label: "HSE Inspector" },
 ];
 
 function decisionPastTense(decision: "Approve" | "Return" | "Deny") {
-  if (decision === "Deny") return "denied";
+  if (decision === "Deny") return "rejected";
   return `${decision.toLowerCase()}ed`;
 }
 
-type InspectionCheckValue = "Pass" | "Fail" | "N/A";
+type HseInspectionCheckState = Pick<
+  WorkAuthorizationHseInspection,
+  | "workAreaSafe"
+  | "emergencyEquipmentAvailable"
+  | "gasPressureCheckCompleted"
+  | "ppeAndSafetyKitsAvailable"
+  | "safetyControlsInPlace"
+>;
+type InspectionCheckValue =
+  HseInspectionCheckState[keyof HseInspectionCheckState];
+type BackendInspectionCheckValue = "pass" | "fail" | "not_applicable";
+type EditableInspectionCheckValue =
+  | InspectionCheckValue
+  | BackendInspectionCheckValue
+  | "";
+type EditableHseInspectionResult = "Passed" | "Failed" | "";
+type EditableHseInspectionCheckState = Record<
+  keyof HseInspectionCheckState,
+  EditableInspectionCheckValue
+>;
 
-const initialHseInspectionChecks = {
-  workAreaSafe: "Pass",
-  emergencyEquipmentAvailable: "Pass",
-  gasPressureCheckCompleted: "Pass",
-  ppeAndSafetyKitsAvailable: "Pass",
-  toolsSafe: "Pass",
-} satisfies Record<string, InspectionCheckValue>;
+const initialHseInspectionChecks: EditableHseInspectionCheckState = {
+  workAreaSafe: "",
+  emergencyEquipmentAvailable: "",
+  gasPressureCheckCompleted: "",
+  ppeAndSafetyKitsAvailable: "",
+  safetyControlsInPlace: "",
+};
 
-export default function WorkAuthorizationDetailsView({ requestId }: { requestId: string }) {
+function toApiInspectionCheck(
+  value: EditableInspectionCheckValue,
+): WorkAuthorizationInspectionCheck {
+  if (value === "Pass" || value === "pass") return "pass";
+  if (value === "Fail" || value === "fail") return "fail";
+  return "not_applicable";
+}
+
+function toApiInspectionResult(
+  value: EditableHseInspectionResult,
+): WorkAuthorizationInspectionResult {
+  if (value === "Failed") return "failed";
+  return "passed";
+}
+
+function toApiDecision(
+  value: "Approve" | "Return" | "Deny",
+): WorkAuthorizationDecision {
+  if (value === "Approve") return "approve";
+  if (value === "Return") return "return";
+  return "deny";
+}
+
+function getSelectedRiskIndicators(request: WorkAuthorizationRequest) {
+  return [
+    request.riskIndicators.gasInvolved ? "Gas/CNG/LNG involved" : "",
+    request.riskIndicators.pressurizedSystem ? "Pressurized system involved" : "",
+    request.riskIndicators.heatOrSparks
+      ? "Heat, sparks, welding, cutting, or grinding"
+      : "",
+    request.riskIndicators.electricalIsolation
+      ? "Electrical isolation required"
+      : "",
+    request.riskIndicators.liftingEquipment
+      ? "Lifting/heavy equipment involved"
+      : "",
+    request.riskIndicators.ppeAvailable ? "All required PPE available" : "",
+  ].filter(Boolean);
+}
+
+function toChecklistOptions(item: SafetyChecklistItem) {
+  if (!Array.isArray(item.options_json)) return inspectionCheckOptions;
+  return item.options_json
+    .map((option) =>
+      typeof option === "string"
+        ? { value: option, label: option }
+        : { value: option.value, label: option.label },
+    )
+    .filter((option) => !["N/A", "not_applicable"].includes(option.value));
+}
+
+const hseInspectionItemKeyMap: Partial<
+  Record<string, keyof EditableHseInspectionCheckState>
+> = {
+  work_area_safe: "workAreaSafe",
+  emergency_equipment_available: "emergencyEquipmentAvailable",
+  gas_pressure_check_completed: "gasPressureCheckCompleted",
+  ppe_and_safety_kits_available: "ppeAndSafetyKitsAvailable",
+  safety_controls_in_place: "safetyControlsInPlace",
+};
+
+function buildHseInspectionChecklistAnswers(
+  checklist: SafetyChecklistTemplate | undefined,
+  checks: EditableHseInspectionCheckState,
+  result: EditableHseInspectionResult,
+  comment: string,
+): SafetyChecklistAnswerCreate[] {
+  if (!checklist) return [];
+
+  return checklist.items.reduce<SafetyChecklistAnswerCreate[]>((answers, item) => {
+    const mappedKey = hseInspectionItemKeyMap[item.item_key];
+
+    if (item.input_type === "enum" && mappedKey) {
+      answers.push({
+        item_id: item.id,
+        selected_option: toApiInspectionCheck(checks[mappedKey]),
+      });
+      return answers;
+    }
+
+    if (item.input_type === "enum" && item.item_key === "hse_inspection_result") {
+      answers.push({
+        item_id: item.id,
+        selected_option: toApiInspectionResult(result),
+      });
+      return answers;
+    }
+
+    if (item.input_type === "text" && item.item_key === "inspection_comments") {
+      const value = comment.trim();
+      if (value) {
+        answers.push({
+          item_id: item.id,
+          value_text: value,
+        });
+      }
+    }
+
+    return answers;
+  }, []);
+}
+
+export default function WorkAuthorizationDetailsView({
+  requestId,
+}: {
+  requestId: string;
+}) {
   const router = useRouter();
-  const [currentRole, setCurrentRole] = useState<WorkAuthorizationRole>("requester");
-  const [request, setRequest] = useState<WorkAuthorizationRequest | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [supervisorComment, setSupervisorComment] = useState("");
+  const toast = useToast();
+  const [updatedRequest, setUpdatedRequest] =
+    useState<WorkAuthorizationRequest | null>(null);
   const [hseComment, setHseComment] = useState("");
   const [hseEvidence, setHseEvidence] = useState<File[]>([]);
-  const [hseInspectionChecks, setHseInspectionChecks] = useState(initialHseInspectionChecks);
-
-  const hasFailedHseInspectionCheck = Object.values(hseInspectionChecks).some(
-    (value) => value === "Fail"
+  const [hseInspectionChecks, setHseInspectionChecks] = useState(
+    initialHseInspectionChecks,
+  );
+  const [hseInspectionResult, setHseInspectionResult] =
+    useState<EditableHseInspectionResult>("");
+  const [riskIndicators, setRiskIndicators] = useState<string[]>([]);
+  const [additionalSafetyNote, setAdditionalSafetyNote] = useState("");
+  const [requesterAttachments, setRequesterAttachments] = useState<File[]>([]);
+  const [retainedRequesterAttachmentIds, setRetainedRequesterAttachmentIds] =
+    useState<string[]>([]);
+  const hseInspectionChecklist = useActiveSafetyChecklist(
+    "work_authorization",
+    "inspection",
+  );
+  const requestQuery = useWorkAuthorization(requestId);
+  const hseInspectionResponsesQuery = useSafetyChecklistResponses(
+    "work_authorization",
+    requestId,
+  );
+  const updateWorkAuthorization = useUpdateWorkAuthorization(requestId);
+  const hseReviewWorkAuthorization = useHseReviewWorkAuthorization(requestId);
+  const myApprovalsQuery = useMyApprovals();
+  const auditTrailQuery = useAuditTrail("work_authorization", requestId);
+  const workflowAuditTrail = mapWorkflowAuditTrail(auditTrailQuery.data ?? []);
+  const currentEmployeeQuery = useSafetyCurrentEmployee();
+  const currentEmployee = currentEmployeeQuery.data;
+  const request =
+    updatedRequest?.id === requestId ? updatedRequest : requestQuery.data ?? null;
+  const myWorkAuthorizationApproval = (myApprovalsQuery.data ?? []).find(
+    (approval) =>
+      approval.request_type === "work_authorization" &&
+      approval.request_id === requestId,
   );
 
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
-    let mounted = true;
-
-    fetchWorkAuthorizationRequest(requestId)
-      .then((item) => {
-        if (mounted) setRequest(item);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [requestId]);
-
-  const permissions = useMemo(() => {
-    const isDraft = request?.status === "draft";
-    const isSubmitted = request?.status === "submitted";
-    const isPendingApproval = request?.status === "pending_approval";
-    const isApproved = request?.status === "approved";
-
-    return {
-      canEditDraft: currentRole === "requester" && isDraft,
-      canSupervisorApprove: currentRole === "supervisor" && isSubmitted,
-      canHseInspect: currentRole === "hse" && isPendingApproval,
-      showSupervisorApproval: Boolean(isPendingApproval || isApproved),
-      showHseSection: Boolean((currentRole === "hse" && isPendingApproval) || isApproved),
-      showAuditTrail: Boolean(!isDraft || isApproved),
-    };
-  }, [currentRole, request?.status]);
-
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((item) => (
-          <div key={item} className="h-20 animate-pulse rounded-2xl border border-brand-border bg-white" />
-        ))}
-      </div>
+    if (!request) return;
+    setRiskIndicators(getSelectedRiskIndicators(request));
+    setAdditionalSafetyNote(request.riskIndicators.additionalSafetyNote);
+    setRequesterAttachments([]);
+    setRetainedRequesterAttachmentIds(
+      request.attachments
+        .map((attachment) => attachment.id)
+        .filter((id): id is string => Boolean(id)),
     );
+  }, [request?.id, request?.status]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  const isRequester = Boolean(
+    request?.requesterId &&
+      currentEmployee?.id &&
+      request.requesterId === currentEmployee.id,
+  );
+  const isAssignedSupervisor = Boolean(
+    request?.workInitiation.assignedSupervisorId &&
+      currentEmployee?.id &&
+      request.workInitiation.assignedSupervisorId === currentEmployee.id,
+  );
+  const isHseEmployee = isHseDepartment(currentEmployee?.department);
+  const isAssignedHseWorkflowApprover = Boolean(myWorkAuthorizationApproval);
+  const currentRole = getWorkAuthorizationAccessRole({
+    isRequester,
+    isAssignedSupervisor,
+    isHseEmployee: isAssignedHseWorkflowApprover,
+  });
+
+  const hasFailedHseInspectionCheck = Object.values(hseInspectionChecks).some(
+    (value) => value === "Fail" || value === "fail",
+  );
+  const hasFailedHseInspectionResult = hseInspectionResult === "Failed";
+  const hseChecklistIncomplete =
+    Object.values(hseInspectionChecks).some((value) => !value) ||
+    !hseInspectionResult;
+  const shouldDisableHseApproval =
+    hseChecklistIncomplete ||
+    hasFailedHseInspectionCheck ||
+    hasFailedHseInspectionResult;
+
+  const isDraft = request?.status === "draft";
+  const isSubmitted = request?.status === "submitted";
+  const isApproved = request?.status === "approved";
+  const isReturned = request?.status === "returned";
+  const isDenied = request?.status === "denied";
+  const permissions = {
+    canEditDraft: isRequester && (isDraft || isReturned),
+    canHseInspect: isHseEmployee && isAssignedHseWorkflowApprover && isSubmitted,
+    showHseSection: Boolean(
+      (isHseEmployee && isAssignedHseWorkflowApprover && isSubmitted) ||
+        isApproved ||
+        isReturned ||
+        isDenied,
+    ),
+    showAuditTrail: Boolean(!isDraft || isApproved || isReturned || isDenied),
+  };
+
+  if (
+    requestQuery.isLoading ||
+    currentEmployeeQuery.isLoading ||
+    myApprovalsQuery.isLoading
+  ) {
+    return <SafetyProcessFormSkeleton sections={5} />;
   }
 
   if (!request) {
     return (
       <div className="rounded-2xl border border-brand-border bg-white p-6">
-        <p className="text-sm text-brand-text-secondary">Work authorization request not found.</p>
+        <p className="text-sm text-brand-text-secondary">
+          Work authorization request not found.
+        </p>
       </div>
     );
   }
+  if (permissions.canHseInspect && hseInspectionChecklist.isLoading) {
+    return <SafetyProcessFormSkeleton sections={5} />;
+  }
+  const persistedRequestId = request.id;
 
-  function addAudit(item: WorkAuthorizationAuditTrailItem) {
-    setRequest((current) =>
-      current ? { ...current, auditTrail: [...current.auditTrail, item] } : current
-    );
+  async function handleRequesterSubmit() {
+    if (updateWorkAuthorization.isPending) return;
+    try {
+      const updated = await updateWorkAuthorization.mutateAsync({
+        payload: {
+          gas_involved: riskIndicators.includes("Gas/CNG/LNG involved"),
+          pressurized_system: riskIndicators.includes("Pressurized system involved"),
+          heat_or_sparks: riskIndicators.includes(
+            "Heat, sparks, welding, cutting, or grinding",
+          ),
+          electrical_isolation: riskIndicators.includes(
+            "Electrical isolation required",
+          ),
+          lifting_equipment: riskIndicators.includes(
+            "Lifting/heavy equipment involved",
+          ),
+          ppe_available: riskIndicators.includes("All required PPE available"),
+          additional_safety_note: additionalSafetyNote || null,
+          attachment_notes: null,
+          attachments: [],
+          retained_attachment_ids: retainedRequesterAttachmentIds,
+        },
+        attachments: requesterAttachments,
+      });
+      setUpdatedRequest(mapWorkAuthorizationToRequest(updated));
+      toast.success("Work authorization resubmitted.");
+      routeBackToWorkAuthorizationRequests(router);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Work authorization could not be resubmitted."),
+      );
+    }
   }
 
-  function handleRequesterSubmit() {
-    setRequest((current) =>
-      current ? { ...current, status: "submitted" } : current
-    );
-    addAudit({
-      action: "Submitted",
-      actor: request.requester.name,
-      role: "Requester",
-      dateTime: "2026-05-18 09:30 AM",
-      comment: "Work authorization request submitted.",
-    });
-  }
-
-  function handleSupervisorDecision(decision: "Approve" | "Return" | "Deny") {
-    const result: WorkAuthorizationApprovalResult = {
-      decision,
-      approver: "Mary James",
-      dateTime: "2026-05-18 10:15 AM",
-      comment:
-        supervisorComment ||
-        (decision === "Approve"
-          ? "Work scope reviewed and approved for HSE inspection."
-          : `Request ${decisionPastTense(decision)} by supervisor.`),
-    };
-
-    setRequest((current) =>
-      current
-        ? {
-            ...current,
-            status: decision === "Approve" ? "pending_approval" : current.status,
-            supervisorApproval: result,
-          }
-        : current
-    );
-    addAudit({
-      action: decision === "Approve" ? "Supervisor Approved" : `Supervisor ${decision}ed`,
-      actor: result.approver,
-      role: "Supervisor",
-      dateTime: result.dateTime,
-      comment: result.comment,
-    });
-  }
-
-  function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
-    if (decision === "Approve" && hasFailedHseInspectionCheck) {
+  async function handleHseDecision(decision: "Approve" | "Return" | "Deny") {
+    if (hseReviewWorkAuthorization.isPending) return;
+    if (decision === "Approve" && shouldDisableHseApproval) {
+      return;
+    }
+    if (hseChecklistIncomplete) {
+      toast.error("Complete all HSE inspection checks before submitting a decision.");
+      return;
+    }
+    if ((decision === "Return" || decision === "Deny") && !hseComment.trim()) {
+      return;
+    }
+    if (hasFailedHseInspectionResult && !hseComment.trim()) {
+      toast.error("Add HSE inspection comments when the inspection result is failed.");
       return;
     }
 
-    const inspection: WorkAuthorizationHseInspection = {
-      ...hseInspectionChecks,
-      inspectionDateTime: "2026-05-18 11:00 AM",
-      comments: hseComment || "Area inspected and cleared for work.",
-      result: decision === "Approve" ? "Passed" : decision === "Return" ? "Returned" : "Failed",
-      evidence:
-        hseEvidence.length > 0
-          ? hseEvidence.map((file) => ({ name: file.name, type: "image" as const }))
-          : [{ name: "hse-inspection-photo.jpg", type: "image" }],
-    };
-    const approval: WorkAuthorizationApprovalResult = {
-      decision,
-      approver: "Samuel Bassey",
-      dateTime: "2026-05-18 11:10 AM",
-      comment:
+    const result = hseInspectionResult;
+    const payload: WorkAuthorizationHseReviewCreate = {
+      work_area_safe: toApiInspectionCheck(hseInspectionChecks.workAreaSafe),
+      emergency_equipment_available: toApiInspectionCheck(
+        hseInspectionChecks.emergencyEquipmentAvailable,
+      ),
+      gas_pressure_check_completed: toApiInspectionCheck(
+        hseInspectionChecks.gasPressureCheckCompleted,
+      ),
+      ppe_and_safety_kits_available: toApiInspectionCheck(
+        hseInspectionChecks.ppeAndSafetyKitsAvailable,
+      ),
+      safety_controls_in_place: toApiInspectionCheck(
+        hseInspectionChecks.safetyControlsInPlace,
+      ),
+      hse_inspection_result: toApiInspectionResult(result),
+      hse_inspection_comment: hseComment || "Area inspected and cleared for work.",
+      decision: toApiDecision(decision),
+      decision_comment:
         hseComment ||
         (decision === "Approve"
           ? "Request approved by HSE."
           : `Request ${decisionPastTense(decision)} by HSE.`),
     };
 
-    setRequest((current) =>
-      current
-        ? {
-            ...current,
-            status: decision === "Approve" ? "approved" : current.status,
-            hseInspection: inspection,
-            hseApproval: approval,
-          }
-        : current
-    );
-    addAudit({
-      action: "HSE Inspection Completed",
-      actor: approval.approver,
-      role: "HSE Inspector",
-      dateTime: inspection.inspectionDateTime,
-      comment: inspection.comments,
-    });
-    addAudit({
-      action: decision === "Approve" ? "HSE Approved" : `HSE ${decision}ed`,
-      actor: approval.approver,
-      role: "HSE Inspector",
-      dateTime: approval.dateTime,
-      comment: approval.comment,
-    });
+    try {
+      const updated = await hseReviewWorkAuthorization.mutateAsync({
+        payload,
+        evidence: hseEvidence,
+      });
+      setUpdatedRequest(mapWorkAuthorizationToRequest(updated));
+
+      const checklistAnswers = buildHseInspectionChecklistAnswers(
+        hseInspectionChecklist.data,
+        hseInspectionChecks,
+        result,
+        payload.hse_inspection_comment ?? "",
+      );
+      let checklistHistoryWasSaved = true;
+
+      if (checklistAnswers.length > 0) {
+        try {
+          await safetyChecklistsApi.createResponses({
+            parent_type: "work_authorization",
+            parent_id: persistedRequestId,
+            answers: checklistAnswers,
+          });
+        } catch (checklistError) {
+          checklistHistoryWasSaved = false;
+          console.error(
+            "Failed to save work authorization HSE inspection checklist responses",
+            checklistError,
+          );
+        }
+      }
+
+      if (!checklistHistoryWasSaved) {
+        toast.info(
+          "HSE decision saved, but the inspection checklist history could not be saved.",
+        );
+        routeBackToWorkAuthorizationRequests(router);
+        return;
+      }
+
+      if (decision === "Approve") {
+        toast.success("Work authorization approved by HSE.");
+      } else if (decision === "Return") {
+        toast.warning("Work authorization returned to requester.");
+      } else {
+        toast.error("Work authorization rejected by HSE.");
+      }
+      routeBackToWorkAuthorizationRequests(router);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "HSE decision could not be saved."));
+    }
   }
 
   return (
@@ -235,45 +479,60 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
         Back to Work Authorization
       </button>
 
-      <MockUserSwitcher value={currentRole} onChange={setCurrentRole} />
-
-      <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-brand-text-secondary">
-              Work Authorization Details
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-brand-text-primary">{request.id}</h2>
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              Viewing as {roleLabel(currentRole)}
-            </p>
-          </div>
-          <ApprovalBadge status={request.status} />
-        </div>
-      </section>
+      <RoleBasedRecordHeader
+        id={request.reference ?? "Reference pending"}
+        currentRole={currentRole}
+        onRoleChange={() => undefined}
+        roleLabel={
+          isRequester || isAssignedSupervisor || isAssignedHseWorkflowApprover
+            ? roleLabel(currentRole)
+            : "Viewer"
+        }
+        roles={workAuthorizationRoles}
+        recordLabel="Work Authorization Details"
+        title={request.workInitiation.title}
+        status={
+          <ApprovalBadge status={getSafetyDisplayStatus(request.status)} />
+        }
+        nextActor={getWorkAuthorizationNextActor(request)}
+        nextApproverName={request.nextApproverName}
+        nextApproverRole={request.nextApproverRole}
+        showRoleSwitcher={false}
+      />
 
       <StatusNote request={request} currentRole={currentRole} />
 
       <RequesterDetailsSection request={request} />
-      <RequestDetailsSection request={request} editable={permissions.canEditDraft} />
-      <WorkDetailsSection request={request} editable={permissions.canEditDraft} />
-      <RiskIndicatorsSection request={request} editable={permissions.canEditDraft} />
-      <AttachmentsSection request={request} editable={permissions.canEditDraft} />
+      <AssignedWorkSummarySection request={request} />
+      <RiskIndicatorsSection
+        editable={permissions.canEditDraft}
+        selectedRiskIndicators={riskIndicators}
+        onRiskIndicatorsChange={setRiskIndicators}
+        additionalSafetyNote={additionalSafetyNote}
+        onAdditionalSafetyNoteChange={setAdditionalSafetyNote}
+        checklistResponses={(hseInspectionResponsesQuery.data ?? []).filter(
+          (response) => response.stage_snapshot === "risk_assessment",
+        )}
+      />
+      <AttachmentsSection
+        request={request}
+        editable={permissions.canEditDraft}
+        newAttachments={requesterAttachments}
+        onNewAttachmentsChange={setRequesterAttachments}
+        retainedAttachmentIds={retainedRequesterAttachmentIds}
+        onRetainedAttachmentIdsChange={setRetainedRequesterAttachmentIds}
+      />
 
-      {currentRole === "requester" && request.status === "draft" ? (
+      {permissions.canEditDraft ? (
         <div className="flex justify-end">
-          <Button onClick={handleRequesterSubmit}>Submit Request</Button>
+          <Button
+            onClick={handleRequesterSubmit}
+            loading={updateWorkAuthorization.isPending}
+            loadingText="Submitting..."
+          >
+            Submit Request
+          </Button>
         </div>
-      ) : null}
-
-      {permissions.canSupervisorApprove ? (
-        <SupervisorActionSection
-          comment={supervisorComment}
-          onCommentChange={setSupervisorComment}
-          onDecision={handleSupervisorDecision}
-        />
-      ) : permissions.showSupervisorApproval && request.supervisorApproval ? (
-        <ApprovalResultSection title="Supervisor Approval Result" result={request.supervisorApproval} />
       ) : null}
 
       {permissions.showHseSection ? (
@@ -284,210 +543,247 @@ export default function WorkAuthorizationDetailsView({ requestId }: { requestId:
               onCommentChange={setHseComment}
               checks={hseInspectionChecks}
               onCheckChange={(key, value) =>
-                setHseInspectionChecks((current) => ({ ...current, [key]: value }))
+                setHseInspectionChecks((current) => ({
+                  ...current,
+                  [key]: value,
+                }))
               }
+              inspectionResult={hseInspectionResult}
+              onInspectionResultChange={setHseInspectionResult}
               evidence={hseEvidence}
               onEvidenceChange={setHseEvidence}
+              checklist={hseInspectionChecklist.data}
+              checklistError={hseInspectionChecklist.isError}
             />
             <HseFinalActionSection
               onDecision={handleHseDecision}
-              disableApprove={hasFailedHseInspectionCheck}
+              disableApprove={shouldDisableHseApproval}
+              reasonMissing={!hseComment.trim()}
+              checklistIncomplete={hseChecklistIncomplete}
+              isPending={hseReviewWorkAuthorization.isPending}
             />
           </>
         ) : (
           <>
-            {request.hseInspection ? <HseInspectionResultSection inspection={request.hseInspection} /> : null}
-            {request.hseApproval ? <ApprovalResultSection title="HSE Final Approval Result" result={request.hseApproval} /> : null}
+            {request.hseInspection ? (
+              <HseInspectionResultSection
+                inspection={request.hseInspection}
+                checklistResponses={(hseInspectionResponsesQuery.data ?? []).filter(
+                  (response) => response.stage_snapshot === "inspection",
+                )}
+              />
+            ) : null}
           </>
         )
       ) : null}
 
-      {permissions.showAuditTrail ? <AuditTrailSection items={request.auditTrail} /> : null}
+      {permissions.showAuditTrail ? (
+        <AuditTrail items={workflowAuditTrail} />
+      ) : null}
     </div>
   );
 }
 
-function RequesterDetailsSection({ request }: { request: WorkAuthorizationRequest }) {
-  return (
-    <FormSection title="Requester Details">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Requester Name" value={request.requester.name} disabled />
-        <FormInput label="Department" value={request.requester.department} disabled />
-        <FormInput label="Job Title / Role" value={request.requester.role} disabled />
-        <FormInput label="Request Date" value={request.requester.requestDate} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
-function RequestDetailsSection({
+function RequesterDetailsSection({
   request,
-  editable,
 }: {
   request: WorkAuthorizationRequest;
-  editable: boolean;
 }) {
   return (
-    <FormSection title="Request Details">
+    <FormSection title="Requester Details" description="Employee information for the requester who raised this authorization.">
       <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Request Title" defaultValue={request.requestDetails.title} disabled={!editable} />
-        <FormInput label="Work Location" defaultValue={request.requestDetails.location} disabled={!editable} />
-        <FormInput label="Exact Work Area" defaultValue={request.requestDetails.exactWorkArea} disabled={!editable} />
-        <FormInput label="Expected Start Date/Time" defaultValue={request.requestDetails.expectedStartDateTime} disabled={!editable} />
-        <FormInput label="Expected End Date/Time" defaultValue={request.requestDetails.expectedEndDateTime} disabled={!editable} />
-        <FormInput label="Supervisor" defaultValue={request.requestDetails.supervisor} disabled={!editable} />
-        <FormInput label="Priority" defaultValue={request.requestDetails.priority} disabled={!editable} />
-      </div>
-    </FormSection>
-  );
-}
-
-function WorkDetailsSection({
-  request,
-  editable,
-}: {
-  request: WorkAuthorizationRequest;
-  editable: boolean;
-}) {
-  return (
-    <FormSection title="Work Details">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Type of Work" defaultValue={request.workDetails.typeOfWork.join(", ")} disabled={!editable} />
-        <FormTextarea label="Work Description" defaultValue={request.workDetails.description} disabled={!editable} />
-        <FormTextarea label="Reason for Work" defaultValue={request.workDetails.reason} disabled={!editable} />
-        <FormInput label="Workers Involved" defaultValue={request.workDetails.workersInvolved.join(", ")} disabled={!editable} />
-        <FormToggleGroup
-          label="Contractor Required?"
-          value={request.workDetails.contractorRequired ? "Yes" : "No"}
-          options={yesNoOptions}
-          disabled={!editable}
+        <FormInput
+          label="Requester Name"
+          value={request.requester.name}
+          disabled
         />
-        {request.workDetails.contractorRequired ? (
+        <FormInput
+          label="Department"
+          value={request.requester.department}
+          disabled
+        />
+        <FormInput
+          label="Job Title / Role"
+          value={request.requester.role}
+          disabled
+        />
+        <FormInput
+          label="Request Date"
+          value={request.requester.requestDate}
+          disabled
+        />
+      </div>
+    </FormSection>
+  );
+}
+
+function AssignedWorkSummarySection({
+  request,
+}: {
+  request: WorkAuthorizationRequest;
+}) {
+  const work = request.workInitiation;
+  return (
+    <FormSection title="Assigned Work Summary" description="Approved scope and assignments carried from Work Initiation.">
+      <div className="grid gap-4 md:grid-cols-2">
+        <FormInput
+          label="Work Initiation Reference"
+          value={work.reference ?? "Reference pending"}
+          disabled
+        />
+        <FormInput
+          label="Work Title"
+          value={work.title}
+          disabled
+        />
+        <FormInput label="Work Category" value={work.workCategory} disabled />
+        {work.relatedIncidentHazardId ? (
+          <FormInput label="Related Incident/Hazard Request" value={work.relatedIncidentHazardId} disabled />
+        ) : null}
+        <FormInput
+          label="Type of Work"
+          value={work.workType.join(", ")}
+          disabled
+        />
+        <FormInput label="Location" value={work.location} disabled />
+        <FormTextarea label="Exact Work Area" value={work.exactWorkArea} disabled />
+        <FormInput label="Assigned Supervisor" value={work.assignedSupervisor} disabled />
+        <FormInput
+          label="Assigned Workers"
+          value={work.assignedWorkers.join(", ")}
+          disabled
+        />
+        <FormInput label="Contractors Needed" value={work.contractorsNeeded ? "Yes" : "No"} disabled />
+        {work.contractorsNeeded ? (
           <>
-            <FormInput label="Contractor Name" defaultValue={request.workDetails.contractorName} disabled={!editable} />
-            <FormInput label="Contractor Contact Email" type="email" defaultValue={request.workDetails.contractorContactEmail} disabled={!editable} />
+            <FormInput label="Selected Contractor" value={work.selectedContractor} disabled />
+            <FormInput label="Contractor Contact Email" type="email" value={work.contractorContactEmail} disabled />
           </>
         ) : null}
-        {/* <FormInput label="Tools/Equipment Required" defaultValue={request.workDetails.toolsEquipment.join(", ")} disabled={!editable} /> */}
-        <FormTextarea label="Special Instructions" defaultValue={request.workDetails.specialInstructions} disabled={!editable} />
+        <FormInput label="Planned Start Date/Time" value={work.plannedStartDateTime} disabled />
+        <FormInput label="Planned End Date/Time" value={work.plannedEndDateTime} disabled />
+        <FormTextarea label="Work Description" value={work.workDescription} disabled className="md:col-span-2" />
       </div>
     </FormSection>
   );
 }
 
 function RiskIndicatorsSection({
-  request,
   editable,
+  selectedRiskIndicators,
+  onRiskIndicatorsChange,
+  additionalSafetyNote,
+  onAdditionalSafetyNoteChange,
+  checklistResponses,
 }: {
-  request: WorkAuthorizationRequest;
   editable: boolean;
+  selectedRiskIndicators: string[];
+  onRiskIndicatorsChange: (value: string[]) => void;
+  additionalSafetyNote: string;
+  onAdditionalSafetyNoteChange: (value: string) => void;
+  checklistResponses: SafetyChecklistResponse[];
 }) {
-  return (
-    <FormSection title="Risk & Safety Indicators">
-      <div className="grid gap-4 md:grid-cols-2">
-        <ReadOnlyYesNo label="Is gas/CNG/LNG involved?" value={request.riskIndicators.gasInvolved} editable={editable} />
-        <ReadOnlyYesNo label="Is a pressurized system involved?" value={request.riskIndicators.pressurizedSystem} editable={editable} />
-        <ReadOnlyYesNo label="Will the work involve heat, sparks, welding, cutting, or grinding?" value={request.riskIndicators.heatOrSparks} editable={editable} />
-        <ReadOnlyYesNo label="Is electrical isolation required?" value={request.riskIndicators.electricalIsolation} editable={editable} />
-        <ReadOnlyYesNo label="Is lifting/heavy equipment involved?" value={request.riskIndicators.liftingEquipment} editable={editable} />
-        <FormTextarea label="Additional Safety Note" defaultValue={request.riskIndicators.additionalSafetyNote} disabled={!editable} />
-      </div>
-    </FormSection>
-  );
-}
+  const riskRows = riskIndicatorOptions.map((option) => ({
+    label: option.label,
+    required: true,
+    value: selectedRiskIndicators.includes(option.value) ? "Yes" : "No",
+    onValueChange: (value: string) => {
+      if (value === "Yes") {
+        onRiskIndicatorsChange(
+          selectedRiskIndicators.includes(option.value)
+            ? selectedRiskIndicators
+            : [...selectedRiskIndicators, option.value],
+        );
+        return;
+      }
+      onRiskIndicatorsChange(
+        selectedRiskIndicators.filter((current) => current !== option.value),
+      );
+    },
+  }));
 
-function ReadOnlyYesNo({
-  label,
-  value,
-  editable,
-}: {
-  label: string;
-  value: boolean;
-  editable: boolean;
-}) {
   return (
-    <FormToggleGroup
-      label={label}
-      value={value ? "Yes" : "No"}
-      options={yesNoOptions}
-      disabled={!editable}
-    />
+    <FormSection title="Risk & Safety Indicators" description="Safety considerations identified for this work activity.">
+      {!editable && checklistResponses.length > 0 ? (
+        <div className="space-y-4">
+          <SafetyChecklistResponsesView responses={checklistResponses} />
+          {additionalSafetyNote ? (
+            <FormTextarea
+              label="Additional Safety Note"
+              value={additionalSafetyNote}
+              disabled
+            />
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <SafetyChoiceTable
+            options={[
+              { value: "Yes", label: "Yes" },
+              { value: "No", label: "No" },
+            ]}
+            rows={riskRows}
+            disabled={!editable}
+          />
+          <FormTextarea
+            label="Additional Safety Note"
+            value={additionalSafetyNote}
+            onChange={(event) => onAdditionalSafetyNoteChange(event.target.value)}
+            disabled={!editable}
+          />
+        </div>
+      )}
+    </FormSection>
   );
 }
 
 function AttachmentsSection({
   request,
   editable,
+  newAttachments,
+  onNewAttachmentsChange,
+  retainedAttachmentIds,
+  onRetainedAttachmentIdsChange,
 }: {
   request: WorkAuthorizationRequest;
   editable: boolean;
+  newAttachments: File[];
+  onNewAttachmentsChange: (files: File[]) => void;
+  retainedAttachmentIds: string[];
+  onRetainedAttachmentIdsChange: (ids: string[]) => void;
 }) {
-  const [newAttachments, setNewAttachments] = useState<File[]>([]);
+  const visibleAttachments = editable
+    ? request.attachments.filter(
+        (attachment) =>
+          !attachment.id || retainedAttachmentIds.includes(attachment.id),
+      )
+    : request.attachments;
 
   return (
-    <FormSection title="Attachments">
-      <AttachmentList attachments={request.attachments} />
+    <FormSection title="Attachments" description="Supporting safety documents and evidence attached to this request.">
+      <SafetyAttachmentList
+        label="Safety-related Images/Documents"
+        attachments={visibleAttachments}
+        onRemove={
+          editable
+            ? (attachmentId) =>
+                onRetainedAttachmentIdsChange(
+                  retainedAttachmentIds.filter((id) => id !== attachmentId),
+                )
+            : undefined
+        }
+      />
       {editable ? (
         <div className="mt-4">
           <FileDropzone
-            label="Add Attachments"
             value={newAttachments}
-            onChange={setNewAttachments}
+            onChange={onNewAttachmentsChange}
             accept="image/*,.pdf,.doc,.docx"
             maxFiles={10}
-            hint="Local selection only. No upload is performed."
+            hint="These files will be uploaded when the returned request is resubmitted."
           />
         </div>
       ) : null}
-    </FormSection>
-  );
-}
-
-function AttachmentList({ attachments }: { attachments: WorkAuthorizationAttachment[] }) {
-  if (attachments.length === 0) {
-    return <p className="text-sm text-brand-text-secondary">No attachments.</p>;
-  }
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {attachments.map((attachment) => (
-        <div
-          key={attachment.name}
-          className="flex items-center gap-3 rounded-xl border border-brand-border bg-gray-50 p-3"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-brand-purple">
-            {attachment.type === "image" ? <ImageIcon size={18} /> : <FileText size={18} />}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-brand-text-primary">{attachment.name}</p>
-            <p className="text-xs capitalize text-brand-text-secondary">{attachment.type}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SupervisorActionSection({
-  comment,
-  onCommentChange,
-  onDecision,
-}: {
-  comment: string;
-  onCommentChange: (comment: string) => void;
-  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
-}) {
-  return (
-    <FormSection title="Supervisor Approval">
-      <div className="space-y-4">
-        <FormTextarea
-          label="Supervisor Comment"
-          value={comment}
-          onChange={(event) => onCommentChange(event.target.value)}
-          placeholder="Add review notes"
-        />
-        <DecisionButtons onDecision={onDecision} />
-      </div>
     </FormSection>
   );
 }
@@ -497,63 +793,97 @@ function HseInspectionActionSection({
   onCommentChange,
   checks,
   onCheckChange,
+  inspectionResult,
+  onInspectionResultChange,
   evidence,
   onEvidenceChange,
+  checklist,
+  checklistError,
 }: {
   comment: string;
   onCommentChange: (comment: string) => void;
   checks: typeof initialHseInspectionChecks;
-  onCheckChange: (key: keyof typeof initialHseInspectionChecks, value: InspectionCheckValue) => void;
+  onCheckChange: (
+    key: keyof typeof initialHseInspectionChecks,
+    value: EditableInspectionCheckValue,
+  ) => void;
+  inspectionResult: EditableHseInspectionResult;
+  onInspectionResultChange: (value: EditableHseInspectionResult) => void;
   evidence: File[];
   onEvidenceChange: (files: File[]) => void;
+  checklist?: SafetyChecklistTemplate;
+  checklistError: boolean;
 }) {
-  return (
-    <FormSection title="HSE Inspection Acknowledgement">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormSelect
-          label="Work area is safe, clean, and accessible"
-          options={inspectionCheckOptions}
-          value={checks.workAreaSafe}
-          onValueChange={(value) => onCheckChange("workAreaSafe", value as InspectionCheckValue)}
-        />
-        <FormSelect
-          label="Fire extinguisher/emergency equipment is available"
-          options={inspectionCheckOptions}
-          value={checks.emergencyEquipmentAvailable}
-          onValueChange={(value) =>
-            onCheckChange("emergencyEquipmentAvailable", value as InspectionCheckValue)
-          }
-        />
-        <FormSelect
-          label="Gas leak/pressure/abnormal condition check completed"
-          options={inspectionCheckOptions}
-          value={checks.gasPressureCheckCompleted}
-          onValueChange={(value) =>
-            onCheckChange("gasPressureCheckCompleted", value as InspectionCheckValue)
-          }
-        />
-        <FormSelect
-          label="Required PPE and safety kits are available"
-          options={inspectionCheckOptions}
-          value={checks.ppeAndSafetyKitsAvailable}
-          onValueChange={(value) =>
-            onCheckChange("ppeAndSafetyKitsAvailable", value as InspectionCheckValue)
-          }
-        />
-        <FormSelect
-          label="Tools/equipment are safe and suitable for the job"
-          options={inspectionCheckOptions}
-          value={checks.toolsSafe}
-          onValueChange={(value) => onCheckChange("toolsSafe", value as InspectionCheckValue)}
-        />
-        <FormInput label="Inspection date/time" defaultValue="2026-05-18 11:00 AM" />
-        <FormSelect label="Inspection result" options={inspectionResultOptions} defaultValue="Passed" />
+  function renderChecklistItem(item: SafetyChecklistItem) {
+    const mappedKey = hseInspectionItemKeyMap[item.item_key];
+    if (item.input_type === "text" && item.item_key === "inspection_comments") {
+      return (
         <FormTextarea
-          label="Inspection comments"
+          key={item.id}
+          label={item.label}
           value={comment}
           onChange={(event) => onCommentChange(event.target.value)}
           placeholder="Add inspection comments"
         />
+      );
+    }
+    if (item.input_type === "enum" && mappedKey) {
+      return (
+        <FormSelect
+          key={item.id}
+          label={item.label}
+          options={toChecklistOptions(item)}
+          placeholder="Select inspection result"
+          value={checks[mappedKey]}
+          onValueChange={(value) =>
+            onCheckChange(mappedKey, value as EditableInspectionCheckValue)
+          }
+        />
+      );
+    }
+    if (item.input_type === "enum" && item.item_key === "hse_inspection_result") {
+      return (
+        <FormSelect
+          key={item.id}
+          label={item.label}
+          options={inspectionResultOptions}
+          placeholder="Select inspection result"
+          value={inspectionResult}
+          onValueChange={(value) =>
+            onInspectionResultChange(value as EditableHseInspectionResult)
+          }
+        />
+      );
+    }
+    return (
+      <FormInput
+        key={item.id}
+        label={item.label}
+        defaultValue={item.default_value ?? ""}
+      />
+    );
+  }
+
+  return (
+    <FormSection title="HSE Inspection Acknowledgement" description="Complete the safety checks required before making an HSE decision.">
+      <div className="grid gap-4 md:grid-cols-2">
+        {checklistError ? (
+          <div className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            HSE inspection checklist template is not available.
+          </div>
+        ) : null}
+        {checklist?.items.map(renderChecklistItem)}
+        {checklist?.items.some((item) => item.item_key === "hse_inspection_result") ? null : (
+          <FormSelect
+            label="Inspection result"
+            options={inspectionResultOptions}
+            placeholder="Select inspection result"
+            value={inspectionResult}
+            onValueChange={(value) =>
+              onInspectionResultChange(value as EditableHseInspectionResult)
+            }
+          />
+        )}
         <div className="md:col-span-2">
           <FileDropzone
             label="Inspection evidence/images"
@@ -571,106 +901,94 @@ function HseInspectionActionSection({
 function HseFinalActionSection({
   onDecision,
   disableApprove,
+  reasonMissing,
+  checklistIncomplete,
+  isPending,
 }: {
   onDecision: (decision: "Approve" | "Return" | "Deny") => void;
   disableApprove: boolean;
+  reasonMissing: boolean;
+  checklistIncomplete: boolean;
+  isPending: boolean;
 }) {
   return (
-    <FormSection title="HSE Final Approval">
-      {disableApprove ? (
-        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Approval is disabled because one or more inspection checks failed.
-        </p>
-      ) : null}
-      <DecisionButtons onDecision={onDecision} disableApprove={disableApprove} />
-    </FormSection>
+    <ApprovalPanel
+      title="HSE Final Approval"
+      description="Record the final safety decision for this work authorization."
+      showComment={false}
+      rejectLabel="Reject"
+      disabled={isPending}
+      approveDisabled={disableApprove}
+      returnDisabled={reasonMissing || checklistIncomplete}
+      rejectDisabled={reasonMissing || checklistIncomplete}
+      onApprove={() => onDecision("Approve")}
+      onReturn={() => onDecision("Return")}
+      onReject={() => onDecision("Deny")}
+      extraFields={
+        <div className="space-y-3">
+          {checklistIncomplete ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Complete all HSE inspection checks and select an inspection result before submitting a decision.
+            </p>
+          ) : null}
+          {disableApprove && !checklistIncomplete ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Approval is disabled because one or more inspection checks failed.
+            </p>
+          ) : null}
+          {reasonMissing ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Add an HSE inspection comment before returning or rejecting this request.
+            </p>
+          ) : null}
+        </div>
+      }
+    />
   );
 }
 
-function DecisionButtons({
-  onDecision,
-  disableApprove = false,
+function HseInspectionResultSection({
+  inspection,
+  checklistResponses,
 }: {
-  onDecision: (decision: "Approve" | "Return" | "Deny") => void;
-  disableApprove?: boolean;
+  inspection: WorkAuthorizationHseInspection;
+  checklistResponses: SafetyChecklistResponse[];
 }) {
   return (
-    <div className="flex flex-wrap gap-3">
-      {decisionOptions.map((option) => (
-        <Button
-          key={option.value}
-          type="button"
-          variant={option.value === "Approve" ? "primary" : option.value === "Deny" ? "danger" : "outline"}
-          disabled={option.value === "Approve" && disableApprove}
-          onClick={() => onDecision(option.value as "Approve" | "Return" | "Deny")}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
-  );
-}
-
-function ApprovalResultSection({
-  title,
-  result,
-}: {
-  title: string;
-  result: WorkAuthorizationApprovalResult;
-}) {
-  return (
-    <FormSection title={title}>
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Decision" value={result.decision} disabled />
-        <FormInput label="Approver" value={result.approver} disabled />
-        <FormInput label="Date/time" value={result.dateTime} disabled />
-        <FormTextarea label="Comment" value={result.comment} disabled />
-      </div>
-    </FormSection>
-  );
-}
-
-function HseInspectionResultSection({ inspection }: { inspection: WorkAuthorizationHseInspection }) {
-  return (
-    <FormSection title="HSE Inspection Result">
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormInput label="Work area is safe, clean, and accessible" value={inspection.workAreaSafe} disabled />
-        <FormInput label="Fire extinguisher/emergency equipment is available" value={inspection.emergencyEquipmentAvailable} disabled />
-        <FormInput label="Gas leak/pressure/abnormal condition check completed" value={inspection.gasPressureCheckCompleted} disabled />
-        <FormInput label="Required PPE and safety kits are available" value={inspection.ppeAndSafetyKitsAvailable} disabled />
-        <FormInput label="Tools/equipment are safe and suitable for the job" value={inspection.toolsSafe} disabled />
-        <FormInput label="Inspection date/time" value={inspection.inspectionDateTime} disabled />
-        <FormInput label="Inspection result" value={inspection.result} disabled />
-        <FormTextarea label="Inspection comments" value={inspection.comments} disabled />
+    <FormSection title="HSE Inspection Result" description="Completed inspection evidence supporting the final HSE decision.">
+      <div className="space-y-4">
+        <SafetyChecklistResponsesView
+          responses={checklistResponses}
+          emptyMessage="No HSE inspection checklist responses recorded."
+        />
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormInput
+            label="Inspection date/time"
+            value={inspection.inspectionDateTime}
+            disabled
+          />
+          {checklistResponses.length === 0 ? (
+            <>
+              <FormInput
+                label="Inspection result"
+                value={inspection.result}
+                disabled
+              />
+              <FormTextarea
+                label="Inspection comments"
+                value={inspection.comments}
+                disabled
+              />
+            </>
+          ) : null}
+        </div>
       </div>
       <div className="mt-4">
-        <AttachmentList attachments={inspection.evidence} />
+        <SafetyAttachmentList
+          label="Inspection evidence/images"
+          attachments={inspection.evidence}
+        />
       </div>
-    </FormSection>
-  );
-}
-
-function AuditTrailSection({ items }: { items: WorkAuthorizationAuditTrailItem[] }) {
-  return (
-    <FormSection title="Audit Trail">
-      {items.length === 0 ? (
-        <p className="text-sm text-brand-text-secondary">No audit actions yet.</p>
-      ) : (
-        <div className="divide-y divide-brand-border overflow-hidden rounded-xl border border-brand-border">
-          {items.map((item, index) => (
-            <div
-              key={`${item.action}-${index}`}
-              className="grid gap-2 bg-white p-4 md:grid-cols-[1fr_1fr_1fr_1.2fr_2fr]"
-            >
-              <AuditCell label="Action" value={item.action} />
-              <AuditCell label="Actor" value={item.actor} />
-              <AuditCell label="Role" value={item.role} />
-              <AuditCell label="Date/time" value={item.dateTime} />
-              <AuditCell label="Comment" value={item.comment} />
-            </div>
-          ))}
-        </div>
-      )}
     </FormSection>
   );
 }
@@ -684,24 +1002,25 @@ function StatusNote({
 }) {
   let note = "";
 
-  if (request.status === "draft" && currentRole !== "requester") {
-    note = "This request is still in draft and has not been submitted.";
-  } else if (request.status === "submitted") {
+  if (request.status === "returned") {
     note =
-      currentRole === "supervisor"
-        ? "This request is waiting for your supervisor review."
-        : "Waiting for supervisor approval.";
-  } else if (request.status === "pending_approval") {
-    note =
-      currentRole === "hse"
-        ? "Supervisor has approved. HSE inspection and final approval are available."
-        : "Supervisor approval completed. Waiting for HSE inspection and approval.";
+      currentRole === "requester"
+        ? "This request was returned. Review the comments, update the request, and resubmit."
+        : "This request has been returned to the requester.";
+  } else if (request.status === "denied") {
+    note = "This request has been rejected and is closed.";
   }
 
   if (!note) return null;
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    <div
+      className={
+        request.status === "denied"
+          ? "rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          : "rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800"
+      }
+    >
       {note}
     </div>
   );
@@ -709,25 +1028,23 @@ function StatusNote({
 
 function FormSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-brand-border bg-white p-5 md:p-6">
-      <h3 className="mb-5 text-base font-semibold text-brand-text-primary">{title}</h3>
-      {children}
+    <section className="overflow-visible rounded-2xl border border-brand-border bg-white">
+      <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-5 py-4 md:px-6">
+        <h3 className="text-base font-semibold text-brand-text-primary">
+          {title}
+        </h3>
+        {description ? <p className="mt-1 text-sm text-brand-text-secondary">{description}</p> : null}
+      </div>
+      <div className="p-5 md:p-6">{children}</div>
     </section>
-  );
-}
-
-function AuditCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-brand-text-secondary">{label}</p>
-      <p className="mt-1 text-sm text-brand-text-primary">{value || "-"}</p>
-    </div>
   );
 }
 
@@ -735,4 +1052,48 @@ function roleLabel(role: WorkAuthorizationRole) {
   if (role === "hse") return "HSE Inspector";
   if (role === "supervisor") return "Supervisor";
   return "Requester";
+}
+
+function getWorkAuthorizationAccessRole({
+  isRequester,
+  isAssignedSupervisor,
+  isHseEmployee,
+}: {
+  isRequester: boolean;
+  isAssignedSupervisor: boolean;
+  isHseEmployee: boolean;
+}): WorkAuthorizationRole {
+  if (isHseEmployee) return "hse";
+  if (isAssignedSupervisor) return "supervisor";
+  if (isRequester) return "requester";
+
+  return "requester";
+}
+
+function isHseDepartment(department?: string | null) {
+  const normalizedDepartment = department?.trim().toLowerCase();
+  return normalizedDepartment === "hse" || normalizedDepartment === "safety";
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: unknown } } }).response
+    ?.data?.detail;
+
+  if (typeof detail === "string") return detail;
+  if (
+    detail &&
+    typeof detail === "object" &&
+    "message" in detail &&
+    typeof detail.message === "string"
+  ) {
+    return detail.message;
+  }
+
+  return fallback;
+}
+
+function routeBackToWorkAuthorizationRequests(router: ReturnType<typeof useRouter>) {
+  window.setTimeout(() => {
+    router.push("/safety/work-authorization");
+  }, 700);
 }

@@ -20,10 +20,20 @@ export type IncidentStatus = "open" | "under_investigation" | "closed";
 export type WorkAuthorizationStatus =
   | "draft"
   | "submitted"
-  | "pending_approval"
-  | "approved";
+  | "approved"
+  | "returned"
+  | "denied";
 
 export type WorkAuthorizationRole = "requester" | "supervisor" | "hse";
+export type WorkInitiationRole = "requester" | "supervisor" | "operations_hod";
+
+export type WorkInitiationStatus =
+  | "draft"
+  | "submitted"
+  | "pending"
+  | "returned"
+  | "approved"
+  | "denied";
 
 export type WorkAuthorizationDecision = "Approve" | "Return" | "Deny";
 export type WorkAuthorizationInspectionCheck = "Pass" | "Fail" | "N/A";
@@ -35,6 +45,87 @@ export interface WorkAuthorizationRequester {
   requestDate: string;
 }
 
+export interface WorkInitiationAssetDetails {
+  assetInvolved: boolean;
+  assetType: string;
+  assetReference: string;
+  vehiclePlateNumber: string;
+  vin: string;
+  clientCompany: string;
+}
+
+export interface WorkInitiationAssignment {
+  assignedDepartment: string;
+  assignedSupervisorId?: string;
+  assignedSupervisor: string;
+  assignedWorkerIds?: string[];
+  assignedWorkers: string[];
+  contractorsNeeded: boolean;
+  selectedContractor: string;
+  contractorContactEmail: string;
+  plannedStartDateTime: string;
+  plannedStartDateTimeRaw?: string;
+  plannedEndDateTime: string;
+  plannedEndDateTimeRaw?: string;
+  materialsRequired: string;
+}
+
+export interface AssignedWorkInitiationSummary {
+  id: string;
+  reference?: string;
+  title: string;
+  status: "approved";
+  workCategory: string;
+  relatedIncidentHazardId: string;
+  workType: string[];
+  location: string;
+  exactWorkArea: string;
+  workDescription: string;
+  assignedSupervisorId?: string;
+  assignedSupervisor: string;
+  assignedWorkerIds?: string[];
+  assignedWorkers: string[];
+  contractorsNeeded: boolean;
+  selectedContractor: string;
+  contractorContactEmail: string;
+  plannedStartDateTime: string;
+  plannedStartDateTimeRaw?: string;
+  plannedEndDateTime: string;
+  plannedEndDateTimeRaw?: string;
+}
+
+export interface WorkInitiationReview {
+  decision: WorkAuthorizationDecision;
+  reviewer: string;
+  dateTime: string;
+  comment: string;
+}
+
+export interface WorkInitiationRequest {
+  id: string;
+  reference?: string;
+  status: WorkInitiationStatus;
+  requesterId?: string;
+  requester: WorkAuthorizationRequester;
+  title: string;
+  workDescription: string;
+  reasonForWork: string;
+  workCategory: string;
+  otherWorkCategory?: string;
+  relatedIncidentHazardId: string;
+  workType: string[];
+  location: string;
+  exactWorkArea: string;
+  attachments: WorkAuthorizationAttachment[];
+  assetDetails: WorkInitiationAssetDetails;
+  assignment: WorkInitiationAssignment;
+  supervisorApproval?: WorkAuthorizationApprovalResult | null;
+  operationalReview: WorkInitiationReview | null;
+  auditTrail: WorkAuthorizationAuditTrailItem[];
+  nextApproverName?: string;
+  nextApproverRole?: string;
+}
+
 export interface WorkAuthorizationRequestDetails {
   title: string;
   location: string;
@@ -42,7 +133,6 @@ export interface WorkAuthorizationRequestDetails {
   expectedStartDateTime: string;
   expectedEndDateTime: string;
   supervisor: string;
-  priority: "Low" | "Medium" | "High" | "Critical";
 }
 
 export interface WorkAuthorizationWorkDetails {
@@ -63,12 +153,17 @@ export interface WorkAuthorizationRiskIndicators {
   heatOrSparks: boolean;
   electricalIsolation: boolean;
   liftingEquipment: boolean;
+  ppeAvailable: boolean;
   additionalSafetyNote: string;
 }
 
 export interface WorkAuthorizationAttachment {
+  id?: string;
   name: string;
-  type: "image" | "document";
+  type: "image" | "document" | "video";
+  url?: string;
+  mimeType?: string;
+  fileSize?: number;
 }
 
 export interface WorkAuthorizationApprovalResult {
@@ -83,7 +178,7 @@ export interface WorkAuthorizationHseInspection {
   emergencyEquipmentAvailable: WorkAuthorizationInspectionCheck;
   gasPressureCheckCompleted: WorkAuthorizationInspectionCheck;
   ppeAndSafetyKitsAvailable: WorkAuthorizationInspectionCheck;
-  toolsSafe: WorkAuthorizationInspectionCheck;
+  safetyControlsInPlace: WorkAuthorizationInspectionCheck;
   inspectionDateTime: string;
   comments: string;
   result: "Passed" | "Returned" | "Failed";
@@ -100,8 +195,12 @@ export interface WorkAuthorizationAuditTrailItem {
 
 export interface WorkAuthorizationRequest {
   id: string;
+  reference?: string;
+  requestedAtRaw?: string;
   status: WorkAuthorizationStatus;
+  requesterId?: string;
   requester: WorkAuthorizationRequester;
+  workInitiation: AssignedWorkInitiationSummary;
   requestDetails: WorkAuthorizationRequestDetails;
   workDetails: WorkAuthorizationWorkDetails;
   riskIndicators: WorkAuthorizationRiskIndicators;
@@ -110,32 +209,46 @@ export interface WorkAuthorizationRequest {
   hseInspection: WorkAuthorizationHseInspection | null;
   hseApproval: WorkAuthorizationApprovalResult | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
+  nextApproverName?: string;
+  nextApproverRole?: string;
 }
 
 export type WorkCloseOutStatus =
   | "draft"
   | "submitted"
-  | "pending_approval"
-  | "approved";
+  | "pending"
+  | "approved"
+  | "acknowledged"
+  | "returned"
+  | "denied";
 
 export interface ApprovedWorkAuthorizationOption {
   id: string;
+  reference?: string;
+  relatedIncidentHazardId?: string;
   title: string;
   status: "approved";
   requester: string;
+  requestDate: string;
   department: string;
   location: string;
   exactWorkArea: string;
   approvedStartDateTime: string;
+  approvedStartDateTimeRaw?: string;
   approvedEndDateTime: string;
+  approvedEndDateTimeRaw?: string;
   workTypes: string[];
+  supervisorId?: string;
   supervisor: string;
+  assignedWorkerIds?: string[];
   hseApprover: string;
 }
 
 export interface WorkCloseOutCompletionDetails {
   actualStartDateTime: string;
+  actualStartDateTimeRaw?: string;
   actualCompletionDateTime: string;
+  actualCompletionDateTimeRaw?: string;
   workCompleted: boolean;
   completedAsApproved: boolean;
   deviationExplanation: string;
@@ -162,35 +275,59 @@ export interface WorkCloseOutAreaCondition {
   remainingHazardDetails: string;
 }
 
+export type WorkCloseOutDecision = WorkAuthorizationDecision | "Acknowledge";
+
+export interface WorkCloseOutApprovalResult {
+  decision: WorkCloseOutDecision;
+  approver: string;
+  dateTime: string;
+  comment: string;
+}
+
 export interface WorkCloseOutHseApproval {
+  id?: string;
   inspector: string;
   verifiedCloseOut: boolean;
   areaSafeForOperations: boolean;
   correctiveActionRequired: boolean;
   correctiveActionDetails: string;
-  decision: WorkAuthorizationDecision;
+  decision: WorkCloseOutDecision;
   comment: string;
   dateTime: string;
 }
 
 export interface WorkCloseOutRequest {
   id: string;
+  reference?: string;
   status: WorkCloseOutStatus;
   title: string;
+  requesterId?: string;
   requester: WorkAuthorizationRequester;
   workAuthorization: ApprovedWorkAuthorizationOption;
   completionDetails: WorkCloseOutCompletionDetails;
   monitoring: WorkCloseOutMonitoring;
   areaCondition: WorkCloseOutAreaCondition;
-  supervisorApproval: WorkAuthorizationApprovalResult | null;
+  supervisorApproval: WorkCloseOutApprovalResult | null;
+  operationsHeadApproval: WorkCloseOutApprovalResult | null;
   hseApproval: WorkCloseOutHseApproval | null;
   auditTrail: WorkAuthorizationAuditTrailItem[];
+  nextApproverName?: string;
+  nextApproverRole?: string;
 }
 
-export type IncidentHazardStatus = "draft" | "submitted" | "approved";
-export type IncidentHazardRole = "reporter" | "hse";
-export type IncidentHazardPriority = "Low" | "Medium" | "High" | "Critical";
-export type IncidentHazardDecision = "Approve/Close" | "Return";
+export type WorkCloseOutRole = "requester" | "supervisor" | "operations_head" | "hse";
+
+export type IncidentHazardStatus =
+  | "draft"
+  | "submitted"
+  | "recommended"
+  | "pending_hse_verification"
+  | "resolved"
+  | "closed"
+  | "not_resolved";
+export type IncidentHazardRole = "reporter" | "hse" | "action_owner";
+export type IncidentHazardSeverity = "Low" | "Medium" | "High" | "Critical";
+export type IncidentHazardDecision = "Resolved" | "Not Resolved";
 
 export interface IncidentHazardReporter {
   name: string;
@@ -200,36 +337,48 @@ export interface IncidentHazardReporter {
 }
 
 export interface IncidentHazardAttachment {
+  id?: string;
   name: string;
   type: "image" | "document" | "video";
+  url?: string;
+  mimeType?: string;
+  fileSize?: number;
 }
 
 export interface IncidentHazardHseReview {
+  id: string;
   inspector: string;
   confirmedReportType: string;
-  confirmedSeverity: IncidentHazardPriority;
+  confirmedSeverity: IncidentHazardSeverity;
   findings: string;
   rootCause: string;
   correctiveActionRequired: boolean;
   correctiveActionDetails: string;
+  actionOwnerId?: string;
   actionOwner: string;
+  assignedDepartment: string;
   targetCompletionDate: string;
-  decision: IncidentHazardDecision;
+  decision: IncidentHazardDecision | "Recommended" | "";
   comment: string;
   reviewDateTime: string;
 }
 
 export interface IncidentHazardReport {
   id: string;
+  reference?: string;
+  reportedAtRaw?: string;
+  dateTimeObservedRaw?: string;
   status: IncidentHazardStatus;
+  reporterId?: string;
   reporter: IncidentHazardReporter;
+  title: string;
   reportType: string;
   location: string;
   dateTimeObserved: string;
   relatedWorkAuthorization: string;
-  priority: IncidentHazardPriority | "";
+  hasActiveWorkInitiation: boolean;
   description: string;
-  severityEstimate: IncidentHazardPriority | "";
+  severityEstimate: IncidentHazardSeverity | "";
   anyoneInjured: boolean | null;
   propertyDamaged: boolean | null;
   gasFireEnvironmentalConcern: boolean | null;
@@ -238,6 +387,7 @@ export interface IncidentHazardReport {
   additionalNotes: string;
   attachments: IncidentHazardAttachment[];
   hseReview: IncidentHazardHseReview | null;
+  resolutionWorkCompletionId?: string;
   auditTrail: WorkAuthorizationAuditTrailItem[];
 }
 

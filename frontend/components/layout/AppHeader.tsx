@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Menu } from "lucide-react";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { initials } from "@/lib/utils";
+import { Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { getModuleGroupForPathname } from "@/config/module-groups";
+import { getModuleGroupForPathname as getAdminModuleGroupForPathname } from "@/config/module-groups-admin";
 
 interface Props {
   pageTitle?: string;
@@ -10,43 +11,46 @@ interface Props {
 }
 
 export default function AppHeader({ pageTitle, onMenuClick }: Props) {
-  const { user } = useCurrentUser();
+  const pathname = usePathname();
+  const isHome = pathname === "/home" || pathname === "/admin";
 
-  return (
-    <header className="h-14 bg-white border-b border-brand-border flex items-center justify-between px-4 md:px-6 shrink-0">
-      <div className="flex items-center gap-3">
-        {/* Hamburger — visible on mobile/tablet only */}
+  const groupTitle = pathname.startsWith("/admin")
+    ? getAdminModuleGroupForPathname(pathname)?.title
+    : getModuleGroupForPathname(pathname)?.title;
+  const headerTitle = groupTitle ?? pageTitle;
+
+  // On /home desktop the sidebar is always visible and the header adds nothing —
+  // only keep a slim mobile-only bar for the hamburger.
+  if (isHome) {
+    return (
+      <header className="lg:hidden h-14 bg-white border-b border-brand-border flex items-center px-4 shrink-0">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-lg text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50 transition-colors"
+          className="p-2 rounded-lg text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50 transition-colors"
           aria-label="Open menu"
         >
           <Menu size={20} />
         </button>
+      </header>
+    );
+  }
 
-        {pageTitle && (
-          <h2 className="text-sm font-semibold text-brand-text-primary hidden sm:block">
-            {pageTitle}
-          </h2>
-        )}
-      </div>
+  return (
+    <header className="h-14 bg-white border-b border-brand-border flex items-center gap-3 px-4 md:px-6 shrink-0">
+      {/* Hamburger — mobile/tablet only */}
+      <button
+        onClick={onMenuClick}
+        className="lg:hidden p-2 rounded-lg text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50 transition-colors"
+        aria-label="Open menu"
+      >
+        <Menu size={20} />
+      </button>
 
-      <div className="flex items-center gap-3">
-        <button className="relative p-2 rounded-lg text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50 transition-colors">
-          <Bell size={18} />
-        </button>
-        {user && (
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-brand-purple flex items-center justify-center">
-              <span className="text-white text-xs font-semibold">{initials(user.name)}</span>
-            </div>
-            {/* Name — hide on small screens */}
-            <span className="text-sm font-medium text-brand-text-primary hidden md:block">
-              {user.name.split(" ")[0]}
-            </span>
-          </div>
-        )}
-      </div>
+      {headerTitle && (
+        <h2 className="text-sm font-semibold text-brand-text-primary">
+          {headerTitle}
+        </h2>
+      )}
     </header>
   );
 }

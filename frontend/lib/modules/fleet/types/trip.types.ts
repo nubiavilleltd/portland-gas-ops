@@ -14,6 +14,8 @@ export type TripType =
 export type TripStatus =
   | "pending"     // Created, awaiting driver + vehicle assignment
   | "assigned"    // Driver and vehicle selected, not yet departed
+  | "awaiting_inventory"
+  | "ready_for_dispatch"
   | "dispatched"  // Formally dispatched from depot (departure recorded)
   | "in_transit"  // Physically on the road
   | "completed"   // All orders delivered, trip closed
@@ -40,6 +42,10 @@ export interface Trip {
   dispatch_date?: string;   // When the trip was formally dispatched
   started_at?: string;      // When the driver pressed "Start Trip"
   completed_at?: string;    // When all deliveries confirmed
+  cancelled_at?: string;    // When the trip was cancelled
+
+  // Cancellation
+  cancellation_reason?: string;
 
   // Status
   status: TripStatus;
@@ -47,3 +53,12 @@ export interface Trip {
   notes?: string;
   created_at: string;
 }
+
+export type CreateTripInput = {
+  type?: Trip["type"];
+  order_ids?: string[];
+  start_location: string;
+  end_location: string;
+  scheduled_date: string;
+  notes?: string;
+};

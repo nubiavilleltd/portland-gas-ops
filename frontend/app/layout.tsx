@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Mulish } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
+});
+
+export const mulish = Mulish({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mulish",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -19,10 +26,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
-      <body className="min-h-screen bg-brand-bg antialiased">
+    <html lang="en" className={`${inter.className} ${mulish.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen bg-brand-bg antialiased" suppressHydrationWarning>
         {children}
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          expand={false}
+          visibleToasts={3}
+          toastOptions={{ duration: 8000 }}
+        />
       </body>
     </html>
   );

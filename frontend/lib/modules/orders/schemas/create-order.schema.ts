@@ -1,80 +1,105 @@
+
 // import { z } from "zod";
+// import type { DiscountType } from "../types/orders.types";
 
-// export const createOrderSchema = z.object({
-//   customer_id: z.string().min(1, "Select a customer"),
+// // ── Single line item ───────────────────────────────────────
+// export const orderLineItemSchema = z.object({
+//   productId: z.string().min(1, "Select a product"),
 
-//   order_type: z.enum([
-//     "Bulk CNG Supply",
-//     "LNG Delivery",
-//     "Retail Gas Refill",
-//   ]),
+//   quantity: z
+//     .number({ message: "Enter a quantity" })
+//     .min(0.01, "Quantity must be greater than 0"),
 
-//   product_name: z.string().min(1, "Select product"),
-
-//   quantity: z.string().min(1, "Enter quantity"),
-
-//   unit_price: z.string().min(1, "Enter unit price"),
-
-//   delivery_address: z
-//     .string()
-//     .min(3, "Enter delivery address"),
-
-//   delivery_date: z.string().optional(),
-
-//   notes: z.string().optional(),
+//   inventoryItemIds: z.array(z.string()).optional(),
 // });
 
-// export type CreateOrderFormValues =
-//   z.infer<typeof createOrderSchema>;
+// export type OrderLineItem = z.infer<typeof orderLineItemSchema>;
 
+// // ── Full create-order schema ───────────────────────────────
+// export const createOrderSchema = z.object({
+//   customerId: z.string().min(1, "Select a customer"),
+
+//   orderItems: z
+//     .array(orderLineItemSchema)
+//     .min(1, "Add at least one product to the order"),
+
+//   discountType: z.enum([
+//   "none",
+//   "fixed",
+//   "percentage",
+// ]).default("none"),
+
+//   discountValue: z
+//     .number({ message: "Enter a discount value" })
+//     .min(0)
+//     .default(0),
+
+//   deliveryAddress: z
+//     .string()
+//     .min(3, "Enter a valid delivery address"),
+
+//   deliveryDate: z.string().optional(),
+
+//   notes: z.string().optional(),
+// })
+
+// export type CreateOrderFormValues = z.infer<typeof createOrderSchema>;
 
 
 
 
 
 import { z } from "zod";
+import type { DiscountType } from "../types/orders.types";
 
-export const createOrderSchema = z.object({
-  customer_id: z.string().min(1, "Select a customer"),
+// ── Single line item ───────────────────────────────────────
+export const orderLineItemSchema = z.object({
+  productId: z.string().min(1, "Select a product"),
 
-  order_type: z.enum([
-    "Bulk CNG Supply",
-    "LNG Delivery",
-    "Retail Gas Refill",
-  ]),
-
-  product_name: z.string().min(1, "Select product"),
-
-  // Accept string input from HTML, transform to number for validation
   quantity: z
-    .string()
-    .min(1, "Enter quantity")
-    .transform((val) => parseFloat(val))
-    .pipe(
-      z
-        .number({ invalid_type_error: "Must be a number" })
-        .positive("Quantity must be positive")
-        .min(1, "Minimum quantity is 1")
-    ),
+    .number({ message: "Enter a quantity" })
+    .min(0.01, "Quantity must be greater than 0"),
 
-  unit_price: z
-    .string()
-    .min(1, "Enter unit price")
-    .transform((val) => parseFloat(val))
-    .pipe(
-      z
-        .number({ invalid_type_error: "Must be a number" })
-        .positive("Unit price must be positive")
-        .min(0.01, "Unit price must be at least 0.01")
-    ),
+  inventoryItemIds: z.array(z.string()).optional(),
+});
 
-  delivery_address: z
+export type OrderLineItem = z.infer<typeof orderLineItemSchema>;
+
+// ── Full create-order schema ───────────────────────────────
+export const createOrderSchema = z.object({
+  customerId: z.string().min(1, "Select a customer"),
+
+  orderItems: z
+    .array(orderLineItemSchema)
+    .min(1, "Add at least one product to the order"),
+
+  discountType: z.enum([
+    "none",
+    "fixed",
+    "percentage",
+  ]).default("none"),
+
+  discountValue: z
+    .number({ message: "Enter a discount value" })
+    .min(0)
+    .default(0),
+
+  deliveryAddress: z
     .string()
     .min(3, "Enter a valid delivery address"),
 
-  delivery_date: z.string().optional(),
+  deliveryDate: z.string().optional(),
 
   notes: z.string().optional(),
 });
 
-export type CreateOrderFormValues = z.infer<typeof createOrderSchema>;
+// `z.infer` is an alias for `z.output` — it reflects the shape *after*
+// defaults are applied (discountType/discountValue required). That's not
+// what the form actually holds while the user is filling it out.
+//
+// `CreateOrderFormValues` = what useForm's state/defaultValues use (input,
+// defaults optional).
+// `CreateOrderFormOutput` = what you get back after zodResolver runs
+// (output, defaults applied) — use this for onSubmit/onSaveDraft callbacks.
+export type CreateOrderFormValues = z.input<typeof createOrderSchema>;
+export type CreateOrderFormOutput = z.output<typeof createOrderSchema>;

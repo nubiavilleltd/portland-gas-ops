@@ -1,126 +1,101 @@
-// ============================================================
-//  ORDERS SELECTORS
-//  Pure transformation / business-logic functions.
-//  No data fetching here — data comes from the service layer.
-// ============================================================
-
-// import { orders } from "@/lib/mock/orders";
-import { dispatches } from "@/lib/mock/dispatches";
-// import { invoices } from "@/lib/mock/invoices";
-import { payments } from "@/lib/mock/payments";
-
 import type {
   Order,
   OrderStatus,
   FulfillmentStatus,
-  PaymentStatus,
   OrderKPIs,
-} from "@/lib/modules/orders/types/orders.types";
-import { orders } from "../mock/orders.mock";
-import { invoices } from "../../invoices/mock/invoices.mock";
+} from "../types/orders.types";
+import type { PaymentStatus } from "../../payments/types/payments.types";
 
-// ── DATA ACCESS (will be replaced by service calls in components) ────────
+// ── LOOKUPS ─────────────────────────────────────────────
 
-export function getOrders(): Order[] {
-  return orders;
+export function getOrderById(
+  orders: Order[],
+  id: string
+): Order | undefined {
+  return orders.find((order) => order.id === id);
 }
 
-export function getOrderById(id: string): Order | undefined {
-  return orders.find((o) => o.id === id);
+export function getOrderByNumber(
+  orders: Order[],
+  orderNumber: string
+): Order | undefined {
+  return orders.find((order) => order.orderNumber === orderNumber);
 }
 
-// ── KPIs ─────────────────────────────────────────────────────────────────
-
-export function getOrderKPIs(orderList: Order[]): OrderKPIs {
-  return {
-    totalOrders: orderList.length,
-    pendingDispatch: orderList.filter(
-      (o) =>
-        o.order_status === "confirmed" && o.fulfillment_status === "pending",
-    ).length,
-    inTransit: orderList.filter(
-      (o) =>
-        o.fulfillment_status === "dispatched" ||
-        o.fulfillment_status === "in_transit",
-    ).length,
-    delivered: orderList.filter((o) => o.fulfillment_status === "delivered")
-      .length,
-    unpaidOrders: orderList.filter(
-      (o) =>
-        o.payment_status === "unpaid" || o.payment_status === "partially_paid",
-    ).length,
-    totalRevenue: orderList.reduce((sum, o) => sum + o.total_amount, 0),
-  };
-}
-
-// ── FILTERS ──────────────────────────────────────────────────────────────
+// ── FILTERS ─────────────────────────────────────────────
 
 export function getOrdersByStatus(
-  orderList: Order[],
-  status: OrderStatus,
+  orders: Order[],
+  status: OrderStatus
 ): Order[] {
-  return orderList.filter((o) => o.order_status === status);
+  return orders.filter((order) => order.orderStatus === status);
 }
 
 export function getOrdersByFulfillmentStatus(
-  orderList: Order[],
-  status: FulfillmentStatus,
+  orders: Order[],
+  status: FulfillmentStatus
 ): Order[] {
-  return orderList.filter((o) => o.fulfillment_status === status);
-}
-
-// ── BUSINESS RULES ───────────────────────────────────────────────────────
-
-/** Order can only be confirmed from draft */
-export function canConfirmOrder(order: Order): boolean {
-  return order.order_status === "draft";
-}
-
-/** Order can only be dispatched if confirmed and pending fulfillment */
-export function canAssignToTrip(order: Order): boolean {
-  return (
-    order.order_status === "confirmed" && order.fulfillment_status === "pending"
+  return orders.filter(
+    (order) => order.fulfillmentStatus === status
   );
 }
 
-/** Order is ready for invoice generation */
-export function isOrderReadyForInvoice(order: Order): boolean {
-  return order.fulfillment_status === "delivered" && !order.invoice_id;
-}
-
-/** Order can be closed (all done) */
-export function isOrderComplete(order: Order): boolean {
-  return (
-    order.fulfillment_status === "delivered" && order.payment_status === "paid"
+export function getOrdersByPaymentStatus(
+  orders: Order[],
+  status: PaymentStatus
+): Order[] {
+  return orders.filter(
+    (order) => order.paymentStatus === status
   );
 }
 
-/** Dispatch readiness — future: will also check requires_approval */
-export function isOrderReadyForDispatch(order: Order): boolean {
-  if (order.order_status !== "confirmed") return false;
-  if (order.requires_approval && order.approval_status !== "approved")
-    return false;
-  return true;
+export function getConfirmedUnassignedOrders(
+  orders: Order[]
+): Order[] {
+  return orders.filter(
+    (order) =>
+      order.orderStatus === "confirmed" &&
+      order.fulfillmentStatus === "pending"
+  );
 }
 
-// ── RELATED DATA LOOKUPS ─────────────────────────────────────────────────
-// These will be replaced by service calls once backend is live.
+// ── KPIs ────────────────────────────────────────────────
 
-export function getOrderDispatch(orderId: string) {
-  return dispatches.find((d) => d.order_id === orderId);
-}
+export function getOrderKPIs(
+  orders: Order[]
+): OrderKPIs {
+  const activeOrders = orders.filter(
+    (order) => order.orderStatus !== "cancelled"
+  );
 
-export function getOrderInvoice(orderId: string) {
-  return invoices.find((inv) => inv.order_id === orderId);
-}
+  return {
+    totalOrders: orders.length,
 
-export function getOrderPayments(invoiceId?: string) {
-  if (!invoiceId) return [];
-  return payments.filter((p) => p.invoice_id === invoiceId);
-}
+    pendingDispatch: activeOrders.filter(
+      (order) =>
+        order.orderStatus === "confirmed" &&
+        order.fulfillmentStatus === "pending"
+    ).length,
 
-export function getPaymentSummary(invoiceId?: string) {
-  const relatedPayments = getOrderPayments(invoiceId);
-  const amountPaid = relatedPayments.reduce((sum, p) => sum + p.amount, 0);
-  return { amountPaid, count: relatedPayments.length };
+    inTransit: activeOrders.filter(
+      (order) =>
+        order.fulfillmentStatus === "dispatched" ||
+        order.fulfillmentStatus === "in_transit"
+    ).length,
+
+    delivered: activeOrders.filter(
+      (order) => order.fulfillmentStatus === "delivered"
+    ).length,
+
+    unpaidOrders: activeOrders.filter(
+      (order) =>
+        order.paymentStatus === "unpaid" ||
+        order.paymentStatus === "partially_paid"
+    ).length,
+
+    totalRevenue: activeOrders.reduce(
+      (sum, order) => sum + order.totalAmount,
+      0
+    ),
+  };
 }

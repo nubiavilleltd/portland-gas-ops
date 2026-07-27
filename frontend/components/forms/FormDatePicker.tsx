@@ -8,6 +8,9 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"
   error?: string;
   hint?: string;
   onValueChange?: (value: string) => void;
+  triggerClassName?: string;
+  dropdownClassName?: string;
+  dropdownPosition?: "bottom" | "top" | "auto";
 }
 
 const FormDatePicker = forwardRef<HTMLInputElement, Props>((props, ref) => {
