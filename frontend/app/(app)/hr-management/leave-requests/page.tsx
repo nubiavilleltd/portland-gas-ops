@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,12 +19,14 @@ import SelectInput from "@/components/forms/SelectInput";
 import DataTable from "@/components/ui/DataTable";
 import { leaveRequestColumns } from "../_components/columns";
 import { useCreateLeaveRequest, useLeaveRequests, useLeaveRequest, useCurrentEmployee } from "@/lib/modules/leave-requests/hooks";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { useQueryClient } from "@tanstack/react-query";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
 import { useMyLeaveBalances, useEmployeeLeaveBalances } from "@/lib/modules/leave-balances/hooks";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useAuthStore } from "@/store/authStore";
 import leaveRequestsApi from "@/lib/modules/leave-requests/api";
 import {
   LEAVE_TYPE_OPTIONS,
@@ -57,8 +59,9 @@ const schema = z.object({
   employee_id:   z.string().optional(), // Optional because it's only shown when "Others" is selected
   leave_type:    z.string().min(1, "Select a leave type"),
   start_date:    z.string().min(1, "Start date is required"),
-  end_date:      z.string().min(1, "End date is required"),
-  reliever_id:   z.string().min(1, "Select a reliever"),
+  end_date:      z.string().optional(),  // required only for non-open-ended types (checked in onSubmit)
+  // The reliever is chosen via the workflow Approvers section (requester_pick step),
+  // not a bespoke field — see useApproverPicker below.
   reason:        z.string().optional(),
 });
 
@@ -69,7 +72,7 @@ function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
-  if (e < s) return 0;
+  if (e <= s) return 0;  // same-day / invalid range — flagged as a validation error
   return Math.round((e - s) / (1000 * 60 * 60 * 24));
 }
 
@@ -95,7 +98,16 @@ function LeaveRequestsPageContent() {
   const editRef = searchParams.get("edit");
   const { data: editRecord } = useLeaveRequest(editRef ?? "", !!editRef);
 
+  // Workflow-driven approver picks (the Reliever is the requester_pick step).
+  // Reads the active leave_request workflow, so reordering or adding pick
+  // steps in the admin UI is picked up here without a code change.
+  const approverPicker = useApproverPicker("leave_request", editRecord?.id);
+
+  const queryClient = useQueryClient();
   const createLeaveRequest = useCreateLeaveRequest();
+  // Holds the draft created this attempt. If submit-for-approval fails, we keep
+  // it so a retry reuses the same draft instead of creating a duplicate.
+  const draftIdRef = useRef<string | null>(null);
   const { data: leaveRequestsResponse, isLoading: isLoadingRequests } = useLeaveRequests({
     limit: 100,
     sort_by: "created_at",
@@ -103,31 +115,19 @@ function LeaveRequestsPageContent() {
   });
   const items = leaveRequestsResponse?.data || [];
 
-  // Current employee — used to scope "All" to the user's OWN requests
+  // Current employee — the list shows the user's OWN requests. Requests awaiting
+  // the user's approval live in the sidebar "My Approvals" section.
   const { data: currentEmployee } = useCurrentEmployee();
 
-  // "Awaiting my approval" scope — my-approvals returns requests where the current
-  // user is the assignee of the CURRENT step.
-  const { data: myApprovals = [] } = useMyApprovals();
-  const awaitingIds = new Set(
-    myApprovals
-      .filter((a) => a.request_type === "leave_request")
-      .map((a) => a.request_id)
-  );
-
-  const [scope, setScope] = useState<"all" | "awaiting">("all");
   const [activeStatus, setActiveStatus] = useState<string>("");
 
   const visibleItems = items.filter((i) => {
-    // Scope: "All" = requests I raised; "Awaiting my approval" = requests waiting on me.
-    // Tolerant match: newer requests store requester_id as the employee id, while
-    // older rows stored the user id (fixed on the backend going forward).
+    // Only the requests I raised. Tolerant match: newer requests store
+    // requester_id as the employee id, older rows stored the user id.
     const isMine =
       i.requesterId === currentEmployee?.id ||
       i.requesterId === currentEmployee?.user_id;
-    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
-    if (!inScope) return false;
-    // Status filter (Procurement-style dropdown)
+    if (!isMine) return false;
     if (activeStatus && i.status !== activeStatus) return false;
     return true;
   });
@@ -152,19 +152,15 @@ function LeaveRequestsPageContent() {
     label: lt.leave_type_name,
   }));
 
-  // Convert real employees to form options
-  const realEmployeeOptions = employees.map((e) => ({
-    value: e.id,
-    label: `${e.user?.first_name || ""} ${e.user?.last_name || ""} — ${e.job_title || ""}`,
+  // Employees for the "raise for others" picker — same shape the approver
+  // pickers use, so both fields look and behave identically.
+  const employeePickerList: PickedEmployee[] = employees.map((e) => ({
+    id:         e.id,
+    name:       [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") || "Unknown",
+    role:       e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
   }));
-
-  // Reliever options (all employees except self)
-  const relieverOptions = employees
-    .filter((e) => e.id !== currentUserEmployee?.id) // Exclude current user
-    .map((e) => ({
-      value: e.id,
-      label: `${e.user?.first_name || ""} ${e.user?.last_name || ""} — ${e.job_title || ""}`,
-    }));
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
@@ -178,7 +174,6 @@ function LeaveRequestsPageContent() {
         leave_type: String(editRecord.leave_type_id),
         start_date: editRecord.start_date,
         end_date: editRecord.end_date,
-        reliever_id: editRecord.reliever_id || "",
         reason: editRecord.reason || "",
       });
       setRemovedExistingDoc(false);
@@ -191,6 +186,11 @@ function LeaveRequestsPageContent() {
   const watchStart       = form.watch("start_date");
   const watchEnd         = form.watch("end_date");
   const watchLeaveType   = form.watch("leave_type");
+
+  // Derive the picker's selection from the form field so resubmit pre-fill
+  // (form.reset) flows through without a second piece of state to keep in sync.
+  const pickedEmployee =
+    employeePickerList.find((e) => e.id === form.watch("employee_id")) ?? null;
 
   // Keep the range valid: if a newly picked start date is after the current end
   // date, clear the end date so the user re-selects it.
@@ -242,25 +242,48 @@ function LeaveRequestsPageContent() {
     };
   })() : null;
 
-  const days = calcDays(watchStart, watchEnd);
-  const exceedsBalance = days > 0 && activeBal !== null && days > activeBal.remaining;
+  // Per-type behaviour: uncapped types never block on balance; open-ended
+  // types (e.g. Sick Leave) don't require an End Date.
+  const isUncapped = selectedLeaveType?.is_uncapped ?? false;
+  const isOpenEnded = selectedLeaveType?.open_ended ?? false;
+
+  const days = calcDays(watchStart ?? "", watchEnd ?? "");
+  const exceedsBalance = !isUncapped && days > 0 && activeBal !== null && days > activeBal.remaining;
+  // End Date must be after Start Date — a same-day range is invalid.
+  const invalidRange = Boolean(watchStart && watchEnd && new Date(watchEnd) <= new Date(watchStart));
 
   async function onSubmit(data: FormData) {
     try {
       const employeeId = isOthers ? data.employee_id : currentUserEmployee?.id;
-      const reliever_id = data.reliever_id;
 
-      if (!employeeId || !reliever_id) {
-        toast.error("Employee and reliever are required");
+      if (!employeeId) {
+        toast.error("Employee is required");
         return;
       }
 
-      // Call the real API to create leave request
-      // Convert dates to ISO format (YYYY-MM-DD)
-      const startDateObj = new Date(data.start_date);
-      const endDateObj = new Date(data.end_date);
-      const startDateISO = startDateObj.toISOString().split('T')[0];
-      const endDateISO = endDateObj.toISOString().split('T')[0];
+      // Every requester_pick step on the workflow must have an approver chosen
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
+      // End Date is required unless this is an open-ended type (e.g. Sick Leave).
+      if (!isOpenEnded && !data.end_date) {
+        toast.error("End date is required for this leave type");
+        return;
+      }
+      // The end date must be after the start date (no same-day range).
+      if (data.end_date && new Date(data.end_date) <= new Date(data.start_date)) {
+        toast.error("End date must be after the start date");
+        return;
+      }
+
+      // Convert dates to ISO (YYYY-MM-DD). End date is optional for open-ended.
+      const startDateISO = new Date(data.start_date).toISOString().split('T')[0];
+      const endDateISO = data.end_date
+        ? new Date(data.end_date).toISOString().split('T')[0]
+        : undefined;
 
       const leaveTypeId = parseInt(data.leave_type, 10);
       console.log("Leave type ID parsed:", { raw: data.leave_type, parsed: leaveTypeId });
@@ -270,11 +293,11 @@ function LeaveRequestsPageContent() {
         const updated = await leaveRequestsApi.resubmit(editRef, {
           employee_id: employeeId,
           leave_type_id: leaveTypeId,
-          reliever_id: reliever_id,
           start_date: startDateISO,
           end_date: endDateISO,
           request_type: data.request_type,
           reason: data.reason,
+          picked_approvers: approverPicker.picksPayload,
         });
 
         // Upload any newly attached files to the existing request
@@ -288,6 +311,7 @@ function LeaveRequestsPageContent() {
           }
         }
 
+        queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
         toast.success("Request resubmitted for approval!");
         form.reset();
         setSupportingFiles([]);
@@ -296,16 +320,24 @@ function LeaveRequestsPageContent() {
         return;
       }
 
-      // Create leave request first
-      const leaveRequest = await createLeaveRequest.mutateAsync({
-        employee_id: employeeId,
-        leave_type_id: leaveTypeId,
-        reliever_id: reliever_id,
-        start_date: startDateISO,
-        end_date: endDateISO,
-        request_type: data.request_type,
-        reason: data.reason,
-      });
+      // Create the draft — but if a previous attempt already created one and
+      // only the submit step failed, reuse it so we don't pile up duplicates.
+      let leaveRequest: { id: string };
+      if (draftIdRef.current) {
+        leaveRequest = { id: draftIdRef.current };
+      } else {
+        const created = await createLeaveRequest.mutateAsync({
+          employee_id: employeeId,
+          leave_type_id: leaveTypeId,
+          start_date: startDateISO,
+          end_date: endDateISO,
+          request_type: data.request_type,
+          reason: data.reason,
+          picked_approvers: approverPicker.picksPayload,
+        });
+        draftIdRef.current = created.id;
+        leaveRequest = { id: created.id };
+      }
 
       // Upload supporting files if any
       if (supportingFiles.length > 0 && leaveRequest?.id) {
@@ -337,37 +369,24 @@ function LeaveRequestsPageContent() {
         }
       }
 
-      // Submit leave request for approval via workflow engine
+      // Submit for approval via the workflow engine — through the shared axios
+      // client (raw fetch here failed with "Failed to fetch" in production).
       if (leaveRequest?.id) {
         try {
-          console.log("Submitting leave request for approval:", leaveRequest.id);
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/hr/leave-requests/${leaveRequest.id}/submit-for-approval`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${useAuthStore.getState().accessToken}`,
-              },
-              credentials: "include",
-            }
+          await leaveRequestsApi.submitForApproval(
+            leaveRequest.id,
+            approverPicker.picksPayload,
           );
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || `Submission failed with status ${response.status}`);
-          }
-
-          const submissionResult = await response.json();
-          console.log("Leave request submitted for approval:", submissionResult);
+          draftIdRef.current = null; // fully submitted — next request is fresh
+          // Refetch AFTER the workflow starts so the list shows the Next Actor now.
+          queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
           toast.success("Leave request submitted for approval!");
         } catch (submissionError: unknown) {
-          console.error("Workflow submission error:", submissionError);
-          let errorMessage = "Unknown error";
-          if (submissionError instanceof Error) {
-            errorMessage = submissionError.message;
-          }
-          toast.error(`Could not submit for approval: ${errorMessage}`);
+          // Keep draftIdRef so a retry reuses this draft instead of duplicating.
+          const detail =
+            (submissionError as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+          const msg = detail || (submissionError instanceof Error ? submissionError.message : "Unknown error");
+          toast.error(`Could not submit for approval: ${msg}`);
           return;
         }
       }
@@ -394,6 +413,7 @@ function LeaveRequestsPageContent() {
     setView("list");
     form.reset();
     setSupportingFiles([]);
+    draftIdRef.current = null; // abandon any half-created draft
     if (editRef) router.replace("/hr-management/leave-requests");
   }
 
@@ -407,7 +427,7 @@ function LeaveRequestsPageContent() {
             title="Leave Requests"
             description="Manage leave requests and approvals"
             action={
-              <Button leftIcon={<Plus size={16} />} onClick={() => setView("form")}>
+              <Button leftIcon={<Plus size={16} />} onClick={() => { draftIdRef.current = null; setView("form"); }}>
                 New Request
               </Button>
             }
@@ -445,38 +465,6 @@ function LeaveRequestsPageContent() {
             </div>
           </div>
           )}
-
-          {/* Scope filter pills */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {([
-              { value: "all",      label: "All" },
-              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
-            ] as const).map((pill) => (
-              <button
-                key={pill.value}
-                type="button"
-                onClick={() => setScope(pill.value)}
-                className={
-                  scope === pill.value
-                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
-                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
-                }
-              >
-                {pill.label}
-                {"count" in pill && pill.count > 0 ? (
-                  <span
-                    className={
-                      scope === pill.value
-                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
-                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
-                    }
-                  >
-                    {pill.count}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
 
           <div className="w-full overflow-hidden">
             <DataTable
@@ -575,38 +563,49 @@ function LeaveRequestsPageContent() {
                         {balanceHeading}
                       </p>
                       <div className="flex items-baseline gap-1.5 mt-1">
-                        <span className="text-sm font-bold text-brand-purple">
-                          {activeBal.remaining}
-                        </span>
-                        <span className="text-sm text-brand-text-secondary">
-                          of {activeBal.entitlement} days remaining · {activeBal.used} used
-                        </span>
+                        {isUncapped ? (
+                          <span className="text-sm text-brand-text-secondary">
+                            <span className="font-bold text-brand-purple">No cap</span> · {activeBal.used} used
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-sm font-bold text-brand-purple">
+                              {activeBal.remaining}
+                            </span>
+                            <span className="text-sm text-brand-text-secondary">
+                              of {activeBal.entitlement} days remaining · {activeBal.used} used
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <div className="w-28 shrink-0">
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
-                        <div
-                          className="h-full rounded-full bg-brand-purple"
-                          style={{
-                            width: `${activeBal.entitlement > 0 ? Math.min(100, (activeBal.remaining / activeBal.entitlement) * 100) : 100}%`,
-                          }}
-                        />
+                    {!isUncapped && (
+                      <div className="w-28 shrink-0">
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
+                          <div
+                            className="h-full rounded-full bg-brand-purple"
+                            style={{
+                              width: `${activeBal.entitlement > 0 ? Math.min(100, (activeBal.remaining / activeBal.entitlement) * 100) : 100}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
                 {/* Employee fields — only when Others */}
                 {isOthers && (
-                  <FormSelect
+                  <EmployeePicker
                     label="Employee Name"
                     required
-                    options={realEmployeeOptions}
-                    sortOptions={false}
-                    placeholder="Select employee"
+                    employees={employeePickerList}
+                    placeholder="Search all employees..."
                     error={errors.employee_id?.message}
-                    {...form.register("employee_id")}
-                    value={form.watch("employee_id") ?? ""}
+                    value={pickedEmployee}
+                    onChange={(emp) =>
+                      form.setValue("employee_id", emp?.id ?? "", { shouldValidate: true })
+                    }
                   />
                 )}
 
@@ -620,8 +619,8 @@ function LeaveRequestsPageContent() {
                   value={watchStart ?? ""}
                 />
                 <FormDatePicker
-                  label="End Date"
-                  required
+                  label={isOpenEnded ? "Expected Return (optional)" : "End Date"}
+                  required={!isOpenEnded}
                   min={watchStart || TODAY}
                   error={errors.end_date?.message}
                   {...form.register("end_date")}
@@ -636,6 +635,11 @@ function LeaveRequestsPageContent() {
                     disabled
                     placeholder="Auto-calculated"
                   />
+                  {invalidRange && (
+                    <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                      End date must be after the start date.
+                    </p>
+                  )}
                   {exceedsBalance && activeBal && (
                     <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                       Requested {days} day{days !== 1 ? "s" : ""} exceeds {balancePossessive} available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {leaveTypeName}.
@@ -643,16 +647,6 @@ function LeaveRequestsPageContent() {
                   )}
                 </div>
 
-                <FormSelect
-                  label="Reliever"
-                  required
-                  options={relieverOptions}
-                  sortOptions={false}
-                  placeholder="Select reliever"
-                  error={errors.reliever_id?.message}
-                  {...form.register("reliever_id")}
-                  value={form.watch("reliever_id") ?? ""}
-                />
                 {/* Existing document (edit mode) — kept unless removed */}
                 {editRef && editRecord?.document && !removedExistingDoc && (
                   <div className="md:col-span-2">
@@ -706,8 +700,12 @@ function LeaveRequestsPageContent() {
               </div>
             </FormSection>
 
+            {/* Workflow approvers (Reliever) — renders nothing if the workflow
+                has no requester_pick steps. */}
+            <WorkflowApproversSection {...approverPicker} />
+
             <div className="flex gap-3 pt-1">
-              <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance}>
+              <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance || invalidRange}>
                 {editRef ? "Resubmit for Approval" : "Submit for Approval"}
               </Button>
             </div>

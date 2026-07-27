@@ -30,6 +30,10 @@ class LeaveTypeSetup(Base):
     entitlement_days = Column(Integer, nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    # Sick-leave-style types: no entitlement cap, and no fixed end date required
+    # (Start Date + optional Expected Return).
+    is_uncapped = Column(Boolean, default=False, nullable=False, server_default="0")
+    open_ended = Column(Boolean, default=False, nullable=False, server_default="0")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -76,6 +80,8 @@ class LeaveRequest(Base):
     reason = Column(Text, nullable=True)
 
     status = Column(SAEnum(LeaveRequestStatus), default=LeaveRequestStatus.draft)
+    # Set when the employee marks they are back (open-ended leave, e.g. Sick).
+    returned_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -86,6 +92,11 @@ class LeaveRequest(Base):
     leave_type = relationship("LeaveTypeSetup")
     reliever = relationship("Employee", foreign_keys=[reliever_id])
     document = relationship("Document", foreign_keys=[document_id])
+
+    @property
+    def open_ended(self) -> bool:
+        """Whether this request's leave type has no fixed end date."""
+        return bool(self.leave_type and self.leave_type.open_ended)
 
     @property
     def employee_name(self) -> Optional[str]:
@@ -119,23 +130,34 @@ class LeaveRequest(Base):
 
     @property
     def requester_job_title(self) -> Optional[str]:
-        # Get requester's job title through their employee record
-        if self.requester:
-            try:
-                from sqlalchemy.orm import object_session
-                from app.employees.models import Employee
-                session = object_session(self)
-                if session:
-                    employee = session.query(Employee).filter(Employee.user_id == self.requester.id).first()
-                    if employee:
-                        return employee.job_title
-            except Exception:
-                # Gracefully handle database errors if employee table is missing columns
-                pass
+        # Get requester's job title through their employee record.
+        if not self.requester:
+            return None
+        # Fast path: for a "self" request the requester IS the employee, whose
+        # record is already loaded — no extra query. (requester_id is a User id,
+        # employee.user_id is that same User id when they match.)
+        if self.employee and self.employee.user_id == self.requester_id:
+            return self.employee.job_title
+        # Fallback for "raise for others": look up the requester's employee row.
+        try:
+            from sqlalchemy.orm import object_session
+            from app.employees.models import Employee
+            session = object_session(self)
+            if session:
+                employee = session.query(Employee).filter(Employee.user_id == self.requester.id).first()
+                if employee:
+                    return employee.job_title
+        except Exception:
+            # Gracefully handle database errors if employee table is missing columns
+            pass
         return None
 
     @property
     def approval_request_id(self) -> Optional[str]:
+        # Fast path: a list query can prefetch this in bulk and stash it here,
+        # avoiding a per-row query. (Present even when the value is None.)
+        if "_ar_id_prefetched" in self.__dict__:
+            return self.__dict__["_ar_id_prefetched"]
         # Get the approval_request_id if this request is in the workflow
         try:
             from sqlalchemy.orm import object_session

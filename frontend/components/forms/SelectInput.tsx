@@ -23,6 +23,8 @@ interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"
   error?: string;
   hint?: string;
   searchable?: boolean;
+  /** Allow clearing the selection (shows the × and the "clear" row). Default true. */
+  clearable?: boolean;
   sortOptions?: boolean;
   searchPlaceholder?: string;
   creatable?: boolean;
@@ -53,6 +55,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
       error,
       hint,
       searchable,
+      clearable = true,
       sortOptions = true,
       searchPlaceholder = "Search options",
       creatable = false,
@@ -242,7 +245,7 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             </span>
           </button>
 
-          {selectedOption && !disabled ? (
+          {selectedOption && !disabled && clearable ? (
             <button
               type="button"
               aria-label={`Clear ${label}`}
@@ -286,19 +289,21 @@ const SelectInput = forwardRef<HTMLInputElement, Props>(
             )}
 
             <div className="max-h-60 overflow-y-auto">
-              <button
-                type="button"
-                onClick={handleClearSelected}
-                className={cn(
-                  "mb-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
-                  selectedValue
-                    ? "text-brand-text-secondary hover:bg-gray-50"
-                    : "bg-gray-50 text-brand-text-secondary"
-                )}
-              >
-                <span>{placeholder}</span>
-                {!selectedValue ? <Check size={15} className="shrink-0" /> : null}
-              </button>
+              {clearable ? (
+                <button
+                  type="button"
+                  onClick={handleClearSelected}
+                  className={cn(
+                    "mb-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                    selectedValue
+                      ? "text-brand-text-secondary hover:bg-gray-50"
+                      : "bg-gray-50 text-brand-text-secondary"
+                  )}
+                >
+                  <span>{placeholder}</span>
+                  {!selectedValue ? <Check size={15} className="shrink-0" /> : null}
+                </button>
+              ) : null}
 
               {canCreateOption ? (
                 <button

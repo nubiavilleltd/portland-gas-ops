@@ -9,7 +9,7 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveMarkReturned, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
 from app.hr import service
 from app.employees.models import Employee
 from app.employees.service import get_employee_by_user_id
@@ -236,6 +236,17 @@ def reactivate_leave_type(
 # LEAVE BALANCES
 # ════════════════════════════════════════════════════════════════════════════
 
+# Declared before /leave-balances/{...} paths so "years" is not captured as one.
+@router.get("/leave-balances/years", response_model=list[int])
+def list_leave_balance_years(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Distinct fiscal years that have leave-balance records — for the filter
+    dropdown. Newest first; empty if no balances exist yet."""
+    return service.get_leave_balance_years(db)
+
+
 @router.get(
     "/leave-balances/me",
     response_model=list[LeaveBalanceRead],
@@ -339,6 +350,7 @@ def list_leave_requests(
     sort_by: str = Query("created_at", pattern="^(created_at|start_date|end_date|days|status)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     employee_id: Optional[str] = Query(None),
+    year: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -374,7 +386,8 @@ def list_leave_requests(
     ```
     """
     leave_requests, total = service.get_all_leave_requests(
-        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, employee_id=employee_id
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order,
+        employee_id=employee_id, year=year,
     )
 
     # Enrich with the current pending approver ("next actor") in one query
@@ -542,6 +555,7 @@ def upload_leave_request_document(
 )
 def submit_leave_request_for_approval(
     leave_request_id: str,
+    body: LeaveRequestSubmit | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -562,7 +576,9 @@ def submit_leave_request_for_approval(
     }
     ```
     """
-    approval_request = service.submit_leave_request_for_approval(db, leave_request_id)
+    approval_request = service.submit_leave_request_for_approval(
+        db, leave_request_id, body.picked_approvers if body else None
+    )
     db.commit()
     db.refresh(approval_request)
 
@@ -573,6 +589,21 @@ def submit_leave_request_for_approval(
         "status": approval_request.overall_status,
         "current_step_number": approval_request.current_step_number,
     }
+
+
+@router.post("/leave-requests/{leave_request_id}/mark-returned", response_model=LeaveRequestRead)
+def mark_leave_returned(
+    leave_request_id: str,
+    body: LeaveMarkReturned,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Employee marks that they are back from an open-ended leave (e.g. Sick
+    Leave). Finalizes the actual End Date and the number of days."""
+    lr = service.mark_leave_returned(db, leave_request_id, body.end_date, current_user.id)
+    db.commit()
+    db.refresh(lr)
+    return lr
 
 
 # ════════════════════════════════════════════════════════════════════════════

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,7 +19,9 @@ import SelectInput from "@/components/forms/SelectInput";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
 import { useCashRequisitions, useCreateCashRequisition } from "@/lib/modules/cash-requisitions/hooks";
 import cashRequisitionsApi from "@/lib/modules/cash-requisitions/api";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { CURRENCY_OPTIONS } from "../_components/_data";
@@ -58,7 +60,13 @@ export default function CashRequisitionsPage() {
 
   const { user: currentUser } = useCurrentUser();
   const { data: myEmployee } = useMyEmployee();
+  const queryClient = useQueryClient();
   const createCashRequisition = useCreateCashRequisition();
+  // Workflow-driven approver picks for any requester_pick steps on the
+  // cash_requisition workflow (reads the active workflow config).
+  const approverPicker = useApproverPicker("cash_requisition");
+  // Reuse the draft on retry if only the submit step failed (avoids duplicates).
+  const draftRef = useRef<{ id: string; reference?: string } | null>(null);
 
   const { data: response, isLoading } = useCashRequisitions({
     limit: 100,
@@ -67,21 +75,13 @@ export default function CashRequisitionsPage() {
   });
   const allItems = response?.data || [];
 
-  // "Awaiting my approval" — my-approvals returns requests where the current user
-  // is the assignee of the CURRENT step.
-  const { data: myApprovals = [] } = useMyApprovals();
-  const awaitingIds = new Set(
-    myApprovals.filter((a) => a.request_type === "cash_requisition").map((a) => a.request_id)
-  );
-
-  const [scope, setScope] = useState<"all" | "awaiting">("all");
   const [activeStatus, setActiveStatus] = useState<string>("");
 
   const visibleItems = allItems.filter((i) => {
-    // "All" = requests I raised; "Awaiting my approval" = requests waiting on me.
+    // Only the requests I raised. Requests awaiting my approval are in the
+    // sidebar "My Approvals" section.
     const isMine = !i.requesterId || i.requesterId === currentUser?.id;
-    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
-    if (!inScope) return false;
+    if (!isMine) return false;
     if (activeStatus && i.status !== activeStatus) return false;
     return true;
   });
@@ -103,14 +103,28 @@ export default function CashRequisitionsPage() {
         return;
       }
 
-      // 1. Create the requisition
-      const cr = await createCashRequisition.mutateAsync({
-        title: data.title,
-        description: data.description,
-        amount,
-        currency: data.currency,
-        expected_retirement: data.expected_retirement || undefined,
-      });
+      // Every requester_pick step on the workflow must have an approver chosen.
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
+      // 1. Create the requisition — or reuse a draft from a failed attempt.
+      let cr: { id: string; reference?: string };
+      if (draftRef.current) {
+        cr = draftRef.current;
+      } else {
+        const created = await createCashRequisition.mutateAsync({
+          title: data.title,
+          description: data.description,
+          amount,
+          currency: data.currency,
+          expected_retirement: data.expected_retirement || undefined,
+        });
+        draftRef.current = { id: created.id, reference: created.reference };
+        cr = draftRef.current;
+      }
 
       // 2. Upload supporting files (best-effort)
       if (supportingFiles.length > 0 && cr?.id) {
@@ -125,10 +139,14 @@ export default function CashRequisitionsPage() {
 
       // 3. Submit for approval (enters the workflow)
       if (cr?.id) {
-        await cashRequisitionsApi.submitForApproval(cr.id);
+        await cashRequisitionsApi.submitForApproval(cr.id, approverPicker.picksPayload);
       }
+      draftRef.current = null; // fully submitted — next request is fresh
 
-      toast.success(`Request submitted for approval — ${cr.reference}`);
+      // Refetch AFTER the workflow starts so the list shows Next Actor now
+      // (the create mutation invalidated before this step ran).
+      queryClient.invalidateQueries({ queryKey: ["cash-requisitions"] });
+      toast.success(`Request submitted for approval${cr.reference ? ` — ${cr.reference}` : ""}`);
       form.reset();
       setSupportingFiles([]);
       setView("list");
@@ -144,6 +162,7 @@ export default function CashRequisitionsPage() {
     setView("list");
     form.reset();
     setSupportingFiles([]);
+    draftRef.current = null; // abandon any half-created draft
   }
 
   return (
@@ -156,44 +175,12 @@ export default function CashRequisitionsPage() {
             title="Cash Requisitions"
             description="Manage cash requests and approvals"
             action={
-              <Button leftIcon={<Plus size={16} />} onClick={() => setView("form")}>
+              <Button leftIcon={<Plus size={16} />} onClick={() => { draftRef.current = null; setView("form"); }}>
                 New Request
               </Button>
             }
             className="mb-6"
           />
-
-          {/* Scope filter pills */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {([
-              { value: "all",      label: "All" },
-              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
-            ] as const).map((pill) => (
-              <button
-                key={pill.value}
-                type="button"
-                onClick={() => setScope(pill.value)}
-                className={
-                  scope === pill.value
-                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
-                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
-                }
-              >
-                {pill.label}
-                {"count" in pill && pill.count > 0 ? (
-                  <span
-                    className={
-                      scope === pill.value
-                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
-                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
-                    }
-                  >
-                    {pill.count}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
 
           <div className="w-full overflow-hidden">
             <DataTable
@@ -307,6 +294,8 @@ export default function CashRequisitionsPage() {
                 </div>
               </div>
             </FormSection>
+
+            <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">

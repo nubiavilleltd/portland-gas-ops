@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,7 +19,9 @@ import DataTable from "@/components/ui/DataTable";
 import { invoiceColumns } from "@/components/data-table/columns";
 import { useInvoices, useCreateInvoice, usePoOptions, useVendorOptions } from "@/lib/modules/invoices-processing/hooks";
 import invoicesApi from "@/lib/modules/invoices-processing/api";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { CURRENCY_OPTIONS, genRef } from "../_components/_data";
@@ -63,20 +65,23 @@ export default function InvoicesPage() {
 
   const { user: currentUser } = useCurrentUser();
   const { data: myEmployee } = useMyEmployee();
+  const queryClient = useQueryClient();
   const createInvoice = useCreateInvoice();
+  // Approver picks for any requester_pick steps on the invoice workflow.
+  const approverPicker = useApproverPicker("invoice");
+  // Reuse the draft on retry if only the submit step failed (avoids duplicates).
+  const draftRef = useRef<{ id: string; reference?: string } | null>(null);
 
   const { data: response, isLoading } = useInvoices({ limit: 100, sort_by: "created_at", sort_order: "desc" });
   const allItems = response?.data || [];
 
-  const { data: myApprovals = [] } = useMyApprovals();
-  const awaitingIds = new Set(myApprovals.filter((a) => a.request_type === "invoice").map((a) => a.request_id));
-  const [scope, setScope] = useState<"all" | "awaiting">("all");
   const [activeStatus, setActiveStatus] = useState<string>("");
 
   const visibleItems = allItems.filter((i) => {
+    // Only the requests I raised. Approvals awaiting me are in the sidebar
+    // "My Approvals" section.
     const isMine = !i.requesterId || i.requesterId === currentUser?.id;
-    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
-    if (!inScope) return false;
+    if (!isMine) return false;
     if (activeStatus && i.status !== activeStatus) return false;
     return true;
   });
@@ -115,18 +120,33 @@ export default function InvoicesPage() {
         return;
       }
 
-      const inv = await createInvoice.mutateAsync({
-        invoice_id: invoiceId,
-        invoice_number: data.invoice_number,
-        title: data.title,
-        description: data.description,
-        vendor: data.vendor_name,
-        po_number: data.po_number || undefined,
-        gross_amount: gross,
-        tax_amount: tax,
-        amount: net,
-        currency: data.currency,
-      });
+      // Every requester_pick step on the workflow must have an approver chosen.
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
+      // Create — or reuse a draft from a failed attempt.
+      let inv: { id: string; reference?: string };
+      if (draftRef.current) {
+        inv = draftRef.current;
+      } else {
+        const created = await createInvoice.mutateAsync({
+          invoice_id: invoiceId,
+          invoice_number: data.invoice_number,
+          title: data.title,
+          description: data.description,
+          vendor: data.vendor_name,
+          po_number: data.po_number || undefined,
+          gross_amount: gross,
+          tax_amount: tax,
+          amount: net,
+          currency: data.currency,
+        });
+        draftRef.current = { id: created.id, reference: created.reference };
+        inv = draftRef.current;
+      }
 
       if (supportingFiles.length > 0 && inv?.id) {
         for (const file of supportingFiles) {
@@ -138,9 +158,13 @@ export default function InvoicesPage() {
         }
       }
 
-      if (inv?.id) await invoicesApi.submitForApproval(inv.id);
+      if (inv?.id) await invoicesApi.submitForApproval(inv.id, approverPicker.picksPayload);
+      draftRef.current = null; // fully submitted — next request is fresh
 
-      toast.success(`Invoice submitted for approval — ${inv.reference}`);
+      // Refetch AFTER the workflow starts so the list shows Next Actor now.
+      queryClient.invalidateQueries({ queryKey: ["invoices-processing"] });
+
+      toast.success(`Invoice submitted for approval${inv.reference ? ` — ${inv.reference}` : ""}`);
       form.reset();
       setSupportingFiles([]);
       setView("list");
@@ -153,6 +177,7 @@ export default function InvoicesPage() {
   }
 
   function goBack() {
+    draftRef.current = null; // abandon any half-created draft
     setView("list");
     form.reset();
     setSupportingFiles([]);
@@ -168,44 +193,12 @@ export default function InvoicesPage() {
             title="Invoice Processing"
             description="Manage supplier invoices and payment approvals"
             action={
-              <Button leftIcon={<Plus size={16} />} onClick={() => setView("form")}>
+              <Button leftIcon={<Plus size={16} />} onClick={() => { draftRef.current = null; setView("form"); }}>
                 New Invoice
               </Button>
             }
             className="mb-6"
           />
-
-          {/* Scope filter pills */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {([
-              { value: "all",      label: "All" },
-              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
-            ] as const).map((pill) => (
-              <button
-                key={pill.value}
-                type="button"
-                onClick={() => setScope(pill.value)}
-                className={
-                  scope === pill.value
-                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
-                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
-                }
-              >
-                {pill.label}
-                {"count" in pill && pill.count > 0 ? (
-                  <span
-                    className={
-                      scope === pill.value
-                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
-                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
-                    }
-                  >
-                    {pill.count}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
 
           <div className="w-full overflow-hidden">
             <DataTable
@@ -362,6 +355,8 @@ export default function InvoicesPage() {
 
               </div>
             </FormSection>
+
+            <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
