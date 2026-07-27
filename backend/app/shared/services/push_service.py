@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 _PUSH_PATHS: dict[str, str] = {
     "procurement":        "/procurement",
     "asset":              "/assets/requests",
-    "leave":              "/hr-management/leave-requests",
+    "leave_request":      "/hr-management/leave-requests",
     "cash_requisition":   "/finance/cash-requisitions",
     "invoice":            "/finance/invoices",
     "work_initiation":    "/safety/work-initiation",

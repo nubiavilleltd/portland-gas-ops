@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Plus, PowerOff, Power, Eye } from "lucide-react";
+import { Plus, PowerOff, Power, Pencil } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable from "@/components/data-table/data-table";
@@ -26,6 +26,8 @@ export default function LeaveTypesPage() {
     leave_type_name: "",
     entitlement_days: 0,
     description: "",
+    is_uncapped: false,
+    open_ended: false,
   });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
@@ -83,6 +85,8 @@ export default function LeaveTypesPage() {
       leave_type_name: row.leave_type_name,
       entitlement_days: row.entitlement_days,
       description: row.description || "",
+      is_uncapped: row.is_uncapped ?? false,
+      open_ended: row.open_ended ?? false,
     });
     setEditErrors({});
   };
@@ -115,7 +119,8 @@ export default function LeaveTypesPage() {
       newErrors.leave_type_name = "Leave type name is required";
     }
 
-    if (editForm.entitlement_days <= 0) {
+    // Uncapped types have no entitlement limit, so 0 is fine.
+    if (!editForm.is_uncapped && editForm.entitlement_days <= 0) {
       newErrors.entitlement_days = "Entitlement days must be greater than 0";
     }
 
@@ -201,7 +206,7 @@ export default function LeaveTypesPage() {
           rowActions={[
             {
               label: "Edit",
-              icon: Eye,
+              icon: Pencil,
               onClick: (row: any) => handleEdit(row),
               color: "default",
             },
@@ -282,6 +287,35 @@ export default function LeaveTypesPage() {
             rows={3}
             disabled={update.isPending}
           />
+
+          <div className="space-y-3 rounded-lg border border-brand-border bg-gray-50 p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editForm.is_uncapped}
+                onChange={(e) => setEditForm((p) => ({ ...p, is_uncapped: e.target.checked }))}
+                disabled={update.isPending}
+                className="mt-0.5 h-4 w-4 rounded border-brand-border accent-brand-purple"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-brand-text-primary">Uncapped</span>
+                <span className="block text-xs text-brand-text-secondary">No entitlement limit — balance shows usage only, never blocks a request (e.g. Sick Leave).</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editForm.open_ended}
+                onChange={(e) => setEditForm((p) => ({ ...p, open_ended: e.target.checked }))}
+                disabled={update.isPending}
+                className="mt-0.5 h-4 w-4 rounded border-brand-border accent-brand-purple"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-brand-text-primary">No fixed end date</span>
+                <span className="block text-xs text-brand-text-secondary">Request needs only a Start Date; End Date becomes an optional Expected Return.</span>
+              </span>
+            </label>
+          </div>
 
           <div className="flex gap-3 justify-end pt-4 border-t border-brand-border">
             <Button

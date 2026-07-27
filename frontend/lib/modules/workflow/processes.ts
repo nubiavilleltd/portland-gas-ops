@@ -9,7 +9,7 @@ const PROCESS_CONFIG: Record<string, WorkflowProcessConfig> = {
     badge: "bg-purple-100 text-purple-700",
   },
   asset: { label: "Asset Request", badge: "bg-blue-100 text-blue-700" },
-  leave: { label: "Leave Request", badge: "bg-green-100 text-green-700" },
+  leave_request: { label: "Leave Request", badge: "bg-green-100 text-green-700" },
   cash_requisition: {
     label: "Cash Requisition",
     badge: "bg-yellow-100 text-yellow-700",
