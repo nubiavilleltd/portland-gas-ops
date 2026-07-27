@@ -49,6 +49,9 @@ import {
 } from "@/lib/modules/orders/components/OrderDetailSkeleton";
 import { canCurrentUserConfirmDelivery } from "@/lib/modules/fleet/permissions/trips.permissions";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useState } from "react";
+import CancelOrderDialog from "@/lib/modules/orders/components/CancelOrderDialog";
+import ConfirmDeliveryDialog from "@/lib/modules/orders/components/ConfirmDeliveryDialog";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -60,7 +63,10 @@ export default function OrderDetailPage() {
     "order",
     id,
   );
-  const {user:currentUser, isLoading:isLoadingUser} = useCurrentUser()
+
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [confirmDeliveryOpen, setConfirmDeliveryOpen] = useState(false);
+  const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
 
   const { invoice, isFetching: isFetchingInvoice } = useInvoiceByOrderId(id);
   const { summary: paymentSummary, isFetching: isFetchingPayment } =
@@ -108,11 +114,10 @@ export default function OrderDetailPage() {
   const canCancel = canCancelOrder(order);
 
   //Permissions
-  const ensureUserCanConfirmDelivery = canCurrentUserConfirmDelivery(currentUser, trip)
-
-
-    console.log("can dl", {canDeliver, ensureUserCanConfirmDelivery})
-
+  const ensureUserCanConfirmDelivery = canCurrentUserConfirmDelivery(
+    currentUser,
+    trip,
+  );
 
   const balance = invoice
     ? invoice.total_amount - paymentSummary.amountPaid
@@ -163,16 +168,16 @@ export default function OrderDetailPage() {
               </Button>
             )}
             {canDeliver && ensureUserCanConfirmDelivery && (
-              <Button href={ORDER_ROUTES.deliveryConfirm(id)}>
-                Confirm Delivery →
+              <Button onClick={() => setConfirmDeliveryOpen(true)}>
+                Confirm Delivery
               </Button>
             )}
             {canCancel && (
               <Button
                 variant="danger"
-                href={ORDER_ROUTES.cancel(id)}
+                onClick={() => setCancelDialogOpen(true)}
               >
-                Cancel Order →
+                Cancel Order
               </Button>
             )}
           </div>
@@ -204,17 +209,17 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-  <InfoRow
-    label="Delivery Date"
-    value={
-      order.deliveryDate
-        ? formatDate(order.deliveryDate)
-        : "Not scheduled"
-    }
-  />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <InfoRow
+              label="Delivery Date"
+              value={
+                order.deliveryDate
+                  ? formatDate(order.deliveryDate)
+                  : "Not scheduled"
+              }
+            />
 
-  {/* <div>
+            {/* <div>
     <p className="text-xs text-brand-text-secondary">
       Delivery Address
     </p>
@@ -223,12 +228,12 @@ export default function OrderDetailPage() {
     </p>
   </div> */}
 
-     <InfoRow
-      label="Delivery Address"
-      value={order.deliveryAddress ?? "No delivery address provided"}
-      valueClassName="wrap-break-word"
-    />
-</div>
+            <InfoRow
+              label="Delivery Address"
+              value={order.deliveryAddress ?? "No delivery address provided"}
+              valueClassName="wrap-break-word"
+            />
+          </div>
 
           <SimpleTable
             columns={itemColumns}
@@ -459,6 +464,18 @@ export default function OrderDetailPage() {
           )}
         </FormSection>
       </div>
+
+      <ConfirmDeliveryDialog
+        open={confirmDeliveryOpen}
+        onClose={() => setConfirmDeliveryOpen(false)}
+        order={order}
+      />
+
+      <CancelOrderDialog
+        open={cancelDialogOpen}
+        onClose={() => setCancelDialogOpen(false)}
+        order={order}
+      />
     </AppLayout>
   );
 }

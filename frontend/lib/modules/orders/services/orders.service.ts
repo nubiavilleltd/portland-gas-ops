@@ -9,6 +9,7 @@ import {
 } from "../adapters/order.adapter";
 
 import type {
+  ConfirmDeliveryPayload,
   CreateOrderInput,
   FulfillmentStatus,
   Order,
@@ -163,11 +164,12 @@ async createOrder(
   },
 
   async confirmDelivery(
-    orderid: string,
+    orderId: string,
+    payload:ConfirmDeliveryPayload,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.confirmDelivery(orderid),
+        await ordersApi.confirmDelivery(orderId, payload),
       );
     } catch (err) {
       throw new Error(

@@ -51,6 +51,10 @@ class Order(Base):
     confirmed_by        = Column(CHAR(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     confirmed_at        = Column(DateTime(timezone=True), nullable=True)
     delivered_at        = Column(DateTime(timezone=True), nullable=True)
+
+    received_by = Column(String(255), nullable=True)
+    delivery_notes = Column(Text, nullable=True)
+
     created_by          = Column(CHAR(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     created_at          = Column(DateTime(timezone=True), server_default=func.now())
     updated_at          = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

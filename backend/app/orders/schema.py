@@ -185,6 +185,11 @@ class UpdateFulfillmentRequest(BaseModel):
     fulfillment_status: FulfillmentStatus
 
 
+class ConfirmDeliveryRequest(BaseModel):
+    received_by: str
+    delivery_notes: str | None = None
+
+
 class UpdatePaymentStatusRequest(BaseModel):
     payment_status: PaymentStatus
 

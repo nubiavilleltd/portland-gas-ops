@@ -10,7 +10,7 @@ from app.orders.service import OrderService
 from app.orders.schema import (
     OrderCreate, OrderDraftCreate, OrderUpdate, OrderFilters, CancelOrderRequest,
     OrderResponse, OrderListResponse,
-    UpdateFulfillmentRequest, SetTripRequest, SetInvoiceRequest,
+    UpdateFulfillmentRequest, SetTripRequest, SetInvoiceRequest, ConfirmDeliveryRequest,
 )
 from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.payments.enums import PaymentStatus
@@ -225,6 +225,7 @@ def cancel_order(
 @router.post("/{order_id}/confirm-delivery", response_model=OrderResponse)
 def confirm_delivery(
     order_id:     str,
+    payload: ConfirmDeliveryRequest,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
@@ -239,7 +240,7 @@ def confirm_delivery(
         current_user,
         existing_order
     )
-    order = service.confirm_delivery(db, existing_order)
+    order = service.confirm_delivery(db, existing_order, payload)
 
     AuditService.record(
     db, AuditEntityType.order, order.id,

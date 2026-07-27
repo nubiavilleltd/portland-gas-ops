@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from app.orders.repository import OrderRepository
 from app.orders.model import Order
-from app.orders.schema import OrderCreate, OrderDraftCreate, OrderUpdate, OrderFilters, CancelOrderRequest
+from app.orders.schema import OrderCreate, OrderDraftCreate, OrderUpdate, OrderFilters, CancelOrderRequest, ConfirmDeliveryRequest
 from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.orders.error_codes import OrderErrorCode
 from app.orders import guards
@@ -251,7 +251,7 @@ class OrderService:
             cancelled_at        = datetime.now(timezone.utc),
         )
 
-    def confirm_delivery(self, db: Session, order: Order) -> Order:
+    def confirm_delivery(self, db: Session, order: Order, payload:ConfirmDeliveryRequest) -> Order:
         """
         Confirm delivery.
         Sets fulfillment=delivered, delivered_at=now.
@@ -265,6 +265,8 @@ class OrderService:
             db, order,
             fulfillment_status = FulfillmentStatus.delivered,
             delivered_at       = datetime.now(timezone.utc),
+            received_by=payload.received_by,
+            delivery_notes=payload.delivery_notes,
         )
 
         # Auto-close if already paid — mirrors frontend confirmDeliveryWorkflow exactly

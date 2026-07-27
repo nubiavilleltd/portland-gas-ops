@@ -174,6 +174,13 @@ export interface UpdateOrderInput
   cancelledAt?: string;
 }
 
+export interface ConfirmDeliveryPayload {
+    order: Order;
+
+    receivedBy: string;
+    deliveryNotes?: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Dashboard KPIs
 // ─────────────────────────────────────────────────────────────

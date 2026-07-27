@@ -6,6 +6,7 @@ import type {
   SaveDraftRequest,
   UpdateOrderRequest,
 } from "../adapters/order.adapter";
+import { ConfirmDeliveryPayload } from "../types/orders.types";
 
 export const ordersApi = {
   list: async (
@@ -82,9 +83,9 @@ export const ordersApi = {
     return data;
   },
 
-  confirmDelivery: async (orderId: string) => {
+  confirmDelivery: async (orderId: string, payload:ConfirmDeliveryPayload) => {
     const { data } = await api.post(
-      `/api/orders/${orderId}/confirm-delivery`,
+      `/api/orders/${orderId}/confirm-delivery`, {received_by: payload.receivedBy, delivery_notes:payload.deliveryNotes}
     );
 
     return data;
