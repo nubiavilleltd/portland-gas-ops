@@ -269,7 +269,7 @@ export default function EditCustomerPage() {
             customerType: form.customerType,
             salesContact: form.salesContact,
             referrerType: form.referrerType,
-            referrer: form.referrer,
+            referrerId: form.referrer,
           }}
           errors={errors}
           onChange={handleChange}

@@ -2,6 +2,14 @@
 
 import Card from "@/components/ui/Card";
 import FormInput from "@/components/forms/FormInput";
+import type { CustomerForm } from "../types";
+
+type PrimaryContactField =
+  | "contactPerson"
+  | "department"
+  | "email"
+  | "phone"
+  | "alternatePhone";
 
 interface Props {
   values: {
@@ -9,14 +17,17 @@ interface Props {
     department: string;
     email: string;
     phone: string;
-    alternatePhone: string;
+    alternatePhone: string | null;
   };
 
   errors?: Partial<Record<keyof Props["values"], string>>;
 
   readOnly?: boolean;
 
-  onChange?: (field: string, value: string) => void;
+  onChange?: (
+    field: PrimaryContactField,
+    value: CustomerForm[PrimaryContactField],
+  ) => void;
 }
 
 export default function PrimaryContactCard({
@@ -75,7 +86,7 @@ export default function PrimaryContactCard({
         <FormInput
           label="Alternative Phone"
           placeholder="Enter Alternative Phone"
-          value={values.alternatePhone}
+          value={values?.alternatePhone}
           error={errors?.alternatePhone}
           readOnly={readOnly}
           onChange={(e) => onChange?.("alternatePhone", e.target.value)}

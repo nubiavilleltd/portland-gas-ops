@@ -206,17 +206,32 @@ export interface CustomerForm {
   customerName: string;
   entityType: EntityType;
   category: CustomerCategory;
+  companyEmail: string;
 
   rcNumber: string;
   tin: string;
   vatNumber: string;
   industry: string;
 
+  customerType: "potential" | "purchasing";
+
+  salesContact: string | null;
+
+  referrerType:
+    | "employee"
+    | "customer"
+    | "partner"
+    | "consultant"
+    | "marketing"
+    | "";
+
+  referrerId: string;
+
   contactPerson: string;
   department: string;
   email: string;
   phone: string;
-  alternatePhone: string;
+  alternatePhone: string | null;
 
   country: string;
   state: string;
@@ -228,8 +243,6 @@ export interface CustomerForm {
   preferredProducts: string[];
   supplyMethod: string;
   estimatedMonthlyDemand: string;
-
-  attachments: CustomerAttachment;
 
   internalNotes: string;
 }

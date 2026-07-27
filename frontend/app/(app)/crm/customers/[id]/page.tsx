@@ -231,7 +231,7 @@ export default function CustomerDetailsPage() {
             customerType: customer.customer_type,
             salesContact: customer.sales_contact,
             referrerType: customer.referrer_type,
-            referrer: customer.referrer,
+            referrerId: customer.referrer,
           }}
           onChange={() => {}}
         />

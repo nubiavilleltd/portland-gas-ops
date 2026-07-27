@@ -1,4 +1,5 @@
 "use client";
+import type { CustomerForm } from "../types";
 
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
@@ -7,13 +8,16 @@ import FormSelect from "@/components/forms/FormSelect";
 type Props = {
   values: {
     customerType: string;
-    salesContact: string;
+    salesContact: string | null;
     referrerType: string;
-    referrer: string;
+    referrerId: string;
   };
   readOnly?: boolean;
   errors?: Record<string, string>;
-  onChange: (field: string, value: string) => void;
+  onChange: <K extends keyof CustomerForm>(
+    field: K,
+    value: CustomerForm[K],
+  ) => void;
 };
 
 const EMPLOYEE_OPTIONS = [
@@ -54,7 +58,7 @@ export default function AccountManagementCard({
 
         <FormSelect
           label="Sales Contact"
-          value={values.salesContact}
+          value={values.salesContact ?? ""}
           placeholder="Select sales contact"
           options={EMPLOYEE_OPTIONS}
           error={errors.salesContact}
@@ -68,8 +72,8 @@ export default function AccountManagementCard({
           options={REFERRER_TYPES}
           error={errors.referrerType}
           onValueChange={(value) => {
-            onChange("referrerType", value);
-            onChange("referrer", "");
+            onChange("referrerType", value as CustomerForm["referrerType"]);
+            onChange("referrerId", "");
           }}
           disabled={readOnly}
         />
@@ -77,20 +81,20 @@ export default function AccountManagementCard({
         {values.referrerType === "employee" ? (
           <FormSelect
             label="Referrer"
-            value={values.referrer}
+            value={values.referrerId}
             placeholder="Select employee"
             options={EMPLOYEE_OPTIONS}
             error={errors.referrer}
-            onValueChange={(value) => onChange("referrer", value)}
+            onValueChange={(value) => onChange("referrerId", value)}
             disabled={readOnly}
           />
         ) : (
           <FormInput
             label="Referrer"
             placeholder="Enter referrer"
-            value={values.referrer}
+            value={values.referrerId}
             error={errors.referrer}
-            onChange={(e) => onChange("referrer", e.target.value)}
+            onChange={(e) => onChange("referrerId", e.target.value)}
             disabled={readOnly}
           />
         )}
