@@ -98,9 +98,11 @@ export function buildCustomerPayload(
   status: "draft" | "active" | "inactive",
 ) {
   return {
-    customerName: form.customerName,
+    customer_name: form.customerName,
+
     entity_type: form.entityType,
     category: form.category,
+
     company_email: form.companyEmail,
 
     rc_number: form.rcNumber || null,
@@ -109,35 +111,33 @@ export function buildCustomerPayload(
     industry: form.industry || null,
 
     customer_type: form.customerType,
-    sales_contact: String(form.salesContact),
 
-    referrer_type: form.referrerType,
-    referrer_id: form.referrerId,
+    sales_contact: form.salesContact ? parseInt(form.salesContact, 10) : null,
+    referrer_type: form.referrerType || null,
+    referrer_id: form.referrerId || null,
 
-    contact: {
-      first_name: form.contactPerson,
-      department: form.department,
-      email: form.email,
-      phone: form.phone,
-      alternate_phone: form.alternatePhone || null,
-    },
+    contact_person: form.contactPerson,
+    department: form.department || null,
 
-    address: {
-      country: form.country,
-      state: form.state,
-      city: form.city,
-      address_line1: form.addressLine1,
-      address_line2: form.addressLine2 || null,
-      postal_code: form.postalCode || null,
-    },
+    email: form.email,
+    phone: form.phone,
+    alternate_phone: form.alternatePhone || null,
 
-    commercial: {
-      preferred_products: form.preferredProducts,
-      supply_method: form.supplyMethod,
-      estimated_monthly_demand: form.estimatedMonthlyDemand,
-    },
+    country: form.country,
+    state: form.state || null,
+    city: form.city || null,
 
-    internal_notes: form.internalNotes,
+    address_line1: form.addressLine1,
+    address_line2: form.addressLine2 || null,
+    postal_code: form.postalCode || null,
+
+    preferred_products: form.preferredProducts,
+
+    supply_method: form.supplyMethod || null,
+    estimated_monthly_demand: form.estimatedMonthlyDemand || null,
+
+    internal_notes: form.internalNotes || null,
+
     status,
   };
 }

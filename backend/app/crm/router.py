@@ -63,16 +63,13 @@ def dashboard(
 def list_customers(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=200),
-
     search: Optional[str] = Query(None),
-
     status: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
     customer_type: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
 
     sales_contact: Optional[int] = Query(None),
-
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -98,7 +95,7 @@ def list_customers(
     response_model=CustomerResponse,
 )
 def get_customer(
-    customer_id: int,
+    customer_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -155,22 +152,38 @@ def update_customer(
 # Deactivate Customer
 # ------------------------------------------------------------------
 
-@router.delete(
-    "/{customer_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+@router.patch(
+    "/{customer_id}/deactivate",
+    response_model=CustomerResponse,
 )
 def deactivate_customer(
-    customer_id: int,
+    customer_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ):
-    service.deactivate_customer(
+    return service.deactivate_customer(
         db=db,
         customer_id=customer_id,
         current_user=current_user,
     )
 
-
+# ------------------------------------------------------------------
+# Activate Customer
+# ------------------------------------------------------------------
+@router.patch(
+    "/{customer_id}/activate",
+    response_model=CustomerResponse,
+)
+def activate_customer(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    return service.activate_customer(
+        db=db,
+        customer_id=customer_id,
+        current_user=current_user,
+    )
 # ==============================================================
 # CUSTOMER CONTACTS
 # ==============================================================
@@ -185,7 +198,7 @@ def deactivate_customer(
     response_model=List[CustomerContactResponse],
 )
 def list_contacts(
-    customer_id: int,
+    customer_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -205,7 +218,7 @@ def list_contacts(
     status_code=status.HTTP_201_CREATED,
 )
 def create_contact(
-    customer_id: int,
+    customer_id: str,
     data: CustomerContactCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

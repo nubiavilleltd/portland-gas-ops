@@ -57,10 +57,10 @@ class CustomerContactUpdate(BaseModel):
 class CustomerContactResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: str
     contact_no: str
 
-    customer_id: int
+    customer_id: str
 
     first_name: str
     last_name: str
@@ -181,7 +181,7 @@ class CustomerUpdate(BaseModel):
 class CustomerListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: str
 
     customer_no: str
 
@@ -207,7 +207,7 @@ class CustomerListItem(BaseModel):
 class CustomerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: str
 
     customer_no: str
 
@@ -256,7 +256,7 @@ class CustomerResponse(BaseModel):
 
     status: CustomerStatus
 
-    created_by: int
+    created_by: str
 
     created_at: datetime
     updated_at: datetime

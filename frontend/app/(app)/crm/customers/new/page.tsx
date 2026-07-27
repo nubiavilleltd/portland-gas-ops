@@ -19,7 +19,7 @@ import {
   validateCustomer,
   buildCustomerPayload,
 } from "@/lib/modules/crm/utils/customer";
-
+import { useCreateCustomer } from "@/lib/modules/crm";
 export default function NewCustomerPage() {
   const router = useRouter();
 
@@ -62,6 +62,7 @@ export default function NewCustomerPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const createCustomer = useCreateCustomer();
 
   function handleChange<K extends keyof CustomerForm>(
     field: K,
@@ -80,13 +81,15 @@ export default function NewCustomerPage() {
     }
   }
 
-  function saveDraft() {
+  async function saveDraft() {
     const payload = buildCustomerPayload(form, "draft");
 
-    console.log(payload);
+    await createCustomer.mutateAsync(payload);
+
+    router.push("/crm/customers");
   }
 
-  function submitCustomer() {
+  async function submitCustomer() {
     const { valid, errors } = validateCustomer(form);
 
     if (!valid) {
@@ -96,7 +99,9 @@ export default function NewCustomerPage() {
 
     const payload = buildCustomerPayload(form, "active");
 
-    console.log(payload);
+    await createCustomer.mutateAsync(payload);
+
+    router.push("/crm/customers");
   }
 
   return (

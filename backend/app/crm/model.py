@@ -1,4 +1,5 @@
 import enum
+import uuid
 
 from sqlalchemy import (
     Column,
@@ -52,9 +53,9 @@ class ReferrerType(str, enum.Enum):
 
 
 class PreferredChannel(str, enum.Enum):
-    email = "Email"
-    phone = "Phone"
-    whatsapp = "Whatsapp"
+    email = "email"
+    phone = "phone"
+    whatsapp = "whatsapp"
 
 
 class ContactStatus(str, enum.Enum):
@@ -69,10 +70,16 @@ class ContactStatus(str, enum.Enum):
 class CustomersTemp(Base):
     __tablename__ = "customers_temp"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+        index=True
+    )
 
     customer_no = Column(String(20), unique=True, nullable=False)
 
+   
     customer_name = Column(String(200), nullable=False)
 
     entity_type = Column(
@@ -98,10 +105,10 @@ class CustomersTemp(Base):
     )
 
     sales_contact = Column(
-        Integer,
-        ForeignKey("employees.id"),
-        nullable=True,
-    )
+    String(36),
+    ForeignKey("employees.id"),
+    nullable=True,
+)
 
     referrer_type = Column(
         SAEnum(ReferrerType),
@@ -140,10 +147,10 @@ class CustomersTemp(Base):
     )
 
     created_by = Column(
-        Integer,
-        ForeignKey("employees.id"),
-        nullable=False,
-    )
+    String(36),
+    ForeignKey("employees.id"),
+    nullable=False,
+)
 
     created_at = Column(
         DateTime(timezone=True),
@@ -184,8 +191,11 @@ class CustomersTemp(Base):
 class CustomerContact(Base):
     __tablename__ = "customer_contacts"
 
-    id = Column(Integer, primary_key=True, index=True)
-
+    id = Column(
+            String(36),
+            primary_key=True,
+            default=lambda: str(uuid.uuid4())
+        )
     contact_no = Column(
         String(20),
         unique=True,
@@ -193,16 +203,16 @@ class CustomerContact(Base):
     )
 
     customer_id = Column(
-        Integer,
+         String(36),
         ForeignKey("customers_temp.id"),
         nullable=False,
     )
 
     created_by = Column(
-        Integer,
-        ForeignKey("employees.id"),
-        nullable=False,
-    )
+    String(36),
+    ForeignKey("employees.id"),
+    nullable=False,
+)
 
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)

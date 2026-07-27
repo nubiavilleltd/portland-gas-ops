@@ -24,7 +24,7 @@ import AccountManagementCard from "@/lib/modules/crm/components/AccountManagemen
 
 export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
-
+  console.log(id);
   const { data: customer } = useCustomerOnboardingDetails(id);
   const { data: contacts } = useCustomerContactDetails(id);
 
@@ -238,7 +238,7 @@ export default function CustomerDetailsPage() {
 
         <InternalNotesCard
           readOnly={readOnly}
-          value={customer.internal_notes}
+          value={customer.internal_notes ?? ""}
           onChange={() => {}}
         />
       </div>

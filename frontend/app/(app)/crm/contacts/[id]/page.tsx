@@ -320,7 +320,7 @@ export default function ContactDetailsPage() {
                           phone: "",
                           alternate_phone: "",
                           department: "",
-                          preferred_channel: "Email",
+                          preferred_channel: "email",
                           status: "active",
                         },
                       ],

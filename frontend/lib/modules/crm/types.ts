@@ -35,7 +35,6 @@ export interface CustomerOnboarding {
   email: string;
   phone: string;
   alternate_phone: string;
-
   // Address Information
   country: string;
   state: string;

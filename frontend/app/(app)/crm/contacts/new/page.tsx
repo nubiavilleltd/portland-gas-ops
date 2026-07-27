@@ -40,7 +40,7 @@ function emptyContact(): ContactForm {
     role: "",
     department: "",
 
-    preferred_channel: "Email",
+    preferred_channel: "email",
   };
 }
 
@@ -56,12 +56,12 @@ export default function NewCustomerContactPage() {
     () =>
       customers
         .filter(
-          (c) =>
+          (c: any) =>
             c.status === "approved" ||
             c.status === "active" ||
             c.customer_status === "active",
         )
-        .map((customer) => ({
+        .map((customer: any) => ({
           label: customer.customer_name,
           value: customer.id,
         })),
@@ -88,7 +88,7 @@ export default function NewCustomerContactPage() {
   }
 
   function handleCustomerChange(customerId: string) {
-    const customer = customers.find((c) => c.id === customerId);
+    const customer = customers.find((c: any) => c.id === customerId);
 
     if (!customer) return;
 
@@ -110,7 +110,7 @@ export default function NewCustomerContactPage() {
 
         department: "",
 
-        preferred_channel: "Email",
+        preferred_channel: "email",
       },
 
       additionalContacts: [],

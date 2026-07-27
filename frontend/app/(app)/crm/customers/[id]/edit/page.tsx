@@ -15,14 +15,21 @@ import CommercialInformationCard from "@/lib/modules/crm/components/CommercialIn
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
 import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
 import { useToast } from "@/hooks/useToast";
-import { useCustomerOnboardingDetails } from "@/lib/modules/crm";
+import {
+  useCustomerDetails,
+  useUpdateCustomer,
+  useDeactivateCustomer,
+  useActivateCustomer,
+} from "@/lib/modules/crm";
 
 export default function EditCustomerPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
 
-  const { data: customer } = useCustomerOnboardingDetails(id);
-
+  const { data: customer, isLoading } = useCustomerDetails(id);
+  const updateCustomer = useUpdateCustomer();
+  const deactivateCustomerMutation = useDeactivateCustomer();
+  const dctivateCustomerMutation = useActivateCustomer();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
   const [form, setForm] = useState<any>({
@@ -149,7 +156,7 @@ export default function EditCustomerPage() {
     return Object.keys(error).length === 0;
   }
 
-  function submitForApproval() {
+  async function submitForApproval() {
     if (!validate()) return;
 
     const payload = {
@@ -159,9 +166,45 @@ export default function EditCustomerPage() {
       status: "submitted",
     };
 
-    console.log("UPDATE CUSTOMER", payload);
+    await updateCustomer.mutateAsync({
+      id,
+      data: {
+        customer_name: form.customerName,
+        entity_type: form.entityType,
+        category: form.category,
 
-    // await updateCustomer(payload)
+        rc_number: form.rcNumber,
+        tin: form.tin,
+        vat_number: form.vatNumber,
+        industry: form.industry,
+
+        customer_type: form.customerType,
+        sales_contact: form.salesContact || null,
+        referrer_type: form.referrerType,
+        referrer_id: form.referrer,
+
+        contact_person: form.contactPerson,
+        department: form.department,
+
+        email: form.email,
+        phone: form.phone,
+        alternate_phone: form.alternatePhone,
+
+        country: form.country,
+        state: form.state,
+        city: form.city,
+
+        address_line1: form.addressLine1,
+        address_line2: form.addressLine2,
+        postal_code: form.postalCode,
+
+        preferred_products: form.preferredProducts,
+        supply_method: form.supplyMethod,
+        estimated_monthly_demand: form.estimatedMonthlyDemand,
+
+        internal_notes: form.internalNotes,
+      },
+    });
 
     toast.success("Customer details have been submitted successfully.");
 
@@ -169,16 +212,30 @@ export default function EditCustomerPage() {
       router.push("/crm/customers");
     }, 1000);
   }
-  function deactivateCustomer() {
+
+  async function activateCustomer() {
     const payload = {
       id,
       action: "deactivate",
       status: "inactive",
     };
 
-    console.log("DEACTIVATE CUSTOMER", payload);
+    await dctivateCustomerMutation.mutateAsync(id);
 
-    // await deactivateCustomer(payload)
+    toast.success("Customer has been deactivated successfully.");
+
+    setTimeout(() => {
+      router.push("/crm/customers");
+    }, 1000);
+  }
+  async function deactivateCustomer() {
+    const payload = {
+      id,
+      action: "deactivate",
+      status: "inactive",
+    };
+
+    await deactivateCustomerMutation.mutateAsync(id);
 
     toast.success("Customer has been deactivated successfully.");
 
@@ -187,8 +244,17 @@ export default function EditCustomerPage() {
     }, 1000);
   }
 
-  if (!customer) return null;
+  if (isLoading) {
+    return (
+      <AppLayout pageTitle="Edit Customer">
+        <div className="flex justify-center py-20">Loading...</div>
+      </AppLayout>
+    );
+  }
 
+  if (!customer) {
+    return <AppLayout pageTitle="Edit Customer">Customer not found.</AppLayout>;
+  }
   return (
     <AppLayout pageTitle="Edit Customer">
       <BackButton
@@ -280,8 +346,20 @@ export default function EditCustomerPage() {
         />
 
         <div className="flex justify-between pb-10">
-          <Button variant="outline" onClick={deactivateCustomer}>
+          <Button
+            variant="outline"
+            loading={deactivateCustomerMutation.isPending}
+            onClick={deactivateCustomer}
+          >
             Deactivate Customer
+          </Button>
+
+          <Button
+            variant="outline"
+            loading={deactivateCustomerMutation.isPending}
+            onClick={activateCustomer}
+          >
+            Activate Customer
           </Button>
 
           <div className="flex gap-3">
@@ -289,7 +367,12 @@ export default function EditCustomerPage() {
               Cancel
             </Button>
 
-            <Button onClick={submitForApproval}>Save & Submit</Button>
+            <Button
+              onClick={submitForApproval}
+              loading={updateCustomer.isPending}
+            >
+              Save & Submit
+            </Button>
           </div>
         </div>
       </div>

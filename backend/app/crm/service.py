@@ -48,33 +48,29 @@ def _generate_customer_number() -> str:
     return generate_reference("CUS")
 
 
-def _generate_contact_number() -> str:
-    """
-    Generates customer contact number.
-
-    Example
-
-    CNT000001
-    """
-
-    return generate_reference("CNT")
+def _generate_contact_number(db: Session) -> str:
+    return generate_reference(
+        "CNT",
+        db,
+        CustomerContact,
+        CustomerContact.contact_no,
+    )
 
 
-def get_customer(
-    db: Session,
-    customer_id: int,
-) -> CustomersTemp:
+def get_customer(db, customer_id):
 
     customer = (
         db.query(CustomersTemp)
-        .filter(CustomersTemp.id == customer_id)
+        .filter(
+            CustomersTemp.id == customer_id
+        )
         .first()
     )
 
     if not customer:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found.",
+            status_code=404,
+            detail="Customer not found"
         )
 
     return customer
@@ -94,7 +90,7 @@ def get_customer_by_number(
 
 def get_primary_contact(
     db: Session,
-    customer_id: int,
+    customer_id: str,
 ) -> Optional[CustomerContact]:
 
     return (
@@ -166,7 +162,7 @@ def create_primary_contact(
 
     contact = CustomerContact(
 
-        contact_no=_generate_contact_number(),
+        contact_no=_generate_contact_number(db),
 
         customer_id=customer.id,
 
@@ -188,7 +184,7 @@ def create_primary_contact(
 
         alternate_phone=customer.alternate_phone,
 
-        preferred_channel="Email",
+        preferred_channel="email",
 
         is_primary=True,
 
@@ -386,7 +382,7 @@ def update_customer(
 
 def get_customer_detail(
     db: Session,
-    customer_id: int,
+    customer_id: str,
 ) -> CustomersTemp:
 
     return get_customer(
@@ -394,28 +390,38 @@ def get_customer_detail(
         customer_id,
     )
 
+
+
+
 def deactivate_customer(
     db: Session,
-    customer_id: int,
-    current_employee,
+    customer_id: str,
+    current_user,
 ):
-
-    customer = get_customer(
-        db,
-        customer_id,
+    customer = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.id == customer_id)
+        .first()
     )
 
-    customer.status = "inactive"
+    if not customer:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found.",
+        )
 
-    # log_customer_activity(
+    customer.status = "inactive"
+ # log_customer_activity(
     #     db=db,
     #     customer=customer,
     #     employee=current_employee,
     #     action="deactivated",
     #     description=f"Customer {customer.customer_name} was deactivated.",
     # )
-
     db.commit()
+    db.refresh(customer)
+
+    return customer
 
 def activate_customer(
     db: Session,
@@ -488,6 +494,7 @@ def list_customers(
     customer_type: Optional[str] = None,
     entity_type: Optional[str] = None,
     category: Optional[str] = None,
+    sales_contact: Optional[int] = None,
 ):
 
     query = db.query(CustomersTemp)
@@ -593,7 +600,7 @@ def customer_dashboard_summary(
 
 def list_customer_contacts(
     db: Session,
-    customer_id: int,
+    customer_id: str,
 ):
 
     get_customer(
@@ -639,7 +646,7 @@ def get_contact(
 
 def create_contact(
     db: Session,
-    customer_id: int,
+    customer_id: str,
     data: CustomerContactCreate,
     current_employee,
 ):
@@ -667,7 +674,7 @@ def create_contact(
 
         customer_id=customer.id,
 
-        contact_no=_generate_contact_number(),
+        contact_no=_generate_contact_number(db),
 
         created_by=current_employee.id,
 
@@ -700,8 +707,12 @@ def create_customer(
     current_user: User,
 ) -> CustomersTemp:
 
-    customer_no = generate_reference("CUS")
-
+    customer_no = generate_reference(
+        "CUS",
+        db,
+        CustomersTemp,
+        CustomersTemp.customer_no,
+    )
     customer = CustomersTemp(
         customer_no=customer_no,
         customer_name=data.customer_name,
@@ -861,11 +872,11 @@ def sync_primary_contact(
     else:
 
         contact = CustomerContact(
-            contact_no=_generate_contact_number(),
+            contact_no=_generate_contact_number(db),
             customer_id=customer.id,
             created_by=employee_id,
             is_primary=True,
-            preferred_channel="Email",
+            preferred_channel="email",
             status="active",
             **values,
         )
