@@ -170,6 +170,7 @@ def get_next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
 def submit_cash_requisition_for_approval(
     db: Session,
     cash_requisition_id: str,
+    picked_approvers: dict[int, str] | None = None,
 ) -> ApprovalRequest:
     """
     Submit a cash requisition into the workflow engine (creates ApprovalRequest +
@@ -195,7 +196,7 @@ def submit_cash_requisition_for_approval(
         request_id=cash_requisition_id,
         title=title,
         requester=requester,
-        picked_approvers=None,
+        picked_approvers=picked_approvers or None,
     )
     return approval_request
 
@@ -238,7 +239,7 @@ def resubmit_cash_requisition(
     cr.status = CashRequisitionStatus.pending
     db.flush()
 
-    submit_cash_requisition_for_approval(db, cr.id)
+    submit_cash_requisition_for_approval(db, cr.id, payload.picked_approvers)
     return cr
 
 
@@ -393,7 +394,7 @@ def get_invoice_next_actors(db: Session, request_ids: list[str]) -> dict[str, di
     return result
 
 
-def submit_invoice_for_approval(db: Session, invoice_id: str) -> ApprovalRequest:
+def submit_invoice_for_approval(db: Session, invoice_id: str, picked_approvers: dict[int, str] | None = None) -> ApprovalRequest:
     """Submit an invoice into the workflow (both steps auto-resolve)."""
     inv = db.query(InvoiceProcessing).filter(InvoiceProcessing.id == invoice_id).first()
     if not inv:
@@ -411,7 +412,7 @@ def submit_invoice_for_approval(db: Session, invoice_id: str) -> ApprovalRequest
         request_id=invoice_id,
         title=title,
         requester=requester,
-        picked_approvers=None,
+        picked_approvers=picked_approvers or None,
     )
 
 
@@ -448,5 +449,5 @@ def resubmit_invoice(
     inv.status = InvoiceProcessingStatus.pending
     db.flush()
 
-    submit_invoice_for_approval(db, inv.id)
+    submit_invoice_for_approval(db, inv.id, payload.picked_approvers)
     return inv

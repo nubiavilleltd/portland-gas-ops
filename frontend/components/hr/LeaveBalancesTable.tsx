@@ -3,10 +3,9 @@
 import Link from "next/link";
 import DataTable from "@/components/data-table/data-table";
 import type { Column } from "@/components/data-table/data-table";
-import { useAllLeaveBalances } from "@/lib/modules/leave-balances/hooks";
+import SelectInput from "@/components/forms/SelectInput";
+import { useAllLeaveBalances, useLeaveBalanceYears } from "@/lib/modules/leave-balances/hooks";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
-
-const YEAR = new Date().getFullYear();
 
 interface BalanceInfo {
   remaining: number;
@@ -45,12 +44,24 @@ function BalancePill({ bal }: { bal: BalanceInfo }) {
  */
 export default function LeaveBalancesTable({
   rowHref,
+  year,
+  onYearChange,
 }: {
   rowHref: (row: LeaveBalanceRow) => string;
+  year: number;
+  onYearChange: (year: number) => void;
 }) {
-  const { data: balances = [], isLoading } = useAllLeaveBalances(YEAR);
+  const { data: balances = [], isLoading } = useAllLeaveBalances(year);
   const { data: leaveTypesResponse } = useLeaveTypes({ limit: 100, is_active: true });
   const leaveTypes = leaveTypesResponse?.data || [];
+
+  // Only offer years that actually have balance records. Keep the selected year
+  // present even if it isn't in the DB yet (e.g. current year before any leave
+  // is taken), so the control always shows a valid value.
+  const { data: dbYears = [] } = useLeaveBalanceYears();
+  const yearOptions = Array.from(new Set([...dbYears, year]))
+    .sort((a, b) => b - a)
+    .map((y) => ({ value: String(y), label: String(y) }));
 
   const rows: LeaveBalanceRow[] = balances.map((emp) => ({
     id: emp.employee_id,
@@ -104,6 +115,18 @@ export default function LeaveBalancesTable({
       rowHref={rowHref}
       emptyMessage="No employees found"
       emptyDescription="Add employees to track leave balances"
+      toolbarExtra={
+        <div className="w-32 shrink-0">
+          <SelectInput
+            aria-label="Filter by year"
+            sortOptions={false}
+            clearable={false}
+            value={String(year)}
+            onValueChange={(v) => { if (v) onYearChange(Number(v)); }}
+            options={yearOptions}
+          />
+        </div>
+      }
     />
   );
 }
