@@ -11,7 +11,30 @@ from app.finance.models import (
 from app.finance.schemas import CashRequisitionCreate, InvoiceProcessingCreate
 from app.employees.models import Employee
 from app.shared.services.workflow_engine import WorkflowEngine
-from app.shared.models.approval import ApprovalRequest
+from app.shared.models.approval import ApprovalRequest, ApprovalOverallStatus
+
+
+def _assert_not_already_pending(db: Session, request_type: str, request_id: str, label: str) -> None:
+    """
+    Block starting a second workflow on a request that is already in one.
+
+    A double-submit would create a duplicate attempt and split the approval
+    trail. A returned/rejected attempt is not pending, so resubmit still works.
+    """
+    existing = (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.request_type == request_type,
+            ApprovalRequest.request_id == request_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"This {label} is already awaiting approval",
+        )
 
 
 # ── Reference generation ─────────────────────────────────────────────────────
@@ -180,6 +203,8 @@ def submit_cash_requisition_for_approval(
     cr = db.query(CashRequisition).filter(CashRequisition.id == cash_requisition_id).first()
     if not cr:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash requisition not found")
+
+    _assert_not_already_pending(db, "cash_requisition", cash_requisition_id, "cash requisition")
 
     requester = db.query(Employee).filter(Employee.user_id == cr.requester_id).first()
     if not requester:
@@ -399,6 +424,8 @@ def submit_invoice_for_approval(db: Session, invoice_id: str, picked_approvers: 
     inv = db.query(InvoiceProcessing).filter(InvoiceProcessing.id == invoice_id).first()
     if not inv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+
+    _assert_not_already_pending(db, "invoice", invoice_id, "invoice")
 
     requester = db.query(Employee).filter(Employee.user_id == inv.requester_id).first()
     if not requester:

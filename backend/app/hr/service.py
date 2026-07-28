@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from fastapi import HTTPException, status
 from typing import Optional, Tuple
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 import uuid
 
@@ -16,7 +16,21 @@ from app.hr.schemas import (
 )
 from app.employees.models import Employee
 from app.shared.services.workflow_engine import WorkflowEngine
-from app.shared.models.approval import ApprovalRequest
+from app.shared.models.approval import ApprovalRequest, ApprovalOverallStatus
+
+
+def _business_days(start: date, end: date) -> int:
+    """Working days (Mon–Fri) from start to end inclusive; weekends (Sat/Sun) excluded.
+    Mirrors the frontend leave-day count so the previewed number equals what is deducted."""
+    if not start or not end or end < start:
+        return 0
+    total = 0
+    d = start
+    while d <= end:
+        if d.weekday() < 5:   # 0=Mon .. 4=Fri; 5,6 = Sat,Sun
+            total += 1
+        d += timedelta(days=1)
+    return total
 
 
 # ── CREATE ──────────────────────────────────────────────────────────────────
@@ -262,8 +276,8 @@ def create_leave_request(
             detail="End date must be after start date",
         )
 
-    # Calculate days (inclusive, calendar days)
-    days = (effective_end - payload.start_date).days + 1
+    # Calculate days (working days only — weekends excluded, inclusive)
+    days = _business_days(payload.start_date, effective_end)
 
     # Generate reference
     reference = _next_leave_request_reference(db)
@@ -497,6 +511,25 @@ def submit_leave_request_for_approval(
             detail="Leave request not found",
         )
 
+    # Guard against starting a second workflow on a request that is already in
+    # one — a double-submit would create a duplicate attempt and split the
+    # approval trail. A returned/rejected attempt is NOT pending, so resubmit
+    # still works.
+    existing = (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.request_type == "leave_request",
+            ApprovalRequest.request_id == leave_request_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This leave request is already awaiting approval",
+        )
+
     # Get requester's employee record (they must be an employee to submit)
     requester = db.query(Employee).filter(Employee.user_id == leave_request.requester_id).first()
     if not requester:
@@ -597,7 +630,7 @@ def resubmit_leave_request(
     lr.job_title = employee.job_title
     lr.start_date = payload.start_date
     lr.end_date = effective_end
-    lr.days = (effective_end - payload.start_date).days + 1
+    lr.days = _business_days(payload.start_date, effective_end)
     lr.reason = payload.reason
     if payload.document_id is not None:
         lr.document_id = payload.document_id
@@ -688,7 +721,7 @@ def mark_leave_returned(
 
     old_days = lr.days or 0
     lr.end_date = end_date
-    lr.days = (end_date - lr.start_date).days + 1
+    lr.days = _business_days(lr.start_date, end_date)
     lr.returned_at = datetime.now(timezone.utc)
 
     # Keep recorded usage accurate — adjust the balance by the change in days.

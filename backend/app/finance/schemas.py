@@ -24,6 +24,10 @@ class CashRequisitionCreate(BaseModel):
     expected_retirement: Optional[date] = None
     document_id: Optional[int] = None
     picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
+    # Start the approval workflow in the SAME transaction as the create — see
+    # LeaveRequestCreate for why. Prevents rows that read "Pending" but sit in
+    # no workflow when the second call fails.
+    submit_for_approval: bool = True
 
 
 class FinanceSubmit(BaseModel):
@@ -72,6 +76,9 @@ class InvoiceProcessingCreate(BaseModel):
     currency: str = "NGN"
     document_id: Optional[int] = None
     picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
+    # Start the approval workflow in the SAME transaction as the create — see
+    # LeaveRequestCreate for why.
+    submit_for_approval: bool = True
 
 
 class InvoiceProcessingRead(BaseModel):

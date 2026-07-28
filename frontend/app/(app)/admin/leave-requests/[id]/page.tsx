@@ -86,7 +86,7 @@ export default function LeaveRequestDetailPage({
             onRoleChange={setCurrentRole}
             roleLabel={currentRole === "approver" ? "Approver" : currentRole === "admin" ? "Admin" : "Requester"}
             roles={ROLE_OPTIONS}
-            status={<ApprovalBadge status={record.status} />}
+            status={<ApprovalBadge status={record.status === "in_progress" ? "pending" : record.status} />}
             recordLabel="Leave Request"
             title={`${record.employee} — ${record.type}`}
           />

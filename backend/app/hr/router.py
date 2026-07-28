@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from typing import Optional
 from datetime import date
 
@@ -321,7 +322,12 @@ def create_leave_request(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Create a new leave request (draft status).
+    Create a leave request and, by default, start its approval workflow.
+
+    Both happen in ONE transaction: if the workflow fails to start, the whole
+    thing rolls back and no row is left behind. Pass submit_for_approval=false
+    to create a standalone draft and submit it later via
+    POST /leave-requests/{id}/submit-for-approval.
 
     **Body Parameters:**
     - employee_id: str (UUID)
@@ -331,12 +337,29 @@ def create_leave_request(
     - end_date: date (YYYY-MM-DD)
     - reason: str (optional)
     - document_id: int (optional)
+    - submit_for_approval: bool (default true)
     """
     # NOTE: requester_id stores the User id by design — submit_leave_request_for_approval
     # resolves the employee via Employee.user_id == requester_id.
     leave_request = service.create_leave_request(db, payload, current_user.id)
+
+    if payload.submit_for_approval:
+        # create_leave_request already flushed, so the row is visible to this
+        # session (and has an id) without being committed yet.
+        service.submit_leave_request_for_approval(
+            db, leave_request.id, payload.picked_approvers
+        )
+
     db.commit()
     db.refresh(leave_request)
+
+    # Raised on someone else's behalf? Tell that employee. Called AFTER commit so
+    # it never fires for a rolled-back request, and it never raises — a mail
+    # problem must not fail a request that is already safely saved.
+    if payload.submit_for_approval:
+        from app.hr import leave_notifications
+        leave_notifications.notify_raised(db, leave_request.id)
+
     return leave_request
 
 
@@ -783,3 +806,124 @@ def delete_employee_loan(
 ):
     """Delete a loan (or cancel it if it already has deduction history)."""
     service.delete_employee_loan(db, loan_id)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# LEAVE APPROVAL ACTIONS — HR-owned wrappers
+# ════════════════════════════════════════════════════════════════════════════
+#
+# These delegate to the shared workflow endpoints (same auth, same engine, same
+# transaction and emails) and then notify the employee the leave was raised FOR.
+#
+# They exist so leave-specific notification logic lives in the HR module instead
+# of inside app/shared, where it would run for every other team's request types.
+# The shared endpoints remain fully functional and unchanged; this is an
+# additional entry point, not a replacement.
+
+class LeaveActionRequest(BaseModel):
+    comment: Optional[str] = None
+
+
+def _leave_stage_context(db: Session, approval_request_id: str) -> dict:
+    """
+    Snapshot the step names around an approval BEFORE the engine advances it,
+    so the notification can name the step that was just approved and the one
+    that is now pending.
+    """
+    from app.shared.models.approval import ApprovalRequest, WorkflowStep
+
+    ar = db.query(ApprovalRequest).filter(ApprovalRequest.id == approval_request_id).first()
+    if not ar:
+        return {}
+
+    def step_name(n: int) -> Optional[str]:
+        s = (
+            db.query(WorkflowStep)
+            .filter(WorkflowStep.workflow_id == ar.workflow_id, WorkflowStep.step_number == n)
+            .first()
+        )
+        return s.step_name if s else None
+
+    return {
+        "request_type": ar.request_type,
+        "leave_request_id": ar.request_id,
+        "current_step_name": step_name(ar.current_step_number),
+        "next_step_name": step_name(ar.current_step_number + 1),
+    }
+
+
+@router.post("/leave-requests/approvals/{approval_request_id}/approve")
+def approve_leave_request(
+    approval_request_id: str,
+    body: LeaveActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Approve a leave step, then notify the employee it was raised for."""
+    from app.shared.workflow.router import approve_request as _shared_approve, ActionRequest
+    from app.hr import leave_notifications
+
+    ctx = _leave_stage_context(db, approval_request_id)
+    result = _shared_approve(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+
+    # Shared endpoint has committed by this point — safe to notify.
+    if ctx.get("request_type") == "leave_request":
+        actor = get_employee_by_user_id(current_user.id, db)
+        actor_name = (actor.user.full_name if actor and actor.user else None) or "An approver"
+        if result.get("overall_status") == "approved":
+            leave_notifications.notify_outcome(
+                db, ctx["leave_request_id"], "approved", actor_name, body.comment
+            )
+        else:
+            leave_notifications.notify_step_approved(
+                db, ctx["leave_request_id"], actor_name,
+                ctx.get("current_step_name") or "this step",
+                ctx.get("next_step_name"), body.comment,
+            )
+    return result
+
+
+@router.post("/leave-requests/approvals/{approval_request_id}/reject")
+def reject_leave_request(
+    approval_request_id: str,
+    body: LeaveActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Deny a leave request, then notify the employee it was raised for."""
+    from app.shared.workflow.router import reject_request as _shared_reject, ActionRequest
+    from app.hr import leave_notifications
+
+    ctx = _leave_stage_context(db, approval_request_id)
+    result = _shared_reject(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+
+    if ctx.get("request_type") == "leave_request":
+        actor = get_employee_by_user_id(current_user.id, db)
+        actor_name = (actor.user.full_name if actor and actor.user else None) or "An approver"
+        leave_notifications.notify_outcome(
+            db, ctx["leave_request_id"], "rejected", actor_name, body.comment
+        )
+    return result
+
+
+@router.post("/leave-requests/approvals/{approval_request_id}/return")
+def return_leave_request(
+    approval_request_id: str,
+    body: LeaveActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return a leave request for revision, then notify the employee."""
+    from app.shared.workflow.router import return_request as _shared_return, ActionRequest
+    from app.hr import leave_notifications
+
+    ctx = _leave_stage_context(db, approval_request_id)
+    result = _shared_return(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+
+    if ctx.get("request_type") == "leave_request":
+        actor = get_employee_by_user_id(current_user.id, db)
+        actor_name = (actor.user.full_name if actor and actor.user else None) or "An approver"
+        leave_notifications.notify_outcome(
+            db, ctx["leave_request_id"], "returned", actor_name, body.comment
+        )
+    return result

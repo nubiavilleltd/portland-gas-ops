@@ -372,9 +372,15 @@ const EMPLOYMENT_TYPE_OPTIONS = [
   { value: "Intern",    label: "Intern"    },
 ];
 
+const ACCOUNT_STATUS_OPTIONS = [
+  { value: "active",      label: "Active"      },
+  { value: "pending",     label: "Pending"     },
+  { value: "deactivated", label: "Deactivated" },
+];
+
 type EditForm = Partial<{
   firstName: string; lastName: string; email: string; birthday: string;
-  title: string; departmentId: string; category: string; grade: string;
+  title: string; departmentId: string; category: string; grade: string; accountStatus: string;
   basicSalary: number; housingAllowance: number; transportAllowance: number;
   mealAllowance: number; loanRepayment: number;
 }>;
@@ -447,6 +453,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
       title:            emp.job_title           ?? "",
       departmentId:     emp.department_id       ?? "",
       category:         emp.employment_type     ?? "",
+      accountStatus:    emp.user?.account_status ?? "",
       basicSalary:      emp.basic_salary        ? Number(emp.basic_salary)        : undefined,
       housingAllowance: emp.housing_allowance   ? Number(emp.housing_allowance)   : undefined,
       transportAllowance: emp.transport_allowance ? Number(emp.transport_allowance) : undefined,
@@ -487,6 +494,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         job_title:            empForm.title                        || undefined,
         department_id:        empForm.departmentId                 || undefined,
         employment_type:      (empForm.category as EmploymentType) || undefined,
+        account_status:       empForm.accountStatus                || undefined,
         birthday:             empForm.birthday                     || undefined,
         operating_manager_id: pickedManager?.id                   ?? null,
         basic_salary:         empForm.basicSalary,
@@ -652,6 +660,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <FormInput label="Job Title / Role" required placeholder="e.g. Software Developer" value={empForm.title ?? ""} onChange={(e) => ue("title", e.target.value)} />
                 <FormSelect label="Department" required options={deptOptions} placeholder="Select department" value={empForm.departmentId ?? ""} onValueChange={(v) => ue("departmentId", v)} />
                 <FormSelect label="Employment Type" options={EMPLOYMENT_TYPE_OPTIONS} placeholder="Select type" value={empForm.category ?? ""} onValueChange={(v) => ue("category", v)} />
+                <FormSelect label="Account Status" options={ACCOUNT_STATUS_OPTIONS} placeholder="Select status" value={empForm.accountStatus ?? ""} onValueChange={(v) => ue("accountStatus", v)} />
                 <EmployeePicker
                   label="Operations Manager"
                   employees={managerPickerEmployees}

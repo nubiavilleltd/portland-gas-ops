@@ -69,7 +69,7 @@ export const cashRequisitionColumns: Column<CashRequest>[] = [
     key: "status",
     label: "Status",
     sortable: true,
-    render: (v) => <ApprovalBadge status={String(v)} />,
+    render: (v) => <ApprovalBadge status={String(v) === "in_progress" ? "pending" : String(v)} />,
   },
   {
     key: "nextActor",
@@ -141,7 +141,7 @@ export const invoiceColumns: Column<InvoiceRequest>[] = [
     key: "status",
     label: "Status",
     sortable: true,
-    render: (v) => <ApprovalBadge status={String(v)} />,
+    render: (v) => <ApprovalBadge status={String(v) === "in_progress" ? "pending" : String(v)} />,
   },
   {
     key: "nextActor",

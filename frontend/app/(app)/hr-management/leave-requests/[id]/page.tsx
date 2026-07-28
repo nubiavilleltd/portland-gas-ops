@@ -127,7 +127,6 @@ export default function LeaveRequestDetailPage({
       apiRecord.requester_id === currentEmployee.id
     : false;
   const isReliever = apiRecord && currentEmployee ? apiRecord.reliever_id === currentEmployee.id : false;
-  const hasWorkflowAccess = canActNow || isRequester || isReliever;
 
   // A returned request can be edited and resubmitted by its requester
   const canResubmit = isRequester && record?.status === "returned";
@@ -337,7 +336,7 @@ export default function LeaveRequestDetailPage({
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}
             roles={ROLE_OPTIONS}
-            status={<ApprovalBadge status={record.status} />}
+            status={<ApprovalBadge status={record.status === "in_progress" ? "pending" : record.status} />}
             recordLabel="Leave Request"
             title={`${record.employee} — ${record.type}`}
             nextApproverName={
@@ -373,24 +372,6 @@ export default function LeaveRequestDetailPage({
                   Mark as Returned
                 </Button>
               </div>
-            </div>
-          )}
-
-          {/* Access note — hidden once the request reaches a terminal state
-              (approved / denied); the status badge + outcome banner cover it. */}
-          {record.status !== "approved" && record.status !== "denied" && (
-            <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
-              {isApprovalsLoading ? (
-                <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse" />
-              ) : (
-                <p className="text-sm text-brand-text-secondary">
-                  {canActNow
-                    ? `You are the current approver for this request (${currentStepName}). Review and make your decision below.`
-                    : hasWorkflowAccess
-                    ? `Viewing as ${viewingAsLabel}`
-                    : "You do not have direct access to this request. Available actions are based on the current employee profile and record assignment."}
-                </p>
-              )}
             </div>
           )}
 

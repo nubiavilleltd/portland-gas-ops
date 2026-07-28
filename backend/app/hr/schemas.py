@@ -90,6 +90,11 @@ class LeaveRequestCreate(BaseModel):
     reason: Optional[str] = None
     document_id: Optional[int] = None
     picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
+    # Start the approval workflow in the SAME transaction as the create. Without
+    # this the caller has to make a second call, and a failure between the two
+    # leaves a row that reads "Pending" but sits in no workflow — invisible to
+    # approvers and duplicated on every retry.
+    submit_for_approval: bool = True
 
 
 class LeaveRequestSubmit(BaseModel):
