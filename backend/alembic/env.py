@@ -36,6 +36,11 @@ from app.fleet.drivers.model import Driver # noqa: F401
 from app.fleet.vehicles.model import Vehicle # noqa: F401
 from app.fleet.trips.model import Trip, TripOrder  # noqa: F401
 
+from app.hr import models as _hr_models  # noqa: F401
+from app.finance import models as _finance_models  # noqa: F401
+from app.intranet import models as _intranet_models  # noqa: F401
+from app.setups import models as _setups_models  # noqa: F401
+
 
 config = context.config
 

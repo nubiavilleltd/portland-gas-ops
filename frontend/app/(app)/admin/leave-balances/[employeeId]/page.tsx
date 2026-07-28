@@ -86,7 +86,7 @@ const columns: Column<LeaveRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (_, row) => <ApprovalBadge status={row.status} />,
+    render: (_, row) => <ApprovalBadge status={row.status === "in_progress" ? "pending" : row.status} />,
   },
 ];
 

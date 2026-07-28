@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -68,12 +68,24 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 type View = "list" | "form";
 
+// Number of working days (Mon–Fri) from start to end, inclusive of both.
+// Weekends (Sat/Sun) are not counted. Dates are parsed as local calendar days
+// so the day-of-week check isn't skewed by timezone.
 function calcDays(start: string, end: string): number {
   if (!start || !end) return 0;
-  const s = new Date(start).getTime();
-  const e = new Date(end).getTime();
+  const toLocalDate = (v: string) => {
+    const [y, m, d] = v.slice(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const s = toLocalDate(start);
+  const e = toLocalDate(end);
   if (e <= s) return 0;  // same-day / invalid range — flagged as a validation error
-  return Math.round((e - s) / (1000 * 60 * 60 * 24));
+  let count = 0;
+  for (const d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+    const dow = d.getDay(); // 0 = Sun, 6 = Sat
+    if (dow !== 0 && dow !== 6) count += 1;
+  }
+  return count;
 }
 
 export default function LeaveRequestsPage() {
@@ -105,9 +117,6 @@ function LeaveRequestsPageContent() {
 
   const queryClient = useQueryClient();
   const createLeaveRequest = useCreateLeaveRequest();
-  // Holds the draft created this attempt. If submit-for-approval fails, we keep
-  // it so a retry reuses the same draft instead of creating a duplicate.
-  const draftIdRef = useRef<string | null>(null);
   const { data: leaveRequestsResponse, isLoading: isLoadingRequests } = useLeaveRequests({
     limit: 100,
     sort_by: "created_at",
@@ -320,24 +329,19 @@ function LeaveRequestsPageContent() {
         return;
       }
 
-      // Create the draft — but if a previous attempt already created one and
-      // only the submit step failed, reuse it so we don't pile up duplicates.
-      let leaveRequest: { id: string };
-      if (draftIdRef.current) {
-        leaveRequest = { id: draftIdRef.current };
-      } else {
-        const created = await createLeaveRequest.mutateAsync({
-          employee_id: employeeId,
-          leave_type_id: leaveTypeId,
-          start_date: startDateISO,
-          end_date: endDateISO,
-          request_type: data.request_type,
-          reason: data.reason,
-          picked_approvers: approverPicker.picksPayload,
-        });
-        draftIdRef.current = created.id;
-        leaveRequest = { id: created.id };
-      }
+      // Create AND enter the workflow in a single call. The server does both in
+      // one transaction, so a failure leaves nothing behind — retrying can no
+      // longer pile up rows that read "Pending" but sit in no workflow.
+      const leaveRequest = await createLeaveRequest.mutateAsync({
+        employee_id: employeeId,
+        leave_type_id: leaveTypeId,
+        start_date: startDateISO,
+        end_date: endDateISO,
+        request_type: data.request_type,
+        reason: data.reason,
+        picked_approvers: approverPicker.picksPayload,
+        submit_for_approval: true,
+      });
 
       // Upload supporting files if any
       if (supportingFiles.length > 0 && leaveRequest?.id) {
@@ -369,27 +373,11 @@ function LeaveRequestsPageContent() {
         }
       }
 
-      // Submit for approval via the workflow engine — through the shared axios
-      // client (raw fetch here failed with "Failed to fetch" in production).
-      if (leaveRequest?.id) {
-        try {
-          await leaveRequestsApi.submitForApproval(
-            leaveRequest.id,
-            approverPicker.picksPayload,
-          );
-          draftIdRef.current = null; // fully submitted — next request is fresh
-          // Refetch AFTER the workflow starts so the list shows the Next Actor now.
-          queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
-          toast.success("Leave request submitted for approval!");
-        } catch (submissionError: unknown) {
-          // Keep draftIdRef so a retry reuses this draft instead of duplicating.
-          const detail =
-            (submissionError as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-          const msg = detail || (submissionError instanceof Error ? submissionError.message : "Unknown error");
-          toast.error(`Could not submit for approval: ${msg}`);
-          return;
-        }
-      }
+      // The workflow already started as part of the create above.
+      // Awaited — an unawaited invalidate lets the list paint the pre-refetch
+      // snapshot, showing "—" for Next Actor.
+      await queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      toast.success("Leave request submitted for approval!");
 
       form.reset();
       setSupportingFiles([]);
@@ -413,7 +401,6 @@ function LeaveRequestsPageContent() {
     setView("list");
     form.reset();
     setSupportingFiles([]);
-    draftIdRef.current = null; // abandon any half-created draft
     if (editRef) router.replace("/hr-management/leave-requests");
   }
 
@@ -427,7 +414,7 @@ function LeaveRequestsPageContent() {
             title="Leave Requests"
             description="Manage leave requests and approvals"
             action={
-              <Button leftIcon={<Plus size={16} />} onClick={() => { draftIdRef.current = null; setView("form"); }}>
+              <Button leftIcon={<Plus size={16} />} onClick={() => setView("form")}>
                 New Request
               </Button>
             }
@@ -507,28 +494,8 @@ function LeaveRequestsPageContent() {
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
-            {/* ── Requester Details (fixed, like invoice) ── */}
-            <FormSection title="Requester Details" description="Your employee information for this leave request.">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormInput
-                  label="Requester Name"
-                  value={currentUserEmployee ? `${currentUserEmployee.user?.first_name || ""} ${currentUserEmployee.user?.last_name || ""}`.trim() : ""}
-                  disabled
-                />
-                <FormInput
-                  label="Department"
-                  value={currentUserEmployee?.department || ""}
-                  disabled
-                />
-                <FormInput
-                  label="Job Title / Role"
-                  value={currentUserEmployee?.job_title || ""}
-                  disabled
-                />
-                <FormDatePicker label="Request Date" value={TODAY} disabled />
-              </div>
-            </FormSection>
-
+            {/* No Requester Details block — the server derives the requester from
+                the session, and the detail page shows it. Matches Supply Chain. */}
             {/* ── Leave Details ── */}
             <FormSection title="Leave Details" description="Details about the leave being requested.">
               <div className="grid gap-4 md:grid-cols-2">
@@ -538,7 +505,6 @@ function LeaveRequestsPageContent() {
                   label="Leave Type"
                   required
                   options={realLeaveTypeOptions}
-                  sortOptions={false}
                   placeholder="Select leave type"
                   error={errors.leave_type?.message}
                   {...form.register("leave_type")}

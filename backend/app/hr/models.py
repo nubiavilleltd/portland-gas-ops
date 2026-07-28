@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, String, Date, DateTime, Integer, Numeric, Enum as SAEnum,
-    ForeignKey, Text, Boolean
+    ForeignKey, Text, Boolean, UniqueConstraint
 )
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
@@ -233,6 +233,12 @@ class Payslip(Base):
     nhf = Column(Numeric(15, 2), default=0)
     loan = Column(Numeric(15, 2), default=0)
 
+    # Loan context snapshot (for the payslip PDF) — captured from the active loan
+    # deducted this period, so the slip is a self-contained historical record.
+    loan_description = Column(String(255), nullable=True)
+    loan_total = Column(Numeric(15, 2), nullable=True)
+    loan_outstanding = Column(Numeric(15, 2), nullable=True)  # outstanding AFTER this payment
+
     # Calculated
     net = Column(Numeric(15, 2), nullable=False)
 
@@ -251,3 +257,75 @@ class Payslip(Base):
         if self.employee and self.employee.user:
             return f"{self.employee.user.first_name or ''} {self.employee.user.last_name or ''}".strip()
         return None
+
+
+# ─── Employee loans / recurring deductions ────────────────────────────────────
+
+
+class LoanMode(str, enum.Enum):
+    one_off     = "one_off"      # deducted once (total_amount == monthly_amount)
+    installment = "installment"  # fixed-term: pays down total_amount, auto-stops
+    standing    = "standing"     # open-ended recurring deduction (total_amount is NULL)
+
+
+class LoanStatus(str, enum.Enum):
+    active    = "active"
+    completed = "completed"
+    cancelled = "cancelled"
+
+
+class EmployeeLoan(Base):
+    """A loan or recurring deduction agreement for an employee. Payroll reads active
+    loans at generation time; the per-period amount charged is recorded in
+    ``LoanRepaymentCharge`` so regeneration is idempotent and installments auto-stop."""
+
+    __tablename__ = "employee_loans"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    employee_id = Column(CHAR(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    description = Column(String(255), nullable=True)  # e.g. "Salary advance – Mar 2026"
+    mode = Column(SAEnum(LoanMode), nullable=False)
+
+    # Amounts (NGN, 2dp). monthly_amount = per-run deduction (whole amount for one_off).
+    monthly_amount = Column(Numeric(15, 2), nullable=False)
+    # Full repayable amount. NULL ⇒ standing (open-ended, no cap). For one_off == monthly_amount.
+    total_amount = Column(Numeric(15, 2), nullable=True)
+
+    # First period to deduct from, as YYYYMM (e.g. 202607). NULL ⇒ from the first run.
+    start_period_yyyymm = Column(Integer, nullable=True)
+
+    status = Column(SAEnum(LoanStatus), nullable=False, default=LoanStatus.active, index=True)
+    created_by = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    employee = relationship("Employee")
+    charges = relationship("LoanRepaymentCharge", back_populates="loan", cascade="all, delete-orphan")
+
+
+class LoanRepaymentCharge(Base):
+    """Ledger row: how much a loan was deducted for a given payroll period. The unique
+    (loan_id, period, year) constraint makes payslip regeneration idempotent."""
+
+    __tablename__ = "loan_repayment_charges"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    loan_id = Column(CHAR(36), ForeignKey("employee_loans.id", ondelete="CASCADE"), nullable=False, index=True)
+    payslip_id = Column(CHAR(36), ForeignKey("payslips.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    period = Column(String(20), nullable=False)  # e.g. "July 2026"
+    year = Column(Integer, nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    loan = relationship("EmployeeLoan", back_populates="charges")
+    payslip = relationship("Payslip")
+
+    __table_args__ = (
+        UniqueConstraint("loan_id", "period", "year", name="uq_loan_charge_period"),
+    )

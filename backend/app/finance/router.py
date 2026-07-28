@@ -33,8 +33,17 @@ def create_cash_requisition(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a cash requisition (pending). Submit-for-approval starts the workflow."""
+    """
+    Create a cash requisition and, by default, start its approval workflow.
+
+    Both happen in ONE transaction — if the workflow fails to start, nothing is
+    left behind. Pass submit_for_approval=false to create a standalone draft.
+    """
     cr = service.create_cash_requisition(db, payload, current_user.id)
+
+    if payload.submit_for_approval:
+        service.submit_cash_requisition_for_approval(db, cr.id, payload.picked_approvers)
+
     db.commit()
     db.refresh(cr)
     return cr
@@ -190,8 +199,17 @@ def create_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create an invoice (pending). Submit-for-approval starts the workflow."""
+    """
+    Create an invoice and, by default, start its approval workflow.
+
+    Both happen in ONE transaction — if the workflow fails to start, nothing is
+    left behind. Pass submit_for_approval=false to create a standalone draft.
+    """
     inv = service.create_invoice(db, payload, current_user.id)
+
+    if payload.submit_for_approval:
+        service.submit_invoice_for_approval(db, inv.id, payload.picked_approvers)
+
     db.commit()
     db.refresh(inv)
     return inv

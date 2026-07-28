@@ -36,6 +36,10 @@ export interface CashRequisitionCreatePayload {
   currency?: string;
   expected_retirement?: string;
   document_id?: number;
+  /** Approvers for the workflow's requester_pick steps: { step_number: employee_id }. */
+  picked_approvers?: Record<string, string>;
+  /** Start the workflow in the same transaction as the create (server default: true). */
+  submit_for_approval?: boolean;
 }
 
 export interface CashRequisitionListResponse {

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, List
 from datetime import datetime, date
 
@@ -90,6 +90,11 @@ class LeaveRequestCreate(BaseModel):
     reason: Optional[str] = None
     document_id: Optional[int] = None
     picked_approvers: Optional[dict[int, str]] = None  # {step_number: employee_id} for requester_pick steps
+    # Start the approval workflow in the SAME transaction as the create. Without
+    # this the caller has to make a second call, and a failure between the two
+    # leaves a row that reads "Pending" but sits in no workflow — invisible to
+    # approvers and duplicated on every retry.
+    submit_for_approval: bool = True
 
 
 class LeaveRequestSubmit(BaseModel):
@@ -162,11 +167,92 @@ class PayslipRead(BaseModel):
     pension: float
     nhf: float
     loan: float
+    loan_description: Optional[str] = None
+    loan_total: Optional[float] = None
+    loan_outstanding: Optional[float] = None
     net: float
     payroll_status: str
     prepared_by: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── Employee Loan Schemas ─────────────────────────────────────────────────────
+
+_LOAN_MODES = {"one_off", "installment", "standing"}
+_LOAN_STATUSES = {"active", "completed", "cancelled"}
+
+
+class LoanCreate(BaseModel):
+    mode: str                                   # one_off | installment | standing
+    monthly_amount: float = Field(..., gt=0)    # per-run deduction
+    total_amount: Optional[float] = Field(None, gt=0)   # full debt; omit for standing
+    start_period_yyyymm: Optional[int] = None   # e.g. 202607; omit ⇒ from first run
+    description: Optional[str] = Field(None, max_length=255)
+
+    @model_validator(mode="after")
+    def _check_mode(self):
+        if self.mode not in _LOAN_MODES:
+            raise ValueError("mode must be one_off, installment or standing")
+        if self.mode == "standing":
+            if self.total_amount is not None:
+                raise ValueError("standing loans must not set a total_amount")
+        elif self.mode == "one_off":
+            if self.total_amount is None:
+                self.total_amount = self.monthly_amount   # deduct once
+            elif abs(self.total_amount - self.monthly_amount) > 1e-6:
+                raise ValueError("one_off total_amount must equal monthly_amount")
+        else:  # installment
+            if self.total_amount is None:
+                raise ValueError("installment loans require a total_amount")
+            if self.total_amount < self.monthly_amount:
+                raise ValueError("total_amount must be greater than or equal to monthly_amount")
+        return self
+
+
+class LoanUpdate(BaseModel):
+    monthly_amount: Optional[float] = Field(None, gt=0)
+    total_amount: Optional[float] = Field(None, gt=0)
+    start_period_yyyymm: Optional[int] = None
+    description: Optional[str] = Field(None, max_length=255)
+    status: Optional[str] = None                 # active | completed | cancelled
+
+    @model_validator(mode="after")
+    def _check_status(self):
+        if self.status is not None and self.status not in _LOAN_STATUSES:
+            raise ValueError("status must be active, completed or cancelled")
+        return self
+
+
+class LoanRead(BaseModel):
+    id: str
+    employee_id: str
+    description: Optional[str] = None
+    mode: str
+    monthly_amount: float
+    total_amount: Optional[float] = None
+    start_period_yyyymm: Optional[int] = None
+    status: str
+    amount_repaid: float = 0            # sum of charges booked so far
+    outstanding: Optional[float] = None  # total_amount − amount_repaid; None for standing
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class LoanChargeRead(BaseModel):
+    """One repayment booked against a loan for a payroll period (history row)."""
+    id: str
+    loan_id: str
+    period: str
+    year: int
+    amount: float
+    payslip_id: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

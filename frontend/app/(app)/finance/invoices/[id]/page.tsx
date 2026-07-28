@@ -61,7 +61,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params);
   const { data: apiRecord, isLoading } = useInvoice(id);
   const { user: currentUser } = useCurrentUser();
-  const { data: myApprovals = [], isLoading: isApprovalsLoading } = useMyApprovals();
+  const { data: myApprovals = [] } = useMyApprovals();
   const { data: auditEntries = [] } = useAuditTrail("invoice", apiRecord?.id ?? "");
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -81,7 +81,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   const isRequester = apiRecord && currentUser ? apiRecord.requester_id === currentUser.id : false;
   const canResubmit = isRequester && status === "returned";
-  const hasWorkflowAccess = canActNow || isRequester;
 
   const viewingAsLabel = canActNow ? currentStepName : isRequester ? "Requester" : "Viewer";
   const currentRole: PageRole = canActNow ? "approver" : "requester";
@@ -201,11 +200,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <div className="space-y-5">
           <RoleBasedRecordHeader
             id={apiRecord.reference}
+            showCurrentAccess={false}
             currentRole={currentRole}
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}
             roles={ROLE_OPTIONS}
-            status={<ApprovalBadge status={status} />}
+            status={<ApprovalBadge status={status === "in_progress" ? "pending" : status} />}
             recordLabel="Invoice"
             title={apiRecord.title}
             nextApproverName={
@@ -215,21 +215,6 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             showRoleSwitcher={false}
           />
 
-          {status !== "approved" && status !== "denied" && (
-            <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
-              {isApprovalsLoading ? (
-                <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse" />
-              ) : (
-                <p className="text-sm text-brand-text-secondary">
-                  {canActNow
-                    ? `You are the current approver for this invoice (${currentStepName}). Review and make your decision below.`
-                    : hasWorkflowAccess
-                    ? `Viewing as ${viewingAsLabel}`
-                    : "You do not have direct access to this invoice."}
-                </p>
-              )}
-            </div>
-          )}
 
           {canResubmit && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">

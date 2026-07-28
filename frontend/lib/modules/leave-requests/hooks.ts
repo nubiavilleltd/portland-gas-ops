@@ -126,8 +126,11 @@ export function useApproveLeaveRequest() {
       comment?: string;
     }) => {
       try {
+        // HR-owned wrapper around the shared workflow endpoint: same auth, same
+        // engine, same emails — it additionally notifies the employee when the
+        // leave was raised on someone else's behalf. See app/hr/router.py.
         const response = await api.post(
-          `/api/workflow/requests/${approvalRequestId}/${action}`,
+          `/api/hr/leave-requests/approvals/${approvalRequestId}/${action}`,
           { comment: comment || null }
         );
         return response.data;

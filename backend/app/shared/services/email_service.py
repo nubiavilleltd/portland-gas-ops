@@ -34,8 +34,14 @@ def _load_base(subject: str, body_content: str) -> str:
     base = _load_template("base.html")
 
     if settings.LOGO_URL:
-        # LOGO_URL must be the direct public URL to the logo image (e.g. a Cloudinary URL).
-        logo_html = f'<img src="{settings.LOGO_URL}" alt="Portland Gas" class="logo-img" />'
+        # LOGO_URL must be the direct public URL to the logo image (e.g. a Cloudinary URL),
+        # not the site root — and it must be reachable without a session cookie.
+        # width/height are inlined as attributes because several email clients drop
+        # the <style> block, which would otherwise leave the logo unsized.
+        logo_html = (
+            f'<img src="{settings.LOGO_URL}" alt="Portland Gas" class="logo-img" '
+            f'width="40" height="40" style="width:40px;height:40px;border-radius:10px;object-fit:contain;" />'
+        )
     else:
         logo_html = '<div class="logo-mark"><span>PG</span></div>'
 
@@ -169,7 +175,20 @@ _REQUEST_TYPE_PATHS: dict[str, str] = {
 
 
 def get_request_type_label(request_type: str) -> str:
-    return _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
+    """
+    The bare noun for a request type — "Leave", not "Leave Request".
+
+    Callers always supply the word themselves ("{label} Request — Approved",
+    "Your <strong>{label}</strong> request has been approved"), so a label that
+    already ends in "Request" reads as "Leave Request Request". The fallback
+    below is where that bites: any type not in _REQUEST_TYPE_LABELS whose name
+    ends in _request title-cases straight into the duplicate. Strip it here so
+    the trailing word is owned by exactly one place.
+    """
+    label = _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
+    if label.lower().endswith(" request"):
+        label = label[: -len(" request")]
+    return label
 
 
 def get_request_url(request_type: str, request_id: str, db=None) -> str:
