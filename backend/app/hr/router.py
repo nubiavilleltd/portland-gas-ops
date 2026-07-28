@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from typing import Optional
 from datetime import date
 
@@ -9,7 +10,7 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveMarkReturned, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead, LoanCreate, LoanUpdate, LoanRead, LoanChargeRead
 from app.hr import service
 from app.employees.models import Employee
 from app.employees.service import get_employee_by_user_id
@@ -236,6 +237,17 @@ def reactivate_leave_type(
 # LEAVE BALANCES
 # ════════════════════════════════════════════════════════════════════════════
 
+# Declared before /leave-balances/{...} paths so "years" is not captured as one.
+@router.get("/leave-balances/years", response_model=list[int])
+def list_leave_balance_years(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Distinct fiscal years that have leave-balance records — for the filter
+    dropdown. Newest first; empty if no balances exist yet."""
+    return service.get_leave_balance_years(db)
+
+
 @router.get(
     "/leave-balances/me",
     response_model=list[LeaveBalanceRead],
@@ -310,7 +322,12 @@ def create_leave_request(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Create a new leave request (draft status).
+    Create a leave request and, by default, start its approval workflow.
+
+    Both happen in ONE transaction: if the workflow fails to start, the whole
+    thing rolls back and no row is left behind. Pass submit_for_approval=false
+    to create a standalone draft and submit it later via
+    POST /leave-requests/{id}/submit-for-approval.
 
     **Body Parameters:**
     - employee_id: str (UUID)
@@ -320,12 +337,29 @@ def create_leave_request(
     - end_date: date (YYYY-MM-DD)
     - reason: str (optional)
     - document_id: int (optional)
+    - submit_for_approval: bool (default true)
     """
     # NOTE: requester_id stores the User id by design — submit_leave_request_for_approval
     # resolves the employee via Employee.user_id == requester_id.
     leave_request = service.create_leave_request(db, payload, current_user.id)
+
+    if payload.submit_for_approval:
+        # create_leave_request already flushed, so the row is visible to this
+        # session (and has an id) without being committed yet.
+        service.submit_leave_request_for_approval(
+            db, leave_request.id, payload.picked_approvers
+        )
+
     db.commit()
     db.refresh(leave_request)
+
+    # Raised on someone else's behalf? Tell that employee. Called AFTER commit so
+    # it never fires for a rolled-back request, and it never raises — a mail
+    # problem must not fail a request that is already safely saved.
+    if payload.submit_for_approval:
+        from app.hr import leave_notifications
+        leave_notifications.notify_raised(db, leave_request.id)
+
     return leave_request
 
 
@@ -339,6 +373,7 @@ def list_leave_requests(
     sort_by: str = Query("created_at", pattern="^(created_at|start_date|end_date|days|status)$"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     employee_id: Optional[str] = Query(None),
+    year: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -374,7 +409,8 @@ def list_leave_requests(
     ```
     """
     leave_requests, total = service.get_all_leave_requests(
-        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, employee_id=employee_id
+        db, skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order,
+        employee_id=employee_id, year=year,
     )
 
     # Enrich with the current pending approver ("next actor") in one query
@@ -542,6 +578,7 @@ def upload_leave_request_document(
 )
 def submit_leave_request_for_approval(
     leave_request_id: str,
+    body: LeaveRequestSubmit | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -562,7 +599,9 @@ def submit_leave_request_for_approval(
     }
     ```
     """
-    approval_request = service.submit_leave_request_for_approval(db, leave_request_id)
+    approval_request = service.submit_leave_request_for_approval(
+        db, leave_request_id, body.picked_approvers if body else None
+    )
     db.commit()
     db.refresh(approval_request)
 
@@ -573,6 +612,21 @@ def submit_leave_request_for_approval(
         "status": approval_request.overall_status,
         "current_step_number": approval_request.current_step_number,
     }
+
+
+@router.post("/leave-requests/{leave_request_id}/mark-returned", response_model=LeaveRequestRead)
+def mark_leave_returned(
+    leave_request_id: str,
+    body: LeaveMarkReturned,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Employee marks that they are back from an open-ended leave (e.g. Sick
+    Leave). Finalizes the actual End Date and the number of days."""
+    lr = service.mark_leave_returned(db, leave_request_id, body.end_date, current_user.id)
+    db.commit()
+    db.refresh(lr)
+    return lr
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -671,3 +725,205 @@ def get_payslip(
 ):
     """Get a single payslip by id."""
     return service.get_payslip_by_id(db, payslip_id)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# EMPLOYEE LOANS / RECURRING DEDUCTIONS
+# ════════════════════════════════════════════════════════════════════════════
+
+# Declared before /loans/{loan_id} so "preview" isn't captured as a loan id.
+@router.get("/loans/preview", response_model=dict[str, float])
+def preview_loan_deductions(
+    period: str = Query(..., description='e.g. "January 2026"'),
+    year: int = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Projected loan deduction per employee for a period — what generation WOULD
+    deduct, without writing. Returns {employee_id: amount}."""
+    projected = service.project_loans_for_period(db, period, year)
+    return {emp_id: float(amt) for emp_id, amt in projected.items()}
+
+
+@router.get("/employees/{employee_id}/loans", response_model=list[LoanRead])
+def list_employee_loans(
+    employee_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """List an employee's loans, each with computed amount_repaid and outstanding."""
+    return service.list_employee_loans(db, employee_id)
+
+
+@router.post(
+    "/employees/{employee_id}/loans",
+    response_model=LoanRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_employee_loan(
+    employee_id: str,
+    payload: LoanCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Create a loan / recurring deduction for an employee."""
+    created_by = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or current_user.email
+    return service.create_employee_loan(db, employee_id, payload, created_by)
+
+
+@router.get("/loans/{loan_id}/charges", response_model=list[LoanChargeRead])
+def list_loan_charges(
+    loan_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Repayment history for a loan — the periods it has been deducted."""
+    return service.list_loan_charges(db, loan_id)
+
+
+@router.patch("/loans/{loan_id}", response_model=LoanRead)
+def update_employee_loan(
+    loan_id: str,
+    payload: LoanUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Edit a loan, or cancel it (status='cancelled')."""
+    return service.update_employee_loan(db, loan_id, payload)
+
+
+@router.delete("/loans/{loan_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee_loan(
+    loan_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(require_roles("super_admin", "admin", "hr")),
+):
+    """Delete a loan (or cancel it if it already has deduction history)."""
+    service.delete_employee_loan(db, loan_id)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# LEAVE APPROVAL ACTIONS — HR-owned wrappers
+# ════════════════════════════════════════════════════════════════════════════
+#
+# These delegate to the shared workflow endpoints (same auth, same engine, same
+# transaction and emails) and then notify the employee the leave was raised FOR.
+#
+# They exist so leave-specific notification logic lives in the HR module instead
+# of inside app/shared, where it would run for every other team's request types.
+# The shared endpoints remain fully functional and unchanged; this is an
+# additional entry point, not a replacement.
+
+class LeaveActionRequest(BaseModel):
+    comment: Optional[str] = None
+
+
+def _leave_stage_context(db: Session, approval_request_id: str) -> dict:
+    """
+    Snapshot the step names around an approval BEFORE the engine advances it,
+    so the notification can name the step that was just approved and the one
+    that is now pending.
+    """
+    from app.shared.models.approval import ApprovalRequest, WorkflowStep
+
+    ar = db.query(ApprovalRequest).filter(ApprovalRequest.id == approval_request_id).first()
+    if not ar:
+        return {}
+
+    def step_name(n: int) -> Optional[str]:
+        s = (
+            db.query(WorkflowStep)
+            .filter(WorkflowStep.workflow_id == ar.workflow_id, WorkflowStep.step_number == n)
+            .first()
+        )
+        return s.step_name if s else None
+
+    return {
+        "request_type": ar.request_type,
+        "leave_request_id": ar.request_id,
+        "current_step_name": step_name(ar.current_step_number),
+        "next_step_name": step_name(ar.current_step_number + 1),
+    }
+
+
+@router.post("/leave-requests/approvals/{approval_request_id}/approve")
+def approve_leave_request(
+    approval_request_id: str,
+    body: LeaveActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Approve a leave step, then notify the employee it was raised for."""
+    from app.shared.workflow.router import approve_request as _shared_approve, ActionRequest
+    from app.hr import leave_notifications
+
+    ctx = _leave_stage_context(db, approval_request_id)
+    result = _shared_approve(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+
+    # Shared endpoint has committed by this point — safe to notify.
+    if ctx.get("request_type") == "leave_request":
+        actor = get_employee_by_user_id(current_user.id, db)
+        actor_name = (actor.user.full_name if actor and actor.user else None) or "An approver"
+        if result.get("overall_status") == "approved":
+            leave_notifications.notify_outcome(
+                db, ctx["leave_request_id"], "approved", actor_name, body.comment
+            )
+        else:
+            leave_notifications.notify_step_approved(
+                db, ctx["leave_request_id"], actor_name,
+                ctx.get("current_step_name") or "this step",
+                ctx.get("next_step_name"), body.comment,
+            )
+    return result
+
+
+@router.post("/leave-requests/approvals/{approval_request_id}/reject")
+def reject_leave_request(
+    approval_request_id: str,
+    body: LeaveActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Deny a leave request, then notify the employee it was raised for."""
+    from app.shared.workflow.router import reject_request as _shared_reject, ActionRequest
+    from app.hr import leave_notifications
+
+    ctx = _leave_stage_context(db, approval_request_id)
+    result = _shared_reject(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+
+    if ctx.get("request_type") == "leave_request":
+        actor = get_employee_by_user_id(current_user.id, db)
+        actor_name = (actor.user.full_name if actor and actor.user else None) or "An approver"
+        leave_notifications.notify_outcome(
+            db, ctx["leave_request_id"], "rejected", actor_name, body.comment
+        )
+    return result
+
+
+@router.post("/leave-requests/approvals/{approval_request_id}/return")
+def return_leave_request(
+    approval_request_id: str,
+    body: LeaveActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return a leave request for revision, then notify the employee."""
+    from app.shared.workflow.router import return_request as _shared_return, ActionRequest
+    from app.hr import leave_notifications
+
+    ctx = _leave_stage_context(db, approval_request_id)
+    result = _shared_return(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+
+    if ctx.get("request_type") == "leave_request":
+        actor = get_employee_by_user_id(current_user.id, db)
+        actor_name = (actor.user.full_name if actor and actor.user else None) or "An approver"
+        leave_notifications.notify_outcome(
+            db, ctx["leave_request_id"], "returned", actor_name, body.comment
+        )
+    return result

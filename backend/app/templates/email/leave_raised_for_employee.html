@@ -1,0 +1,48 @@
+<!-- Injected into base.html {{body_content}} -->
+<!-- Sent to the EMPLOYEE when someone else raises a leave request on their behalf -->
+
+<h1>Leave Requested On Your Behalf</h1>
+
+<p>Hi {{employee_name}},</p>
+
+<p>
+  <strong>{{requester_name}}</strong> has raised a
+  <strong>{{leave_type_name}}</strong> request on your behalf. It is now going
+  through the normal approval process — you do not need to do anything.
+</p>
+
+<table style="width:100%; border:1px solid #e5e7eb; border-radius:8px; border-collapse:collapse; margin:20px 0;">
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; width:40%; border-bottom:1px solid #e5e7eb;">Reference</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{reference}}</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Leave Type</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{leave_type_name}}</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Dates</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{date_range}}</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600; border-bottom:1px solid #e5e7eb;">Working Days</td>
+    <td style="padding:10px 14px; font-size:13px; color:#111118; border-bottom:1px solid #e5e7eb;">{{days}}</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px; font-size:13px; color:#6b7280; font-weight:600;">Status</td>
+    <td style="padding:10px 14px; font-size:13px; color:#d97706; font-weight:600;">Pending Approval</td>
+  </tr>
+</table>
+
+<p style="color:#6b7280; font-size:13px;">
+  If this was not expected, please speak to {{requester_name}} or your HR team.
+</p>
+
+<a href="{{action_url}}" class="btn">View Request</a>
+
+<hr class="divider" />
+
+<p style="font-size:12px; color:#9ca3af;">
+  If the button above does not work, copy and paste this link into your browser:<br />
+  <a href="{{action_url}}" style="color:#7c3aed; word-break:break-all;">{{action_url}}</a>
+</p>

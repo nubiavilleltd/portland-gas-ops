@@ -18,6 +18,9 @@ type Props<T extends string> = {
   switcherTitle?: string;
   switcherDescription?: string;
   showRoleSwitcher?: boolean;
+  /** Leave & Finance hide this — the viewer's own role isn't useful there.
+   *  Safety and CRM still show it. */
+  showCurrentAccess?: boolean;
 };
 
 export default function RoleBasedRecordHeader<T extends string>({
@@ -35,6 +38,7 @@ export default function RoleBasedRecordHeader<T extends string>({
   switcherTitle = "Current access",
   switcherDescription = "Available actions are based on the current employee profile and record assignment.",
   showRoleSwitcher = true,
+  showCurrentAccess = true,
 }: Props<T>) {
   return (
     <div className="space-y-5">
@@ -64,9 +68,11 @@ export default function RoleBasedRecordHeader<T extends string>({
                 Request Title: <span className="font-medium text-brand-text-primary">{title}</span>
               </p>
             ) : null}
-            <p className="mt-1 text-sm text-brand-text-secondary">
-              Current Access: <span className="font-medium text-brand-text-primary">{roleLabel}</span>
-            </p>
+            {showCurrentAccess ? (
+              <p className="mt-1 text-sm text-brand-text-secondary">
+                Current Access: <span className="font-medium text-brand-text-primary">{roleLabel}</span>
+              </p>
+            ) : null}
             {nextApproverName ? (
               <p className="mt-1 text-sm text-brand-text-secondary">
                 Next Approver Name: <span className="font-medium text-brand-text-primary">{nextApproverName}</span>

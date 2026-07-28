@@ -93,6 +93,7 @@ export interface UpdateEmployeePayload {
   job_title?: string;
   department_id?: string;
   employment_type?: EmploymentType;
+  account_status?: string;
   phone?: string;
   birthday?: string;
   hire_date?: string;

@@ -11,7 +11,30 @@ from app.finance.models import (
 from app.finance.schemas import CashRequisitionCreate, InvoiceProcessingCreate
 from app.employees.models import Employee
 from app.shared.services.workflow_engine import WorkflowEngine
-from app.shared.models.approval import ApprovalRequest
+from app.shared.models.approval import ApprovalRequest, ApprovalOverallStatus
+
+
+def _assert_not_already_pending(db: Session, request_type: str, request_id: str, label: str) -> None:
+    """
+    Block starting a second workflow on a request that is already in one.
+
+    A double-submit would create a duplicate attempt and split the approval
+    trail. A returned/rejected attempt is not pending, so resubmit still works.
+    """
+    existing = (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.request_type == request_type,
+            ApprovalRequest.request_id == request_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"This {label} is already awaiting approval",
+        )
 
 
 # ── Reference generation ─────────────────────────────────────────────────────
@@ -170,6 +193,7 @@ def get_next_actors(db: Session, request_ids: list[str]) -> dict[str, dict]:
 def submit_cash_requisition_for_approval(
     db: Session,
     cash_requisition_id: str,
+    picked_approvers: dict[int, str] | None = None,
 ) -> ApprovalRequest:
     """
     Submit a cash requisition into the workflow engine (creates ApprovalRequest +
@@ -179,6 +203,8 @@ def submit_cash_requisition_for_approval(
     cr = db.query(CashRequisition).filter(CashRequisition.id == cash_requisition_id).first()
     if not cr:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash requisition not found")
+
+    _assert_not_already_pending(db, "cash_requisition", cash_requisition_id, "cash requisition")
 
     requester = db.query(Employee).filter(Employee.user_id == cr.requester_id).first()
     if not requester:
@@ -195,7 +221,7 @@ def submit_cash_requisition_for_approval(
         request_id=cash_requisition_id,
         title=title,
         requester=requester,
-        picked_approvers=None,
+        picked_approvers=picked_approvers or None,
     )
     return approval_request
 
@@ -238,7 +264,7 @@ def resubmit_cash_requisition(
     cr.status = CashRequisitionStatus.pending
     db.flush()
 
-    submit_cash_requisition_for_approval(db, cr.id)
+    submit_cash_requisition_for_approval(db, cr.id, payload.picked_approvers)
     return cr
 
 
@@ -393,11 +419,13 @@ def get_invoice_next_actors(db: Session, request_ids: list[str]) -> dict[str, di
     return result
 
 
-def submit_invoice_for_approval(db: Session, invoice_id: str) -> ApprovalRequest:
+def submit_invoice_for_approval(db: Session, invoice_id: str, picked_approvers: dict[int, str] | None = None) -> ApprovalRequest:
     """Submit an invoice into the workflow (both steps auto-resolve)."""
     inv = db.query(InvoiceProcessing).filter(InvoiceProcessing.id == invoice_id).first()
     if not inv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+
+    _assert_not_already_pending(db, "invoice", invoice_id, "invoice")
 
     requester = db.query(Employee).filter(Employee.user_id == inv.requester_id).first()
     if not requester:
@@ -411,7 +439,7 @@ def submit_invoice_for_approval(db: Session, invoice_id: str) -> ApprovalRequest
         request_id=invoice_id,
         title=title,
         requester=requester,
-        picked_approvers=None,
+        picked_approvers=picked_approvers or None,
     )
 
 
@@ -448,5 +476,5 @@ def resubmit_invoice(
     inv.status = InvoiceProcessingStatus.pending
     db.flush()
 
-    submit_invoice_for_approval(db, inv.id)
+    submit_invoice_for_approval(db, inv.id, payload.picked_approvers)
     return inv

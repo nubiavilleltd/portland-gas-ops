@@ -25,4 +25,10 @@ export const leaveBalancesApi = {
     });
     return data;
   },
+
+  // Distinct fiscal years that actually have balance records — for the filter dropdown
+  listYears: async (): Promise<number[]> => {
+    const { data } = await api.get("/api/hr/leave-balances/years");
+    return data;
+  },
 };

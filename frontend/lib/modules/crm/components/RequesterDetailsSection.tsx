@@ -9,6 +9,7 @@ interface Props {
     department: string;
     role: string;
     requestDate: string;
+    desc?: string;
   };
 }
 
@@ -16,7 +17,11 @@ export default function RequesterDetailsSection({ requester }: Props) {
   return (
     <FormSection
       title="Record Information"
-      description="Information about the user who created this onboarding record."
+      description={
+        requester.desc
+          ? requester.desc
+          : "Information about the user who created this onboarding record."
+      }
     >
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput label="Created By" value={requester.name} disabled />

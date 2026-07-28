@@ -39,5 +39,12 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Match all routes except API proxy, Next.js internals, and static assets.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|public/).*)"],
+  //
+  // Files in public/ are served from the URL root (/Portland-gas-logo.png), never
+  // under /public/, so they have to be excluded by extension — otherwise they get
+  // redirected to /login. That breaks anything fetched without a session cookie:
+  // the logo in outgoing emails, and the /sw.js service worker registration.
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|js|json|txt)$).*)",
+  ],
 };

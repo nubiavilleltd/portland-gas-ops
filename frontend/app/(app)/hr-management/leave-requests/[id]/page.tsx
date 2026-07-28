@@ -127,7 +127,6 @@ export default function LeaveRequestDetailPage({
       apiRecord.requester_id === currentEmployee.id
     : false;
   const isReliever = apiRecord && currentEmployee ? apiRecord.reliever_id === currentEmployee.id : false;
-  const hasWorkflowAccess = canActNow || isRequester || isReliever;
 
   // A returned request can be edited and resubmitted by its requester
   const canResubmit = isRequester && record?.status === "returned";
@@ -187,6 +186,29 @@ export default function LeaveRequestDetailPage({
   const [resubmitFiles, setResubmitFiles] = useState<File[]>([]);
   const [removedDoc, setRemovedDoc] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
+
+  // "Mark as returned" — only the requester, for approved open-ended leave that
+  // hasn't been closed yet. Finalizes the End Date and number of days.
+  const [returnDate, setReturnDate] = useState("");
+  const [isMarkingReturned, setIsMarkingReturned] = useState(false);
+  const canMarkReturned = Boolean(
+    isRequester && apiRecord?.open_ended && record?.status === "approved" && !apiRecord?.returned_at
+  );
+
+  async function handleMarkReturned() {
+    const endISO = (returnDate ? new Date(returnDate) : new Date()).toISOString().split("T")[0];
+    setIsMarkingReturned(true);
+    try {
+      await leaveRequestsApi.markReturned(id, endISO);
+      await queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      toast.success("Welcome back — your leave has been closed.");
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(detail || "Could not mark as returned");
+    } finally {
+      setIsMarkingReturned(false);
+    }
+  }
 
   const { data: leaveTypesResponse } = useLeaveTypes({ limit: 100, is_active: true });
   const { data: employeesForResubmit = [] } = useEmployees({ limit: 200 });
@@ -309,11 +331,12 @@ export default function LeaveRequestDetailPage({
           {/* Header — matches Safety & Compliance (Current Access + Next Approver) */}
           <RoleBasedRecordHeader
             id={record.ref}
+            showCurrentAccess={false}
             currentRole={currentRole}
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}
             roles={ROLE_OPTIONS}
-            status={<ApprovalBadge status={record.status} />}
+            status={<ApprovalBadge status={record.status === "in_progress" ? "pending" : record.status} />}
             recordLabel="Leave Request"
             title={`${record.employee} — ${record.type}`}
             nextApproverName={
@@ -329,21 +352,26 @@ export default function LeaveRequestDetailPage({
             showRoleSwitcher={false}
           />
 
-          {/* Access note — hidden once the request reaches a terminal state
-              (approved / denied); the status badge + outcome banner cover it. */}
-          {record.status !== "approved" && record.status !== "denied" && (
-            <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
-              {isApprovalsLoading ? (
-                <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse" />
-              ) : (
-                <p className="text-sm text-brand-text-secondary">
-                  {canActNow
-                    ? `You are the current approver for this request (${currentStepName}). Review and make your decision below.`
-                    : hasWorkflowAccess
-                    ? `Viewing as ${viewingAsLabel}`
-                    : "You do not have direct access to this request. Available actions are based on the current employee profile and record assignment."}
-                </p>
-              )}
+          {/* Back from open-ended leave (e.g. Sick Leave) — requester marks return */}
+          {canMarkReturned && (
+            <div className="rounded-2xl border border-brand-purple/40 bg-brand-purple-faint p-4">
+              <p className="text-sm font-semibold text-brand-text-primary">Back from leave?</p>
+              <p className="mt-0.5 text-xs text-brand-text-secondary">
+                This is open-ended leave. Mark your return to record your last day of leave — the number of days updates automatically. Defaults to today if left blank.
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <div className="w-52">
+                  <FormDatePicker
+                    label="Last day of leave"
+                    min={record.startDate}
+                    value={returnDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleMarkReturned} loading={isMarkingReturned} loadingText="Saving...">
+                  Mark as Returned
+                </Button>
+              </div>
             </div>
           )}
 
@@ -416,7 +444,7 @@ export default function LeaveRequestDetailPage({
               <form onSubmit={resubmitForm.handleSubmit(handleResubmit)} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormSelect
-                    label="Leave Type" required options={leaveTypeOptions} sortOptions={false}
+                    label="Leave Type" required options={leaveTypeOptions}
                     placeholder="Select leave type"
                     {...resubmitForm.register("leave_type")} value={rWatch("leave_type") ?? ""}
                   />

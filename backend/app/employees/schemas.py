@@ -89,6 +89,7 @@ class EmployeeUpdate(BaseModel):
     phone:            Optional[str]           = None
     birthday:         Optional[date]          = None
     employment_type:  Optional[EmploymentType] = None
+    account_status:   Optional[str]           = None   # pending | active | deactivated (on the User)
     hire_date:        Optional[date]          = None
     operating_manager_id:  Optional[str]           = None
 

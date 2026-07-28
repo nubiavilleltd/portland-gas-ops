@@ -34,8 +34,14 @@ def _load_base(subject: str, body_content: str) -> str:
     base = _load_template("base.html")
 
     if settings.LOGO_URL:
-        # LOGO_URL must be the direct public URL to the logo image (e.g. a Cloudinary URL).
-        logo_html = f'<img src="{settings.LOGO_URL}" alt="Portland Gas" class="logo-img" />'
+        # LOGO_URL must be the direct public URL to the logo image (e.g. a Cloudinary URL),
+        # not the site root — and it must be reachable without a session cookie.
+        # width/height are inlined as attributes because several email clients drop
+        # the <style> block, which would otherwise leave the logo unsized.
+        logo_html = (
+            f'<img src="{settings.LOGO_URL}" alt="Portland Gas" class="logo-img" '
+            f'width="40" height="40" style="width:40px;height:40px;border-radius:10px;object-fit:contain;" />'
+        )
     else:
         logo_html = '<div class="logo-mark"><span>PG</span></div>'
 
@@ -145,7 +151,7 @@ def send_account_setup(
 _REQUEST_TYPE_LABELS: dict[str, str] = {
     "procurement":      "Procurement",
     "asset":            "Asset",
-    "leave":            "Leave",
+    "leave_request":    "Leave",
     "cash_requisition": "Cash Requisition",
     "invoice":          "Invoice",
     "work_initiation":  "Work Initiation",
@@ -158,7 +164,7 @@ _REQUEST_TYPE_LABELS: dict[str, str] = {
 _REQUEST_TYPE_PATHS: dict[str, str] = {
     "procurement":        "procurement",
     "asset":              "assets/requests",
-    "leave":              "hr-management/leave-requests",
+    "leave_request":      "hr-management/leave-requests",
     "cash_requisition":   "finance/cash-requisitions",
     "invoice":            "finance/invoices",
     "work_initiation":    "safety/work-initiation",
@@ -169,17 +175,31 @@ _REQUEST_TYPE_PATHS: dict[str, str] = {
 
 
 def get_request_type_label(request_type: str) -> str:
-    return _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
+    """
+    The bare noun for a request type — "Leave", not "Leave Request".
+
+    Callers always supply the word themselves ("{label} Request — Approved",
+    "Your <strong>{label}</strong> request has been approved"), so a label that
+    already ends in "Request" reads as "Leave Request Request". The fallback
+    below is where that bites: any type not in _REQUEST_TYPE_LABELS whose name
+    ends in _request title-cases straight into the duplicate. Strip it here so
+    the trailing word is owned by exactly one place.
+    """
+    label = _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
+    if label.lower().endswith(" request"):
+        label = label[: -len(" request")]
+    return label
 
 
 def get_request_url(request_type: str, request_id: str, db=None) -> str:
-    """Build the deep-link URL for a request's detail page."""
+    """
+    Build the deep-link URL for a request's detail page.
+
+    Every detail route is keyed by the record UUID, so the path segment is all
+    that varies — see _REQUEST_TYPE_PATHS. `db` is accepted for call-site
+    compatibility and is no longer needed to resolve a URL.
+    """
     base = settings.FRONTEND_URL.rstrip("/")
-
-    # Detail routes are keyed by UUID (matching Safety & Compliance)
-    if request_type == "leave_request":
-        return f"{base}/hr-management/leave-requests/{request_id}"
-
     path = _REQUEST_TYPE_PATHS.get(request_type, request_type)
     return f"{base}/{path}/{request_id}"
 

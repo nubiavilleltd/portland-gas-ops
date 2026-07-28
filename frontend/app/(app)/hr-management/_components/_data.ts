@@ -148,6 +148,9 @@ export interface PaySlip {
   pension: number;
   nhf: number;
   loan: number;
+  loan_description?: string | null;
+  loan_total?: number | null;
+  loan_outstanding?: number | null;
   net: number;
 }
 

@@ -13,18 +13,17 @@ import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import SelectInput from "@/components/forms/SelectInput";
 import DataTable from "@/components/ui/DataTable";
 import { invoiceColumns } from "@/components/data-table/columns";
 import { useInvoices, useCreateInvoice, usePoOptions, useVendorOptions } from "@/lib/modules/invoices-processing/hooks";
 import invoicesApi from "@/lib/modules/invoices-processing/api";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
-import { useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { CURRENCY_OPTIONS, genRef } from "../_components/_data";
-
-const TODAY = new Date().toISOString().split("T")[0];
+import { minChars, minCharsHint } from "@/lib/utils/form-validation";
 
 function applyCommas(raw: string): string {
   const clean = raw.replace(/[^0-9.]/g, "");
@@ -41,11 +40,14 @@ const STATUS_OPTIONS = [
   { value: "denied",      label: "Denied" },
 ];
 
+// Minimum lives here so the schema and the on-field hint stay in step.
+const TITLE_MIN = 2;
+
 const schema = z.object({
   vendor_name:    z.string().min(1, "Select a vendor"),
   po_number:      z.string().optional(),
   invoice_number: z.string().min(1, "Invoice number is required"),
-  title:          z.string().min(2, "Title is required"),
+  title:          minChars(TITLE_MIN, "Title"),
   description:    z.string().optional(),
   gross_amount:   z.string().min(1, "Amount is required"),
   tax_amount:     z.string().optional(),
@@ -62,21 +64,21 @@ export default function InvoicesPage() {
   const [invoiceId] = useState(() => genRef("IID"));
 
   const { user: currentUser } = useCurrentUser();
-  const { data: myEmployee } = useMyEmployee();
+  const queryClient = useQueryClient();
   const createInvoice = useCreateInvoice();
+  // Approver picks for any requester_pick steps on the invoice workflow.
+  const approverPicker = useApproverPicker("invoice");
 
   const { data: response, isLoading } = useInvoices({ limit: 100, sort_by: "created_at", sort_order: "desc" });
   const allItems = response?.data || [];
 
-  const { data: myApprovals = [] } = useMyApprovals();
-  const awaitingIds = new Set(myApprovals.filter((a) => a.request_type === "invoice").map((a) => a.request_id));
-  const [scope, setScope] = useState<"all" | "awaiting">("all");
   const [activeStatus, setActiveStatus] = useState<string>("");
 
   const visibleItems = allItems.filter((i) => {
+    // Only the requests I raised. Approvals awaiting me are in the sidebar
+    // "My Approvals" section.
     const isMine = !i.requesterId || i.requesterId === currentUser?.id;
-    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
-    if (!inScope) return false;
+    if (!isMine) return false;
     if (activeStatus && i.status !== activeStatus) return false;
     return true;
   });
@@ -86,10 +88,6 @@ export default function InvoicesPage() {
   const { data: poOptions = [] } = usePoOptions();
   const vendorOptions = vendors.map((v) => ({ value: v.name, label: v.name }));
   const poOptionsList = poOptions.map((p) => ({ value: p.reference, label: p.reference }));
-
-  const requesterName = myEmployee?.user
-    ? `${myEmployee.user.first_name ?? ""} ${myEmployee.user.last_name ?? ""}`.trim()
-    : "";
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
@@ -115,6 +113,16 @@ export default function InvoicesPage() {
         return;
       }
 
+      // Every requester_pick step on the workflow must have an approver chosen.
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
+      // Create AND enter the workflow in a single call. The server does both in
+      // one transaction, so a failure leaves nothing behind — retrying can no
+      // longer pile up rows that read "Pending" but sit in no workflow.
       const inv = await createInvoice.mutateAsync({
         invoice_id: invoiceId,
         invoice_number: data.invoice_number,
@@ -126,8 +134,11 @@ export default function InvoicesPage() {
         tax_amount: tax,
         amount: net,
         currency: data.currency,
+        picked_approvers: approverPicker.picksPayload,
+        submit_for_approval: true,
       });
 
+      // Best-effort uploads — the invoice is already lodged.
       if (supportingFiles.length > 0 && inv?.id) {
         for (const file of supportingFiles) {
           try {
@@ -138,9 +149,11 @@ export default function InvoicesPage() {
         }
       }
 
-      if (inv?.id) await invoicesApi.submitForApproval(inv.id);
+      // Awaited — an unawaited invalidate lets the list paint the pre-refetch
+      // snapshot, showing "—" for Next Actor.
+      await queryClient.invalidateQueries({ queryKey: ["invoices-processing"] });
 
-      toast.success(`Invoice submitted for approval — ${inv.reference}`);
+      toast.success(`Invoice submitted for approval${inv.reference ? ` — ${inv.reference}` : ""}`);
       form.reset();
       setSupportingFiles([]);
       setView("list");
@@ -174,38 +187,6 @@ export default function InvoicesPage() {
             }
             className="mb-6"
           />
-
-          {/* Scope filter pills */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {([
-              { value: "all",      label: "All" },
-              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
-            ] as const).map((pill) => (
-              <button
-                key={pill.value}
-                type="button"
-                onClick={() => setScope(pill.value)}
-                className={
-                  scope === pill.value
-                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
-                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
-                }
-              >
-                {pill.label}
-                {"count" in pill && pill.count > 0 ? (
-                  <span
-                    className={
-                      scope === pill.value
-                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
-                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
-                    }
-                  >
-                    {pill.count}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
 
           <div className="w-full overflow-hidden">
             <DataTable
@@ -250,15 +231,8 @@ export default function InvoicesPage() {
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
-            <FormSection title="Requester Details" description="Your employee information for this invoice request.">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormInput label="Requester Name"  value={requesterName} disabled />
-                <FormInput label="Department"       value={myEmployee?.department || ""} disabled />
-                <FormInput label="Job Title / Role" value={myEmployee?.job_title || ""} disabled />
-                <FormDatePicker label="Request Date" value={TODAY} disabled />
-              </div>
-            </FormSection>
-
+            {/* No Requester Details block — the server derives the requester from
+                the session, and the detail page shows it. Matches Supply Chain. */}
             <FormSection title="Request Details" description="Vendor and invoice details for this payment request.">
               <div className="space-y-6">
 
@@ -300,6 +274,7 @@ export default function InvoicesPage() {
                         label="Title / Purpose"
                         required
                         placeholder="e.g. Diesel supply — May batch"
+                        hint={minCharsHint(TITLE_MIN)}
                         error={errors.title?.message}
                         {...form.register("title")}
                       />
@@ -362,6 +337,8 @@ export default function InvoicesPage() {
 
               </div>
             </FormSection>
+
+            <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">

@@ -33,6 +33,8 @@ export default function NewLeaveTypePage() {
     entitlement_days: 0,
     description: "",
     is_active: true,
+    is_uncapped: false,
+    open_ended: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -66,7 +68,7 @@ export default function NewLeaveTypePage() {
       newErrors.leave_type_name = "Leave type name is required";
     }
 
-    if (formData.entitlement_days <= 0) {
+    if (!formData.is_uncapped && formData.entitlement_days <= 0) {
       newErrors.entitlement_days = "Entitlement days must be greater than 0";
     }
 
@@ -148,6 +150,35 @@ export default function NewLeaveTypePage() {
               rows={4}
               disabled={create.isPending}
             />
+          </div>
+
+          <div className="mt-4 space-y-3 rounded-lg border border-brand-border bg-gray-50 p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.is_uncapped}
+                onChange={(e) => setFormData((p) => ({ ...p, is_uncapped: e.target.checked }))}
+                disabled={create.isPending}
+                className="mt-0.5 h-4 w-4 rounded border-brand-border accent-brand-purple"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-brand-text-primary">Uncapped</span>
+                <span className="block text-xs text-brand-text-secondary">No entitlement limit — balance shows usage only, never blocks a request (e.g. Sick Leave).</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.open_ended}
+                onChange={(e) => setFormData((p) => ({ ...p, open_ended: e.target.checked }))}
+                disabled={create.isPending}
+                className="mt-0.5 h-4 w-4 rounded border-brand-border accent-brand-purple"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-brand-text-primary">No fixed end date</span>
+                <span className="block text-xs text-brand-text-secondary">Request needs only a Start Date; End Date becomes an optional Expected Return.</span>
+              </span>
+            </label>
           </div>
         </Section>
 

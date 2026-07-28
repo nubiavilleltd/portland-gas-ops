@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/utils";
 const REQUEST_TYPE_LABEL: Record<string, string> = {
   procurement:      "Purchase Request",
   asset:            "Asset Request",
-  leave:            "Leave Request",
+  leave_request:    "Leave Request",
   cash_requisition: "Cash Requisition",
   invoice:          "Invoice Request",
   work_initiation:  "Work Initiation",
@@ -91,7 +91,7 @@ const COLUMNS: Column<MyRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (v) => <ApprovalBadge status={String(v)} />,
+    render: (v) => <ApprovalBadge status={String(v) === "in_progress" ? "pending" : String(v)} />,
   },
   {
     key: "next_approver_name",
@@ -128,9 +128,9 @@ function resolveHref(row: MyRequest): string {
   switch (normalizeWorkflowProcessType(row.request_type)) {
     case "procurement": return `/procurement/${id}`;
     case "asset":       return `/assets/requests/${id}`;
-    case "leave":       return `/hr-management/leave-requests/${id}`;
+    case "leave_request": return `/hr-management/leave-requests/${id}`;
     case "cash_requisition": return `/finance/cash-requisitions/${id}`;
-    case "invoice":     return `/invoices/${id}`;
+    case "invoice":     return `/finance/invoices/${id}`;
     case "work_initiation": return `/safety/work-initiation/${id}`;
     case "work_authorization": return `/safety/work-authorization/${id}`;
     case "work_closeout": return `/safety/work-close-out/${id}`;

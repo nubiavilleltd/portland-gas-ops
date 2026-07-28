@@ -332,7 +332,8 @@ export const leaveRequestColumns: Column<LeaveRequest>[] = [
     key: "status",
     label: "Status",
     sortable: true,
-    render: (v) => <ApprovalBadge status={String(v)} />,
+    // A leave request that's mid-approval reads as "Pending" to the requester.
+    render: (v) => <ApprovalBadge status={String(v) === "in_progress" ? "pending" : String(v)} />,
   },
   {
     key: "nextActor",

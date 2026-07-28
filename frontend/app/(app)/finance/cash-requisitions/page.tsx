@@ -13,18 +13,17 @@ import FileDropzone from "@/components/ui/FileDropzone";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import FormDatePicker from "@/components/forms/FormDatePicker";
 import DataTable from "@/components/ui/DataTable";
 import SelectInput from "@/components/forms/SelectInput";
 import { cashRequisitionColumns } from "@/components/data-table/columns";
 import { useCashRequisitions, useCreateCashRequisition } from "@/lib/modules/cash-requisitions/hooks";
 import cashRequisitionsApi from "@/lib/modules/cash-requisitions/api";
-import { useMyApprovals } from "@/lib/modules/workflow/queries";
-import { useMyEmployee } from "@/lib/modules/employees/hooks";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { CURRENCY_OPTIONS } from "../_components/_data";
-
-const TODAY = new Date().toISOString().split("T")[0];
+import { minChars, minCharsHint } from "@/lib/utils/form-validation";
 
 function applyCommas(raw: string): string {
   const clean = raw.replace(/[^0-9.]/g, "");
@@ -41,11 +40,15 @@ const STATUS_OPTIONS = [
   { value: "denied",      label: "Denied" },
 ];
 
+// Minimums live here so the schema and the on-field hints stay in step.
+const TITLE_MIN = 3;
+const DESCRIPTION_MIN = 5;
+
 const schema = z.object({
-  title:               z.string().min(3, "Title is required"),
+  title:               minChars(TITLE_MIN, "Title"),
   currency:            z.string().min(1, "Select a currency"),
   amount:              z.string().min(1, "Amount is required"),
-  description:         z.string().min(5, "Description is required"),
+  description:         minChars(DESCRIPTION_MIN, "Description"),
   expected_retirement: z.string().optional(),
 });
 
@@ -57,8 +60,11 @@ export default function CashRequisitionsPage() {
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
 
   const { user: currentUser } = useCurrentUser();
-  const { data: myEmployee } = useMyEmployee();
+  const queryClient = useQueryClient();
   const createCashRequisition = useCreateCashRequisition();
+  // Workflow-driven approver picks for any requester_pick steps on the
+  // cash_requisition workflow (reads the active workflow config).
+  const approverPicker = useApproverPicker("cash_requisition");
 
   const { data: response, isLoading } = useCashRequisitions({
     limit: 100,
@@ -67,28 +73,16 @@ export default function CashRequisitionsPage() {
   });
   const allItems = response?.data || [];
 
-  // "Awaiting my approval" — my-approvals returns requests where the current user
-  // is the assignee of the CURRENT step.
-  const { data: myApprovals = [] } = useMyApprovals();
-  const awaitingIds = new Set(
-    myApprovals.filter((a) => a.request_type === "cash_requisition").map((a) => a.request_id)
-  );
-
-  const [scope, setScope] = useState<"all" | "awaiting">("all");
   const [activeStatus, setActiveStatus] = useState<string>("");
 
   const visibleItems = allItems.filter((i) => {
-    // "All" = requests I raised; "Awaiting my approval" = requests waiting on me.
+    // Only the requests I raised. Requests awaiting my approval are in the
+    // sidebar "My Approvals" section.
     const isMine = !i.requesterId || i.requesterId === currentUser?.id;
-    const inScope = scope === "awaiting" ? awaitingIds.has(i.id) : isMine;
-    if (!inScope) return false;
+    if (!isMine) return false;
     if (activeStatus && i.status !== activeStatus) return false;
     return true;
   });
-
-  const requesterName = myEmployee?.user
-    ? `${myEmployee.user.first_name ?? ""} ${myEmployee.user.last_name ?? ""}`.trim()
-    : "";
 
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
   const { formState: { errors, isSubmitting } } = form;
@@ -103,16 +97,27 @@ export default function CashRequisitionsPage() {
         return;
       }
 
-      // 1. Create the requisition
+      // Every requester_pick step on the workflow must have an approver chosen.
+      const picksError = approverPicker.validate();
+      if (picksError) {
+        toast.error(picksError);
+        return;
+      }
+
+      // 1. Create AND enter the workflow in a single call. The server does both
+      //    in one transaction, so a failure leaves nothing behind — retrying can
+      //    no longer pile up rows that read "Pending" but sit in no workflow.
       const cr = await createCashRequisition.mutateAsync({
         title: data.title,
         description: data.description,
         amount,
         currency: data.currency,
         expected_retirement: data.expected_retirement || undefined,
+        picked_approvers: approverPicker.picksPayload,
+        submit_for_approval: true,
       });
 
-      // 2. Upload supporting files (best-effort)
+      // 2. Upload supporting files (best-effort — the request is already lodged)
       if (supportingFiles.length > 0 && cr?.id) {
         for (const file of supportingFiles) {
           try {
@@ -123,12 +128,10 @@ export default function CashRequisitionsPage() {
         }
       }
 
-      // 3. Submit for approval (enters the workflow)
-      if (cr?.id) {
-        await cashRequisitionsApi.submitForApproval(cr.id);
-      }
-
-      toast.success(`Request submitted for approval — ${cr.reference}`);
+      // Awaited so the list isn't shown until fresh data is in cache — otherwise
+      // it paints the pre-refetch snapshot and Next Actor reads "—".
+      await queryClient.invalidateQueries({ queryKey: ["cash-requisitions"] });
+      toast.success(`Request submitted for approval${cr.reference ? ` — ${cr.reference}` : ""}`);
       form.reset();
       setSupportingFiles([]);
       setView("list");
@@ -162,38 +165,6 @@ export default function CashRequisitionsPage() {
             }
             className="mb-6"
           />
-
-          {/* Scope filter pills */}
-          <div className="mb-3 flex flex-wrap gap-2">
-            {([
-              { value: "all",      label: "All" },
-              { value: "awaiting", label: "Awaiting my approval", count: awaitingIds.size },
-            ] as const).map((pill) => (
-              <button
-                key={pill.value}
-                type="button"
-                onClick={() => setScope(pill.value)}
-                className={
-                  scope === pill.value
-                    ? "rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white"
-                    : "rounded-lg border border-brand-border bg-white px-3 py-1.5 text-sm font-medium text-brand-text-secondary hover:bg-gray-50"
-                }
-              >
-                {pill.label}
-                {"count" in pill && pill.count > 0 ? (
-                  <span
-                    className={
-                      scope === pill.value
-                        ? "ml-2 rounded-full bg-white/25 px-1.5 py-0.5 text-xs"
-                        : "ml-2 rounded-full bg-brand-purple/10 px-1.5 py-0.5 text-xs text-brand-purple"
-                    }
-                  >
-                    {pill.count}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
 
           <div className="w-full overflow-hidden">
             <DataTable
@@ -238,21 +209,15 @@ export default function CashRequisitionsPage() {
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
-            <FormSection title="Requester Details" description="Your employee information for this cash requisition.">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormInput label="Requester Name" value={requesterName} disabled />
-                <FormInput label="Department" value={myEmployee?.department || ""} disabled />
-                <FormInput label="Job Title / Role" value={myEmployee?.job_title || ""} disabled />
-                <FormDatePicker label="Request Date" value={TODAY} disabled />
-              </div>
-            </FormSection>
-
+            {/* No Requester Details block — the server derives the requester from
+                the session, and the detail page shows it. Matches Supply Chain. */}
             <FormSection title="Request Details" description="Details about the cash being requested.">
               <div className="grid gap-4 md:grid-cols-2">
                 <FormInput
                   label="Title / Purpose"
                   required
                   placeholder="Brief title for this request"
+                  hint={minCharsHint(TITLE_MIN)}
                   error={errors.title?.message}
                   {...form.register("title")}
                 />
@@ -276,7 +241,8 @@ export default function CashRequisitionsPage() {
                     },
                   })}
                 />
-                {/* Expected Retirement Date — hidden for now
+                {/* Expected Retirement Date — hidden for now.
+                    To restore: re-add the FormDatePicker import and a TODAY const.
                 <FormDatePicker
                   label="Expected Retirement Date"
                   min={TODAY}
@@ -291,6 +257,7 @@ export default function CashRequisitionsPage() {
                     required
                     placeholder="Describe what is needed and why..."
                     rows={4}
+                    hint={minCharsHint(DESCRIPTION_MIN)}
                     error={errors.description?.message}
                     {...form.register("description")}
                   />
@@ -307,6 +274,8 @@ export default function CashRequisitionsPage() {
                 </div>
               </div>
             </FormSection>
+
+            <WorkflowApproversSection {...approverPicker} />
 
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={isSubmitting} loadingText="Submitting...">
