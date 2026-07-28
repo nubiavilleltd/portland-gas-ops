@@ -136,6 +136,7 @@ type WorkInitiationEditValues = {
   otherWorkCategory: string;
   relatedIncidentHazardId: string;
   workType: string[];
+  otherWorkType: string;
   locations: string[];
   exactWorkArea: string;
   workDescription: string;
@@ -549,7 +550,14 @@ function WorkDetails({
   onNewAttachmentsChange: (files: File[]) => void;
 }) {
   const workTypeOptions = toOptions(
-    values.workCategory ? workTypeOptionsByCategory[values.workCategory] ?? [] : [],
+    values.workCategory
+      ? Array.from(
+          new Set([
+            ...(workTypeOptionsByCategory[values.workCategory] ?? []),
+            "Other",
+          ]),
+        )
+      : [],
   );
   const visibleAttachments = editable
     ? request.attachments.filter(
@@ -571,6 +579,7 @@ function WorkDetails({
                 ? current.relatedIncidentHazardId
                 : "",
             workType: [],
+            otherWorkType: "",
           }
         : current,
     );
@@ -654,15 +663,43 @@ function WorkDetails({
             value={values.workType}
             onValueChange={(value) =>
               onValuesChange((current) =>
-                current ? { ...current, workType: value } : current,
+                current
+                  ? {
+                      ...current,
+                      workType: value,
+                      otherWorkType: value.includes("Other")
+                        ? current.otherWorkType
+                        : "",
+                    }
+                  : current,
               )
             }
             placeholder={values.workCategory ? "Select or add work type" : "Select work category first"}
             disabled={!values.workCategory}
           />
         ) : (
-          <FormInput label="Work Type" value={request.workType.join(", ")} disabled />
+          <FormInput
+            label="Work Type"
+            value={formatWorkTypes(request.workType, request.otherWorkType)}
+            disabled
+          />
         )}
+        {editable && values.workType.includes("Other") ? (
+          <FormInput
+            label="Specify Other Work Type"
+            required
+            maxLength={255}
+            placeholder="Enter the work type"
+            value={values.otherWorkType}
+            onChange={(event) =>
+              onValuesChange((current) =>
+                current
+                  ? { ...current, otherWorkType: event.target.value }
+                  : current,
+              )
+            }
+          />
+        ) : null}
         <FormMultiSelect
           label="Location"
           value={values.locations}
@@ -1041,6 +1078,7 @@ function buildInitialEditValues(
     otherWorkCategory: request.otherWorkCategory ?? "",
     relatedIncidentHazardId: request.relatedIncidentHazardId,
     workType: request.workType,
+    otherWorkType: request.otherWorkType ?? "",
     locations: parseStoredLocations(request.location),
     exactWorkArea: request.exactWorkArea,
     workDescription: request.workDescription,
@@ -1077,6 +1115,9 @@ function buildWorkInitiationUpdatePayload(
         ? values.relatedIncidentHazardId || null
         : null,
     work_type: values.workType,
+    other_work_type: values.workType.includes("Other")
+      ? values.otherWorkType.trim() || null
+      : null,
     location: values.locations.join(", "),
     exact_work_area: values.exactWorkArea || null,
     work_description: values.workDescription,
@@ -1108,6 +1149,9 @@ function validateReturnedWorkInitiationEdit(values: WorkInitiationEditValues) {
 
   if (values.workCategory === "Other" && !values.otherWorkCategory.trim()) {
     return "Specify the work category.";
+  }
+  if (values.workType.includes("Other") && !values.otherWorkType.trim()) {
+    return "Specify the other work type.";
   }
 
   const now = startOfMinute(new Date());
@@ -1156,6 +1200,16 @@ function formatWorkCategory(request: WorkInitiationRequest) {
   }
 
   return request.workCategory;
+}
+
+function formatWorkTypes(workTypes: string[], otherWorkType?: string) {
+  return workTypes
+    .map((workType) =>
+      workType === "Other" && otherWorkType
+        ? `Other - ${otherWorkType}`
+        : workType,
+    )
+    .join(", ");
 }
 
 function toApiDateTime(value: string) {

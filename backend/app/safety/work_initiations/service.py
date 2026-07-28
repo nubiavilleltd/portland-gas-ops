@@ -158,6 +158,7 @@ def create_work_initiation(
         other_work_category=data.other_work_category,
         related_incident_report_id=data.related_incident_report_id,
         work_type=", ".join(data.work_type),
+        other_work_type=data.other_work_type,
         location=data.location,
         exact_work_area=data.exact_work_area,
         work_description=data.work_description,
@@ -247,6 +248,7 @@ def update_work_initiation(
     record.other_work_category = data.other_work_category
     record.related_incident_report_id = data.related_incident_report_id
     record.work_type = ", ".join(data.work_type)
+    record.other_work_type = data.other_work_type
     record.location = data.location
     record.exact_work_area = data.exact_work_area
     record.work_description = data.work_description

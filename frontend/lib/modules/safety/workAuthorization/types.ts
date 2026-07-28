@@ -79,6 +79,7 @@ export interface WorkAuthorizationWorkInitiationSummary {
   other_work_category?: string | null;
   related_incident_report_id?: string | null;
   work_type: string[];
+  other_work_type?: string | null;
   location: string;
   exact_work_area?: string | null;
   work_description: string;

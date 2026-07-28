@@ -33,6 +33,7 @@ import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
+  getLatestActualWorkStartDateTime,
   isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
   SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
@@ -799,7 +800,7 @@ function CompletionDetails({
             <FormDateTimeInput
               label="Actual Start Date/Time"
               value={values.actualStartDateTime}
-              max={getLatestActualWorkDateTime()}
+              max={getLatestActualWorkStartDateTime()}
               onValueChange={(value) => {
                 onChange.setActualStartDateTime(value);
                 if (

@@ -22,6 +22,7 @@ class WorkInitiationCreate(BaseModel):
     other_work_category: Optional[str] = Field(None, max_length=255)
     related_incident_report_id: Optional[str] = None
     work_type: list[str] = Field(..., min_length=1)
+    other_work_type: Optional[str] = Field(None, max_length=255)
     location: str = Field(..., min_length=2, max_length=255)
     exact_work_area: Optional[str] = Field(None, max_length=255)
     work_description: str = Field(..., min_length=5, max_length=5000)
@@ -39,6 +40,7 @@ class WorkInitiationCreate(BaseModel):
     @field_validator(
         "title",
         "other_work_category",
+        "other_work_type",
         "location",
         "exact_work_area",
         "work_description",
@@ -74,6 +76,21 @@ class WorkInitiationCreate(BaseModel):
                 )
         else:
             self.other_work_category = None
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_other_work_type(self):
+        has_other_work_type = any(
+            item.casefold() == "other" for item in self.work_type
+        )
+        if has_other_work_type:
+            if not self.other_work_type:
+                raise ValueError(
+                    "Other work type is required when work type includes Other."
+                )
+        else:
+            self.other_work_type = None
 
         return self
 
@@ -154,6 +171,7 @@ class WorkInitiationListItem(UtcDateTimeModel):
     other_work_category: Optional[str]
     related_incident_report_id: Optional[str]
     work_type: list[str]
+    other_work_type: Optional[str]
     location: str
     exact_work_area: Optional[str]
     planned_start_at: datetime
@@ -181,6 +199,7 @@ class WorkInitiationListItem(UtcDateTimeModel):
             other_work_category=work_initiation.other_work_category,
             related_incident_report_id=work_initiation.related_incident_report_id,
             work_type=split_work_type(work_initiation.work_type),
+            other_work_type=work_initiation.other_work_type,
             location=work_initiation.location,
             exact_work_area=work_initiation.exact_work_area,
             planned_start_at=work_initiation.planned_start_at,
