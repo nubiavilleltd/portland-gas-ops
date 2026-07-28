@@ -39,7 +39,7 @@ export default function CompleteTripDialog({
 
       setProofNotes("");
       onClose();
-    } catch {
+    } catch(error) {
       // ActionDialog renders the error.
     }
   }

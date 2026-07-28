@@ -27,12 +27,13 @@ import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { BackButton } from "@/components/ui/BackButton";
 import { parseError } from "@/lib/errors";
+import VehicleDetailSkeleton from "@/lib/modules/fleet/components/VehicleDetailSkeleton";
 
 export default function VehicleDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const { vehicle } = useVehicleById(id);
+  const { vehicle, isLoading } = useVehicleById(id);
   const { activateVehicle, isLoading: isActivatingVehicle } = useActivateVehicle();
   const { deactivateVehicle, isLoading: isdeactivatingVehicle } = useDeactivateVehicle();
   const { sendVehicleForMaintenance, isLoading: isSendingVehicleForMaintenance } = useSendVehicleForMaintenance();
@@ -48,6 +49,10 @@ export default function VehicleDetailPage() {
     (a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
+
+   if (isLoading) {
+    return <VehicleDetailSkeleton />;
+  }
 
   if (!vehicle) {
     return (

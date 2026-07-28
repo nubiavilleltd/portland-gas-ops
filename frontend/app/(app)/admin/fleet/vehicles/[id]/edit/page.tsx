@@ -15,6 +15,7 @@ import { FLEET_ROUTES } from "@/lib/routes";
 
 import { adaptUpdateVehicleRequest } from "@/lib/modules/fleet/adapters/fleet.adapter";
 import { parseError } from "@/lib/errors";
+import EditVehicleSkeleton from "@/lib/modules/fleet/components/EditVehicleSekeleton";
 
 
 
@@ -22,8 +23,15 @@ export default function EditVehiclePage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { vehicle } = useVehicleById(id);
-    const { updateVehicle } = useUpdateVehicle();
+  const { vehicle, isLoading } = useVehicleById(id);
+  const { updateVehicle } = useUpdateVehicle();
+
+
+
+
+   if (isLoading) {
+    return <EditVehicleSkeleton />;
+  }
 
   if (!vehicle) {
     return (

@@ -21,6 +21,7 @@ import type { Trip } from "@/lib/modules/fleet/types/trip.types";
 import { FLEET_ROUTES } from "@/lib/routes";
 import { BackButton } from "@/components/ui/BackButton";
 import { parseError } from "@/lib/errors";
+import DriverDetailSkeleton from "@/lib/modules/fleet/components/DriverDetailSkeleton";
 
 
 
@@ -53,12 +54,8 @@ export default function DriverDetailPage() {
   // const driver = drivers.find((d) => d.id === id);
 
   // loading state
-  if (driversLoading) {
-    return (
-      <AppLayout pageTitle="Loading...">
-        <p className="text-brand-text-secondary">Loading driver...</p>
-      </AppLayout>
-    );
+ if (driversLoading) {
+    return <DriverDetailSkeleton />;
   }
 
   if (!driver) {
