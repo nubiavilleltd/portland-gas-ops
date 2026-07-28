@@ -103,6 +103,10 @@ export interface Order {
   deliveryDate: string | null;
   notes?: string;
 
+  // Proof of delivery
+  receivedBy?: string;
+  deliveryNotes?: string;
+
   // Cancellation
   cancellationReason?: string;
 
@@ -121,6 +125,7 @@ export interface Order {
   approvedBy?: string;
   approvedAt?: string;
   rejectionReason?: string;
+
 
   // Audit timestamps
   createdAt: string;
@@ -175,10 +180,10 @@ export interface UpdateOrderInput
 }
 
 export interface ConfirmDeliveryPayload {
-    order: Order;
+  order: Order;
 
-    receivedBy: string;
-    deliveryNotes?: string;
+  receivedBy: string;
+  deliveryNotes?: string;
 }
 
 // ─────────────────────────────────────────────────────────────

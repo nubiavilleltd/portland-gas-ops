@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 
-import { formatDate, formatCurrency, toTitleCase } from "@/lib/utils";
+import { formatDate, formatCurrency, toTitleCase, cn } from "@/lib/utils";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
@@ -140,12 +140,23 @@ export default function TripDetailPage() {
     trip.status as (typeof STATUS_ORDER)[number],
   );
 
+
+  const deliveredOrders = linkedOrders.filter(
+    (order) => order?.fulfillmentStatus === "delivered",
+  ).length;
+
+  const totalOrders = linkedOrders.length;
+  const remainingOrders = totalOrders - deliveredOrders;
+  const allDelivered = remainingOrders === 0;
+
   const canAssign = canAssignResourcesToTrip(trip);
   const canDispatch = canDispatchTrip(trip);
   const canStart = canStartTrip(trip);
-  const canComplete = canCompleteTrip(trip);
+  const canComplete = canCompleteTrip(trip, ordersMap);
   const canAssignInventoryToTrip = canAssignInventory(trip);
   const canCancel = canCancelTrip(trip);
+
+
 
   return (
     <AppLayout pageTitle={trip.trip_number}>
@@ -225,11 +236,7 @@ export default function TripDetailPage() {
           title="Status Flow"
           description="Track the current stage of the trip lifecycle"
         >
-          {/* {trip.status === "cancelled" ? (
-            <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 inline-block">
-              Cancelled
-            </div>
-          ) : ( */}
+
           {trip.status === "cancelled" ? (
             <div className="space-y-3">
               {/* Cancelled badge, prominent */}
@@ -274,13 +281,12 @@ export default function TripDetailPage() {
                     className="flex items-center gap-2"
                   >
                     <div
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                        isCurrent
-                          ? "bg-brand-purple text-white"
-                          : isActive
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-400"
-                      }`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium ${isCurrent
+                        ? "bg-brand-purple text-white"
+                        : isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-400"
+                        }`}
                     >
                       {isActive && !isCurrent && <span>✓ </span>}
                       <span className="capitalize">
@@ -290,6 +296,19 @@ export default function TripDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {trip.status === "in_transit" && !canComplete && (
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-medium text-amber-900">
+                Waiting for delivery confirmations
+              </p>
+
+              <p className="mt-1 text-sm text-amber-800">
+                Complete delivery confirmation for every attached order before marking
+                this trip as completed.
+              </p>
             </div>
           )}
         </FormSection>
@@ -336,12 +355,42 @@ export default function TripDetailPage() {
                 No orders attached.
               </p>
             ) : (
-              <SimpleTable
-                columns={orderColumns}
-                rows={linkedOrders as Order[]}
-                keyExtractor={(order) => order.id}
-                emptyMessage="No orders attached."
-              />
+
+              <>
+                <div
+                  className={cn(
+                    "mb-5 rounded-xl border p-4",
+                    allDelivered
+                      ? "border-green-200 bg-green-50"
+                      : "border-amber-200 bg-amber-50",
+                  )}
+                >
+                  <p className="font-medium">
+                    Delivery Progress
+                  </p>
+
+                  <p className="mt-2 text-sm">
+                    Delivered{" "}
+                    <span className="font-semibold">
+                      {deliveredOrders} / {totalOrders}
+                    </span>
+                  </p>
+
+                  <p className="mt-2 text-sm">
+                    {allDelivered
+                      ? "✓ All deliveries confirmed. This trip is ready to be completed."
+                      : `⚠ ${remainingOrders} ${remainingOrders === 1 ? "delivery remains" : "deliveries remain"
+                      } before this trip can be completed.`}
+                  </p>
+                </div>
+                <SimpleTable
+                  columns={orderColumns}
+                  rows={linkedOrders as Order[]}
+                  keyExtractor={(order) => order.id}
+                  emptyMessage="No orders attached."
+                />
+              </>
+
             )}
           </FormSection>
         )}

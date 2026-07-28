@@ -61,8 +61,7 @@ class CompleteTripWorkflow:
                     status_code=400,
                     error_code=TripErrorCode.TRIP_HAS_INCOMPLETE_ORDERS,
                     message=(
-                        f"Order '{order.order_no}' must be completed "
-                        "before the trip can be completed."
+                        "All orders attached to this trip must be delivered before the trip can be completed."
                     ),
                 )
 

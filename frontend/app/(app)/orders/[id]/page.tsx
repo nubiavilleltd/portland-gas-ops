@@ -290,6 +290,37 @@ export default function OrderDetailPage() {
           )}
         </FormSection>
 
+        {order.fulfillmentStatus === "delivered" && (
+  <FormSection
+  title="Delivery Confirmation"
+  description="Proof recorded when this delivery was completed"
+>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <InfoRow
+      label="Delivered On"
+      value={order.deliveredAt ? formatDate(order.deliveredAt) : "—"}
+    />
+
+    <InfoRow
+      label="Received By"
+      value={order.receivedBy || "—"}
+    />
+  </div>
+
+  {order.deliveryNotes && (
+    <div className="mt-5 pt-5 border-t border-brand-border">
+      <p className="text-xs text-brand-text-secondary mb-1">
+        Delivery Notes
+      </p>
+
+      <p className="text-sm whitespace-pre-wrap">
+        {order.deliveryNotes}
+      </p>
+    </div>
+  )}
+</FormSection>
+)}
+
         {/* DISPATCH / TRIP - Show skeleton if loading */}
         <FormSection
           title="Dispatch / Trip"

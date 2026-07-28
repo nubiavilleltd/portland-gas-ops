@@ -209,7 +209,7 @@ def mark_ready(
         db=db,
         trip_id=trip_id,
         assignments=data.assignments,
-        actor_id=current_user.id,
+        actor_user_id=current_user.id,
         actor_employee_id=current_user.employee.id,
         actor_name=current_user.full_name,
     )

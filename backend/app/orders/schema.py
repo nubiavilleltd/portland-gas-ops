@@ -248,6 +248,9 @@ class OrderResponse(BaseModel):
     confirmed_at: Optional[datetime]
     delivered_at: Optional[datetime]
 
+    received_by: Optional[str]
+    delivery_notes: Optional[str]
+
     created_by: str
     created_at: datetime
     updated_at: datetime

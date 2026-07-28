@@ -79,6 +79,10 @@ interface OrderResponse {
     confirmed_at: string | null;
     delivered_at: string | null;
 
+    received_by: string;
+    delivery_notes: string
+
+
     created_at: string;
     updated_at: string;
 }
@@ -140,13 +144,13 @@ export interface UpdateOrderRequest {
 
 
 export interface SaveDraftRequest {
-  customer_id: string;
-  order_items?: { product_id: string; quantity: number }[];
-  discount_type?: DiscountType;
-  discount_value?: number;
-  delivery_address?: string;
-  delivery_date?: string;
-  notes?: string;
+    customer_id: string;
+    order_items?: { product_id: string; quantity: number }[];
+    discount_type?: DiscountType;
+    discount_value?: number;
+    delivery_address?: string;
+    delivery_date?: string;
+    notes?: string;
 }
 
 
@@ -275,6 +279,9 @@ export function adaptOrder(raw: OrderResponse): Order {
         confirmedAt: raw.confirmed_at ?? undefined,
         deliveredAt: raw.delivered_at ?? undefined,
         cancelledAt: raw.cancelled_at ?? undefined,
+
+        receivedBy: raw.received_by ?? undefined,
+        deliveryNotes: raw.delivery_notes ?? undefined,
     };
 }
 
@@ -287,65 +294,65 @@ export function adaptOrderList(raw: OrderListResponse): Order[] {
 // ─────────────────────────────────────────────────────────────
 
 export function adaptCreateOrderRequest(
-  input: CreateOrderInput,
+    input: CreateOrderInput,
 ): CreateOrderRequest {
-  return {
-    customer_id: input.customerId,
+    return {
+        customer_id: input.customerId,
 
-    delivery_address: input.deliveryAddress,
-    delivery_date: input.deliveryDate,
+        delivery_address: input.deliveryAddress,
+        delivery_date: input.deliveryDate,
 
-    notes: input.notes,
+        notes: input.notes,
 
-    discount_type: input.discountType,
-    discount_value: input.discountValue,
+        discount_type: input.discountType,
+        discount_value: input.discountValue,
 
-    order_items: input.orderItems.map((item) => ({
-      product_id: item.productId,
-      quantity: item.quantity,
-    })),
-  };
+        order_items: input.orderItems.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+        })),
+    };
 }
 
 export function adaptSaveDraftRequest(input: SaveDraftInput): SaveDraftRequest {
-  return {
-    customer_id: input.customerId,
-    order_items: input.orderItems?.map((item) => ({
-      product_id: item.productId,
-      quantity: item.quantity,
-    })),
-    discount_type: input.discountType,
-    discount_value: input.discountValue,
-    delivery_address: input.deliveryAddress,
-    delivery_date: input.deliveryDate,
-    notes: input.notes,
-  };
+    return {
+        customer_id: input.customerId,
+        order_items: input.orderItems?.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+        })),
+        discount_type: input.discountType,
+        discount_value: input.discountValue,
+        delivery_address: input.deliveryAddress,
+        delivery_date: input.deliveryDate,
+        notes: input.notes,
+    };
 }
 
 export function adaptUpdateOrderRequest(
-  input: UpdateOrderInput,
+    input: UpdateOrderInput,
 ): UpdateOrderRequest {
-  return {
-    order_status: input.orderStatus,
-    fulfillment_status: input.fulfillmentStatus,
-    payment_status: input.paymentStatus,
+    return {
+        order_status: input.orderStatus,
+        fulfillment_status: input.fulfillmentStatus,
+        payment_status: input.paymentStatus,
 
-    delivery_address: input.deliveryAddress,
-    delivery_date: input.deliveryDate,
+        delivery_address: input.deliveryAddress,
+        delivery_date: input.deliveryDate,
 
-    notes: input.notes,
+        notes: input.notes,
 
-    discount_type: input.discountType,
-    discount_value: input.discountValue,
+        discount_type: input.discountType,
+        discount_value: input.discountValue,
 
-    cancellation_reason: input.cancellationReason,
+        cancellation_reason: input.cancellationReason,
 
-    trip_id: input.tripId,
-    invoice_id: input.invoiceId,
+        trip_id: input.tripId,
+        invoice_id: input.invoiceId,
 
-    order_items: input.orderItems?.map((item) => ({
-      product_id: item.productId,
-      quantity: item.quantity,
-    })),
-  };
+        order_items: input.orderItems?.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+        })),
+    };
 }
