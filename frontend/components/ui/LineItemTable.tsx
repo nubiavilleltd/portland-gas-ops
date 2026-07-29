@@ -29,7 +29,8 @@ export interface LineItemColumn<TRow> {
   renderCell: (
     row: TRow,
     index: number,
-    onChange: (patch: Partial<TRow>) => void
+    onChange: (patch: Partial<TRow>) => void,
+    cellError?: string,
   ) => React.ReactNode;
   /** Optional header class override */
   headerClassName?: string;
@@ -58,6 +59,7 @@ interface LineItemTableProps<TRow> {
   rows: TRow[];
   /** Called when user clicks Add Row */
   onAdd: () => void;
+  disableAdd?: boolean;
   /** Called when user removes a row by index */
   onRemove: (index: number) => void;
   /** Called when a cell changes a field on a row */
@@ -74,6 +76,8 @@ interface LineItemTableProps<TRow> {
   className?: string;
   /** Disable the whole table (no add/remove) */
   disabled?: boolean;
+  /** rowErrors[rowIndex][columnKey] = error message */
+  rowErrors?: Record<number, Record<string, string>>;
 }
 
 // ── Component ─────────────────────────────────────────────
@@ -82,6 +86,7 @@ export default function LineItemTable<TRow>({
   columns,
   rows,
   onAdd,
+  disableAdd = false,
   onRemove,
   onChange,
   addLabel = "Add Item",
@@ -89,6 +94,7 @@ export default function LineItemTable<TRow>({
   minRows = 1,
   error,
   className,
+  rowErrors,
   disabled = false,
 }: LineItemTableProps<TRow>) {
   // Build the CSS grid template: columns + 40px remove button
@@ -115,7 +121,7 @@ export default function LineItemTable<TRow>({
               key={col.key}
               className={cn(
                 "px-3 py-2.5 text-xs font-semibold text-brand-text-secondary uppercase tracking-wide",
-                col.headerClassName
+                col.headerClassName,
               )}
             >
               {col.label}
@@ -131,11 +137,11 @@ export default function LineItemTable<TRow>({
             key={rowIndex}
             className={cn(
               "grid border-b border-brand-border last:border-b-0",
-              rowIndex % 2 === 1 ? "bg-gray-50/40" : "bg-white"
+              rowIndex % 2 === 1 ? "bg-gray-50/40" : "bg-white",
             )}
             style={{ gridTemplateColumns: gridTemplate }}
           >
-            {columns.map((col, colIndex) => (
+            {/* {columns.map((col, colIndex) => (
               <div
                 key={col.key}
                 className={cn(
@@ -148,7 +154,29 @@ export default function LineItemTable<TRow>({
                   onChange(rowIndex, patch)
                 )}
               </div>
-            ))}
+            ))} */}
+
+            {columns.map((col, colIndex) => {
+              const cellError = rowErrors?.[rowIndex]?.[col.key];
+              return (
+                <div
+                  key={col.key}
+                  className={cn(
+                    "px-3 py-2",
+                    colIndex > 0 && "border-l border-brand-border/50",
+                    cellError && "bg-red-50/40",
+                    col.cellClassName,
+                  )}
+                >
+                  {col.renderCell(
+                    row,
+                    rowIndex,
+                    (patch) => onChange(rowIndex, patch),
+                    cellError,
+                  )}
+                </div>
+              );
+            })}
 
             {/* Remove button */}
             <div className="flex items-center justify-center border-l border-brand-border/50">
@@ -177,14 +205,18 @@ export default function LineItemTable<TRow>({
               return (
                 <div
                   key={i}
-                  style={{ gridColumn: cell.colSpan ? `span ${cell.colSpan}` : undefined }}
+                  style={{
+                    gridColumn: cell.colSpan
+                      ? `span ${cell.colSpan}`
+                      : undefined,
+                  }}
                   className={cn(
                     "px-3 py-2.5",
                     cell.label
                       ? "text-xs font-semibold text-brand-text-secondary uppercase tracking-wide"
                       : "font-semibold text-sm text-brand-purple",
                     isLastDataCell && "border-l border-brand-border/50",
-                    cell.className
+                    cell.className,
                   )}
                 >
                   {cell.label ?? cell.value}
@@ -202,7 +234,13 @@ export default function LineItemTable<TRow>({
         <button
           type="button"
           onClick={onAdd}
-          className="flex items-center gap-2 text-sm text-brand-purple hover:text-brand-purple-dark transition-colors font-medium"
+          disabled={disableAdd}
+          className={cn(
+            "flex items-center gap-2 text-sm font-medium transition-colors",
+            disableAdd
+              ? "text-brand-text-muted cursor-not-allowed opacity-50"
+              : "text-brand-purple hover:text-brand-purple-dark",
+          )}
         >
           <Plus size={15} />
           {addLabel}

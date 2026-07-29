@@ -29,7 +29,8 @@ class CancelTripWorkflow:
         db: Session,
         trip_id: str,
         reason: str | None,
-        actor_id: str,
+        actor_employee_id:str,
+        actor_name: str,
     ):
 
         #
@@ -93,16 +94,15 @@ class CancelTripWorkflow:
                 if order.fulfillment_status.value == "delivered":
                     continue
 
-                self.order_service.update_fulfillment_status(
+                self.order_service.revert_fulfillment_to_pending(
                     db=db,
-                    order_no=order.order_no,
+                    order=order,
                     status="pending",
                 )
 
-                self.order_service.set_trip(
+                self.order_service.remove_from_trip(
                     db=db,
-                    order_no=order.order_no,
-                    trip_id=None,
+                    order_id=order.id,
                 )
 
                 self.audit_service.record(
@@ -112,6 +112,8 @@ class CancelTripWorkflow:
                     action="removed_from_trip",
                     description=f"Order removed from cancelled trip {trip.trip_no}",
                     actor_type=AuditActorType.system,
+                    actor_employee_id=None,
+                    actor_name=None,
                 )
 
         #
@@ -136,7 +138,8 @@ class CancelTripWorkflow:
                 else "Trip cancelled"
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

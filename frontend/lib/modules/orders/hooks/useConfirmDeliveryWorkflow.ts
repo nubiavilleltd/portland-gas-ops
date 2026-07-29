@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { confirmDeliveryWorkflow } from "../workflows/confirm-delivery.workflow";
 import { ORDER_KEYS } from "../constants/query-keys";
 
-import type { Order } from "../types/orders.types";
+import type { ConfirmDeliveryPayload, Order } from "../types/orders.types";
 import { useRouter } from "next/navigation";
 import { ORDER_ROUTES } from "../constants/routes";
 
@@ -15,7 +15,7 @@ export function useConfirmDeliveryWorkflow() {
   const router = useRouter();
 
   return useMutation({
-    mutationFn: (order: Order) => confirmDeliveryWorkflow(order),
+    mutationFn: (payload: ConfirmDeliveryPayload) => confirmDeliveryWorkflow(payload),
 
     onSuccess: (updatedOrder) => {
       // ✅ single order cache
@@ -35,7 +35,7 @@ export function useConfirmDeliveryWorkflow() {
       );
 
       toast.success("Delivery confirmed");
-      router.push(ORDER_ROUTES.detail(updatedOrder.orderNumber));
+      router.push(ORDER_ROUTES.detail(updatedOrder.id));
     },
 
     onError: (err: any) => {

@@ -31,6 +31,23 @@ export const fleetApi = {
     return data;
   },
 
+  suspendDriver: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/drivers/${id}/suspend`);
+  return data;
+},
+reinstateDriver: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/drivers/${id}/reinstate`);
+  return data;
+},
+setDriverOffDuty: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/drivers/${id}/off-duty`);
+  return data;
+},
+setDriverAvailable: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/drivers/${id}/available`);
+  return data;
+},
+
   // ── Vehicles ─────────────────────────────────────────────
   listVehicles: async (params: { status?: string } = {}) => {
     const { data } = await api.get("/api/fleet/vehicles", { params });
@@ -60,6 +77,25 @@ export const fleetApi = {
   });
   return data;
 },
+
+activateVehicle: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/activate`);
+  return data;
+},
+deactivateVehicle: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/deactivate`);
+  return data;
+},
+sendVehicleForMaintenance: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/maintenance`);
+  return data;
+},
+returnVehicleFromMaintenance: async (id: string) => {
+  const { data } = await api.patch(`/api/fleet/vehicles/${id}/return-from-maintenance`);
+  return data;
+},
+
+
 
   // ── Trips ─────────────────────────────────────────────────
   listTrips: async (params: { status?: string } = {}) => {

@@ -24,7 +24,9 @@ class DispatchTripWorkflow:
         self,
         db: Session,
         trip_id: str,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_user_id: str,
+        actor_name: str,
     ):
 
         #
@@ -52,9 +54,9 @@ class DispatchTripWorkflow:
 
             if order.fulfillment_status.value != "delivered":
 
-                self.order_service.update_fulfillment_status(
+                self.order_service.progress_fulfillment_status(
                     db=db,
-                    order_no=order.order_no,
+                    order=order,
                     status="dispatched",
                 )
 
@@ -65,15 +67,19 @@ class DispatchTripWorkflow:
                     action="dispatched",
                     description=f"Order dispatched on trip {trip.trip_no}",
                     actor_type=AuditActorType.system,
+                    actor_employee_id=None,
+                    actor_name=None,
                 )
 
         #
-        # Check out inventory (tracked products only)
+        # Check out inventory
         #
         self.inventory_service.check_out_for_trip(
             db=db,
-            trip_id=trip.id,
-            actor_id=actor_id,
+            trip=trip,
+            actor_user_id=actor_user_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name
         )
 
         #
@@ -86,7 +92,8 @@ class DispatchTripWorkflow:
             action="dispatched",
             description=f"Trip dispatched with {len(order_ids)} order(s)",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

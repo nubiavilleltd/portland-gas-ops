@@ -36,7 +36,7 @@ class InvoiceService:
             )
         return invoice
 
-    def get_by_id_or_raise(self, db: Session, invoice_id: str) -> Invoice:
+    def get_or_raise(self, db: Session, invoice_id: str) -> Invoice:
         invoice = self.repo.get_by_id(db, invoice_id)
         if not invoice:
             raise AppException(
@@ -46,12 +46,23 @@ class InvoiceService:
             )
         return invoice
 
-    def get_by_id_or_none(
+    def get_or_none(
         self,
         db: Session,
         invoice_id: str,
     ) -> Optional[Invoice]:
         return self.repo.get_by_id(db, invoice_id)
+    
+    
+    def get_by_order_id_or_raise(self, db: Session, order_id: str) -> Invoice:
+        invoice = self.repo.get_by_order_id(db, order_id)
+        if not invoice:
+            raise AppException(
+                404,
+                InvoiceErrorCode.INVOICE_NOT_FOUND,
+                f"Invoice for order {order_id} not found",
+            )
+        return invoice
 
     def list(
         self,
@@ -77,21 +88,9 @@ class InvoiceService:
         created_by: str,
     ) -> Invoice:
 
-        order = self.order_service.get_by_id_or_raise(db, data.order_id)
+        order = self.order_service.get_or_raise(db, data.order_id)
 
-        if not order_guards.can_generate_invoice(order):
-            if order.invoice_id:
-                raise AppException(
-                    409,
-                    InvoiceErrorCode.INVOICE_ALREADY_EXISTS,
-                    "An invoice already exists for this order",
-                )
-
-            raise AppException(
-                400,
-                InvoiceErrorCode.ORDER_NOT_INVOICEABLE,
-                "This order cannot be invoiced",
-            )
+        order_guards.ensure_can_generate_invoice(order)
 
         invoice = self.repo.create(
             db=db,

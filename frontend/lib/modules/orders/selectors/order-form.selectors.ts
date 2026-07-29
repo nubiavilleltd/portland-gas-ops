@@ -1,13 +1,3 @@
-// export function calculateOrderSubtotal(
-//   quantity: number,
-//   unitPrice: number
-// ) {
-//   return quantity * unitPrice;
-// }
-
-
-
-
 /**
  * Pure calculation functions for the order creation / edit forms.
  * No data fetching here — inputs come from form state.

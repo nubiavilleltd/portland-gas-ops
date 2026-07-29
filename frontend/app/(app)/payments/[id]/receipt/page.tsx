@@ -18,30 +18,30 @@ import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { generateReceiptPdf } from "@/lib/pdf/receipt.pdf";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 import ErrorBanner from "@/components/ui/ErrorBanner";
+import { PaymentsService } from "@/lib/modules/payments/services/payments.service";
+import PaymentReceiptSkeleton from "@/lib/modules/payments/components/PaymentReceiptSkeleton";
 
 export default function PaymentReceiptPage() {
   const { id } = useParams<{ id: string }>();
   const [downloading, setDownloading] = useState(false);
 
-  const { payment, isLoading: paymentLoading, error } = usePaymentByNo(id);
+  const { payment, isLoading: paymentLoading, error } = usePaymentById(id);
   const { invoice, isLoading: invoiceLoading } = useInvoiceById(payment?.invoiceId ?? "");
-  const { order } = useOrderById(invoice?.order_id ?? "");
-  const { payments: allInvoicePayments } = usePaymentsByInvoice(payment?.invoiceId ?? "");
-  const { customers } = useCustomers();
+  const { order, isLoading: orderLoading } = useOrderById(invoice?.order_id ?? "");
+  const { payments: allInvoicePayments, isLoading: invoicePaymentsLoading } = usePaymentsByInvoice(payment?.invoiceId ?? "");
+  const { customers, isLoading: customersLoading } = useCustomers();
 
   const customer = order ? customers.find((c) => c.id === order.customerId) : undefined;
 
-  const isLoading = paymentLoading || invoiceLoading;
+  const isLoading =
+    paymentLoading ||
+    invoiceLoading ||
+    (!!invoice?.order_id && orderLoading) ||
+    (!!payment?.invoiceId && invoicePaymentsLoading) ||
+    customersLoading;
 
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Payment Receipt">
-        <div className="animate-pulse space-y-4 max-w-2xl">
-          <div className="h-8 bg-gray-100 rounded-lg w-1/3" />
-          <div className="h-48 bg-gray-100 rounded-2xl" />
-        </div>
-      </AppLayout>
-    );
+ if (isLoading) {
+    return <PaymentReceiptSkeleton />;
   }
 
   if (error || !payment) {
@@ -73,7 +73,7 @@ export default function PaymentReceiptPage() {
 
   async function handleDownload() {
 
-     if (!payment || !invoice || downloading) return;
+    if (!payment || !invoice || downloading) return;
     setDownloading(true);
     try {
       await generateReceiptPdf({
@@ -184,7 +184,7 @@ export default function PaymentReceiptPage() {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" href={`/invoices/${invoice.invoice_number}`}>
+          <Button variant="outline" size="sm" href={`/invoices/${invoice.id}`}>
             View Invoice →
           </Button>
         </FormSection>
@@ -229,7 +229,7 @@ export default function PaymentReceiptPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            href={`/payments/${p.paymentNo}/receipt`}
+                            href={`/payments/${p.id}/receipt`}
                           >
                             View
                           </Button>
@@ -249,6 +249,40 @@ export default function PaymentReceiptPage() {
                 </tr>
               </tbody>
             </table>
+          </FormSection>
+        )}
+
+
+        {payment.attachments.length > 0 && (
+          <FormSection
+            title="Payment Proof"
+            description="Uploaded proof of payment"
+          >
+            <div className="space-y-2">
+              {payment.attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <span>{attachment.fileName}</span>
+
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    leftIcon={<Download size={14} />}
+                    onClick={() =>
+                      PaymentsService.downloadAttachment(
+                        payment.id,
+                        attachment.id,
+                        attachment.fileName,
+                      )
+                    }
+                  >
+                    Download
+                  </Button>
+                </div>
+              ))}
+            </div>
           </FormSection>
         )}
       </div>

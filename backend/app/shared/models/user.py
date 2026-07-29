@@ -66,3 +66,17 @@ class User(Base):
         if self.profile_picture and self.profile_picture.file_path:
             return self.profile_picture.file_path
         return None
+    
+    @property
+    def driver(self):
+        """
+        Convenience accessor.
+
+        User
+        └── Employee
+                └── Driver
+        """
+        if not self.employee:
+            return None
+
+        return self.employee.driver

@@ -13,6 +13,7 @@ import type { Trip } from "../types/trip.types";
 
 import { FLEET_ROUTES } from "../constants/routes";
 import { INVENTORY_KEYS } from "../../inventory/constants/inventory-query-keys";
+import { AUDIT_KEYS } from "../../audit/constants/query-keys";
 
 export function useDispatchTripWorkflow() {
   const queryClient = useQueryClient();
@@ -71,10 +72,13 @@ export function useDispatchTripWorkflow() {
       queryClient.invalidateQueries({
         queryKey: INVENTORY_KEYS.items(),
       });
+      queryClient.invalidateQueries({
+        queryKey: AUDIT_KEYS.entity("trip", updatedTrip.id),
+      });
 
       toast.success("Trip dispatched successfully");
 
-      router.push(FLEET_ROUTES.tripDetail(updatedTrip.trip_number));
+      router.push(FLEET_ROUTES.tripDetail(updatedTrip.id));
     },
 
     onError: (err: any) => {

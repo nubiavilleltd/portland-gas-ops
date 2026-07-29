@@ -12,6 +12,10 @@ from app.shared.utils.number_generator import generate_entity_no
 
 
 class OrderRepository:
+
+    def clear_items(self, db: Session, order_id: str) -> None:
+        """Delete all order items for a given order."""
+        db.query(OrderItem).filter(OrderItem.order_id == order_id).delete()
     def generate_order_no(self, db: Session) -> str:
         return generate_entity_no(db, Order, "order_no", "ORD")
 
@@ -34,30 +38,36 @@ class OrderRepository:
     def list(
         self,
         db: Session,
+        *,
+        created_by: Optional[str] = None,
         search: Optional[str] = None,
         order_status: Optional[OrderStatus] = None,
         fulfillment_status: Optional[FulfillmentStatus] = None,
         payment_status: Optional[PaymentStatus] = None,
         customer_id: Optional[str] = None,
+        trip_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ) -> Tuple[List[Order], int]:
-
+          
         query = (
             db.query(Order)
             .options(joinedload(Order.order_items))
         )
-
-        if search:
-            term = f"%{search.strip()}%"
+        
+        if created_by:
             query = query.filter(
-                or_(
-                    Order.order_no.ilike(term),
-                    Order.customer_name.ilike(term),
-                    Order.delivery_address.ilike(term),
-                )
-            )
-
+                Order.created_by == created_by,
+        )
+        
+        if customer_id:
+            query = query.filter(Order.customer_id == customer_id)
+        
+        if trip_id:
+            query = query.filter(
+                Order.trip_id == trip_id,
+        )
+            
         if order_status:
             query = query.filter(Order.order_status == order_status)
 
@@ -71,8 +81,16 @@ class OrderRepository:
                 Order.payment_status == payment_status
             )
 
-        if customer_id:
-            query = query.filter(Order.customer_id == customer_id)
+        if search:
+            term = f"%{search.strip()}%"
+            query = query.filter(
+                or_(
+                    Order.order_no.ilike(term),
+                    Order.customer_name.ilike(term),
+                    Order.delivery_address.ilike(term),
+                )
+            )
+
 
         total = query.with_entities(func.count(Order.id)).scalar() or 0
 

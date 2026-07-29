@@ -207,3 +207,10 @@ class EmployeeListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+class EmployeeReference(BaseModel):
+    id: str
+    employee_no: str
+
+    class Config:
+        from_attributes = True

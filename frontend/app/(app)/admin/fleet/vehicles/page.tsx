@@ -55,7 +55,7 @@ const columns: Column<Vehicle>[] = [
 // Replace the entire <div className="bg-white border ..."> block with:
 
 export default function VehiclesPage() {
-  const { vehicles } = useVehicles();
+  const { vehicles, isLoading } = useVehicles();
 
   return (
     <AppLayout pageTitle="Vehicles">
@@ -68,6 +68,7 @@ export default function VehiclesPage() {
       <DataTable<Vehicle>
         columns={columns}
         data={vehicles}
+        isLoading={isLoading}
         rowHref={(vehicle) => `/admin/fleet/vehicles/${vehicle.id}`}
         emptyMessage="No vehicles found."
       />

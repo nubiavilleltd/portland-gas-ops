@@ -42,9 +42,9 @@ export type CompleteTripInput = {
 };
 
 export async function completeTripWorkflow(input: CompleteTripInput): Promise<Trip> {
-  if (!canCompleteTrip(input.trip)) {
-    throw new Error("Trip cannot be completed in its current state");
-  }
+  // if (!canCompleteTrip(input.trip)) {
+  //   throw new Error("Trip cannot be completed in its current state");
+  // }
   // Backend handles: validates all orders completed, releases driver/vehicle, audit
   return TripsService.completeTrip(input.trip.id, input.proofNotes);
 }

@@ -8,10 +8,9 @@ import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useProductByNo } from "@/lib/modules/products/hooks/useProducts";
+import { useProductById } from "@/lib/modules/products/hooks/useProducts";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
-import { parseError } from "@/lib/errors";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -20,50 +19,53 @@ import { useToggleProductStatus } from "@/lib/modules/products/hooks/useProductM
 import { Product, ProductImage } from "@/lib/modules/products/types/product.types";
 import {
   useConsumableStockByProduct,
-  useStockMovementsByProduct,
 } from "@/lib/modules/inventory/hooks/useInventory";
 import Badge from "@/components/ui/Badge";
 import { isConsumable } from "@/lib/modules/products/types/product.types";
 import { getStockStatus } from "@/lib/modules/products/selectors/products.selectors";
+import PageErrorState from "@/components/ui/PageError";
+import ProductDetailsSkeleton from "@/lib/modules/products/components/ProductDetailsSkeleton";
+import { parseError } from "@/lib/errors";
+import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const productNo = params.id as string;
+  const id = params.id as string;
 
-  const { product, isLoading, error } = useProductByNo(productNo);
-  const { stock, quantity } = useConsumableStockByProduct(productNo);
-  const { movements } = useStockMovementsByProduct(productNo);
+  const { product, isLoading, error } = useProductById(id);
+  const { stock, quantity } = useConsumableStockByProduct(id);
   const isLow = getStockStatus(product as Product, quantity);
-    // product?.minimumStock != null && quantity <= product?.minimumStock;
+  // product?.minimumStock != null && quantity <= product?.minimumStock;
   // const [actionError, setActionError] = useState<string | null>(null);
 
   const isActive = product?.status == "active";
   const { mutate: toggleStatus, isPending: isToggling } =
-    useToggleProductStatus(productNo);
+    useToggleProductStatus(id);
 
   if (isLoading) {
     return (
       <AppLayout pageTitle="Product">
-        <div className="animate-pulse space-y-4 max-w-2xl">
-          <div className="h-8 bg-gray-100 rounded-lg w-1/3" />
-          <div className="h-48 bg-gray-100 rounded-2xl" />
-        </div>
+        <ProductDetailsSkeleton />
       </AppLayout>
     );
   }
 
+
   if (error || !product) {
     return (
-      <AppLayout pageTitle="Product Not Found">
-        <ErrorBanner message={error ?? "This product could not be found."} />
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => router.push(PRODUCT_ROUTES.list())}
+      <AppLayout pageTitle="Product">
+        <PageErrorState
+          title="Unable to load product"
+          message={error ?? "This product could not be found."}
         >
-          Back to Products
-        </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push(PRODUCT_ROUTES.list())}
+          >
+            Back to Products
+          </Button>
+        </PageErrorState>
       </AppLayout>
     );
   }
@@ -94,17 +96,40 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            href={PRODUCT_ROUTES.edit(productNo)}
+            href={PRODUCT_ROUTES.edit(id)}
             leftIcon={<Pencil size={14} />}
           >
             Edit
           </Button>
+
+
           <Button
             variant={isActive ? "danger" : "primary"}
             loading={isToggling}
-            loadingText={isActive ? "Deactivating…" : "Activating…"}
-            onClick={() => toggleStatus(isActive ?? false)}
-            leftIcon={isActive ? <PowerOff size={14} /> : <Power size={14} />}
+            loadingText={
+              isActive
+                ? "Deactivating…"
+                : "Activating…"
+            }
+            onClick={() =>
+              toggleStatus(isActive ?? false, {
+                onSuccess: () => {
+                  toast.success(
+                    isActive
+                      ? "Product deactivated successfully."
+                      : "Product activated successfully."
+                  );
+                },
+                onError: (err) => {
+                  toast.error(parseError(err));
+                },
+              })
+            }
+            leftIcon={
+              isActive
+                ? <PowerOff size={14} />
+                : <Power size={14} />
+            }
           >
             {isActive ? "Deactivate" : "Activate"}
           </Button>
@@ -159,7 +184,7 @@ export default function ProductDetailPage() {
       {isConsumable(product) && (
         <FormSection
           title="Stock Level"
-          description="Current stock and recent movement history"
+          description="Current inventory level for this product"
           className="mt-4"
         >
           <div className="flex items-center justify-between mb-5">
@@ -186,60 +211,22 @@ export default function ProductDetailPage() {
                 }
               />
             </div>
-            <Button
-              size="sm"
-              href="/admin/inventory/check-in"
-            >
-              Check In Stock →
-            </Button>
+            {stock ? (
+              <Button
+                size="sm"
+                href={INVENTORY_ROUTES.stockDetail(stock.id)}
+              >
+                View Stock →
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                href={INVENTORY_ROUTES.checkIn()}
+              >
+                Check In Stock →
+              </Button>
+            )}
           </div>
-
-          {/* Movement history */}
-          {movements.length === 0 ? (
-            <p className="text-sm text-brand-text-secondary py-4 text-center">
-              No movements recorded yet.
-            </p>
-          ) : (
-            <div className="divide-y divide-brand-border border-t border-brand-border">
-              {[...movements]
-                .sort(
-                  (a, b) =>
-                    new Date(b.created_at).getTime() -
-                    new Date(a.created_at).getTime(),
-                )
-                .slice(0, 10)
-                .map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">
-                        {m.movement_type === "check_in"
-                          ? "Check In"
-                          : "Check Out"}
-                      </p>
-                      {m.notes && (
-                        <p className="text-xs text-brand-text-secondary mt-0.5">
-                          {m.notes}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-sm font-medium ${m.movement_type === "check_in" ? "text-green-700" : "text-red-600"}`}
-                      >
-                        {m.movement_type === "check_in" ? "+" : "−"}
-                        {m.quantity.toLocaleString()} {product.unit}
-                      </p>
-                      <p className="text-xs text-brand-text-secondary">
-                        {formatDate(m.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
         </FormSection>
       )}
     </AppLayout>

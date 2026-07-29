@@ -1,25 +1,28 @@
 
-import { getErrorMessage } from "@/lib/api/error";
 
 import { ordersApi } from "../api/orders.api";
 import {
   adaptOrder,
   adaptOrderList,
   adaptCreateOrderRequest,
-  adaptUpdateOrderRequest,
+  adaptSaveDraftRequest,
 } from "../adapters/order.adapter";
 
 import type {
+  ConfirmDeliveryPayload,
   CreateOrderInput,
   FulfillmentStatus,
   Order,
   OrderKPIs,
   OrderStatus,
-  UpdateOrderInput,
+  SaveDraftInput,
 } from "../types/orders.types";
 
 import type { PaymentStatus } from "../../payments/types/payments.types";
 import { ItemDisposition } from "../../inventory/types/inventory.types";
+import { getErrorMessage } from "@/lib/errors";
+import { ORDER_ERROR_MESSAGES } from "../errors";
+import { ERROR_MESSAGES } from "@/lib/api/error";
 
 export const OrdersService = {
   // ------------------------------------------------------------------
@@ -28,17 +31,16 @@ export const OrdersService = {
 
   async getOrders(): Promise<Order[]> {
     const raw = await ordersApi.list({ page_size: 200 });
-
     return adaptOrderList(raw);
   },
 
-  async getOrderById(orderNo: string): Promise<Order> {
+  async getOrderById(orderId: string): Promise<Order> {
     try {
-      const raw = await ordersApi.get(orderNo);
+      const raw = await ordersApi.get(orderId);
 
       return adaptOrder(raw);
     } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to load order"));
+      throw new Error(getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to load order"));
     }
   },
 
@@ -80,49 +82,49 @@ export const OrdersService = {
   // ------------------------------------------------------------------
 
   async createDraftOrder(
-    input: CreateOrderInput,
+    input: SaveDraftInput,
   ): Promise<Order> {
     try {
       const raw = await ordersApi.createDraft(
-        adaptCreateOrderRequest(input),
+        adaptSaveDraftRequest(input),
       );
 
       return adaptOrder(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to create draft order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to create draft order"),
       );
     }
   },
 
   async updateDraftOrder(
-    orderNo: string,
-    input: UpdateOrderInput,
+    orderid: string,
+    input: SaveDraftInput,
   ): Promise<Order> {
     try {
       const raw = await ordersApi.update(
-        orderNo,
-        adaptUpdateOrderRequest(input),
+        orderid,
+        adaptSaveDraftRequest(input),
       );
 
       return adaptOrder(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to update draft order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to update draft order"),
       );
     }
   },
 
   async submitOrder(
-    orderNo: string,
+    orderid: string,
   ): Promise<Order> {
     try {
-      const raw = await ordersApi.submit(orderNo);
+      const raw = await ordersApi.submit(orderid);
 
       return adaptOrder(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to submit order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to submit order"),
       );
     }
   },
@@ -138,7 +140,7 @@ async createOrder(
     return adaptOrder(raw);
   } catch (err) {
     throw new Error(
-      getErrorMessage(err, "Failed to create and submit order"),
+      getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to create and submit order"),
     );
   }
 },
@@ -147,30 +149,31 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async cancelOrder(
-    orderNo: string,
+    orderid: string,
     reason?: string,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.cancel(orderNo, reason),
+        await ordersApi.cancel(orderid, reason),
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to cancel order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to cancel order"),
       );
     }
   },
 
   async confirmDelivery(
-    orderNo: string,
+    orderId: string,
+    payload:ConfirmDeliveryPayload,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.confirmDelivery(orderNo),
+        await ordersApi.confirmDelivery(orderId, payload),
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to confirm order"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to confirm delivery"),
       );
     }
   },
@@ -180,13 +183,13 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async updateFulfillmentStatus(
-    orderNo: string,
+    orderid: string,
     status: FulfillmentStatus,
   ): Promise<Order> {
     try {
       return adaptOrder(
         await ordersApi.updateFulfillment(
-          orderNo,
+          orderid,
           status,
         ),
       );
@@ -194,6 +197,7 @@ async createOrder(
       throw new Error(
         getErrorMessage(
           err,
+          ORDER_ERROR_MESSAGES,
           "Failed to update fulfillment status",
         ),
       );
@@ -213,10 +217,10 @@ async createOrder(
    * Remove this method once all callers have migrated.
    */
   async updatePaymentStatus(
-    orderNo: string,
+    orderId: string,
     _status: PaymentStatus,
   ): Promise<Order> {
-    return this.getOrderById(orderNo);
+    return this.getOrderById(orderId);
   },
 
   // ------------------------------------------------------------------
@@ -224,7 +228,7 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async updateOrderLineItem(
-    orderNo: string,
+    orderId: string,
     productId: string,
     inventoryItemIds: string[],
     disposition: ItemDisposition,
@@ -235,7 +239,7 @@ async createOrder(
     void inventoryItemIds;
     void disposition;
 
-    return this.getOrderById(orderNo);
+    return this.getOrderById(orderId);
   },
 
   // ------------------------------------------------------------------
@@ -243,46 +247,46 @@ async createOrder(
   // ------------------------------------------------------------------
 
   async assignToTrip(
-    orderNo: string,
+    orderId: string,
     tripId: string,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.setTrip(orderNo, tripId),
+        await ordersApi.setTrip(orderId, tripId),
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to assign trip"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to assign trip"),
       );
     }
   },
 
   async setTrip(
-    orderNo: string,
+    orderId: string,
     tripId: string | null,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.setTrip(orderNo, tripId),
+        await ordersApi.setTrip(orderId, tripId),
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to update trip"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to update trip"),
       );
     }
   },
 
   async setInvoice(
-    orderNo: string,
+    orderId: string,
     invoiceId: string,
   ): Promise<Order> {
     try {
       return adaptOrder(
-        await ordersApi.setInvoice(orderNo, invoiceId),
+        await ordersApi.setInvoice(orderId, invoiceId),
       );
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, "Failed to link invoice"),
+        getErrorMessage(err, ORDER_ERROR_MESSAGES, "Failed to link invoice"),
       );
     }
   },

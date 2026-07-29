@@ -1,9 +1,13 @@
 // ============================================================
 //  PRODUCTS SERVICE
-//  Method signatures unchanged from mock version.
-//  Bodies now call the real backend API via productsApi.
-//  The adapter translates backend shapes to frontend Product type.
+//  Thin service layer over the Products API.
+//  Responsible for:
+//    • Calling the backend
+//    • Adapting backend responses to frontend models
+//    • Translating API errors into user-friendly errors
 // ============================================================
+
+// import { getErrorMessage } from "@/lib/api/error";
 
 import { productsApi } from "../api/products.api";
 import {
@@ -12,127 +16,154 @@ import {
   adaptProductList,
   adaptUpdateProductInput,
 } from "../adapters/product.adapter";
-import { getErrorMessage } from "@/lib/api/error";
+
 import type {
   CreateProductInput,
+  CreateProductPayload,
   Product,
+  ProductStatus,
+  ProductType,
   UpdateProductInput,
+  UpdateProductPayload,
 } from "../types/product.types";
+import { getErrorMessage } from "@/lib/errors";
+import { PRODUCT_ERROR_MESSAGES } from "../errors";
 
 export class ProductsService {
-  // ── READ ────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────
+  // Read
+  // ───────────────────────────────────────────────────────────
 
-  static async getProducts(): Promise<Product[]> {
-    const raw = await productsApi.list({ page_size: 200 });
-    return adaptProductList(raw);
-  }
-
-  // static async getProductByNo(productNo: string): Promise<Product | undefined> {
-  //   try {
-  //     const raw = await productsApi.get(productNo);
-  //     return adaptProduct(raw);
-  //   } catch {
-  //     return undefined;
-  //   }
-  // }
-
-
-  static async getProductByNo(productNo: string): Promise<Product> {
+  static async getProducts(filters?: {
+    search?: string;
+    status?: ProductStatus;
+    productType?: ProductType;
+  }): Promise<Product[]> {
     try {
-      const raw = await productsApi.get(productNo);
-      return adaptProduct(raw);
+      const raw = await productsApi.list({
+        page_size: 200,
+        search: filters?.search,
+        status: filters?.status,
+        product_type: filters?.productType,
+      });
+
+      return adaptProductList(raw);
     } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to fetch product"));
+      throw new Error(
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to fetch products",
+        ),
+      );
     }
   }
 
-  static async getProductById(id: string): Promise<Product> {
-    try {
-      const raw = await productsApi.get(id);
-      return adaptProduct(raw);
-    } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to fetch product"));
-    }
-  }
-
-  // ── CREATE ──────────────────────────────────────────────
-
-  // static async createProduct(input: CreateProductInput): Promise<Product> {
-  //   try {
-  //     // Extract image Files from input — the mock stored ProductImage objects,
-  //     // but we now have real File objects from the form (passed via input.images as File[])
-  //     const imageFiles = (input as any)._imageFiles as File[] ?? [];
-
-  //     const raw = await productsApi.create(
-  //       {
-  //         name: input.name,
-  //         product_type: input.product_type,
-  //         unit: input.unit,
-  //         default_unit_price: input.default_unit_price,
-  //         code: input.code,
-  //         description: input.description,
-  //         minimum_stock: input.minimum_stock,
-  //       },
-  //       imageFiles,
-  //     );
-  //     return adaptProduct(raw);
-  //   } catch (err) {
-  //     throw new Error(getErrorMessage(err, "Failed to create product"));
-  //   }
-  // }
-
-  static async createProduct(input: CreateProductInput): Promise<Product> {
-    try {
-      const imageFiles = ((input as any)._imageFiles as File[]) ?? [];
-
-      const backendInput = adaptCreateProductInput(input);
-
-      const raw = await productsApi.create(backendInput, imageFiles);
-
-      return adaptProduct(raw);
-    } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to create product"));
-    }
-  }
-  // ── UPDATE ──────────────────────────────────────────────
-
-  static async updateProduct(
-    productNo: string,
-    input: UpdateProductInput,
+  static async getProduct(
+    productId: string,
   ): Promise<Product> {
     try {
-      const newImageFiles = ((input as any)._newImageFiles as File[]) ?? [];
-      const keptImageIds = ((input as any)._keptImageIds as string[]) ?? [];
+      const raw = await productsApi.get(productId);
 
-      const backendInput = adaptUpdateProductInput(input);
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to fetch product"),
+      );
+    }
+  }
 
-      const raw = await productsApi.update(
-        productNo,
+  // ───────────────────────────────────────────────────────────
+  // Create
+  // ───────────────────────────────────────────────────────────
+
+  static async createProduct(
+    payload: CreateProductPayload,
+  ): Promise<Product> {
+    try {
+      const { product, imageFiles } = payload;
+
+      const backendInput =
+        adaptCreateProductInput(product);
+      const raw = await productsApi.create(
         backendInput,
-        newImageFiles,
-        keptImageIds,
+        imageFiles,
       );
 
       return adaptProduct(raw);
     } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to update product"));
-    }
-  }
-  static async deactivateProduct(productNo: string): Promise<Product> {
-    try {
-      const raw = await productsApi.deactivate(productNo);
-      return adaptProduct(raw);
-    } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to deactivate product"));
+      throw new Error(
+        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to create product"),
+      );
     }
   }
 
-  static async activateProduct(productNo: string): Promise<Product> {
+  // ───────────────────────────────────────────────────────────
+  // Update
+  // ───────────────────────────────────────────────────────────
+
+  static async updateProduct(
+    productId: string,
+    payload: UpdateProductPayload,
+  ): Promise<Product> {
     try {
-      const raw = await productsApi.activate(productNo);
+      const {
+        product,
+        newImageFiles,
+        keptImageIds,
+        primaryImageId,
+      } = payload;
+
+      const backendInput =
+        adaptUpdateProductInput(product);
+
+      const raw = await productsApi.update(
+        productId,
+        backendInput,
+        newImageFiles,
+        keptImageIds,
+        primaryImageId
+      );
+
       return adaptProduct(raw);
     } catch (err) {
-      throw new Error(getErrorMessage(err, "Failed to activate product"));
+      throw new Error(
+        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to update product"),
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Status
+  // ───────────────────────────────────────────────────────────
+
+  static async activateProduct(
+    productId: string,
+  ): Promise<Product> {
+    try {
+      const raw =
+        await productsApi.activate(productId);
+
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to activate product"),
+      );
+    }
+  }
+
+  static async deactivateProduct(
+    productId: string,
+  ): Promise<Product> {
+    try {
+      const raw =
+        await productsApi.deactivate(productId);
+
+      return adaptProduct(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to deactivate product"),
+      );
     }
   }
 }

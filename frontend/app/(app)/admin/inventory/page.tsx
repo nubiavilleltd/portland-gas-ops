@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import {
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { Plus } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -11,263 +15,195 @@ import Badge from "@/components/ui/Badge";
 
 import {
   useInventoryItems,
-  useInventoryKPIs,
   useConsumableStock,
+  useTrackedInventoryKPIs,
+  useConsumableInventoryKPIs,
 } from "@/lib/modules/inventory/hooks/useInventory";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 
 import {
   getProductById,
-  getActiveProducts,
 } from "@/lib/modules/products/selectors/products.selectors";
-import { isTracked } from "@/lib/modules/products/types/product.types";
-import { formatCurrency } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import type { ConsumableStock } from "@/lib/modules/inventory/types/inventory.types";
 import { BadgeVariant } from "@/config/badge.config";
-import { KpiCard } from "@/lib/modules/orders/components/KpiCard";
+import TrackedInventoryKpis from "@/lib/modules/inventory/components/TrackedInventoryKpis";
+import ConsumableInventoryKpis from "@/lib/modules/inventory/components/ConsumableInventoryKpis";
+import { InventoryTab } from "@/lib/modules/inventory/constants/inventory-tabs";
+import { Suspense } from "react";
+import InventoryListSkeleton from "@/lib/modules/inventory/components/InventoryListSkeleton";
 
 // ── Status badge map ──────────────────────────────────────
 const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
-  available:     "success",
-  reserved:      "warning",
-  checked_out:   "info",
+  available: "success",
+  reserved: "warning",
+  checked_out: "info",
   with_customer: "cyan",
-  maintenance:   "orange",
-  retired:       "neutral",
-  returned:       "neutral",
+  maintenance: "orange",
+  retired: "neutral",
+  returned: "neutral",
 };
 
 const STATUS_LABEL: Record<InventoryItem["status"], string> = {
-  available:     "Available",
-  reserved:      "Reserved",
-  checked_out:   "Checked Out",
+  available: "Available",
+  reserved: "Reserved",
+  checked_out: "Checked Out",
   with_customer: "With Customer",
-  maintenance:   "Maintenance",
-  retired:       "Retired",
-  returned:       "Returned",
+  maintenance: "Maintenance",
+  retired: "Retired",
+  returned: "Returned",
 };
 
-// ── Tab type ──────────────────────────────────────────────
-type Tab = "tracked" | "consumable";
+export default function InventoryListPage() {
+  return (
+    <Suspense fallback={<InventoryListSkeleton />}>
+      <InventoryListContent />
+    </Suspense>
+  );
+}
 
 // ── Page ──────────────────────────────────────────────────
-export default function InventoryListPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("tracked");
+function InventoryListContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const { items,   isLoading: itemsLoading   } = useInventoryItems();
-  const { stock,   isLoading: stockLoading   } = useConsumableStock();
-  const { kpis,    isLoading: kpisLoading    } = useInventoryKPIs();
+  const activeTab: InventoryTab =
+    searchParams.get("tab") === "consumable"
+      ? "consumable"
+      : "tracked";
+
+  const { items, isLoading: itemsLoading } = useInventoryItems();
+  const { stock, isLoading: stockLoading } = useConsumableStock();
   const { products, isLoading: productsLoading } = useProducts();
 
-  const isLoading = itemsLoading || stockLoading || productsLoading;
-
-  // ── Tracked columns ───────────────────────────────────────
-//   const trackedColumns: Column<InventoryItem>[] = [
-//     {
-//       key: "tag_number",
-//       label: "Tag Number",
-//       render: (value) => (
-//         <span className="font-medium font-mono text-sm">{value as string}</span>
-//       ),
-//     },
-//     {
-//       key: "product_id",
-//       label: "Product",
-//       render: (value) =>
-//         getProductById(products, value as string)?.name ?? "—",
-//     },
-//     {
-//       key: "serial_number",
-//       label: "Serial No.",
-//       render: (value) => (value as string) ?? "—",
-//     },
-//     {
-//       key: "condition",
-//       label: "Condition",
-//       render: (value) => {
-//         const v = value as InventoryItem["condition"];
-//         const variant: BadgeVariant =
-//           v === "new"         ? "success"  :
-//           v === "refurbished" ? "info"     :
-//           v === "used"        ? "neutral"  : "danger";
-//         return <Badge variant={variant} label={v} />;
-//       },
-//     },
-//     {
-//       key: "status",
-//       label: "Status",
-//       render: (value) => {
-//         const v = value as InventoryItem["status"];
-//         return (
-//           <Badge
-//             variant={STATUS_VARIANT[v]}
-//             label={STATUS_LABEL[v]}
-//           />
-//         );
-//       },
-//     },
-//     {
-//       key: "location_id",
-//       label: "Location",
-//       render: () => "Main Warehouse",
-//     },
-//     {
-//       key: "received_at",
-//       label: "Received",
-//     },
-//   ];
-
-//   // ── Consumable columns ────────────────────────────────────
-//  const consumableColumns: Column<ConsumableStock>[] = [
-//   {
-//     key: "product_id",
-//     label: "Product",
-//     render: (_, row) => {
-//       const product = getProductById(products, row.product_id);
-//       return <span className="font-medium">{product?.name ?? "—"}</span>;
-//     },
-//   },
-//   {
-//     key: "quantity",
-//     label: "Current Stock",
-//     render: (value, row) => {
-//       const product = getProductById(products, row.product_id);
-//       return `${(value as number).toLocaleString()} ${product?.unit ?? ""}`;
-//     },
-//   },
-//   {
-//     key: "id",
-//     label: "Min. Stock",
-//     render: (_, row) => {
-//       const product = getProductById(products, row.product_id);
-//       return product?.minimum_stock
-//         ? `${product.minimum_stock.toLocaleString()} ${product.unit}`
-//         : "—";
-//     },
-//   },
-//   {
-//     key: "location_id",
-//     label: "Status",
-//     render: (_, row) => {
-//       const product  = getProductById(products, row.product_id);
-//       const minStock = product?.minimum_stock ?? 0;
-//       const isLow    = minStock > 0 && row.quantity <= minStock;
-//       return (
-//         <Badge
-//           variant={isLow ? "danger" : "success"}
-//           label={isLow ? "Low Stock" : "OK"}
-//         />
-//       );
-//     },
-//   },
-//   {
-//     key: "updated_at",
-//     label: "Last Updated",
-//   },
-// ];
 
 
-const trackedColumns: Column<InventoryItem>[] = [
-  {
-    key: "tag_number",
-    label: "Tag Number",
-    render: (value) => (
-      <span className="font-medium font-mono text-sm">{value as string}</span>
-    ),
-  },
-  {
-    key: "product_id",
-    label: "Product",
-    render: (value) =>
-      getProductById(products, value as string)?.name ?? "—",
-  },
-  {
-    key: "serial_number",
-    label: "Serial No.",
-    render: (value) => (value as string) ?? "—",
-  },
-  {
-    key: "condition",
-    label: "Condition",
-    render: (value) => {
-      const v = value as InventoryItem["condition"];
-      const variant: BadgeVariant =
-        v === "new"         ? "success"  :
-        v === "refurbished" ? "info"     :
-        v === "used"        ? "neutral"  : "danger";
-      return <Badge variant={variant} label={v} />;
-    },
-  },
-  {
-    key: "status",
-    label: "Status",
-    render: (value) => {
-      const v = value as InventoryItem["status"];
-      return <Badge variant={STATUS_VARIANT[v]} label={STATUS_LABEL[v]} />;
-    },
-  },
-  {
-    key: "location_id",
-    label: "Location",
-    render: () => "Main Warehouse",
-  },
-  {
-    key: "received_at",
-    label: "Received",
-  },
-];
 
-const consumableColumns: Column<ConsumableStock>[] = [
-  {
-    key: "product_id",
-    label: "Product",
-    render: (value) => {
-      const product = getProductById(products, value as string);
-      return <span className="font-medium">{product?.name ?? "—"}</span>;
+  const {
+    kpis: trackedKpis,
+  } = useTrackedInventoryKPIs();
+
+  const {
+    kpis: consumableKpis,
+  } = useConsumableInventoryKPIs();
+
+  const isLoading =
+    itemsLoading ||
+    stockLoading ||
+    productsLoading;
+
+
+  const trackedColumns: Column<InventoryItem>[] = [
+
+    {
+      key: "product_name",
+      label: "Product",
     },
-  },
-  {
-    key: "quantity",
-    label: "Current Stock",
-    render: (value, row) => {
-      const product = getProductById(products, row.product_id);
-      return `${(value as number).toLocaleString()} ${product?.unit ?? ""}`;
+
+    {
+      key: "tag_number",
+      label: "Tag Number",
+      render: (value) => (
+        <span className="font-medium font-mono text-sm">{value as string}</span>
+      ),
     },
-  },
-  {
-    key: "updated_at",
-    label: "Min. Stock",
-    render: (_, row) => {
-      const product = getProductById(products, row.product_id);
-      return product?.minimumStock
-        ? `${product.minimumStock.toLocaleString()} ${product.unit}`
-        : "—";
+    // {
+    //   key: "serial_number",
+    //   label: "Serial No.",
+    //   render: (value) => (value as string) ?? "—",
+    // },
+    {
+      key: "condition",
+      label: "Condition",
+      render: (value) => {
+        const v = value as InventoryItem["condition"];
+        const variant: BadgeVariant =
+          v === "new" ? "success" :
+            v === "refurbished" ? "info" :
+              v === "used" ? "neutral" : "danger";
+        return <Badge variant={variant} label={v} />;
+      },
     },
-  },
-  {
-    key: "id",
-    label: "Status",
-    render: (_, row) => {
-      const product  = getProductById(products, row.product_id);
-      const minStock = product?.minimumStock ?? 0;
-      const isLow    = minStock > 0 && row.quantity <= minStock;
-      return (
-        <Badge
-          variant={isLow ? "danger" : "success"}
-          label={isLow ? "Low Stock" : "OK"}
-        />
-      );
+    {
+      key: "status",
+      label: "Status",
+      render: (value) => {
+        const v = value as InventoryItem["status"];
+        return <Badge variant={STATUS_VARIANT[v]} label={STATUS_LABEL[v]} />;
+      },
     },
-  },
-  {
-    key: "location_id",
-    label: "Last Updated",
-    render: (_, row) => row.updated_at,
-  },
-];
+    {
+      key: "location_name",
+      label: "Location",
+    },
+    {
+      key: "received_at",
+      label: "Received",
+      render: (value) => formatDate(value as string)
+    },
+  ];
+
+  const consumableColumns: Column<ConsumableStock>[] = [
+    {
+      key: "product_name",
+      label: "Product",
+    },
+    {
+      key: "location_name",
+      label: "Location",
+    },
+    {
+      key: "quantity",
+      label: "Current Stock",
+      render: (value, row) => {
+        const product = getProductById(products, row.product_id);
+        return `${(value as number).toLocaleString()} ${product?.unit ?? ""}`;
+      },
+    },
+    {
+      key: "location_id",
+      label: "Min. Stock",
+      render: (_, row) => {
+        const product = getProductById(products, row.product_id);
+        return product?.minimumStock
+          ? `${product.minimumStock.toLocaleString()} ${product.unit}`
+          : "—";
+      },
+    },
+    {
+      key: "id",
+      label: "Status",
+      render: (_, row) => {
+        const product = getProductById(products, row.product_id);
+        const minStock = product?.minimumStock ?? 0;
+        const isLow = minStock > 0 && row.quantity <= minStock;
+        return (
+          <Badge
+            variant={isLow ? "danger" : "success"}
+            label={isLow ? "Low Stock" : "OK"}
+          />
+        );
+      },
+    },
+    {
+      key: "updated_at",
+      label: "Last Updated",
+      render: (value) => formatDate(value as string)
+    },
+  ];
+
+  function handleTabChange(tab: InventoryTab) {
+    router.replace(
+      `${pathname}?tab=${tab}`,
+      {
+        scroll: false,
+      },
+    );
+  }
 
 
   return (
@@ -286,51 +222,28 @@ const consumableColumns: Column<ConsumableStock>[] = [
         className="mb-6"
       />
 
-      {/* KPI Cards — tracked items only */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        <KpiCard
-          label="Total Items"
-          value={kpis.totalTrackedItems}
-          variant="primary"
+      {activeTab === "tracked" ? (
+        <TrackedInventoryKpis
+          kpis={trackedKpis}
+          isLoading={isLoading}
         />
-        <KpiCard
-          label="Available"
-          value={kpis.availableItems}
-          variant="success"
+      ) : (
+        <ConsumableInventoryKpis
+          kpis={consumableKpis}
+          isLoading={isLoading}
         />
-        <KpiCard
-          label="Reserved"
-          value={kpis.reservedItems}
-          variant="warning"
-        />
-        <KpiCard
-          label="Checked Out"
-          value={kpis.checkedOutItems}
-          variant="info"
-        />
-        <KpiCard
-          label="With Customer"
-          value={kpis.withCustomerItems}
-          variant="info"
-        />
-        <KpiCard
-          label="Maintenance"
-          value={kpis.maintenanceItems}
-          variant="warning"
-        />
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit mb-6">
-        {(["tracked", "consumable"] as Tab[]).map((tab) => (
+        {(["tracked", "consumable"] as InventoryTab[]).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === tab
-                ? "bg-white text-brand-text-primary shadow-sm"
-                : "text-brand-text-secondary hover:text-brand-text-primary"
-            }`}
+            onClick={() => handleTabChange(tab)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === tab
+              ? "bg-white text-brand-text-primary shadow-sm"
+              : "text-brand-text-secondary hover:text-brand-text-primary"
+              }`}
           >
             {tab === "tracked" ? "Tracked Assets" : "Consumable Stock"}
           </button>
@@ -343,7 +256,7 @@ const consumableColumns: Column<ConsumableStock>[] = [
           columns={trackedColumns}
           data={items}
           isLoading={isLoading}
-          rowHref={(item) => INVENTORY_ROUTES.detail(item.id)}
+          rowHref={(item) => INVENTORY_ROUTES.trackedDetail(item.id)}
           emptyMessage="No inventory items found."
         />
       ) : (
@@ -352,6 +265,7 @@ const consumableColumns: Column<ConsumableStock>[] = [
           data={stock}
           isLoading={isLoading}
           emptyMessage="No consumable stock found."
+          rowHref={(stock) => INVENTORY_ROUTES.stockDetail(stock.id)}
         />
       )}
     </AppLayout>

@@ -78,8 +78,27 @@ export function canStartTrip(trip: Trip) {
   return trip.status === "dispatched"
 }
 
-export function canCompleteTrip(trip: Trip): boolean {
-  return trip.status === "in_transit" 
+export function canCompleteTrip(
+  trip: Trip,
+  orders: Map<string, Order>
+): boolean {
+  if (trip.status !== "in_transit") {
+    return false;
+  }
+
+  if (trip.order_ids.length === 0) {
+    return true;
+  }
+
+
+  return trip.order_ids.every((id) => {
+    const order = orders.get(id);
+
+    return (
+      order &&
+      order.fulfillmentStatus === "delivered"
+    );
+  });
 }
 
 export function canCancelTrip(trip: Trip): boolean {

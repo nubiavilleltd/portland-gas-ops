@@ -99,9 +99,13 @@ export interface Order {
   totalAmount: number;
 
   // Delivery
-  deliveryAddress: string;
+  deliveryAddress: string | null;
   deliveryDate: string | null;
   notes?: string;
+
+  // Proof of delivery
+  receivedBy?: string;
+  deliveryNotes?: string;
 
   // Cancellation
   cancellationReason?: string;
@@ -121,6 +125,7 @@ export interface Order {
   approvedBy?: string;
   approvedAt?: string;
   rejectionReason?: string;
+
 
   // Audit timestamps
   createdAt: string;
@@ -151,6 +156,16 @@ export interface CreateOrderInput {
   notes?: string;
 }
 
+export interface SaveDraftInput {
+  customerId: string;
+  orderItems?: CreateOrderLineItemInput[];
+  discountType?: DiscountType;
+  discountValue?: number;
+  deliveryAddress?: string;
+  deliveryDate?: string;
+  notes?: string;
+}
+
 export interface UpdateOrderInput
   extends Partial<CreateOrderInput> {
   orderStatus?: OrderStatus;
@@ -162,6 +177,13 @@ export interface UpdateOrderInput
 
   cancellationReason?: string;
   cancelledAt?: string;
+}
+
+export interface ConfirmDeliveryPayload {
+  order: Order;
+
+  receivedBy: string;
+  deliveryNotes?: string;
 }
 
 // ─────────────────────────────────────────────────────────────

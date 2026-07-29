@@ -11,7 +11,7 @@ from app.orders.service import OrderService
 from app.fleet.drivers.service import DriverService
 from app.fleet.vehicles.service import VehicleService
 from app.fleet.trips.service import TripService
-
+from app.fleet.trips.email_content import notify_driver_assigned
 
 class AssignResourcesWorkflow:
 
@@ -25,10 +25,11 @@ class AssignResourcesWorkflow:
     def execute(
         self,
         db: Session,
-        trip_id: int,
-        driver_id: int,
-        vehicle_id: int,
-        actor_id: str,
+        trip_id: str,
+        driver_id: str,
+        vehicle_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
 
@@ -56,7 +57,7 @@ class AssignResourcesWorkflow:
         #
         # Does this trip require inventory?
         #
-        awaiting_inventory = self.trip_service.requires_inventory(
+        awaiting_inventory = self.trip_service.requires_inventory_assignment(
             db=db,
             trip_id=trip.id,
         )
@@ -72,6 +73,8 @@ class AssignResourcesWorkflow:
             awaiting_inventory=awaiting_inventory,
         )
 
+      
+
         #
         # Update driver & vehicle
         #
@@ -81,6 +84,9 @@ class AssignResourcesWorkflow:
             trip_id=trip.id,
         )
 
+        db.refresh(trip)
+ 
+
         self.vehicle_service.assign_to_trip(
             db=db,
             vehicle_id=vehicle.id,
@@ -89,22 +95,24 @@ class AssignResourcesWorkflow:
 
         #
         # Update linked orders
-        #
-        for order_id in self.trip_service.get_order_ids(
+        order_ids = self.trip_service.get_order_ids(
             db=db,
             trip_id=trip.id,
-        ):
+        )
+        #
+        for order_id in order_ids:
 
             order = self.order_service.get_or_raise(
                 db=db,
                 order_id=order_id,
             )
 
-            self.order_service.update_fulfillment_status(
+            self.order_service.progress_fulfillment_status(
                 db=db,
-                order_no=order.order_no,
+                order=order,
                 status="assigned",
             )
+        print("Linked orders:", order_ids)
 
         #
         # Audit
@@ -119,7 +127,13 @@ class AssignResourcesWorkflow:
                 f"and vehicle '{vehicle.name}' assigned."
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
+        )
+
+        notify_driver_assigned(
+            db=db,
+            trip_id=trip.id,
         )
 
         return trip

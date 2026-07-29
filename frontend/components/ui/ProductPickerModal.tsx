@@ -31,14 +31,45 @@ function ProductCard({
 }) {
   const primaryImage = product.images?.[0];
 
-  const stockLabel = isTracked(product)
-    ? `${getAvailableCount(inventoryItems, product.id)} unit(s) available`
-    : `${getConsumableStockLevel(consumableStock, product.id).toLocaleString()} ${product.unit} in stock`;
+  // const stockLabel = isTracked(product)
+  //   ? `${getAvailableCount(inventoryItems, product.id)} unit(s) available`
+  //   : `${getConsumableStockLevel(consumableStock, product.id).toLocaleString()} ${product.unit} in stock`;
 
-  const isLow = isTracked(product)
-    ? getAvailableCount(inventoryItems, product.id) === 0
-    : product.minimumStock != null &&
-      getConsumableStockLevel(consumableStock, product.id) <= product.minimumStock;
+  // const isLow = isTracked(product)
+  //   ? getAvailableCount(inventoryItems, product.id) === 0
+  //   : product.minimumStock != null &&
+  //     getConsumableStockLevel(consumableStock, product.id) <= product.minimumStock;
+
+
+
+  const tracked = isTracked(product);
+
+  const availableCount = getAvailableCount(inventoryItems, product.id);
+
+  const consumableQty = getConsumableStockLevel(
+    consumableStock,
+    product.id,
+  );
+
+  const hasInventory = tracked
+    ? availableCount > 0
+    : consumableQty > 0;
+
+  const stockLabel = tracked
+    ? hasInventory
+      ? `✓ ${availableCount} inventory item(s) available`
+      : "⚠ No inventory available"
+    : hasInventory
+      ? `✓ ${consumableQty.toLocaleString()} ${product.unit} available`
+      : "⚠ No stock available";
+
+  const helperText = tracked
+    ? !hasInventory
+      ? "Order can still be created. Dispatch will not be possible until inventory is checked in."
+      : undefined
+    : !hasInventory
+      ? "Order can still be created. Warehouse must receive stock before dispatch."
+      : undefined;
 
   return (
     <div className="flex items-center gap-4 px-4 py-3">
@@ -67,15 +98,29 @@ function ProductCard({
           )}
         </div>
         <p className="text-xs text-brand-text-secondary mt-0.5">
-          {isTracked(product) ? "Tracked Asset" : "Consumable"} · {product.unit}
+          {isTracked(product) ? "Tracked Inventory" : "Consumable Stock"} · {product.unit}
         </p>
-        <div className="flex items-center gap-3 mt-1">
-          <span className={cn("text-xs font-medium", isLow ? "text-red-600" : "text-green-700")}>
+        <div className="mt-1">
+          <span
+            className={cn(
+              "text-xs font-medium",
+              hasInventory
+                ? "text-green-700"
+                : "text-amber-700"
+            )}
+          >
             {stockLabel}
           </span>
-          <span className="text-xs text-brand-text-secondary">
+
+          {helperText && (
+            <p className="mt-1 text-xs text-brand-text-secondary">
+              {helperText}
+            </p>
+          )}
+
+          <p className="mt-1 text-xs text-brand-text-secondary">
             {formatCurrency(product.defaultUnitPrice)} / {product.unit}
-          </span>
+          </p>
         </div>
       </div>
 

@@ -24,11 +24,23 @@ def validate_order_items(
     *,
     required: bool = True,
 ) -> Optional[list]:
+    """Validate order items.
+    
+    Args:
+        items: List of order items
+        required: If True, items must be non-empty and have valid structure.
+                 If False, items can be None or empty.
+    """
     if items is None:
         if required:
             raise ValueError("Order must have at least one item")
         return None
 
+    # If not required, empty list is fine
+    if not required:
+        return items
+
+    # If required, must have at least one item
     if not items:
         raise ValueError("Order must have at least one item")
 
@@ -47,10 +59,30 @@ def validate_delivery_address(
 
     cleaned = value.strip()
 
-    if not cleaned:
+    # Only validate non-empty if required
+    if required and not cleaned:
         raise ValueError("Delivery address cannot be empty")
 
+    return cleaned if cleaned else None
+
+
+def validate_customer_id(
+    value: Optional[str],
+    *,
+    required: bool = True,
+) -> Optional[str]:
+    if value is None:
+        if required:
+            raise ValueError("Customer is required")
+        return None
+
+    cleaned = value.strip()
+
+    if required and not cleaned:
+        raise ValueError("Customer is required")
+
     return cleaned
+
 
 
 def validate_discount_value(

@@ -21,15 +21,35 @@ export type Department =
   | "engineering"
   | "procurement";
 
+export interface EmployeeReference {
+  id: string;
+  employee_no: string;
+}
+
+export interface DriverReference {
+  id: string;
+  driver_no: string;
+}
+
 export interface User {
   id: string;
+
   first_name: string;
   last_name: string;
-  name?: string;        // legacy — kept for backward compatibility
+  name?: string; // legacy
+
   email: string;
   role: UserRole;
+
   account_status: "active" | "pending" | "deactivated";
+
   phone?: string | null;
+
   profile_picture_url?: string | null;
+
   created_at?: string;
+
+  employee?: EmployeeReference | null;
+
+  driver?: DriverReference | null;
 }

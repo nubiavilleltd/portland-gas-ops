@@ -14,87 +14,91 @@ import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBad
 
 import DataTable, { Column } from "@/components/ui/DataTable";
 import { Order } from "@/lib/modules/orders/types/orders.types";
-import { useOrderKPIs, useOrders } from "@/lib/modules/orders/hooks/useOrders";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { ORDER_ROUTES } from "@/lib/routes";
 import { ORDER_DASHBOARD_KPIS } from "@/lib/modules/orders/constants/order-dashboard.constants";
 import { KpiCard } from "@/lib/modules/orders/components/KpiCard";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
-
+import PageError from "@/components/ui/PageError";
+import { getOrderKPIs } from "@/lib/modules/orders/selectors/orders.selectors";
+import {
+  InvoiceStatusBadge,
+  OrderInvoiceStatus,
+} from "@/lib/modules/orders/badges/InvoiceStatusBadge";
 
 export default function OrdersListPage() {
+  const { orders, isLoading, error, refetch } = useOrders();
+  const kpis = getOrderKPIs(orders);
 
-  const { orders } = useOrders()
-  const { customers } = useCustomers()
-  const { kpis } = useOrderKPIs()
+  if (error) {
+    return (
+      <AppLayout pageTitle="Orders">
+        <PageHeader
+          title="Orders"
+          description="Manage customer orders, dispatch, billing and payments"
+          className="mb-6"
+        />
 
-
-  const customerMap = Object.fromEntries(
-    customers.map((customer) => [
-      customer.id,
-      customer,
-    ])
-  );
-
-
+        <PageError
+          message={error}
+          onRetry={refetch}
+        />
+      </AppLayout>
+    );
+  }
 
   const columns: Column<Order>[] = [
     { key: "orderNumber", label: "ORDER NO." },
 
     {
-      key: "cutstomerId", label: "CUSTOMER", render: (value) =>
-        customerMap[value as string]
-          ?.name ?? "—"
+      key: "createdAt",
+      label: "CREATED AT",
+      render: (value) => (value ? formatDate(value as string) : "—"),
+    },
+    {
+      key: "customerName",
+      label: "CUSTOMER",
     },
     {
       key: "totalAmount",
       label: "AMOUNT",
-      render: (value) =>
-        formatCurrency(Number(value)),
+      render: (value) => formatCurrency(Number(value)),
     },
 
     {
       key: "deliveryDate",
       label: "DELIVERY DATE",
-      render: (value) =>
-        value
-          ? formatDate(value as string)
-          : "—",
+      render: (value) => (value ? formatDate(value as string) : "—"),
     },
 
     {
       key: "orderStatus",
       label: "ORDER STATUS",
       render: (value) => (
-        <OrderStatusBadge
-          status={
-            value as Order["orderStatus"]
-          }
-        />
+        <OrderStatusBadge status={value as Order["orderStatus"]} />
       ),
     },
 
     {
-      key: "fulfillment_status",
+      key: "fulfillmentStatus",
       label: "DELIVERY STATUS",
       render: (value) => (
-        <FulfillmentStatusBadge
-          status={
-            value as Order["fulfillmentStatus"]
-          }
-        />
+        <FulfillmentStatusBadge status={value as Order["fulfillmentStatus"]} />
       ),
     },
 
     {
-      key: "payment_status",
+      key: "invoiceId",
+      label: "INVOICE",
+      render: (invoiceId) => (
+        <InvoiceStatusBadge status={invoiceId ? "generated" : "pending"} />
+      ),
+    },
+    {
+      key: "paymentStatus",
       label: "PAYMENT STATUS",
       render: (value) => (
-        <PaymentStatusBadge
-          status={
-            value as Order["paymentStatus"]
-          }
-        />
+        <PaymentStatusBadge status={value as Order["paymentStatus"]} />
       ),
     },
   ];
@@ -125,8 +129,8 @@ export default function OrdersListPage() {
                 ? formatCurrency(kpis[item.key])
                 : kpis[item.key]
             }
-
             variant={item.variant}
+            isLoading={isLoading}
           />
         ))}
       </div>
@@ -134,10 +138,10 @@ export default function OrdersListPage() {
       <DataTable<Order>
         columns={columns}
         data={orders}
-        rowHref={(order) => ORDER_ROUTES.detail(order.orderNumber)}
+        rowHref={(order) => ORDER_ROUTES.detail(order.id)}
+        isLoading={isLoading}
         emptyMessage="No orders found."
       />
     </AppLayout>
   );
 }
-

@@ -58,6 +58,8 @@ export function canCloseOrder(order: Order) {
   );
 }
 
+
+
 export function canCancelOrder(order: Order) {
   if (
     ["draft", "completed", "cancelled"].includes(order.orderStatus)
@@ -69,6 +71,14 @@ export function canCancelOrder(order: Order) {
     ["dispatched", "in_transit", "delivered"].includes(
       order.fulfillmentStatus
     )
+  ) {
+    return false;
+  }
+
+  // Cannot cancel once payment has been received
+  if (
+    order.invoiceId &&
+    ["paid", "partially_paid"].includes(order.paymentStatus)
   ) {
     return false;
   }

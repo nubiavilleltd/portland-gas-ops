@@ -20,7 +20,6 @@ class DriverUpdate(BaseModel):
     license_expiry_date: Optional[date] = None
     experience_years: Optional[int] = None
     address: Optional[str] = None
-    status: Optional[DriverStatus] = None
 
 
 
@@ -53,3 +52,10 @@ class DriverListResponse(BaseModel):
     page: int
     page_size: int
     has_next: bool
+
+class DriverReference(BaseModel):
+    id: str
+    driver_no: str
+
+    class Config:
+        from_attributes = True

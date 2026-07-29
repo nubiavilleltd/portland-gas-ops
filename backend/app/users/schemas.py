@@ -2,6 +2,8 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 from app.shared.models.user import UserRole
+from app.employees.schemas import EmployeeReference
+from app.fleet.drivers.schema import DriverReference
 
 
 class UserCreate(BaseModel):
@@ -29,6 +31,9 @@ class UserResponse(BaseModel):
     profile_picture_url: Optional[str]
     account_status: str
     created_at: datetime
+
+    employee: Optional[EmployeeReference] = None
+    driver: Optional[DriverReference] = None
 
     class Config:
         from_attributes = True

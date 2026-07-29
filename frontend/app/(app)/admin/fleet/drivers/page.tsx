@@ -59,7 +59,7 @@ const columns: Column<Driver>[] = [
 
 
 export default function DriversPage() {
-  const {drivers} = useDrivers();
+  const { drivers, isLoading } = useDrivers();
 
   return (
     <AppLayout pageTitle="Drivers">
@@ -74,11 +74,12 @@ export default function DriversPage() {
       />
 
       <DataTable<Driver>
-  columns={columns}
-  data={drivers}
-  rowHref={(driver) => `/admin/${FLEET_ROUTES.driverDetail(driver.id)}`}
-  emptyMessage="No drivers found."
-/>
+        columns={columns}
+        data={drivers}
+        isLoading={isLoading}
+        rowHref={(driver) => `/admin/${FLEET_ROUTES.driverDetail(driver.id)}`}
+        emptyMessage="No drivers found."
+      />
     </AppLayout>
   );
 }

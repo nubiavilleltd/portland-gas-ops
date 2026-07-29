@@ -17,31 +17,26 @@ import {
 import type {
   Product,
   ProductImage,
+  ProductFormImage,
   ProductUnit,
 } from "@/lib/modules/products/types/product.types";
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { useState } from "react";
-import { PRODUCT_TYPE_OPTIONS, PRODUCT_UNIT_OPTIONS, UNIT_OPTIONS } from "../constants/product.constants";
-
-
+import {
+  PRODUCT_TYPE_OPTIONS,
+  UNIT_OPTIONS,
+} from "../constants/product.constants";
 
 // ── Props ──────────────────────────────────────────────────
 interface ProductFormProps {
-  /**
-   * Pass an existing product to pre-fill the form for editing.
-   * Omit for the create flow.
-   */
   initial?: Product;
   onSubmit: (
     data: CreateProductFormOutput,
-    images: File[],
-    keptImages: ProductImage[],
+    images: ProductFormImage[],
   ) => Promise<void>;
   onCancel: () => void;
-  /** Label for the submit button */
   submitLabel?: string;
-  /** Label for the submit button while submitting */
   submitLoadingLabel?: string;
 }
 
@@ -53,6 +48,8 @@ export default function ProductForm({
   submitLabel = "Create Product",
   submitLoadingLabel = "Creating…",
 }: ProductFormProps) {
+  const MAX_FILES = 3;
+  const MAX_SIZE_MB = 5;
   const {
     register,
     control,
@@ -89,19 +86,22 @@ export default function ProductForm({
 
   const productType = watch("productType");
 
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  // const [imageFiles, setImageFiles] = useState<File[]>([]);
 
-  const [keptImages, setKeptImages] = useState<ProductImage[]>(
-    initial?.images ?? [],
+  // const [keptImages, setKeptImages] = useState<ProductImage[]>(
+  //   initial?.images ?? [],
+  // );
+
+  const [images, setImages] = useState<ProductFormImage[]>(() =>
+    (initial?.images ?? []).map((image) => ({
+      kind: "existing",
+      image,
+    })),
   );
-
-  function handleRemoveExisting(id: string) {
-    setKeptImages((prev) => prev.filter((img) => img.id !== id));
-  }
 
   async function handleFormSubmit(data: CreateProductFormOutput) {
     try {
-      await onSubmit(data, imageFiles, keptImages);
+      await onSubmit(data, images);
     } catch (err) {
       // Re-throw so the page/modal can also handle it if needed,
       // but also set the root error so ErrorBanner renders
@@ -116,6 +116,7 @@ export default function ProductForm({
     <form
       onSubmit={handleSubmit(handleFormSubmit)}
       className="space-y-5"
+      noValidate
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Product Name */}
@@ -155,22 +156,6 @@ export default function ProductForm({
 
       {/* Unit + Price side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* <Controller
-                    control={control}
-                    name="unit"
-                    render={({ field }) => (
-                        <FormSelect
-                            label="Unit of Measurement"
-                            required
-                            options={UNIT_OPTIONS}
-                            value={field.value}
-                            onValueChange={(v) => field.onChange(v as ProductUnit)}
-                            error={errors.unit?.message}
-                            hint="How quantities of this product are measured."
-                        />
-                    )}
-                /> */}
-
         {productType === "tracked" && (
           <FormInput
             label="Product Code / Tag Prefix"
@@ -219,17 +204,6 @@ export default function ProductForm({
           error={errors.defaultUnitPrice?.message}
           required
         />
-        {/* 
-                <FormInput
-                    label="Default Unit Price (₦)"
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    placeholder="e.g. 1,500,000"
-                    // hint="Suggested price per unit. Can be overridden on each order."
-                    error={errors.defaultUnitPrice?.message}
-                    {...register("defaultUnitPrice")}
-                /> */}
       </div>
 
       {/* Description */}
@@ -243,28 +217,17 @@ export default function ProductForm({
 
       <ImageUpload
         label="Product Images"
-        value={imageFiles}
-        onChange={setImageFiles}
-        existingImages={keptImages}
-        onRemoveExisting={handleRemoveExisting}
-        maxFiles={3}
-        maxSizeMB={5}
+        images={images}
+        onChange={setImages}
+        maxFiles={MAX_FILES}
+        maxSizeMB={MAX_SIZE_MB}
         hint="Up to 3 images. First image is used as the primary display image."
       />
-
       {/* Root error */}
       <ErrorBanner message={errors.root?.message} />
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-2">
-        {/* <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onCancel}
-                    disabled={isSubmitting}
-                >
-                    Cancel
-                </Button> */}
+      <div className="mt-4">
         <Button
           type="submit"
           loading={isSubmitting}
