@@ -67,7 +67,7 @@ export default function CashRequisitionDetailPage({
   const { id } = use(params);
   const { data: apiRecord, isLoading } = useCashRequisition(id);
   const { user: currentUser } = useCurrentUser();
-  const { data: myApprovals = [], isLoading: isApprovalsLoading } = useMyApprovals();
+  const { data: myApprovals = [] } = useMyApprovals();
   const { data: auditEntries = [] } = useAuditTrail("cash_requisition", apiRecord?.id ?? "");
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -91,7 +91,6 @@ export default function CashRequisitionDetailPage({
   // requester_id stores the User id.
   const isRequester = apiRecord && currentUser ? apiRecord.requester_id === currentUser.id : false;
   const canResubmit = isRequester && status === "returned";
-  const hasWorkflowAccess = canActNow || isRequester;
 
   const viewingAsLabel = canActNow ? currentStepName : isRequester ? "Requester" : "Viewer";
   const currentRole: PageRole = canActNow ? "approver" : "requester";
@@ -201,11 +200,12 @@ export default function CashRequisitionDetailPage({
           {/* Header */}
           <RoleBasedRecordHeader
             id={apiRecord.reference}
+            showCurrentAccess={false}
             currentRole={currentRole}
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}
             roles={ROLE_OPTIONS}
-            status={<ApprovalBadge status={status} />}
+            status={<ApprovalBadge status={status === "in_progress" ? "pending" : status} />}
             recordLabel="Cash Requisition"
             title={apiRecord.title}
             nextApproverName={
@@ -219,22 +219,6 @@ export default function CashRequisitionDetailPage({
             showRoleSwitcher={false}
           />
 
-          {/* Access note */}
-          {status !== "approved" && status !== "denied" && (
-            <div className="rounded-2xl border border-brand-border bg-brand-card p-4">
-              {isApprovalsLoading ? (
-                <div className="h-4 w-1/2 rounded bg-gray-100 animate-pulse" />
-              ) : (
-                <p className="text-sm text-brand-text-secondary">
-                  {canActNow
-                    ? `You are the current approver for this request (${currentStepName}). Review and make your decision below.`
-                    : hasWorkflowAccess
-                    ? `Viewing as ${viewingAsLabel}`
-                    : "You do not have direct access to this request."}
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Returned — requester edits inline and resubmits */}
           {canResubmit && (

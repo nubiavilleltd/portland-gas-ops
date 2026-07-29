@@ -15,6 +15,9 @@ export interface PayslipItem {
   pension: number;
   nhf: number;
   loan: number;
+  loan_description?: string | null;
+  loan_total?: number | null;
+  loan_outstanding?: number | null;
   net: number;
   payroll_status: string;
   prepared_by?: string;
@@ -37,6 +40,9 @@ export interface PayslipDisplay {
   pension: number;
   nhf: number;
   loan: number;
+  loan_description?: string | null;
+  loan_total?: number | null;
+  loan_outstanding?: number | null;
   net: number;
 }
 
