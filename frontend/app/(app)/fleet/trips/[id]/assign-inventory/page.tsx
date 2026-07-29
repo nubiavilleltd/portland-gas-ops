@@ -36,6 +36,7 @@ import type { ItemDisposition } from "@/lib/modules/inventory/types/inventory.ty
 import FormSelect from "@/components/forms/FormSelect";
 import CollapsibleTagList from "@/components/ui/CollapsibleTagList";
 import AssignmentProgress from "@/components/ui/AssignmentProgress";
+import AssignInventorySkeleton from "@/lib/modules/fleet/components/AssignInventorySkeleton";
 
 // ── Types ─────────────────────────────────────────────────
 // Each tracked line item now carries its own disposition alongside selected unit ids
@@ -181,11 +182,7 @@ export default function AssignInventoryPage() {
 
   // ── Loading ──────────────────────────────────────────────
   if (isLoading) {
-    return (
-      <AppLayout pageTitle="Assign Inventory">
-        <p className="text-brand-text-secondary">Loading…</p>
-      </AppLayout>
-    );
+    return <AssignInventorySkeleton />;
   }
 
   // ── Not found ────────────────────────────────────────────

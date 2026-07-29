@@ -34,6 +34,7 @@ import { useCreateTripWorkflow } from "@/lib/modules/fleet/hooks/useCreateTripWo
 import { canAssignToTrip } from "@/lib/modules/orders/guards/orders.guards";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
+import CreateTripSkeleton from "@/lib/modules/fleet/components/CreateTripSkeleton";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
@@ -64,10 +65,15 @@ function CreateTripForm() {
   const orderId = searchParams.get("orderId");
 
   // ── DATA HOOKS ─────────────────────────────────────────
-  const { orders } = useOrders();
+    const { orders, isLoading: ordersLoading } = useOrders();
 
-  const { driver } = useDriverById(driverId ?? "");
-  const { vehicle } = useVehicleById(vehicleId ?? "");
+  const { driver, isLoading: driverLoading } = useDriverById(driverId ?? "");
+  const { vehicle, isLoading: vehicleLoading } = useVehicleById(vehicleId ?? "");
+
+  const isLoading =
+    ordersLoading ||
+    (!!driverId && driverLoading) ||
+    (!!vehicleId && vehicleLoading);
 
   // ── LOOKUP MAPS ────────────────────────────────────────
 
@@ -124,6 +130,10 @@ function CreateTripForm() {
     } catch (err) {
       setError("root", { message: parseError(err) });
     }
+  }
+
+   if (isLoading) {
+    return <CreateTripSkeleton />;
   }
 
   return (

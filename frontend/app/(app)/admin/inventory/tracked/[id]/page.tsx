@@ -22,6 +22,7 @@ import { formatDate } from "@/lib/utils";
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import { BadgeVariant } from "@/config/badge.config";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import InventoryItemDetailSkeleton from "@/lib/modules/inventory/components/InventoryItemDetailSkeleton";
 
 // ── Status config ─────────────────────────────────────────
 const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
@@ -91,11 +92,7 @@ export default function InventoryItemDetailPage() {
   const isLoading = itemLoading || movementsLoading || productsLoading || orderLoading;
 
   if (isLoading) {
-    return (
-      <AppLayout pageTitle="Item Detail">
-        <p className="text-brand-text-secondary">Loading…</p>
-      </AppLayout>
-    );
+    return <InventoryItemDetailSkeleton />;
   }
 
   if (!item) {

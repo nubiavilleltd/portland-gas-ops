@@ -19,6 +19,7 @@ import { generateReceiptPdf } from "@/lib/pdf/receipt.pdf";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import { PaymentsService } from "@/lib/modules/payments/services/payments.service";
+import PaymentReceiptSkeleton from "@/lib/modules/payments/components/PaymentReceiptSkeleton";
 
 export default function PaymentReceiptPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,23 +27,21 @@ export default function PaymentReceiptPage() {
 
   const { payment, isLoading: paymentLoading, error } = usePaymentById(id);
   const { invoice, isLoading: invoiceLoading } = useInvoiceById(payment?.invoiceId ?? "");
-  const { order } = useOrderById(invoice?.order_id ?? "");
-  const { payments: allInvoicePayments } = usePaymentsByInvoice(payment?.invoiceId ?? "");
-  const { customers } = useCustomers();
+  const { order, isLoading: orderLoading } = useOrderById(invoice?.order_id ?? "");
+  const { payments: allInvoicePayments, isLoading: invoicePaymentsLoading } = usePaymentsByInvoice(payment?.invoiceId ?? "");
+  const { customers, isLoading: customersLoading } = useCustomers();
 
   const customer = order ? customers.find((c) => c.id === order.customerId) : undefined;
 
-  const isLoading = paymentLoading || invoiceLoading;
+  const isLoading =
+    paymentLoading ||
+    invoiceLoading ||
+    (!!invoice?.order_id && orderLoading) ||
+    (!!payment?.invoiceId && invoicePaymentsLoading) ||
+    customersLoading;
 
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Payment Receipt">
-        <div className="animate-pulse space-y-4 max-w-2xl">
-          <div className="h-8 bg-gray-100 rounded-lg w-1/3" />
-          <div className="h-48 bg-gray-100 rounded-2xl" />
-        </div>
-      </AppLayout>
-    );
+ if (isLoading) {
+    return <PaymentReceiptSkeleton />;
   }
 
   if (error || !payment) {

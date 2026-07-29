@@ -21,6 +21,7 @@ import { useAvailableVehicles } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useAssignResourcesWorkflow } from "@/lib/modules/fleet/hooks/useAssignResourcesWorkflow";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
+import AssignResourcesSkeleton from "@/lib/modules/fleet/components/AssignResourcesSkeleton";
 
 export default function AssignResourcesPage() {
   const params = useParams();
@@ -33,13 +34,19 @@ export default function AssignResourcesPage() {
   const id = params.id as string;
 
   // ✅ domain hooks instead of selectors
-  const { trip } = useTripById(id);
-  const { drivers: availableDrivers } = useAvailableDrivers();
-  const { vehicles: availableVehicles } = useAvailableVehicles();
+   const { trip, isLoading: tripLoading } = useTripById(id);
+  const { drivers: availableDrivers, isLoading: driversLoading } = useAvailableDrivers();
+  const { vehicles: availableVehicles, isLoading: vehiclesLoading } = useAvailableVehicles();
+  const isLoading = tripLoading || driversLoading || vehiclesLoading;
 
 
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
+
+
+   if (isLoading) {
+    return <AssignResourcesSkeleton />;
+  }
 
   if (!trip) {
     return (
@@ -49,25 +56,25 @@ export default function AssignResourcesPage() {
     );
   }
 
-  if (trip.status !== "pending" && trip.status !== "assigned") {
-    return (
-      <AppLayout pageTitle="Cannot Assign">
-        <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
-          <h2 className="font-semibold mb-2">Trip cannot be assigned</h2>
-          <p className="text-sm text-brand-text-secondary mb-4">
-            Resources can only be assigned to pending or assigned trips. This
-            trip is currently <TripStatusBadge status={trip.status} />.
-          </p>
-          <Button
-            href={`/fleet/trips/${id}`}
-            variant="outline"
-          >
-            Back to Trip
-          </Button>
-        </div>
-      </AppLayout>
-    );
-  }
+  // if (trip.status !== "pending" && trip.status !== "assigned") {
+  //   return (
+  //     <AppLayout pageTitle="Cannot Assign">
+  //       <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg">
+  //         <h2 className="font-semibold mb-2">Trip cannot be assigned</h2>
+  //         <p className="text-sm text-brand-text-secondary mb-4">
+  //           Resources can only be assigned to pending or assigned trips. This
+  //           trip is currently <TripStatusBadge status={trip.status} />.
+  //         </p>
+  //         <Button
+  //           href={`/fleet/trips/${id}`}
+  //           variant="outline"
+  //         >
+  //           Back to Trip
+  //         </Button>
+  //       </div>
+  //     </AppLayout>
+  //   );
+  // }
 
   const canSubmit = selectedDriverId && selectedVehicleId;
 

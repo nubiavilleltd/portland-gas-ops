@@ -12,14 +12,15 @@ import { FLEET_ROUTES } from "@/lib/routes";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
 import { useMemo } from "react";
+import EditDriverSkeleton from "@/lib/modules/fleet/components/EditDriverSkeleton";
 
 export default function EditDriverPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { driver } = useDriverById(id);
-  const { data: allEmployees = [] } = useEmployees({ limit: 200 });
-  const { data: currentEmployee } = useEmployee(driver?.employee_id ?? "");
+  const { driver, isLoading } = useDriverById(id);
+  const { data: allEmployees = [], isLoading:isLoadingEmployees } = useEmployees({ limit: 200 });
+  const { data: currentEmployee, isLoading:isLoadingDriverEmployees } = useEmployee(driver?.employee_id ?? "");
   const { updateDriver } = useUpdateDriver();
 
 
@@ -30,6 +31,10 @@ export default function EditDriverPage() {
     department: e.department ?? "—",
     avatar_url: e.user?.profile_picture_url ?? null,
   })), [allEmployees])
+
+   if (isLoading || isLoadingDriverEmployees || isLoadingEmployees) {
+    return <EditDriverSkeleton />;
+  }
 
   if (!driver) {
     return (

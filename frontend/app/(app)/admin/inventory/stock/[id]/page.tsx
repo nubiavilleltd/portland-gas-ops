@@ -17,6 +17,7 @@ import { getProductById } from "@/lib/modules/products/selectors/products.select
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 
 import { formatDate } from "@/lib/utils";
+import StockDetailSkeleton from "@/lib/modules/inventory/components/StockDetailSkeleton";
 
 export default function StockDetailPage() {
   const params = useParams();
@@ -30,14 +31,10 @@ export default function StockDetailPage() {
     error,
   } = useConsumableStockDetail(id);
 
-  const { products } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts();
 
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Consumable Stock">
-        Loading...
-      </AppLayout>
-    );
+if (isLoading || productsLoading) {
+    return <StockDetailSkeleton />;
   }
 
   if (error || !stock) {

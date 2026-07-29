@@ -39,6 +39,7 @@ import {
 import { CONDITION_OPTIONS } from "@/lib/modules/inventory/constants/inventory-form.constants";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 import { useState } from "react";
+import CheckInSkeleton from "@/lib/modules/inventory/components/CheckInSkeleton";
 
 // ── Page ──────────────────────────────────────────────────
 export default function CheckInPage() {
@@ -65,6 +66,10 @@ export default function CheckInPage() {
     label: p.name,
     description: isTracked(p) ? "Tracked Asset" : "Consumable",
   }));
+
+    if (productsLoading || locationsLoading) {
+    return <CheckInSkeleton />;
+  }
 
 
   // ── Tracked form ──────────────────────────────────────────
