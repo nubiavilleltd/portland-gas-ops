@@ -13,47 +13,50 @@ class PaymentPermissions:
         self,
         user: User,
     ) -> None:
+        return True
 
-        if user.role not in (
-            "super_admin",
-            "admin",
-        ):
-            raise AppException(
-                status_code=403,
-                error_code=ErrorCode.FORBIDDEN,
-                message="You do not have permission to record payments.",
-            )
+        # if user.role not in (
+        #     "super_admin",
+        #     "admin",
+        # ):
+        #     raise AppException(
+        #         status_code=403,
+        #         error_code=ErrorCode.FORBIDDEN,
+        #         message="You do not have permission to record payments.",
+        #     )
     
     def ensure_can_list_payments(
         self,
         user: User,
     ) -> None:
+        True
 
-        if user.role not in (
-            "super_admin",
-            "admin",
-        ):
-            raise AppException(
-                status_code=403,
-                error_code=ErrorCode.FORBIDDEN,
-                message="You do not have permission to view payments.",
-            )
+        # if user.role not in (
+        #     "super_admin",
+        #     "admin",
+        # ):
+        #     raise AppException(
+        #         status_code=403,
+        #         error_code=ErrorCode.FORBIDDEN,
+        #         message="You do not have permission to view payments.",
+        #     )
         
     def ensure_can_view_invoice_payments(
         self,
         user: User,
         invoice: Invoice,
     ) -> None:
+        return True
 
-        if user.role not in (
-            "super_admin",
-            "admin",
-        ):
-            raise AppException(
-                status_code=403,
-                error_code=ErrorCode.FORBIDDEN,
-                message="You do not have permission to view payments for this invoice.",
-            )
+        # if user.role not in (
+        #     "super_admin",
+        #     "admin",
+        # ):
+        #     raise AppException(
+        #         status_code=403,
+        #         error_code=ErrorCode.FORBIDDEN,
+        #         message="You do not have permission to view payments for this invoice.",
+        #     )
         
     def ensure_can_view_payment(
         self,
@@ -61,15 +64,17 @@ class PaymentPermissions:
         payment: Payment,
     ) -> None:
 
-        if user.role not in (
-            "super_admin",
-            "admin",
-        ):
-            raise AppException(
-                status_code=403,
-                error_code=ErrorCode.FORBIDDEN,
-                message="You do not have permission to view this payment.",
-            )
+        return True
+
+        # if user.role not in (
+        #     "super_admin",
+        #     "admin",
+        # ):
+        #     raise AppException(
+        #         status_code=403,
+        #         error_code=ErrorCode.FORBIDDEN,
+        #         message="You do not have permission to view this payment.",
+        #     )
 
 
 permissions = PaymentPermissions()
