@@ -1,7 +1,7 @@
 """add other work type to safety work initiations
 
-Revision ID: w7x8y9z0a1b2
-Revises: v6w7x8y9z0a1
+Revision ID: f4c8a1d7e2b9
+Revises: eb28ed324965
 Create Date: 2026-07-28
 
 """
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "w7x8y9z0a1b2"
-down_revision = "v6w7x8y9z0a1"
+revision = "f4c8a1d7e2b9"
+down_revision = "eb28ed324965"
 branch_labels = None
 depends_on = None
 
