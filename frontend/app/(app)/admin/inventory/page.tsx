@@ -33,6 +33,8 @@ import { BadgeVariant } from "@/config/badge.config";
 import TrackedInventoryKpis from "@/lib/modules/inventory/components/TrackedInventoryKpis";
 import ConsumableInventoryKpis from "@/lib/modules/inventory/components/ConsumableInventoryKpis";
 import { InventoryTab } from "@/lib/modules/inventory/constants/inventory-tabs";
+import { Suspense } from "react";
+import InventoryListSkeleton from "@/lib/modules/inventory/components/InventoryListSkeleton";
 
 // ── Status badge map ──────────────────────────────────────
 const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
@@ -55,8 +57,16 @@ const STATUS_LABEL: Record<InventoryItem["status"], string> = {
   returned: "Returned",
 };
 
-// ── Page ──────────────────────────────────────────────────
 export default function InventoryListPage() {
+  return (
+    <Suspense fallback={<InventoryListSkeleton />}>
+      <InventoryListContent />
+    </Suspense>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────
+function InventoryListContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
