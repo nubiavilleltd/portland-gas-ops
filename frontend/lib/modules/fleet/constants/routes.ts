@@ -16,8 +16,8 @@ export const FLEET_ROUTES = {
 
   // ── Trips ────────────────────────────────────────────
   tripList: () => "/fleet/trips",
-  tripDetail: (tripNo: string) => `/fleet/trips/${tripNo}`,
-  tripEdit: (tripNo: string) => `/fleet/trips/${tripNo}/edit`,
+  tripDetail: (tripId: string) => `/fleet/trips/${tripId}`,
+  tripEdit: (tripId: string) => `/fleet/trips/${tripId}/edit`,
 
   /**
    * tripNew supports optional context params carried from other pages.
@@ -32,7 +32,7 @@ export const FLEET_ROUTES = {
    *   → "/fleet/trips/new?orderId=ord-001"
    */
   tripNew: (params?: {
-    orderNo?: string;
+    orderId?: string;
     driverId?: string;
     vehicleId?: string;
   }) => {
@@ -47,11 +47,11 @@ export const FLEET_ROUTES = {
   },
 
   // Actions — route-based modal pattern
-  tripAssign: (tripNo: string) => `/fleet/trips/${tripNo}/assign`,
-  tripDispatch: (tripNo: string) => `/fleet/trips/${tripNo}/dispatch`,
-  tripStart: (tripNo: string) => `/fleet/trips/${tripNo}/start`,
-  tripComplete: (tripNo: string) => `/fleet/trips/${tripNo}/complete`,
-  tripUpdate: (tripNo: string) => `/fleet/trips/${tripNo}/update`,
+  tripAssign: (tripId: string) => `/fleet/trips/${tripId}/assign`,
+  tripDispatch: (tripId: string) => `/fleet/trips/${tripId}/dispatch`,
+  tripStart: (tripId: string) => `/fleet/trips/${tripId}/start`,
+  tripComplete: (tripId: string) => `/fleet/trips/${tripId}/complete`,
+  tripUpdate: (tripId: string) => `/fleet/trips/${tripId}/update`,
 
   // ── Drivers ──────────────────────────────────────────
   driverList: () => "/fleet/drivers",

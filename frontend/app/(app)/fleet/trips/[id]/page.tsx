@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 
-import { formatDate, formatCurrency, toTitleCase } from "@/lib/utils";
+import { formatDate, formatCurrency, toTitleCase, cn } from "@/lib/utils";
 
 import { TripStatusBadge } from "@/lib/modules/fleet/badges/TripStatusBadge";
 import { FulfillmentStatusBadge } from "@/lib/modules/orders/badges/FulfillmentStatusBadge";
@@ -24,16 +24,23 @@ import {
   canCompleteTrip,
   canDispatchTrip,
   canStartTrip,
-  canCancelTrip
+  canCancelTrip,
 } from "@/lib/modules/fleet/guards/trip.guards";
-import SimpleTable, { type SimpleTableColumn } from "@/components/ui/SimpleTable";
+import SimpleTable, {
+  type SimpleTableColumn,
+} from "@/components/ui/SimpleTable";
 
 import type { Order } from "@/lib/modules/orders/types/orders.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
 import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
 import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
-
+import TripDetailSkeleton from "@/lib/modules/fleet/components/TripDetailSkeleton";
+import { useState } from "react";
+import StartTripDialog from "@/lib/modules/fleet/components/StartTripModal";
+import DispatchTripDialog from "@/lib/modules/fleet/components/DispatchTripDialog";
+import CompleteTripDialog from "@/lib/modules/fleet/components/CompleteTripDialog";
+import CancelTripDialog from "@/lib/modules/fleet/components/CancelTripDialog";
 
 const STATUS_ORDER = [
   "pending",
@@ -48,25 +55,27 @@ const STATUS_ORDER = [
 export default function TripDetailPage() {
   const params = useParams();
 
-  const tripNo = params.id as string;
-
+  const id = params.id as string;
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [dispatchDialogOpen, setDispatchDialogOpen] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   // ── React Query hooks (single sources of truth) ─────────
-  const { trip } = useTripByNo(tripNo);
-  const { entries } = useAuditByEntity("trip", trip?.id as string);
+  const { trip, isLoading, error } = useTripById(id);
+  const { entries } = useAuditByEntity("trip", id);
 
   const { orders } = useOrders();
-  const { customers } = useCustomers();
 
   const { driver } = useDriverById(trip?.driver_id ?? "");
   const { vehicle } = useVehicleById(trip?.vehicle_id ?? "");
 
 
-  console.log("trip", trip);
-console.log("trip.order_ids", trip?.order_ids);
-console.log("orders", orders);
+  if (isLoading) {
+    return <TripDetailSkeleton />;
+  }
 
-  if (!trip) {
+  if (error || !trip) {
     return (
       <AppLayout pageTitle="Trip Not Found">
         <p className="text-brand-text-secondary">Trip not found.</p>
@@ -76,12 +85,9 @@ console.log("orders", orders);
 
   const ordersMap = new Map(orders.map((o) => [o.id, o]));
 
-  const customerMap = new Map(customers.map((c) => [c.id, c]));
-
   const linkedOrders = trip.order_ids
     .map((id) => ordersMap.get(id))
     .filter(Boolean);
-
 
   const orderColumns: SimpleTableColumn<Order>[] = [
     {
@@ -92,8 +98,7 @@ console.log("orders", orders);
     },
     {
       label: "Customer",
-      render: (order) =>
-        customerMap.get(order.customerId)?.name ?? "Unknown Customer",
+      render: (order) => order.customerName ?? "-",
     },
     {
       label: "Amount",
@@ -109,7 +114,11 @@ console.log("orders", orders);
       label: "",
       align: "right",
       render: (order) => (
-        <Button size="sm" variant="outline" href={`/orders/${order.orderNumber}`}>
+        <Button
+          size="sm"
+          variant="outline"
+          href={`/orders/${order.id}`}
+        >
           View
         </Button>
       ),
@@ -120,16 +129,26 @@ console.log("orders", orders);
     trip.status as (typeof STATUS_ORDER)[number],
   );
 
+
+  const deliveredOrders = linkedOrders.filter(
+    (order) => order?.fulfillmentStatus === "delivered",
+  ).length;
+
+  const totalOrders = linkedOrders.length;
+  const remainingOrders = totalOrders - deliveredOrders;
+  const allDelivered = remainingOrders === 0;
+
   const canAssign = canAssignResourcesToTrip(trip);
   const canDispatch = canDispatchTrip(trip);
   const canStart = canStartTrip(trip);
-  const canComplete = canCompleteTrip(trip);
+  const canComplete = canCompleteTrip(trip, ordersMap);
   const canAssignInventoryToTrip = canAssignInventory(trip);
   const canCancel = canCancelTrip(trip);
 
+
+
   return (
     <AppLayout pageTitle={trip.trip_number}>
-
       <BackButton
         href={`${FLEET_ROUTES.tripList()}`}
         label="Back to Trips"
@@ -139,34 +158,35 @@ console.log("orders", orders);
         description="Trip execution and dispatch control center"
         action={
           <div className="flex gap-2">
-
-
             {canDispatch && (
-              <Button href={`/fleet/trips/${tripNo}/dispatch`}>
-                Dispatch Trip →
+              <Button onClick={() => setDispatchDialogOpen(true)}>
+                Dispatch Trip
               </Button>
             )}
 
             {canStart && (
-              <Button href={`/fleet/trips/${tripNo}/start`}>
-                Start Transit →
+              <Button onClick={() => setStartDialogOpen(true)}>
+                Start Trip
               </Button>
             )}
 
             {canComplete && (
-              <Button href={`/fleet/trips/${tripNo}/complete`}>
-                Complete Trip →
+              <Button onClick={() => setCompleteDialogOpen(true)}>
+                Complete Trip
               </Button>
             )}
 
             {canAssignInventoryToTrip && (
-              <Button href={`/fleet/trips/${tripNo}/assign-inventory`}>
+              <Button href={`/fleet/trips/${id}/assign-inventory`}>
                 Assign Inventory →
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" href={`/fleet/trips/${tripNo}/cancel`}>
-                Cancel Trip →
+              <Button
+                variant="danger"
+                onClick={() => setCancelDialogOpen(true)}
+              >
+                Cancel Trip
               </Button>
             )}
           </div>
@@ -206,12 +226,6 @@ console.log("orders", orders);
           description="Track the current stage of the trip lifecycle"
         >
 
-
-          {/* {trip.status === "cancelled" ? (
-            <div className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700 inline-block">
-              Cancelled
-            </div>
-          ) : ( */}
           {trip.status === "cancelled" ? (
             <div className="space-y-3">
               {/* Cancelled badge, prominent */}
@@ -274,6 +288,18 @@ console.log("orders", orders);
             </div>
           )}
 
+          {trip.status === "in_transit" && !canComplete && (
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-medium text-amber-900">
+                Waiting for delivery confirmations
+              </p>
+
+              <p className="mt-1 text-sm text-amber-800">
+                Complete delivery confirmation for every attached order before marking
+                this trip as completed.
+              </p>
+            </div>
+          )}
         </FormSection>
 
         {/* ASSIGNMENT */}
@@ -281,10 +307,9 @@ console.log("orders", orders);
           title="Assignment"
           description="Driver and vehicle allocation"
         >
-
           {canAssign && (
             <div className="flex justify-end">
-              <Button href={`/fleet/trips/${tripNo}/assign`}>
+              <Button href={`/fleet/trips/${id}/assign`}>
                 Assign Driver & Vehicle →
               </Button>
             </div>
@@ -319,12 +344,42 @@ console.log("orders", orders);
                 No orders attached.
               </p>
             ) : (
-              <SimpleTable
-                columns={orderColumns}
-                rows={linkedOrders as Order[]}
-                keyExtractor={(order) => order.id}
-                emptyMessage="No orders attached."
-              />
+
+              <>
+                <div
+                  className={cn(
+                    "mb-5 rounded-xl border p-4",
+                    allDelivered
+                      ? "border-green-200 bg-green-50"
+                      : "border-amber-200 bg-amber-50",
+                  )}
+                >
+                  <p className="font-medium">
+                    Delivery Progress
+                  </p>
+
+                  <p className="mt-2 text-sm">
+                    Delivered{" "}
+                    <span className="font-semibold">
+                      {deliveredOrders} / {totalOrders}
+                    </span>
+                  </p>
+
+                  <p className="mt-2 text-sm">
+                    {allDelivered
+                      ? "✓ All deliveries confirmed. This trip is ready to be completed."
+                      : `⚠ ${remainingOrders} ${remainingOrders === 1 ? "delivery remains" : "deliveries remain"
+                      } before this trip can be completed.`}
+                  </p>
+                </div>
+                <SimpleTable
+                  columns={orderColumns}
+                  rows={linkedOrders as Order[]}
+                  keyExtractor={(order) => order.id}
+                  emptyMessage="No orders attached."
+                />
+              </>
+
             )}
           </FormSection>
         )}
@@ -338,10 +393,43 @@ console.log("orders", orders);
           </FormSection>
         )}
 
-        <FormSection title="Activity" description="Timeline of actions taken on this trip">
+        <FormSection
+          title="Activity"
+          description="Timeline of actions taken on this trip"
+        >
           <AuditTimeline entries={entries} />
         </FormSection>
       </div>
+
+      {trip && (
+        <DispatchTripDialog
+          open={dispatchDialogOpen}
+          onClose={() => setDispatchDialogOpen(false)}
+          trip={trip}
+        />
+      )}
+
+      <StartTripDialog
+        open={startDialogOpen}
+        onClose={() => setStartDialogOpen(false)}
+        trip={trip}
+      />
+
+      {trip && (
+        <CompleteTripDialog
+          open={completeDialogOpen}
+          onClose={() => setCompleteDialogOpen(false)}
+          trip={trip}
+        />
+      )}
+
+      {trip && (
+        <CancelTripDialog
+          open={cancelDialogOpen}
+          onClose={() => setCancelDialogOpen(false)}
+          trip={trip}
+        />
+      )}
     </AppLayout>
   );
 }

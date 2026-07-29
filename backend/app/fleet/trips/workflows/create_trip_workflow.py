@@ -26,7 +26,8 @@ class CreateTripWorkflow:
         self,
         db: Session,
         data: TripCreate,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
         #
@@ -60,15 +61,15 @@ class CreateTripWorkflow:
                 order_id=order.id,
             )
 
-            self.order_service.set_trip(
+            self.order_service.assign_to_trip(
                 db=db,
-                order_no=order.order_no,
+                order_id=order.id,
                 trip_id=str(trip.id),
             )
 
-            self.order_service.update_fulfillment_status(
+            self.order_service.progress_fulfillment_status(
                 db=db,
-                order_no=order.order_no,
+                order=order,
                 status="assigned",
             )
 
@@ -79,7 +80,8 @@ class CreateTripWorkflow:
                 action="assigned_to_trip",
                 description=f"Order assigned to trip {trip.trip_no}",
                 actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
+                actor_employee_id=actor_employee_id,
+                actor_name=actor_name,
             )
 
         #
@@ -92,7 +94,8 @@ class CreateTripWorkflow:
             action="created",
             description=f"Trip created ({trip.trip_no})",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

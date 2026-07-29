@@ -169,6 +169,8 @@ class InventoryRepository:
                 joinedload(InventoryItem.product),
                 joinedload(InventoryItem.location),
                 joinedload(InventoryItem.customer),
+                joinedload(InventoryItem.order),
+                joinedload(InventoryItem.trip),
             )
         )
 
@@ -185,8 +187,8 @@ class InventoryRepository:
 
         items = (
             q.order_by(
-                InventoryItem.received_into_inventory_at.asc(),
-                InventoryItem.tag_number.asc(),
+                InventoryItem.received_into_inventory_at.desc(),
+                # InventoryItem.tag_number.desc(),
             )
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -304,6 +306,39 @@ class InventoryRepository:
         item.disposition = disposition
 
         db.flush()
+    
+    def deduct_consumable_stock(
+        self,
+        db: Session,
+        *,
+        product_id: str,
+        location_id: str,
+        quantity: Decimal,
+    ) -> ConsumableStock:
+
+        stock = self.get_consumable_stock(
+            db=db,
+            product_id=product_id,
+            location_id=location_id,
+        )
+
+        if stock is None:
+            raise ValueError(
+                "Consumable stock not found."
+            )
+
+        if stock.quantity < quantity:
+            raise ValueError(
+                f"Insufficient stock. Available {stock.quantity}, required {quantity}."
+            )
+
+        stock.quantity -= quantity
+
+        db.flush()
+
+        return stock
+    
+    
     def release_inventory_item(
         self,
         db: Session,
@@ -333,13 +368,89 @@ class InventoryRepository:
         location_id: str,
     ) -> Optional[ConsumableStock]:
 
-        return (
+        print(
+            f"Looking for stock product={product_id} "
+            f"location={location_id}"
+        )
+
+        stock = (
             db.query(ConsumableStock)
             .filter(
                 ConsumableStock.product_id == product_id,
                 ConsumableStock.location_id == location_id,
             )
             .first()
+        )
+        print("Found stock:", stock)
+
+        if stock:
+            print(
+                "Quantity:",
+                stock.quantity,
+                "Location:",
+                stock.location_id,
+                "Product:",
+                stock.product_id,
+            )
+
+        rows = (
+            db.query(ConsumableStock)
+            .filter(
+                ConsumableStock.product_id == product_id
+            )
+            .all()
+        )
+
+        print("=" * 80)
+        print("AVAILABLE STOCK ROWS")
+
+        for row in rows:
+            print(
+                row.location_id,
+                row.quantity,
+            )
+
+        print("=" * 80)
+        return stock
+    
+
+    def get_consumable_stock_by_id(
+        self,
+        db: Session,
+        stock_id: str,
+    ) -> Optional[ConsumableStock]:
+
+        return (
+            db.query(ConsumableStock)
+            .options(
+                joinedload(ConsumableStock.product),
+                joinedload(ConsumableStock.location),
+            )
+            .filter(
+                ConsumableStock.id == stock_id,
+            )
+            .first()
+        )
+
+
+    def get_available_consumable_locations(
+        self,
+        db: Session,
+        product_id: str,
+    ):
+        return (
+            db.query(ConsumableStock)
+            .options(
+                joinedload(ConsumableStock.location),
+            )
+            .filter(
+                ConsumableStock.product_id == product_id,
+                ConsumableStock.quantity > 0,
+            )
+            .order_by(
+                ConsumableStock.location.has(),
+            )
+            .all()
         )
 
     def list_consumable_stock(
@@ -430,6 +541,7 @@ class InventoryRepository:
         self,
         db: Session,
         product_id: Optional[str] = None,
+        location_id: Optional[str] = None,
     ) -> List[StockMovement]:
 
         q = (
@@ -443,6 +555,8 @@ class InventoryRepository:
 
         if product_id:
             q = q.filter(StockMovement.product_id == product_id)
+        if location_id:
+            q = q.filter(StockMovement.location_id == location_id)
 
         return (
             q.order_by(StockMovement.created_at.desc())
@@ -547,3 +661,25 @@ class InventoryRepository:
                 OrderItemInventory.inventory_item_id == inventory_item_id
             )
         ).scalar()
+    
+    def has_trip_reservation_movement(
+        self,
+        db: Session,
+        *,
+        trip_id: str,
+        product_id: str,
+        location_id: str,
+    ) -> bool:
+
+        return (
+            db.query(StockMovement)
+            .filter(
+                StockMovement.reference_type == "trip",
+                StockMovement.reference_id == str(trip_id),
+                StockMovement.product_id == product_id,
+                StockMovement.location_id == location_id,
+                StockMovement.movement_type == MovementType.reservation,
+            )
+            .first()
+            is not None
+        )

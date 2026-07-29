@@ -7,6 +7,7 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 
 from app.payments.enums import PaymentMethod
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PaymentCreate(BaseModel):
@@ -17,6 +18,13 @@ class PaymentCreate(BaseModel):
     reference: Optional[str] = None
     notes: Optional[str] = None
     idempotency_key: Optional[str] = None
+
+class PaymentAttachmentResponse(BaseModel):
+    id: str
+    url: str
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentResponse(BaseModel):
@@ -41,6 +49,10 @@ class PaymentResponse(BaseModel):
     notes: Optional[str]
 
     recorded_by: str
+
+    attachments: list[PaymentAttachmentResponse] = Field(
+        default_factory=list
+    )
 
     created_at: datetime
     updated_at: datetime

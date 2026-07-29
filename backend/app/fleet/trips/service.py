@@ -355,6 +355,27 @@ class TripService:
             trip_id=trip.id,
         )
 
+    def requires_inventory_assignment(
+        self,
+        db: Session,
+        trip_id: str,
+    ) -> bool:
+        """
+        Returns True if the trip should go through the
+        Inventory Assignment step before dispatch.
+
+        Every order-delivery trip with one or more orders
+        must pass through inventory assignment, regardless
+        of product type.
+        """
+
+        order_ids = self.get_order_ids(
+            db=db,
+            trip_id=trip_id,
+        )
+
+        return len(order_ids) > 0
+
     # ------------------------------------------------------------------
     # Validation helpers
     # ------------------------------------------------------------------

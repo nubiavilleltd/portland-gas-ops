@@ -21,23 +21,22 @@ from app.inventory.schema import (
     CreateLocationInput,
     LocationResponse,
     InventoryKPIResponse,
+    ConsumableStockDetailResponse,
+    AvailableConsumableLocationResponse
 )
 
 from app.audit.schema import AuditLogResponse, AuditEntityType
 from app.audit.service import AuditService
 
+from app.inventory.mapper import (
+    inventory_item_to_response,
+    consumable_stock_to_response,
+    stock_movement_to_response,
+    consumable_stock_detail_to_response
+)
+
 router = APIRouter()
 service = InventoryService()
-
-
-def _movement_to_response(movement) -> StockMovementResponse:
-    response = StockMovementResponse.model_validate(movement)
-    response.item_ids = getattr(
-        movement,
-        "_item_ids",
-        [item.inventory_item_id for item in movement.items],
-    )
-    return response
 
 
 # -------------------------------------------------------------------------
@@ -95,11 +94,14 @@ def list_inventory_items(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.list_items(
+    items = service.list_items(
         db,
         product_id=product_id,
         status=status,
     )
+
+
+    return [inventory_item_to_response(item) for item in items]
 
 
 @router.get("/items/{item_id}", response_model=InventoryItemResponse)
@@ -108,7 +110,8 @@ def get_inventory_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.get_item_or_raise(db, item_id)
+    item = service.get_item_or_raise(db, item_id)
+    return inventory_item_to_response(item)
 
 
 @router.post(
@@ -125,7 +128,8 @@ def return_inventory_item(
         db,
         item_id,
         data,
-        recorded_by=current_user.id,
+        recorded_by=current_user.employee.id,
+        recorded_by_name=current_user.full_name,
     )
 
     db.commit()
@@ -146,7 +150,45 @@ def list_consumable_stock(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.list_stock(db)
+    stock = service.list_stock(db)
+
+    return [
+        consumable_stock_to_response(item)
+        for item in stock
+    ]
+
+
+@router.get(
+    "/stock/{stock_id}",
+    response_model=ConsumableStockDetailResponse,
+)
+def get_consumable_stock(
+    stock_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stock, movements = service.get_consumable_stock_detail(
+        db=db,
+        stock_id=stock_id,
+    )
+
+    return consumable_stock_detail_to_response(
+        stock,
+        movements,
+    )
+
+@router.get(
+    "/products/{product_id}/available-locations",
+    response_model=list[AvailableConsumableLocationResponse],
+)
+def get_available_locations(
+    product_id: str,
+    db: Session = Depends(get_db),
+):
+    return service.list_available_consumable_locations(
+        db=db,
+        product_id=product_id,
+    )
 
 
 # -------------------------------------------------------------------------
@@ -169,7 +211,7 @@ def list_stock_movements(
         item_id=item_id,
     )
 
-    return [_movement_to_response(m) for m in movements]
+    return [stock_movement_to_response(m) for m in movements]
 
 
 # -------------------------------------------------------------------------
@@ -189,6 +231,8 @@ def check_in_tracked_items(
         db,
         data,
         recorded_by=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        recorded_by_name=current_user.full_name,
     )
 
     db.commit()
@@ -212,6 +256,8 @@ def check_in_consumable_stock(
         db,
         data,
         recorded_by=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        recorded_by_name=current_user.full_name,
     )
 
     db.commit()

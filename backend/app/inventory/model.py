@@ -182,7 +182,19 @@ class ConsumableStock(Base):
 
     __tablename__ = "consumable_stock"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    __table_args__ = (
+        UniqueConstraint(
+            "product_id",
+            "location_id",
+            name="uq_consumable_stock_product_location",
+        ),
+    )
+
+    id = Column(
+        CHAR(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
 
     product_id = Column(
         CHAR(36),
@@ -266,6 +278,10 @@ class StockMovement(Base):
     recorded_by = Column(
         CHAR(36),
         ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    recorded_by_name = Column(
+        String(255),
         nullable=False,
     )
 

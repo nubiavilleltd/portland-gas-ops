@@ -14,6 +14,7 @@ from app.inventory.enums import (
     InventoryItemCondition,
     InventoryItemStatus,
     MovementType,
+    ReferenceType
 )
 from app.inventory.error_codes import InventoryErrorCode
 from app.inventory.model import ConsumableStock, InventoryItem, StockMovement
@@ -22,13 +23,36 @@ from app.inventory.schema import (
     CheckInConsumableInput,
     CheckInTrackedInput,
     ReturnItemInput,
+    ConsumableStockDetailResponse,
+    StockMovementResponse,
+    AvailableConsumableLocationResponse
 )
+from app.orders.model import OrderItem
+from app.fleet.trips.model import Trip
 
 
 class InventoryService:
 
     def __init__(self):
         self.repo = InventoryRepository()
+    def list_available_consumable_locations(
+        self,
+        db: Session,
+        product_id: str,
+    ):
+        rows = self.repo.get_available_consumable_locations(
+            db=db,
+            product_id=product_id,
+        )
+
+        return [
+            AvailableConsumableLocationResponse(
+                location_id=row.location.id,
+                location_name=row.location.name,
+                available_quantity=row.quantity,
+            )
+            for row in rows
+        ]
 
     def create_location(
         self,
@@ -68,23 +92,40 @@ class InventoryService:
     def get_kpis(self, db: Session):
         return self.repo.get_kpis(db)
 
-    # def list_items(
-    #     self,
-    #     db: Session,
-    #     product_id: Optional[str] = None,
-    #     status: Optional[InventoryItemStatus] = None,
-    #     location_id: Optional[int] = None,
-    #     page: int = 1,
-    #     page_size: int = 50,
-    # ):
-    #     return self.repo.list_inventory_items(
-    #         db,
-    #         product_id=product_id,
-    #         status=status,
-    #         location_id=location_id,
-    #         page=page,
-    #         page_size=page_size,
-    #     )
+    def get_available_consumable_locations(
+        self,
+        db: Session,
+        product_id: str,
+    ):
+        """
+        Returns only warehouse locations that currently have
+        available stock for the given consumable product.
+        """
+
+        return self.repo.get_available_consumable_locations(
+            db=db,
+            product_id=product_id,
+        )
+    
+    def get_consumable_stock_detail(
+        self,
+        db: Session,
+        stock_id: str,
+    ):
+        stock = self.repo.get_consumable_stock_by_id(db=db, stock_id=stock_id)
+
+        if not stock:
+            raise AppException(
+                status_code=404,
+                error_code=InventoryErrorCode.CONSUMABLE_STOCK_NOT_FOUND,
+                message="Consumable stock record not found.",
+            )
+        movements = self.repo.list_stock_movements(
+                        db=db,
+                        product_id=stock.product_id,
+                        location_id=stock.location_id,
+                    )
+        return stock, movements
 
     def list_items(
         self,
@@ -132,6 +173,8 @@ class InventoryService:
         db: Session,
         data: CheckInTrackedInput,
         recorded_by: str,
+        actor_employee_id: str,
+        recorded_by_name: str,
     ):
         from app.products.service import ProductService
 
@@ -180,6 +223,7 @@ class InventoryService:
             quantity=Decimal(data.quantity),
             location_id=data.location_id,
             recorded_by=recorded_by,
+            recorded_by_name=recorded_by_name,
             notes=data.notes,
         )
 
@@ -196,7 +240,8 @@ class InventoryService:
             action="check_in",
             description=f"{data.quantity} {product.name} unit(s) checked into inventory",
             actor_type=AuditActorType.employee,
-            actor_employee_id=recorded_by,
+            actor_employee_id=actor_employee_id,
+            actor_name=recorded_by_name,
         )
 
         return created_items
@@ -210,6 +255,8 @@ class InventoryService:
         db: Session,
         data: CheckInConsumableInput,
         recorded_by: str,
+        actor_employee_id:str,
+        recorded_by_name: str,
     ) -> ConsumableStock:
         from app.products.service import ProductService
 
@@ -246,6 +293,7 @@ class InventoryService:
             quantity=data.quantity,
             location_id=data.location_id,
             recorded_by=recorded_by,
+            recorded_by_name=recorded_by_name,
             notes=data.notes,
         )
 
@@ -259,7 +307,8 @@ class InventoryService:
                 f"{product.name} checked into inventory"
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=recorded_by,
+            actor_employee_id=actor_employee_id,
+            actor_name=recorded_by_name,
         )
 
         return stock
@@ -274,6 +323,7 @@ class InventoryService:
         item_id: int,
         data: ReturnItemInput,
         recorded_by: str,
+        recorded_by_name: str,
     ) -> InventoryItem:
         item = self.get_item_or_raise(db, item_id)
 
@@ -311,6 +361,7 @@ class InventoryService:
             quantity=Decimal("1"),
             location_id=item.location_id,
             recorded_by=recorded_by,
+            recorded_by_name=recorded_by_name,
             notes=data.notes,
         )
 
@@ -331,6 +382,7 @@ class InventoryService:
             ),
             actor_type=AuditActorType.employee,
             actor_employee_id=recorded_by,
+            actor_name=recorded_by_name,
         )
 
         return updated_item
@@ -347,8 +399,10 @@ class InventoryService:
     def check_out_for_trip(
         self,
         db: Session,
-        trip_id: str,
-        actor_id: str,
+        trip: Trip,
+        actor_user_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
         """
         Checks out every tracked inventory item already reserved for a trip.
@@ -367,7 +421,7 @@ class InventoryService:
 
         order_ids = trip_service.get_order_ids(
             db=db,
-            trip_id=trip_id,
+            trip_id=trip.id,
         )
 
         for order_id in order_ids:
@@ -385,23 +439,34 @@ class InventoryService:
                 )
 
                 # Consumables don't require inventory checkout.
-                if product.product_type.value != "tracked":
-                    continue
-
-                self._check_out_order_item(
-                    db=db,
-                    trip_id=trip_id,
-                    order_item_id=order_item.id,
-                    actor_id=actor_id,
-                )
+                if product.product_type.value == "tracked":
+                    self._check_out_order_item(
+                        db=db,
+                        trip=trip,
+                        order_item_id=order_item.id,
+                        actor_user_id=actor_user_id,
+                        actor_employee_id=actor_employee_id,
+                        actor_name=actor_name,
+                    )
+                else:
+                    self._check_out_consumable(
+                        db=db,
+                        trip=trip,
+                        order_item=order_item,
+                        actor_user_id=actor_user_id,
+                        actor_employee_id=actor_employee_id,
+                        actor_name=actor_name,
+                    )
 
 
     def _check_out_order_item(
         self,
         db: Session,
-        trip_id: str,
+        trip: Trip,
         order_item_id: int,
-        actor_id: str,
+        actor_user_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
         """
         Checks out inventory already allocated to an order item.
@@ -452,12 +517,13 @@ class InventoryService:
             movement_type=MovementType.check_out,
             quantity=Decimal(len(allocations)),
             location_id=first_item.location_id,
-            recorded_by=actor_id,
-            reference_type="trip",
-            reference_id=str(trip_id),
+            recorded_by=actor_user_id,
+            recorded_by_name=actor_name,
+            reference_type=ReferenceType.trip,
+            reference_id=str(trip.id),
             notes=(
                 f"Checked out {len(allocations)} reserved inventory item(s) "
-                f"for trip {trip_id}"
+                f"for trip {trip.trip_no}"
             ),
         )
 
@@ -473,7 +539,7 @@ class InventoryService:
                 item=item,
                 status=InventoryItemStatus.checked_out,
                 checked_out_at=datetime.now(timezone.utc),
-                trip_id=trip_id,
+                trip_id=trip.id,
             )
 
             checked_out_ids.append(item.id)
@@ -491,15 +557,86 @@ class InventoryService:
             action="checked_out",
             description=(
                 f"{len(checked_out_ids)} inventory item(s) "
-                f"checked out for trip {trip_id}"
+                f"checked out for trip {trip.trip_no}"
             ),
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return checked_out_ids
 
+    def _check_out_consumable(
+        self,
+        db: Session,
+        trip: Trip,
+        order_item: OrderItem,
+        actor_user_id: str,
+        actor_employee_id: str,
+        actor_name: str,
+    ):
+        """
+        Records checkout of consumable stock.
 
+        Stock was already deducted during Mark Ready.
+        Dispatch only records the physical movement out of the warehouse.
+        """
+
+        if order_item.location_id is None:
+            raise AppException(
+                status_code=400,
+                error_code=InventoryErrorCode.LOCATION_NOT_FOUND,
+                message="Consumable order item has no assigned warehouse.",
+            )
+
+        stock = self.repo.get_consumable_stock(
+            db=db,
+            product_id=order_item.product_id,
+            location_id=order_item.location_id,
+        )
+
+        if stock is None:
+            raise AppException(
+                status_code=400,
+                error_code=InventoryErrorCode.INSUFFICIENT_STOCK,
+                message=(
+                    "Consumable stock record not found. "
+                    "Mark Ready may not have completed successfully."
+                ),
+            )
+
+        quantity = Decimal(str(order_item.quantity))
+
+        self.repo.create_stock_movement(
+            db=db,
+            movement_no=self.repo.generate_movement_no(db),
+            product_id=order_item.product_id,
+            movement_type=MovementType.check_out,
+            quantity=quantity,
+            location_id=order_item.location_id,
+            recorded_by=actor_user_id,
+            recorded_by_name=actor_name,
+            reference_type=ReferenceType.trip,
+            reference_id=str(trip.id),
+            notes=(
+                f"Checked out {quantity:.2f} of {order_item.product_name} "
+                f"for trip {trip.trip_no}"
+            ),
+        )
+
+        AuditService.record(
+            db=db,
+            entity_type=AuditEntityType.order,
+            entity_id=str(order_item.order_id),
+            action="consumable_checked_out",
+            description=(
+                f"Checked out {quantity:.2f} of {order_item.product_name} "
+                f"for trip {trip.trip_no}"
+            ),
+            actor_type=AuditActorType.employee,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
+        )
 
 
     def release_trip_inventory(

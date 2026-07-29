@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -21,6 +20,8 @@ interface UseCreateOrderFormOptions {
 }
 
 export function useCreateOrderForm(options: UseCreateOrderFormOptions = {}) {
+  const { defaultValues } = options;
+
   const form = useForm<CreateOrderFormValues, any, CreateOrderFormOutput>({
     resolver: zodResolver(createOrderSchema),
     mode: "onTouched",
@@ -32,11 +33,9 @@ export function useCreateOrderForm(options: UseCreateOrderFormOptions = {}) {
       deliveryAddress: "",
       deliveryDate: "",
       notes: "",
-      ...options.defaultValues,
+      ...defaultValues,
     },
   });
-
-
 
   return { form };
 }

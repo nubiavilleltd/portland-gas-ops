@@ -13,8 +13,9 @@ export async function recordPaymentWorkflow(invoice: Invoice, data: PaymentForm)
   return PaymentsService.recordPayment({
     invoice_id: invoice.id,
     amount: Number(data.amount),
-    payment_method: data.payment_method as PaymentMethod,
+    payment_method: data.payment_method,
     payment_date: data.payment_date,
     reference: data.reference,
+    paymentProofs: data.paymentProofs,
   });
 }

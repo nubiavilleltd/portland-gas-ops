@@ -23,7 +23,8 @@ class UpdateDriverWorkflow:
         db: Session,
         driver_id: str,
         data: DriverUpdate,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name:str
     ):
 
         driver = self.driver_service.update(
@@ -39,7 +40,8 @@ class UpdateDriverWorkflow:
             action="updated",
             description=f"Driver profile updated ({driver.license_number})",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name
         )
 
         return driver

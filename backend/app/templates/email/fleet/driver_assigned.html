@@ -1,0 +1,56 @@
+<h1>You've Been Assigned a Trip</h1>
+
+<p>Hi {{driver_name}},</p>
+
+<p>
+    You have been assigned to a new trip. Please review the trip details below.
+</p>
+
+<table style="width:100%; border:1px solid #e5e7eb; border-radius:8px; border-collapse:collapse; margin:20px 0;">
+
+    <tr style="background:#f9fafb;">
+        <td style="padding:10px 14px; font-weight:600;">Trip</td>
+        <td style="padding:10px 14px;">{{trip_number}}</td>
+    </tr>
+
+    <tr>
+        <td style="padding:10px 14px; font-weight:600;">Trip Type</td>
+        <td style="padding:10px 14px;">{{trip_type}}</td>
+    </tr>
+
+    <tr style="background:#f9fafb;">
+        <td style="padding:10px 14px; font-weight:600;">Vehicle</td>
+        <td style="padding:10px 14px;">{{vehicle_name}}</td>
+    </tr>
+
+    <tr>
+        <td style="padding:10px 14px; font-weight:600;">Pickup</td>
+        <td style="padding:10px 14px;">{{start_location}}</td>
+    </tr>
+
+    <tr style="background:#f9fafb;">
+        <td style="padding:10px 14px; font-weight:600;">Destination</td>
+        <td style="padding:10px 14px;">{{end_location}}</td>
+    </tr>
+
+    <tr>
+        <td style="padding:10px 14px; font-weight:600;">Scheduled Date</td>
+        <td style="padding:10px 14px;">{{scheduled_date}}</td>
+    </tr>
+
+</table>
+
+<a href="{{trip_url}}" class="btn">
+    View Trip
+</a>
+
+<p>
+    Please review the trip and prepare accordingly.
+</p>
+
+<hr class="divider" />
+
+<p style="font-size:12px;color:#9ca3af;">
+    If the button above does not work, copy and paste this link into your browser:<br>
+    <a href="{{trip_url}}" style="word-break:break-all;">{{trip_url}}</a>
+</p>

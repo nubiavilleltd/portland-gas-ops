@@ -2,23 +2,18 @@
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import Button from "@/components/ui/Button";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 
-// import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 import { useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
-import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 
 export default function InvoicesPage() {
-  const { invoices } = useInvoices();
-  const { orders } = useOrders();
+  const { invoices, isLoading:isLoadingInvoice } = useInvoices();
 
-  const orderMap = Object.fromEntries(orders.map((order) => [order.id, order]));
+
 
   const columns: Column<Invoice>[] = [
     {
@@ -26,15 +21,10 @@ export default function InvoicesPage() {
       label: "Invoice",
       render: (value) => <span className="font-medium">{value as string}</span>,
     },
-    {
-      key: "order_id",
-      label: "Order",
-      render: (value) => (
-        <span className="font-medium">
-          {orderMap[value as string].orderNumber}
-        </span>
-      ),
-    },
+
+
+    { key: "order_no", label: "Order" },
+
     {
       key: "issued_date",
       label: "Date",
@@ -77,18 +67,15 @@ export default function InvoicesPage() {
       <PageHeader
         title="Invoices"
         description="Manage all invoices and track payments"
-        // action={
-        //   <Button href="/orders/list">
-        //     Create From Order
-        //   </Button>
-        // }
+    
       />
 
-      {/* TABLE WRAPPER */}
+      
       <DataTable<Invoice>
         columns={columns}
         data={invoices}
-        rowHref={(invoice) => `/invoices/${invoice.invoice_number}`}
+        isLoading={isLoadingInvoice}
+        rowHref={(invoice) => `/invoices/${invoice.id}`}
         emptyMessage="No invoices found."
       />
     </AppLayout>

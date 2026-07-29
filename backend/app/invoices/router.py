@@ -4,6 +4,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
+from fastapi.responses import Response
+
+from app.shared.pdf.invoice_pdf import generate_invoice_pdf
 
 from app.audit.schema import AuditActorType, AuditEntityType
 from app.audit.service import AuditService
@@ -69,7 +72,8 @@ def list_invoices(
 def create_invoice(
     data: InvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("super_admin", "admin")),
+    # current_user: User = Depends(require_roles("super_admin", "admin")),
+    current_user: User = Depends(get_current_user),
 ):
     invoice = service.create(
         db,
@@ -84,7 +88,8 @@ def create_invoice(
         "created",
         f"Invoice {invoice.invoice_no} generated",
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     AuditService.record(
@@ -94,31 +99,41 @@ def create_invoice(
         "invoice_generated",
         f"Invoice {invoice.invoice_no} generated",
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     db.commit()
     db.refresh(invoice)
 
+    from app.invoices.email_content import (
+        send_invoice_email,
+    )
+
+    send_invoice_email(
+        db,
+        invoice.id,
+    )
+
     return _to_response(invoice)
 
 
-@router.get("/by-order/{order_no}", response_model=InvoiceResponse)
+@router.get("/by-order/{order_id}", response_model=InvoiceResponse)
 def get_invoice_by_order(
-    order_no: str,
+    order_id: str,
     db: Session =Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     from app.orders.service import OrderService
 
-    order = OrderService().get_by_no_or_raise(db, order_no)
+    order = OrderService().get_or_raise(db, order_id)
 
     invoice = service.get_by_order_id_or_raise(db, order.id)
 
     return _to_response(invoice)
 
 
-@router.get("/{invoice_no}", response_model=InvoiceResponse)
+@router.get("/by-no/{invoice_no}", response_model=InvoiceResponse)
 def get_invoice(
     invoice_no: str,
     db: Session = Depends(get_db),
@@ -128,13 +143,25 @@ def get_invoice(
     return _to_response(invoice)
 
 
-@router.post("/{invoice_no}/void", response_model=InvoiceResponse)
+@router.get("/{invoice_id}", response_model=InvoiceResponse)
+def get_invoice(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    invoice = service.get_or_raise(db, invoice_id)
+    return _to_response(invoice)
+
+
+
+
+@router.post("/{invoice_id}/void", response_model=InvoiceResponse)
 def void_invoice(
-    invoice_no: str,
+    invoice_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
-    invoice = service.get_by_no_or_raise(db, invoice_no)
+    invoice = service.get_or_raise(db, invoice_id)
 
     invoice = service.void(db, invoice)
 
@@ -145,10 +172,57 @@ def void_invoice(
         "voided",
         f"Invoice {invoice.invoice_no} voided",
         AuditActorType.employee,
-        current_user.id,
+        current_user.employee.id,
+        current_user.full_name,
     )
 
     db.commit()
     db.refresh(invoice)
 
     return _to_response(invoice)
+
+
+
+
+@router.get("/{invoice_id}/pdf")
+def download_invoice_pdf(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+):
+    from app.orders.service import OrderService
+    from app.customers.service import CustomerService
+    from app.invoices.service import InvoiceService
+
+    invoice_service = InvoiceService()
+    order_service = OrderService()
+    customer_service = CustomerService()
+    invoice = invoice_service.get_or_raise(
+        db=db,
+        invoice_id=invoice_id,
+    )
+
+    order = order_service.get_or_raise(
+        db=db,
+        order_id=invoice.order_id,
+    )
+
+    customer = customer_service.get_or_raise(
+        db=db,
+        customer_id=order.customer_id,
+    )
+
+    pdf = generate_invoice_pdf(
+        invoice=invoice,
+        order=order,
+        customer=customer,
+    )
+
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{invoice.invoice_no}.pdf"'
+            )
+        },
+    )

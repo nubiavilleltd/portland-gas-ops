@@ -13,16 +13,22 @@ import { INVOICE_ROUTES, PAYMENT_ROUTES } from "@/lib/routes";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 import { BackButton } from "@/components/ui/BackButton";
+import PaymentDetailSkeleton from "@/lib/modules/payments/components/PaymentDetailSkeleton";
 
 export default function PaymentDetailPage() {
   const params = useParams();
   const router = useRouter()
   const id = params.id as string;
 
-  const {payment, error} = usePaymentById(id)
+ const {payment, error, isLoading: paymentLoading} = usePaymentById(id)
 
-  const {invoice} = useInvoiceById(payment?.invoiceId as string)
+  const {invoice, isLoading: invoiceLoading} = useInvoiceById(payment?.invoiceId as string)
 
+  const isLoading = paymentLoading || (!!payment?.invoiceId && invoiceLoading);
+
+  if (isLoading) {
+    return <PaymentDetailSkeleton />;
+  }
 
   if (error || !payment) {
     return (

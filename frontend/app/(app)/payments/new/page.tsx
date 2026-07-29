@@ -17,7 +17,7 @@ import FormSection from "@/components/ui/FormSection";
 import { formatCurrency } from "@/lib/utils";
 import { PaymentForm, PaymentFormInput, paymentSchema } from "@/lib/modules/payments/schemas/payment.schema";
 
-import { useInvoiceById, useInvoiceByNo, useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
+import { useInvoiceById, useInvoices } from "@/lib/modules/invoices/hooks/useInvoices";
 import { usePaymentSummary } from "@/lib/modules/payments/hooks/usePayments";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 // import { useRecordPayment } from "@/lib/modules/payments/hooks/useRecordPayment";
@@ -28,6 +28,9 @@ import { PAYMENT_METHOD_OPTIONS, PaymentMethod } from "@/lib/modules/payments/ty
 import FormSelect from "@/components/forms/FormSelect";
 import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
 import { BackButton } from "@/components/ui/BackButton";
+import FileDropzone from "@/components/ui/FileDropzone";
+import { toast } from "sonner";
+import { InvoiceSkeleton } from "@/lib/modules/orders/components/OrderDetailSkeleton";
 
 /* ── INVOICE SELECTOR ─────────────────────────────────────── */
 function InvoiceSelector({
@@ -97,23 +100,22 @@ function CreatePaymentPageContent() {
   const searchParams = useSearchParams();
   const { invoices } = useInvoices();
 
-  const initialInvoiceNo = searchParams.get("invoiceId");
-const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
+  const initialInvoiceId = searchParams.get("invoiceId");
+  const { invoice, isLoading: isLoadingInvoice, } = useInvoiceById(initialInvoiceId ?? "");
+  const selectedInvoice = invoice ?? null;
+  // const [proofError, setProofError] = useState("");
   // const { recordPayment, isLoading: isRecording, error: recordError } =
   //   useRecordPayment();
 
-  const [selectedInvoice, setSelectedInvoice] =
-    useState<Invoice | null>(invoice ?? null);
+
 
   const { mutate: recordPayment, isPending } = useRecordPaymentWorkflow(
     selectedInvoice ?? ({ id: "" } as Invoice)
   );
 
-  useEffect(() => {
-    if (invoice) {
-      setSelectedInvoice(invoice);
-    }
-  }, [invoice]);
+
+
+
 
   const { summary } = usePaymentSummary(
     selectedInvoice?.id
@@ -129,6 +131,7 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
     handleSubmit,
     setValue,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<PaymentFormInput, any, PaymentForm>({
     resolver: zodResolver(paymentSchema),
@@ -136,7 +139,8 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
       payment_date: new Date().toISOString().split("T")[0],
       amount: 0,
       reference: "",
-      payment_method: "bank_transfer",
+      payment_method: "",
+      paymentProofs: [],
     },
   });
 
@@ -145,9 +149,25 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
     name: "payment_date",
   });
 
+
+  const paymentMethod = useWatch({
+    control,
+    name: "payment_method",
+  });
+
+  const requiresProof =
+    paymentMethod === "bank_transfer" ||
+    paymentMethod === "card" ||
+    paymentMethod === "cheque";
+
+useEffect(() => {
+  if (!requiresProof) {
+    setValue("paymentProofs", []);
+  }
+}, [requiresProof, setValue]);
+
   const selectInvoice = useCallback(
     (invoice: Invoice) => {
-      setSelectedInvoice(invoice);
 
       const remaining =
         invoice.total_amount - summary.amountPaid;
@@ -156,19 +176,27 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
         payment_date: new Date().toISOString().split("T")[0],
         amount: remaining,
         reference: "",
-        payment_method: "bank_transfer",
+        payment_method: "",
+        paymentProofs: [],
       });
 
-     router.replace(`/payments/new?invoiceId=${invoice.invoice_number}`);
+      router.replace(`/payments/new?invoiceId=${invoice.id}`);
     },
     [reset, router, summary.amountPaid]
   );
 
 
+
   async function onSubmit(data: PaymentForm) {
-    if (!selectedInvoice) return;
-    recordPayment(data);
+  if (!selectedInvoice) return;
+
+  if (requiresProof && data.paymentProofs.length === 0) {
+    toast.error("Please upload proof of payment.");
+    return;
   }
+
+  recordPayment(data);
+}
 
   return (
     <AppLayout pageTitle="Record Payment">
@@ -181,7 +209,14 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
       />
 
       <div className="space-y-6">
-        {!selectedInvoice ? (
+        {initialInvoiceId && isLoadingInvoice ? (
+          <FormSection
+            title="Loading Invoice"
+            description="Please wait while we retrieve the invoice..."
+          >
+            <InvoiceSkeleton />
+          </FormSection>
+        ) : !selectedInvoice ? (
           <InvoiceSelector
             invoices={invoices}
             onSelect={selectInvoice}
@@ -193,33 +228,14 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
               title={selectedInvoice.invoice_number}
               description="Selected Invoice"
             >
-
-
-
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedInvoice(null);
-                    router.replace("/payments/new");
-                  }}
-                >
-                  Change Invoice
-                </Button>
-              </div>
               <div className="grid grid-cols-3 gap-5 text-sm">
                 <InfoRow
                   label="Total"
-                  value={formatCurrency(
-                    selectedInvoice.total_amount
-                  )}
+                  value={formatCurrency(selectedInvoice.total_amount)}
                 />
                 <InfoRow
                   label="Already Paid"
-                  value={formatCurrency(
-                    summary.amountPaid
-                  )}
+                  value={formatCurrency(summary.amountPaid)}
                   className="text-green-600"
                 />
                 <InfoRow
@@ -238,37 +254,34 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
               <form
                 onSubmit={handleSubmit(onSubmit)}
                 className="grid grid-cols-1 md:grid-cols-2 gap-5"
+                noValidate
               >
                 <FormDatePicker
                   label="Payment Date"
                   value={paymentDate}
-                  onValueChange={(v) =>
-                    setValue("payment_date", v)
-                  }
+                  onValueChange={(v) => setValue("payment_date", v)}
                   {...register("payment_date")}
+                  max={new Date().toISOString().split("T")[0]}
+                  required
                 />
-
-                {/* <FormInput
-                  label="Amount"
-                  type="number"
-                  error={errors.amount?.message}
-                  {...register("amount", {
-                    valueAsNumber: true,
-                  })}
-                /> */}
 
                 <FormCurrencyInput
                   control={control}
                   name="amount"
                   label="Amount (₦)"
                   error={errors.amount?.message}
+                  required
                 />
 
-
                 <FormInput
-                  label="Reference (Optional)"
+                  label={
+                    requiresProof
+                      ? "Transaction Reference"
+                      : "Reference (Optional)"
+                  }
                   placeholder="Auto-generated if left empty"
                   {...register("reference")}
+                  required={requiresProof}
                 />
 
                 <FormSelect
@@ -281,15 +294,25 @@ const { invoice } = useInvoiceByNo(initialInvoiceNo ?? "");
                   {...register("payment_method")}
                 />
 
-                {/* {(recordError || errors.amount) && (
-                  <div className="md:col-span-2 flex items-center gap-2 text-red-600 text-sm">
-                    <AlertCircle size={16} />
-                    {recordError ||
-                      errors.amount?.message}
-                  </div>
-                )} */}
+                {requiresProof && (
+                  <FileDropzone
+                    value={watch("paymentProofs")}
+                    onChange={(files) =>
+                      setValue("paymentProofs", files, {
+                        shouldValidate: true,
+                      })
+                    }
+                    label="Payment Proof"
+                    hint="Upload the payment receipt or proof of payment."
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    maxFiles={1}
+                    maxSizeMB={5}
+                    required
+                    error={errors.paymentProofs?.message}
+                  />
+                )}
 
-                <div className="md:col-span-2 flex justify-end">
+                <div className="md:col-span-2 flex mt-5">
                   <Button
                     type="submit"
                     loading={isSubmitting || isPending}

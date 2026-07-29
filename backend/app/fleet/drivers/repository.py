@@ -6,6 +6,7 @@ from app.shared.utils.number_generator import generate_entity_no
 from sqlalchemy.orm import Session, joinedload
 
 from app.fleet.drivers.model import Driver
+from app.employees.models import Employee
 
 
 class DriverRepository:
@@ -13,11 +14,11 @@ class DriverRepository:
     def generate_driver_no(self, db: Session) -> str:
         return generate_entity_no(db, Driver, "driver_no", "DRV")
 
-    def get_by_id(self, db: Session, driver_id: int) -> Optional[Driver]:
+    def get_by_id(self, db: Session, driver_id: str) -> Optional[Driver]:
         return (
             db.query(Driver)
             .options(
-                joinedload(Driver.employee),
+                joinedload(Driver.employee).joinedload(Employee.user),
                 joinedload(Driver.profile_image),
             )
             .filter(Driver.id == driver_id)
@@ -54,7 +55,7 @@ class DriverRepository:
         q = (
             db.query(Driver)
             .options(
-                joinedload(Driver.employee),
+                joinedload(Driver.employee).joinedload(Employee.user),
                 joinedload(Driver.profile_image),
             )
         )

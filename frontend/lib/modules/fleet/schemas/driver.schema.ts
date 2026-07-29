@@ -1,52 +1,61 @@
 import { z } from "zod";
 
 export const createDriverSchema = z.object({
-  full_name: z
+  employee_id: z
     .string()
-    .min(2, "Full name must be at least 2 characters")
-    .max(100, "Name too long"),
-
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Enter a valid email address"),
-
-  phone_number: z
-    .string()
-    .min(10, "Phone number must be at least 10 digits")
-    .max(20, "Phone number too long")
-    .regex(/^[+\d\s\-()\\.]+$/, "Enter a valid phone number"),
+    .min(1, "Please select an employee"),
 
   license_number: z
     .string()
+    .trim()
     .min(3, "License number is required")
-    .max(30, "License number too long"),
+    .max(30, "License number is too long"),
 
-  experience_years: z
-    .number({ message: "Enter years of experience" })
-    .min(0, "Experience cannot be negative")
-    .max(50, "Please enter a realistic number of years"),
+ license_expiry_date: z
+    .string()
+    .min(1, "License expiry date is required")
+    .refine((val) => !isNaN(Date.parse(val)), "Invalid date")
+    .refine((val) => new Date(val) > new Date(), "License has already expired"),
 
+ experience_years: z
+    .string()
+    .min(1, "Experience is required")
+    .transform((val) => Number(val))
+    .pipe(z.number()
+      .min(0, "Experience cannot be negative")
+      .max(70, "Please enter a realistic number of years")),
 
-
-  /**
-   * File is validated outside zod (size, type checked in the upload handler).
-   * Using z.any() so react-hook-form can store the File object without
-   * zod attempting to parse it.
-   */
-  profile_picture: z.any().optional().nullable(),
+  address: z
+    .string()
+    .trim()
+    .max(255, "Address is too long")
+    .optional()
+    .or(z.literal("")),
 });
-
-export type CreateDriverFormData = z.infer<typeof createDriverSchema>;
 
 export const editDriverSchema = createDriverSchema.extend({
-  status: z.enum([
-    "available",
-    "assigned",
-    "in_transit",
-    "off_duty",
-    "suspended",
-  ]),
+  status: z.enum(["off_duty", "suspended", "assigned", "in_transit", "available"]),
 });
 
-export type EditDriverFormData = z.infer<typeof editDriverSchema>;
+/**
+ * RHF input types
+ */
+export type CreateDriverFormInput = z.input<typeof createDriverSchema>;
+export type EditDriverFormInput = z.input<typeof editDriverSchema>;
+
+/**
+ * Validated output types
+ */
+export type CreateDriverFormData = z.output<typeof createDriverSchema>;
+export type EditDriverFormData = z.output<typeof editDriverSchema>;
+
+/**
+ * Generic driver form types
+ */
+export type DriverFormInput =
+  | CreateDriverFormInput
+  | EditDriverFormInput;
+
+export type DriverFormData =
+  | CreateDriverFormData
+  | EditDriverFormData;

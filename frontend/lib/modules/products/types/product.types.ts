@@ -6,6 +6,17 @@ export interface ProductImage {
   name: string;
 }
 
+
+export type ProductFormImage =
+  | {
+      kind: "existing";
+      image: ProductImage;
+    }
+  | {
+      kind: "new";
+      file: File;
+    };
+
 export type ProductType = "consumable" | "tracked";
 
 export type ProductStatus =
@@ -60,6 +71,18 @@ export interface UpdateProductInput {
   status?: ProductStatus;
   minimumStock?: number;
   images?: ProductImage[];
+}
+
+export interface CreateProductPayload {
+  product: CreateProductInput;
+  imageFiles: File[];
+}
+
+export interface UpdateProductPayload {
+  product: UpdateProductInput;
+  newImageFiles: File[];
+  keptImageIds: string[];
+  primaryImageId?: string;
 }
 
 export const UNIT_LABELS: Record<ProductUnit, string> = {

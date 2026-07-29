@@ -1,6 +1,7 @@
 from __future__ import annotations
 import uuid
 
+from app.fleet.trips.enums import TripStatus
 from sqlalchemy import (
     Column,
     Date,
@@ -88,6 +89,6 @@ class Vehicle(Base):
     @property
     def current_trip_id(self) -> str | None:
         for trip in self.trips:
-            if trip.status not in ("completed", "cancelled"):
+            if trip.status not in (TripStatus.completed, TripStatus.cancelled):
                 return trip.id
         return None

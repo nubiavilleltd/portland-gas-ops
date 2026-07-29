@@ -162,7 +162,7 @@ export default function MovementsPage() {
       ),
     },
     {
-      key: "recorded_by",
+      key: "recorded_by_name",
       label: "Recorded By",
       render: (value) => (
         <span className="text-sm">{value as string}</span>

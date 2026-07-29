@@ -61,7 +61,6 @@ static async createDriver(input: {
     license_expiry_date?: string;
     experience_years?: number;
     address?: string;
-    status?: string;
   },
 ): Promise<Driver> {
   try {
@@ -71,4 +70,40 @@ static async createDriver(input: {
     throw new Error(getErrorMessage(err, "Failed to update driver"));
   }
 }
+
+static async suspendDriver(id: string): Promise<Driver> {
+  try {
+    const raw = await fleetApi.suspendDriver(id);
+    return adaptDriver(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to suspend driver"));
+  }
 }
+
+static async reinstateDriver(id: string): Promise<Driver> {
+  try {
+    const raw = await fleetApi.reinstateDriver(id);
+    return adaptDriver(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to reinstate driver"));
+  }
+}
+static async setDriverOffDuty(id: string): Promise<Driver> {
+  try {
+    const raw = await fleetApi.setDriverOffDuty(id);
+    return adaptDriver(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to set driver off duty"));
+  }
+}
+static async setDriverAvailable(id: string): Promise<Driver> {
+  try {
+    const raw = await fleetApi.setDriverAvailable(id);
+    return adaptDriver(raw);
+  } catch (err) {
+    throw new Error(getErrorMessage(err, "Failed to make driver available"));
+  }
+}
+
+}
+

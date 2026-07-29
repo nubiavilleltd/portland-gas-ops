@@ -66,7 +66,10 @@ class ProductRepository:
         total = q.with_entities(func.count(Product.id)).scalar() or 0
 
         items = (
-            q.order_by(Product.name)
+            q.order_by(
+                Product.created_at.desc(),
+                Product.id.desc(),
+            )
             .offset((page - 1) * page_size)
             .limit(page_size)
             .all()
@@ -105,7 +108,10 @@ class ProductRepository:
         db: Session,
         product_id: str,
     ) -> list[Document]:
-        return (
+
+        product = self.get_by_id(db, product_id)
+
+        docs = (
             db.query(Document)
             .filter(
                 Document.category == f"product:{product_id}",
@@ -114,6 +120,15 @@ class ProductRepository:
             .order_by(Document.created_at.asc())
             .all()
         )
+
+        if not product or not product.primary_document_id:
+            return docs
+
+        docs.sort(
+            key=lambda doc: doc.id != product.primary_document_id,
+        )
+
+        return docs
 
     def create_image_document(
         self,

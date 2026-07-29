@@ -14,6 +14,8 @@ from app.fleet.trips.service import TripService
 from app.fleet.trips.error_codes import TripErrorCode
 
 
+
+   
 class AddOrderToTripWorkflow:
 
     def __init__(self):
@@ -26,7 +28,8 @@ class AddOrderToTripWorkflow:
         db: Session,
         trip_id: str,
         order_id: str,
-        actor_id: str,
+        actor_employee_id:str,
+        actor_name:str
     ):
 
         #
@@ -72,9 +75,9 @@ class AddOrderToTripWorkflow:
             order_id=order.id,
         )
 
-        self.order_service.set_trip(
+        self.order_service.assign_to_trip(
             db=db,
-            order_no=order.order_no,
+            order_id=order.id,
             trip_id=str(trip.id),
         )
 
@@ -84,9 +87,9 @@ class AddOrderToTripWorkflow:
         #
         if self.trip_service.has_assigned_resources(trip):
 
-            self.order_service.update_fulfillment_status(
+            self.order_service.progress_fulfillment_status(
                 db=db,
-                order_no=order.order_no,
+                order=order,
                 status="assigned",
             )
 
@@ -108,6 +111,8 @@ class AddOrderToTripWorkflow:
         #
         # Audit Order
         #
+
+ 
         self.audit_service.record(
             db=db,
             entity_type=AuditEntityType.order,
@@ -115,7 +120,8 @@ class AddOrderToTripWorkflow:
             action="assigned_to_trip",
             description=f"Order assigned to trip {trip.trip_no}",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         #
@@ -128,7 +134,8 @@ class AddOrderToTripWorkflow:
             action="order_added",
             description=f"Order {order.order_no} added to trip {trip.trip_no}",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

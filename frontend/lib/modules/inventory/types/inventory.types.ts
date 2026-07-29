@@ -26,25 +26,42 @@ export type ItemDisposition = "sold" | "loaned";
 
 // ── 4. TRIP INVENTORY ASSIGNMENT ─────────────────────────
 
+// export interface InventoryAssignment {
+//   order_id: string;
+//   product_id: string;
+//   item_ids: string[];
+//   disposition: ItemDisposition;
+// }
+
 export interface InventoryAssignment {
   order_id: string;
   product_id: string;
+
+  // tracked products
   item_ids: string[];
-  disposition: ItemDisposition;
+
+  // warehouse selected for consumables
+  location_id?: string;
+
+  // business disposition
+  disposition?: ItemDisposition;
 }
 
 // ── 4. INVENTORY ITEM ────────────────────────────────────
 export interface InventoryItem {
   id: string;
   product_id: string;
+  product_name: string;
   tag_number: string;           // auto-generated, editable
   serial_number?: string;       // optional — supplier serial or barcode
   status: InventoryItemStatus;
   condition: "new" | "used" | "refurbished" | "damaged";
   disposition?: ItemDisposition; // set at check-out
   location_id: string;
+  location_name: string;
   order_id?: string;            // which order it went out on
   customer_id?: string;         // which customer has it
+  customer_name?: string;         // which customer has it
   checked_out_at?: string;
   expected_return_date?: string;
   received_at: string;
@@ -76,6 +93,7 @@ export interface StockMovement {
   location_id: string;
   notes?: string;
   recorded_by: string;
+  recorded_by_name: string;
   created_at: string;
 }
 
@@ -84,9 +102,16 @@ export interface StockMovement {
 export interface ConsumableStock {
   id: string;
   product_id: string;
+  product_name: string;
   location_id: string;
+  location_name: string;
   quantity: number;    // always current level
   updated_at: string;
+}
+
+export interface ConsumableStockDetail extends ConsumableStock {
+  product_code?: string;
+  movements: StockMovement[];
 }
 
 // ── 7. INPUT TYPES ───────────────────────────────────────
@@ -128,3 +153,30 @@ export interface ReturnItemInput {
   notes?: string;
   recorded_by: string;
 }
+
+
+
+// ── KPI TYPES ────────────────────────────────────────────
+
+export interface TrackedInventoryKPIs {
+  totalTrackedItems: number;
+  availableItems: number;
+  reservedItems: number;
+  checkedOutItems: number;
+  // withCustomerItems: number;
+  // maintenanceItems: number;
+  // retiredItems: number;
+}
+
+
+export interface ConsumableInventoryKPIs {
+  totalProducts: number;
+  totalQuantity: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+  // warehouseCount: number;
+}
+
+
+
+

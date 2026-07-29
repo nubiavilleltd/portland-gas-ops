@@ -26,7 +26,8 @@ class StartTripWorkflow:
         self,
         db: Session,
         trip_id: str,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
         trip = self.trip_service.start(
@@ -71,9 +72,9 @@ class StartTripWorkflow:
 
             if order.fulfillment_status.value != "delivered":
 
-                self.order_service.update_fulfillment_status(
+                self.order_service.progress_fulfillment_status(
                     db=db,
-                    order_no=order.order_no,
+                    order=order,
                     status="in_transit",
                 )
 
@@ -84,6 +85,8 @@ class StartTripWorkflow:
                     action="in_transit",
                     description="Order is now in transit.",
                     actor_type=AuditActorType.system,
+                    actor_employee_id=None,
+                    actor_name=None
                 )
 
         #
@@ -96,7 +99,8 @@ class StartTripWorkflow:
             action="started",
             description="Driver confirmed departure. Trip is now in transit.",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

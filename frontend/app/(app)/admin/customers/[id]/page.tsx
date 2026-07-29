@@ -94,7 +94,7 @@ export default function CustomerDetailPage() {
         <Button
           size="sm"
           variant="ghost"
-          href={ORDER_ROUTES.detail(order.orderNumber)}
+          href={ORDER_ROUTES.detail(order.id)}
         >
           View
         </Button>

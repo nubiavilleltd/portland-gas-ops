@@ -3,8 +3,10 @@ import api from "@/lib/api";
 
 import type {
   CreateOrderRequest,
+  SaveDraftRequest,
   UpdateOrderRequest,
 } from "../adapters/order.adapter";
+import { ConfirmDeliveryPayload } from "../types/orders.types";
 
 export const ordersApi = {
   list: async (
@@ -25,16 +27,16 @@ export const ordersApi = {
     return data;
   },
 
-  get: async (orderNo: string) => {
+  get: async (orderId: string) => {
     const { data } = await api.get(
-      `/api/orders/${orderNo}`,
+      `/api/orders/${orderId}`,
     );
 
     return data;
   },
 
   createDraft: async (
-    input: CreateOrderRequest,
+    input: SaveDraftRequest,
   ) => {
     const { data } = await api.post(
       "/api/orders",
@@ -45,20 +47,20 @@ export const ordersApi = {
   },
 
   update: async (
-    orderNo: string,
-    input: UpdateOrderRequest,
+    orderId: string,
+    input: SaveDraftRequest,
   ) => {
     const { data } = await api.put(
-      `/api/orders/${orderNo}`,
+      `/api/orders/${orderId}`,
       input,
     );
 
     return data;
   },
 
-  submit: async (orderNo: string) => {
+  submit: async (orderId: string) => {
     const { data } = await api.post(
-      `/api/orders/${orderNo}/submit`,
+      `/api/orders/${orderId}/submit`,
     );
 
     return data;
@@ -70,31 +72,31 @@ export const ordersApi = {
 },
 
   cancel: async (
-    orderNo: string,
+    orderId: string,
     reason?: string,
   ) => {
     const { data } = await api.post(
-      `/api/orders/${orderNo}/cancel`,
+      `/api/orders/${orderId}/cancel`,
       { reason },
     );
 
     return data;
   },
 
-  confirmDelivery: async (orderNo: string) => {
+  confirmDelivery: async (orderId: string, payload:ConfirmDeliveryPayload) => {
     const { data } = await api.post(
-      `/api/orders/${orderNo}/confirm-delivery`,
+      `/api/orders/${orderId}/confirm-delivery`, {received_by: payload.receivedBy, delivery_notes:payload.deliveryNotes}
     );
 
     return data;
   },
 
   updateFulfillment: async (
-    orderNo: string,
+    orderId: string,
     fulfillment_status: string,
   ) => {
     const { data } = await api.patch(
-      `/api/orders/${orderNo}/fulfillment`,
+      `/api/orders/${orderId}/fulfillment`,
       { fulfillment_status },
     );
 
@@ -102,11 +104,11 @@ export const ordersApi = {
   },
 
   setTrip: async (
-    orderNo: string,
+    orderId: string,
     trip_id: string | null,
   ) => {
     const { data } = await api.patch(
-      `/api/orders/${orderNo}/trip`,
+      `/api/orders/${orderId}/trip`,
       { trip_id },
     );
 
@@ -114,11 +116,11 @@ export const ordersApi = {
   },
 
   setInvoice: async (
-    orderNo: string,
+    orderId: string,
     invoice_id: string,
   ) => {
     const { data } = await api.patch(
-      `/api/orders/${orderNo}/invoice`,
+      `/api/orders/${orderId}/invoice`,
       { invoice_id },
     );
 

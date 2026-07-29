@@ -31,6 +31,7 @@ export function usePayments() {
   return {
     payments: query.data ?? [],
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     error: query.error ? parseError(query.error) : null,
     refetch: query.refetch,
   };
@@ -41,22 +42,23 @@ export function usePayments() {
 // ─────────────────────────────────────────────
 
 export function usePaymentById(id: string) {
-  const { payments, isLoading, error, refetch } = usePayments();
+  const { payments, isLoading, isFetching, error, refetch } = usePayments();
 
   const payment = getPaymentById(payments, id);
 
   return {
     payment,
     isLoading,
+    isFetching,
     error,
     refetch,
   };
 }
 
 export function usePaymentByNo(paymentNo: string) {
-  const { payments, isLoading, error, refetch } = usePayments();
+  const { payments, isLoading, isFetching, error, refetch } = usePayments();
   const payment = getPaymentByNo(payments, paymentNo);
-  return { payment, isLoading, error, refetch };
+  return { payment, isLoading, isFetching, error, refetch };
 }
 
 // ─────────────────────────────────────────────
@@ -64,7 +66,7 @@ export function usePaymentByNo(paymentNo: string) {
 // ─────────────────────────────────────────────
 
 export function usePaymentsByInvoice(invoiceId: string) {
-  const { payments, isLoading, error, refetch } = usePayments();
+  const { payments, isLoading, isFetching, error, refetch } = usePayments();
 
   const invoicePayments = getPaymentsByInvoice(
     payments,
@@ -74,6 +76,7 @@ export function usePaymentsByInvoice(invoiceId: string) {
   return {
     payments: invoicePayments,
     isLoading,
+    isFetching,
     error,
     refetch,
   };
@@ -86,7 +89,7 @@ export function usePaymentsByInvoice(invoiceId: string) {
 export function usePaymentSummary(
   invoiceId: string | undefined
 ) {
-  const { payments, isLoading, error, refetch } = usePayments();
+  const { payments, isLoading, isFetching, error, refetch } = usePayments();
 
   const summary = getPaymentSummary(
     payments,
@@ -96,6 +99,7 @@ export function usePaymentSummary(
   return {
     summary,
     isLoading,
+    isFetching,
     error,
     refetch,
   };
@@ -108,7 +112,7 @@ export function usePaymentSummary(
 export function useTotalPaidForInvoice(
   invoiceId: string
 ) {
-  const { payments, isLoading, error, refetch } = usePayments();
+  const { payments, isLoading, isFetching, error, refetch } = usePayments();
 
   const totalPaid = getTotalPaidForInvoice(
     payments,
@@ -118,6 +122,7 @@ export function useTotalPaidForInvoice(
   return {
     totalPaid,
     isLoading,
+    isFetching,
     error,
     refetch,
   };

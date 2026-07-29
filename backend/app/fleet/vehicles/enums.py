@@ -5,7 +5,7 @@ from enum import Enum
 
 class VehicleStatus(str, Enum):
     available = "available"
-    in_use = "in_use"
+    assigned = "assigned"
     in_transit = "in_transit"
     maintenance = "maintenance"
     inactive = "inactive"

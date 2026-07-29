@@ -5,7 +5,6 @@ from app.payments.enums import PaymentStatus
 def can_void(invoice: Invoice) -> bool:
     return invoice.status in (
     PaymentStatus.unpaid,
-    PaymentStatus.partially_paid,
     PaymentStatus.overdue,
 )
 

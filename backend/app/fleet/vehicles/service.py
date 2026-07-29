@@ -151,7 +151,7 @@ class VehicleService:
         return self.repo.update(
             db,
             vehicle,
-            status=VehicleStatus.in_use,
+            status=VehicleStatus.assigned,
         )
 
     def mark_in_transit(
@@ -175,6 +175,92 @@ class VehicleService:
     ) -> Vehicle:
 
         vehicle = self.get_or_raise(db, vehicle_id)
+
+        return self.repo.update(
+            db,
+            vehicle,
+            status=VehicleStatus.available,
+        )
+
+    def activate(
+        self,
+        db: Session,
+        vehicle_id: str,
+    ) -> Vehicle:
+       vehicle = self.get_or_raise(db, vehicle_id)
+       if vehicle.status != VehicleStatus.inactive:
+            raise AppException(
+                400,
+                VehicleErrorCode.VEHICLE_NOT_AVAILABLE,
+                "Only inactive vehicles can be activated",
+            )
+       return self.repo.update(
+            db,
+            vehicle,
+            status=VehicleStatus.available,
+        )
+    
+    def deactivate(
+        self,
+        db: Session,
+        vehicle_id: str,
+    ) -> Vehicle:
+
+        vehicle = self.get_or_raise(db, vehicle_id)
+
+        # Only available or maintenance vehicles can be deactivated
+        if vehicle.status not in (
+            VehicleStatus.available,
+            VehicleStatus.maintenance,
+        ):
+            raise AppException(
+                400,
+                VehicleErrorCode.VEHICLE_NOT_AVAILABLE,
+                "Only available or maintenance vehicles can be deactivated.",
+            )
+
+        return self.repo.update(
+            db,
+            vehicle,
+            status=VehicleStatus.inactive,
+        )
+    def send_for_maintenance(
+        self,
+        db: Session,
+        vehicle_id: str,
+    ) -> Vehicle:
+
+        vehicle = self.get_or_raise(db, vehicle_id)
+
+        # Only available vehicles can be sent for maintenance
+        if vehicle.status != VehicleStatus.available:
+            raise AppException(
+                400,
+                VehicleErrorCode.VEHICLE_NOT_AVAILABLE,
+                "Only available vehicles can be sent for maintenance.",
+            )
+
+        return self.repo.update(
+            db,
+            vehicle,
+            status=VehicleStatus.maintenance,
+        )
+    
+    def return_from_maintenance(
+        self,
+        db: Session,
+        vehicle_id: str,
+    ) -> Vehicle:
+
+        vehicle = self.get_or_raise(db, vehicle_id)
+
+        # Only vehicles under maintenance can be returned to service
+        if vehicle.status != VehicleStatus.maintenance:
+            raise AppException(
+                400,
+                VehicleErrorCode.VEHICLE_NOT_AVAILABLE,
+                "Only vehicles under maintenance can be returned to service.",
+            )
 
         return self.repo.update(
             db,
