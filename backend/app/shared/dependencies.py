@@ -5,6 +5,7 @@ from typing import Optional
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.shared.models.user import User
+from app.employees.models import Employee
 
 security = HTTPBearer(auto_error=False)
 
@@ -23,7 +24,11 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
     user = (
         db.query(User)
-        .options(joinedload(User.profile_picture))
+        .options(
+            joinedload(User.profile_picture),
+            joinedload(User.employee)
+                .joinedload(Employee.driver),
+)
         .filter(User.id == user_id)
         .first()
     )

@@ -22,7 +22,7 @@ class Order(Base):
     order_status        = Column(SAEnum(OrderStatus), nullable=False, default=OrderStatus.draft)
     fulfillment_status  = Column(SAEnum(FulfillmentStatus), nullable=False, default=FulfillmentStatus.pending)
     payment_status      = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.unpaid)
-    delivery_address    = Column(Text, nullable=False)
+    delivery_address    = Column(Text, nullable=True)
     delivery_date       = Column(Date, nullable=True)
     notes               = Column(Text, nullable=True)
     total_amount        = Column(Numeric(15, 2), nullable=False, default=0)
@@ -51,6 +51,10 @@ class Order(Base):
     confirmed_by        = Column(CHAR(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     confirmed_at        = Column(DateTime(timezone=True), nullable=True)
     delivered_at        = Column(DateTime(timezone=True), nullable=True)
+
+    received_by = Column(String(255), nullable=True)
+    delivery_notes = Column(Text, nullable=True)
+
     created_by          = Column(CHAR(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     created_at          = Column(DateTime(timezone=True), server_default=func.now())
     updated_at          = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -71,10 +75,20 @@ class OrderItem(Base):
     unit_price   = Column(Numeric(15, 2), nullable=False)  # historical snapshot
     total        = Column(Numeric(15, 2), nullable=False)
     disposition  = Column(SAEnum(DispositionStatus), nullable=True)
+    location_id = Column(
+                        CHAR(36),
+                        ForeignKey("warehouse_locations.id", ondelete="SET NULL"),
+                        nullable=True,
+                    )
 
     # Relationships
     order   = relationship("Order", back_populates="order_items")
     product = relationship("Product", foreign_keys=[product_id])
+
+    location = relationship(
+        "WarehouseLocation",
+        foreign_keys=[location_id],
+    )
     inventory_assignments = relationship(
         "OrderItemInventory",
         back_populates="order_item",

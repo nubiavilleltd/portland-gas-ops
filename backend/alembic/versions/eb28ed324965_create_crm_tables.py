@@ -141,7 +141,7 @@ def upgrade() -> None:
         ),
     )
 
-    op.create_index("ix_customers_temp_id","customers_temp",["id"])    
+    op.create_index("ix_customers_temp_id", "customers_temp", ["id"])
     pass
     op.create_table(
         "customer_contacts",

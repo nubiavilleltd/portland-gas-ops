@@ -580,7 +580,12 @@ class WorkflowEngine:
             # Queue email — fire only after successful commit
             _ar_id = approval_req.id
             _comment = comment
-            self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "approved", _comment))
+            _actor_id = actor.id
+            self._queue_email(
+                lambda db: workflow_email.notify_request_result(
+                    db, _ar_id, "approved", _comment, _actor_id
+                )
+            )
 
         return approval_req
 
@@ -655,7 +660,12 @@ class WorkflowEngine:
         # Queue email — fire only after successful commit
         _ar_id = approval_req.id
         _comment = comment
-        self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "rejected", _comment))
+        _actor_id = actor.id
+        self._queue_email(
+            lambda db: workflow_email.notify_request_result(
+                db, _ar_id, "rejected", _comment, _actor_id
+            )
+        )
 
         return approval_req
 
@@ -732,7 +742,12 @@ class WorkflowEngine:
         # Queue email — fire only after successful commit
         _ar_id = approval_req.id
         _comment = comment
-        self._queue_email(lambda db: workflow_email.notify_request_result(db, _ar_id, "returned", _comment))
+        _actor_id = actor.id
+        self._queue_email(
+            lambda db: workflow_email.notify_request_result(
+                db, _ar_id, "returned", _comment, _actor_id
+            )
+        )
 
         return approval_req
 

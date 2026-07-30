@@ -1,15 +1,16 @@
 from __future__ import annotations
 from app.customers.error_codes import CustomerErrorCode
 from app.customers.repository import CustomerRepository
+from app.orders import policies
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from typing import Optional, List
+from typing import Optional, Union
 from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.orders.repository import OrderRepository
 from app.orders.model import Order
-from app.orders.schema import OrderCreate, OrderUpdate, OrderFilters, CancelOrderRequest
+from app.orders.schema import OrderCreate, OrderDraftCreate, OrderUpdate, OrderFilters, CancelOrderRequest, ConfirmDeliveryRequest
 from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.orders.error_codes import OrderErrorCode
 from app.orders import guards
@@ -26,7 +27,11 @@ class OrderService:
         self.repo = OrderRepository()
         self.customer_repo = CustomerRepository()
         self.product_service = ProductService()
-
+    def _filter_real_items(self, order_items: list) -> list:
+        """Drop placeholder rows with no product selected — treated as
+        'not yet provided', mirroring the frontend's draft filtering."""
+        return [item for item in order_items if item.product_id]
+    
     def get_or_raise(self, db: Session, order_id: str) -> Order:
         order = self.repo.get_by_id(db, order_id)
         if not order:
@@ -37,11 +42,6 @@ class OrderService:
         order = self.repo.get_by_no(db, order_no)
         if not order:
             raise AppException(404, OrderErrorCode.ORDER_NOT_FOUND, f"Order {order_no} not found")
-        return order
-    def get_by_id_or_raise(self, db: Session, order_id: str) -> Order:
-        order = self.repo.get_by_id(db, order_id)
-        if not order:
-            raise AppException(404, OrderErrorCode.ORDER_NOT_FOUND, f"Order {order_id} not found")
         return order
     
     def get_order_items(
@@ -68,19 +68,32 @@ class OrderService:
             **fields,
         )
 
-    def list(self, db: Session, filters: OrderFilters):
+    def list(self, db: Session, filters: OrderFilters, current_user) -> tuple[list[Order], int]:
+        if policies.can_manage_orders(current_user):
+            return self.repo.list(
+                db,
+                search=filters.search,
+                order_status=filters.order_status,
+                fulfillment_status=filters.fulfillment_status,
+                payment_status=filters.payment_status,
+                customer_id=filters.customer_id,
+                page=filters.page,
+                page_size=filters.page_size,
+            )
+
         return self.repo.list(
             db,
-            search             = filters.search,
-            order_status       = filters.order_status.value if filters.order_status else None,
-            fulfillment_status = filters.fulfillment_status.value if filters.fulfillment_status else None,
-            payment_status     = filters.payment_status.value if filters.payment_status else None,
-            customer_id        = filters.customer_id,
-            page               = filters.page,
-            page_size          = filters.page_size,
+            created_by=current_user.id,
+            search=filters.search,
+            order_status=filters.order_status,
+            fulfillment_status=filters.fulfillment_status,
+            payment_status=filters.payment_status,
+            customer_id=filters.customer_id,
+            page=filters.page,
+            page_size=filters.page_size,
         )
 
-    def create_draft(self, db: Session, data: OrderCreate, created_by: str) -> Order:
+    def create_draft(self, db: Session, data: Union[OrderCreate, OrderDraftCreate], created_by: str) -> Order:
         """Create an order in draft status."""
         customer = self.customer_repo.get_by_id(db, data.customer_id)
         if not customer:
@@ -89,7 +102,8 @@ class OrderService:
                 CustomerErrorCode.CUSTOMER_NOT_FOUND,
                 "Customer not found",
             )
-        items, subtotal = self._build_order_items(db, data.order_items)
+        real_items = self._filter_real_items(data.order_items)
+        items, subtotal = self._build_order_items(db, real_items) if real_items else ([], Decimal("0"))
         discount_amount, total_amount = self._calculate_order_total(
             subtotal=subtotal,
             discount_type=data.discount_type,
@@ -105,7 +119,7 @@ class OrderService:
             order_status       = OrderStatus.draft,
             fulfillment_status = FulfillmentStatus.pending,
             payment_status     = PaymentStatus.unpaid,
-            delivery_address   = data.delivery_address.strip(),
+            delivery_address = data.delivery_address.strip() if data.delivery_address else None,
             delivery_date      = data.delivery_date,
             notes              = data.notes,
             discount_type=data.discount_type,
@@ -114,26 +128,26 @@ class OrderService:
             total_amount=total_amount,
             created_by         = created_by,
         )
-        self.repo.create_items(
-            db,
-            order.id,
-            items,
-        )
+        if items:
+            self.repo.create_items(
+                db,
+                order.id,
+                items,
+            )
         return order
 
     def create_and_submit(self, db: Session, data: OrderCreate, created_by: str) -> Order:
         order = self.create_draft(db, data, created_by)
-        if not guards.can_submit(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
-                            "Only draft orders can be submitted")
+        guards.ensure_can_submit(order)
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
-    def update_draft(self, db: Session, order_no: str, data: OrderUpdate) -> Order:
-        order = self.get_by_no_or_raise(db, order_no)
-        if not guards.can_edit(order):
-            raise AppException(400, OrderErrorCode.ORDER_NOT_EDITABLE, "Only draft orders can be edited")
+    def update_draft(self, db: Session, order: Order, data: OrderUpdate) -> Order:
+        """Update a draft order - handles partial updates gracefully."""
+        guards.ensure_can_edit(order)
 
         updates = {}
+        
+        # Handle customer update
         if data.customer_id is not None:
             customer = self.customer_repo.get_by_id(db, data.customer_id)
             if not customer:
@@ -144,26 +158,36 @@ class OrderService:
                 )
             updates["customer_id"] = data.customer_id
             updates["customer_name"] = customer.name
+
+        # Handle delivery fields
         if data.delivery_address is not None:
-            updates["delivery_address"] = data.delivery_address.strip()
+            # If empty string, set to None (clear the field)
+            updates["delivery_address"] = data.delivery_address.strip() if data.delivery_address else None
+            
         if data.delivery_date is not None:
             updates["delivery_date"] = data.delivery_date
+            
         if data.notes is not None:
             updates["notes"] = data.notes
 
+        # Handle order items
         if data.order_items is not None:
-            items, subtotal = self._build_order_items(
-                db,
-                data.order_items,
-            )
-
-            self.repo.replace_items(
-                db,
-                order.id,
-                items,
-            )
+            # Filter out placeholder items (no product_id)
+            real_items = self._filter_real_items(data.order_items)
+            
+            if real_items:
+                # Build items and calculate totals
+                items, subtotal = self._build_order_items(db, real_items)
+                self.repo.replace_items(db, order.id, items)
+            else:
+                # User wants to clear all items
+                self.repo.clear_items(db, order.id) 
+                subtotal = Decimal("0")
         else:
-            subtotal = sum(Decimal(str(item.total))for item in order.order_items)
+            # No change to items, use existing subtotal
+            subtotal = sum(Decimal(str(item.total)) for item in order.order_items)
+
+        # Handle discount fields
         if (
             data.order_items is not None
             or data.discount_type is not None
@@ -187,30 +211,24 @@ class OrderService:
                 discount_value=discount_value,
             )
 
-            updates.update(
-                {
-                    "discount_type": discount_type,
-                    "discount_value": discount_value,
-                    "discount_amount": discount_amount,
-                    "total_amount": total_amount,
-                }
-            )
+            updates.update({
+                "discount_type": discount_type,
+                "discount_value": discount_value,
+                "discount_amount": discount_amount,
+                "total_amount": total_amount,
+            })
 
         return self.repo.update(db, order, **updates)
 
-    def submit(self, db: Session, order_no: str) -> Order:
-        order = self.get_by_no_or_raise(db, order_no)
-        if not guards.can_submit(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_SUBMITTED,
-                               "Only draft orders can be submitted")
+    def submit(self, db: Session, order: Order) -> Order:
+        # order = self.get_or_raise(db, order_id)
+        guards.ensure_can_submit(order)
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 
-    def confirm(self, db: Session, order_no: str, confirmed_by: str) -> Order:
+    def confirm(self, db: Session, order_id: str, confirmed_by: str) -> Order:
         """Manual confirmation — submitted → confirmed."""
-        order = self.get_by_no_or_raise(db, order_no)
-        if not guards.can_confirm(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_CONFIRMED,
-                               "Only submitted orders can be confirmed")
+        order = self.get_or_raise(db, order_id)
+        guards.ensure_can_confirm(order)
         return self.repo.update(
             db, order,
             order_status = OrderStatus.confirmed,
@@ -218,16 +236,14 @@ class OrderService:
             confirmed_at = datetime.now(timezone.utc),
         )
 
-    def cancel(self, db: Session, order_no: str, reason: Optional[str]) -> Order:
+    def cancel(self, db: Session, order: Order, reason: Optional[str]) -> Order:
         """
         Cancel order. Backend handles the cascade:
         - Sets order cancelled
         - Voids any linked invoice (handled in invoice service, called from router)
-        """
-        order = self.get_by_no_or_raise(db, order_no)
-        if not guards.can_cancel(order):
-            raise AppException(400, OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
-                               "This order cannot be cancelled in its current state")
+        """        
+        guards.ensure_can_cancel(order)
+
         return self.repo.update(
             db, order,
             order_status        = OrderStatus.cancelled,
@@ -235,22 +251,22 @@ class OrderService:
             cancelled_at        = datetime.now(timezone.utc),
         )
 
-    def confirm_delivery(self, db: Session, order_no: str) -> Order:
+    def confirm_delivery(self, db: Session, order: Order, payload:ConfirmDeliveryRequest) -> Order:
         """
         Confirm delivery.
         Sets fulfillment=delivered, delivered_at=now.
         If payment_status==paid: auto-close (set order_status=completed).
         This is what the frontend confirmDeliveryWorkflow does — both steps in one.
         """
-        order = self.get_by_no_or_raise(db, order_no)
-        if not guards.can_confirm_delivery(order):
-            raise AppException(400, OrderErrorCode.ORDER_NOT_EDITABLE,
-                               "Delivery cannot be confirmed for this order")
+
+        guards.ensure_can_confirm_delivery(order)
 
         self.repo.update(
             db, order,
             fulfillment_status = FulfillmentStatus.delivered,
             delivered_at       = datetime.now(timezone.utc),
+            received_by=payload.received_by,
+            delivery_notes=payload.delivery_notes,
         )
 
         # Auto-close if already paid — mirrors frontend confirmDeliveryWorkflow exactly
@@ -274,16 +290,45 @@ class OrderService:
 
         return self.repo.update(db, order, **updates)
 
-    def update_fulfillment_status(self, db: Session, order_no: str, status: FulfillmentStatus) -> Order:
+    def progress_fulfillment_status(self, db: Session, order: Order, status: FulfillmentStatus) -> Order:
         """Called by trips module when trip status changes."""
-        order = self.get_by_no_or_raise(db, order_no)
+        
+        guards.ensure_can_progress_fulfillment(
+            order,
+            status,
+        )
         return self.repo.update(db, order, fulfillment_status=status)
 
-    def set_trip(self, db: Session, order_no: str, trip_id: Optional[str]) -> Order:
-        order = self.get_by_no_or_raise(db, order_no)
+    def revert_fulfillment_to_pending(
+        self,
+        db: Session,
+        order: Order,
+        status:FulfillmentStatus
+    ) -> Order:
+        guards.ensure_can_revert_fulfillment(order)
+        return self.repo.update(db, order, fulfillment_status=status)
+
+    def assign_to_trip(self, db: Session, order_id: str, trip_id: Optional[str]) -> Order:
+        order = self.get_or_raise(db, order_id)
+        guards.ensure_can_assign_trip(order)
         return self.repo.update(db, order, trip_id=trip_id)
+    
+    def remove_from_trip(
+        self,
+        db: Session,
+        order_id: str,
+    ) -> Order:
+
+        order = self.get_or_raise(db, order_id)
+
+        return self.repo.update(
+            db,
+            order,
+            trip_id=None,
+        )
 
     def set_invoice(self, db: Session, order: Order, invoice_id: str) -> Order:
+        guards.ensure_can_generate_invoice(order)
         return self.repo.update(db, order, invoice_id=invoice_id)
     
     

@@ -39,6 +39,12 @@ export function getLatestActualWorkDateTime() {
   return toLocalDateTimeInputValue(startOfMinute(new Date()));
 }
 
+export function getLatestActualWorkStartDateTime() {
+  return toLocalDateTimeInputValue(
+    addMinutes(startOfMinute(new Date()), -MIN_SCHEDULE_DURATION_MINUTES),
+  );
+}
+
 export function getTodayDateInputValue() {
   return toLocalDateInputValue(new Date());
 }

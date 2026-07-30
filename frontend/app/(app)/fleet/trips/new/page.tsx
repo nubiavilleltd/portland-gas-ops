@@ -26,7 +26,6 @@ import {
 import { parseError } from "@/lib/errors";
 
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
@@ -35,6 +34,7 @@ import { useCreateTripWorkflow } from "@/lib/modules/fleet/hooks/useCreateTripWo
 import { canAssignToTrip } from "@/lib/modules/orders/guards/orders.guards";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
+import CreateTripSkeleton from "@/lib/modules/fleet/components/CreateTripSkeleton";
 
 // ── Constants ─────────────────────────────────────────────
 const TRIP_TYPE_OPTIONS: Array<{ value: Trip["type"]; label: string }> = [
@@ -62,25 +62,28 @@ function CreateTripForm() {
 
   const vehicleId = searchParams.get("vehicleId");
   const driverId = searchParams.get("driverId");
-  const orderNo = searchParams.get("orderNo");
+  const orderId = searchParams.get("orderId");
 
   // ── DATA HOOKS ─────────────────────────────────────────
-  const { orders } = useOrders();
-  const { customers } = useCustomers();
+    const { orders, isLoading: ordersLoading } = useOrders();
 
-  const { driver } = useDriverById(driverId ?? "");
-  const { vehicle } = useVehicleById(vehicleId ?? "");
+  const { driver, isLoading: driverLoading } = useDriverById(driverId ?? "");
+  const { vehicle, isLoading: vehicleLoading } = useVehicleById(vehicleId ?? "");
+
+  const isLoading =
+    ordersLoading ||
+    (!!driverId && driverLoading) ||
+    (!!vehicleId && vehicleLoading);
 
   // ── LOOKUP MAPS ────────────────────────────────────────
 
   const orderMap = new Map(orders.map((o) => [o.id, o]));
-  const customerMap = new Map(customers.map((c) => [c.id, c]));
 
-  const preloadedOrder = orderNo
-    ? orders.find((o) => o.orderNumber === orderNo)
+  const preloadedOrder = orderId
+    ? orders.find((o) => o.id === orderId)
     : null;
 
-  const isTripTypeLocked = !!orderNo;
+  const isTripTypeLocked = !!orderId;
 
   const assignableOrders = orders
     .filter(
@@ -89,7 +92,7 @@ function CreateTripForm() {
     )
     .map((o) => ({
       value: o.id,
-      label: `${o.orderNumber} — ${customerMap.get(o.customerId)?.name ?? o.customerName}`,
+      label: `${o.orderNumber} — ${o.customerName ?? ""}`,
     }));
 
   const {
@@ -129,6 +132,10 @@ function CreateTripForm() {
     }
   }
 
+   if (isLoading) {
+    return <CreateTripSkeleton />;
+  }
+
   return (
     <AppLayout pageTitle="Create Trip">
 
@@ -157,7 +164,7 @@ function CreateTripForm() {
 
                 <span>
                   Order <strong>{preloadedOrder.orderNumber}</strong> —{" "}
-                  {customerMap.get(preloadedOrder.customerId)?.name ?? preloadedOrder.customerName}
+                  {preloadedOrder.customerName ?? ""}
                 </span>
               </div>
             )}
@@ -190,7 +197,7 @@ function CreateTripForm() {
           title="Trip Details"
           description="Configure trip type, destination, and scheduling information"
         >
-          <div className="space-y-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               control={control}
               name="type"
@@ -206,7 +213,7 @@ function CreateTripForm() {
               )}
             />
 
-            {tripType === "order_delivery" && !orderNo && (
+            {tripType === "order_delivery" && !orderId && (
               <Controller
                 control={control}
                 name="linked_order_id"
@@ -221,7 +228,7 @@ function CreateTripForm() {
                       const linked = orderMap.get(v);
 
                       if (linked) {
-                        setValue("end_location", linked.deliveryAddress);
+                        setValue("end_location", linked.deliveryAddress ?? "");
 
                         if (linked.deliveryDate) {
                           setValue("scheduled_date", linked.deliveryDate);
@@ -235,12 +242,14 @@ function CreateTripForm() {
 
             <FormInput
               label="Start Location"
+              required
               {...register("start_location")}
               error={errors.start_location?.message}
             />
 
             <FormInput
               label="End Location"
+              required
               {...register("end_location")}
               error={errors.end_location?.message}
             />
@@ -249,6 +258,8 @@ function CreateTripForm() {
               label="Scheduled Date"
               required
               {...register("scheduled_date")}
+              min={new Date().toISOString().split("T")[0]}
+              error={errors.scheduled_date?.message}
             />
 
             <FormTextarea
@@ -260,7 +271,7 @@ function CreateTripForm() {
 
         <ErrorBanner message={errors.root?.message} />
 
-        <div className="flex justify-end gap-3 pb-10">
+        <div className="flex gap-3 pb-10 mt-5">
           <Button
             type="submit"
             loading={isSubmitting || createTrip.isPending}

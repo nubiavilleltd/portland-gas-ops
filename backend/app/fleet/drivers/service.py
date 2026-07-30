@@ -165,6 +165,107 @@ class DriverService:
             driver,
             status=DriverStatus.available,
         )
+    
+    def suspend(
+        self,
+        db: Session,
+        driver_id: str,
+    ) -> Driver:
+
+        driver = self.get_or_raise(db, driver_id)
+
+        # Cannot suspend while assigned or driving
+        if driver.status in (
+            DriverStatus.assigned,
+            DriverStatus.in_transit,
+        ):
+            raise AppException(
+                400,
+                DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                "Driver cannot be suspended while assigned or in transit.",
+            )
+
+        # Already suspended
+        if driver.status == DriverStatus.suspended:
+            raise AppException(
+                400,
+                DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                "Driver is already suspended.",
+            )
+
+        return self.repo.update(
+            db,
+            driver,
+            status=DriverStatus.suspended,
+        )
+    
+
+    def reinstate(
+        self,
+        db: Session,
+        driver_id: str,
+    ) -> Driver:
+
+        driver = self.get_or_raise(db, driver_id)
+
+        # Only suspended drivers can be reinstated
+        if driver.status != DriverStatus.suspended:
+            raise AppException(
+                400,
+                DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                "Only suspended drivers can be reinstated.",
+            )
+
+        return self.repo.update(
+            db,
+            driver,
+            status=DriverStatus.available,
+        )
+    
+
+    def set_off_duty(
+            self,
+            db: Session,
+            driver_id: str,
+        ) -> Driver:
+
+            driver = self.get_or_raise(db, driver_id)
+
+            # Only available drivers can go off duty
+            if driver.status != DriverStatus.available:
+                raise AppException(
+                    400,
+                    DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                    "Only available drivers can be set off duty.",
+                )
+
+            return self.repo.update(
+                db,
+                driver,
+                status=DriverStatus.off_duty,
+            )
+    
+    def set_available(
+        self,
+        db: Session,
+        driver_id: str,
+    ) -> Driver:
+
+        driver = self.get_or_raise(db, driver_id)
+
+        # Only off-duty drivers can become available
+        if driver.status != DriverStatus.off_duty:
+            raise AppException(
+                400,
+                DriverErrorCode.DRIVER_NOT_AVAILABLE,
+                "Only off-duty drivers can be set available.",
+            )
+
+        return self.repo.update(
+            db,
+            driver,
+            status=DriverStatus.available,
+        )
 
     # ------------------------------------------------------------------
     # Validation helpers

@@ -39,18 +39,19 @@ import {
 import { CONDITION_OPTIONS } from "@/lib/modules/inventory/constants/inventory-form.constants";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 import { useState } from "react";
+import CheckInSkeleton from "@/lib/modules/inventory/components/CheckInSkeleton";
 
 // ── Page ──────────────────────────────────────────────────
 export default function CheckInPage() {
   const router = useRouter();
 
-  const { products,  isLoading: productsLoading  } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts();
   const { locations, isLoading: locationsLoading } = useLocations();
 
-  const checkInTracked    = useCheckInTracked();
+  const checkInTracked = useCheckInTracked();
   const checkInConsumable = useCheckInConsumable();
 
-  const activeProducts    = getActiveProducts(products);
+  const activeProducts = getActiveProducts(products);
   const defaultLocationId = locations.find((l) => l.is_default)?.id ?? "";
 
 
@@ -66,19 +67,21 @@ export default function CheckInPage() {
     description: isTracked(p) ? "Tracked Asset" : "Consumable",
   }));
 
-    console.log("locations", locations);
-console.log("locationOptions", locationOptions);
+    if (productsLoading || locationsLoading) {
+    return <CheckInSkeleton />;
+  }
+
 
   // ── Tracked form ──────────────────────────────────────────
   const trackedForm = useForm<CheckInTrackedFormInput, unknown, CheckInTrackedFormOutput>({
     resolver: zodResolver(checkInTrackedSchema),
     mode: "onTouched",
     defaultValues: {
-      product_id:  "",
+      product_id: "",
       location_id: defaultLocationId,
-      quantity:    "",
-      condition:   "new",
-      notes:       "",
+      quantity: "",
+      condition: "new",
+      notes: "",
     },
   });
 
@@ -87,15 +90,15 @@ console.log("locationOptions", locationOptions);
     resolver: zodResolver(checkInConsumableSchema),
     mode: "onTouched",
     defaultValues: {
-      product_id:  "",
+      product_id: "",
       location_id: defaultLocationId,
-      quantity:    "",
-      notes:       "",
+      quantity: "",
+      notes: "",
     },
   });
 
   // ── Watch selected product across both forms ──────────────
-  const trackedProductId    = trackedForm.watch("product_id");
+  const trackedProductId = trackedForm.watch("product_id");
   const consumableProductId = consumableForm.watch("product_id");
 
   // The "active" product drives which form is shown
@@ -104,7 +107,7 @@ console.log("locationOptions", locationOptions);
     useState<string>("");
 
   const selectedProduct = getProductById(products, selectedProductId);
-  const productType     = selectedProduct
+  const productType = selectedProduct
     ? isTracked(selectedProduct) ? "tracked" : "consumable"
     : null;
 
@@ -119,21 +122,21 @@ console.log("locationOptions", locationOptions);
       trackedForm.setValue("location_id", defaultLocationId);
       // Reset consumable form
       consumableForm.reset({
-        product_id:  "",
+        product_id: "",
         location_id: defaultLocationId,
-        quantity:    "",
-        notes:       "",
+        quantity: "",
+        notes: "",
       });
     } else {
       consumableForm.setValue("product_id", productId);
       consumableForm.setValue("location_id", defaultLocationId);
       // Reset tracked form
       trackedForm.reset({
-        product_id:  "",
+        product_id: "",
         location_id: defaultLocationId,
-        quantity:    "",
-        condition:   "new",
-        notes:       "",
+        quantity: "",
+        condition: "new",
+        notes: "",
       });
     }
   }
@@ -145,11 +148,13 @@ console.log("locationOptions", locationOptions);
       await checkInTracked.mutateAsync({
         ...data,
         product_code: product?.code ?? data.product_id.toUpperCase().slice(0, 3),
-        recorded_by:  "Warehouse Staff",
+        recorded_by: "Warehouse Staff",
       });
       trackedForm.reset();
       setSelectedProductId("");
-      router.push(INVENTORY_ROUTES.list());
+      router.push(
+        INVENTORY_ROUTES.list("tracked"),
+      );
     } catch (err) {
       trackedForm.setError("root", {
         message: err instanceof Error ? err.message : "Failed to check in items",
@@ -166,7 +171,9 @@ console.log("locationOptions", locationOptions);
       });
       consumableForm.reset();
       setSelectedProductId("");
-      router.push(INVENTORY_ROUTES.list());
+      router.push(
+        INVENTORY_ROUTES.list("consumable"),
+      );
     } catch (err) {
       consumableForm.setError("root", {
         message: err instanceof Error ? err.message : "Failed to update stock",
@@ -218,38 +225,43 @@ console.log("locationOptions", locationOptions);
                     : `Consumable — stock level will be updated in ${selectedProduct.unit}`
                   : "Select a product to continue"
               }
+              searchable
             />
 
             {/* ── Tracked form fields ─────────────────────── */}
             {productType === "tracked" && (
               <form
                 onSubmit={trackedForm.handleSubmit(handleTrackedSubmit)}
-                className="space-y-5"
+                className="space-y-3"
               >
-                <Controller
-                  control={trackedForm.control}
-                  name="location_id"
-                  render={({ field }) => (
-                    <FormSelect
-                      label="Location"
-                      required
-                      options={locationOptions}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      error={trackedForm.formState.errors.location_id?.message}
-                    />
-                  )}
-                />
 
-                <FormInput
-                  label="Quantity"
-                  type="number"
-                  required
-                  placeholder="How many units arriving?"
-                  hint="A tag number will be generated for each unit"
-                  error={trackedForm.formState.errors.quantity?.message}
-                  {...trackedForm.register("quantity")}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Controller
+                    control={trackedForm.control}
+                    name="location_id"
+                    render={({ field }) => (
+                      <FormSelect
+                        label="Location"
+                        required
+                        options={locationOptions}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        error={trackedForm.formState.errors.location_id?.message}
+                      />
+                    )}
+                  />
+
+                  <FormInput
+                    label="Quantity"
+                    type="number"
+                    required
+                    placeholder="How many units arriving?"
+                    hint="A tag number will be generated for each unit"
+                    error={trackedForm.formState.errors.quantity?.message}
+                    {...trackedForm.register("quantity")}
+                  />
+
+                </div>
 
                 <Controller
                   control={trackedForm.control}
@@ -262,6 +274,7 @@ console.log("locationOptions", locationOptions);
                       value={field.value}
                       onValueChange={field.onChange}
                       error={trackedForm.formState.errors.condition?.message}
+                      searchable
                     />
                   )}
                 />
@@ -280,7 +293,6 @@ console.log("locationOptions", locationOptions);
                   type="submit"
                   loading={trackedForm.formState.isSubmitting}
                   loadingText="Checking in…"
-                  className="w-full"
                 >
                   Check In Items
                 </Button>
@@ -293,31 +305,35 @@ console.log("locationOptions", locationOptions);
                 onSubmit={consumableForm.handleSubmit(handleConsumableSubmit)}
                 className="space-y-5"
               >
-                <Controller
-                  control={consumableForm.control}
-                  name="location_id"
-                  render={({ field }) => (
-                    <FormSelect
-                      label="Location"
-                      required
-                      options={locationOptions}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      error={consumableForm.formState.errors.location_id?.message}
-                    />
-                  )}
-                />
 
-                <FormInput
-                  label="Quantity"
-                  type="text"
-                  inputMode="numeric"
-                  required
-                  placeholder="e.g. 5,000"
-                  hint={`Unit: ${selectedProduct?.unit ?? ""}`}
-                  error={consumableForm.formState.errors.quantity?.message}
-                  {...consumableForm.register("quantity")}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Controller
+                    control={consumableForm.control}
+                    name="location_id"
+                    render={({ field }) => (
+                      <FormSelect
+                        label="Location"
+                        required
+                        options={locationOptions}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        error={consumableForm.formState.errors.location_id?.message}
+                      />
+                    )}
+                  />
+
+                  <FormInput
+                    label="Quantity"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    placeholder="e.g. 5,000"
+                    hint={`Unit: ${selectedProduct?.unit ?? ""}`}
+                    error={consumableForm.formState.errors.quantity?.message}
+                    {...consumableForm.register("quantity")}
+                  />
+
+                </div>
 
                 <FormTextarea
                   label="Notes"
@@ -333,7 +349,6 @@ console.log("locationOptions", locationOptions);
                   type="submit"
                   loading={consumableForm.formState.isSubmitting}
                   loadingText="Updating stock…"
-                  className="w-full"
                 >
                   Update Stock
                 </Button>

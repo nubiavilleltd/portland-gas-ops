@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -15,6 +16,7 @@ from app.inventory.repository import InventoryRepository
 from app.inventory.enums import (
     InventoryItemStatus,
     MovementType,
+    ReferenceType
 )
 
 
@@ -26,28 +28,184 @@ class MarkReadyWorkflow:
         self.order_service = OrderService()
         self.inventory_repo = InventoryRepository()
 
+    def _process_tracked_assignment(
+        self,
+        db: Session,
+        trip,
+        assignment,
+        order_item,
+        actor_user_id: str,
+        actor_name: str,
+        assigned_item_ids: set[str],
+    ):
+
+        if len(assignment.item_ids) != int(order_item.quantity):
+            raise ValueError(
+                f"Product {assignment.product_id} requires "
+                f"{int(order_item.quantity)} inventory item(s), "
+                f"but {len(assignment.item_ids)} were provided."
+            )
+
+        for item_id in assignment.item_ids:
+
+            if item_id in assigned_item_ids:
+                raise ValueError(
+                    f"Inventory item {item_id} was selected more than once."
+                )
+
+            assigned_item_ids.add(item_id)
+
+            item = self.inventory_repo.get_inventory_item_by_id(
+                db=db,
+                item_id=item_id,
+            )
+
+            if item is None:
+                raise ValueError(
+                    f"Inventory item {item_id} not found."
+                )
+
+            if item.product_id != assignment.product_id:
+                raise ValueError(
+                    f"Inventory item {item_id} does not belong to product "
+                    f"{assignment.product_id}."
+                )
+
+            if self.inventory_repo.is_inventory_item_assigned(
+                db=db,
+                inventory_item_id=item.id,
+            ):
+                raise ValueError(
+                    f"Inventory item {item.id} is already assigned."
+                )
+
+            if item.status != InventoryItemStatus.available:
+                raise ValueError(
+                    f"Inventory item {item.id} is not available."
+                )
+
+            self.inventory_repo.reserve_inventory_item(
+                db=db,
+                item=item,
+                order_id=assignment.order_id,
+                trip_id=trip.id,
+                disposition=assignment.disposition,
+            )
+
+            movement = self.inventory_repo.create_stock_movement(
+                db=db,
+                movement_no=self.inventory_repo.generate_movement_no(db),
+                product_id=item.product_id,
+                movement_type=MovementType.reservation,
+                quantity=Decimal("1"),
+                location_id=item.location_id,
+                recorded_by=actor_user_id,
+                recorded_by_name=actor_name,
+                reference_type=ReferenceType.trip,
+                reference_id=str(trip.id),
+                notes=(
+                    f"Reserved inventory item {item.tag_number} "
+                    f"for trip {trip.trip_no}"
+                ),
+            )
+
+            self.inventory_repo.add_stock_movement_items(
+                db=db,
+                movement_id=movement.id,
+                inventory_item_ids=[item.id],
+            )
+
+            self.inventory_repo.assign_inventory_to_order_item(
+                db=db,
+                order_item_id=order_item.id,
+                inventory_item_id=item.id,
+            )
+
+    def _process_consumable_assignment(
+        self,
+        db: Session,
+        trip,
+        assignment,
+        order_item,
+        actor_user_id: str,
+        actor_name: str,
+    ):
+
+        if assignment.location_id is None:
+            raise ValueError(
+                "A warehouse must be selected for consumable products."
+            )
+        print("=" * 80)
+        print("CONSUMABLE ASSIGNMENT")
+        print("Trip:", trip.trip_no)
+        print("Product:", assignment.product_id)
+        print("Location:", assignment.location_id)
+        print("Order Item Qty:", order_item.quantity)
+        print("=" * 80)
+
+        self.inventory_repo.deduct_consumable_stock(
+            db=db,
+            product_id=assignment.product_id,
+            location_id=assignment.location_id,
+            quantity=Decimal(str(order_item.quantity)),
+        )
+
+        self.inventory_repo.create_stock_movement(
+            db=db,
+            movement_no=self.inventory_repo.generate_movement_no(db),
+            product_id=assignment.product_id,
+            movement_type=MovementType.reservation,
+            quantity=Decimal(str(order_item.quantity)),
+            location_id=assignment.location_id,
+            recorded_by=actor_user_id,
+            recorded_by_name=actor_name,
+            reference_type=ReferenceType.trip,
+            reference_id=str(trip.id),
+            notes=(
+                f"Reserved consumable stock "
+                f"for trip {trip.trip_no}"
+            ),
+        )
+
     def execute(
         self,
         db: Session,
         trip_id: str,
         assignments: list[TripInventoryAssignment],
-        actor_id: str,
+        actor_user_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
+
         trip = self.trip_service.get_or_raise(
             db=db,
             trip_id=trip_id,
         )
 
+        print("=" * 80)
+        print("MARK READY")
+        print("Trip:", trip.trip_no)
+        print("Assignments:", len(assignments))
+        print("=" * 80)
+
         trip_order_ids = {
             trip_order.order_id
             for trip_order in trip.trip_orders
         }
+
         assigned_item_ids: set[str] = set()
 
         for assignment in assignments:
+
+            print(
+                "Assignment:",
+                assignment.order_id,
+                assignment.product_id,
+            )
+
             if assignment.order_id not in trip_order_ids:
                 raise ValueError(
-                    f"Order {assignment.order_id} is not assigned to trip {trip_id}."
+                    f"Order {assignment.order_id} is not assigned to trip {trip.trip_no}."
                 )
 
             order_items = self.order_service.get_order_items(
@@ -64,100 +222,67 @@ class MarkReadyWorkflow:
                 None,
             )
 
+            print(
+                "Order item:",
+                order_item.id,
+                order_item.product.name,
+                order_item.quantity,
+            )
+
             if order_item is None:
                 raise ValueError(
                     f"Product {assignment.product_id} "
                     f"does not exist on order {assignment.order_id}."
                 )
+            print(
+                "Tracked?"
+                if assignment.item_ids
+                else "Consumable"
+            )
 
-            if len(assignment.item_ids) != int(order_item.quantity):
-                raise ValueError(
-                    f"Product {assignment.product_id} requires "
-                    f"{int(order_item.quantity)} inventory item(s), "
-                    f"but {len(assignment.item_ids)} were provided."
+            if assignment.item_ids:
+                self._process_tracked_assignment(
+                    db=db,
+                    trip=trip,
+                    assignment=assignment,
+                    order_item=order_item,
+                    actor_user_id=actor_user_id,
+                    actor_name=actor_name,
+                    assigned_item_ids=assigned_item_ids,
+                )
+                print(
+                    "Reserved items:",
+                    assignment.item_ids,
+                )
+            else:
+                self._process_consumable_assignment(
+                    db=db,
+                    trip=trip,
+                    assignment=assignment,
+                    order_item=order_item,
+                    actor_user_id=actor_user_id,
+                    actor_name=actor_name,
+                )
+                print(
+                    "Reserved consumable:",
+                    assignment.location_id,
                 )
 
-            for item_id in assignment.item_ids:
 
-                if item_id in assigned_item_ids:
-                    raise ValueError(
-                        f"Inventory item {item_id} was selected more than once."
-                    )
+            update_fields = {}
 
-                assigned_item_ids.add(item_id)
+            # Tracked products
+            if assignment.disposition is not None:
+                update_fields["disposition"] = assignment.disposition
 
-                item = self.inventory_repo.get_inventory_item_by_id(
-                    db=db,
-                    item_id=item_id,
-                )
-
-                if item is None:
-                    raise ValueError(
-                        f"Inventory item {item_id} not found."
-                    )
-
-                if item.product_id != assignment.product_id:
-                    raise ValueError(
-                        f"Inventory item {item_id} does not belong to product "
-                        f"{assignment.product_id}."
-                    )
-
-                if self.inventory_repo.is_inventory_item_assigned(
-                    db=db,
-                    inventory_item_id=item.id,
-                ):
-                    raise ValueError(
-                        f"Inventory item {item.id} is already assigned to an order."
-                    )
-
-                if item.status != InventoryItemStatus.available:
-                    raise ValueError(
-                        f"Inventory item {item.id} is not available."
-                    )
-
-                self.inventory_repo.reserve_inventory_item(
-                    db=db,
-                    item=item,
-                    order_id=assignment.order_id,
-                    trip_id=trip.id,
-                    disposition=assignment.disposition,
-                )
-
-                # NEW: Record reservation stock movement
-                movement_no = self.inventory_repo.generate_movement_no(db)
-
-                movement = self.inventory_repo.create_stock_movement(
-                    db=db,
-                    movement_no=movement_no,
-                    product_id=item.product_id,
-                    movement_type=MovementType.reservation,
-                    quantity=Decimal("1"),
-                    location_id=item.location_id,
-                    recorded_by=actor_id,
-                    reference_type="trip",
-                    reference_id=str(trip.id),
-                    notes=(
-                        f"Reserved inventory item {item.tag_number} "
-                        f"for trip {trip.trip_no}"
-                    ),
-                )
-
-                self.inventory_repo.add_stock_movement_items(
-                    db=db,
-                    movement_id=movement.id,
-                    inventory_item_ids=[item.id],
-                )
-
-                self.inventory_repo.assign_inventory_to_order_item(
-                    db=db,
-                    order_item_id=order_item.id,
-                    inventory_item_id=item.id,
-                )
+            # Consumables
+            if assignment.location_id is not None:
+                update_fields["location_id"] = assignment.location_id
 
             self.order_service.update_order_item(
                 db=db,
                 order_item=order_item,
-                disposition=assignment.disposition,
+                **update_fields,
             )
 
             self.audit_service.record(
@@ -166,15 +291,26 @@ class MarkReadyWorkflow:
                 entity_id=str(assignment.order_id),
                 action="inventory_assigned",
                 description=(
-                    f"Inventory assigned and reserved for trip {trip.trip_no}."
+                    f"Inventory assigned for trip {trip.trip_no}."
                 ),
                 actor_type=AuditActorType.employee,
-                actor_employee_id=actor_id,
+                actor_employee_id=actor_employee_id,
+                actor_name=actor_name,
             )
+
+        print(
+            "Trip status before mark_ready:",
+            trip.status,
+        )
 
         trip = self.trip_service.mark_ready(
             db=db,
             trip_id=trip_id,
+        )
+
+        print(
+            "Trip status after mark_ready:",
+            trip.status,
         )
 
         self.audit_service.record(
@@ -184,7 +320,8 @@ class MarkReadyWorkflow:
             action="marked_ready",
             description="Trip marked ready for dispatch.",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip

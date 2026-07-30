@@ -9,14 +9,45 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import type { Product } from "@/lib/modules/products/types/product.types";
-// import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { formatCurrency } from "@/lib/utils";
 import { ProductStatusBadge } from "@/lib/modules/products/badges/ProductStatusBadge";
+import PageErrorState from "@/components/ui/PageError";
+
+type TruncateParams = {
+  text:string;
+  maxChar:number;
+  suffix?:string;
+}
+
+function truncateText({text, maxChar=100, suffix="..."}: TruncateParams){
+  if(!text || typeof text !== "string") return "-";
+  if(maxChar <= 0) return suffix
+  if(text.length <= maxChar) return text
+  return text.slice(0, maxChar) + suffix;
+}
 
 
 export default function ProductsPage() {
-  const { products, isLoading, error } = useProducts();
+  const { products, isLoading, error, refetch } = useProducts();
+
+
+  if (error) {
+  return (
+    <AppLayout pageTitle="Products">
+      <PageHeader
+        title="Products"
+        description="Manage the product catalogue available for order creation"
+        className="mb-6"
+      />
+
+      <PageErrorState
+        message={error}
+        onRetry={refetch}
+      />
+    </AppLayout>
+  );
+}
 
   const columns: Column<Product>[] = [
     {
@@ -26,20 +57,17 @@ export default function ProductsPage() {
     {
       key:   "unit",
       label: "Unit",
-    //   render: (_value, product) => getUnitLabel(product) || product.unit,
       render: (_value, product) => product.unit,
     },
     {
       key:   "defaultUnitPrice",
       label: "Default Unit Price",
-    //   render: (value, product) =>
-    //     `${formatCurrency(value as number)} / ${getUnitLabel(product) || product.unit}`,
       render: (_value, product:Product) => formatCurrency(product.defaultUnitPrice),
     },
     {
       key:   "description",
       label: "Description",
-      render: (value) => (value as string) || "—",
+      render: (value) => (truncateText({text:value as string, maxChar:200})),
     },
     {
       key:   "status",
@@ -68,8 +96,7 @@ export default function ProductsPage() {
         columns={columns}
         data={products}
         isLoading={isLoading}
-        // error={error}
-        rowHref={(product) => PRODUCT_ROUTES.detail(product.productNo)}
+        rowHref={(product) => PRODUCT_ROUTES.detail(product.id)}
         emptyMessage="No products found. Add your first product to get started."
       />
     </AppLayout>

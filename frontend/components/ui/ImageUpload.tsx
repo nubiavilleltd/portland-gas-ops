@@ -3,21 +3,15 @@
 import { useRef, useState } from "react";
 import { UploadCloud, X, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ProductImage } from "@/lib/modules/products/types/product.types";
+import type { ProductImage, ProductFormImage } from "@/lib/modules/products/types/product.types";
 
 // ── Unified internal item ─────────────────────────────────
 // Represents either an existing saved image or a new local file
-type ImageItem =
-  | { kind: "existing"; image: ProductImage }
-  | { kind: "new";      file: File; previewUrl: string };
+
 
 interface ImageUploadProps {
-  // New files selected by user
-  value: File[];
-  onChange: (files: File[]) => void;
-  // Existing saved images (edit mode)
-  existingImages?: ProductImage[];
-  onRemoveExisting?: (id: string) => void;
+images: ProductFormImage[];
+onChange: (images: ProductFormImage[]) => void;
   // Config
   maxFiles?: number;
   maxSizeMB?: number;
@@ -29,10 +23,8 @@ interface ImageUploadProps {
 }
 
 export default function ImageUpload({
-  value,
+  images,
   onChange,
-  existingImages = [],
-  onRemoveExisting,
   maxFiles = 3,
   maxSizeMB = 5,
   label,
@@ -41,33 +33,33 @@ export default function ImageUpload({
   error,
   className,
 }: ImageUploadProps) {
-  const inputRef            = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging]     = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const maxBytes     = maxSizeMB * 1024 * 1024;
+  const maxBytes = maxSizeMB * 1024 * 1024;
+  const allowedTypes = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ]);
   const displayError = error ?? localError;
 
   // ── Build unified list ────────────────────────────────────
-  const items: ImageItem[] = [
-    ...existingImages.map((img): ImageItem => ({ kind: "existing", image: img })),
-    ...value.map((file): ImageItem => ({
-      kind:       "new",
-      file,
-      previewUrl: URL.createObjectURL(file),
-    })),
-  ];
+  const items = images;
 
   const totalCount = items.length;
-  const atLimit    = totalCount >= maxFiles;
+  const atLimit = totalCount >= maxFiles;
 
   // ── Get display URL for any item ─────────────────────────
-  function getUrl(item: ImageItem): string {
-    return item.kind === "existing" ? item.image.url : item.previewUrl;
-  }
+  function getUrl(item: ProductFormImage): string {
+  return item.kind === "existing"
+    ? item.image.url
+    : URL.createObjectURL(item.file);
+}
 
-  function getName(item: ImageItem): string {
+  function getName(item: ProductFormImage): string {
     return item.kind === "existing" ? item.image.name : item.file.name;
   }
 
@@ -76,47 +68,91 @@ export default function ImageUpload({
     setLocalError(null);
     const list = Array.from(incoming);
 
+    const invalidFile = list.find(
+      (file) => !allowedTypes.has(file.type),
+    );
+
+    if (invalidFile) {
+      setLocalError(
+        `"${invalidFile.name}" is not a supported image. Please upload a PNG, JPG, or WEBP image.`,
+      );
+      return;
+    }
+
     const tooBig = list.find((f) => f.size > maxBytes);
     if (tooBig) {
       setLocalError(`"${tooBig.name}" exceeds the ${maxSizeMB} MB limit.`);
       return;
     }
 
-    const merged = [...value, ...list];
+   const newItems: ProductFormImage[] = list.map((file) => ({
+  kind: "new",
+  file,
+}));
 
-    if (existingImages.length + merged.length > maxFiles) {
-      setLocalError(`Maximum ${maxFiles} image${maxFiles !== 1 ? "s" : ""} allowed.`);
-      return;
-    }
+const merged = [...images, ...newItems];
 
-    // Deduplicate by name+size
-    const seen   = new Set<string>();
-    const deduped = merged.filter((f) => {
-      const key = `${f.name}-${f.size}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+if (merged.length > maxFiles) {
+  setLocalError(
+    `Maximum ${maxFiles} image${maxFiles !== 1 ? "s" : ""} allowed.`,
+  );
+  return;
+}
 
-    onChange(deduped);
-    setActiveIndex(existingImages.length + deduped.length - 1);
+// Deduplicate new files by name + size
+const seen = new Set<string>();
+
+const deduped = merged.filter((item) => {
+  if (item.kind === "existing") {
+    return true;
+  }
+
+  const key = `${item.file.name}-${item.file.size}`;
+
+  if (seen.has(key)) {
+    return false;
+  }
+
+  seen.add(key);
+  return true;
+});
+
+onChange(deduped);
+setActiveIndex(deduped.length - 1);
   }
 
   // ── Remove item ───────────────────────────────────────────
-  function removeItem(index: number) {
-    setLocalError(null);
-    const item = items[index];
+ function removeItem(index: number) {
+  setLocalError(null);
 
-    if (item.kind === "existing") {
-      onRemoveExisting?.(item.image.id);
-    } else {
-      // Find which index in value[] this new file is
-      const newFileIndex = index - existingImages.length;
-      onChange(value.filter((_, i) => i !== newFileIndex));
-    }
+  const updated = [...images];
 
-    setActiveIndex(Math.max(0, index - 1));
-  }
+  updated.splice(index, 1);
+
+  onChange(updated);
+
+  setActiveIndex((current) => {
+    if (updated.length === 0) return 0;
+    return Math.min(current, updated.length - 1);
+  });
+}
+
+
+
+function makePrimary() {
+  if (activeIndex === 0) return;
+
+  const reordered = [...images];
+
+  const [selected] = reordered.splice(activeIndex, 1);
+
+  reordered.unshift(selected);
+
+  onChange(reordered);
+
+  setActiveIndex(0);
+}
+
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -171,6 +207,27 @@ export default function ImageUpload({
         </div>
       )}
 
+      {/* Cover image action */}
+      {items.length > 1 && activeIndex !== 0 && (
+        <div className="flex justify-end mt-2">
+          <button
+            type="button"
+            onClick={makePrimary}
+            className="text-sm text-brand-purple hover:underline"
+          >
+            Make this the display image
+          </button>
+        </div>
+      )}
+
+      {items.length > 0 && activeIndex === 0 && (
+        <div className="flex justify-end mt-2">
+          <span className="text-sm text-green-600 font-medium">
+            ✓ Display image
+          </span>
+        </div>
+      )}
+
       {/* ── Thumbnail strip ───────────────────────────────── */}
       {items.length > 0 && (
         <div className="flex items-center gap-2 mt-1">
@@ -197,6 +254,7 @@ export default function ImageUpload({
                 item.kind === "existing" ? "bg-gray-400" : "bg-brand-purple"
               )} />
             </button>
+
           ))}
 
           {/* Add more button */}
@@ -225,8 +283,8 @@ export default function ImageUpload({
             dragging
               ? "border-brand-purple bg-brand-purple/5"
               : displayError
-              ? "border-red-400 bg-red-50/30 hover:border-red-500"
-              : "border-brand-border bg-white hover:border-brand-purple hover:bg-purple-50/20"
+                ? "border-red-400 bg-red-50/30 hover:border-red-500"
+                : "border-brand-border bg-white hover:border-brand-purple hover:bg-purple-50/20"
           )}
         >
           <UploadCloud

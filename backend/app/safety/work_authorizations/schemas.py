@@ -102,6 +102,7 @@ class WorkAuthorizationWorkInitiationSummary(UtcDateTimeModel):
     other_work_category: Optional[str]
     related_incident_report_id: Optional[str]
     work_type: list[str]
+    other_work_type: Optional[str]
     location: str
     exact_work_area: Optional[str]
     work_description: str
@@ -258,6 +259,7 @@ def work_initiation_summary(work_initiation) -> Optional[WorkAuthorizationWorkIn
         other_work_category=work_initiation.other_work_category,
         related_incident_report_id=work_initiation.related_incident_report_id,
         work_type=split_list(work_initiation.work_type),
+        other_work_type=work_initiation.other_work_type,
         location=work_initiation.location,
         exact_work_area=work_initiation.exact_work_area,
         work_description=work_initiation.work_description,

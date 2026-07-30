@@ -128,6 +128,7 @@ type WorkInitiationValidationField =
   | "otherWorkCategory"
   | "relatedIncidentId"
   | "workTypes"
+  | "otherWorkType"
   | "locations"
   | "workDescription"
   | "reasonForWork"
@@ -145,6 +146,7 @@ const workInitiationFieldOrder: WorkInitiationValidationField[] = [
   "otherWorkCategory",
   "relatedIncidentId",
   "workTypes",
+  "otherWorkType",
   "locations",
   "workDescription",
   "reasonForWork",
@@ -177,6 +179,7 @@ export default function WorkInitiationForm() {
   );
   const [otherWorkCategory, setOtherWorkCategory] = useState("");
   const [workTypes, setWorkTypes] = useState<string[]>([]);
+  const [otherWorkType, setOtherWorkType] = useState("");
   const [title, setTitle] = useState("");
   const [relatedIncidentId, setRelatedIncidentId] = useState(
     incidentIdFromQuery ?? "",
@@ -202,6 +205,7 @@ export default function WorkInitiationForm() {
   const otherWorkCategoryRef = useRef<HTMLInputElement | null>(null);
   const relatedIncidentIdRef = useRef<HTMLInputElement | null>(null);
   const workTypesRef = useRef<HTMLInputElement | null>(null);
+  const otherWorkTypeRef = useRef<HTMLInputElement | null>(null);
   const locationsRef = useRef<HTMLInputElement | null>(null);
   const workDescriptionRef = useRef<HTMLTextAreaElement | null>(null);
   const reasonForWorkRef = useRef<HTMLTextAreaElement | null>(null);
@@ -255,15 +259,21 @@ export default function WorkInitiationForm() {
   );
 
   const workTypeOptions = toOptions(
-    workCategory ? workTypeOptionsByCategory[workCategory] ?? [] : [],
+    workCategory
+      ? Array.from(
+          new Set([...(workTypeOptionsByCategory[workCategory] ?? []), "Other"]),
+        )
+      : [],
   );
 
   function handleWorkCategoryChange(nextCategory: string) {
     setWorkCategory(nextCategory);
     setWorkTypes([]);
+    setOtherWorkType("");
     clearValidationError("workCategory", setValidationErrors);
     clearValidationError("otherWorkCategory", setValidationErrors);
     clearValidationError("workTypes", setValidationErrors);
+    clearValidationError("otherWorkType", setValidationErrors);
 
     if (nextCategory !== "Other") {
       setOtherWorkCategory("");
@@ -301,6 +311,7 @@ export default function WorkInitiationForm() {
       otherWorkCategory,
       relatedIncidentId,
       workTypes,
+      otherWorkType,
       locations,
       workDescription,
       reasonForWork,
@@ -334,6 +345,7 @@ export default function WorkInitiationForm() {
           otherWorkCategoryRef,
           relatedIncidentIdRef,
           workTypesRef,
+          otherWorkTypeRef,
           locationsRef,
           workDescriptionRef,
           reasonForWorkRef,
@@ -356,6 +368,9 @@ export default function WorkInitiationForm() {
         workCategory === "Other" ? emptyToNull(otherWorkCategory) : null,
       related_incident_report_id: emptyToNull(relatedIncidentId),
       work_type: workTypes,
+      other_work_type: workTypes.includes("Other")
+        ? emptyToNull(otherWorkType)
+        : null,
       location: locations.join(", "),
       exact_work_area: emptyToNull(exactWorkArea),
       work_description: workDescription,
@@ -528,6 +543,10 @@ export default function WorkInitiationForm() {
             onValueChange={(value) => {
               setWorkTypes(value);
               clearValidationError("workTypes", setValidationErrors);
+              if (!value.includes("Other")) {
+                setOtherWorkType("");
+                clearValidationError("otherWorkType", setValidationErrors);
+              }
             }}
             placeholder={
               workCategory
@@ -536,6 +555,22 @@ export default function WorkInitiationForm() {
             }
             disabled={!workCategory}
           />
+
+          {workTypes.includes("Other") ? (
+            <FormInput
+              ref={otherWorkTypeRef}
+              label="Specify Other Work Type"
+              required
+              maxLength={255}
+              placeholder="Enter the work type"
+              value={otherWorkType}
+              error={validationErrors.otherWorkType}
+              onChange={(event) => {
+                setOtherWorkType(event.target.value);
+                clearValidationError("otherWorkType", setValidationErrors);
+              }}
+            />
+          ) : null}
 
           <FormMultiSelect
             ref={locationsRef}
@@ -846,6 +881,7 @@ function validateWorkInitiationForm({
   otherWorkCategory,
   relatedIncidentId,
   workTypes,
+  otherWorkType,
   locations,
   workDescription,
   reasonForWork,
@@ -862,6 +898,7 @@ function validateWorkInitiationForm({
   otherWorkCategory: string;
   relatedIncidentId: string;
   workTypes: string[];
+  otherWorkType: string;
   locations: string[];
   workDescription: string;
   reasonForWork: string;
@@ -886,6 +923,9 @@ function validateWorkInitiationForm({
   }
 
   if (workTypes.length === 0) errors.workTypes = "Select at least one work type.";
+  if (workTypes.includes("Other") && !otherWorkType.trim()) {
+    errors.otherWorkType = "Specify the other work type.";
+  }
   if (locations.length === 0) errors.locations = "Select at least one location.";
   if (workDescription.trim().length < 5) {
     errors.workDescription = "Work description must be at least 5 characters.";

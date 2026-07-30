@@ -18,25 +18,25 @@
 
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 
-export function getInvoiceById(
-  invoices: Invoice[],
-  id: string
-): Invoice | undefined {
-  return invoices.find((inv) => inv.id === id);
-}
-export function getInvoiceByNo(
-  invoices: Invoice[],
-  invoiceNo: string
-): Invoice | undefined {
-  return invoices.find((inv) => inv.invoice_number === invoiceNo);
-}
+// export function getInvoiceById(
+//   invoices: Invoice[],
+//   id: string
+// ): Invoice | undefined {
+//   return invoices.find((inv) => inv.id === id);
+// }
+// export function getInvoiceByNo(
+//   invoices: Invoice[],
+//   invoiceNo: string
+// ): Invoice | undefined {
+//   return invoices.find((inv) => inv.invoice_number === invoiceNo);
+// }
 
-export function getInvoiceByOrderId(
-  invoices: Invoice[],
-  orderId: string
-): Invoice | undefined {
-  return invoices.find((inv) => inv.order_id === orderId);
-}
+// export function getInvoiceByOrderId(
+//   invoices: Invoice[],
+//   orderId: string
+// ): Invoice | undefined {
+//   return invoices.find((inv) => inv.order_id === orderId);
+// }
 
 export function getUnpaidInvoices(invoices: Invoice[]): Invoice[] {
   return invoices.filter((inv) => inv.status === "unpaid");

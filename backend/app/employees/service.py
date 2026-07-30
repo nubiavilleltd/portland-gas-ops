@@ -225,6 +225,9 @@ def update_employee(employee_id: str, data: EmployeeUpdate, db: Session) -> Empl
         if field in ("first_name", "last_name"):
             setattr(emp.user, field, value)
             emp.user.name = f"{emp.user.first_name or ''} {emp.user.last_name or ''}".strip()
+        elif field == "account_status":
+            # account_status lives on the User; coerce to the enum
+            emp.user.account_status = AccountStatus(value)
         else:
             setattr(emp, field, value)
 

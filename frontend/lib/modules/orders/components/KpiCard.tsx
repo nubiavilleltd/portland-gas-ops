@@ -4,6 +4,7 @@ interface KpiCardProps {
   value: string | number;
   icon?: React.ReactNode;
   variant?: KpiCardVariant;
+  isLoading?: boolean;
 }
 
 export type KpiCardVariant =
@@ -18,6 +19,7 @@ export function KpiCard({
   value,
   icon,
   variant = "primary",
+  isLoading = false,
 }: KpiCardProps) {
   const variants: Record<
     KpiCardVariant,
@@ -71,27 +73,34 @@ export function KpiCard({
 
   const styles = variants[variant];
 
+
+   if (isLoading) {
+    return (
+      <div
+        className={`rounded-2xl p-5 flex items-start justify-between transition-colors ${styles.container}`}
+      >
+        <div>
+          <div className="h-4 w-24 animate-pulse rounded-full bg-gray-100" />
+          <div className="h-7 w-16 mt-3 animate-pulse rounded-full bg-gray-100" />
+        </div>
+        {icon && (
+          <div className="h-5 w-5 animate-pulse rounded-full bg-gray-100" />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className={`rounded-2xl p-5 flex items-start justify-between transition-colors ${styles.container}`}
     >
       <div>
-        <p className={`text-sm ${styles.label}`}>
-          {label}
-        </p>
-
-        <h3
-          className={`text-2xl font-semibold mt-2 ${styles.value}`}
-        >
+        <p className={`text-sm ${styles.label}`}>{label}</p>
+        <h3 className={`text-2xl font-semibold mt-2 ${styles.value}`}>
           {value}
         </h3>
       </div>
-
-      {icon && (
-        <div className={styles.icon}>
-          {icon}
-        </div>
-      )}
+      {icon && <div className={styles.icon}>{icon}</div>}
     </div>
   );
 }

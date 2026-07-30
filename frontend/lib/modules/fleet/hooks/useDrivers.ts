@@ -52,6 +52,27 @@ export function useDriverById(id: string) {
 }
 
 
+
+export function useCreateDriver() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (input: Parameters<typeof DriversService.createDriver>[0]) =>
+      DriversService.createDriver(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: DRIVER_KEYS.lists() });
+      queryClient.invalidateQueries({ queryKey: DRIVER_KEYS.available() });
+    },
+  });
+
+  return {
+    createDriver: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+
+
 export function useUpdateDriver() {
   const queryClient = useQueryClient();
 
@@ -67,6 +88,115 @@ export function useUpdateDriver() {
 
   return {
     updateDriver: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+export function useSuspendDriver() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => DriversService.suspendDriver(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    suspendDriver: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+export function useReinstateDriver() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => DriversService.reinstateDriver(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    reinstateDriver: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+export function useSetDriverOffDuty() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => DriversService.setDriverOffDuty(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    setDriverOffDuty: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+
+export function useSetDriverAvailable() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => DriversService.setDriverAvailable(id),
+
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.detail(id),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.lists(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: DRIVER_KEYS.available(),
+      });
+    },
+  });
+
+  return {
+    setDriverAvailable: mutation.mutateAsync,
     isLoading: mutation.isPending,
   };
 }

@@ -65,6 +65,7 @@ class SafetyWorkInitiation(Base):
         index=True,
     )
     work_type = Column(String(255), nullable=False)
+    other_work_type = Column(String(255), nullable=True)
     location = Column(String(255), nullable=False, index=True)
     exact_work_area = Column(String(255), nullable=True)
     work_description = Column(Text, nullable=False)

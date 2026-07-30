@@ -4,8 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import type { OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
-  getOrderById,
-  getOrderByNumber,
   getOrderKPIs,
 } from "@/lib/modules/orders/selectors/orders.selectors";
 import { parseError } from "@/lib/errors";
@@ -31,38 +29,53 @@ export function useOrders() {
 
   return {
     orders: query.data ?? [],
-    isLoading: query.isLoading,
+    isLoading: !accessToken || query.isLoading,
+    isFetching: query.isFetching,
     error: query.error ? parseError(query.error) : null,
     refetch: query.refetch,
   };
 }
 
 // ── Derived: single order by id ───────────────────────────
-export function useOrderById(id: string) {
-  const { orders, isLoading, error, refetch } = useOrders();
+export function useOrderById(orderId: string) {
+  const { accessToken } = useAuthStore();
 
-  const order = getOrderById(orders, id);
+  const query = useQuery({
+    queryKey: ORDER_KEYS.detail(orderId),
+    queryFn: () => OrdersService.getOrderById(orderId),
+    enabled: Boolean(accessToken && orderId),
+    staleTime: 60 * 1000,
+    retry: shouldRetry,
+  });
 
   return {
-    order,
-    isLoading,
-    error,
-    refetch,
+    order: query.data,
+    isLoading: !accessToken || query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
   };
 }
 
-export function useOrderByNumber(orderNo: string) {
-  const { orders, isLoading, error, refetch } = useOrders();
+// export function useOrderByNumber(orderNo: string) {
+//   const { accessToken } = useAuthStore();
 
-  const order = getOrderByNumber(orders, orderNo);
+//   const query = useQuery({
+//     queryKey: ORDER_KEYS.detail(orderNo),
+//     queryFn: () => OrdersService.getOrderByNumber(orderNo),
+//     enabled: Boolean(accessToken && orderNo),
+//     staleTime: 60 * 1000,
+//     retry: shouldRetry,
+//   });
 
-  return {
-    order,
-    isLoading,
-    error,
-    refetch,
-  };
-}
+//   return {
+//     order: query.data,
+//     isLoading: !accessToken || query.isLoading,
+//     isFetching: query.isFetching,
+//     error: query.error ? parseError(query.error) : null,
+//     refetch: query.refetch,
+//   };
+// }
 
 // ── KPIs ──────────────────────────────────────────────────
 const EMPTY_KPIS: OrderKPIs = {
@@ -75,13 +88,14 @@ const EMPTY_KPIS: OrderKPIs = {
 };
 
 export function useOrderKPIs() {
-  const { orders, isLoading, error, refetch } = useOrders();
+  const { orders, isLoading, isFetching, error, refetch } = useOrders();
 
   const kpis = isLoading ? EMPTY_KPIS : getOrderKPIs(orders);
 
   return {
     kpis,
     isLoading,
+    isFetching,
     error,
     refetch,
   };

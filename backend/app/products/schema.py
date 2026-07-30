@@ -83,6 +83,7 @@ class ProductUpdate(BaseModel):
     description: str | None = None
     minimum_stock: Decimal | None = None
     status: ProductStatus | None = None
+    primary_document_id: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -145,6 +146,7 @@ class ProductResponse(BaseModel):
     default_unit_price: Decimal
     minimum_stock: Decimal | None
     status: ProductStatus
+    primary_document_id: int | None = None
     images: list[ProductImageResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime

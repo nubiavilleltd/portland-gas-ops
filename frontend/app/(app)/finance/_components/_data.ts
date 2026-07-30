@@ -18,11 +18,14 @@ export const APPROVERS: Record<string, { lineManager: string; financeReview: str
 
 export const DEPT_OPTIONS = DEPARTMENTS.map((d) => ({ value: d, label: d }));
 
+// Alphabetical by code, which is how the label reads. Kept sorted at the source
+// so the order holds on the detail/resubmit forms too — those pass
+// sortOptions={false} and render this array as-is.
 export const CURRENCY_OPTIONS = [
-  { value: "NGN", label: "NGN — Nigerian Naira" },
-  { value: "USD", label: "USD — US Dollar" },
   { value: "EUR", label: "EUR — Euro" },
   { value: "GBP", label: "GBP — British Pound" },
+  { value: "NGN", label: "NGN — Nigerian Naira" },
+  { value: "USD", label: "USD — US Dollar" },
 ];
 
 export const PRIORITY_OPTIONS = [

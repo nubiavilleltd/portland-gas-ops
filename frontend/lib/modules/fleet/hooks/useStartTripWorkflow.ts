@@ -46,7 +46,7 @@ export function useStartTripWorkflow() {
       toast.success("Trip started successfully");
 
       router.push(
-        FLEET_ROUTES.tripDetail(updatedTrip.trip_number)
+        FLEET_ROUTES.tripDetail(updatedTrip.id)
       );
 
       // ✅ Driver status changed to in_transit

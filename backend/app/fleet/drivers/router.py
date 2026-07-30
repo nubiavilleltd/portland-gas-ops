@@ -117,7 +117,8 @@ def create_driver(
     driver = create_driver_workflow.execute(
         db=db,
         data=data,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
     db.commit()
@@ -149,7 +150,113 @@ def update_driver(
         db=db,
         driver_id=driver_id,
         data=data,
-        actor_id=current_user.id,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
+    )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver
+
+
+
+@router.patch(
+    "/{driver_id}/suspend",
+    response_model=DriverResponse,
+)
+def suspend_driver(
+    driver_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    driver = driver_service.suspend(
+        db=db,
+        driver_id=driver_id,
+    )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver
+
+
+@router.patch(
+    "/{driver_id}/reinstate",
+    response_model=DriverResponse,
+)
+def reinstate_driver(
+    driver_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    driver = driver_service.reinstate(
+        db=db,
+        driver_id=driver_id,
+    )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver
+
+
+@router.patch(
+    "/{driver_id}/off-duty",
+    response_model=DriverResponse,
+)
+def set_off_duty(
+    driver_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    driver = driver_service.set_off_duty(
+        db=db,
+        driver_id=driver_id,
+    )
+
+    db.commit()
+    db.refresh(driver)
+
+    return driver
+
+
+@router.patch(
+    "/{driver_id}/available",
+    response_model=DriverResponse,
+)
+def set_available(
+    driver_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            "super_admin",
+            "admin",
+        )
+    ),
+):
+
+    driver = driver_service.set_available(
+        db=db,
+        driver_id=driver_id,
     )
 
     db.commit()

@@ -1,8 +1,6 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -10,58 +8,66 @@ import Button from "@/components/ui/Button";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 
-import { useOrderById, useOrderByNumber } from "@/lib/modules/orders/hooks/useOrders";
-import type { CreateOrderFormOutput, CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
-import { OrdersService } from "@/lib/modules/orders/services/orders.service";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
+import type {
+  CreateOrderFormOutput,
+  CreateOrderFormValues,
+  SaveDraftPayload,
+} from "@/lib/modules/orders/schemas/create-order.schema";
 import { ORDER_ROUTES } from "@/lib/routes";
-import { parseError } from "@/lib/errors";
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 
-import { buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
+import {
+  buildDraftOrderPayload,
+  buildOrderPayload,
+} from "@/lib/modules/orders/utils/build-order-payload";
 import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
 import { BackButton } from "@/components/ui/BackButton";
+import { parseError } from "@/lib/errors";
+import { toast } from "sonner";
+import PageErrorState from "@/components/ui/PageError";
+import OrderFormSkeleton from "@/lib/modules/orders/components/OrderFormSkeleton";
+import EditOrderPageSkeleton from "@/lib/modules/orders/components/EditOrderPageSkeleton";
 
 export default function EditOrderPage() {
   const params = useParams();
   const router = useRouter();
-  const orderNo = params.id as string;
+  const id = params.id as string;
 
-  const { order, isLoading, error } = useOrderByNumber(orderNo);
+  const { order, isLoading, error } = useOrderById(id);
 
-  const { products } = useProducts();
   const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
   const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 
-  // ── Loading skeleton ──────────────────────────────────
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Edit Order">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-100 rounded-lg w-1/4" />
-          <div className="h-64 bg-gray-100 rounded-2xl" />
-          <div className="h-48 bg-gray-100 rounded-2xl" />
-        </div>
-      </AppLayout>
-    );
-  }
+if (isLoading) {
+  return (
+    <AppLayout pageTitle="Edit Order">
+      <PageHeader
+        title="Edit Order"
+        description="Loading order..."
+      />
+      <EditOrderPageSkeleton />
+    </AppLayout>
+  );
+}
 
-  // ── Not found ─────────────────────────────────────────
-  if (error || !order) {
-    return (
-      <AppLayout pageTitle="Order Not Found">
-        <ErrorBanner message={error ?? "This order could not be found."} />
+if (error || !order) {
+  return (
+    <AppLayout pageTitle="Order Not Found">
+      <PageErrorState
+        title="Order Not Found"
+        message={error ?? "This order could not be found."}
+      >
         <Button
           variant="outline"
-          className="mt-4"
-          onClick={() => router.push(ORDER_ROUTES.list())}
+          onClick={() => router.push(ORDER_ROUTES.home())}
         >
           Back to Orders
         </Button>
-      </AppLayout>
-    );
-  }
+      </PageErrorState>
+    </AppLayout>
+  );
+}
 
   // ── Guard — only draft orders are editable ────────────
   if (order.orderStatus !== "draft") {
@@ -75,7 +81,7 @@ export default function EditOrderPage() {
           </p>
           <Button
             variant="outline"
-            onClick={() => router.push(ORDER_ROUTES.detail(orderNo))}
+            onClick={() => router.push(ORDER_ROUTES.detail(id))}
           >
             Back to Order
           </Button>
@@ -84,18 +90,6 @@ export default function EditOrderPage() {
     );
   }
 
-  // ── Map Order → form default values ───────────────────
-  // The Order entity stores a single product_name (legacy shape).
-  // We map it back to the order_items array the form expects.
-  // When the backend supports order_items natively, replace this
-  // mapping with the real array from the API response.
-  // const matchedProduct = products.find(
-  //   (p) => p.name === order.product_name
-  // );
-
-
-
-
   const defaultValues: Partial<CreateOrderFormValues> = {
     customerId: order.customerId,
     orderItems: order.orderItems.map((item) => ({
@@ -103,31 +97,41 @@ export default function EditOrderPage() {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
     })),
-    deliveryAddress: order.deliveryAddress,
+    deliveryAddress: order.deliveryAddress ?? "",
     deliveryDate: order.deliveryDate ?? "",
     notes: order.notes ?? "",
   };
 
-
   async function handleSubmit(data: CreateOrderFormOutput) {
-    await submitOrder({ input: buildOrderPayload(data), existingDraftNo: orderNo });
+    try {
+      await submitOrder({
+        input: buildOrderPayload(data),
+        existingDraftId: id,
+      });
+      toast.success("Order submitted successfully");
+      router.push(ORDER_ROUTES.detail(id));
+    } catch (err) {
+      toast.error(parseError(err));
+    }
   }
-  async function handleSaveDraft(data: CreateOrderFormValues) {
-    await saveDraft({ input: buildOrderPayload(data), existingDraftNo: orderNo });
+
+  async function handleSaveDraft(data: SaveDraftPayload) {
+    try {
+      await saveDraft({
+        input: buildDraftOrderPayload(data),
+        existingDraftId: id,
+      });
+      toast.success("Draft updated successfully");
+      router.push(ORDER_ROUTES.detail(id));
+    } catch (err) {
+      toast.error(parseError(err));
+    }
   }
 
   return (
     <AppLayout pageTitle="Edit Order">
-      {/* <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back to Order
-      </button> */}
-
       <BackButton
-        href={`${ORDER_ROUTES.detail(orderNo)}`}
+        href={`${ORDER_ROUTES.detail(id)}`}
         label="Back to Order"
       />
 
@@ -137,21 +141,13 @@ export default function EditOrderPage() {
         className="mb-6"
       />
 
-      {/* <OrderForm
-        defaultValues={defaultValues}
-        onSubmit={handleSubmit}
-        onCancel={() => router.push(ORDER_ROUTES.detail(id))}
-        submitLabel="Submit Order"
-        submitLoadingLabel="Submitting..."
-      /> */}
       <OrderForm
         defaultValues={defaultValues}
         onSubmit={handleSubmit}
-        // onCancel={() => router.push(ORDER_ROUTES.detail(id))}
         onSaveDraft={handleSaveDraft}
         submitLabel="Submit Order"
         submitLoadingLabel="Submitting..."
-        showDraft
+        draftButtonLabel="Update Draft"
       />
     </AppLayout>
   );

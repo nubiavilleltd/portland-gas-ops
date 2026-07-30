@@ -23,7 +23,7 @@ export function useRecordPaymentWorkflow(invoice: Invoice) {
       queryClient.invalidateQueries({ queryKey: ORDER_KEYS.all });
 
       toast.success("Payment recorded successfully");
-      router.push(INVOICE_ROUTES.detail(invoice.invoice_number));
+      router.push(INVOICE_ROUTES.detail(invoice.id));
     },
 
     onError: (err: any) => {

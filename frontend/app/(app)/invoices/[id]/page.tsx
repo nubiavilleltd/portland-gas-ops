@@ -9,14 +9,13 @@ import FormSection from "@/components/ui/FormSection";
 
 import { formatCurrency, formatDate, toTitleCase } from "@/lib/utils";
 
-import { Order, OrderLineItem } from "@/lib/modules/orders/types/orders.types";
+import { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
 
 import {
   useInvoiceById,
-  useInvoiceByNo,
 } from "@/lib/modules/invoices/hooks/useInvoices";
 
 import {
@@ -27,51 +26,56 @@ import {
   usePaymentsByInvoice,
   usePaymentSummary,
 } from "@/lib/modules/payments/hooks/usePayments";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
+import { useCustomerById } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
-import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { needsPayment } from "@/lib/modules/payments/types/payments.types";
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { generateInvoicePdf } from "@/lib/pdf/invoice.pdf";
+import InvoiceDetailSkeleton from "@/lib/modules/invoices/components/InvoiceDetailSkeleton";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const invoiceNo = params.id as string;
-  const { customers } = useCustomers()
-  const { products } = useProducts();
-  const [downloading, setDownloading] = useState(false);
+  const id = params.id as string;
 
-  const customerMap = Object.fromEntries(
-    customers.map((customer) => [
-      customer.customerNo,
-      customer,
-    ])
-  );
+    const { invoice, isLoading } = useInvoiceById(id);
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
-
-
-
-  const { invoice } = useInvoiceByNo(invoiceNo);
-
-  const { order } = useOrderById(
+  const { order, isLoading:isLoadingOrders } = useOrderById(
     invoice?.order_id ?? ""
   );
+  const { customer, isLoading:isLoadingCustomers } = useCustomerById(order?.customerId as string)
+  const { products, isLoading:isLoadingProducts } = useProducts();
 
-  const { summary: paymentSummary } =
+    const { summary: paymentSummary } =
     usePaymentSummary(invoice?.id);
 
   const { payments: invoicePayments } =
     usePaymentsByInvoice(invoice?.id as string);
 
 
+  const [downloading, setDownloading] = useState(false);
 
+
+
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
+
+
+
+
+
+if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
+  return (
+    <AppLayout pageTitle="Invoice">
+      <InvoiceDetailSkeleton />
+    </AppLayout>
+  );
+}
 
   if (!invoice) {
     return (
@@ -82,6 +86,8 @@ export default function InvoiceDetailPage() {
       </AppLayout>
     );
   }
+
+
 
   const amountPaid =
     paymentSummary?.amountPaid ?? 0;
@@ -145,7 +151,7 @@ export default function InvoiceDetailPage() {
       label: "",
       align: "right",
       render: (payment) => (
-        <Button size="sm" variant="outline" href={`/payments/${payment.paymentNo}/receipt`}>
+        <Button size="sm" variant="outline" href={`/payments/${payment.id}/receipt`}>
           View Receipt →
         </Button>
       ),
@@ -161,7 +167,7 @@ export default function InvoiceDetailPage() {
       await generateInvoicePdf({
         invoice,
         order,
-        customer: order ? customerMap[order.customerId] : undefined,
+        customer,
         payments: invoicePayments,
         amountPaid,
         productUnitMap,
@@ -195,7 +201,7 @@ export default function InvoiceDetailPage() {
             </Button> */}
 
             <Button
-              variant="outline"
+              variant="primary"
               onClick={handleDownloadPdf}
               disabled={downloading}
               leftIcon={<Download size={14} />}
@@ -282,7 +288,7 @@ export default function InvoiceDetailPage() {
               <InfoRow label="Order Number" value={order.orderNumber} />
               <InfoRow
                 label="Customer"
-                value={customerMap[order.customerId]?.name ?? "—"}
+                value={order.customerName ?? "—"}
               />
             </div>
 
@@ -327,7 +333,7 @@ export default function InvoiceDetailPage() {
               />
             </div>
 
-            <Button variant="outline" href={`/orders/${order.orderNumber}`}>
+            <Button variant="outline" href={`/orders/${order.id}`}>
               View Order →
             </Button>
           </FormSection>
@@ -339,7 +345,7 @@ export default function InvoiceDetailPage() {
             {needsPayment(invoice.status) && canPay && (
               <Button
                 size="sm"
-                href={`/payments/new?invoiceId=${invoice.invoice_number}`}
+                href={`/payments/new?invoiceId=${invoice.id}`}
               >
                 Make Payment →
               </Button>

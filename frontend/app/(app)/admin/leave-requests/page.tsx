@@ -29,7 +29,6 @@ import {
 
 const YEAR = new Date().getFullYear();
 
-const TODAY = new Date().toISOString().split("T")[0];
 
 const CURRENT_USER = {
   name: "Joseph Chika",
@@ -228,16 +227,8 @@ export default function LeaveRequestsPage() {
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto w-full space-y-5">
 
-            {/* ── Requester Details (fixed, like invoice) ── */}
-            <FormSection title="Requester Details" description="Your employee information for this leave request.">
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormInput label="Requester Name"  value={CURRENT_USER.name}       disabled />
-                <FormInput label="Department"       value={CURRENT_USER.department} disabled />
-                <FormInput label="Job Title / Role" value={CURRENT_USER.title}      disabled />
-                <FormDatePicker label="Request Date" value={TODAY} disabled />
-              </div>
-            </FormSection>
-
+            {/* No Requester Details block — the server derives the requester from
+                the session, and the detail page shows it. Matches Supply Chain. */}
             {/* ── Leave Details ── */}
             <FormSection title="Leave Details" description="Details about the leave being requested.">
               <div className="grid gap-4 md:grid-cols-2">

@@ -30,7 +30,8 @@ class UpdateVehicleWorkflow:
         vehicle_id: str,
         data: VehicleUpdate,
         image: tuple[bytes, str, str, int] | None,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
         vehicle = self.vehicle_service.update(
@@ -58,7 +59,7 @@ class UpdateVehicleWorkflow:
                 url=result.url,
                 file_size=result.file_size,
                 mime_type=mime_type,
-                uploaded_by=actor_id,
+                uploaded_by=actor_employee_id,
             )
 
             self.vehicle_service.repo.update(
@@ -74,7 +75,8 @@ class UpdateVehicleWorkflow:
             action="vehicle_updated",
             description=f"Vehicle '{vehicle.vehicle_no}' updated.",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return vehicle

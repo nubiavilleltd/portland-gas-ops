@@ -11,6 +11,19 @@ import FormSection from "@/components/ui/FormSection";
 import CurrencyInput from "@/components/forms/CurrencyInput";
 import ProfilePicUpload from "@/components/forms/ProfilePicUpload";
 import { VehicleType } from "../types/vehicle.types";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  vehicleSchema,
+  type VehicleFormInput,
+  type VehicleFormData,
+} from "../schemas/vehicle.schema";
+
+
+export type VehicleFormValues = VehicleFormData & {
+  image?: File;
+  existingImage?: string;
+};
 
 const VEHICLE_TYPE_OPTIONS = [
   { value: "lpg_tanker", label: "LPG Tanker" },
@@ -27,43 +40,52 @@ const FUEL_TYPE_OPTIONS = [
   { value: "hybrid", label: "Hybrid" },
 ];
 
-export type VehicleFormValues = {
-  name: string;
-  plate_number: string;
-  type: VehicleType;
-  make: string;
-  model: string;
-  year: string;
-  image?: File;
-  existingImage?: string;
-  capacity: string;
-  fuel_type: string;
-  mileage: string;
-  last_service_date: string;
-  next_service_date: string;
-  insurance_expiry_date: string;
-  roadworthiness_expiry_date: string;
-};
+// export type VehicleFormValues = {
+//   name: string;
+//   plate_number: string;
+//   type: VehicleType;
+//   make: string;
+//   model: string;
+//   year: string;
+//   image?: File;
+//   existingImage?: string;
+//   capacity: string;
+//   fuel_type: string;
+//   mileage: string;
+//   last_service_date: string;
+//   next_service_date: string;
+//   insurance_expiry_date: string;
+//   roadworthiness_expiry_date: string;
+// };
 
-export const DEFAULT_VEHICLE_FORM_VALUES: VehicleFormValues = {
-  name: "",
-  plate_number: "",
-  type: "lpg_tanker",
-  make: "",
-  model: "",
-  year: "",
-  image: undefined,
-  capacity: "",
-  fuel_type: "",
-  mileage: "",
-  last_service_date: "",
-  next_service_date: "",
-  insurance_expiry_date: "",
-  roadworthiness_expiry_date: "",
-};
+// export const DEFAULT_VEHICLE_FORM_VALUES: VehicleFormValues = {
+//   name: "",
+//   plate_number: "",
+//   type: "lpg_tanker",
+//   make: "",
+//   model: "",
+//   year: "",
+//   image: undefined,
+//   capacity: "",
+//   fuel_type: "",
+//   mileage: "",
+//   last_service_date: "",
+//   next_service_date: "",
+//   insurance_expiry_date: "",
+//   roadworthiness_expiry_date: "",
+// };
+
+
+
+
+
+
 
 interface VehicleFormProps {
-  defaultValues?: Partial<VehicleFormValues>;
+  defaultValues?: Partial<VehicleFormInput> & {
+    image?: File;
+    existingImage?: string;
+  };
   onSubmit: (data: VehicleFormValues) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
@@ -77,61 +99,51 @@ export default function VehicleForm({
   submitLabel = "Add Vehicle",
   submitLoadingLabel = "Saving...",
 }: VehicleFormProps) {
-  const [form, setForm] = useState<VehicleFormValues>({
-    ...DEFAULT_VEHICLE_FORM_VALUES,
-    ...defaultValues,
+  const [image, setImage] = useState<File | undefined>(defaultValues?.image);
+  const [existingImage] = useState<string | undefined>(defaultValues?.existingImage);
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<VehicleFormInput, unknown, VehicleFormData>({
+    resolver: zodResolver(vehicleSchema),
+    defaultValues: {
+      name: "",
+      plate_number: "",
+      type: "lpg_tanker",
+      make: "",
+      model: "",
+      year: "",
+      capacity: "",
+      fuel_type: "",
+      mileage: "",
+      last_service_date: "",
+      next_service_date: "",
+      insurance_expiry_date: "",
+      roadworthiness_expiry_date: "",
+      ...defaultValues,
+    },
   });
 
-  const [loading, setLoading] = useState(false);
-
-  function patch(field: keyof VehicleFormValues, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  async function handleSubmit() {
-    if (
-      !form.name ||
-      !form.plate_number ||
-      !form.type ||
-      !form.make ||
-      !form.model ||
-      !form.year ||
-      !form.fuel_type ||
-      !form.last_service_date ||
-      !form.next_service_date ||
-      !form.insurance_expiry_date ||
-      !form.roadworthiness_expiry_date
-    ) {
-      alert("Please fill all required fields");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await onSubmit(form);
-    } finally {
-      setLoading(false);
-    }
+  async function submit(data: VehicleFormData) {
+    await onSubmit({ ...data, image, existingImage });
   }
 
   return (
-    <div className="space-y-6">
+    <form onSubmit={handleSubmit(submit)} noValidate className="space-y-6">
       {/* IDENTITY */}
       <FormSection
         title="Vehicle Identity"
         description="Basic information about the vehicle"
       >
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* IMAGE */}
           <ProfilePicUpload
-            value={form.image ?? null}
-            existingImageUrl={form.existingImage ?? null}
-            onChange={(file) => {
-              setForm((prev) => ({
-                ...prev,
-                image: file ?? undefined,
-              }));
-            }}
+            value={image ?? null}
+            existingImageUrl={existingImage ?? null}
+            onChange={(file) => setImage(file ?? undefined)}
             shape="circle"
             size={110}
             fallback="IMG"
@@ -143,34 +155,41 @@ export default function VehicleForm({
               label="Vehicle Name"
               required
               placeholder="e.g. Tank 01"
-              value={form.name}
-              onChange={(e) => patch("name", e.target.value)}
+              error={errors.name?.message}
+              {...register("name")}
             />
 
             <FormInput
               label="Plate Number"
               required
               placeholder="e.g. ABC-123-XY"
-              value={form.plate_number}
-              onChange={(e) => patch("plate_number", e.target.value)}
+              error={errors.plate_number?.message}
+              {...register("plate_number")}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-5">
-            <FormSelect
-              label="Vehicle Type"
-              required
-              options={VEHICLE_TYPE_OPTIONS}
-              value={form.type}
-              onValueChange={(v) => patch("type", v)}
+            <Controller
+              control={control}
+              name="type"
+              render={({ field, fieldState }) => (
+                <FormSelect
+                  label="Vehicle Type"
+                  required
+                  options={VEHICLE_TYPE_OPTIONS}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
 
             <FormInput
               label="Make"
               required
               placeholder="e.g. MAN, Iveco, DAF"
-              value={form.make}
-              onChange={(e) => patch("make", e.target.value)}
+              error={errors.make?.message}
+              {...register("make")}
             />
           </div>
 
@@ -179,17 +198,26 @@ export default function VehicleForm({
               label="Model"
               required
               placeholder="e.g. TGS, Stralis"
-              value={form.model}
-              onChange={(e) => patch("model", e.target.value)}
+              error={errors.model?.message}
+              {...register("model")}
             />
 
-            <FormInput
-              label="Year"
-              required
-              type="number"
-              placeholder="e.g. 2020"
-              value={form.year}
-              onChange={(e) => patch("year", e.target.value)}
+            <Controller
+              control={control}
+              name="year"
+              render={({ field, fieldState }) => (
+                <FormInput
+                  label="Year"
+                  required
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="e.g. 2020"
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
           </div>
         </div>
@@ -200,101 +228,137 @@ export default function VehicleForm({
         title="Specifications"
         description="Vehicle capacity and fuel information"
       >
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-5">
-            {/* <FormInput
-              label="Capacity (kg)"
-              type="number"
-              placeholder="e.g. 10000"
-              value={form.capacity}
-              onChange={(e) => patch("capacity", e.target.value)}
-            /> */}
-
-            <CurrencyInput
-              label="Capacity (kg)"
-              placeholder="e.g. 10,000"
-              value={form.capacity}
-              onValueChange={(v) => patch("capacity", v)}
+            <Controller
+              control={control}
+              name="capacity"
+              render={({ field, fieldState }) => (
+                <CurrencyInput
+                  label="Capacity (kg)"
+                  placeholder="e.g. 10,000"
+                  value={field.value ?? ""}
+                  onValueChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
 
-            <FormSelect
-              label="Fuel Type"
-              required
-              options={FUEL_TYPE_OPTIONS}
-              value={form.fuel_type}
-              onValueChange={(v) => patch("fuel_type", v)}
+            <Controller
+              control={control}
+              name="fuel_type"
+              render={({ field, fieldState }) => (
+                <FormSelect
+                  label="Fuel Type"
+                  required
+                  options={FUEL_TYPE_OPTIONS}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
 
-            {/* <FormInput
-            label="Current Mileage (km)"
-            type="number"
-            placeholder="e.g. 45000"
-            value={form.mileage}
-            onChange={(e) => patch("mileage", e.target.value)}
-          /> */}
-
-            <CurrencyInput
-              label="Current Mileage (km)"
-              placeholder="e.g. 45,000"
-              value={form.mileage}
-              onValueChange={(v) => patch("mileage", v)}
+            <Controller
+              control={control}
+              name="mileage"
+              render={({ field, fieldState }) => (
+                <CurrencyInput
+                  label="Current Mileage (km)"
+                  placeholder="e.g. 45,000"
+                  value={field.value ?? ""}
+                  onValueChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
           </div>
         </div>
       </FormSection>
 
-      {/* COMPLIANCE */}
+    {/* COMPLIANCE */}
       <FormSection
         title="Compliance & Maintenance"
         description="Service history and regulatory compliance dates"
       >
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-5">
-            <FormDatePicker
-              label="Last Service Date"
-              required
-              value={form.last_service_date}
-              onValueChange={(v) => patch("last_service_date", v)}
+            <Controller
+              control={control}
+              name="last_service_date"
+              render={({ field, fieldState }) => (
+                <FormDatePicker
+                  label="Last Service Date"
+                  required
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+              )}
             />
 
-            <FormDatePicker
-              label="Next Service Date"
-              required
-              value={form.next_service_date}
-              onValueChange={(v) => patch("next_service_date", v)}
+            <Controller
+              control={control}
+              name="next_service_date"
+              render={({ field, fieldState }) => (
+                <FormDatePicker
+                  label="Next Service Date"
+                  required
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              )}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-5">
-            <FormDatePicker
-              label="Insurance Expiry"
-              required
-              value={form.insurance_expiry_date}
-              onValueChange={(v) => patch("insurance_expiry_date", v)}
+            <Controller
+              control={control}
+              name="insurance_expiry_date"
+              render={({ field, fieldState }) => (
+                <FormDatePicker
+                  label="Insurance Expiry"
+                  required
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
 
-            <FormDatePicker
-              label="Roadworthiness Expiry"
-              required
-              value={form.roadworthiness_expiry_date}
-              onValueChange={(v) => patch("roadworthiness_expiry_date", v)}
+            <Controller
+              control={control}
+              name="roadworthiness_expiry_date"
+              render={({ field, fieldState }) => (
+                <FormDatePicker
+                  label="Roadworthiness Expiry"
+                  required
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
           </div>
         </div>
       </FormSection>
-
       {/* ACTIONS */}
-      <div className="flex justify-end gap-3 pb-10">
-        {/* <Button variant="outline" onClick={onCancel}>
+{/* ACTIONS */}
+      <div className="flex gap-3 pb-10">
+        {/* <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button> */}
-        <Button
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? submitLoadingLabel : submitLabel}
+        <Button type="submit" loading={isSubmitting}>
+          {isSubmitting ? submitLoadingLabel : submitLabel}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }

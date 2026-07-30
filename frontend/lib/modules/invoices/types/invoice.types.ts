@@ -4,6 +4,7 @@ export interface Invoice {
   id: string;
 
   order_id: string;
+  order_no: string | null;
 
   invoice_number: string;
 

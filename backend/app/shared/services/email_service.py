@@ -12,6 +12,15 @@ import logging
 import httpx
 from pathlib import Path
 from app.core.config import settings
+from collections.abc import Mapping
+from dataclasses import dataclass
+import base64
+
+@dataclass(frozen=True)
+class EmailAttachment:
+    filename: str
+    content: bytes
+    mime_type: str = "application/pdf"
 
 # Force a basic logging config so email logs always appear in the terminal.
 logging.basicConfig(
@@ -34,8 +43,14 @@ def _load_base(subject: str, body_content: str) -> str:
     base = _load_template("base.html")
 
     if settings.LOGO_URL:
-        # LOGO_URL must be the direct public URL to the logo image (e.g. a Cloudinary URL).
-        logo_html = f'<img src="{settings.LOGO_URL}" alt="Portland Gas" class="logo-img" />'
+        # LOGO_URL must be the direct public URL to the logo image (e.g. a Cloudinary URL),
+        # not the site root — and it must be reachable without a session cookie.
+        # width/height are inlined as attributes because several email clients drop
+        # the <style> block, which would otherwise leave the logo unsized.
+        logo_html = (
+            f'<img src="{settings.LOGO_URL}" alt="Portland Gas" class="logo-img" '
+            f'width="40" height="40" style="width:40px;height:40px;border-radius:10px;object-fit:contain;" />'
+        )
     else:
         logo_html = '<div class="logo-mark"><span>PG</span></div>'
 
@@ -55,7 +70,7 @@ def _render(template_name: str, variables: dict) -> str:
     return _load_base(subject, body)
 
 
-def _send(to_email: str, subject: str, html: str) -> None:
+def _send(to_email: str, subject: str, html: str, attachments: list[EmailAttachment] | None = None) -> None:
     """
     Send an email via Brevo, or log to console if API key not configured.
     Drop your BREVO_API_KEY into .env and this will start sending live emails
@@ -64,23 +79,52 @@ def _send(to_email: str, subject: str, html: str) -> None:
     if not settings.BREVO_API_KEY:
         logger.warning("BREVO_API_KEY not set — email not sent. To: %s | Subject: %s", to_email, subject)
         return
+    
+    if attachments:
+        logger.info(
+            "Attachments: %s",
+            ", ".join(a.filename for a in attachments),
+        )
 
     try:
+
+
+        payload = {
+            "sender": {
+                "name": settings.BREVO_FROM_NAME,
+                "email": settings.BREVO_FROM_EMAIL,
+            },
+            "to": [
+                {
+                    "email": to_email,
+                }
+            ],
+            "subject": subject,
+            "htmlContent": html,
+        }
+
+        if attachments:
+
+            payload["attachment"] = [
+
+                {
+                    "name": attachment.filename,
+
+                    "content": base64.b64encode(
+                        attachment.content,
+                    ).decode("utf-8"),
+                }
+
+                for attachment in attachments
+            ]
+
         response = httpx.post(
             "https://api.brevo.com/v3/smtp/email",
             headers={
                 "api-key": settings.BREVO_API_KEY,
                 "Content-Type": "application/json",
             },
-            json={
-                "sender": {
-                    "name": settings.BREVO_FROM_NAME,
-                    "email": settings.BREVO_FROM_EMAIL,
-                },
-                "to": [{"email": to_email}],
-                "subject": subject,
-                "htmlContent": html,
-            },
+            json=payload,
             timeout=10,
         )
         if not response.is_success:
@@ -150,7 +194,7 @@ _REQUEST_TYPE_LABELS: dict[str, str] = {
     "invoice":          "Invoice",
     "work_initiation":  "Work Initiation",
     "work_authorization": "Work Authorization",
-    "work_closeout":    "Work Closeout",
+    "work_closeout":    "Work Close-Out",
     "safety":           "Safety",
 }
 
@@ -169,7 +213,20 @@ _REQUEST_TYPE_PATHS: dict[str, str] = {
 
 
 def get_request_type_label(request_type: str) -> str:
-    return _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
+    """
+    The bare noun for a request type — "Leave", not "Leave Request".
+
+    Callers always supply the word themselves ("{label} Request — Approved",
+    "Your <strong>{label}</strong> request has been approved"), so a label that
+    already ends in "Request" reads as "Leave Request Request". The fallback
+    below is where that bites: any type not in _REQUEST_TYPE_LABELS whose name
+    ends in _request title-cases straight into the duplicate. Strip it here so
+    the trailing word is owned by exactly one place.
+    """
+    label = _REQUEST_TYPE_LABELS.get(request_type, request_type.replace("_", " ").title())
+    if label.lower().endswith(" request"):
+        label = label[: -len(" request")]
+    return label
 
 
 def get_request_url(request_type: str, request_id: str, db=None) -> str:
@@ -231,6 +288,7 @@ def send_approval_result(
     action: str,  # "approved" | "rejected" | "returned"
     comment: str | None,
     action_url: str,
+    actor_label: str | None = None,
     result_message_override: str | None = None,
     subject_override: str | None = None,
     result_heading_override: str | None = None,
@@ -284,6 +342,17 @@ def send_approval_result(
         comment_row_html = ""
         comment_row_style = ""
 
+    actor_row_html = ""
+    if actor_label:
+        actor_row_html = (
+            f"<tr>"
+            f'<td style="padding:10px 14px; font-size:13px; color:#6b7280; '
+            f'font-weight:600; {comment_row_style}">Actor</td>'
+            f'<td style="padding:10px 14px; font-size:13px; color:#111118; '
+            f'{comment_row_style}">{actor_label}</td>'
+            f"</tr>"
+        )
+
     subject = subject_override or f"{request_type_label} Request {meta['label']}"
     html = _render("approval_result.html", {
         "subject":            subject,
@@ -294,6 +363,7 @@ def send_approval_result(
         "action_color":       action_color_override or meta["color"],
         "result_heading":     result_heading_override or meta["heading"],
         "result_message":     result_message_override or meta["message"],
+        "actor_row_html":     actor_row_html,
         "comment_row_html":   comment_row_html,
         "comment_row_style":  comment_row_style,
         "action_url":         action_url,
@@ -330,3 +400,34 @@ def send_incident_notification(
         "action_url": action_url,
     })
     _send(to_email, subject, html)
+
+def send_template_email(
+    *,
+    to_email: str,
+    subject: str,
+    template_name: str,
+    variables: Mapping[str, object],
+    attachments: list[EmailAttachment] | None = None,
+) -> None:
+    """
+    Render an HTML email template and send it.
+
+    Args:
+        to_email: Recipient email address.
+        subject: Email subject.
+        template_name: Path to the template relative to app/templates/email/.
+            Example:
+                "fleet/trip_dispatched.html"
+                "fleet/driver_assigned.html"
+                "customers/welcome.html"
+        variables: Template placeholders.
+    """
+    html = _render(
+        template_name,
+        {
+            **variables,
+            "subject": subject,
+        },
+    )
+
+    _send(to_email, subject, html, attachments=attachments)

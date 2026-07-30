@@ -2,47 +2,55 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 
-import type { CreateOrderFormOutput, CreateOrderFormValues } from "@/lib/modules/orders/schemas/create-order.schema";
+import type { CreateOrderFormOutput, SaveDraftPayload } from "@/lib/modules/orders/schemas/create-order.schema";
 
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import OrderForm from "@/lib/modules/orders/components/OrderForm";
 import { useState } from "react";
 import { useSaveDraftOrderWorkflow } from "@/lib/modules/orders/hooks/useSaveDraftOrderWorkflow";
 import { useSubmitOrderWorkflow } from "@/lib/modules/orders/hooks/useSubmitOrderWorkflow";
-import { buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
+import { buildDraftOrderPayload, buildOrderPayload } from "@/lib/modules/orders/utils/build-order-payload";
 import { BackButton } from "@/components/ui/BackButton";
 import { ORDER_ROUTES } from "@/lib/routes";
-
+import { toast } from "sonner";
+import { parseError } from "@/lib/errors";
 
 
 export default function NewOrderPage() {
   const router = useRouter();
-  const { products } = useProducts();
-
   const [draftId, setDraftId] = useState<string | null>(null);
 const { mutateAsync: saveDraft } = useSaveDraftOrderWorkflow();
 const { mutateAsync: submitOrder } = useSubmitOrderWorkflow();
 
   async function handleSubmit(data: CreateOrderFormOutput) {
-  await submitOrder({ input: buildOrderPayload(data), existingDraftNo: draftId ?? undefined });
+    try{
+      await submitOrder({ input: buildOrderPayload(data), existingDraftId: draftId ?? undefined });
+      toast.success("Order created successfully");
+      router.push(ORDER_ROUTES.home());
+    }catch(err){
+      toast.error(parseError(err));
+    }
 }
 
-
-  async function handleSaveDraft(data: CreateOrderFormValues) {
-  const saved = await saveDraft({ input: buildOrderPayload(data), existingDraftNo: draftId ?? undefined });
-  setDraftId(saved.id);
+async function handleSaveDraft(data: SaveDraftPayload) {
+  try{
+    const savedDraft = await saveDraft({ input: buildDraftOrderPayload(data), existingDraftId: draftId ?? undefined });
+    setDraftId(savedDraft.id);
+    toast.success("Draft saved successfully");
+    router.push(ORDER_ROUTES.home());
+  }catch(err){
+    toast.error(parseError(err));
+  }
 }
 
   return (
     <AppLayout pageTitle="Create Order">
 
       <BackButton
-        href={`${ORDER_ROUTES.list()}`}
+        href={`${ORDER_ROUTES.home()}`}
         label="Back to Orders"
       />
       <PageHeader

@@ -8,13 +8,14 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import VehicleForm, { type VehicleFormValues } from "@/lib/modules/fleet/components/VehicleForm";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
-import { VehiclesService } from "@/lib/modules/fleet/services/vehicles.service";
-import { Vehicle } from "@/lib/modules/fleet/types/vehicle.types";
+import { useUpdateVehicle } from "@/lib/modules/fleet/hooks/useVehicles";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/BackButton";
 import { FLEET_ROUTES } from "@/lib/routes";
 
 import { adaptUpdateVehicleRequest } from "@/lib/modules/fleet/adapters/fleet.adapter";
+import { parseError } from "@/lib/errors";
+import EditVehicleSkeleton from "@/lib/modules/fleet/components/EditVehicleSekeleton";
 
 
 
@@ -22,7 +23,15 @@ export default function EditVehiclePage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { vehicle } = useVehicleById(id);
+  const { vehicle, isLoading } = useVehicleById(id);
+  const { updateVehicle } = useUpdateVehicle();
+
+
+
+
+   if (isLoading) {
+    return <EditVehicleSkeleton />;
+  }
 
   if (!vehicle) {
     return (
@@ -34,14 +43,19 @@ export default function EditVehiclePage() {
 
 
 async function handleSubmit(data: VehicleFormValues) {
-  await VehiclesService.updateVehicle(
+ try{
+   await updateVehicle({
     id,
-    adaptUpdateVehicleRequest(data)
-  );
+    input: adaptUpdateVehicleRequest(data),
+  });
 
   toast.success("Vehicle successfully updated");
 
   router.push(`/admin/fleet/vehicles/${id}`);
+ }catch(error){
+  toast.error(parseError(error));
+ }
+
 }
   return (
     <AppLayout pageTitle="Edit Vehicle">

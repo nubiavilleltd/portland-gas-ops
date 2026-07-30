@@ -174,7 +174,11 @@ function mapWorkInitiationSummary(
         ? `Other - ${item.other_work_category}`
         : workCategoryLabels[item.work_category] ?? item.work_category,
     relatedIncidentHazardId: item.related_incident_report_id ?? "",
-    workType: item.work_type,
+    workType: item.work_type.map((workType) =>
+      workType === "Other" && item.other_work_type
+        ? `Other - ${item.other_work_type}`
+        : workType,
+    ),
     location: item.location,
     exactWorkArea: item.exact_work_area ?? "",
     workDescription: item.work_description,

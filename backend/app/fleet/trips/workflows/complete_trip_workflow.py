@@ -31,7 +31,8 @@ class CompleteTripWorkflow:
         db: Session,
         trip_id: str,
         proof_notes: str | None,
-        actor_id: str,
+        actor_employee_id: str,
+        actor_name: str,
     ):
 
         #
@@ -60,8 +61,7 @@ class CompleteTripWorkflow:
                     status_code=400,
                     error_code=TripErrorCode.TRIP_HAS_INCOMPLETE_ORDERS,
                     message=(
-                        f"Order '{order.order_no}' must be completed "
-                        "before the trip can be completed."
+                        "All orders attached to this trip must be delivered before the trip can be completed."
                     ),
                 )
 
@@ -104,7 +104,8 @@ class CompleteTripWorkflow:
             action="completed",
             description="Trip completed — all deliveries confirmed",
             actor_type=AuditActorType.employee,
-            actor_employee_id=actor_id,
+            actor_employee_id=actor_employee_id,
+            actor_name=actor_name,
         )
 
         return trip
