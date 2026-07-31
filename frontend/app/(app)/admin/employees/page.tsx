@@ -34,7 +34,7 @@ function toRow(e: EmployeeListItem): Employee {
     paye:               e.paye               ? Number(e.paye)               : undefined,
     pension:            e.pension            ? Number(e.pension)            : undefined,
     nhf:                e.nhf               ? Number(e.nhf)               : undefined,
-    loanRepayment:      e.loan_repayment     ? Number(e.loan_repayment)    : undefined,
+    loanRepayment:      e.loan_outstanding   ? Number(e.loan_outstanding)  : undefined, // shown as "Outstanding Amount"
   };
 }
 

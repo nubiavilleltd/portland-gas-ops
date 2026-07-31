@@ -1,17 +1,27 @@
 import api from "@/lib/api";
 import type {
   EmployeeListItem,
+  EmployeeDirectoryItem,
   EmployeeDetail,
   EmployeeDocument,
   CreateEmployeePayload,
   UpdateEmployeePayload,
   ListEmployeesParams,
   BirthdayEntry,
+  UpdateOwnProfilePayload,
 } from "./types";
 
 export const employeesApi = {
   list: async (params: ListEmployeesParams = {}): Promise<EmployeeListItem[]> => {
     const { data } = await api.get("/api/employees", { params });
+    return data;
+  },
+
+  // Payroll-free directory — usable by any authenticated user (reliever/approver pickers).
+  directory: async (search = ""): Promise<EmployeeDirectoryItem[]> => {
+    const { data } = await api.get("/api/employees/directory", {
+      params: search ? { search } : {},
+    });
     return data;
   },
 
@@ -42,6 +52,11 @@ export const employeesApi = {
 
   changeRole: async (id: string, role: string): Promise<EmployeeDetail> => {
     const { data } = await api.patch(`/api/employees/${id}/role`, { role });
+    return data;
+  },
+
+  updateMyProfile: async (payload: UpdateOwnProfilePayload): Promise<EmployeeDetail> => {
+    const { data } = await api.patch("/api/employees/me/profile", payload);
     return data;
   },
 

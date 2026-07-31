@@ -389,6 +389,11 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const { data: emp, isLoading } = useEmployee(id);
   const update = useUpdateEmployee(id);
+  // Total outstanding across the employee's active structured loans — shown as "Outstanding Amount".
+  const { data: employeeLoans = [] } = useEmployeeLoans(id);
+  const totalOutstanding = employeeLoans
+    .filter((l) => l.status === "active")
+    .reduce((sum, l) => sum + (l.outstanding ?? 0), 0);
   const toast  = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -501,6 +506,11 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
         housing_allowance:    empForm.housingAllowance,
         transport_allowance:  empForm.transportAllowance,
         meal_allowance:       empForm.mealAllowance,
+        // Persist the auto-computed deductions so the saved values match the form
+        // (previously only the salary was saved, leaving stale PAYE/Pension/NHF).
+        paye:                 computed.paye,
+        pension:              computed.pension,
+        nhf:                  computed.nhf,
         loan_repayment:       empForm.loanRepayment,
       });
     } catch {
@@ -711,10 +721,10 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <FormInput label="PAYE Tax" value={computed.paye > 0 ? formatNumber(computed.paye) : "0.00"} disabled hint="Auto-computed from earnings" />
                 <FormInput label="Pension"  value={computed.pension > 0 ? formatNumber(computed.pension) : "0.00"} disabled hint="8% × (Basic + Housing + Transport)" />
                 <FormInput label="NHF"      value={computed.nhf > 0 ? formatNumber(computed.nhf) : "0.00"} disabled hint="2.5% × Basic Salary" />
-                <FormInput label="Loan Repayment (legacy)" placeholder="0.00"
-                  value={empForm.loanRepayment !== undefined ? String(empForm.loanRepayment) : ""}
-                  onChange={(e) => un("loanRepayment", e.target.value)}
-                  hint="Used only when there is no active structured loan below. Prefer Loans & Deductions." />
+                <FormInput label="Outstanding Amount"
+                  value={totalOutstanding > 0 ? formatNumber(totalOutstanding) : "—"}
+                  disabled
+                  hint="Total outstanding across active loans — see Loans & Deductions below." />
               </>
             ) : (
               <>
@@ -725,7 +735,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <FormInput label="PAYE Tax"            value={fmt(emp.paye)}    hint="Auto-computed from earnings" />
                 <FormInput label="Pension"             value={fmt(emp.pension)} hint="8% × (Basic + Housing + Transport)" />
                 <FormInput label="NHF"                 value={fmt(emp.nhf)}     hint="2.5% × Basic Salary" />
-                <FormInput label="Loan Repayment (legacy)" value={fmt(emp.loan_repayment)} hint="Superseded by Loans & Deductions when an active loan exists." />
+                <FormInput label="Outstanding Amount" value={totalOutstanding > 0 ? formatNumber(totalOutstanding) : "—"} hint="Total outstanding across active loans." />
               </>
             )}
           </div>
