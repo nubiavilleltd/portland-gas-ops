@@ -44,7 +44,7 @@ export default function BusinessInformationCard({
         <FormInput
           label="TIN"
           placeholder="Enter Tax Identification Number"
-          value={values.tin}
+          value={values.tin ?? ""}
           error={errors?.tin}
           readOnly={readOnly}
           onChange={(e) => onChange?.("tin", e.target.value)}
@@ -53,7 +53,7 @@ export default function BusinessInformationCard({
         <FormInput
           label="VAT Number"
           placeholder="Enter VAT Number"
-          value={values.vatNumber}
+          value={values.vatNumber ?? ""}
           error={errors?.vatNumber}
           readOnly={readOnly}
           onChange={(e) => onChange?.("vatNumber", e.target.value)}

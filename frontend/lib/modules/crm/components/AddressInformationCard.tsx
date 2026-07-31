@@ -66,7 +66,7 @@ export default function AddressInformationCard({
         <FormInput
           label="Postal Code"
           placeholder="Enter Postal Code"
-          value={values.postalCode}
+          value={values.postalCode ?? ""}
           error={errors?.postalCode}
           readOnly={readOnly}
           onChange={(e) => onChange?.("postalCode", e.target.value)}
@@ -88,7 +88,7 @@ export default function AddressInformationCard({
           <FormInput
             label="Address Line 2"
             placeholder="Enter Address Line 2"
-            value={values.addressLine2}
+            value={values.addressLine2 ?? ""}
             error={errors?.addressLine2}
             readOnly={readOnly}
             onChange={(e) => onChange?.("addressLine2", e.target.value)}

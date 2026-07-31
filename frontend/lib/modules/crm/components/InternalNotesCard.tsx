@@ -28,7 +28,7 @@ export default function InternalNotesCard({
       <FormTextarea
         label="Notes"
         placeholder="Add internal notes about this customer..."
-        value={value}
+        value={value ?? ""}
         error={error}
         readOnly={readOnly}
         maxLength={1000}

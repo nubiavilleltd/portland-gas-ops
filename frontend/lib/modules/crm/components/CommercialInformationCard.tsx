@@ -52,7 +52,7 @@ export default function CommercialInformationCard({
             placeholder={
               isLoading ? "Loading products..." : "Select one or more option"
             }
-            value={values.preferredProducts}
+            value={values.preferredProducts ?? ""}
             error={errors?.preferredProducts}
             disabled={readOnly || isLoading}
             onValueChange={(value) => onChange?.("preferredProducts", value)}
@@ -61,7 +61,7 @@ export default function CommercialInformationCard({
 
         <SelectInput
           label="Supply Method"
-          value={values.supplyMethod}
+          value={values.supplyMethod ?? ""}
           error={errors?.supplyMethod}
           disabled={readOnly}
           options={SUPPLY_METHODS.map((item) => ({
@@ -73,7 +73,7 @@ export default function CommercialInformationCard({
 
         <SelectInput
           label="Estimated Monthly Demand"
-          value={values.estimatedMonthlyDemand}
+          value={values.estimatedMonthlyDemand ?? ""}
           error={errors?.estimatedMonthlyDemand}
           disabled={readOnly}
           options={DEMAND_RANGES.map((item) => ({

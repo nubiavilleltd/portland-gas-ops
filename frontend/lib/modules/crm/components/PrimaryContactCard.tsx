@@ -87,7 +87,7 @@ export default function PrimaryContactCard({
         <FormInput
           label="Alternative Phone"
           placeholder="Enter Alternative Phone"
-          value={values?.alternatePhone}
+          value={values.alternatePhone ?? ""}
           error={errors?.alternatePhone}
           readOnly={readOnly}
           onChange={(e) => onChange?.("alternatePhone", e.target.value)}
