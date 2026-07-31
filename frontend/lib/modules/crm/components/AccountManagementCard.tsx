@@ -4,6 +4,11 @@ import type { CustomerForm } from "../types";
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
+import EmployeePicker, {
+  type PickedEmployee,
+} from "@/components/ui/EmployeePicker";
+import { useEmployees } from "@/lib/modules/employees/hooks";
+import { useCustomers } from "@/lib/modules/crm";
 
 type Props = {
   values: {
@@ -20,12 +25,6 @@ type Props = {
   ) => void;
 };
 
-const EMPLOYEE_OPTIONS = [
-  { label: "Magdalene Princess", value: "Magdalene Princess" },
-  { label: "John Doe", value: "John Doe" },
-  { label: "Sarah James", value: "Sarah James" },
-];
-
 const REFERRER_TYPES = [
   { label: "Employee", value: "employee" },
   { label: "Existing Customer", value: "customer" },
@@ -40,6 +39,27 @@ export default function AccountManagementCard({
   readOnly = false,
   onChange,
 }: Props) {
+  const { data: employeeList = [] } = useEmployees();
+  const { data: customerList = [] } = useCustomers();
+  const employees: PickedEmployee[] = employeeList.map((e) => ({
+    id: e.id,
+    name:
+      [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") ||
+      "Unknown",
+    role: e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
+  }));
+  const CUSTOMER_OPTIONS = customerList
+    .filter((item: any) => item.status == "active")
+    .map((customer: any) => ({
+      label: customer.customer_name,
+      value: String(customer.id),
+    }));
+  const selectedReferrer =
+    employees.find((emp) => String(emp.id) === values.referrerId) ?? null;
+  const selectedSalesContact =
+    employees.find((emp) => String(emp.id) === values.salesContact) ?? null;
   return (
     <FormSection
       title="Account Management"
@@ -55,15 +75,14 @@ export default function AccountManagementCard({
           }
           disabled={readOnly}
         />
-
-        <FormSelect
+        <EmployeePicker
           label="Sales Contact"
-          value={values.salesContact ?? ""}
           placeholder="Select sales contact"
-          options={EMPLOYEE_OPTIONS}
-          error={errors.salesContact}
-          onValueChange={(value) => onChange("salesContact", value)}
-          disabled={readOnly}
+          employees={employees}
+          value={selectedSalesContact}
+          onChange={(employee) =>
+            onChange("salesContact", employee ? String(employee.id) : null)
+          }
         />
 
         <FormSelect
@@ -79,11 +98,21 @@ export default function AccountManagementCard({
         />
 
         {values.referrerType === "employee" ? (
+          <EmployeePicker
+            label="Referrer"
+            placeholder="Select employee"
+            employees={employees}
+            value={selectedReferrer}
+            onChange={(employee) =>
+              onChange("referrerId", employee ? String(employee.id) : "")
+            }
+          />
+        ) : values.referrerType === "customer" ? (
           <FormSelect
             label="Referrer"
+            placeholder="Select customer"
             value={values.referrerId}
-            placeholder="Select employee"
-            options={EMPLOYEE_OPTIONS}
+            options={CUSTOMER_OPTIONS}
             error={errors.referrer}
             onValueChange={(value) => onChange("referrerId", value)}
             disabled={readOnly}

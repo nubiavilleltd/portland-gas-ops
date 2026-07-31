@@ -112,7 +112,7 @@ export function buildCustomerPayload(
 
     customer_type: form.customerType,
 
-    sales_contact: form.salesContact ? parseInt(form.salesContact, 10) : null,
+    sales_contact: form.salesContact,
     referrer_type: form.referrerType || null,
     referrer_id: form.referrerId || null,
 

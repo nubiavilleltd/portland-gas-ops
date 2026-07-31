@@ -102,7 +102,7 @@ class CustomerCreate(BaseModel):
 
     customer_type: CustomerType
 
-    sales_contact: Optional[int] = None
+    sales_contact: Optional[str] = None
 
     referrer_type: Optional[ReferrerType] = None
     referrer_id: Optional[str] = None
@@ -147,7 +147,7 @@ class CustomerUpdate(BaseModel):
 
     customer_type: Optional[CustomerType] = None
 
-    sales_contact: Optional[int] = None
+    sales_contact: Optional[str] = None
 
     referrer_type: Optional[ReferrerType] = None
     referrer_id: Optional[str] = None
@@ -197,7 +197,7 @@ class CustomerListItem(BaseModel):
 
     phone: str
 
-    sales_contact: Optional[int]
+    sales_contact: Optional[str]
 
     status: CustomerStatus
 
@@ -226,7 +226,7 @@ class CustomerResponse(BaseModel):
 
     customer_type: CustomerType
 
-    sales_contact: Optional[int]
+    sales_contact: Optional[str]
 
     referrer_type: Optional[ReferrerType]
     referrer_id: Optional[str]

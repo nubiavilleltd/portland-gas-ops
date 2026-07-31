@@ -69,7 +69,7 @@ def list_customers(
     customer_type: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
 
-    sales_contact: Optional[int] = Query(None),
+    sales_contact: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

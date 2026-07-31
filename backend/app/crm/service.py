@@ -494,7 +494,7 @@ def list_customers(
     customer_type: Optional[str] = None,
     entity_type: Optional[str] = None,
     category: Optional[str] = None,
-    sales_contact: Optional[int] = None,
+    sales_contact: Optional[str] = None,
 ):
 
     query = db.query(CustomersTemp)

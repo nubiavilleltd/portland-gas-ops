@@ -83,7 +83,7 @@ export default function NewCustomerPage() {
 
   async function saveDraft() {
     const payload = buildCustomerPayload(form, "draft");
-
+    console.log(form, payload, "data to save");
     await createCustomer.mutateAsync(payload);
 
     router.push("/crm/customers");
