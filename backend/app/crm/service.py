@@ -29,24 +29,16 @@ from app.crm.schemas import (
     CustomerContactCreate,
     CustomerContactUpdate,
 )
-
+from app.crm.activity.service import CRMActivityService
+from app.crm.activity.schemas import (
+    CRMActivityEntityType,
+    CRMActivityActorType,
+)
 from app.shared.models.user import User
 from app.shared.utils.helpers import generate_reference
-# from app.audit.service import create_audit_log
+from app.employees.models import Employee
 
 logger = logging.getLogger(__name__)
-
-def _generate_customer_number() -> str:
-    """
-    Generates customer number.
-
-    Example
-
-    CUS000001
-    """
-
-    return generate_reference("CUS")
-
 
 def _generate_contact_number(db: Session) -> str:
     return generate_reference(
@@ -195,190 +187,26 @@ def create_primary_contact(
 
     return contact
 
-
-def sync_primary_contact(
+def log_customer_activity(
     db: Session,
-    customer: CustomersTemp,
+    customer: str,
+    current_user,
+    action: str,
+    description: str,
+    metadata: dict | None = None,
 ):
-
-    contact = get_primary_contact(
-        db,
-        customer.id,
-    )
-
-    if not contact:
-        return
-
-    contact.first_name = customer.contact_person
-
-    contact.department = customer.department
-
-    contact.email = customer.email
-
-    contact.phone = customer.phone
-
-    contact.alternate_phone = customer.alternate_phone
-
-
-# def log_customer_activity(
-#     db: Session,
-#     customer: Customer,
-#     employee,
-#     action: str,
-#     description: str,
-# ):
-
-#     create_audit_log(
-#         db=db,
-#         entity_type="customer",
-#         entity_id=str(customer.id),
-#         action=action,
-#         description=description,
-#         actor_employee_id=employee.id,
-#         actor_name=employee.user.full_name,
-#     )
-
-def create_customer(
-    db: Session,
-    data: CustomerCreate,
-    current_employee,
-) -> CustomersTemp:
-
-    validate_customer_uniqueness(
+    CRMActivityService.record(
         db=db,
-        company_email=data.company_email,
-        email=data.email,
-        rc_number=data.rc_number,
+        customer_id=customer,
+        entity_type=CRMActivityEntityType.customer,
+        entity_id=str(customer),
+        action=action,
+        description=description,
+        actor_type=CRMActivityActorType.employee,
+        actor_employee_id=str(current_user.employee.id),
+        actor_name=current_user.employee.user.full_name,
+        metadata=metadata,
     )
-
-    customer = CustomersTemp(
-
-        customer_no=_generate_customer_number(),
-
-        customer_name=data.customer_name,
-
-        entity_type=data.entity_type,
-
-        category=data.category,
-
-        company_email=data.company_email,
-
-        rc_number=data.rc_number,
-        tin=data.tin,
-        vat_number=data.vat_number,
-        industry=data.industry,
-
-        customer_type=data.customer_type,
-
-        sales_contact=data.sales_contact,
-
-        referrer_type=data.referrer_type,
-        referrer_id=data.referrer_id,
-
-        contact_person=data.contact_person,
-        department=data.department,
-        email=data.email,
-        phone=data.phone,
-        alternate_phone=data.alternate_phone,
-
-        country=data.country,
-        state=data.state,
-        city=data.city,
-
-        address_line1=data.address_line1,
-        address_line2=data.address_line2,
-        postal_code=data.postal_code,
-
-        preferred_products=data.preferred_products,
-
-        supply_method=data.supply_method,
-        estimated_monthly_demand=data.estimated_monthly_demand,
-
-        internal_notes=data.internal_notes,
-
-        status=data.status,
-
-        created_by=current_employee.id,
-    )
-
-    db.add(customer)
-
-    db.flush()
-
-    create_primary_contact(
-        db=db,
-        customer=customer,
-    )
-
-    # log_customer_activity(
-    #     db=db,
-    #     customer=customer,
-    #     employee=current_employee,
-    #     action="created",
-    #     description=f"Customer {customer.customer_name} created.",
-    # )
-
-    db.commit()
-
-    db.refresh(customer)
-
-    return customer
-
-
-def update_customer(
-    db: Session,
-    customer_id: int,
-    data: CustomerUpdate,
-    current_employee,
-) -> CustomersTemp:
-
-    customer = get_customer(
-        db,
-        customer_id,
-    )
-
-    payload = data.model_dump(
-        exclude_unset=True,
-    )
-
-    validate_customer_uniqueness(
-        db=db,
-        company_email=payload.get(
-            "company_email",
-            customer.company_email,
-        ),
-        email=payload.get(
-            "email",
-            customer.email,
-        ),
-        rc_number=payload.get(
-            "rc_number",
-            customer.rc_number,
-        ),
-        customer_id=customer.id,
-    )
-
-    for field, value in payload.items():
-        setattr(customer, field, value)
-
-    sync_primary_contact(
-        db=db,
-        customer=customer,
-    )
-
-    # log_customer_activity(
-    #     db=db,
-    #     customer=customer,
-    #     employee=current_employee,
-    #     action="updated",
-    #     description=f"Customer {customer.customer_name} updated.",
-    # )
-
-    db.commit()
-
-    db.refresh(customer)
-
-    return customer
 
 def get_customer_detail(
     db: Session,
@@ -396,7 +224,7 @@ def get_customer_detail(
 def deactivate_customer(
     db: Session,
     customer_id: str,
-    current_user,
+    current_employee,
 ):
     customer = (
         db.query(CustomersTemp)
@@ -411,13 +239,13 @@ def deactivate_customer(
         )
 
     customer.status = "inactive"
- # log_customer_activity(
-    #     db=db,
-    #     customer=customer,
-    #     employee=current_employee,
-    #     action="deactivated",
-    #     description=f"Customer {customer.customer_name} was deactivated.",
-    # )
+    log_customer_activity(
+            db=db,
+            customer=customer_id,
+            current_user=current_employee,
+            action="deactivated",
+            description=f"Customer {customer.customer_name} has been deactivated.",
+        )
     db.commit()
     db.refresh(customer)
 
@@ -436,13 +264,13 @@ def activate_customer(
 
     customer.status = "active"
 
-    # log_customer_activity(
-    #     db=db,
-    #     customer=customer,
-    #     employee=current_employee,
-    #     action="activated",
-    #     description=f"Customer {customer.customer_name} activated.",
-    # )
+    log_customer_activity(
+        db=db,
+        customer=customer_id,
+        current_user=current_employee,
+        action="activated",
+        description=f"Customer {customer.customer_name} has been activated.",
+    )
 
     db.commit()
 
@@ -487,6 +315,7 @@ def build_customer_search(
 
 def list_customers(
     db: Session,
+    current_user: User,
     skip: int = 0,
     limit: int = 20,
     search: Optional[str] = None,
@@ -498,7 +327,19 @@ def list_customers(
 ):
 
     query = db.query(CustomersTemp)
+    if current_user.role not in ["admin", "super_admin"]:
+        employee = (
+            db.query(Employee)
+            .filter(Employee.user_id == current_user.id)
+            .first()
+        )
 
+        if employee is None:
+            return []
+
+        query = query.filter(
+            CustomersTemp.created_by == employee.id
+        )
     if status:
         query = query.filter(
             CustomersTemp.status == status,
@@ -517,6 +358,10 @@ def list_customers(
     if category:
         query = query.filter(
             CustomersTemp.category == category,
+        )
+    if sales_contact:
+        query = query.filter(
+            CustomersTemp.sales_contact == sales_contact
         )
 
     query = build_customer_search(
@@ -687,13 +532,13 @@ def create_contact(
 
     db.refresh(contact)
 
-    # log_customer_activity(
-    #     db=db,
-    #     customer=customer,
-    #     employee=current_employee,
-    #     action="contact_created",
-    #     description=f"Added contact {contact.first_name} {contact.last_name}.",
-    # )
+    log_customer_activity(
+        db=db,
+        customer=customer_id,
+        current_user=current_employee,
+        action="contact_created",
+        description=f"New contact {contact.first_name} {contact.last_name} was added by {current_employee}.",
+    )
 
     return contact
 
@@ -706,7 +551,12 @@ def create_customer(
     data: CustomerCreate,
     current_user: User,
 ) -> CustomersTemp:
-
+    validate_customer_uniqueness(
+            db=db,
+            company_email=data.company_email,
+            email=data.email,
+            rc_number=data.rc_number,
+        )
     customer_no = generate_reference(
         "CUS",
         db,
@@ -755,13 +605,13 @@ def create_customer(
         employee_id=current_user.employee.id,
     )
 
-    # log_customer_activity(
-    #     db=db,
-    #     entity_id=str(customer.id),
-    #     action="Customer Created",
-    #     description=f"Created customer {customer.customer_name}",
-    #     employee=current_user,
-    # )
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Created",
+        description=f"Customer {customer.customer_name} was created by {current_user}",
+        current_user=current_user,
+    )
 
     db.commit()
     db.refresh(customer)
@@ -779,7 +629,22 @@ def update_customer(
     customer = get_customer(db, customer_id)
 
     values = data.model_dump(exclude_unset=True)
-
+    validate_customer_uniqueness(
+            db=db,
+            company_email=values.get(
+                "company_email",
+                customer.company_email,
+            ),
+            email=values.get(
+                "email",
+                customer.email,
+            ),
+            rc_number=values.get(
+                "rc_number",
+                customer.rc_number,
+            ),
+            customer_id=customer.id,
+        )
     for field, value in values.items():
         setattr(customer, field, value)
 
@@ -789,13 +654,13 @@ def update_customer(
         employee_id=current_user.employee.id,
     )
 
-    # log_customer_activity(
-    #     db=db,
-    #     entity_id=str(customer.id),
-    #     action="Customer Updated",
-    #     description=f"Updated customer {customer.customer_name}",
-    #     employee=current_user,
-    # )
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Updated",
+        description=f"Customer {customer.customer_name} was updated by {current_user}",
+        current_user=current_user,
+    )
 
     db.commit()
     db.refresh(customer)
@@ -824,13 +689,13 @@ def delete_customer(
     if primary:
         primary.status = "inactive"
 
-    # log_customer_activity(
-    #     db=db,
-    #     entity_id=str(customer.id),
-    #     action="Customer Deactivated",
-    #     description=f"Deactivated customer {customer.customer_name}",
-    #     employee=current_user,
-    # )
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Deactivated",
+        description=f"Customer {customer.customer_name} has been deactivated.",
+        current_user=current_user,
+    )
 
     db.commit()
 

@@ -5,11 +5,11 @@ export function validateCustomer(form: CustomerForm) {
 
   // Customer Information
   if (!form.customerName.trim()) {
-    errors.customer_name = "Customer name is required.";
+    errors.customerName = "Customer name is required.";
   }
 
   if (!form.entityType) {
-    errors.entity_type = "Entity type is required.";
+    errors.entityType = "Entity type is required.";
   }
 
   if (!form.category) {
@@ -17,15 +17,15 @@ export function validateCustomer(form: CustomerForm) {
   }
 
   if (!form.companyEmail.trim()) {
-    errors.company_email = "Company email is required.";
+    errors.companyEmail = "Company email is required.";
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.companyEmail)) {
-    errors.company_email = "Enter a valid company email.";
+    errors.companyEmail = "Enter a valid company email.";
   }
 
   // Business Information (Company only)
   if (form.entityType === "company") {
     if (!form.rcNumber.trim()) {
-      errors.rc_number = "RC Number is required.";
+      errors.rcNumber = "RC Number is required.";
     }
 
     // Optional format validation
@@ -34,13 +34,18 @@ export function validateCustomer(form: CustomerForm) {
     }
 
     if (form.vatNumber && !/^[A-Za-z0-9-]+$/.test(form.vatNumber)) {
-      errors.vat_number = "Invalid VAT Number.";
+      errors.vatNumber = "Invalid VAT Number.";
     }
   }
 
   // Primary Contact
+  if (!form.department.trim()) {
+    errors.department = "Department is required.";
+  }
+
+  // Primary Contact
   if (!form.contactPerson.trim()) {
-    errors.contact_person = "Contact person is required.";
+    errors.contactPerson = "Contact person is required.";
   }
 
   if (!form.email.trim()) {
@@ -67,24 +72,26 @@ export function validateCustomer(form: CustomerForm) {
   }
 
   if (!form.addressLine1.trim()) {
-    errors.address_line1 = "Address is required.";
+    errors.addressLine1 = "Address is required.";
   }
 
   // Account Management
   if (!form.customerType) {
-    errors.customer_type = "Customer type is required.";
+    errors.customerType = "Customer type is required.";
   }
 
   if (!form.salesContact) {
-    errors.sales_contact = "Sales contact is required.";
+    errors.salesContact = "Sales contact is required.";
   }
 
   if (!form.referrerType) {
-    errors.referrer_type = "Referrer type is required.";
+    errors.referrerType = "Referrer type is required.";
   }
-
+  if (!form.industry) {
+    errors.industry = "Industry is required.";
+  }
   if (!form.referrerId.trim()) {
-    errors.referrer_id = "Referrer is required.";
+    errors.referrerId = "Referrer is required.";
   }
 
   return {

@@ -69,14 +69,9 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
 ];
 
 export default function CustomersPage() {
-  // const { data: customers = [], isLoading, isError } = useCustomerOnboarding();
   const { data: customers = [], isLoading } = useCustomers();
   const activeCustomers = customers;
-
-  // .filter(
-  //   (customer: any) =>
-  //     customer.status === "active" || customer.customer_status === "active",
-  // );
+  console.log(activeCustomers, "activeCustomers");
 
   return (
     <AppLayout pageTitle="Customers">
@@ -94,24 +89,14 @@ export default function CustomersPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <LoadingSpinner />
-        </div>
-      ) : activeCustomers.length === 0 ? (
-        <EmptyState
-          title="No customers found"
-          description="There are no active customers available."
-        />
-      ) : (
-        <DataTable<CustomerOnboarding>
-          columns={COLUMNS}
-          data={activeCustomers}
-          rowHref={(customer) => `/crm/customers/${customer.id}`}
-          searchPlaceholder="Search customers..."
-          emptyMessage="No customers found."
-        />
-      )}
+      <DataTable<CustomerOnboarding>
+        columns={COLUMNS}
+        data={activeCustomers}
+        rowHref={(customer) => `/crm/customers/${customer.id}`}
+        searchPlaceholder="Search customers..."
+        emptyMessage="No customers found."
+        isLoading={isLoading}
+      />
     </AppLayout>
   );
 }

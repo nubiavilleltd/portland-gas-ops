@@ -180,9 +180,7 @@ class CustomerUpdate(BaseModel):
 
 class CustomerListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
     id: str
-
     customer_no: str
 
     customer_name: str
@@ -191,24 +189,55 @@ class CustomerListItem(BaseModel):
 
     category: CustomerCategory
 
-    customer_type: CustomerType
-
     company_email: Optional[str]
 
-    phone: str
+    rc_number: Optional[str]
+    tin: Optional[str]
+    vat_number: Optional[str]
+    industry: Optional[str]
+
+    customer_type: CustomerType
 
     sales_contact: Optional[str]
 
+    referrer_type: Optional[ReferrerType]
+    referrer_id: Optional[str]
+
+    contact_person: str
+    department: Optional[str]
+
+    email: Optional[str]
+    phone: str
+    alternate_phone: Optional[str]
+
+    country: str
+    state: Optional[str]
+    city: Optional[str]
+
+    address_line1: str
+    address_line2: Optional[str]
+
+    postal_code: Optional[str]
+
+    preferred_products: Optional[List[str]]
+
+    supply_method: Optional[str]
+    estimated_monthly_demand: Optional[str]
+
+    internal_notes: Optional[str]
+
     status: CustomerStatus
 
-    created_at: datetime
+    created_by: str
 
+    created_at: datetime
+    updated_at: datetime
 
 class CustomerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-
+    
     customer_no: str
 
     customer_name: str

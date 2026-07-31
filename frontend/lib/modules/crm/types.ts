@@ -73,7 +73,6 @@ export type CustomerStatus =
 
 export type CustomerCategory =
   | "retail"
-  | "commercial"
   | "industrial"
   | "government"
   | "distributor";
@@ -394,4 +393,18 @@ export interface CustomerVisitActivity {
   performedAt: string;
 
   comment?: string;
+}
+
+export interface CRMActivity {
+  id: string;
+  customer_id: string;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  description: string;
+  actor_type: string;
+  actor_employee_id?: string;
+  actor_name?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
 }

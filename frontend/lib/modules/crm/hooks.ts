@@ -9,6 +9,20 @@ import type {
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { getCustomerActivities } from "./api";
+
+export function useCRMActivityByCustomer(customerId?: string) {
+  const query = useQuery({
+    queryKey: ["crm", "activity", customerId],
+    queryFn: () => getCustomerActivities(customerId!),
+    enabled: !!customerId,
+  });
+
+  return {
+    entries: query.data ?? [],
+    ...query,
+  };
+}
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
 
@@ -26,7 +40,6 @@ export function useCreateCustomer() {
   });
 }
 
-const MOCK_CUSTOMER_ONBOARDING: CustomerOnboarding[] = [];
 export function useCustomerOnboarding() {
   return useQuery({
     queryKey: ["crm", "customer-onboarding"],
@@ -73,6 +86,7 @@ export function useCustomers() {
     queryKey: ["crm", "customers"],
     queryFn: async () => {
       const { data } = await api.get("api/crm");
+      console.log(data, "data");
       return data;
     },
   });

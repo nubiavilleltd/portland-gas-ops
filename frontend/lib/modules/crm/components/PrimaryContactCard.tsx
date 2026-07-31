@@ -56,6 +56,7 @@ export default function PrimaryContactCard({
         <FormInput
           label="Department"
           placeholder="Enter Department"
+          required
           value={values.department}
           error={errors?.department}
           readOnly={readOnly}

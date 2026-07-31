@@ -2,7 +2,6 @@ export type CustomerType = "company" | "individual";
 
 export type CustomerCategory =
   | "retail"
-  | "commercial"
   | "industrial"
   | "distributor"
   | "government";

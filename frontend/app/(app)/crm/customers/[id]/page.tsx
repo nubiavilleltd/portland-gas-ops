@@ -1,7 +1,6 @@
 "use client";
-import { useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import CustomerInformationCard from "@/lib/modules/crm/components/CustomerInformationCard";
 import BusinessInformationCard from "@/lib/modules/crm/components/BusinessInformationCard";
 import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard";
@@ -18,108 +17,117 @@ import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
 import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import Button from "@/components/ui/Button";
-import CustomerAttachmentsCard from "@/lib/modules/crm/components/CustomerAttachmentsCard";
 import FormSection from "@/components/ui/FormSection";
 import AccountManagementCard from "@/lib/modules/crm/components/AccountManagementCard";
+import { useEmployees } from "@/lib/modules/employees/hooks";
+import { formatDateTime } from "@/lib/utils";
+import { Skeleton } from "@/lib/modules/crm/components/Skeleton";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
+import { useCRMActivityByCustomer } from "@/lib/modules/crm";
 
 export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  console.log(id);
-  const { data: customer } = useCustomerOnboardingDetails(id);
-  const { data: contacts } = useCustomerContactDetails(id);
+  const { user: currentUser } = useCurrentUser();
 
-  const isReturned = customer?.status?.toLowerCase() === "returned";
-  const isDraft = customer?.status?.toLowerCase() === "draft";
-  const isAcknowledged = customer?.status?.toLowerCase() === "active";
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const router = useRouter();
-  const [form, setForm] = useState({
-    attachments: {
-      cacCertificate: null as File | null,
-      tinCertificate: null as File | null,
-      vatCertificate: null as File | null,
-      businessLogo: null as File | null,
-      otherDocuments: [] as File[],
-    },
-  });
-  // Only returned requests can be edited
-  const readOnly = !(isReturned || isDraft);
+  const { data: customer, isLoading: customerLoading } =
+    useCustomerOnboardingDetails(id);
+  const { data: contacts } = useCustomerContactDetails(id);
+  const { entries } = useCRMActivityByCustomer(id);
+
+  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
+
+  if (customerLoading || employeesLoading) {
+    return (
+      <AppLayout pageTitle="Customer Details">
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-60" />
+
+          <div className="rounded-xl p-6 space-y-4">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+
+          <div className="rounded-xl p-6 space-y-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!customer) return null;
+
+  console.log(customer, contacts, "data fetched");
+  const isActive = customer?.status?.toLowerCase() === "active";
+
+  const readOnly = true;
   const crmRoles: MockUserRoleOption<"crm_admin">[] = [
     {
       value: "crm_admin",
       label: "CRM Administrator",
     },
   ];
+  const requester = employees.find(
+    (employee) => employee.id === customer?.created_by,
+  );
+  const isAdmin =
+    currentUser?.role === "admin" || currentUser?.role === "super_admin";
 
-  function handleChange(
-    field: string,
-    value:
-      | string
-      | string[]
-      | File
-      | File[]
-      | null
-      | {
-          cacCertificate: File | null;
-          tinCertificate: File | null;
-          vatCertificate: File | null;
-          businessLogo: File | null;
-          otherDocuments: File[];
-        },
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-
-    if (errors[field]) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: "",
-      }));
-    }
-  }
-
-  if (!customer) return null;
-
+  const canManage =
+    isAdmin || customer.created_by === currentUser?.employee?.id;
   return (
     <AppLayout pageTitle="Customer Details">
       <div className="flex justify-between mb-2">
         <BackButton href="/crm/customers" label="Back to Customers" />
 
         <div>
-          <Button
-            variant="outline"
-            className="mr-2"
-            href={`/crm/customers/${customer.id}/edit`}
-          >
-            Edit Customer
-          </Button>
-          {isAcknowledged && (
-            <Button href={`/crm/contacts/${customer.id}`}>
-              Manage Contacts
-            </Button>
+          {canManage && (
+            <>
+              <Button
+                variant="outline"
+                className="mr-2"
+                href={`/crm/customers/${customer.id}/edit`}
+              >
+                Edit Customer
+              </Button>
+
+              {isActive && (
+                <Button href={`/crm/contacts/${customer.id}`}>
+                  Manage Contacts
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
       <div className="space-y-6">
         <RoleBasedRecordHeader
-          id={customer.onboarding_number}
+          id={customer.customer_no}
           currentRole="crm_admin"
           onRoleChange={() => {}}
-          roleLabel="CRM Administrator"
+          roleLabel={
+            requester?.user?.role
+              ?.replace(/_/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase()) ?? "Staff"
+          }
           roles={crmRoles}
           recordLabel="Customer Detail"
           status={<ApprovalBadge status={customer.status} />}
-          //nextActor="Sales Manager"
           showRoleSwitcher={false}
         />
         <RequesterDetailsSection
           requester={{
-            name: customer.submitted_by,
-            department: "Commercial",
-            role: "Sales Executive",
-            requestDate: customer.submitted_at,
+            name: requester
+              ? `${requester.user?.first_name ?? ""} ${requester.user?.last_name ?? ""}`.trim()
+              : "Unknown",
+            department: requester?.department ?? "-",
+            role: requester?.job_title ?? "-",
+            requestDate: formatDateTime(customer.created_at),
           }}
         />
         <CustomerInformationCard
@@ -134,10 +142,10 @@ export default function CustomerDetailsPage() {
         <BusinessInformationCard
           readOnly={readOnly}
           values={{
-            rcNumber: customer.rc_number,
-            tin: customer.tin,
-            vatNumber: customer.vat_number,
-            industry: customer.industry,
+            rcNumber: customer.rc_number ?? "",
+            tin: customer.tin ?? "",
+            vatNumber: customer.vat_number ?? "",
+            industry: customer.industry ?? "",
           }}
         />
         <PrimaryContactCard
@@ -147,7 +155,7 @@ export default function CustomerDetailsPage() {
             department: customer.department,
             email: customer.email,
             phone: customer.phone,
-            alternatePhone: customer.alternate_phone,
+            alternatePhone: customer.alternate_phone ?? "",
           }}
         />
         <FormSection
@@ -213,25 +221,25 @@ export default function CustomerDetailsPage() {
             state: customer.state,
             city: customer.city,
             addressLine1: customer.address_line1,
-            addressLine2: customer.address_line2,
-            postalCode: customer.postal_code,
+            addressLine2: customer.address_line2 ?? "",
+            postalCode: customer.postal_code ?? "",
           }}
         />
         <CommercialInformationCard
           readOnly={readOnly}
           values={{
-            preferredProducts: customer.preferred_products,
-            supplyMethod: customer.supply_method,
-            estimatedMonthlyDemand: customer.estimated_monthly_demand,
+            preferredProducts: customer.preferred_products ?? "",
+            supplyMethod: customer.supply_method ?? "",
+            estimatedMonthlyDemand: customer.estimated_monthly_demand ?? "",
           }}
         />
         <AccountManagementCard
           readOnly={readOnly}
           values={{
             customerType: customer.customer_type,
-            salesContact: customer.sales_contact,
-            referrerType: customer.referrer_type,
-            referrerId: customer.referrer,
+            salesContact: customer.sales_contact ?? "",
+            referrerType: customer.referrer_type ?? "",
+            referrerId: customer.referrer_id ?? "",
           }}
           onChange={() => {}}
         />
@@ -242,6 +250,13 @@ export default function CustomerDetailsPage() {
           onChange={() => {}}
         />
       </div>
+
+      <FormSection
+        title="Activity"
+        description="Timeline of actions taken on this customer"
+      >
+        <CRMActivityTimeline entries={entries} />
+      </FormSection>
     </AppLayout>
   );
 }

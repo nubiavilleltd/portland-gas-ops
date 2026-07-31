@@ -68,6 +68,7 @@ export default function AccountManagementCard({
       <div className="grid gap-6 md:grid-cols-2">
         <FormInput
           label="Customer Type"
+          required
           value={
             values.customerType === "purchasing"
               ? "Purchasing Customer"
@@ -78,8 +79,10 @@ export default function AccountManagementCard({
         <EmployeePicker
           label="Sales Contact"
           placeholder="Select sales contact"
+          error={errors.salesContact}
           employees={employees}
           value={selectedSalesContact}
+          required
           onChange={(employee) =>
             onChange("salesContact", employee ? String(employee.id) : null)
           }
@@ -90,6 +93,7 @@ export default function AccountManagementCard({
           value={values.referrerType}
           options={REFERRER_TYPES}
           error={errors.referrerType}
+          required
           onValueChange={(value) => {
             onChange("referrerType", value as CustomerForm["referrerType"]);
             onChange("referrerId", "");
@@ -102,6 +106,8 @@ export default function AccountManagementCard({
             label="Referrer"
             placeholder="Select employee"
             employees={employees}
+            error={errors.referrerId}
+            required
             value={selectedReferrer}
             onChange={(employee) =>
               onChange("referrerId", employee ? String(employee.id) : "")
@@ -112,8 +118,9 @@ export default function AccountManagementCard({
             label="Referrer"
             placeholder="Select customer"
             value={values.referrerId}
+            required
             options={CUSTOMER_OPTIONS}
-            error={errors.referrer}
+            error={errors.referrerId}
             onValueChange={(value) => onChange("referrerId", value)}
             disabled={readOnly}
           />
@@ -122,7 +129,8 @@ export default function AccountManagementCard({
             label="Referrer"
             placeholder="Enter referrer"
             value={values.referrerId}
-            error={errors.referrer}
+            required
+            error={errors.referrerId}
             onChange={(e) => onChange("referrerId", e.target.value)}
             disabled={readOnly}
           />

@@ -75,6 +75,7 @@ def list_customers(
 ):
     return service.list_customers(
         db=db,
+        current_user=current_user,
         skip=skip,
         limit=limit,
         search=search,
@@ -309,7 +310,7 @@ def entity_types():
 def customer_categories():
     return [
         "retail",
-        "commercial",
+        "distributor",
         "industrial",
         "government",
     ]

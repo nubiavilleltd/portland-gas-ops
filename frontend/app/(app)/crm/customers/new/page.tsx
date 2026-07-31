@@ -15,6 +15,8 @@ import CommercialInformationCard from "@/lib/modules/crm/components/CommercialIn
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
 import { BackButton } from "@/components/ui/BackButton";
 import AccountManagementCard from "@/lib/modules/crm/components/AccountManagementCard";
+import { useToast } from "@/hooks/useToast";
+
 import {
   validateCustomer,
   buildCustomerPayload,
@@ -22,6 +24,7 @@ import {
 import { useCreateCustomer } from "@/lib/modules/crm";
 export default function NewCustomerPage() {
   const router = useRouter();
+  const toast = useToast();
 
   const [form, setForm] = useState<CustomerForm>({
     customerName: "",
@@ -81,32 +84,32 @@ export default function NewCustomerPage() {
     }
   }
 
-  async function saveDraft() {
-    const payload = buildCustomerPayload(form, "draft");
-    console.log(form, payload, "data to save");
-    await createCustomer.mutateAsync(payload);
-
-    router.push("/crm/customers");
-  }
-
   async function submitCustomer() {
     const { valid, errors } = validateCustomer(form);
-
     if (!valid) {
       setErrors(errors);
+      toast.error("Please correct the highlighted errors.");
       return;
     }
+    try {
+      const payload = buildCustomerPayload(form, "active");
+      console.log(form, payload, "data to save");
 
-    const payload = buildCustomerPayload(form, "active");
+      await createCustomer.mutateAsync(payload);
 
-    await createCustomer.mutateAsync(payload);
-
-    router.push("/crm/customers");
+      router.push("/crm/customers");
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail?.message ??
+          error?.response?.data?.detail ??
+          "Failed to create customer. Please try again.",
+      );
+    }
   }
 
   return (
     <AppLayout pageTitle="New Customer">
-      <BackButton href="/crm/customers" label="Back to Customer Onboarding" />
+      <BackButton href="/crm/customers" label="Back to Customers" />
       <PageHeader
         title="New Customer"
         description="Register a new customer for review and activation."
@@ -192,11 +195,9 @@ export default function NewCustomerPage() {
             Cancel
           </Button>
 
-          <Button variant="secondary" onClick={saveDraft}>
-            Save Draft
+          <Button disabled={createCustomer.isPending} onClick={submitCustomer}>
+            Submit
           </Button>
-
-          <Button onClick={submitCustomer}>Submit</Button>
         </div>
       </div>
     </AppLayout>
