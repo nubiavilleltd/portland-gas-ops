@@ -25,6 +25,7 @@ class LeaveTypeCreate(BaseModel):
     is_active: bool = True
     is_uncapped: bool = False   # no entitlement cap (e.g. Sick Leave)
     open_ended: bool = False    # no fixed End Date required
+    notice_days: int = Field(0, ge=0)   # min advance-notice window (calendar days)
 
 
 # ── Full update (all fields optional) ────────────────────────────────────────
@@ -36,6 +37,7 @@ class LeaveTypeUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_uncapped: Optional[bool] = None
     open_ended: Optional[bool] = None
+    notice_days: Optional[int] = Field(None, ge=0)
 
 
 # ── Response (returned to client) ────────────────────────────────────────────
@@ -48,6 +50,7 @@ class LeaveTypeRead(BaseModel):
     is_active: bool
     is_uncapped: bool = False
     open_ended: bool = False
+    notice_days: int = 0
     created_at: datetime
     updated_at: Optional[datetime] = None
 

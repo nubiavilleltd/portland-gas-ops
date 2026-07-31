@@ -6,6 +6,7 @@ export type LeaveTypeListItem = {
   is_active: boolean;
   is_uncapped: boolean;   // no entitlement cap (e.g. Sick Leave)
   open_ended: boolean;    // no fixed End Date required
+  notice_days: number;    // min advance-notice window (calendar days); 0 = none
   created_at: string; // ISO datetime
 };
 
@@ -20,6 +21,7 @@ export type LeaveTypePayload = {
   is_active?: boolean;
   is_uncapped?: boolean;
   open_ended?: boolean;
+  notice_days?: number;
 };
 
 export type LeaveTypeCreatePayload = {
@@ -29,6 +31,7 @@ export type LeaveTypeCreatePayload = {
   is_active: boolean;
   is_uncapped?: boolean;
   open_ended?: boolean;
+  notice_days?: number;
 };
 
 export type LeaveTypeListResponse = {

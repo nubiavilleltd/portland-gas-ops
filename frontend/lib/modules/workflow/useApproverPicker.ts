@@ -31,7 +31,7 @@ import { useState, useEffect } from "react";
 import type { PickedEmployee } from "@/components/ui/EmployeePicker";
 import { useWorkflowForType, useRequesterPicks } from "./queries";
 import type { WorkflowForTypeStep } from "./queries";
-import { useEmployees } from "@/lib/modules/employees/hooks";
+import { useEmployeeDirectory } from "@/lib/modules/employees/hooks";
 
 export interface ApproverPickerResult {
   /** Steps the requester must pick an approver for. Empty = no section needed. */
@@ -57,7 +57,7 @@ export function useApproverPicker(
 
   const { data: workflowForType, isLoading: wfLoading }    = useWorkflowForType(requestType);
   const { data: previousPicks,   isLoading: picksLoading } = useRequesterPicks(requestType, requestId);
-  const { data: allEmployeeList = [] }                      = useEmployees();
+  const { data: allEmployeeList = [] }                      = useEmployeeDirectory();
 
   const requesterPickSteps = (workflowForType?.steps ?? []).filter(
     (s) => s.assignee_type === "requester_pick",

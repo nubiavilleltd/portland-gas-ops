@@ -23,6 +23,9 @@ interface Props {
   pickedApprovers:    Record<number, PickedEmployee>;
   setPickedApprovers: React.Dispatch<React.SetStateAction<Record<number, PickedEmployee>>>;
   allEmployees:       PickedEmployee[];
+  /** Employee ids to hide from every picker (e.g. the leave's own subject —
+   *  you can't be your own reliever). Optional; defaults to none. */
+  excludeEmployeeIds?: string[];
 }
 
 export default function WorkflowApproversSection({
@@ -30,8 +33,11 @@ export default function WorkflowApproversSection({
   pickedApprovers,
   setPickedApprovers,
   allEmployees,
+  excludeEmployeeIds = [],
 }: Props) {
   if (requesterPickSteps.length === 0) return null;
+
+  const excludeSet = new Set(excludeEmployeeIds);
 
   return (
     <FormSection
@@ -45,7 +51,7 @@ export default function WorkflowApproversSection({
            * employee list to show. A group can exist but have 0 members
            * (admin misconfiguration); we still must not fall through to all employees.
            */
-          const employees: PickedEmployee[] = step.group_id
+          const employees: PickedEmployee[] = (step.group_id
             ? step.group_members.map((m) => ({
                 id:         m.id,
                 name:       m.name,
@@ -53,7 +59,8 @@ export default function WorkflowApproversSection({
                 department: m.department ?? "",
                 avatar_url: m.avatar_url ?? undefined,
               }))
-            : allEmployees;
+            : allEmployees
+          ).filter((e) => !excludeSet.has(e.id));
 
           const label = step.step_name;
 

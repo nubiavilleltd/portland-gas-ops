@@ -182,8 +182,8 @@ def notify_step_approved(
         subject=f"Leave Progress — {step_name} approved",
         heading="Leave Request Progressing",
         message=(
-            f"{approver_name} has approved the leave raised on your behalf at the "
-            f"{step_name} step. {pending}"
+            f"The leave raised on your behalf has been approved by {approver_name} "
+            f"({step_name}). {pending}"
         ),
         status_label=f"Pending {next_step_name}" if next_step_name else "In Progress",
         status_color=_AMBER,

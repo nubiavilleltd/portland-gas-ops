@@ -108,6 +108,7 @@ class EmployeeUpdate(BaseModel):
 class EmployeeProfileUpdate(BaseModel):
     phone:              Optional[str] = None
     profile_picture_id: Optional[int] = None   # document ID from the users folder in doc library
+    birthday:           Optional[date] = None   # employee may correct their own date of birth
 
 
 # ── Nested manager info returned in employee responses ────────────────────────
@@ -202,6 +203,7 @@ class EmployeeListItem(BaseModel):
     pension:             Optional[Decimal]
     nhf:                 Optional[Decimal]
     loan_repayment:      Optional[Decimal]
+    loan_outstanding:    Optional[Decimal] = None   # total outstanding across active loans
 
     user: Optional[UserInEmployee]
 

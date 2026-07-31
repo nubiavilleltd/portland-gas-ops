@@ -35,6 +35,7 @@ export default function NewLeaveTypePage() {
     is_active: true,
     is_uncapped: false,
     open_ended: false,
+    notice_days: 0,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -136,6 +137,18 @@ export default function NewLeaveTypePage() {
               min={1}
               error={errors.entitlement_days}
               required
+              disabled={create.isPending}
+            />
+
+            <FormInput
+              label="Notice Period (days)"
+              name="notice_days"
+              type="number"
+              value={formData.notice_days ?? 0}
+              onChange={handleChange}
+              placeholder="e.g., 7 — leave 0 for none"
+              min={0}
+              error={errors.notice_days}
               disabled={create.isPending}
             />
           </div>
