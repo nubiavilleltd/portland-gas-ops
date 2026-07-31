@@ -34,6 +34,10 @@ class LeaveTypeSetup(Base):
     # (Start Date + optional Expected Return).
     is_uncapped = Column(Boolean, default=False, nullable=False, server_default="0")
     open_ended = Column(Boolean, default=False, nullable=False, server_default="0")
+    # Minimum advance notice (in calendar days) required before a leave of this
+    # type may start. 0 = no notice period (e.g. Sick Leave). Blocks a start date
+    # that falls within the notice window from today.
+    notice_days = Column(Integer, default=0, nullable=False, server_default="0")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

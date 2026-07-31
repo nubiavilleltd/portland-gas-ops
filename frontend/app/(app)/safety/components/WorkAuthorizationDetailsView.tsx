@@ -764,6 +764,11 @@ function AttachmentsSection({
       <SafetyAttachmentList
         label="Safety-related Images/Documents"
         attachments={visibleAttachments}
+        getAttachmentHref={(attachment) =>
+          attachment.id
+            ? `/api/safety/work-authorizations/${request.id}/attachments/${attachment.id}/download`
+            : attachment.url
+        }
         onRemove={
           editable
             ? (attachmentId) =>
@@ -987,6 +992,11 @@ function HseInspectionResultSection({
         <SafetyAttachmentList
           label="Inspection evidence/images"
           attachments={inspection.evidence}
+          getAttachmentHref={(attachment) =>
+            attachment.id
+              ? `/api/safety/work-authorizations/${request.id}/attachments/${attachment.id}/download`
+              : attachment.url
+          }
         />
       </div>
     </FormSection>

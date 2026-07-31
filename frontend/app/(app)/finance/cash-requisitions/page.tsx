@@ -267,7 +267,7 @@ export default function CashRequisitionsPage() {
                     label="Supporting Documents"
                     value={supportingFiles}
                     onChange={setSupportingFiles}
-                    accept="image/*,.pdf,.doc,.docx"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                     maxFiles={5}
                     hint="Attach quotes, receipts, or any relevant documents (optional)"
                   />

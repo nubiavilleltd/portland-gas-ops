@@ -21,6 +21,7 @@ from app.safety.work_initiations.schemas import (
     WorkInitiationUpdate,
 )
 from app.safety.incidents.schemas import IncidentReportResponse
+from app.safety.storage import stream_safety_document
 from app.safety.workflow import enrich_next_workflow_actors
 
 
@@ -175,6 +176,29 @@ def get_work_initiation(
         current_user=current_user,
     )
     return work_initiation_response(db, record)
+
+
+@router.get("/{work_initiation_id}/attachments/{attachment_id}/download")
+def download_work_initiation_attachment(
+    work_initiation_id: str,
+    attachment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    work_initiation_service.get_work_initiation_for_current_user(
+        db=db,
+        work_initiation_id=work_initiation_id,
+        current_user=current_user,
+    )
+    return stream_safety_document(
+        db,
+        attachment_id=attachment_id,
+        categories=[
+            work_initiation_service.work_initiation_document_category(
+                work_initiation_id,
+            )
+        ],
+    )
 
 
 @router.put("/{work_initiation_id}", response_model=WorkInitiationResponse)

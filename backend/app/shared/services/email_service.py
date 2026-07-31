@@ -194,7 +194,7 @@ _REQUEST_TYPE_LABELS: dict[str, str] = {
     "invoice":          "Invoice",
     "work_initiation":  "Work Initiation",
     "work_authorization": "Work Authorization",
-    "work_closeout":    "Work Closeout",
+    "work_closeout":    "Work Close-Out",
     "safety":           "Safety",
 }
 
@@ -288,6 +288,7 @@ def send_approval_result(
     action: str,  # "approved" | "rejected" | "returned"
     comment: str | None,
     action_url: str,
+    actor_label: str | None = None,
     result_message_override: str | None = None,
     subject_override: str | None = None,
     result_heading_override: str | None = None,
@@ -341,6 +342,17 @@ def send_approval_result(
         comment_row_html = ""
         comment_row_style = ""
 
+    actor_row_html = ""
+    if actor_label:
+        actor_row_html = (
+            f"<tr>"
+            f'<td style="padding:10px 14px; font-size:13px; color:#6b7280; '
+            f'font-weight:600; {comment_row_style}">Actor</td>'
+            f'<td style="padding:10px 14px; font-size:13px; color:#111118; '
+            f'{comment_row_style}">{actor_label}</td>'
+            f"</tr>"
+        )
+
     subject = subject_override or f"{request_type_label} Request {meta['label']}"
     html = _render("approval_result.html", {
         "subject":            subject,
@@ -351,6 +363,7 @@ def send_approval_result(
         "action_color":       action_color_override or meta["color"],
         "result_heading":     result_heading_override or meta["heading"],
         "result_message":     result_message_override or meta["message"],
+        "actor_row_html":     actor_row_html,
         "comment_row_html":   comment_row_html,
         "comment_row_style":  comment_row_style,
         "action_url":         action_url,

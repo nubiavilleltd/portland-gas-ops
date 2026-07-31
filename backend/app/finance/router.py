@@ -123,7 +123,9 @@ def upload_cash_requisition_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash requisition not found")
 
     ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp", "application/msword",
-                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                     "application/vnd.ms-excel",
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="File type not allowed. Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX")
 
@@ -304,7 +306,9 @@ def upload_invoice_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
 
     ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp", "application/msword",
-                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                     "application/vnd.ms-excel",
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="File type not allowed. Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX")
 

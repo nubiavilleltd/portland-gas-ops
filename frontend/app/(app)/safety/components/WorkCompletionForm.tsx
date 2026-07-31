@@ -22,6 +22,7 @@ import {
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
+  getLatestActualWorkStartDateTime,
   isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
   SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
@@ -295,7 +296,7 @@ export default function WorkCompletionForm() {
             ref={actualStartDateTimeRef}
             label="Actual Start Date/Time"
             required
-            max={getLatestActualWorkDateTime()}
+            max={getLatestActualWorkStartDateTime()}
             value={actualStartDateTime}
             error={validationErrors.actualStartDateTime}
             onValueChange={(value) => {
@@ -342,7 +343,7 @@ export default function WorkCompletionForm() {
           />
           {completionChecklist.isError ? (
             <p className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              Closeout completion checklist template is not available.
+              Close-out completion checklist template is not available.
             </p>
           ) : null}
           <div
@@ -458,7 +459,7 @@ export default function WorkCompletionForm() {
       <FormSection title="Monitoring Attestation" description="Confirm the work was monitored and remained within its approved scope.">
         {monitoringChecklist.isError ? (
           <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            Closeout monitoring checklist template is not available.
+            Close-out monitoring checklist template is not available.
           </p>
         ) : null}
         <div
@@ -514,7 +515,7 @@ export default function WorkCompletionForm() {
         <div className="space-y-4">
           {areaConditionChecklist.isError ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              Closeout area condition checklist template is not available.
+              Close-out area condition checklist template is not available.
             </p>
           ) : null}
           <div

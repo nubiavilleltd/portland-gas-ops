@@ -65,11 +65,12 @@ def on_approved(ctx: dict) -> dict | None:
     request = _get_request(ctx)
     if not request:
         return None
+    actor_label = ctx.get("actor_label") or "the final approver"
     return {
         "result_message": (
             f"Work Initiation {request.reference}: {request.title} has been fully "
-            "approved. You can now raise a Work Authorization request from the "
-            "Safety Work Authorization page."
+            f"approved by {actor_label}. You can now raise a Work Authorization "
+            "request from the Safety Work Authorization page."
         )
     }
 

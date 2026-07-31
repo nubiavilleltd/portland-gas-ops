@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 const KEYS = {
   all: ["loans"] as const,
   list: (employeeId: string) => ["loans", "list", employeeId] as const,
+  mine: ["loans", "mine"] as const,
   preview: (period: string, year: number) => ["loans", "preview", period, year] as const,
   charges: (loanId: string) => ["loans", "charges", loanId] as const,
 };
@@ -18,6 +19,16 @@ export function useEmployeeLoans(employeeId: string) {
     queryKey: KEYS.list(employeeId),
     queryFn: () => loansApi.list(employeeId),
     enabled: Boolean(accessToken) && !!employeeId,
+  });
+}
+
+/** The current user's own loans (read-only) — for the My Profile page. */
+export function useMyLoans() {
+  const { accessToken } = useAuthStore();
+  return useQuery({
+    queryKey: KEYS.mine,
+    queryFn: () => loansApi.myLoans(),
+    enabled: Boolean(accessToken),
   });
 }
 

@@ -28,6 +28,7 @@ export default function LeaveTypesPage() {
     description: "",
     is_uncapped: false,
     open_ended: false,
+    notice_days: 0,
   });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
@@ -54,6 +55,16 @@ export default function LeaveTypesPage() {
       render: (v) => (
         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
           {String(v)} days
+        </span>
+      ),
+    },
+    {
+      key: "notice_days",
+      label: "Notice",
+      sortable: true,
+      render: (v) => (
+        <span className="text-sm text-brand-text-secondary">
+          {Number(v) > 0 ? `${v} day${Number(v) !== 1 ? "s" : ""}` : "—"}
         </span>
       ),
     },
@@ -87,6 +98,7 @@ export default function LeaveTypesPage() {
       description: row.description || "",
       is_uncapped: row.is_uncapped ?? false,
       open_ended: row.open_ended ?? false,
+      notice_days: row.notice_days ?? 0,
     });
     setEditErrors({});
   };
@@ -276,6 +288,18 @@ export default function LeaveTypesPage() {
             error={editErrors.entitlement_days}
             disabled={update.isPending}
             required
+          />
+
+          <FormInput
+            label="Notice Period (days)"
+            name="notice_days"
+            type="number"
+            value={editForm.notice_days}
+            onChange={handleEditChange}
+            placeholder="e.g., 7 — leave 0 for none"
+            min={0}
+            error={editErrors.notice_days}
+            disabled={update.isPending}
           />
 
           <FormTextarea

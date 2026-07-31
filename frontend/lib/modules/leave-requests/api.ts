@@ -1,4 +1,4 @@
-import api from "@/lib/api";
+import api, { postForm } from "@/lib/api";
 import type { LeaveRequest } from "@/app/(app)/hr-management/_components/_data";
 import { formatDateTime } from "@/lib/utils";
 import {
@@ -79,30 +79,14 @@ const leaveRequestsApi = {
   },
 
   async uploadDocument(leaveRequestId: string, file: File): Promise<{ document_id: number; file_name: string; file_url: string }> {
-    // Import auth store dynamically to avoid SSR issues
-    const { useAuthStore } = await import("@/store/authStore");
-    const token = useAuthStore.getState().accessToken;
-
+    // Route through the shared axios instance (relative URL → Next rewrite proxy on
+    // deploy, auth + credentials handled centrally) — same path procurement uses.
     const formData = new FormData();
     formData.append("file", file);
-
-    // Use fetch directly for multipart/form-data to avoid axios header issues
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/hr/leave-requests/${leaveRequestId}/upload-document`, {
-      method: "POST",
-      body: formData,
-      headers: {
-        // Do NOT set Content-Type - let browser set it with proper boundary
-        ...(token && { "Authorization": `Bearer ${token}` }),
-      },
-      credentials: "include", // Send cookies
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
-    }
-
-    return response.json();
+    return postForm<{ document_id: number; file_name: string; file_url: string }>(
+      `/api/hr/leave-requests/${leaveRequestId}/upload-document`,
+      formData,
+    );
   },
 };
 

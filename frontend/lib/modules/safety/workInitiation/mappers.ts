@@ -60,6 +60,7 @@ export function mapWorkInitiationToRequest(
     otherWorkCategory: item.other_work_category || "",
     relatedIncidentHazardId: item.related_incident_report_id || "",
     workType: item.work_type,
+    otherWorkType: item.other_work_type || "",
     location: item.location,
     exactWorkArea: item.exact_work_area || "",
     attachments: (item.attachments ?? []).map((attachment) => ({

@@ -120,6 +120,23 @@ def _load_step_ctx(db: Session, workflow_id: str, step_number: int, total_steps:
     return StepContext(step_number=step_number, step_name=step_name, total_steps=total_steps)
 
 
+def _employee_actor_label(employee) -> str:
+    if not employee:
+        return "Unknown"
+
+    name = (
+        employee.user.full_name
+        if employee.user and employee.user.full_name
+        else employee.employee_no
+    )
+    role = employee.job_title
+    if not role and employee.user and employee.user.role:
+        role_value = getattr(employee.user.role, "value", employee.user.role)
+        role = str(role_value).replace("_", " ").title()
+
+    return f"{name} ({role})" if role else name
+
+
 # ---------------------------------------------------------------------------
 # Public notify functions
 # ---------------------------------------------------------------------------
@@ -328,11 +345,7 @@ def notify_step_progress(
             .filter(Employee.id == approver_employee_id)
             .first()
         )
-        approver_name = (
-            approver.user.full_name
-            if approver and approver.user and approver.user.full_name
-            else (approver.employee_no if approver else "Unknown")
-        )
+        approver_name = _employee_actor_label(approver)
 
         all_req = (
             db.query(AllRequest)
@@ -389,6 +402,7 @@ def notify_request_result(
     approval_request_id: str,
     action: str,
     comment: str | None = None,
+    actor_employee_id: str | None = None,
 ) -> None:
     """
     Email the requester when their request is fully approved, rejected, or returned.
@@ -417,6 +431,16 @@ def notify_request_result(
         if not requester or not requester.user or not requester.user.email:
             return
 
+        actor = (
+            db.query(Employee)
+            .options(joinedload(Employee.user))
+            .filter(Employee.id == actor_employee_id)
+            .first()
+            if actor_employee_id
+            else None
+        )
+        actor_label = _employee_actor_label(actor)
+
         all_req = (
             db.query(AllRequest)
             .filter(
@@ -432,6 +456,7 @@ def notify_request_result(
             "ar": ar,
             "request_title": title,
             "comment": comment,
+            "actor_label": actor_label,
         }
         hook_name = {
             "approved": "on_approved",
@@ -451,6 +476,7 @@ def notify_request_result(
             action=action,
             comment=comment,
             action_url=url,
+            actor_label=actor_label,
             result_message_override=overrides.get("result_message"),
             subject_override=overrides.get("subject"),
             result_heading_override=overrides.get("result_heading"),

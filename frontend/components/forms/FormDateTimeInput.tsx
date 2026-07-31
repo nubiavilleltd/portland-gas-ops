@@ -257,6 +257,7 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
         ? toTimeValue(maxDate)
         : undefined;
     const hasTimeRestriction = Boolean(timeMin || timeMax);
+    const hasValidTimeRange = !timeMin || !timeMax || timeMin <= timeMax;
     const nowActionDate = new Date();
     const nowActionDisabled = Boolean(
       (minDate && nowActionDate < minDate) ||
@@ -427,6 +428,7 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
                 value={selectedTime || "09:00"}
                 min={timeMin}
                 max={timeMax}
+                disabled={!hasValidTimeRange}
                 onClick={(event) => event.currentTarget.showPicker?.()}
                 onChange={(event) => updateTime(event.target.value)}
                 title={
@@ -438,9 +440,15 @@ const FormDateTimeInput = forwardRef<HTMLInputElement, Props>(
                   "h-9 w-full rounded-lg border border-brand-border bg-white px-3 text-sm text-brand-text-primary outline-none focus:border-transparent focus:ring-2 focus:ring-brand-purple",
                   hasTimeRestriction &&
                     "border-amber-300 bg-amber-50/40 text-brand-text-primary",
+                  !hasValidTimeRange &&
+                    "cursor-not-allowed border-gray-200 bg-gray-50 text-brand-text-secondary",
                 )}
               />
-              {hasTimeRestriction ? (
+              {!hasValidTimeRange ? (
+                <p className="mt-1 text-xs text-red-600">
+                  No available time for the selected date.
+                </p>
+              ) : hasTimeRestriction ? (
                 <p className="mt-1 text-xs text-amber-700">
                   Available time: {timeMin ?? "00:00"} - {timeMax ?? "23:59"}
                 </p>

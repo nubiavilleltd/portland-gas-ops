@@ -194,6 +194,9 @@ export default function LeaveRequestDetailPage({
   const canMarkReturned = Boolean(
     isRequester && apiRecord?.open_ended && record?.status === "approved" && !apiRecord?.returned_at
   );
+  // Open-ended leave with no return marked yet: the End Date / Number of Days the
+  // backend stores are placeholders (start date, 1 day). Show nothing until returned.
+  const endNotFinalized = Boolean(apiRecord?.open_ended && !apiRecord?.returned_at);
 
   async function handleMarkReturned() {
     const endISO = (returnDate ? new Date(returnDate) : new Date()).toISOString().split("T")[0];
@@ -360,16 +363,18 @@ export default function LeaveRequestDetailPage({
                 This is open-ended leave. Mark your return to record your last day of leave — the number of days updates automatically. Defaults to today if left blank.
               </p>
               <div className="mt-3 flex flex-wrap items-end gap-3">
-                <div className="w-52">
+                {/* Selectable range = [leave start, today]: no future dates, past dates within the leave allowed. */}
+                <div className="w-full sm:w-72">
                   <FormDatePicker
                     label="Last day of leave"
                     min={record.startDate}
+                    max={TODAY}
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
                   />
                 </div>
-                <Button onClick={handleMarkReturned} loading={isMarkingReturned} loadingText="Saving...">
-                  Mark as Returned
+                <Button onClick={handleMarkReturned} loading={isMarkingReturned} loadingText="Submitting...">
+                  Submit
                 </Button>
               </div>
             </div>
@@ -501,7 +506,7 @@ export default function LeaveRequestDetailPage({
                     <FileDropzone
                       label={apiRecord?.document && !removedDoc ? "Replace / Add Document" : "Supporting Document"}
                       value={resubmitFiles} onChange={setResubmitFiles}
-                      accept="image/*,.pdf,.doc,.docx" maxFiles={5}
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" maxFiles={5}
                       hint="Medical certificate, approval letter (optional)"
                     />
                   </div>
@@ -532,8 +537,8 @@ export default function LeaveRequestDetailPage({
                   <FormInput label="Employee Department"       value={record.department}       />
                   <FormInput label="Employee Job Title / Role" value={record.jobTitle ?? "—"} />
                   <FormInput label="Start Date"       value={formatDate(record.startDate)} />
-                  <FormInput label="End Date"         value={formatDate(record.endDate)}   />
-                  <FormInput label="Number of Days"   value={String(record.days)}         />
+                  <FormInput label="End Date"         value={endNotFinalized ? "—" : formatDate(record.endDate)}   />
+                  <FormInput label="Number of Days"   value={endNotFinalized ? "—" : String(record.days)}         />
                   <FormInput label="Reliever"         value={record.reliever}              />
                 </>
               )}
@@ -542,8 +547,8 @@ export default function LeaveRequestDetailPage({
               {!isOthers && (
                 <>
                   <FormInput label="Start Date"     value={formatDate(record.startDate)} />
-                  <FormInput label="End Date"       value={formatDate(record.endDate)}   />
-                  <FormInput label="Number of Days" value={String(record.days)}          />
+                  <FormInput label="End Date"       value={endNotFinalized ? "—" : formatDate(record.endDate)}   />
+                  <FormInput label="Number of Days" value={endNotFinalized ? "—" : String(record.days)}          />
                   <FormInput label="Reliever"       value={record.reliever}              />
                 </>
               )}

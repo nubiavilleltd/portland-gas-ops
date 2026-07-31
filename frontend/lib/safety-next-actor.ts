@@ -6,13 +6,13 @@ import type {
 } from "@/types/safety";
 
 export function getIncidentHazardNextActor(report: IncidentHazardReport) {
+  if (report.status === "closed" || report.status === "not_resolved") return "None";
   if (report.status === "submitted") return "HSE Inspector";
   if (report.status === "recommended") {
     return formatNextActor(report.hseReview?.actionOwner, "Action Owner");
   }
   if (report.status === "pending_hse_verification") return "HSE Inspector";
   if (report.status === "resolved") return "HSE Inspector";
-  if (report.status === "closed" || report.status === "not_resolved") return "Closed";
   return "Reporter";
 }
 
@@ -22,16 +22,17 @@ export function getIncidentHazardNextActorName(report: IncidentHazardReport) {
 }
 
 export function getIncidentHazardNextActorRole(report: IncidentHazardReport) {
+  if (report.status === "closed" || report.status === "not_resolved") return "None";
   if (report.status === "submitted") return "HSE Inspector";
   if (report.status === "recommended") return "Action Owner";
   if (report.status === "pending_hse_verification" || report.status === "resolved") {
     return "HSE Inspector";
   }
-  if (report.status === "closed" || report.status === "not_resolved") return "Closed";
   return "Reporter";
 }
 
 export function getWorkInitiationNextActor(request: WorkInitiationRequest) {
+  if (request.status === "approved" || request.status === "denied") return "None";
   if (request.nextApproverName || request.nextApproverRole) {
     return formatNextActor(request.nextApproverName, request.nextApproverRole);
   }
@@ -42,11 +43,11 @@ export function getWorkInitiationNextActor(request: WorkInitiationRequest) {
   if (request.status === "returned") {
     return formatNextActor(request.requester.name, "Requester");
   }
-  if (request.status === "approved" || request.status === "denied") return "Closed";
   return "Requester";
 }
 
 export function getWorkAuthorizationNextActor(request: WorkAuthorizationRequest) {
+  if (request.status === "approved" || request.status === "denied") return "None";
   if (request.nextApproverName || request.nextApproverRole) {
     return formatNextActor(request.nextApproverName, request.nextApproverRole);
   }
@@ -54,11 +55,17 @@ export function getWorkAuthorizationNextActor(request: WorkAuthorizationRequest)
   if (request.status === "returned") {
     return formatNextActor(request.requester.name, "Requester");
   }
-  if (request.status === "approved" || request.status === "denied") return "Closed";
   return "Requester";
 }
 
 export function getWorkCloseOutNextActor(request: WorkCloseOutRequest) {
+  if (
+    request.status === "approved" ||
+    request.status === "denied" ||
+    request.status === "acknowledged"
+  ) {
+    return "None";
+  }
   if (request.nextApproverName || request.nextApproverRole) {
     return formatNextActor(request.nextApproverName, request.nextApproverRole);
   }
@@ -69,8 +76,6 @@ export function getWorkCloseOutNextActor(request: WorkCloseOutRequest) {
   if (request.status === "returned") {
     return formatNextActor(request.requester.name, "Requester");
   }
-  if (request.status === "acknowledged") return "Audit Record";
-  if (request.status === "approved" || request.status === "denied") return "Closed";
   return "Requester";
 }
 

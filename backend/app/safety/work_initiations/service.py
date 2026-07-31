@@ -15,6 +15,7 @@ from app.safety.permissions import (
     is_safety_hse_employee,
     require_safety_operations_approver,
 )
+from app.safety.storage import safety_upload_resource_type
 from app.safety.work_initiations.models import (
     SafetyWorkInitiation,
     SafetyWorkInitiationWorker,
@@ -35,7 +36,7 @@ from app.shared.models.approval import (
     ApprovalRequest,
     ApprovalStepAssignment,
 )
-from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.cloudinary_service import get_storage_service
 from app.shared.services.workflow_engine import WorkflowEngine
 
 
@@ -158,6 +159,7 @@ def create_work_initiation(
         other_work_category=data.other_work_category,
         related_incident_report_id=data.related_incident_report_id,
         work_type=", ".join(data.work_type),
+        other_work_type=data.other_work_type,
         location=data.location,
         exact_work_area=data.exact_work_area,
         work_description=data.work_description,
@@ -247,6 +249,7 @@ def update_work_initiation(
     record.other_work_category = data.other_work_category
     record.related_incident_report_id = data.related_incident_report_id
     record.work_type = ", ".join(data.work_type)
+    record.other_work_type = data.other_work_type
     record.location = data.location
     record.exact_work_area = data.exact_work_area
     record.work_description = data.work_description
@@ -892,7 +895,7 @@ def create_work_initiation_documents(
             file_bytes=file_bytes,
             filename=filename,
             folder=folder,
-            resource_type=ResourceType.AUTO,
+            resource_type=safety_upload_resource_type(mime_type, filename),
             overwrite=False,
         )
         document = Document(

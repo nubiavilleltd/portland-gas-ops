@@ -114,6 +114,7 @@ export interface WorkInitiationRequest {
   otherWorkCategory?: string;
   relatedIncidentHazardId: string;
   workType: string[];
+  otherWorkType?: string;
   location: string;
   exactWorkArea: string;
   attachments: WorkAuthorizationAttachment[];

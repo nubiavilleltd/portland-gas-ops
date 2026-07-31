@@ -1,12 +1,15 @@
 "use client";
 
 import { ExternalLink, FileText, ImageIcon, Trash2, Video } from "lucide-react";
+import type { MouseEvent } from "react";
+import api from "@/lib/api";
 import type { WorkAuthorizationAttachment } from "@/types/safety";
 
 type SafetyAttachmentListProps = {
   attachments?: WorkAuthorizationAttachment[];
   label?: string;
   emptyMessage?: string;
+  getAttachmentHref?: (attachment: WorkAuthorizationAttachment) => string;
   onRemove?: (attachmentId: string) => void;
 };
 
@@ -14,6 +17,7 @@ export default function SafetyAttachmentList({
   attachments = [],
   label,
   emptyMessage = "No attachments.",
+  getAttachmentHref,
   onRemove,
 }: SafetyAttachmentListProps) {
   return (
@@ -29,6 +33,7 @@ export default function SafetyAttachmentList({
             <SafetyAttachmentItem
               key={attachment.id ?? attachment.url ?? attachment.name}
               attachment={attachment}
+              href={getAttachmentHref?.(attachment)}
               onRemove={attachment.id ? onRemove : undefined}
             />
           ))}
@@ -40,11 +45,38 @@ export default function SafetyAttachmentList({
 
 function SafetyAttachmentItem({
   attachment,
+  href,
   onRemove,
 }: {
   attachment: WorkAuthorizationAttachment;
+  href?: string;
   onRemove?: (attachmentId: string) => void;
 }) {
+  const attachmentHref = href ?? attachment.url;
+  async function handleAttachmentClick(
+    event: MouseEvent<HTMLAnchorElement>,
+  ) {
+    if (!attachmentHref?.startsWith("/api/")) return;
+
+    event.preventDefault();
+    const openedWindow = window.open("about:blank", "_blank");
+    if (openedWindow) openedWindow.opener = null;
+    try {
+      const response = await api.get<Blob>(attachmentHref, {
+        responseType: "blob",
+      });
+      const blobUrl = URL.createObjectURL(response.data);
+      if (openedWindow) {
+        openedWindow.location.href = blobUrl;
+      } else {
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
+      }
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch {
+      if (openedWindow) openedWindow.close();
+    }
+  }
+
   const content = (
     <>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white text-brand-purple">
@@ -68,7 +100,7 @@ function SafetyAttachmentItem({
           {attachment.fileSize ? ` · ${formatFileSize(attachment.fileSize)}` : ""}
         </p>
       </div>
-      {attachment.url ? (
+      {attachmentHref ? (
         <ExternalLink size={15} className="shrink-0 text-brand-text-secondary" />
       ) : null}
     </>
@@ -78,11 +110,12 @@ function SafetyAttachmentItem({
 
   return (
     <div className="relative">
-      {attachment.url ? (
+      {attachmentHref ? (
         <a
-          href={attachment.url}
+          href={attachmentHref}
           target="_blank"
           rel="noreferrer"
+          onClick={handleAttachmentClick}
           className={`${className} pr-11 transition-colors hover:border-brand-purple/40 hover:bg-white`}
         >
           {content}

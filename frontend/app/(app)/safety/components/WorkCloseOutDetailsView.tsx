@@ -33,6 +33,7 @@ import { getWorkCloseOutNextActor } from "@/lib/safety-next-actor";
 import {
   getDateTimeAfter,
   getLatestActualWorkDateTime,
+  getLatestActualWorkStartDateTime,
   isDateTimeBefore,
   MIN_SCHEDULE_DURATION_MINUTES,
   SCHEDULE_DEVIATION_TOLERANCE_MINUTES,
@@ -799,7 +800,7 @@ function CompletionDetails({
             <FormDateTimeInput
               label="Actual Start Date/Time"
               value={values.actualStartDateTime}
-              max={getLatestActualWorkDateTime()}
+              max={getLatestActualWorkStartDateTime()}
               onValueChange={(value) => {
                 onChange.setActualStartDateTime(value);
                 if (
@@ -893,6 +894,11 @@ function CompletionDetails({
           label="Completion Evidence"
           attachments={visibleEvidence}
           emptyMessage="No completion evidence."
+          getAttachmentHref={(attachment) =>
+            attachment.id
+              ? `/api/safety/work-closeouts/${request.id}/attachments/${attachment.id}/download`
+              : attachment.url
+          }
           onRemove={
             editable
               ? (attachmentId) =>

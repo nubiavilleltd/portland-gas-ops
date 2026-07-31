@@ -1,4 +1,4 @@
-import api from "@/lib/api";
+import api, { postForm } from "@/lib/api";
 import type { InvoiceRequest } from "@/app/(app)/finance/_components/_data";
 import { formatDateTime } from "@/lib/utils";
 import {
@@ -80,21 +80,14 @@ const invoicesApi = {
   },
 
   async uploadDocument(invoiceId: string, file: File): Promise<{ document_id: number; file_name: string; file_url: string }> {
-    const { useAuthStore } = await import("@/store/authStore");
-    const token = useAuthStore.getState().accessToken;
+    // Route through the shared axios instance (relative URL → Next rewrite proxy on
+    // deploy, auth + credentials handled centrally) — same path procurement uses.
     const formData = new FormData();
     formData.append("file", file);
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/finance/invoices/${invoiceId}/upload-document`, {
-      method: "POST",
-      body: formData,
-      headers: { ...(token && { "Authorization": `Bearer ${token}` }) },
-      credentials: "include",
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
-    }
-    return response.json();
+    return postForm<{ document_id: number; file_name: string; file_url: string }>(
+      `/api/finance/invoices/${invoiceId}/upload-document`,
+      formData,
+    );
   },
 };
 
