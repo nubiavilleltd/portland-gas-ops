@@ -27,8 +27,8 @@ export default function NewCustomerVisitsPage() {
   const customerOptions = useMemo(
     () =>
       customers
-        .filter((c) => c.customer_status === "active")
-        .map((customer) => ({
+        .filter((c: any) => c.customer_status === "active")
+        .map((customer: any) => ({
           label: customer.customer_name,
           value: customer.id,
         })),
