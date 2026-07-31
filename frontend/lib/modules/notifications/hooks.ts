@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/authStore";
 import { notificationsApi } from "./api";
 
 const KEYS = {
@@ -9,20 +10,32 @@ const KEYS = {
 
 /** Full notification list — used by the dropdown panel. Polls every 30 s. */
 export function useNotifications(params: { skip?: number; limit?: number } = {}) {
+  const { accessToken, isAuthenticated } = useAuthStore();
+
   return useQuery({
     queryKey: [...KEYS.list, params],
-    queryFn: () => notificationsApi.list(params),
-    refetchInterval: 30_000,
+    queryFn: () => {
+      if (!useAuthStore.getState().accessToken) return [];
+      return notificationsApi.list(params);
+    },
+    enabled: isAuthenticated && Boolean(accessToken),
+    refetchInterval: isAuthenticated && Boolean(accessToken) ? 30_000 : false,
     retry: false,
   });
 }
 
 /** Unread count only — lightweight poll for the bell badge. */
 export function useNotificationCount() {
+  const { accessToken, isAuthenticated } = useAuthStore();
+
   return useQuery({
     queryKey: KEYS.count,
-    queryFn: () => notificationsApi.count(),
-    refetchInterval: 15_000,
+    queryFn: () => {
+      if (!useAuthStore.getState().accessToken) return { count: 0 };
+      return notificationsApi.count();
+    },
+    enabled: isAuthenticated && Boolean(accessToken),
+    refetchInterval: isAuthenticated && Boolean(accessToken) ? 15_000 : false,
     retry: false,
   });
 }

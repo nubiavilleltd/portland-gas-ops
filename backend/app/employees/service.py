@@ -163,7 +163,34 @@ def list_employees(
             DepartmentModel.name == department
         )
 
-    return q.order_by(Employee.created_at.desc()).offset(skip).limit(limit).all()
+    employees = q.order_by(Employee.created_at.desc()).offset(skip).limit(limit).all()
+    # Attach total outstanding from active structured loans (surfaced as "Outstanding Amount").
+    from app.hr.service import outstanding_by_employee
+    outstanding = outstanding_by_employee(db, [e.id for e in employees])
+    for e in employees:
+        e.loan_outstanding = outstanding.get(e.id)
+    return employees
+
+
+def list_employee_directory(db: Session, search: str = "") -> list[Employee]:
+    """Lightweight, payroll-free listing of every employee, ordered by name.
+    Used by the reliever/approver pickers (open to any authenticated user), so it
+    deliberately skips the loan-outstanding attachment the admin list does."""
+    q = db.query(Employee).options(
+        joinedload(Employee.user),
+        joinedload(Employee.operating_manager).joinedload(Employee.user),
+    ).join(Employee.user)
+
+    if search:
+        like = f"%{search}%"
+        q = q.filter(
+            User.first_name.ilike(like) |
+            User.last_name.ilike(like)  |
+            Employee.employee_no.ilike(like) |
+            Employee.job_title.ilike(like)
+        )
+
+    return q.order_by(User.first_name.asc(), User.last_name.asc()).all()
 
 
 def count_employees(db: Session, search: str = "", department: str = "") -> int:
@@ -310,6 +337,8 @@ def update_own_profile(employee_id: str, data: EmployeeProfileUpdate, db: Sessio
         emp.phone = data.phone
     if data.profile_picture_id is not None:
         emp.user.profile_picture_id = data.profile_picture_id
+    if data.birthday is not None:
+        emp.birthday = data.birthday
     db.commit()
     db.refresh(emp)
     return emp

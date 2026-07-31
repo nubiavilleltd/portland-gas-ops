@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { employeesApi } from "./api";
-import type { CreateEmployeePayload, UpdateEmployeePayload, ListEmployeesParams } from "./types";
+import type { CreateEmployeePayload, UpdateEmployeePayload, ListEmployeesParams, UpdateOwnProfilePayload } from "./types";
 import { useAuthStore } from "@/store/authStore";
 
 const KEYS = {
   all: ["employees"] as const,
   list: (params: ListEmployeesParams) => ["employees", "list", params] as const,
+  directory: (search: string) => ["employees", "directory", search] as const,
   detail: (id: string) => ["employees", "detail", id] as const,
   me: ["employees", "me"] as const,
   documents: (id: string) => ["employees", "documents", id] as const,
@@ -23,6 +24,18 @@ export function useEmployees(params: ListEmployeesParams = {}) {
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => employeesApi.list(params),
+    enabled: Boolean(accessToken),
+    retry: shouldRetry,
+  });
+}
+
+/** Payroll-free employee directory — open to any authenticated user. Use this
+ *  (not useEmployees) wherever a non-admin needs to pick a colleague. */
+export function useEmployeeDirectory(search = "") {
+  const { accessToken } = useAuthStore();
+  return useQuery({
+    queryKey: KEYS.directory(search),
+    queryFn: () => employeesApi.directory(search),
     enabled: Boolean(accessToken),
     retry: shouldRetry,
   });
@@ -69,6 +82,17 @@ export function useChangeEmployeeRole() {
   return useMutation({
     mutationFn: ({ id, role }: { id: string; role: string }) => employeesApi.changeRole(id, role),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all }),
+  });
+}
+
+export function useUpdateMyProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateOwnProfilePayload) => employeesApi.updateMyProfile(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.me });
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
   });
 }
 

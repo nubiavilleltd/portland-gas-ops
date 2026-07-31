@@ -1,15 +1,31 @@
 "use client";
 
-import { useRef } from "react";
-import { Camera, FileText, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Camera, FileText, Loader2, Wallet } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
+import Button from "@/components/ui/Button";
 import AppLayout from "@/components/layout/AppLayout";
 import FormInput from "@/components/forms/FormInput";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import { formatNumber } from "@/lib/utils/format-number";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useMyEmployee, useUploadProfilePicture } from "@/lib/modules/employees/hooks";
+import { useMyEmployee, useUploadProfilePicture, useUpdateMyProfile } from "@/lib/modules/employees/hooks";
+import { useMyLoans } from "@/lib/modules/loans/hooks";
+import type { LoanMode, LoanStatus } from "@/lib/modules/loans/types";
 import { useToast } from "@/hooks/useToast";
+
+const LOAN_MODE_LABEL: Record<LoanMode, string> = {
+  one_off: "One-off", installment: "Installment", standing: "Standing",
+};
+const LOAN_STATUS_STYLE: Record<LoanStatus, string> = {
+  active:    "bg-green-50 text-green-700 border-green-200",
+  completed: "bg-gray-100 text-gray-600 border-gray-200",
+  cancelled: "bg-red-50 text-red-600 border-red-200",
+};
+const fmtLoanMoney = (n: number | null | undefined) =>
+  n !== null && n !== undefined ? `₦${formatNumber(n)}` : "—";
+
+const TODAY = new Date().toISOString().split("T")[0];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -31,9 +47,32 @@ function fmt(n: string | null | undefined) {
 export default function MyProfilePage() {
   const { user } = useCurrentUser();
   const { data: emp, isLoading, error } = useMyEmployee();
+  // Own loans (read-only) — Outstanding Amount + Loans & Deductions display.
+  const { data: myLoans = [] } = useMyLoans();
+  const totalOutstanding = myLoans
+    .filter((l) => l.status === "active")
+    .reduce((sum, l) => sum + (l.outstanding ?? 0), 0);
   const upload = useUploadProfilePicture();
+  const updateProfile = useUpdateMyProfile();
   const toast  = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Date-of-birth edit state — a user may correct their own DOB.
+  const [editingDob, setEditingDob] = useState(false);
+  const [dob, setDob] = useState("");
+
+  const startEditDob = () => { setDob(emp?.birthday ?? ""); setEditingDob(true); };
+  const cancelEditDob = () => { setEditingDob(false); };
+  const saveDob = async () => {
+    if (!dob) { toast.error("Please pick a date of birth"); return; }
+    try {
+      await updateProfile.mutateAsync({ birthday: dob });
+      toast.success("Date of birth updated");
+      setEditingDob(false);
+    } catch {
+      toast.error("Failed to update date of birth");
+    }
+  };
 
   const fullName = emp
     ? `${emp.user?.first_name ?? ""} ${emp.user?.last_name ?? ""}`.trim()
@@ -137,7 +176,34 @@ export default function MyProfilePage() {
             <FormInput label="First Name" value={emp.user?.first_name ?? "—"} disabled />
             <FormInput label="Last Name"  value={emp.user?.last_name  ?? "—"} disabled />
             <FormInput label="Email"      value={emp.user?.email      ?? "—"} disabled />
-            <FormDatePicker label="Birthday" value={emp.birthday ?? ""} disabled />
+            <FormDatePicker
+              label="Birthday"
+              value={editingDob ? dob : (emp.birthday ?? "")}
+              onValueChange={editingDob ? setDob : undefined}
+              disabled={!editingDob || updateProfile.isPending}
+              max={TODAY}
+            />
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            {editingDob ? (
+              <>
+                <Button
+                  variant="primary"
+                  onClick={saveDob}
+                  loading={updateProfile.isPending}
+                  disabled={updateProfile.isPending}
+                >
+                  Save
+                </Button>
+                <Button variant="outline" onClick={cancelEditDob} disabled={updateProfile.isPending}>
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={startEditDob}>
+                Edit date of birth
+              </Button>
+            )}
           </div>
         </Section>
 
@@ -161,9 +227,49 @@ export default function MyProfilePage() {
             <FormInput label="PAYE Tax"    value={fmt(emp.paye)}    disabled hint="Auto-computed (PITA bands)" />
             <FormInput label="Pension"     value={fmt(emp.pension)} disabled hint="8% × (Basic + Housing + Transport)" />
             <FormInput label="NHF"         value={fmt(emp.nhf)}     disabled hint="2.5% × Basic Salary" />
-            <FormInput label="Loan Repayment" value={fmt(emp.loan_repayment)} disabled />
+            <FormInput label="Outstanding Amount"
+              value={totalOutstanding > 0 ? formatNumber(totalOutstanding) : "—"}
+              disabled hint="Total outstanding across active loans." />
           </div>
         </Section>
+
+        {/* Loans & Deductions (read-only) */}
+        <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">
+          <div className="rounded-t-2xl border-b border-brand-border bg-gray-50 px-6 py-4 flex items-center gap-2">
+            <Wallet size={16} className="text-brand-text-secondary" />
+            <h2 className="text-base font-semibold text-brand-text-primary">Loans &amp; Deductions</h2>
+          </div>
+          <div className="px-6 pt-2 pb-4">
+            {myLoans.length === 0 ? (
+              <p className="py-6 text-sm text-brand-text-secondary text-center">No loans on record.</p>
+            ) : (
+              <div className="divide-y divide-brand-border">
+                {myLoans.map((loan) => (
+                  <div key={loan.id} className="py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-brand-text-primary truncate">
+                          {loan.description || LOAN_MODE_LABEL[loan.mode]}
+                        </span>
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-brand-purple-faint text-brand-purple border border-brand-purple-mid">
+                          {LOAN_MODE_LABEL[loan.mode]}
+                        </span>
+                      </div>
+                      <p className="text-xs text-brand-text-secondary mt-0.5">
+                        {fmtLoanMoney(loan.monthly_amount)}/mo
+                        {loan.total_amount != null && <> · total {fmtLoanMoney(loan.total_amount)}</>}
+                        {loan.total_amount != null && <> · outstanding <span className="font-medium text-brand-text-primary">{fmtLoanMoney(loan.outstanding)}</span></>}
+                      </p>
+                    </div>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border capitalize shrink-0 ${LOAN_STATUS_STYLE[loan.status]}`}>
+                      {loan.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Documents placeholder */}
         <div className="bg-brand-card border border-brand-border rounded-2xl shadow-sm">

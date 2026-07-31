@@ -73,6 +73,19 @@ def get_my_profile(
     return emp
 
 
+# Must come before /{employee_id} so "directory" isn't captured as an employee id.
+@router.get("/directory", response_model=List[EmployeePublicResponse])
+def list_employee_directory(
+    search: str = Query(""),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Payroll-free employee directory for any authenticated user. Powers the
+    reliever/approver pickers so non-admins can choose a colleague. Returns no
+    compensation fields (that stays on the admin-only list endpoint)."""
+    return employee_service.list_employee_directory(db, search=search)
+
+
 # Must come before /{employee_id} to avoid "birthdays" being captured as an ID
 @router.get("/birthdays/week", response_model=List[BirthdayResponse])
 def get_week_birthdays(

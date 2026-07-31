@@ -86,7 +86,7 @@ export function createEmployeeColumns(): Column<Employee>[] {
     },
     {
       key: "loanRepayment",
-      label: "LOAN REPAYMENT",
+      label: "OUTSTANDING AMOUNT",
       sortable: true,
       render: (v) => <span className="text-brand-text-secondary whitespace-nowrap">{fmtN(v)}</span>,
     },

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import {
   invalidateSafetyWorkflowCaches,
+  queueSafetyInvalidations,
   writeMappedRecordToSafetyCaches,
 } from "../query-cache";
 import { workAuthorizationsApi } from "./api";
@@ -87,7 +88,7 @@ export function useCreateWorkAuthorization() {
       payload: WorkAuthorizationCreate;
       attachments?: File[];
     }) => workAuthorizationsApi.create(payload, attachments),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkAuthorizationToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -95,7 +96,7 @@ export function useCreateWorkAuthorization() {
         listKey: workAuthorizationKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.detail(updated.id) }),
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.lists() }),
         queryClient.invalidateQueries({
@@ -118,7 +119,7 @@ export function useUpdateWorkAuthorization(id: string) {
       payload: WorkAuthorizationUpdate;
       attachments?: File[];
     }) => workAuthorizationsApi.update(id, payload, attachments),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkAuthorizationToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -126,7 +127,7 @@ export function useUpdateWorkAuthorization(id: string) {
         listKey: workAuthorizationKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.lists() }),
         queryClient.invalidateQueries({
@@ -149,7 +150,7 @@ export function useHseReviewWorkAuthorization(id: string) {
       payload: WorkAuthorizationHseReviewCreate;
       evidence?: File[];
     }) => workAuthorizationsApi.createHseReview(id, payload, evidence),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkAuthorizationToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -157,7 +158,7 @@ export function useHseReviewWorkAuthorization(id: string) {
         listKey: workAuthorizationKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workAuthorizationKeys.lists() }),
         invalidateSafetyWorkflowCaches(queryClient, "work_authorization", id),

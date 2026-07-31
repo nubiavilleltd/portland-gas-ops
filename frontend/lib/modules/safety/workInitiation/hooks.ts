@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import {
   invalidateSafetyWorkflowCaches,
+  queueSafetyInvalidations,
   writeMappedRecordToSafetyCaches,
 } from "../query-cache";
 import { mapWorkInitiationToRequest } from "./mappers";
@@ -87,7 +88,7 @@ export function useCreateWorkInitiation() {
       payload: WorkInitiationCreate;
       attachments?: File[];
     }) => workInitiationsApi.create(payload, attachments),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkInitiationToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -95,7 +96,7 @@ export function useCreateWorkInitiation() {
         listKey: workInitiationKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workInitiationKeys.detail(updated.id) }),
         queryClient.invalidateQueries({ queryKey: workInitiationKeys.lists() }),
         invalidateSafetyWorkflowCaches(queryClient, "work_initiation", updated.id),
@@ -115,7 +116,7 @@ export function useSupervisorReviewWorkInitiation() {
       id: string;
       payload: WorkInitiationReviewCreate;
     }) => workInitiationsApi.supervisorReview(id, payload),
-    onSuccess: async (data, variables) => {
+    onSuccess: (data, variables) => {
       const updated = mapWorkInitiationToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -123,7 +124,7 @@ export function useSupervisorReviewWorkInitiation() {
         listKey: workInitiationKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({
           queryKey: workInitiationKeys.detail(variables.id),
         }),
@@ -148,7 +149,7 @@ export function useOperationsHodReviewWorkInitiation() {
       id: string;
       payload: WorkInitiationReviewCreate;
     }) => workInitiationsApi.operationsHodReview(id, payload),
-    onSuccess: async (data, variables) => {
+    onSuccess: (data, variables) => {
       const updated = mapWorkInitiationToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -156,7 +157,7 @@ export function useOperationsHodReviewWorkInitiation() {
         listKey: workInitiationKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({
           queryKey: workInitiationKeys.detail(variables.id),
         }),
@@ -180,7 +181,7 @@ export function useUpdateWorkInitiation(id: string) {
       payload: WorkInitiationUpdate;
       attachments?: File[];
     }) => workInitiationsApi.update(id, payload, attachments),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkInitiationToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -188,7 +189,7 @@ export function useUpdateWorkInitiation(id: string) {
         listKey: workInitiationKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workInitiationKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workInitiationKeys.lists() }),
         invalidateSafetyWorkflowCaches(queryClient, "work_initiation", id),

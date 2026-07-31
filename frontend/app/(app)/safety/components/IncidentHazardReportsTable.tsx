@@ -16,7 +16,7 @@ import SafetyTruncatedTableText from "./SafetyTruncatedTableText";
 
 const incidentHazardStatusLabels: Record<IncidentHazardStatus, string> = {
   draft: "Draft",
-  submitted: "Submitted",
+  submitted: "Pending",
   recommended: "Recommended",
   pending_hse_verification: "Pending HSE Verification",
   resolved: "Resolved",

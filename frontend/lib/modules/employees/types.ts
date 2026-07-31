@@ -52,6 +52,17 @@ export interface EmployeeListItem {
   pension: string | null;
   nhf: string | null;
   loan_repayment: string | null;
+  loan_outstanding?: string | null; // total outstanding across active loans
+  user: EmployeeUser | null;
+}
+
+/** Returned by GET /api/employees/directory (payroll-free; any authenticated user).
+ *  Just enough for reliever/approver pickers — no compensation fields. */
+export interface EmployeeDirectoryItem {
+  id: string;
+  employee_no: string;
+  job_title: string | null;
+  department: Department | null;
   user: EmployeeUser | null;
 }
 
@@ -106,6 +117,13 @@ export interface UpdateEmployeePayload {
   pension?: number;
   nhf?: number;
   loan_repayment?: number;
+}
+
+/** PATCH /api/employees/me/profile body (self-service) */
+export interface UpdateOwnProfilePayload {
+  phone?: string;
+  profile_picture_id?: number;
+  birthday?: string; // ISO date (YYYY-MM-DD)
 }
 
 export interface ListEmployeesParams {

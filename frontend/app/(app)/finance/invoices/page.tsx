@@ -327,7 +327,7 @@ export default function InvoicesPage() {
                         label="Supporting Documents"
                         value={supportingFiles}
                         onChange={setSupportingFiles}
-                        accept="image/*,.pdf,.doc,.docx"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                         maxFiles={5}
                         hint="Attach the scanned or digital invoice and any supporting documents (optional)"
                       />

@@ -25,7 +25,7 @@ import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
 import { useMyLeaveBalances, useEmployeeLeaveBalances } from "@/lib/modules/leave-balances/hooks";
-import { useEmployees } from "@/lib/modules/employees/hooks";
+import { useEmployeeDirectory } from "@/lib/modules/employees/hooks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import leaveRequestsApi from "@/lib/modules/leave-requests/api";
 import {
@@ -79,7 +79,8 @@ function calcDays(start: string, end: string): number {
   };
   const s = toLocalDate(start);
   const e = toLocalDate(end);
-  if (e <= s) return 0;  // same-day / invalid range — flagged as a validation error
+  if (e < s) return 0;                        // reversed range — invalid
+  if (e.getTime() === s.getTime()) return 1;  // same day always counts as 1
   let count = 0;
   for (const d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
     const dow = d.getDay(); // 0 = Sun, 6 = Sat
@@ -141,7 +142,9 @@ function LeaveRequestsPageContent() {
     return true;
   });
 
-  const { data: employees = [] } = useEmployees({ limit: 200 });
+  // Payroll-free directory so non-admins can raise leave (for self or others)
+  // and pick from the full colleague list.
+  const { data: employees = [] } = useEmployeeDirectory();
   const { data: leaveTypesResponse, isLoading: isLoadingLeaveTypes, error: leaveTypesError } = useLeaveTypes({ limit: 100, is_active: true });
   const leaveTypes = leaveTypesResponse?.data || [];
 
@@ -216,6 +219,11 @@ function LeaveRequestsPageContent() {
   // so the banner + exceeds-balance guard use THEIR balance (not the requester's).
   const watchEmployeeId = form.watch("employee_id");
   const selectedEmployee = isOthers ? employees.find((e) => e.id === watchEmployeeId) : undefined;
+
+  // The person the leave is FOR can't be their own reliever/approver — hide them
+  // from the picker (self → current user; others → the chosen employee).
+  const leaveSubjectEmployeeId = isOthers ? watchEmployeeId : currentUserEmployee?.id;
+  const relieverExcludeIds = leaveSubjectEmployeeId ? [leaveSubjectEmployeeId] : [];
   const balanceOwnerName = selectedEmployee?.user
     ? `${selectedEmployee.user.first_name ?? ""} ${selectedEmployee.user.last_name ?? ""}`.trim()
     : "";
@@ -256,10 +264,25 @@ function LeaveRequestsPageContent() {
   const isUncapped = selectedLeaveType?.is_uncapped ?? false;
   const isOpenEnded = selectedLeaveType?.open_ended ?? false;
 
+  // Notice period — the start date may not fall within the leave type's notice
+  // window (calendar days from today). 0 = no notice period.
+  const noticeDays = selectedLeaveType?.notice_days ?? 0;
+  const minStartDate = (() => {
+    if (noticeDays <= 0) return TODAY;
+    const d = new Date();
+    d.setDate(d.getDate() + noticeDays);
+    return d.toISOString().split("T")[0];
+  })();
+  const minStartLabel = new Date(minStartDate).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+  });
+  const startTooSoon = Boolean(watchStart && noticeDays > 0 && watchStart < minStartDate);
+
   const days = calcDays(watchStart ?? "", watchEnd ?? "");
   const exceedsBalance = !isUncapped && days > 0 && activeBal !== null && days > activeBal.remaining;
   // End Date must be after Start Date — a same-day range is invalid.
-  const invalidRange = Boolean(watchStart && watchEnd && new Date(watchEnd) <= new Date(watchStart));
+  // Temporarily disabled per request — re-enable when needed.
+  // const invalidRange = Boolean(watchStart && watchEnd && new Date(watchEnd) <= new Date(watchStart));
 
   async function onSubmit(data: FormData) {
     try {
@@ -283,8 +306,15 @@ function LeaveRequestsPageContent() {
         return;
       }
       // The end date must be after the start date (no same-day range).
-      if (data.end_date && new Date(data.end_date) <= new Date(data.start_date)) {
-        toast.error("End date must be after the start date");
+      // TODO: temporarily disabled per request — re-enable when needed.
+      // if (data.end_date && new Date(data.end_date) <= new Date(data.start_date)) {
+      //   toast.error("End date must be after the start date");
+      //   return;
+      // }
+      // Notice period — the start date can't fall within the leave type's notice
+      // window. The server re-checks this; this is the fast client-side guard.
+      if (noticeDays > 0 && data.start_date < minStartDate) {
+        toast.error(`${leaveTypeName} requires ${noticeDays} day${noticeDays !== 1 ? "s" : ""} notice — the earliest start date is ${minStartLabel}.`);
         return;
       }
 
@@ -383,15 +413,20 @@ function LeaveRequestsPageContent() {
       setSupportingFiles([]);
       setView("list");
     } catch (error: unknown) {
-      let message = "Failed to submit leave request";
       console.error("Submission error:", error);
-      if (error instanceof Error) {
-        message = error.message;
-        // Log the full error for debugging
-        if ('response' in error) {
-          const axiosError = error as { response?: { data?: unknown } };
-          console.error("API response:", axiosError.response?.data);
+      let message = "Failed to submit leave request";
+      // Prefer the backend's message (e.g. overlap conflict, notice period) so
+      // the user sees exactly why the request was rejected.
+      if (error && typeof error === "object" && "response" in error) {
+        const detail = (error as { response?: { data?: { detail?: unknown } } })
+          .response?.data?.detail;
+        if (typeof detail === "string" && detail) {
+          message = detail;
+        } else if (error instanceof Error) {
+          message = error.message;
         }
+      } else if (error instanceof Error) {
+        message = error.message;
       }
       toast.error(message);
     }
@@ -427,7 +462,7 @@ function LeaveRequestsPageContent() {
             <p className="text-xs font-bold uppercase tracking-widest text-brand-text-secondary mb-3">
               My Leave Balance — {YEAR}
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-3 overflow-x-auto pb-1">
               {leaveTypes.map((lt) => {
                 const bal = balanceByType.get(Number(lt.id));
                 const entitlement = bal?.entitlement ?? lt.entitlement_days;
@@ -576,18 +611,29 @@ function LeaveRequestsPageContent() {
                 )}
 
                 {/* Dates */}
-                <FormDatePicker
-                  label="Start Date"
-                  required
-                  min={TODAY}
-                  error={errors.start_date?.message}
-                  {...form.register("start_date")}
-                  value={watchStart ?? ""}
-                />
+                <div className="flex flex-col gap-1.5">
+                  <FormDatePicker
+                    label="Start Date"
+                    required
+                    min={minStartDate}
+                    error={errors.start_date?.message}
+                    {...form.register("start_date")}
+                    value={watchStart ?? ""}
+                  />
+                  {noticeDays > 0 && (
+                    <p className={`text-xs font-medium rounded-lg px-3 py-2 border ${
+                      startTooSoon
+                        ? "text-red-600 bg-red-50 border-red-200"
+                        : "text-brand-text-secondary bg-gray-50 border-brand-border"
+                    }`}>
+                      {leaveTypeName} requires {noticeDays} day{noticeDays !== 1 ? "s" : ""} notice — earliest start date is {minStartLabel}.
+                    </p>
+                  )}
+                </div>
                 <FormDatePicker
                   label={isOpenEnded ? "Expected Return (optional)" : "End Date"}
                   required={!isOpenEnded}
-                  min={watchStart || TODAY}
+                  min={watchStart || minStartDate}
                   error={errors.end_date?.message}
                   {...form.register("end_date")}
                   value={watchEnd ?? ""}
@@ -601,11 +647,13 @@ function LeaveRequestsPageContent() {
                     disabled
                     placeholder="Auto-calculated"
                   />
+                  {/* Temporarily disabled per request — re-enable when needed.
                   {invalidRange && (
                     <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                       End date must be after the start date.
                     </p>
                   )}
+                  */}
                   {exceedsBalance && activeBal && (
                     <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                       Requested {days} day{days !== 1 ? "s" : ""} exceeds {balancePossessive} available balance of {activeBal.remaining} day{activeBal.remaining !== 1 ? "s" : ""} for {leaveTypeName}.
@@ -650,7 +698,7 @@ function LeaveRequestsPageContent() {
                     label={editRef && editRecord?.document && !removedExistingDoc ? "Replace / Add Document" : "Supporting Document"}
                     value={supportingFiles}
                     onChange={setSupportingFiles}
-                    accept="image/*,.pdf,.doc,.docx"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                     maxFiles={5}
                     hint="Medical certificate, approval letter (optional)"
                   />
@@ -668,10 +716,10 @@ function LeaveRequestsPageContent() {
 
             {/* Workflow approvers (Reliever) — renders nothing if the workflow
                 has no requester_pick steps. */}
-            <WorkflowApproversSection {...approverPicker} />
+            <WorkflowApproversSection {...approverPicker} excludeEmployeeIds={relieverExcludeIds} />
 
             <div className="flex gap-3 pt-1">
-              <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance || invalidRange}>
+              <Button type="submit" loading={isSubmitting} loadingText="Submitting..." disabled={exceedsBalance}>
                 {editRef ? "Resubmit for Approval" : "Submit for Approval"}
               </Button>
             </div>

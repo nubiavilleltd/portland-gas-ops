@@ -7,6 +7,12 @@ export const loansApi = {
     return data;
   },
 
+  // The current user's own loans (read-only) — for the My Profile page.
+  myLoans: async (): Promise<Loan[]> => {
+    const { data } = await api.get(`/api/hr/me/loans`);
+    return data;
+  },
+
   create: async (employeeId: string, payload: LoanCreatePayload): Promise<Loan> => {
     const { data } = await api.post(`/api/hr/employees/${employeeId}/loans`, payload);
     return data;

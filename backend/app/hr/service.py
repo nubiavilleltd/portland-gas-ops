@@ -57,6 +57,9 @@ def create_leave_type(
         entitlement_days=payload.entitlement_days,
         description=payload.description,
         is_active=payload.is_active,
+        is_uncapped=payload.is_uncapped,
+        open_ended=payload.open_ended,
+        notice_days=payload.notice_days,
     )
 
     db.add(leave_type)
@@ -231,6 +234,39 @@ def _requester_pick_steps(db: Session, request_type: str) -> list[int]:
     return [s.step_number for s in steps]
 
 
+# Statuses that mean the employee is already committed to (or in the middle of
+# securing) that leave — a new request overlapping any of these is blocked.
+# Draft and denied never block.
+_BLOCKING_LEAVE_STATUSES = (
+    LeaveRequestStatus.approved,
+    LeaveRequestStatus.pending,
+    LeaveRequestStatus.in_progress,
+    LeaveRequestStatus.awaiting_approval,
+    LeaveRequestStatus.returned,
+)
+
+
+def _find_overlapping_leave(
+    db: Session,
+    employee_id: str,
+    start_date: date,
+    end_date: date,
+    exclude_id: Optional[str] = None,
+) -> Optional[LeaveRequest]:
+    """Return the first approved/in-flight leave for this employee whose date
+    range intersects [start_date, end_date], or None. Two ranges overlap when
+    each starts on or before the other ends."""
+    query = db.query(LeaveRequest).filter(
+        LeaveRequest.employee_id == employee_id,
+        LeaveRequest.status.in_(_BLOCKING_LEAVE_STATUSES),
+        LeaveRequest.start_date <= end_date,
+        LeaveRequest.end_date >= start_date,
+    )
+    if exclude_id:
+        query = query.filter(LeaveRequest.id != exclude_id)
+    return query.order_by(LeaveRequest.start_date).first()
+
+
 def create_leave_request(
     db: Session,
     payload: LeaveRequestCreate,
@@ -276,6 +312,37 @@ def create_leave_request(
             detail="End date must be after start date",
         )
 
+    # Notice period — the start date may not fall within the leave type's
+    # advance-notice window (calendar days from today). 0 = no notice period.
+    notice_days = leave_type.notice_days or 0
+    if notice_days > 0:
+        earliest_start = date.today() + timedelta(days=notice_days)
+        if payload.start_date < earliest_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"{leave_type.leave_type_name} requires {notice_days} day"
+                    f"{'s' if notice_days != 1 else ''} notice — the earliest start "
+                    f"date is {earliest_start.strftime('%d %b %Y')}."
+                ),
+            )
+
+    # Overlap — the employee cannot already be on (or awaiting) leave for any of
+    # these dates. Blocks against approved and in-flight requests of any type.
+    conflict = _find_overlapping_leave(
+        db, payload.employee_id, payload.start_date, effective_end,
+    )
+    if conflict is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"This overlaps an existing leave ({conflict.reference}, "
+                f"{conflict.start_date.strftime('%d %b')}–"
+                f"{conflict.end_date.strftime('%d %b %Y')}). "
+                "You already have leave booked for these dates."
+            ),
+        )
+
     # Calculate days (working days only — weekends excluded, inclusive)
     days = _business_days(payload.start_date, effective_end)
 
@@ -289,6 +356,11 @@ def create_leave_request(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Select a reliever before submitting this request",
+        )
+    if reliever_id == payload.employee_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The person on leave cannot be their own reliever — pick someone else.",
         )
 
     # Create request
@@ -610,6 +682,36 @@ def resubmit_leave_request(
     if effective_end < payload.start_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date must be after start date")
 
+    # Notice period — same rule as a fresh request.
+    notice_days = leave_type.notice_days or 0
+    if notice_days > 0:
+        earliest_start = date.today() + timedelta(days=notice_days)
+        if payload.start_date < earliest_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"{leave_type.leave_type_name} requires {notice_days} day"
+                    f"{'s' if notice_days != 1 else ''} notice — the earliest start "
+                    f"date is {earliest_start.strftime('%d %b %Y')}."
+                ),
+            )
+
+    # Overlap — ignore THIS request (it's being edited), block against any other
+    # approved/in-flight leave for the same employee.
+    conflict = _find_overlapping_leave(
+        db, payload.employee_id, payload.start_date, effective_end, exclude_id=lr.id,
+    )
+    if conflict is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"This overlaps an existing leave ({conflict.reference}, "
+                f"{conflict.start_date.strftime('%d %b')}–"
+                f"{conflict.end_date.strftime('%d %b %Y')}). "
+                "You already have leave booked for these dates."
+            ),
+        )
+
     employee = db.query(Employee).filter(Employee.id == payload.employee_id).first()
     if not employee:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
@@ -620,6 +722,11 @@ def resubmit_leave_request(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Select a reliever before resubmitting this request",
+        )
+    if reliever_id == payload.employee_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The person on leave cannot be their own reliever — pick someone else.",
         )
 
     lr.employee_id = payload.employee_id
@@ -1088,6 +1195,34 @@ def _repaid_by_loan(db: Session, loan_ids: list[str]) -> dict[str, Decimal]:
     for ch in db.query(LoanRepaymentCharge).filter(LoanRepaymentCharge.loan_id.in_(loan_ids)).all():
         totals[ch.loan_id] = totals.get(ch.loan_id, zero) + (ch.amount or zero)
     return totals
+
+
+def outstanding_by_employee(db: Session, employee_ids: list[str]) -> dict[str, Decimal]:
+    """Total outstanding balance across each employee's ACTIVE installment/one-off loans
+    (standing loans have no fixed balance, so they're excluded). Batched — no N+1."""
+    zero = Decimal("0")
+    result: dict[str, Decimal] = {}
+    if not employee_ids:
+        return result
+    loans = (
+        db.query(EmployeeLoan)
+        .filter(
+            EmployeeLoan.employee_id.in_(employee_ids),
+            EmployeeLoan.status == LoanStatus.active,
+        )
+        .all()
+    )
+    if not loans:
+        return result
+    repaid = _repaid_by_loan(db, [ln.id for ln in loans])
+    for loan in loans:
+        if loan.total_amount is None:   # standing loans have no outstanding balance
+            continue
+        out = (loan.total_amount or zero) - repaid.get(loan.id, zero)
+        if out < zero:
+            out = zero
+        result[loan.employee_id] = result.get(loan.employee_id, zero) + out
+    return result
 
 
 def list_employee_loans(db: Session, employee_id: str) -> list[EmployeeLoan]:

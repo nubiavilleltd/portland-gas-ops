@@ -38,6 +38,7 @@ def _get_employee(current_user: User, db: Session):
 
 # ── List ─────────────────────────────────────────────────────────────────────
 
+@router.get("", response_model=List[NotificationResponse])
 @router.get("/", response_model=List[NotificationResponse])
 def list_notifications(
     skip: int = Query(0, ge=0),

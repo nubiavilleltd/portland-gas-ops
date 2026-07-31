@@ -1,3 +1,6 @@
 export function getSafetyDisplayStatus(status: string) {
-  return status.trim().toLowerCase() === "denied" ? "rejected" : status;
+  const normalizedStatus = status.trim().toLowerCase();
+  if (normalizedStatus === "denied") return "rejected";
+  if (normalizedStatus === "submitted") return "pending";
+  return status;
 }

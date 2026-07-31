@@ -521,7 +521,9 @@ def upload_leave_request_document(
 
     # Validate file type
     ALLOWED_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp", "application/msword",
-                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                     "application/vnd.ms-excel",
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="File type not allowed. Allowed: PDF, JPG, PNG, WEBP, DOC, DOCX")
 
@@ -744,6 +746,21 @@ def preview_loan_deductions(
     deduct, without writing. Returns {employee_id: amount}."""
     projected = service.project_loans_for_period(db, period, year)
     return {emp_id: float(amt) for emp_id, amt in projected.items()}
+
+
+# Declared before /employees/{employee_id}/loans so any authenticated user can
+# read THEIR OWN loans (read-only) on the My Profile page — no admin role needed.
+@router.get("/me/loans", response_model=list[LoanRead])
+def list_my_loans(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The current user's own loans (read-only). Powers the My Profile
+    Outstanding Amount + Loans & Deductions display."""
+    employee = get_employee_by_user_id(current_user.id, db)
+    if not employee:
+        return []
+    return service.list_employee_loans(db, employee.id)
 
 
 @router.get("/employees/{employee_id}/loans", response_model=list[LoanRead])

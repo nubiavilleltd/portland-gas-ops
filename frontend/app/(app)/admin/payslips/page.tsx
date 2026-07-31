@@ -67,9 +67,12 @@ async function downloadSinglePdf(slip: PaySlip) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 export default function PaySlipsPage() {
   const toast = useToast();
-  const [filterPeriod, setFilterPeriod] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
   const [selected, setSelected] = useState<PaySlip | null>(null);
   const [zipping, setZipping] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -84,8 +87,13 @@ export default function PaySlipsPage() {
   const { data: employees = [] } = useEmployees({ limit: 200 });
   const generateMut = useGeneratePayslips();
 
-  // Show the chosen period, or default to the most recent generated one.
-  const effectivePeriod = filterPeriod || periods[0] || "";
+  // Month/Year filters default to the most recent generated period, else today.
+  const nowMonthName = MONTH_NAMES[new Date().getMonth()];
+  const nowYear = String(new Date().getFullYear());
+  const [recentMonth, recentYear] = (periods[0] ?? `${nowMonthName} ${nowYear}`).split(" ");
+  const effMonth = filterMonth || recentMonth;
+  const effYear = filterYear || recentYear;
+  const effectivePeriod = effMonth && effYear ? `${effMonth} ${effYear}` : "";
   const { data: slips = [], isLoading } = usePayslips(effectivePeriod ? { period: effectivePeriod } : {});
 
   const filtered = slips as PaySlip[];
@@ -94,11 +102,13 @@ export default function PaySlipsPage() {
     toast.success(`Payslip downloaded for ${slip.employee}`);
   }), [toast]);
 
-  // Filter options — only periods that actually have payslips.
-  const filterOptions = useMemo(() => {
-    const list = effectivePeriod && !periods.includes(effectivePeriod) ? [...periods, effectivePeriod] : periods;
-    return list.map((p) => ({ value: p, label: p }));
-  }, [periods, effectivePeriod]);
+  // Month options (Jan–Dec) + Year options (years that have payslips, plus this year).
+  const monthOptions = MONTH_NAMES.map((m) => ({ value: m, label: m }));
+  const yearOptions = useMemo(() => {
+    const ys = new Set<string>([nowYear]);
+    periods.forEach((p) => { const y = p.split(" ").pop(); if (y) ys.add(y); });
+    return Array.from(ys).sort((a, b) => Number(b) - Number(a)).map((y) => ({ value: y, label: y }));
+  }, [periods, nowYear]);
 
   function openMonthPicker() {
     setShowMonthPicker(true);
@@ -161,7 +171,9 @@ export default function PaySlipsPage() {
     const year = Number(previewPeriod.split(" ").pop());
     try {
       const created = await generateMut.mutateAsync({ period: previewPeriod, year, employee_ids });
-      setFilterPeriod(previewPeriod);
+      const [genMonth, genYear] = previewPeriod.split(" ");
+      setFilterMonth(genMonth);
+      setFilterYear(genYear);
       setPreview(null);
       setPreviewPeriod("");
       setCheckedIds(new Set());
@@ -177,7 +189,7 @@ export default function PaySlipsPage() {
   async function handleDownloadZip() {
     setZipping(true);
     try {
-      await downloadSlipsAsZip(filtered, filterPeriod);
+      await downloadSlipsAsZip(filtered, effectivePeriod);
       toast.success(`${filtered.length} payslips downloaded as ZIP`);
     } catch {
       toast.error("Failed to download payslips");
@@ -365,16 +377,24 @@ export default function PaySlipsPage() {
           emptyDescription="Select a period and click Generate Payslip"
           toolbarExtra={
             <div className="flex items-center gap-2 shrink-0">
-              {filterOptions.length > 0 && (
-                <div className="w-44">
-                  <FormSelect
-                    id="period-filter"
-                    options={filterOptions}
-                    value={effectivePeriod}
-                    onValueChange={setFilterPeriod}
-                  />
-                </div>
-              )}
+              <div className="w-36">
+                <FormSelect
+                  id="month-filter"
+                  options={monthOptions}
+                  value={effMonth}
+                  onValueChange={setFilterMonth}
+                  sortOptions={false}
+                />
+              </div>
+              <div className="w-36">
+                <FormSelect
+                  id="year-filter"
+                  options={yearOptions}
+                  value={effYear}
+                  onValueChange={setFilterYear}
+                  sortOptions={false}
+                />
+              </div>
               {filtered.length > 0 && (
                 <Button
                   variant="outline"
