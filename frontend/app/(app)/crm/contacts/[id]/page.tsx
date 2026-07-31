@@ -297,7 +297,7 @@ export default function ContactDetailsPage() {
               </div>
             ))}
 
-            {isEditing && (
+            {/* {isEditing && (
               <Button
                 variant="secondary"
                 leftIcon={<Plus size={16} />}
@@ -330,7 +330,7 @@ export default function ContactDetailsPage() {
               >
                 Add Contact
               </Button>
-            )}
+            )} */}
           </div>
         </FormSection>
 
