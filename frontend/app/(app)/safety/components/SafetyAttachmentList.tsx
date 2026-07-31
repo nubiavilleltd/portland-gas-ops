@@ -9,7 +9,7 @@ type SafetyAttachmentListProps = {
   attachments?: WorkAuthorizationAttachment[];
   label?: string;
   emptyMessage?: string;
-  getAttachmentHref?: (attachment: WorkAuthorizationAttachment) => string;
+  getAttachmentHref?: (attachment: WorkAuthorizationAttachment) => string | undefined;
   onRemove?: (attachmentId: string) => void;
 };
 

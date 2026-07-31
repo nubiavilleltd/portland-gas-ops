@@ -567,6 +567,7 @@ export default function WorkAuthorizationDetailsView({
           <>
             {request.hseInspection ? (
               <HseInspectionResultSection
+                workAuthorizationId={request.id}
                 inspection={request.hseInspection}
                 checklistResponses={(hseInspectionResponsesQuery.data ?? []).filter(
                   (response) => response.stage_snapshot === "inspection",
@@ -953,9 +954,11 @@ function HseFinalActionSection({
 }
 
 function HseInspectionResultSection({
+  workAuthorizationId,
   inspection,
   checklistResponses,
 }: {
+  workAuthorizationId: string;
   inspection: WorkAuthorizationHseInspection;
   checklistResponses: SafetyChecklistResponse[];
 }) {
@@ -994,7 +997,7 @@ function HseInspectionResultSection({
           attachments={inspection.evidence}
           getAttachmentHref={(attachment) =>
             attachment.id
-              ? `/api/safety/work-authorizations/${request.id}/attachments/${attachment.id}/download`
+              ? `/api/safety/work-authorizations/${workAuthorizationId}/attachments/${attachment.id}/download`
               : attachment.url
           }
         />
