@@ -34,7 +34,7 @@ def list_employees(
     search: str = Query(""),
     department: str = Query(""),
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("super_admin", "admin")),
+    _: User = Depends(require_roles("super_admin", "admin", "staff")),
 ):
     return employee_service.list_employees(db, skip=skip, limit=limit, search=search, department=department)
 

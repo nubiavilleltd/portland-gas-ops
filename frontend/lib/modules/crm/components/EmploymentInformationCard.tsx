@@ -60,9 +60,9 @@ export default function EmploymentInformationCard({
           disabled={readOnly}
           error={errors.preferred_channel}
           options={[
-            { label: "Email", value: "Email" },
-            { label: "Phone", value: "Phone" },
-            { label: "WhatsApp", value: "WhatsApp" },
+            { label: "Email", value: "email" },
+            { label: "Phone", value: "phone" },
+            { label: "WhatsApp", value: "whatsApp" },
           ]}
           onValueChange={(value) => onChange?.("preferred_channel", value)}
         />

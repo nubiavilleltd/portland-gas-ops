@@ -253,7 +253,6 @@ def upgrade() -> None:
         ["id"],
     )
 
-
 def downgrade():
     bind = op.get_bind()
     inspector = inspect(bind)

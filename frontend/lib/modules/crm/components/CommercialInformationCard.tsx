@@ -3,6 +3,7 @@
 import Card from "@/components/ui/Card";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import SelectInput from "@/components/forms/SelectInput";
+import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 
 import { PRODUCT_OPTIONS, DEMAND_RANGES, SUPPLY_METHODS } from "../constants";
 
@@ -26,6 +27,17 @@ export default function CommercialInformationCard({
   readOnly = false,
   onChange,
 }: Props) {
+  const { products, isLoading, error, refetch } = useProducts();
+
+  const productOptions = isLoading
+    ? [{ label: "Loading products...", value: "", disabled: true }]
+    : products
+        .filter((item) => item.status === "active")
+        .map((item) => ({
+          label: item.name,
+          value: item.productNo,
+        }));
+
   return (
     <Card>
       <h2 className="mb-5 text-base font-semibold text-brand-text-primary">
@@ -36,20 +48,20 @@ export default function CommercialInformationCard({
         <div className="md:col-span-2">
           <FormMultiSelect
             label="Preferred Products"
-            options={PRODUCT_OPTIONS.map((item) => ({
-              label: item,
-              value: item,
-            }))}
-            value={values.preferredProducts}
+            options={productOptions}
+            placeholder={
+              isLoading ? "Loading products..." : "Select one or more option"
+            }
+            value={values.preferredProducts ?? ""}
             error={errors?.preferredProducts}
-            disabled={readOnly}
+            disabled={readOnly || isLoading}
             onValueChange={(value) => onChange?.("preferredProducts", value)}
           />
         </div>
 
         <SelectInput
           label="Supply Method"
-          value={values.supplyMethod}
+          value={values.supplyMethod ?? ""}
           error={errors?.supplyMethod}
           disabled={readOnly}
           options={SUPPLY_METHODS.map((item) => ({
@@ -61,7 +73,7 @@ export default function CommercialInformationCard({
 
         <SelectInput
           label="Estimated Monthly Demand"
-          value={values.estimatedMonthlyDemand}
+          value={values.estimatedMonthlyDemand ?? ""}
           error={errors?.estimatedMonthlyDemand}
           disabled={readOnly}
           options={DEMAND_RANGES.map((item) => ({

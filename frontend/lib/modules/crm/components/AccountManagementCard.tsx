@@ -1,26 +1,29 @@
 "use client";
+import type { CustomerForm } from "../types";
 
 import FormSection from "@/components/ui/FormSection";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
+import EmployeePicker, {
+  type PickedEmployee,
+} from "@/components/ui/EmployeePicker";
+import { useEmployees } from "@/lib/modules/employees/hooks";
+import { useCustomers } from "@/lib/modules/crm";
 
 type Props = {
   values: {
     customerType: string;
-    salesContact: string;
+    salesContact: string | null;
     referrerType: string;
-    referrer: string;
+    referrerId: string;
   };
   readOnly?: boolean;
   errors?: Record<string, string>;
-  onChange: (field: string, value: string) => void;
+  onChange: <K extends keyof CustomerForm>(
+    field: K,
+    value: CustomerForm[K],
+  ) => void;
 };
-
-const EMPLOYEE_OPTIONS = [
-  { label: "Magdalene Princess", value: "Magdalene Princess" },
-  { label: "John Doe", value: "John Doe" },
-  { label: "Sarah James", value: "Sarah James" },
-];
 
 const REFERRER_TYPES = [
   { label: "Employee", value: "employee" },
@@ -36,6 +39,27 @@ export default function AccountManagementCard({
   readOnly = false,
   onChange,
 }: Props) {
+  const { data: employeeList = [] } = useEmployees();
+  const { data: customerList = [] } = useCustomers();
+  const employees: PickedEmployee[] = employeeList.map((e) => ({
+    id: e.id,
+    name:
+      [e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ") ||
+      "Unknown",
+    role: e.job_title ?? e.user?.role ?? "",
+    department: e.department ?? "",
+    avatar_url: e.user?.profile_picture_url,
+  }));
+  const CUSTOMER_OPTIONS = customerList
+    .filter((item: any) => item.status == "active")
+    .map((customer: any) => ({
+      label: customer.customer_name,
+      value: String(customer.id),
+    }));
+  const selectedReferrer =
+    employees.find((emp) => String(emp.id) === values.referrerId) ?? null;
+  const selectedSalesContact =
+    employees.find((emp) => String(emp.id) === values.salesContact) ?? null;
   return (
     <FormSection
       title="Account Management"
@@ -44,6 +68,7 @@ export default function AccountManagementCard({
       <div className="grid gap-6 md:grid-cols-2">
         <FormInput
           label="Customer Type"
+          required
           value={
             values.customerType === "purchasing"
               ? "Purchasing Customer"
@@ -51,15 +76,16 @@ export default function AccountManagementCard({
           }
           disabled={readOnly}
         />
-
-        <FormSelect
+        <EmployeePicker
           label="Sales Contact"
-          value={values.salesContact}
           placeholder="Select sales contact"
-          options={EMPLOYEE_OPTIONS}
           error={errors.salesContact}
-          onValueChange={(value) => onChange("salesContact", value)}
-          disabled={readOnly}
+          employees={employees}
+          value={selectedSalesContact}
+          required
+          onChange={(employee) =>
+            onChange("salesContact", employee ? String(employee.id) : null)
+          }
         />
 
         <FormSelect
@@ -67,30 +93,45 @@ export default function AccountManagementCard({
           value={values.referrerType}
           options={REFERRER_TYPES}
           error={errors.referrerType}
+          required
           onValueChange={(value) => {
-            onChange("referrerType", value);
-            onChange("referrer", "");
+            onChange("referrerType", value as CustomerForm["referrerType"]);
+            onChange("referrerId", "");
           }}
           disabled={readOnly}
         />
 
         {values.referrerType === "employee" ? (
+          <EmployeePicker
+            label="Referrer"
+            placeholder="Select employee"
+            employees={employees}
+            error={errors.referrerId}
+            required
+            value={selectedReferrer}
+            onChange={(employee) =>
+              onChange("referrerId", employee ? String(employee.id) : "")
+            }
+          />
+        ) : values.referrerType === "customer" ? (
           <FormSelect
             label="Referrer"
-            value={values.referrer}
-            placeholder="Select employee"
-            options={EMPLOYEE_OPTIONS}
-            error={errors.referrer}
-            onValueChange={(value) => onChange("referrer", value)}
+            placeholder="Select customer"
+            value={values.referrerId}
+            required
+            options={CUSTOMER_OPTIONS}
+            error={errors.referrerId}
+            onValueChange={(value) => onChange("referrerId", value)}
             disabled={readOnly}
           />
         ) : (
           <FormInput
             label="Referrer"
             placeholder="Enter referrer"
-            value={values.referrer}
-            error={errors.referrer}
-            onChange={(e) => onChange("referrer", e.target.value)}
+            value={values.referrerId}
+            required
+            error={errors.referrerId}
+            onChange={(e) => onChange("referrerId", e.target.value)}
             disabled={readOnly}
           />
         )}

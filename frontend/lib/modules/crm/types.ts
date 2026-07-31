@@ -35,7 +35,6 @@ export interface CustomerOnboarding {
   email: string;
   phone: string;
   alternate_phone: string;
-
   // Address Information
   country: string;
   state: string;
@@ -74,7 +73,6 @@ export type CustomerStatus =
 
 export type CustomerCategory =
   | "retail"
-  | "commercial"
   | "industrial"
   | "government"
   | "distributor";
@@ -206,17 +204,32 @@ export interface CustomerForm {
   customerName: string;
   entityType: EntityType;
   category: CustomerCategory;
+  companyEmail: string;
 
   rcNumber: string;
   tin: string;
   vatNumber: string;
   industry: string;
 
+  customerType: "potential" | "purchasing";
+
+  salesContact: string | null;
+
+  referrerType:
+    | "employee"
+    | "customer"
+    | "partner"
+    | "consultant"
+    | "marketing"
+    | "";
+
+  referrerId: string;
+
   contactPerson: string;
   department: string;
   email: string;
   phone: string;
-  alternatePhone: string;
+  alternatePhone: string | null;
 
   country: string;
   state: string;
@@ -228,8 +241,6 @@ export interface CustomerForm {
   preferredProducts: string[];
   supplyMethod: string;
   estimatedMonthlyDemand: string;
-
-  attachments: CustomerAttachment;
 
   internalNotes: string;
 }
@@ -382,4 +393,18 @@ export interface CustomerVisitActivity {
   performedAt: string;
 
   comment?: string;
+}
+
+export interface CRMActivity {
+  id: string;
+  customer_id: string;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  description: string;
+  actor_type: string;
+  actor_employee_id?: string;
+  actor_name?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
 }

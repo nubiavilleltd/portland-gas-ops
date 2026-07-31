@@ -6,7 +6,6 @@ export const ENTITY_TYPES: EntityType[] = ["company", "individual"];
 
 export const CUSTOMER_CATEGORIES: CustomerCategory[] = [
   "retail",
-  "commercial",
   "industrial",
   "government",
   "distributor",
