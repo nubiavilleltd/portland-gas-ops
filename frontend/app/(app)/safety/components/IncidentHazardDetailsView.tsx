@@ -671,6 +671,11 @@ function EvidenceSection({ report }: { report: IncidentHazardReport }) {
       <SafetyAttachmentList
         label="Photos / Videos / Documents"
         attachments={report.attachments}
+        getAttachmentHref={(attachment) =>
+          attachment.id
+            ? `/api/safety/incidents/${report.id}/attachments/${attachment.id}/download`
+            : attachment.url
+        }
       />
     </FormSection>
   );

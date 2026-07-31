@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import {
   invalidateSafetyWorkflowCaches,
+  queueSafetyInvalidations,
   writeMappedRecordToSafetyCaches,
 } from "../query-cache";
 import { workCloseoutsApi } from "./api";
@@ -90,7 +91,7 @@ export function useCreateWorkCloseout() {
       payload: WorkCloseOutCreate;
       completionEvidence?: File[];
     }) => workCloseoutsApi.create(payload, completionEvidence),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkCloseOutToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -98,7 +99,7 @@ export function useCreateWorkCloseout() {
         listKey: workCloseoutKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(updated.id) }),
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
         queryClient.invalidateQueries({
@@ -124,7 +125,7 @@ export function useUpdateWorkCloseout(id: string) {
       payload: WorkCloseOutUpdate;
       completionEvidence?: File[];
     }) => workCloseoutsApi.update(id, payload, completionEvidence),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkCloseOutToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -132,7 +133,7 @@ export function useUpdateWorkCloseout(id: string) {
         listKey: workCloseoutKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
         queryClient.invalidateQueries({
@@ -158,7 +159,7 @@ export function useHseWorkCloseoutReview(id: string) {
   return useMutation({
     mutationFn: (payload: WorkCloseOutHseReviewCreate) =>
       workCloseoutsApi.hseReview(id, payload),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkCloseOutToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -166,7 +167,7 @@ export function useHseWorkCloseoutReview(id: string) {
         listKey: workCloseoutKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
         queryClient.invalidateQueries({
@@ -189,7 +190,7 @@ function useWorkCloseoutDecisionMutation(
 
   return useMutation({
     mutationFn: (payload: WorkCloseOutDecisionCreate) => action(id, payload),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapWorkCloseOutToRequest(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -197,7 +198,7 @@ function useWorkCloseoutDecisionMutation(
         listKey: workCloseoutKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: workCloseoutKeys.lists() }),
         invalidateSafetyWorkflowCaches(queryClient, "work_closeout", id),

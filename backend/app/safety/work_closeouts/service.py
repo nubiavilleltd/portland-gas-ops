@@ -14,6 +14,7 @@ from app.safety.permissions import (
     is_safety_hse_employee,
     require_safety_operations_approver,
 )
+from app.safety.storage import safety_upload_resource_type
 from app.safety.incidents.models import IncidentReportStatus, SafetyIncidentReport
 from app.safety.incidents import email_content as incident_email
 from app.safety.checklists.models import (
@@ -54,7 +55,7 @@ from app.shared.models.approval import (
 )
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
-from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.cloudinary_service import get_storage_service
 from app.shared.services.post_commit import queue_after_commit
 from app.shared.services.workflow_engine import WorkflowEngine
 
@@ -1247,7 +1248,7 @@ def create_work_closeout_documents(
             file_bytes=file_bytes,
             filename=filename,
             folder=folder,
-            resource_type=ResourceType.AUTO,
+            resource_type=safety_upload_resource_type(mime_type, filename),
             overwrite=False,
         )
         document = Document(

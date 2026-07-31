@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.employees.models import Employee
 from app.safety.dependencies import get_employee_for_user
 from app.safety.permissions import is_safety_hse_employee
+from app.safety.storage import safety_upload_resource_type
 from app.safety.work_authorizations.models import (
     SafetyWorkAuthorization,
     WorkAuthorizationDecision,
@@ -35,7 +36,7 @@ from app.shared.models.approval import (
 from app.shared.models.reference_counter import ReferenceCounter
 from app.shared.models.user import User
 from app.shared.models.document import Document
-from app.shared.services.cloudinary_service import ResourceType, get_storage_service
+from app.shared.services.cloudinary_service import get_storage_service
 from app.shared.services.workflow_engine import WorkflowEngine
 
 
@@ -661,7 +662,7 @@ def create_work_authorization_documents(
             file_bytes=file_bytes,
             filename=filename,
             folder=folder,
-            resource_type=ResourceType.AUTO,
+            resource_type=safety_upload_resource_type(mime_type, filename),
             overwrite=False,
         )
         document = Document(

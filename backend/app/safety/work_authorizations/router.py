@@ -20,6 +20,7 @@ from app.safety.work_authorizations.schemas import (
     WorkAuthorizationUpdate,
 )
 from app.safety.work_initiations.schemas import WorkInitiationResponse
+from app.safety.storage import stream_safety_document
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 from app.safety.workflow import enrich_next_workflow_actors
@@ -177,6 +178,32 @@ def get_work_authorization(
         current_user=current_user,
     )
     return work_authorization_response(db, record)
+
+
+@router.get("/{work_authorization_id}/attachments/{attachment_id}/download")
+def download_work_authorization_attachment(
+    work_authorization_id: str,
+    attachment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    work_authorization_service.get_work_authorization_for_current_user(
+        db=db,
+        work_authorization_id=work_authorization_id,
+        current_user=current_user,
+    )
+    return stream_safety_document(
+        db,
+        attachment_id=attachment_id,
+        categories=[
+            work_authorization_service.work_authorization_document_category(
+                work_authorization_id,
+            ),
+            work_authorization_service.work_authorization_hse_document_category(
+                work_authorization_id,
+            ),
+        ],
+    )
 
 
 @router.put("/{work_authorization_id}", response_model=WorkAuthorizationResponse)

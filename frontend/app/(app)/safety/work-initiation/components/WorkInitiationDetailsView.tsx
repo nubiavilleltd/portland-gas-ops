@@ -755,6 +755,11 @@ function WorkDetails({
         <SafetyAttachmentList
           label="Supporting Images/Documents"
           attachments={visibleAttachments}
+          getAttachmentHref={(attachment) =>
+            attachment.id
+              ? `/api/safety/work-initiations/${request.id}/attachments/${attachment.id}/download`
+              : attachment.url
+          }
           onRemove={
             editable
               ? (attachmentId) =>

@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/store/authStore";
-import { writeMappedRecordToSafetyCaches } from "../query-cache";
+import {
+  queueSafetyInvalidations,
+  writeMappedRecordToSafetyCaches,
+} from "../query-cache";
 import { incidentReportsApi } from "./api";
 import { mapIncidentReportToHazardReport } from "./mappers";
 import { mapWorkAuthorizationToRequest } from "../workAuthorization/mappers";
@@ -79,7 +82,7 @@ export function useResolveIncidentWithCloseout(id: string) {
   return useMutation({
     mutationFn: (payload: IncidentResolveCreate) =>
       incidentReportsApi.resolveWithCloseout(id, payload),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapIncidentReportToHazardReport(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -87,7 +90,7 @@ export function useResolveIncidentWithCloseout(id: string) {
         listKey: incidentReportKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.lists() }),
       ]);
@@ -101,7 +104,7 @@ export function useCloseIncident(id: string) {
   return useMutation({
     mutationFn: (payload: IncidentHseVerificationCreate) =>
       incidentReportsApi.close(id, payload),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapIncidentReportToHazardReport(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -109,7 +112,7 @@ export function useCloseIncident(id: string) {
         listKey: incidentReportKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.lists() }),
       ]);
@@ -123,7 +126,7 @@ export function useMarkIncidentNotResolved(id: string) {
   return useMutation({
     mutationFn: (payload: IncidentHseVerificationCreate) =>
       incidentReportsApi.markNotResolved(id, payload),
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       const updated = mapIncidentReportToHazardReport(data);
       writeMappedRecordToSafetyCaches({
         queryClient,
@@ -131,7 +134,7 @@ export function useMarkIncidentNotResolved(id: string) {
         listKey: incidentReportKeys.lists(),
         updated,
       });
-      await Promise.all([
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.lists() }),
       ]);
@@ -145,8 +148,8 @@ export function useCreateIncidentHseReview(id: string) {
   return useMutation({
     mutationFn: (payload: IncidentHseReviewCreate) =>
       incidentReportsApi.createHseReview(id, payload),
-    onSuccess: async () => {
-      await Promise.all([
+    onSuccess: () => {
+      queueSafetyInvalidations([
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.detail(id) }),
         queryClient.invalidateQueries({ queryKey: incidentReportKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: ["my-approvals"] }),
