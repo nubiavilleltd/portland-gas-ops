@@ -78,10 +78,12 @@ export default function CRMDashboardPage() {
   }
 
   const activeCustomers = customers.filter(
-    (c) => c.status === "active" || c.customer_status === "active",
+    (c: any) => c.status === "active" || c.customer_status === "active",
   );
 
-  const pendingCustomers = customers.filter((c) => c.status === "submitted");
+  const pendingCustomers = customers.filter(
+    (c: any) => c.status === "submitted",
+  );
 
   const scheduledVisits = visits.filter((v) => v.status === "Scheduled");
 
@@ -91,43 +93,43 @@ export default function CRMDashboardPage() {
 
   const followUpsDue = visits.filter((v) => v.follow_up_required);
 
-  const topSales = customers.reduce<Record<string, number>>((acc, customer) => {
-    if (!customer.sales_contact) return acc;
+  // const topSales = customers.reduce<Record<string, number>>((acc, customer) => {
+  //   if (!customer.sales_contact) return acc;
 
-    acc[customer.sales_contact] = (acc[customer.sales_contact] || 0) + 1;
+  //   acc[customer.sales_contact] = (acc[customer.sales_contact] || 0) + 1;
 
-    return acc;
-  }, {});
+  //   return acc;
+  // }, {});
 
-  const topSalesPerson = Object.entries(topSales).sort(
-    (a, b) => b[1] - a[1],
-  )[0];
+  // const topSalesPerson = Object.entries(topSales).sort(
+  //   (a, b) => b[1] - a[1],
+  // )[0];
 
-  const topReferrer = customers.reduce<Record<string, number>>(
-    (acc, customer) => {
-      if (!customer.referrer) return acc;
+  // const topReferrer = customers.reduce<Record<string, number>>(
+  //   (acc, customer) => {
+  //     if (!customer.referrer) return acc;
 
-      acc[customer.referrer] = (acc[customer.referrer] || 0) + 1;
+  //     acc[customer.referrer] = (acc[customer.referrer] || 0) + 1;
 
-      return acc;
-    },
-    {},
-  );
+  //     return acc;
+  //   },
+  //   {},
+  // );
 
-  const topReferrerPerson = Object.entries(topReferrer).sort(
-    (a, b) => b[1] - a[1],
-  )[0];
-  const customerVisitCounts = visits.reduce<Record<string, number>>(
-    (acc, visit) => {
-      acc[visit.customer_name] = (acc[visit.customer_name] || 0) + 1;
-      return acc;
-    },
-    {},
-  );
+  // const topReferrerPerson = Object.entries(topReferrer).sort(
+  //   (a, b) => b[1] - a[1],
+  // )[0];
+  // const customerVisitCounts = visits.reduce<Record<string, number>>(
+  //   (acc, visit) => {
+  //     acc[visit.customer_name] = (acc[visit.customer_name] || 0) + 1;
+  //     return acc;
+  //   },
+  //   {},
+  // );
 
-  const mostVisitedCustomer = Object.entries(customerVisitCounts).sort(
-    (a, b) => b[1] - a[1],
-  )[0];
+  // const mostVisitedCustomer = Object.entries(customerVisitCounts).sort(
+  //   (a, b) => b[1] - a[1],
+  // )[0];
 
   const totalOrders = orders.length;
 
@@ -285,7 +287,7 @@ export default function CRMDashboardPage() {
         </div>
 
         {/* Business Insights */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        {/* <div className="grid gap-6 lg:grid-cols-3">
           <Card
             title="Top Sales Executive"
             description={
@@ -293,9 +295,9 @@ export default function CRMDashboardPage() {
                 ? `${topSalesPerson[0]} • ${topSalesPerson[1]} Customers`
                 : "No data available"
             }
-          />
+          /> */}
 
-          <Card
+        {/* <Card
             title="Top Referral Source"
             description={
               topReferrerPerson
@@ -312,7 +314,7 @@ export default function CRMDashboardPage() {
                 : "No visit data available"
             }
           />
-        </div>
+        </div> */}
         <CRMQuickActions />
 
         {/* Data Tables */}

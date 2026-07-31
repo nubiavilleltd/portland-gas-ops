@@ -36,6 +36,7 @@ export default function BusinessInformationCard({
           placeholder="Enter Registered Company Number"
           value={values.rcNumber}
           error={errors?.rcNumber}
+          required
           readOnly={readOnly}
           onChange={(e) => onChange?.("rcNumber", e.target.value)}
         />
@@ -63,6 +64,7 @@ export default function BusinessInformationCard({
           placeholder="Enter Industry"
           value={values.industry}
           error={errors?.industry}
+          required
           readOnly={readOnly}
           onChange={(e) => onChange?.("industry", e.target.value)}
         />

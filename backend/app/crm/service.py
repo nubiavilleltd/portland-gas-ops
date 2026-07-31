@@ -1,0 +1,749 @@
+"""
+CRM Customer Service
+
+Handles:
+
+- Customer CRUD
+- Customer Contacts
+- Customer Status
+- Drafts
+- Search & Filters
+- Activity Logging
+
+"""
+
+from __future__ import annotations
+
+import logging
+
+from typing import Optional
+
+from fastapi import HTTPException, status
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
+from app.crm.model import CustomersTemp, CustomerContact
+from app.crm.schemas import (
+    CustomerCreate,
+    CustomerUpdate,
+    CustomerContactCreate,
+    CustomerContactUpdate,
+)
+from app.crm.activity.service import CRMActivityService
+from app.crm.activity.schemas import (
+    CRMActivityEntityType,
+    CRMActivityActorType,
+)
+from app.shared.models.user import User
+from app.shared.utils.helpers import generate_reference
+from app.employees.models import Employee
+
+logger = logging.getLogger(__name__)
+
+def _generate_contact_number(db: Session) -> str:
+    return generate_reference(
+        "CNT",
+        db,
+        CustomerContact,
+        CustomerContact.contact_no,
+    )
+
+
+def get_customer(db, customer_id):
+
+    customer = (
+        db.query(CustomersTemp)
+        .filter(
+            CustomersTemp.id == customer_id
+        )
+        .first()
+    )
+
+    if not customer:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
+
+    return customer
+
+
+def get_customer_by_number(
+    db: Session,
+    customer_no: str,
+) -> Optional[CustomersTemp]:
+
+    return (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.customer_no == customer_no)
+        .first()
+    )
+
+
+def get_primary_contact(
+    db: Session,
+    customer_id: str,
+) -> Optional[CustomerContact]:
+
+    return (
+        db.query(CustomerContact)
+        .filter(
+            CustomerContact.customer_id == customer_id,
+            CustomerContact.is_primary.is_(True),
+        )
+        .first()
+    )
+
+
+def validate_customer_uniqueness(
+    db: Session,
+    company_email: Optional[str],
+    email: str,
+    rc_number: Optional[str],
+    customer_id: Optional[int] = None,
+):
+
+    if company_email:
+
+        query = db.query(CustomersTemp).filter(
+            CustomersTemp.company_email == company_email
+        )
+
+        if customer_id:
+            query = query.filter(CustomersTemp.id != customer_id)
+
+        if query.first():
+            raise HTTPException(
+                status_code=400,
+                detail="Company email already exists.",
+            )
+
+    query = db.query(CustomersTemp).filter(
+        CustomersTemp.email == email
+    )
+
+    if customer_id:
+        query = query.filter(CustomersTemp.id != customer_id)
+
+    if query.first():
+        raise HTTPException(
+            status_code=400,
+            detail="Primary contact email already exists.",
+        )
+
+    if rc_number:
+
+        query = db.query(CustomersTemp).filter(
+            CustomersTemp.rc_number == rc_number
+        )
+
+        if customer_id:
+            query = query.filter(CustomersTemp.id != customer_id)
+
+        if query.first():
+            raise HTTPException(
+                status_code=400,
+                detail="RC number already exists.",
+            )
+
+
+def create_primary_contact(
+    db: Session,
+    customer: CustomersTemp,
+):
+
+    contact = CustomerContact(
+
+        contact_no=_generate_contact_number(db),
+
+        customer_id=customer.id,
+
+        created_by=customer.created_by,
+
+        first_name=customer.contact_person,
+
+        last_name="",
+
+        position=None,
+
+        role="Primary Contact",
+
+        department=customer.department,
+
+        email=customer.email,
+
+        phone=customer.phone,
+
+        alternate_phone=customer.alternate_phone,
+
+        preferred_channel="email",
+
+        is_primary=True,
+
+        status="active",
+    )
+
+    db.add(contact)
+
+    return contact
+
+def log_customer_activity(
+    db: Session,
+    customer: str,
+    current_user,
+    action: str,
+    description: str,
+    metadata: dict | None = None,
+):
+    CRMActivityService.record(
+        db=db,
+        customer_id=customer,
+        entity_type=CRMActivityEntityType.customer,
+        entity_id=str(customer),
+        action=action,
+        description=description,
+        actor_type=CRMActivityActorType.employee,
+        actor_employee_id=str(current_user.employee.id),
+        actor_name=current_user.employee.user.full_name,
+        metadata=metadata,
+    )
+
+def get_customer_detail(
+    db: Session,
+    customer_id: str,
+) -> CustomersTemp:
+
+    return get_customer(
+        db,
+        customer_id,
+    )
+
+
+
+
+def deactivate_customer(
+    db: Session,
+    customer_id: str,
+    current_employee,
+):
+    customer = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.id == customer_id)
+        .first()
+    )
+
+    if not customer:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found.",
+        )
+
+    customer.status = "inactive"
+    log_customer_activity(
+            db=db,
+            customer=customer_id,
+            current_user=current_employee,
+            action="deactivated",
+            description=f"Customer {customer.customer_name} has been deactivated.",
+        )
+    db.commit()
+    db.refresh(customer)
+
+    return customer
+
+def activate_customer(
+    db: Session,
+    customer_id: int,
+    current_employee,
+):
+
+    customer = get_customer(
+        db,
+        customer_id,
+    )
+
+    customer.status = "active"
+
+    log_customer_activity(
+        db=db,
+        customer=customer_id,
+        current_user=current_employee,
+        action="activated",
+        description=f"Customer {customer.customer_name} has been activated.",
+    )
+
+    db.commit()
+
+    db.refresh(customer)
+
+    return customer
+
+def save_customer_draft(
+    db: Session,
+    data: CustomerCreate,
+    current_employee,
+):
+
+    data.status = "draft"
+
+    return create_customer(
+        db=db,
+        data=data,
+        current_employee=current_employee,
+    )
+
+def build_customer_search(
+    query,
+    search: Optional[str],
+):
+
+    if not search:
+        return query
+
+    term = f"%{search}%"
+
+    return query.filter(
+        or_(
+            CustomersTemp.customer_name.ilike(term),
+            CustomersTemp.customer_no.ilike(term),
+            CustomersTemp.contact_person.ilike(term),
+            CustomersTemp.company_email.ilike(term),
+            CustomersTemp.email.ilike(term),
+            CustomersTemp.phone.ilike(term),
+        )
+    )
+
+def list_customers(
+    db: Session,
+    current_user: User,
+    skip: int = 0,
+    limit: int = 20,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    customer_type: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    category: Optional[str] = None,
+    sales_contact: Optional[str] = None,
+):
+
+    query = db.query(CustomersTemp)
+    if current_user.role not in ["admin", "super_admin"]:
+        employee = (
+            db.query(Employee)
+            .filter(Employee.user_id == current_user.id)
+            .first()
+        )
+
+        if employee is None:
+            return []
+
+        query = query.filter(
+            CustomersTemp.created_by == employee.id
+        )
+    if status:
+        query = query.filter(
+            CustomersTemp.status == status,
+        )
+
+    if customer_type:
+        query = query.filter(
+            CustomersTemp.customer_type == customer_type,
+        )
+
+    if entity_type:
+        query = query.filter(
+            CustomersTemp.entity_type == entity_type,
+        )
+
+    if category:
+        query = query.filter(
+            CustomersTemp.category == category,
+        )
+    if sales_contact:
+        query = query.filter(
+            CustomersTemp.sales_contact == sales_contact
+        )
+
+    query = build_customer_search(
+        query,
+        search,
+    )
+
+    return (
+        query.order_by(
+            CustomersTemp.created_at.desc(),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+def count_customers(
+    db: Session,
+):
+
+    return db.query(CustomersTemp).count()
+
+def customer_dashboard_summary(
+    db: Session,
+):
+
+    total = db.query(CustomersTemp).count()
+
+    active = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.status == "active")
+        .count()
+    )
+
+    draft = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.status == "draft")
+        .count()
+    )
+
+    inactive = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.status == "inactive")
+        .count()
+    )
+
+    potential = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.customer_type == "potential")
+        .count()
+    )
+
+    purchasing = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.customer_type == "purchasing")
+        .count()
+    )
+
+    companies = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.entity_type == "company")
+        .count()
+    )
+
+    individuals = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.entity_type == "individual")
+        .count()
+    )
+
+    return {
+        "total": total,
+        "active": active,
+        "draft": draft,
+        "inactive": inactive,
+        "potential": potential,
+        "purchasing": purchasing,
+        "companies": companies,
+        "individuals": individuals,
+    }
+
+def list_customer_contacts(
+    db: Session,
+    customer_id: str,
+):
+
+    get_customer(
+        db,
+        customer_id,
+    )
+
+    return (
+        db.query(CustomerContact)
+        .filter(
+            CustomerContact.customer_id == customer_id,
+            CustomerContact.status == "active",
+        )
+        .order_by(
+            CustomerContact.is_primary.desc(),
+            CustomerContact.first_name,
+        )
+        .all()
+    )
+
+
+def get_contact(
+    db: Session,
+    contact_id: int,
+):
+
+    contact = (
+        db.query(CustomerContact)
+        .filter(
+            CustomerContact.id == contact_id,
+        )
+        .first()
+    )
+
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found.",
+        )
+
+    return contact
+
+
+def create_contact(
+    db: Session,
+    customer_id: str,
+    data: CustomerContactCreate,
+    current_employee,
+):
+
+    customer = get_customer(
+        db,
+        customer_id,
+    )
+
+    if data.is_primary:
+
+        (
+            db.query(CustomerContact)
+            .filter(
+                CustomerContact.customer_id == customer.id,
+            )
+            .update(
+                {
+                    CustomerContact.is_primary: False,
+                }
+            )
+        )
+
+    contact = CustomerContact(
+
+        customer_id=customer.id,
+
+        contact_no=_generate_contact_number(db),
+
+        created_by=current_employee.id,
+
+        **data.model_dump(),
+    )
+
+    db.add(contact)
+
+    db.commit()
+
+    db.refresh(contact)
+
+    log_customer_activity(
+        db=db,
+        customer=customer_id,
+        current_user=current_employee,
+        action="contact_created",
+        description=f"New contact {contact.first_name} {contact.last_name} was added by {current_employee}.",
+    )
+
+    return contact
+
+# ─────────────────────────────────────────────────────────────
+# Customer CRUD
+# ─────────────────────────────────────────────────────────────
+
+def create_customer(
+    db: Session,
+    data: CustomerCreate,
+    current_user: User,
+) -> CustomersTemp:
+    validate_customer_uniqueness(
+            db=db,
+            company_email=data.company_email,
+            email=data.email,
+            rc_number=data.rc_number,
+        )
+    customer_no = generate_reference(
+        "CUS",
+        db,
+        CustomersTemp,
+        CustomersTemp.customer_no,
+    )
+    customer = CustomersTemp(
+        customer_no=customer_no,
+        customer_name=data.customer_name,
+        entity_type=data.entity_type,
+        category=data.category,
+        company_email=data.company_email,
+        rc_number=data.rc_number,
+        tin=data.tin,
+        vat_number=data.vat_number,
+        industry=data.industry,
+        customer_type=data.customer_type,
+        sales_contact=data.sales_contact,
+        referrer_type=data.referrer_type,
+        referrer_id=data.referrer_id,
+        contact_person=data.contact_person,
+        department=data.department,
+        email=data.email,
+        phone=data.phone,
+        alternate_phone=data.alternate_phone,
+        country=data.country,
+        state=data.state,
+        city=data.city,
+        address_line1=data.address_line1,
+        address_line2=data.address_line2,
+        postal_code=data.postal_code,
+        preferred_products=data.preferred_products,
+        supply_method=data.supply_method,
+        estimated_monthly_demand=data.estimated_monthly_demand,
+        internal_notes=data.internal_notes,
+        status=data.status,
+        created_by=current_user.employee.id,
+    )
+
+    db.add(customer)
+    db.flush()
+
+    sync_primary_contact(
+        db=db,
+        customer=customer,
+        employee_id=current_user.employee.id,
+    )
+
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Created",
+        description=f"Customer {customer.customer_name} was created by {current_user}",
+        current_user=current_user,
+    )
+
+    db.commit()
+    db.refresh(customer)
+
+    return customer
+
+
+def update_customer(
+    db: Session,
+    customer_id: int,
+    data: CustomerUpdate,
+    current_user: User,
+) -> CustomersTemp:
+
+    customer = get_customer(db, customer_id)
+
+    values = data.model_dump(exclude_unset=True)
+    validate_customer_uniqueness(
+            db=db,
+            company_email=values.get(
+                "company_email",
+                customer.company_email,
+            ),
+            email=values.get(
+                "email",
+                customer.email,
+            ),
+            rc_number=values.get(
+                "rc_number",
+                customer.rc_number,
+            ),
+            customer_id=customer.id,
+        )
+    for field, value in values.items():
+        setattr(customer, field, value)
+
+    sync_primary_contact(
+        db=db,
+        customer=customer,
+        employee_id=current_user.employee.id,
+    )
+
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Updated",
+        description=f"Customer {customer.customer_name} was updated by {current_user}",
+        current_user=current_user,
+    )
+
+    db.commit()
+    db.refresh(customer)
+
+    return customer
+
+
+def delete_customer(
+    db: Session,
+    customer_id: int,
+    current_user: User,
+):
+
+    customer = get_customer(db, customer_id)
+
+    customer.status = "inactive"
+    primary = (
+        db.query(CustomerContact)
+        .filter(
+            CustomerContact.customer_id == customer.id,
+            CustomerContact.is_primary == True,
+        )
+        .first()
+    )
+
+    if primary:
+        primary.status = "inactive"
+
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Deactivated",
+        description=f"Customer {customer.customer_name} has been deactivated.",
+        current_user=current_user,
+    )
+
+    db.commit()
+
+def sync_primary_contact(
+    db: Session,
+    customer: CustomersTemp,
+    employee_id: int,
+):
+
+    primary = (
+        db.query(CustomerContact)
+        .filter(
+            CustomerContact.customer_id == customer.id,
+            CustomerContact.is_primary == True,
+        )
+        .first()
+    )
+
+    values = dict(
+        first_name=customer.contact_person.split(" ")[0]
+        if customer.contact_person
+        else "",
+
+        last_name=" ".join(customer.contact_person.split(" ")[1:])
+        if customer.contact_person and len(customer.contact_person.split(" ")) > 1
+        else "",
+
+        department=customer.department,
+        email=customer.email,
+        phone=customer.phone,
+        alternate_phone=customer.alternate_phone,
+    )
+
+    if primary:
+
+        for field, value in values.items():
+            setattr(primary, field, value)
+
+    else:
+
+        contact = CustomerContact(
+            contact_no=_generate_contact_number(db),
+            customer_id=customer.id,
+            created_by=employee_id,
+            is_primary=True,
+            preferred_channel="email",
+            status="active",
+            **values,
+        )
+
+        db.add(contact)
