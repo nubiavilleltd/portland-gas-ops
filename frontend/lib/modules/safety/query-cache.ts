@@ -37,9 +37,13 @@ export function invalidateSafetyWorkflowCaches(
   requestType: string,
   requestId: string,
 ) {
-  return Promise.all([
+  return Promise.allSettled([
     queryClient.invalidateQueries({ queryKey: ["my-approvals"] }),
     queryClient.invalidateQueries({ queryKey: ["my-requests"] }),
     queryClient.invalidateQueries({ queryKey: ["audit-trail", requestType, requestId] }),
   ]);
+}
+
+export function queueSafetyInvalidations(invalidations: Promise<unknown>[]) {
+  void Promise.allSettled(invalidations);
 }

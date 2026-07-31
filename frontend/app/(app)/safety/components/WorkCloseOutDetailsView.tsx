@@ -894,6 +894,11 @@ function CompletionDetails({
           label="Completion Evidence"
           attachments={visibleEvidence}
           emptyMessage="No completion evidence."
+          getAttachmentHref={(attachment) =>
+            attachment.id
+              ? `/api/safety/work-closeouts/${request.id}/attachments/${attachment.id}/download`
+              : attachment.url
+          }
           onRemove={
             editable
               ? (attachmentId) =>

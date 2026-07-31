@@ -20,6 +20,7 @@ from app.safety.work_closeouts.schemas import (
     WorkCloseOutUpdate,
 )
 from app.safety.work_authorizations.schemas import WorkAuthorizationResponse
+from app.safety.storage import stream_safety_document
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
 from app.safety.workflow import enrich_next_workflow_actors
@@ -187,6 +188,27 @@ def get_work_closeout(
     )
 
     return work_closeout_response(db, record)
+
+
+@router.get("/{work_closeout_id}/attachments/{attachment_id}/download")
+def download_work_closeout_attachment(
+    work_closeout_id: str,
+    attachment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    work_closeout_service.get_work_closeout_for_current_user(
+        db=db,
+        work_closeout_id=work_closeout_id,
+        current_user=current_user,
+    )
+    return stream_safety_document(
+        db,
+        attachment_id=attachment_id,
+        categories=[
+            work_closeout_service.work_closeout_document_category(work_closeout_id)
+        ],
+    )
 
 
 @router.put("/{work_closeout_id}", response_model=WorkCloseOutResponse)

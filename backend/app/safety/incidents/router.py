@@ -22,6 +22,7 @@ from app.safety.incidents.schemas import (
     IncidentResolveCreate,
 )
 from app.safety.incidents import service as incident_service
+from app.safety.storage import stream_safety_document
 from app.safety.work_authorizations.schemas import WorkAuthorizationResponse
 
 
@@ -168,6 +169,25 @@ def get_incident_report(
     )
 
     return IncidentReportResponse.from_model(report)
+
+
+@router.get("/{incident_id}/attachments/{attachment_id}/download")
+def download_incident_attachment(
+    incident_id: str,
+    attachment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    incident_service.get_incident_report(
+        db=db,
+        incident_id=incident_id,
+        current_user=current_user,
+    )
+    return stream_safety_document(
+        db,
+        attachment_id=attachment_id,
+        categories=[incident_service.incident_document_category(incident_id)],
+    )
 
 
 @router.post(
