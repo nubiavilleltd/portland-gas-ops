@@ -103,8 +103,8 @@ export function useUploadProfilePicture() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => employeesApi.uploadPicture(file),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.me });
+    onSuccess: (updated) => {
+      qc.setQueryData(KEYS.me, updated);                    // repaint the avatar immediately
       qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: ["current-user"] }); // refresh sidebar/navbar avatar
     },
