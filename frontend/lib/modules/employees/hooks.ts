@@ -89,8 +89,11 @@ export function useUpdateMyProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: UpdateOwnProfilePayload) => employeesApi.updateMyProfile(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.me });
+    onSuccess: (updated) => {
+      // The PATCH returns the saved record — seed the cache with it so the form
+      // repaints instantly. Invalidating alone leaves the stale value on screen
+      // for the length of the refetch.
+      qc.setQueryData(KEYS.me, updated);
       qc.invalidateQueries({ queryKey: KEYS.all });
     },
   });
@@ -100,8 +103,8 @@ export function useUploadProfilePicture() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => employeesApi.uploadPicture(file),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.me });
+    onSuccess: (updated) => {
+      qc.setQueryData(KEYS.me, updated);                    // repaint the avatar immediately
       qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: ["current-user"] }); // refresh sidebar/navbar avatar
     },

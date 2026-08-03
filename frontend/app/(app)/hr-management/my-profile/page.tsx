@@ -57,18 +57,17 @@ export default function MyProfilePage() {
   const toast  = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Date-of-birth edit state — a user may correct their own DOB.
-  const [editingDob, setEditingDob] = useState(false);
-  const [dob, setDob] = useState("");
+  // Date-of-birth — a user may correct their own DOB; the field is live on page load.
+  // `null` means untouched, so the saved value shows through until the user picks a date.
+  const [dobDraft, setDobDraft] = useState<string | null>(null);
+  const dob = dobDraft ?? emp?.birthday ?? "";
 
-  const startEditDob = () => { setDob(emp?.birthday ?? ""); setEditingDob(true); };
-  const cancelEditDob = () => { setEditingDob(false); };
   const saveDob = async () => {
     if (!dob) { toast.error("Please pick a date of birth"); return; }
     try {
       await updateProfile.mutateAsync({ birthday: dob });
       toast.success("Date of birth updated");
-      setEditingDob(false);
+      setDobDraft(null);   // fall back to the refetched record
     } catch {
       toast.error("Failed to update date of birth");
     }
@@ -178,32 +177,21 @@ export default function MyProfilePage() {
             <FormInput label="Email"      value={emp.user?.email      ?? "—"} disabled />
             <FormDatePicker
               label="Birthday"
-              value={editingDob ? dob : (emp.birthday ?? "")}
-              onValueChange={editingDob ? setDob : undefined}
-              disabled={!editingDob || updateProfile.isPending}
+              value={dob}
+              onValueChange={setDobDraft}
+              disabled={updateProfile.isPending}
               max={TODAY}
             />
           </div>
           <div className="mt-4 flex items-center gap-3">
-            {editingDob ? (
-              <>
-                <Button
-                  variant="primary"
-                  onClick={saveDob}
-                  loading={updateProfile.isPending}
-                  disabled={updateProfile.isPending}
-                >
-                  Save
-                </Button>
-                <Button variant="outline" onClick={cancelEditDob} disabled={updateProfile.isPending}>
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" onClick={startEditDob}>
-                Edit date of birth
-              </Button>
-            )}
+            <Button
+              variant="primary"
+              onClick={saveDob}
+              loading={updateProfile.isPending}
+              loadingText="Saving…"
+            >
+              Save date of birth
+            </Button>
           </div>
         </Section>
 
