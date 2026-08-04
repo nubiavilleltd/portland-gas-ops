@@ -5,16 +5,11 @@ import { Eye, Plus } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import EmptyState from "@/components/ui/EmptyState";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import { useCustomers } from "@/lib/modules/crm";
 
-import {
-  useCustomerOnboarding,
-  type CustomerOnboarding,
-} from "@/lib/modules/crm";
+import { type CustomerOnboarding } from "@/lib/modules/crm";
 
 const COLUMNS: Column<CustomerOnboarding>[] = [
   {
@@ -71,7 +66,6 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
 export default function CustomersPage() {
   const { data: customers = [], isLoading } = useCustomers();
   const activeCustomers = customers;
-  console.log(activeCustomers, "activeCustomers");
 
   return (
     <AppLayout pageTitle="Customers">

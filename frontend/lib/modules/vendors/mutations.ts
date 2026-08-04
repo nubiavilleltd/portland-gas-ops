@@ -57,3 +57,28 @@ export function useUploadVendorLogo() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: vendorKeys.all }),
   });
 }
+
+// ── Compliance Document Uploads ───────────────────────────────────────────────
+
+export type VendorDocumentType = "cac" | "tin" | "vat";
+
+export function useUploadVendorDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, documentType, file }: { id: string; documentType: VendorDocumentType; file: File }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return postForm<Vendor>(`/api/vendors/${id}/documents/${documentType}`, formData);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: vendorKeys.all }),
+  });
+}
+
+export function useDeleteVendorDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, documentType }: { id: string; documentType: VendorDocumentType }) =>
+      del<Vendor>(`/api/vendors/${id}/documents/${documentType}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: vendorKeys.all }),
+  });
+}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2, PowerOff, Power } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Building2, CreditCard, ShoppingCart, Pencil, Trash2, PowerOff, Power, FileText, Eye, Download } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import VendorDetailSkeleton from "./VendorDetailSkeleton";
 import Button from "@/components/ui/Button";
@@ -75,6 +75,18 @@ const REQUEST_COLUMNS: Column<ProcurementListItem>[] = [
   { key: "created_at", label: "Date", render: (v) => <span className="text-brand-text-secondary text-xs">{formatDateTime(v as string)}</span> },
   { key: "estimated_amount", label: "Est. Value", render: (v) => v ? <span className="text-sm font-medium">{formatCurrency(Number(v))}</span> : <span className="text-brand-text-secondary">—</span> },
   { key: "status", label: "Status", render: (v) => <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[String(v)] ?? "bg-gray-100 text-gray-600"}`}>{capitalize(String(v).replace(/_/g, " "))}</span> },
+  {
+    key: "payment_status",
+    label: "Payment",
+    render: (_v, row) => {
+      const isPaid = row.status === "completed";
+      return (
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isPaid ? "bg-green-50 text-green-700 border border-green-200" : "bg-gray-100 text-gray-500"}`}>
+          {isPaid ? "Paid" : "Unpaid"}
+        </span>
+      );
+    },
+  },
 ];
 
 export default function AdminVendorDetailPage() {
@@ -199,6 +211,113 @@ export default function AdminVendorDetailPage() {
           <DetailRow label="Account Name" value={vendor.account_name} />
           <DetailRow label="Account Number" value={vendor.account_number} />
         </SectionCard>
+      </div>
+
+      {/* Compliance Documents */}
+      <div className="bg-white border border-brand-border rounded-xl p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-brand-text-secondary"><FileText size={16} /></span>
+          <h2 className="text-sm font-semibold text-brand-text-primary uppercase tracking-wide">Compliance Documents</h2>
+        </div>
+        {vendor.cac_certificate_url || vendor.tin_certificate_url || vendor.vat_certificate_url ? (
+          <div className="divide-y divide-brand-border">
+            {vendor.cac_certificate_url && (
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-red-50 flex items-center justify-center">
+                    <FileText size={18} className="text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-brand-text-primary">CAC Certificate</p>
+                    <p className="text-xs text-brand-text-secondary">Corporate Affairs Commission</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={vendor.cac_certificate_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-text-secondary hover:text-brand-text-primary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye size={14} /> View
+                  </a>
+                  <a
+                    href={vendor.cac_certificate_url}
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-text-secondary hover:text-brand-text-primary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                </div>
+              </div>
+            )}
+            {vendor.tin_certificate_url && (
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <FileText size={18} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-brand-text-primary">TIN Certificate</p>
+                    <p className="text-xs text-brand-text-secondary">Tax Identification Number</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={vendor.tin_certificate_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-text-secondary hover:text-brand-text-primary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye size={14} /> View
+                  </a>
+                  <a
+                    href={vendor.tin_certificate_url}
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-text-secondary hover:text-brand-text-primary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                </div>
+              </div>
+            )}
+            {vendor.vat_certificate_url && (
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center">
+                    <FileText size={18} className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-brand-text-primary">VAT Certificate</p>
+                    <p className="text-xs text-brand-text-secondary">Value Added Tax Registration</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={vendor.vat_certificate_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-text-secondary hover:text-brand-text-primary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye size={14} /> View
+                  </a>
+                  <a
+                    href={vendor.vat_certificate_url}
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-text-secondary hover:text-brand-text-primary border border-brand-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-8 text-center">
+            <FileText size={32} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-sm text-brand-text-secondary">This vendor doesn&apos;t have any compliance documents.</p>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-brand-border rounded-xl p-6">

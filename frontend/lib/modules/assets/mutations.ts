@@ -264,8 +264,12 @@ export function useCreateAssetRequest() {
       return_date?: string;
       items: { asset_type_id?: string; asset_id?: string; quantity: number; notes?: string }[];
     }) => {
-      const { data: res } = await api.post("/api/assets/requests", data);
-      return res;
+      try {
+        const { data: res } = await api.post("/api/assets/requests", data);
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.CREATE_REQUEST));
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: assetKeys.requests() }),
   });
@@ -275,9 +279,13 @@ export function useUpdateAssetRequestStatus(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { status: AssetRequestStatus; rejection_reason?: string; auditEntry?: unknown }) => {
-      const { status, rejection_reason } = data;
-      const { data: res } = await api.patch(`/api/assets/requests/${id}/status`, { status, rejection_reason });
-      return res;
+      try {
+        const { status, rejection_reason } = data;
+        const { data: res } = await api.patch(`/api/assets/requests/${id}/status`, { status, rejection_reason });
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.UPDATE_REQUEST));
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assetKeys.requests() });
@@ -294,13 +302,17 @@ export function useAllocateAssetRequest() {
       requestId: string;
       allocations: { itemId: string; assetIds: string[] }[];
     }) => {
-      const { data: res } = await api.post(`/api/assets/requests/${data.requestId}/allocate`, {
-        allocations: data.allocations.map((a) => ({
-          item_id: a.itemId,
-          asset_ids: a.assetIds,
-        })),
-      });
-      return res;
+      try {
+        const { data: res } = await api.post(`/api/assets/requests/${data.requestId}/allocate`, {
+          allocations: data.allocations.map((a) => ({
+            item_id: a.itemId,
+            asset_ids: a.assetIds,
+          })),
+        });
+        return res;
+      } catch (err) {
+        throw new Error(resolveAssetError(err, ASSET_ERRORS.ALLOCATE_REQUEST));
+      }
     },
     onSuccess: (_r, { requestId }) => {
       qc.invalidateQueries({ queryKey: assetKeys.requests() });

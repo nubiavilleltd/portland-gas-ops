@@ -20,6 +20,11 @@ export const ASSET_ERRORS = {
   CREATE_LOG:      "Failed to save maintenance log.",
   UPDATE_LOG:      "Failed to update maintenance log.",
   DELETE_LOG:      "Failed to delete maintenance log.",
+
+  // Asset Requests
+  CREATE_REQUEST:   "Failed to submit asset request.",
+  UPDATE_REQUEST:   "Failed to update request status.",
+  ALLOCATE_REQUEST: "Failed to allocate assets to request.",
 } as const;
 
 type ApiError = { response?: { data?: { detail?: string } } };

@@ -629,20 +629,12 @@ function LogMaintenanceModal({
               className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-brand-text-primary">
-              Cost (NGN)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.cost}
-              onChange={(e) => set("cost", e.target.value)}
-              placeholder="0.00"
-              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-          </div>
+          <CurrencyInput
+            label="Cost (NGN)"
+            value={form.cost}
+            onValueChange={(value) => set("cost", value)}
+            placeholder="0.00"
+          />
           <FormTextarea
             label="Notes"
             rows={3}
@@ -758,16 +750,12 @@ function EditMaintenanceLogModal({
               className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-brand-text-primary">Cost (NGN)</label>
-            <input
-              type="number" min="0" step="0.01"
-              value={form.cost}
-              onChange={(e) => set("cost", e.target.value)}
-              placeholder="0.00"
-              className="h-10 rounded-lg border border-brand-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-          </div>
+          <CurrencyInput
+            label="Cost (NGN)"
+            value={form.cost}
+            onValueChange={(value) => set("cost", value)}
+            placeholder="0.00"
+          />
           <FormTextarea
             label="Notes"
             rows={3}
@@ -803,7 +791,7 @@ export default function AdminAssetDetailPage() {
   const toast = useToast();
   const { data: asset, isLoading, isError } = useAsset(id);
   const deleteAsset = useDeleteAsset();
-  const { data: logs = [] } = useMaintenanceLogs(id);
+  const { data: logs = [], isFetching: logsLoading } = useMaintenanceLogs(id);
   const { data: assignmentLogs = [] } = useAssignmentLogs(id);
   const { data: categories = [] } = useAssetCategories();
   const qrRef = useRef<HTMLDivElement>(null);
@@ -1306,7 +1294,24 @@ export default function AdminAssetDetailPage() {
                   {logs.length} log{logs.length !== 1 ? "s" : ""} recorded
                 </p>
               </div>
-              {logs.length === 0 ? (
+              {logsLoading ? (
+                <div className="divide-y divide-brand-border animate-pulse">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="px-6 py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-24 bg-gray-200 rounded" />
+                          <div className="h-3 w-32 bg-gray-100 rounded" />
+                        </div>
+                        <div className="text-right space-y-2">
+                          <div className="h-4 w-20 bg-gray-200 rounded ml-auto" />
+                          <div className="h-3 w-16 bg-gray-100 rounded ml-auto" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : logs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-brand-text-secondary">
                   <ClipboardList size={28} className="mb-2 text-gray-300" />
                   <p className="text-sm">No maintenance logs yet</p>

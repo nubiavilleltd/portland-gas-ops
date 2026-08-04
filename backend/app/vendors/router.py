@@ -146,3 +146,65 @@ def upload_vendor_logo(
     db.commit()
     db.refresh(vendor)
     return vendor
+
+
+# ── Compliance Document Uploads ───────────────────────────────────────────────
+
+
+@router.post("/{vendor_id}/documents/cac", response_model=VendorResponse)
+def upload_cac_certificate(
+    vendor_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_manager),
+):
+    """Upload CAC Certificate for a vendor."""
+    uploader_emp = get_employee_by_user_id(current_user.id, db)
+    vendor = _svc(db).upload_cac_certificate(vendor_id, file, uploader_emp.id)
+    db.commit()
+    db.refresh(vendor)
+    return vendor
+
+
+@router.post("/{vendor_id}/documents/tin", response_model=VendorResponse)
+def upload_tin_certificate(
+    vendor_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_manager),
+):
+    """Upload TIN Certificate for a vendor."""
+    uploader_emp = get_employee_by_user_id(current_user.id, db)
+    vendor = _svc(db).upload_tin_certificate(vendor_id, file, uploader_emp.id)
+    db.commit()
+    db.refresh(vendor)
+    return vendor
+
+
+@router.post("/{vendor_id}/documents/vat", response_model=VendorResponse)
+def upload_vat_certificate(
+    vendor_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_manager),
+):
+    """Upload VAT Certificate for a vendor."""
+    uploader_emp = get_employee_by_user_id(current_user.id, db)
+    vendor = _svc(db).upload_vat_certificate(vendor_id, file, uploader_emp.id)
+    db.commit()
+    db.refresh(vendor)
+    return vendor
+
+
+@router.delete("/{vendor_id}/documents/{document_type}", response_model=VendorResponse)
+def delete_vendor_document(
+    vendor_id: str,
+    document_type: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_manager),
+):
+    """Delete a compliance document from a vendor. document_type: cac | tin | vat"""
+    vendor = _svc(db).delete_vendor_document(vendor_id, document_type)
+    db.commit()
+    db.refresh(vendor)
+    return vendor
