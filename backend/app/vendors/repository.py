@@ -39,7 +39,7 @@ class VendorRepository:
             query = query.filter(Vendor.name.ilike(f"%{search}%"))
         if vendor_type:
             query = query.filter(Vendor.vendor_type == vendor_type)
-        return query.order_by(Vendor.name).offset(skip).limit(limit).all()
+        return query.order_by(Vendor.created_at.desc()).offset(skip).limit(limit).all()
 
     def code_exists(self, code: str) -> bool:
         return self.db.query(Vendor).filter(Vendor.vendor_code == code).first() is not None

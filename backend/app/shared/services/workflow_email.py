@@ -120,7 +120,13 @@ def _load_step_ctx(db: Session, workflow_id: str, step_number: int, total_steps:
     return StepContext(step_number=step_number, step_name=step_name, total_steps=total_steps)
 
 
-def _employee_actor_label(employee) -> str:
+def _employee_actor_label(employee, step_name: str | None = None) -> str:
+    """
+    Build a display label for an actor.
+
+    If step_name is provided, use it as the role (the capacity they acted in).
+    Otherwise fall back to their job_title.
+    """
     if not employee:
         return "Unknown"
 
@@ -129,10 +135,14 @@ def _employee_actor_label(employee) -> str:
         if employee.user and employee.user.full_name
         else employee.employee_no
     )
-    role = employee.job_title
-    if not role and employee.user and employee.user.role:
-        role_value = getattr(employee.user.role, "value", employee.user.role)
-        role = str(role_value).replace("_", " ").title()
+
+    # Prefer step_name (the capacity they acted in) over job_title
+    role = step_name
+    if not role:
+        role = employee.job_title
+        if not role and employee.user and employee.user.role:
+            role_value = getattr(employee.user.role, "value", employee.user.role)
+            role = str(role_value).replace("_", " ").title()
 
     return f"{name} ({role})" if role else name
 
@@ -148,7 +158,9 @@ def notify_submitted(db: Session, approval_request_id: str) -> None:
     Call AFTER db.commit() (or after flush, inside engine).
     """
     try:
-        from app.shared.models.approval import ApprovalRequest, AllRequest, WorkflowStep
+        from app.shared.models.approval import (
+            ApprovalRequest, AllRequest, WorkflowStep, ApprovalStepAssignment,
+        )
         from app.employees.models import Employee
 
         ar = (
@@ -181,6 +193,32 @@ def notify_submitted(db: Session, approval_request_id: str) -> None:
         total_steps = _load_total_steps(db, ar.workflow_id)
         step = _load_step_ctx(db, ar.workflow_id, ar.current_step_number, total_steps)
 
+        # Look up the assigned approver for the current step
+        assignment = (
+            db.query(ApprovalStepAssignment)
+            .filter(
+                ApprovalStepAssignment.approval_request_id == ar.id,
+                ApprovalStepAssignment.step_number == ar.current_step_number,
+            )
+            .first()
+        )
+        approver_name = None
+        if assignment:
+            approver = (
+                db.query(Employee)
+                .options(joinedload(Employee.user))
+                .filter(Employee.id == assignment.assigned_to)
+                .first()
+            )
+            if approver and approver.user:
+                approver_name = approver.user.full_name or approver.employee_no
+
+        # Build pending_with label: "Name, Role: Step Name" or just "Step Name" if no approver found
+        if approver_name:
+            pending_with = f"{approver_name}, Role: {step.step_name}"
+        else:
+            pending_with = step.step_name
+
         ctx = {
             "db": db,
             "ar": ar,
@@ -202,6 +240,7 @@ def notify_submitted(db: Session, approval_request_id: str) -> None:
             "request_title":      title,
             "step_number":        str(ar.current_step_number),
             "step_name":          step.step_name,
+            "pending_with":       pending_with,
             "action_url":         url,
         })
         email_service._send(requester.user.email, subject, html)
@@ -345,7 +384,6 @@ def notify_step_progress(
             .filter(Employee.id == approver_employee_id)
             .first()
         )
-        approver_name = _employee_actor_label(approver)
 
         all_req = (
             db.query(AllRequest)
@@ -364,6 +402,35 @@ def notify_step_progress(
 
         completed_step = _load_step_ctx(db, ar.workflow_id, completed_step_number, total_steps)
         next_step = _load_step_ctx(db, ar.workflow_id, ar.current_step_number, total_steps)
+
+        # Use the completed step's name as the capacity the approver acted in
+        approver_name = _employee_actor_label(approver, completed_step.step_name)
+
+        # Look up the next step's assigned approver
+        next_assignment = (
+            db.query(ApprovalStepAssignment)
+            .filter(
+                ApprovalStepAssignment.approval_request_id == ar.id,
+                ApprovalStepAssignment.step_number == ar.current_step_number,
+            )
+            .first()
+        )
+        next_approver_name = None
+        if next_assignment:
+            next_approver = (
+                db.query(Employee)
+                .options(joinedload(Employee.user))
+                .filter(Employee.id == next_assignment.assigned_to)
+                .first()
+            )
+            if next_approver and next_approver.user:
+                next_approver_name = next_approver.user.full_name or next_approver.employee_no
+
+        # Build pending_with label for next step
+        if next_approver_name:
+            next_pending_with = f"{next_approver_name}, Role: {next_step.step_name}"
+        else:
+            next_pending_with = next_step.step_name
 
         ctx = {
             "db": db,
@@ -390,6 +457,7 @@ def notify_step_progress(
             "step_name":          completed_step.step_name,
             "approver_name":      resolved_approver_name,
             "next_step_name":     next_step.step_name,
+            "next_pending_with":  next_pending_with,
             "action_url":         url,
         })
         email_service._send(requester.user.email, subject, html)
@@ -403,12 +471,14 @@ def notify_request_result(
     action: str,
     comment: str | None = None,
     actor_employee_id: str | None = None,
+    actor_step_name: str | None = None,
 ) -> None:
     """
     Email the requester when their request is fully approved, rejected, or returned.
     Call AFTER db.commit().
 
     action: "approved" | "rejected" | "returned"
+    actor_step_name: The step/role name the actor was acting as (e.g. "Operations Manager")
     """
     try:
         from app.shared.models.approval import ApprovalRequest, AllRequest
@@ -439,7 +509,7 @@ def notify_request_result(
             if actor_employee_id
             else None
         )
-        actor_label = _employee_actor_label(actor)
+        actor_label = _employee_actor_label(actor, actor_step_name)
 
         all_req = (
             db.query(AllRequest)

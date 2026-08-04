@@ -162,3 +162,111 @@ class VendorService:
         vendor.logo_document_id = doc.id
         self.repo.flush()
         return vendor
+
+    # ── Compliance Document Uploads ───────────────────────────────────────────────
+
+    def _upload_vendor_document(
+        self,
+        vendor_id: str,
+        file: UploadFile,
+        uploader_employee_id: str,
+        document_type: str,  # "cac" | "tin" | "vat"
+        document_id_attr: str,  # e.g. "cac_certificate_document_id"
+    ) -> Vendor:
+        """Generic helper to upload a compliance document for a vendor."""
+        vendor = self.get_vendor(vendor_id)
+
+        if file.content_type != "application/pdf":
+            raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+        file_bytes = file.file.read()
+        if len(file_bytes) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File must be 5 MB or smaller")
+
+        url = cloudinary_service.upload(
+            file_bytes,
+            public_id=f"vendor-{vendor_id}-{document_type}",
+            folder="portland-gas/vendor-documents",
+            resource_type="auto",
+        )
+
+        folder = self.repo.get_vendors_folder()
+
+        # Replace existing document if one exists
+        existing_doc_id = getattr(vendor, document_id_attr)
+        if existing_doc_id is not None:
+            existing = self.repo.get_document_by_id(existing_doc_id)
+            if existing:
+                existing.file_path = url
+                existing.file_size = len(file_bytes)
+                existing.mime_type = file.content_type
+                existing.name = file.filename or f"{vendor.name} {document_type.upper()} certificate"
+                self.repo.flush()
+                return vendor
+
+        doc = Document(
+            type="file",
+            name=file.filename or f"{vendor.name} {document_type.upper()} certificate",
+            category="vendor",
+            file_path=url,
+            file_size=len(file_bytes),
+            mime_type=file.content_type,
+            uploaded_by=uploader_employee_id,
+            parent_id=folder.id,
+        )
+        self.repo.add_document(doc)
+        setattr(vendor, document_id_attr, doc.id)
+        self.repo.flush()
+        return vendor
+
+    def upload_cac_certificate(
+        self, vendor_id: str, file: UploadFile, uploader_employee_id: str
+    ) -> Vendor:
+        return self._upload_vendor_document(
+            vendor_id, file, uploader_employee_id, "cac", "cac_certificate_document_id"
+        )
+
+    def upload_tin_certificate(
+        self, vendor_id: str, file: UploadFile, uploader_employee_id: str
+    ) -> Vendor:
+        return self._upload_vendor_document(
+            vendor_id, file, uploader_employee_id, "tin", "tin_certificate_document_id"
+        )
+
+    def upload_vat_certificate(
+        self, vendor_id: str, file: UploadFile, uploader_employee_id: str
+    ) -> Vendor:
+        return self._upload_vendor_document(
+            vendor_id, file, uploader_employee_id, "vat", "vat_certificate_document_id"
+        )
+
+    def delete_vendor_document(
+        self, vendor_id: str, document_type: str
+    ) -> Vendor:
+        """Delete a compliance document from a vendor."""
+        vendor = self.get_vendor(vendor_id)
+
+        attr_map = {
+            "cac": "cac_certificate_document_id",
+            "tin": "tin_certificate_document_id",
+            "vat": "vat_certificate_document_id",
+        }
+        if document_type not in attr_map:
+            raise HTTPException(status_code=400, detail="Invalid document type")
+
+        document_id_attr = attr_map[document_type]
+        doc_id = getattr(vendor, document_id_attr)
+
+        if doc_id is None:
+            raise HTTPException(status_code=404, detail=f"No {document_type.upper()} certificate found")
+
+        # Clear the reference
+        setattr(vendor, document_id_attr, None)
+        self.repo.flush()
+
+        # Optionally delete the document record (keeping for audit trail)
+        # doc = self.repo.get_document_by_id(doc_id)
+        # if doc:
+        #     self.repo.delete_document(doc)
+
+        return vendor

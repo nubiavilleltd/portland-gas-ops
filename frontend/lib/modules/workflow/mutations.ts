@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { post, put, patch, del } from "@/lib/api";
 import { workflowKeys } from "./queries";
+import { WORKFLOW_ERRORS, resolveWorkflowError } from "./errors";
 
 // ── Workflows ──────────────────────────────────────────────────────────────────
 
@@ -154,8 +155,13 @@ function invalidateAfterAction(qc: ReturnType<typeof useQueryClient>) {
 export function useWorkflowApprove() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ approvalRequestId, comment }: ApprovalAction) =>
-      post(`/api/workflow/requests/${approvalRequestId}/approve`, { comment }),
+    mutationFn: async ({ approvalRequestId, comment }: ApprovalAction) => {
+      try {
+        return await post(`/api/workflow/requests/${approvalRequestId}/approve`, { comment });
+      } catch (err) {
+        throw new Error(resolveWorkflowError(err, WORKFLOW_ERRORS.APPROVE));
+      }
+    },
     onSuccess: () => invalidateAfterAction(qc),
   });
 }
@@ -163,8 +169,13 @@ export function useWorkflowApprove() {
 export function useWorkflowReject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ approvalRequestId, comment }: ApprovalAction) =>
-      post(`/api/workflow/requests/${approvalRequestId}/reject`, { comment }),
+    mutationFn: async ({ approvalRequestId, comment }: ApprovalAction) => {
+      try {
+        return await post(`/api/workflow/requests/${approvalRequestId}/reject`, { comment });
+      } catch (err) {
+        throw new Error(resolveWorkflowError(err, WORKFLOW_ERRORS.REJECT));
+      }
+    },
     onSuccess: () => invalidateAfterAction(qc),
   });
 }
@@ -172,8 +183,13 @@ export function useWorkflowReject() {
 export function useWorkflowReturn() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ approvalRequestId, comment }: ApprovalAction) =>
-      post(`/api/workflow/requests/${approvalRequestId}/return`, { comment }),
+    mutationFn: async ({ approvalRequestId, comment }: ApprovalAction) => {
+      try {
+        return await post(`/api/workflow/requests/${approvalRequestId}/return`, { comment });
+      } catch (err) {
+        throw new Error(resolveWorkflowError(err, WORKFLOW_ERRORS.RETURN));
+      }
+    },
     onSuccess: () => invalidateAfterAction(qc),
   });
 }
