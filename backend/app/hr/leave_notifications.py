@@ -212,8 +212,8 @@ def notify_outcome(
         "rejected": dict(
             subject="Leave Not Approved",
             heading="Leave Not Approved",
-            message=f"The leave raised on your behalf was declined by {approver_name}.",
-            status_label="Denied",
+            message=f"The leave raised on your behalf was rejected by {approver_name}.",
+            status_label="Rejected",
             status_color=_RED,
             footnote="Speak to the person who raised it, or your HR team, if you have questions.",
         ),

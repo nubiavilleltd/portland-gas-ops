@@ -23,7 +23,7 @@ export default function ActivityHistory({
     pending:  { bgColor: "bg-amber-50",  textColor: "text-amber-700",  borderColor: "border-amber-200",  badge: "Submitted" },
     approved: { bgColor: "bg-green-50",  textColor: "text-green-700",  borderColor: "border-green-200",  badge: "Approved" },
     rejected: { bgColor: "bg-red-50",    textColor: "text-red-700",    borderColor: "border-red-200",    badge: "Rejected" },
-    denied:   { bgColor: "bg-red-50",    textColor: "text-red-700",    borderColor: "border-red-200",    badge: "Denied" },
+    denied:   { bgColor: "bg-red-50",    textColor: "text-red-700",    borderColor: "border-red-200",    badge: "Rejected" },
   };
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
 
@@ -66,7 +66,7 @@ export default function ActivityHistory({
               </td>
               <td className="px-5 py-4 text-brand-text-secondary whitespace-nowrap">{fmt(submittedAt)}</td>
               <td className="px-5 py-4 text-brand-text-primary">
-                {status === "denied" ? "Request denied — No further action" : "Request submitted — Awaiting Approval"}
+                {status === "denied" ? "Request rejected — No further action" : "Request submitted — Awaiting Approval"}
               </td>
               <td className="px-5 py-4 font-medium text-brand-purple">
                 {status === "denied" ? (
@@ -86,7 +86,7 @@ export default function ActivityHistory({
                 </td>
                 <td className="px-5 py-4">
                   <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-                    Denied
+                    Rejected
                   </span>
                 </td>
                 <td className="px-5 py-4 text-brand-text-secondary whitespace-nowrap">{fmt(submittedAt)}</td>

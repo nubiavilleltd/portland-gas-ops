@@ -83,7 +83,7 @@ export default function ActivityHistory({ initiator, department, submittedAt, st
                 </td>
                 <td className="px-5 py-4">
                   <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-50 text-red-700 border border-red-200">
-                    Denied
+                    Rejected
                   </span>
                 </td>
                 <td className="px-5 py-4 text-brand-text-secondary whitespace-nowrap">{fmt(submittedAt)}</td>

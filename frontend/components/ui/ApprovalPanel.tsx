@@ -194,7 +194,9 @@ export default function ApprovalPanel({
 
   function handleRejectClick() {
     if (requireCommentForRejectReturn && !comment.trim()) {
-      setValidationError("Please add a comment before denying this request.");
+      // Match the wording to this module's own button (Reject / Deny).
+      const verb = rejectLabel === "Deny" ? "denying" : "rejecting";
+      setValidationError(`Please add a comment before ${verb} this request.`);
       return;
     }
     setValidationError("");
