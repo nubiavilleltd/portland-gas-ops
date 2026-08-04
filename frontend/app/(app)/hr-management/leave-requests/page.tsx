@@ -50,7 +50,7 @@ const STATUS_OPTIONS = [
   { value: "in_progress", label: "In Progress" },
   { value: "returned",    label: "Returned" },
   { value: "approved",    label: "Approved" },
-  { value: "denied",      label: "Denied" },
+  { value: "denied",      label: "Rejected" },
   { value: "draft",       label: "Draft" },
 ];
 

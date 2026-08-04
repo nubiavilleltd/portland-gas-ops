@@ -169,7 +169,7 @@ export default function LeaveRequestDetailPage({
               showReject
               showApprove
               returnLabel="Return"
-              rejectLabel="Deny"
+              rejectLabel="Reject"
               approveLabel="Approve"
               requireCommentForRejectReturn
               onReturn={(comment) => handleApprovalAction("draft", comment)}
@@ -199,7 +199,7 @@ export default function LeaveRequestDetailPage({
                   : "text-amber-800"
                 }`}>
                   {actionDone === "approved" ? "Request Approved"
-                    : actionDone === "rejected" ? "Request Denied"
+                    : actionDone === "rejected" ? "Request Rejected"
                     : "Returned"}
                 </p>
                 {actionComment.trim() && (

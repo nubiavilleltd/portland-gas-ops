@@ -34,7 +34,7 @@ const WORKFLOW_STEPS = [
 const AUDIT_ACTION_LABELS: Record<string, string> = {
   submitted: "Submitted",
   approved:  "Approved",
-  rejected:  "Denied",
+  rejected:  "Rejected",
   returned:  "Returned",
 };
 
@@ -112,7 +112,7 @@ export default function CashRequisitionDetailPage({
       // Generic mutations don't invalidate cash-requisitions — refresh this record.
       queryClient.invalidateQueries({ queryKey: ["cash-requisitions"] });
       toast.success(
-        action === "approve" ? "Request approved" : action === "reject" ? "Request denied" : "Returned to requester"
+        action === "approve" ? "Request approved" : action === "reject" ? "Request rejected" : "Returned to requester"
       );
     } catch (err) {
       toast.error(errMsg(err));
@@ -313,7 +313,7 @@ export default function CashRequisitionDetailPage({
               showReject
               showApprove
               returnLabel="Return"
-              rejectLabel="Deny"
+              rejectLabel="Reject"
               approveLabel="Approve"
               requireCommentForRejectReturn
               disabled={isBusy}
@@ -343,7 +343,7 @@ export default function CashRequisitionDetailPage({
                 : "text-amber-800"
               }`}>
                 {terminalStatus === "approved" ? "Request Approved"
-                  : terminalStatus === "denied" ? "Request Denied"
+                  : terminalStatus === "denied" ? "Request Rejected"
                   : "Returned to Requester"}
               </p>
             </div>
