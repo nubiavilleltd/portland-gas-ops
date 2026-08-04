@@ -224,7 +224,7 @@ def get_customer_detail(
 def deactivate_customer(
     db: Session,
     customer_id: str,
-    current_employee,
+    current_user,
 ):
     customer = (
         db.query(CustomersTemp)
@@ -242,9 +242,9 @@ def deactivate_customer(
     log_customer_activity(
             db=db,
             customer=customer_id,
-            current_user=current_employee,
-            action="deactivated",
-            description=f"Customer {customer.customer_name} has been deactivated.",
+            current_user=current_user,
+            action="Deactivated",
+            description=f"Customer ({customer.customer_name}) was deactivated.",
         )
     db.commit()
     db.refresh(customer)
@@ -254,7 +254,7 @@ def deactivate_customer(
 def activate_customer(
     db: Session,
     customer_id: int,
-    current_employee,
+    current_user,
 ):
 
     customer = get_customer(
@@ -267,9 +267,9 @@ def activate_customer(
     log_customer_activity(
         db=db,
         customer=customer_id,
-        current_user=current_employee,
-        action="activated",
-        description=f"Customer {customer.customer_name} has been activated.",
+        current_user=current_user,
+        action="Activated",
+        description=f"Customer ({customer.customer_name}) was activated.",
     )
 
     db.commit()
@@ -537,7 +537,7 @@ def create_contact(
         customer=customer_id,
         current_user=current_employee,
         action="contact_created",
-        description=f"New contact {contact.first_name} {contact.last_name} was added by {current_employee}.",
+        description=f"New contact ({contact.first_name} {contact.last_name}) was added by {current_employee.employee.user.full_name}.",
     )
 
     return contact
@@ -609,7 +609,7 @@ def create_customer(
         db=db,
         customer=str(customer.id),
         action="Customer Created",
-        description=f"Customer {customer.customer_name} was created by {current_user}",
+        description=f"Customer ({customer.customer_name}) was created.",
         current_user=current_user,
     )
 
@@ -621,7 +621,7 @@ def create_customer(
 
 def update_customer(
     db: Session,
-    customer_id: int,
+    customer_id: str,
     data: CustomerUpdate,
     current_user: User,
 ) -> CustomersTemp:
@@ -658,7 +658,7 @@ def update_customer(
         db=db,
         customer=str(customer.id),
         action="Customer Updated",
-        description=f"Customer {customer.customer_name} was updated by {current_user}",
+        description=f"Customer ({customer.customer_name}) was updated.",
         current_user=current_user,
     )
 
@@ -670,7 +670,7 @@ def update_customer(
 
 def delete_customer(
     db: Session,
-    customer_id: int,
+    customer_id: str,
     current_user: User,
 ):
 
@@ -693,7 +693,7 @@ def delete_customer(
         db=db,
         customer=str(customer.id),
         action="Customer Deactivated",
-        description=f"Customer {customer.customer_name} has been deactivated.",
+        description=f"Customer ({customer.customer_name}) was deactivated.",
         current_user=current_user,
     )
 

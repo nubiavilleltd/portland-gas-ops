@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
-
+from sqlalchemy import (Column)
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.crm.model import (

@@ -11,6 +11,8 @@ import { BackButton } from "@/components/ui/BackButton";
 import {
   useCustomerOnboardingDetails,
   useCustomerContactDetails,
+  useActivateCustomer,
+  useDeactivateCustomer,
 } from "@/lib/modules/crm";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
@@ -25,6 +27,7 @@ import { Skeleton } from "@/lib/modules/crm/components/Skeleton";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
 import { useCRMActivityByCustomer } from "@/lib/modules/crm";
+import { toast } from "sonner";
 
 export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +37,8 @@ export default function CustomerDetailsPage() {
     useCustomerOnboardingDetails(id);
   const { data: contacts } = useCustomerContactDetails(id);
   const { entries } = useCRMActivityByCustomer(id);
+  const deactivateCustomerMutation = useDeactivateCustomer();
+  const activateCustomerMutation = useActivateCustomer();
 
   const { data: employees = [], isLoading: employeesLoading } = useEmployees();
 
@@ -60,9 +65,10 @@ export default function CustomerDetailsPage() {
     );
   }
 
-  if (!customer) return null;
-
-  console.log(customer, contacts, "data fetched");
+  if (!customer)
+    return (
+      <AppLayout pageTitle="Customer Details">Customer not found.</AppLayout>
+    );
   const isActive = customer?.status?.toLowerCase() === "active";
 
   const readOnly = true;
@@ -80,17 +86,65 @@ export default function CustomerDetailsPage() {
 
   const canManage =
     isAdmin || customer.created_by === currentUser?.employee?.id;
+
+  async function activateCustomer() {
+    try {
+      await activateCustomerMutation.mutateAsync(id);
+
+      toast.success("Customer activated successfully.");
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail?.message ??
+          "Failed to activate customer.",
+      );
+    }
+  }
+
+  async function deactivateCustomer() {
+    try {
+      await deactivateCustomerMutation.mutateAsync(id);
+
+      toast.success("Customer deactivated successfully.");
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail?.message ??
+          "Failed to deactivate customer.",
+      );
+    }
+  }
+
+  const canActivateDeactivate = isAdmin;
+
   return (
     <AppLayout pageTitle="Customer Details">
       <div className="flex justify-between mb-2">
         <BackButton href="/crm/customers" label="Back to Customers" />
 
         <div>
-          {canManage && (
+          {canActivateDeactivate && customer.status !== "inactive" && (
+            <Button
+              variant="outline"
+              loading={deactivateCustomerMutation.isPending}
+              onClick={deactivateCustomer}
+            >
+              Deactivate Customer
+            </Button>
+          )}
+
+          {canActivateDeactivate && customer.status === "inactive" && (
+            <Button
+              variant="outline"
+              loading={activateCustomerMutation.isPending}
+              onClick={activateCustomer}
+            >
+              Activate Customer
+            </Button>
+          )}
+          {canManage && customer.status !== "inactive" && (
             <>
               <Button
                 variant="outline"
-                className="mr-2"
+                className="mr-2 ml-2"
                 href={`/crm/customers/${customer.id}/edit`}
               >
                 Edit Customer
@@ -105,7 +159,7 @@ export default function CustomerDetailsPage() {
           )}
         </div>
       </div>
-      <div className="space-y-6">
+      <div className="space-y-6 mb-3">
         <RoleBasedRecordHeader
           id={customer.customer_no}
           currentRole="crm_admin"

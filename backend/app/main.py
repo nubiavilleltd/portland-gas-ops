@@ -72,6 +72,7 @@ from app.notifications.router import router as notifications_router
 from app.setups.router import router as setups_router
 from app.push.router import router as push_router
 from app.crm.router import router as crm_router
+from app.crm.activity.router import router as crm_activity_router
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -165,7 +166,10 @@ app.include_router(notifications_router, prefix="/api/notifications", tags=["Not
 app.include_router(push_router,          prefix="/api/push",          tags=["Push"])
 app.include_router(setups_router, prefix="/api/setups", tags=["Setups"])
 app.include_router(crm_router, prefix="/api/crm", tags=["CRM"])
-
+app.include_router(
+    crm_activity_router,
+    prefix="/crm",
+)
 @app.get("/api/health")
 def health_check():
     return {"status": "healthy", "app": "Portland Gas Operations API"}
