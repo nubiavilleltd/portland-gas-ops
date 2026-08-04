@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   Menu,
@@ -48,6 +48,24 @@ const NAV_LINKS = [
   { label: "FAQ",     href: "/faq" },
 ];
 
+// ── Deep-link paths for notification references ────────────────────────────────
+const REFERENCE_PATHS: Record<string, string> = {
+  procurement:        "/procurement",
+  asset:              "/assets/requests",
+  leave:              "/hr-management/leave-requests",
+  cash_requisition:   "/finance/cash-requisitions",
+  invoice:            "/finance/invoices",
+  work_initiation:    "/safety/work-initiation",
+  work_authorization: "/safety/work-authorization",
+  work_closeout:      "/safety/work-close-out",
+};
+
+function buildNotificationUrl(n: AppNotification): string | null {
+  if (!n.reference_type || !n.reference_id) return null;
+  const path = REFERENCE_PATHS[n.reference_type];
+  return path ? `${path}/${n.reference_id}` : null;
+}
+
 // ── Icon + colour per notification type ────────────────────────────────────────
 const TYPE_META: Record<NotificationType, { icon: React.ElementType; color: string; bg: string }> = {
   approval_required: { icon: Clock,       color: "#B45309", bg: "#FFFBEB" },
@@ -81,6 +99,7 @@ interface Props { children: React.ReactNode }
 
 export default function IntranetLayout({ children }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useCurrentUser();
   const { logout } = useAuth();
   const [mobileOpen,  setMobileOpen]  = useState(false);
@@ -170,7 +189,15 @@ export default function IntranetLayout({ children }: Props) {
   }, []);
 
   function handleNotifClick(n: AppNotification) {
+    // Mark as read if not already
     if (!n.is_read) markRead.mutate(n.id);
+
+    // Close the dropdown
+    setNotifOpen(false);
+
+    // Navigate to the related request if there's a URL
+    const url = buildNotificationUrl(n);
+    if (url) router.push(url);
   }
 
   return (

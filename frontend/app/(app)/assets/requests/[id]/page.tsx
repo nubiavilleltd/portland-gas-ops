@@ -71,7 +71,7 @@ export default function AssetRequestDetailPage() {
       }
     } catch (err) {
       setIsActioning(false);
-      toast.error((err as { detail?: string })?.detail ?? "Failed to update request");
+      toast.error((err as Error).message);
     }
   }
 
@@ -79,8 +79,8 @@ export default function AssetRequestDetailPage() {
     try {
       await updateStatus.mutateAsync({ status: "returned" });
       toast.success("Marked as returned");
-    } catch {
-      toast.error("Failed to update");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   }
 

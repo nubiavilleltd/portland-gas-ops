@@ -111,12 +111,10 @@ def on_rejected(ctx: dict) -> dict | None:
         req = _get_req(ctx["db"], ar.request_id)
         if not req:
             return None
-        comment = ctx.get("comment")
         return {
             "result_message": (
-                f"Your asset request {req.reference} has been rejected. "
-                + (f"Reason: {comment} " if comment else "")
-                + "Please contact the Asset Management team if you have questions."
+                f"Your asset request {req.reference} has been rejected.<br>"
+                "Please contact the Asset Management team if you have questions."
             )
         }
     except Exception:

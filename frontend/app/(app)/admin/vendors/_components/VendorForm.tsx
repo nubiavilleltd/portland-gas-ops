@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Upload, X } from "lucide-react";
+import { ArrowLeft, Upload, X, FileText, Trash2 } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
@@ -12,7 +12,7 @@ import FormInput from "@/components/forms/FormInput";
 import FormPhoneInput from "@/components/forms/FormPhoneInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormSelect from "@/components/forms/FormSelect";
-import type { VendorCategory } from "@/types";
+import type { VendorCategory, VendorSize } from "@/types";
 
 const CATEGORY_OPTIONS = [
   { value: "equipment",     label: "EQUIPMENT" },
@@ -25,9 +25,15 @@ const CATEGORY_OPTIONS = [
   { value: "logistics",     label: "LOGISTICS" },
 ];
 
+const BUSINESS_SIZE_OPTIONS = [
+  { value: "small",        label: "Small (Turnover ≤ ₦25 million)" },
+  { value: "medium_large", label: "Medium / Large (Turnover > ₦25 million)" },
+];
+
 export interface VendorFormValues {
   name: string;
   category: VendorCategory | "";
+  business_size: VendorSize | "";
   contact_person: string;
   phone: string;
   email: string;
@@ -36,32 +42,52 @@ export interface VendorFormValues {
   account_name: string;
   account_number: string;
   logo_url: string;
+  // Existing document URLs (from backend)
+  cac_certificate_url: string;
+  tin_certificate_url: string;
+  vat_certificate_url: string;
 }
 
 export const EMPTY_VENDOR_FORM: VendorFormValues = {
-  name: "", category: "", contact_person: "", phone: "",
+  name: "", category: "", business_size: "", contact_person: "", phone: "",
   email: "", address: "", bank_name: "", account_name: "", account_number: "",
-  logo_url: "",
+  logo_url: "", cac_certificate_url: "", tin_certificate_url: "", vat_certificate_url: "",
 };
+
+export interface VendorDocumentFiles {
+  cac: File | null;
+  tin: File | null;
+  vat: File | null;
+}
 
 interface Props {
   title: string;
   description: string;
   initial: VendorFormValues;
   loading: boolean;
-  onSubmit: (values: VendorFormValues, logoFile: File | null) => void;
+  onSubmit: (values: VendorFormValues, logoFile: File | null, documentFiles: VendorDocumentFiles) => void;
 }
 
 export default function VendorForm({ title, description, initial, loading, onSubmit }: Props) {
   const [form, setForm] = useState<VendorFormValues>(initial);
-  const [errors, setErrors] = useState<Partial<Record<keyof VendorFormValues, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof VendorFormValues | "cac" | "tin" | "vat", string>>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>(initial.logo_url || "");
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Document files state
+  const [documentFiles, setDocumentFiles] = useState<VendorDocumentFiles>({ cac: null, tin: null, vat: null });
+  const cacInputRef = useRef<HTMLInputElement>(null);
+  const tinInputRef = useRef<HTMLInputElement>(null);
+  const vatInputRef = useRef<HTMLInputElement>(null);
+
   const MAX_LOGO_SIZE_MB = 2;
   const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
+  const MAX_DOC_SIZE_MB = 5;
+  const MAX_DOC_SIZE_BYTES = MAX_DOC_SIZE_MB * 1024 * 1024;
+
+  const isMediumLarge = form.business_size === "medium_large";
 
   function set(field: keyof VendorFormValues, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -82,10 +108,36 @@ export default function VendorForm({ title, description, initial, loading, onSub
     setLogoPreview(URL.createObjectURL(file));
   }
 
+  function handleDocumentChange(docType: keyof VendorDocumentFiles, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setErrors((prev) => ({ ...prev, [docType]: "Only PDF files are allowed" }));
+      return;
+    }
+
+    if (file.size > MAX_DOC_SIZE_BYTES) {
+      setErrors((prev) => ({ ...prev, [docType]: `File is too large. Maximum size is ${MAX_DOC_SIZE_MB} MB.` }));
+      return;
+    }
+
+    setErrors((prev) => ({ ...prev, [docType]: undefined }));
+    setDocumentFiles((prev) => ({ ...prev, [docType]: file }));
+  }
+
+  function clearDocument(docType: keyof VendorDocumentFiles) {
+    setDocumentFiles((prev) => ({ ...prev, [docType]: null }));
+    // Clear the existing URL if removing
+    const urlField = `${docType}_certificate_url` as keyof VendorFormValues;
+    setForm((f) => ({ ...f, [urlField]: "" }));
+  }
+
   function validate() {
     const e: typeof errors = {};
     if (!form.name.trim())           e.name           = "Vendor name is required";
     if (!form.category)              e.category       = "Category is required";
+    if (!form.business_size)         e.business_size  = "Business size is required";
     if (!form.contact_person.trim()) e.contact_person = "Contact person is required";
     if (!form.phone.trim())          e.phone          = "Phone number is required";
     if (!form.email.trim())          e.email          = "Email address is required";
@@ -95,6 +147,22 @@ export default function VendorForm({ title, description, initial, loading, onSub
     if (!form.account_name.trim())   e.account_name   = "Account name is required";
     if (!form.account_number.trim()) e.account_number = "Account number is required";
     else if (!/^\d{10}$/.test(form.account_number)) e.account_number = "Account number must be exactly 10 digits";
+
+    // Document requirements - only validate if business_size is set
+    if (form.business_size) {
+      // CAC & TIN are required for all vendors
+      const hasCac = !!form.cac_certificate_url || !!documentFiles.cac;
+      const hasTin = !!form.tin_certificate_url || !!documentFiles.tin;
+      if (!hasCac) e.cac = "CAC certificate is required";
+      if (!hasTin) e.tin = "TIN certificate is required";
+
+      // VAT is required only for medium/large vendors
+      if (form.business_size === "medium_large") {
+        const hasVat = !!form.vat_certificate_url || !!documentFiles.vat;
+        if (!hasVat) e.vat = "VAT certificate is required for medium/large businesses";
+      }
+    }
+
     return e;
   }
 
@@ -102,7 +170,91 @@ export default function VendorForm({ title, description, initial, loading, onSub
     ev.preventDefault();
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
-    onSubmit(form, logoFile);
+    onSubmit(form, logoFile, documentFiles);
+  }
+
+  // Helper to render document upload row
+  function DocumentUploadRow({
+    label,
+    docType,
+    required,
+    existingUrl,
+    file,
+    inputRef,
+    error,
+  }: {
+    label: string;
+    docType: keyof VendorDocumentFiles;
+    required: boolean;
+    existingUrl: string;
+    file: File | null;
+    inputRef: React.RefObject<HTMLInputElement | null>;
+    error?: string;
+  }) {
+    const hasExisting = !!existingUrl;
+    const hasFile = !!file;
+
+    return (
+      <div className="flex items-start justify-between py-3 border-b border-brand-border last:border-b-0">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-brand-text-primary">
+              {label}
+              {required && <span className="text-red-500 ml-0.5">*</span>}
+            </p>
+            {(hasExisting || hasFile) && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                Uploaded
+              </span>
+            )}
+          </div>
+          {hasFile && (
+            <p className="text-xs text-brand-text-secondary mt-1 truncate">{file.name}</p>
+          )}
+          {hasExisting && !hasFile && (
+            <a
+              href={existingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-brand-purple hover:underline mt-1 inline-block"
+            >
+              View document
+            </a>
+          )}
+          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        </div>
+        <div className="flex items-center gap-2 ml-4">
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleDocumentChange(docType, e)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            leftIcon={<Upload size={14} />}
+            onClick={() => inputRef.current?.click()}
+          >
+            {hasExisting || hasFile ? "Replace" : "Upload"}
+          </Button>
+          {(hasExisting || hasFile) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              leftIcon={<Trash2 size={14} />}
+              onClick={() => clearDocument(docType)}
+              className="text-red-500 hover:text-red-700"
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -192,6 +344,16 @@ export default function VendorForm({ title, description, initial, loading, onSub
               error={errors.category}
               sortOptions={false}
             />
+            <FormSelect
+              label="Business Size"
+              required
+              placeholder="Select business size…"
+              options={BUSINESS_SIZE_OPTIONS}
+              value={form.business_size}
+              onValueChange={(v) => set("business_size", v)}
+              error={errors.business_size}
+              sortOptions={false}
+            />
             <FormInput
               label="Contact Person"
               required
@@ -273,6 +435,60 @@ export default function VendorForm({ title, description, initial, loading, onSub
               error={errors.account_number}
             />
           </div>
+        </FormSection>
+
+        {/* Compliance Documents */}
+        <FormSection
+          title="Compliance Documents"
+          description={
+            form.business_size
+              ? form.business_size === "small"
+                ? "CAC and TIN certificates are required. VAT is optional for small businesses."
+                : "CAC, TIN and VAT certificates are required for medium/large businesses"
+              : "Select a business size above to see document requirements"
+          }
+        >
+          {form.business_size ? (
+            <div className="divide-y divide-brand-border">
+              <DocumentUploadRow
+                label="CAC Certificate"
+                docType="cac"
+                required
+                existingUrl={form.cac_certificate_url}
+                file={documentFiles.cac}
+                inputRef={cacInputRef}
+                error={errors.cac}
+              />
+              <DocumentUploadRow
+                label="TIN Certificate"
+                docType="tin"
+                required
+                existingUrl={form.tin_certificate_url}
+                file={documentFiles.tin}
+                inputRef={tinInputRef}
+                error={errors.tin}
+              />
+              <DocumentUploadRow
+                label="VAT Certificate"
+                docType="vat"
+                required={isMediumLarge}
+                existingUrl={form.vat_certificate_url}
+                file={documentFiles.vat}
+                inputRef={vatInputRef}
+                error={errors.vat}
+              />
+            </div>
+          ) : (
+            <div className="py-8 text-center">
+              <FileText size={32} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-sm text-brand-text-secondary">
+                Please select a business size above to see the required documents.
+              </p>
+            </div>
+          )}
+          <p className="text-xs text-brand-text-secondary mt-4">
+            PDF files only. Max 5 MB per document.
+          </p>
         </FormSection>
 
         {/* Actions */}

@@ -13,23 +13,23 @@ import PrimaryContactCard from "@/lib/modules/crm/components/PrimaryContactCard"
 import AddressInformationCard from "@/lib/modules/crm/components/AddressInformationCard";
 import CommercialInformationCard from "@/lib/modules/crm/components/CommercialInformationCard";
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
-import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
+import { useCustomerDetails, useUpdateCustomer } from "@/lib/modules/crm";
+import { Skeleton } from "@/lib/modules/crm/components/Skeleton";
+import { useEmployees } from "@/lib/modules/employees/hooks";
 import {
-  useCustomerDetails,
-  useUpdateCustomer,
-  useDeactivateCustomer,
-  useActivateCustomer,
-} from "@/lib/modules/crm";
+  validateCustomer,
+  buildCustomerPayload,
+} from "@/lib/modules/crm/utils/customer";
 
 export default function EditCustomerPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const { user: currentUser } = useCurrentUser();
 
   const { data: customer, isLoading } = useCustomerDetails(id);
   const updateCustomer = useUpdateCustomer();
-  const deactivateCustomerMutation = useDeactivateCustomer();
-  const dctivateCustomerMutation = useActivateCustomer();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
   const [form, setForm] = useState<any>({
@@ -43,7 +43,7 @@ export default function EditCustomerPage() {
     industry: "",
     salesContact: "",
     referrerType: "employee",
-    referrer: "",
+    referrerId: "",
     customerType: "potential",
     contactPerson: "",
     department: "",
@@ -57,21 +57,13 @@ export default function EditCustomerPage() {
     addressLine1: "",
     addressLine2: "",
     postalCode: "",
-
+    companyEmail: "",
     preferredProducts: [],
     supplyMethod: "",
     estimatedMonthlyDemand: "",
-
-    attachments: {
-      cacCertificate: null,
-      tinCertificate: null,
-      vatCertificate: null,
-      businessLogo: null,
-      otherDocuments: [],
-    },
-
     internalNotes: "",
   });
+  const { data: employees = [] } = useEmployees();
 
   useEffect(() => {
     if (!customer) return;
@@ -80,40 +72,29 @@ export default function EditCustomerPage() {
       customerName: customer.customer_name ?? "",
       entityType: customer.entity_type ?? "company",
       category: customer.category ?? "",
-
       rcNumber: customer.rc_number ?? "",
       tin: customer.tin ?? "",
       vatNumber: customer.vat_number ?? "",
       industry: customer.industry ?? "",
       salesContact: customer.sales_contact ?? "",
       referrerType: customer.referrer_type ?? "employee",
-      referrer: customer.referrer ?? "",
+      referrerId: customer.referrer_id ?? "",
       customerType: customer.customer_type ?? "potential",
       contactPerson: customer.contact_person ?? "",
       department: customer.department ?? "",
       email: customer.email ?? "",
       phone: customer.phone ?? "",
       alternatePhone: customer.alternate_phone ?? "",
-
+      companyEmail: customer.company_email ?? "",
       country: customer.country ?? "Nigeria",
       state: customer.state ?? "",
       city: customer.city ?? "",
       addressLine1: customer.address_line1 ?? "",
       addressLine2: customer.address_line2 ?? "",
       postalCode: customer.postal_code ?? "",
-
       preferredProducts: customer.preferred_products ?? [],
       supplyMethod: customer.supply_method ?? "",
       estimatedMonthlyDemand: customer.estimated_monthly_demand ?? "",
-
-      attachments: {
-        cacCertificate: null,
-        tinCertificate: null,
-        vatCertificate: null,
-        businessLogo: null,
-        otherDocuments: [],
-      },
-
       internalNotes: customer.internal_notes ?? "",
     });
   }, [customer]);
@@ -132,122 +113,64 @@ export default function EditCustomerPage() {
     }
   }
 
-  function validate() {
-    const error: any = {};
+  async function updateCustomerInfo() {
+    const { valid, errors } = validateCustomer(form);
 
-    if (!form.customerName) error.customerName = "Customer name is required";
+    if (!valid) {
+      setErrors(errors);
+      toast.error("Please correct the highlighted errors.");
+      return;
+    }
 
-    if (!form.category) error.category = "Customer category is required";
+    try {
+      const payload = buildCustomerPayload(form, customer.status);
 
-    if (!form.contactPerson) error.contactPerson = "Contact person is required";
+      await updateCustomer.mutateAsync({
+        id,
+        data: payload,
+      });
 
-    if (!form.email) error.email = "Email is required";
-    if (!form.salesContact) error.salesContact = "Sales contact is required";
+      toast.success("Customer updated successfully.");
 
-    if (!form.referrerType) error.referrerType = "Referrer type is required";
-
-    if (!form.referrer) error.referrer = "Referrer is required";
-    if (!form.phone) error.phone = "Phone number is required";
-
-    if (!form.addressLine1) error.addressLine1 = "Address is required";
-
-    setErrors(error);
-
-    return Object.keys(error).length === 0;
+      router.push(`/crm/customers/${id}`);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail?.message ??
+          error?.response?.data?.detail ??
+          "Failed to update customer. Please try again.",
+      );
+    }
   }
 
-  async function submitForApproval() {
-    if (!validate()) return;
+  const isAdmin =
+    currentUser?.role === "admin" || currentUser?.role === "super_admin";
 
-    const payload = {
-      id,
-      ...form,
-      action: "submit",
-      status: "submitted",
-    };
+  const currentEmployee = employees.find(
+    (employee) => employee.id === currentUser?.employee?.id,
+  );
+  const isOwner = currentEmployee?.id === customer?.created_by;
 
-    await updateCustomer.mutateAsync({
-      id,
-      data: {
-        customer_name: form.customerName,
-        entity_type: form.entityType,
-        category: form.category,
-
-        rc_number: form.rcNumber,
-        tin: form.tin,
-        vat_number: form.vatNumber,
-        industry: form.industry,
-
-        customer_type: form.customerType,
-        sales_contact: form.salesContact || null,
-        referrer_type: form.referrerType,
-        referrer_id: form.referrer,
-
-        contact_person: form.contactPerson,
-        department: form.department,
-
-        email: form.email,
-        phone: form.phone,
-        alternate_phone: form.alternatePhone,
-
-        country: form.country,
-        state: form.state,
-        city: form.city,
-
-        address_line1: form.addressLine1,
-        address_line2: form.addressLine2,
-        postal_code: form.postalCode,
-
-        preferred_products: form.preferredProducts,
-        supply_method: form.supplyMethod,
-        estimated_monthly_demand: form.estimatedMonthlyDemand,
-
-        internal_notes: form.internalNotes,
-      },
-    });
-
-    toast.success("Customer details have been submitted successfully.");
-
-    setTimeout(() => {
-      router.push("/crm/customers");
-    }, 1000);
-  }
-
-  async function activateCustomer() {
-    const payload = {
-      id,
-      action: "deactivate",
-      status: "inactive",
-    };
-
-    await dctivateCustomerMutation.mutateAsync(id);
-
-    toast.success("Customer has been deactivated successfully.");
-
-    setTimeout(() => {
-      router.push("/crm/customers");
-    }, 1000);
-  }
-  async function deactivateCustomer() {
-    const payload = {
-      id,
-      action: "deactivate",
-      status: "inactive",
-    };
-
-    await deactivateCustomerMutation.mutateAsync(id);
-
-    toast.success("Customer has been deactivated successfully.");
-
-    setTimeout(() => {
-      router.push("/crm/customers");
-    }, 1000);
-  }
+  const canEdit = isAdmin || isOwner;
 
   if (isLoading) {
     return (
       <AppLayout pageTitle="Edit Customer">
-        <div className="flex justify-center py-20">Loading...</div>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-60" />
+
+          <div className="rounded-xl p-6 space-y-4">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+
+          <div className="rounded-xl p-6 space-y-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
       </AppLayout>
     );
   }
@@ -263,38 +186,27 @@ export default function EditCustomerPage() {
       />
 
       <div className="space-y-6">
-        <RequesterDetailsSection
-          requester={{
-            name: customer.submitted_by,
-            department: "Commercial",
-            role: "Sales Executive",
-            requestDate: customer.submitted_at,
-          }}
-        />
-
         <CustomerInformationCard
           values={{
             customerName: form.customerName,
             entityType: form.entityType,
-            companyEmail: customer.company_email,
+            companyEmail: form.companyEmail,
             category: form.category,
           }}
           errors={errors}
           onChange={handleChange}
         />
 
-        {form.entityType === "company" && (
-          <BusinessInformationCard
-            values={{
-              rcNumber: form.rcNumber,
-              tin: form.tin,
-              vatNumber: form.vatNumber,
-              industry: form.industry,
-            }}
-            errors={errors}
-            onChange={handleChange}
-          />
-        )}
+        <BusinessInformationCard
+          values={{
+            rcNumber: form.rcNumber,
+            tin: form.tin,
+            vatNumber: form.vatNumber,
+            industry: form.industry,
+          }}
+          errors={errors}
+          onChange={handleChange}
+        />
 
         <PrimaryContactCard
           values={{
@@ -335,7 +247,7 @@ export default function EditCustomerPage() {
             customerType: form.customerType,
             salesContact: form.salesContact,
             referrerType: form.referrerType,
-            referrerId: form.referrer,
+            referrerId: form.referrerId,
           }}
           errors={errors}
           onChange={handleChange}
@@ -346,34 +258,20 @@ export default function EditCustomerPage() {
         />
 
         <div className="flex justify-between pb-10">
-          <Button
-            variant="outline"
-            loading={deactivateCustomerMutation.isPending}
-            onClick={deactivateCustomer}
-          >
-            Deactivate Customer
-          </Button>
+          {canEdit && (
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => router.back()}>
+                Cancel
+              </Button>
 
-          <Button
-            variant="outline"
-            loading={deactivateCustomerMutation.isPending}
-            onClick={activateCustomer}
-          >
-            Activate Customer
-          </Button>
-
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => router.back()}>
-              Cancel
-            </Button>
-
-            <Button
-              onClick={submitForApproval}
-              loading={updateCustomer.isPending}
-            >
-              Save & Submit
-            </Button>
-          </div>
+              <Button
+                loading={updateCustomer.isPending}
+                onClick={updateCustomerInfo}
+              >
+                Save Changes
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

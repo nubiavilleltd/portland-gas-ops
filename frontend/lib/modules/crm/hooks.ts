@@ -86,7 +86,6 @@ export function useCustomers() {
     queryKey: ["crm", "customers"],
     queryFn: async () => {
       const { data } = await api.get("api/crm");
-      console.log(data, "data");
       return data;
     },
   });
@@ -100,31 +99,6 @@ export function useCustomerDetails(id: string) {
     queryFn: async () => {
       const response = await api.get(`api/crm/${id}`);
       return response.data;
-    },
-  });
-}
-
-export function useActivateCustomer() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const response = await api.patch(`api/crm/${id}/activate`);
-      return response.data;
-    },
-
-    onSuccess: (customer) => {
-      queryClient.invalidateQueries({
-        queryKey: ["crm", "customers"],
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["crm", "customers", customer.id],
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: ["crm", "dashboard"],
-      });
     },
   });
 }
@@ -154,12 +128,38 @@ export function useUpdateCustomer() {
       });
 
       queryClient.invalidateQueries({
-        queryKey: ["crm", "dashboard"],
+        queryKey: ["crm", "activity", customer.id],
       });
     },
   });
 }
 
+export function useActivateCustomer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.patch(`api/crm/${id}/activate`);
+      return response.data;
+    },
+
+    onSuccess: (customer) => {
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customers"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customers", customer.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity", customer.id],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "dashboard"],
+      });
+    },
+  });
+}
 export function useDeactivateCustomer() {
   const queryClient = useQueryClient();
 
@@ -174,9 +174,11 @@ export function useDeactivateCustomer() {
       queryClient.invalidateQueries({
         queryKey: ["crm", "customers"],
       });
-
       queryClient.invalidateQueries({
         queryKey: ["crm", "customers", customer.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity", customer.id],
       });
 
       queryClient.invalidateQueries({

@@ -82,6 +82,7 @@ export default function AccountManagementCard({
           error={errors.salesContact}
           employees={employees}
           value={selectedSalesContact}
+          disabled={readOnly}
           required
           onChange={(employee) =>
             onChange("salesContact", employee ? String(employee.id) : null)
@@ -108,6 +109,7 @@ export default function AccountManagementCard({
             employees={employees}
             error={errors.referrerId}
             required
+            disabled={readOnly}
             value={selectedReferrer}
             onChange={(employee) =>
               onChange("referrerId", employee ? String(employee.id) : "")

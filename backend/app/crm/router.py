@@ -136,7 +136,7 @@ def create_customer(
     response_model=CustomerResponse,
 )
 def update_customer(
-    customer_id: int,
+    customer_id: str,
     data: CustomerUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

@@ -93,7 +93,6 @@ export default function NewCustomerPage() {
     }
     try {
       const payload = buildCustomerPayload(form, "active");
-      console.log(form, payload, "data to save");
 
       await createCustomer.mutateAsync(payload);
 

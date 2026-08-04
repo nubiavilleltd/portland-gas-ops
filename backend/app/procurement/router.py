@@ -141,11 +141,12 @@ def list_requests(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     status: Optional[str] = Query(None),
+    vendor_id: Optional[str] = Query(None, description="Filter by vendor ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     employee = get_employee_by_user_id(current_user.id, db)
-    requests = _svc(db).list_requests(current_user, employee, skip=skip, limit=limit, status_filter=status)
+    requests = _svc(db).list_requests(current_user, employee, skip=skip, limit=limit, status_filter=status, vendor_id=vendor_id)
 
     # Single JOIN query to get the next actor for every pending or awaiting_confirmation row
     # (awaiting_confirmation requests have step 5 still active in the workflow)

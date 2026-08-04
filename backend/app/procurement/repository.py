@@ -49,12 +49,15 @@ class ProcurementRepository:
         limit: int = 50,
         raised_by: str | None = None,
         status: str | None = None,
+        vendor_id: str | None = None,
     ) -> list[ProcurementRequest]:
         q = self._eager()
         if raised_by:
             q = q.filter(ProcurementRequest.raised_by == raised_by)
         if status:
             q = q.filter(ProcurementRequest.status == status)
+        if vendor_id:
+            q = q.filter(ProcurementRequest.vendor_id == vendor_id)
         return q.order_by(ProcurementRequest.created_at.desc()).offset(skip).limit(limit).all()
 
     def add(self, request: ProcurementRequest) -> ProcurementRequest:

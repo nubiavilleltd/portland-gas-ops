@@ -130,7 +130,7 @@ export default function ApprovalPanel({
   extraFields,
 
   showComment = true,
-  commentLabel = "Comment (optional)",
+  commentLabel = "Comment",
   commentPlaceholder = "Add a comment before submitting your decision…",
   commentRequired = false,
   commentMaxLength = 500,
