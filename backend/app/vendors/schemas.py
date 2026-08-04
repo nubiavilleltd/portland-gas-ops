@@ -13,13 +13,14 @@ The schema owns the API surface — what is accepted and what is exposed.
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
-from app.vendors.models import VendorCategory, VendorStatus, VendorType
+from app.vendors.models import VendorCategory, VendorStatus, VendorType, VendorSize
 
 
 class VendorCreate(BaseModel):
     name: str
     category: VendorCategory
     vendor_type: VendorType = VendorType.approved
+    business_size: Optional[VendorSize] = None  # Required for approved vendors, optional for adhoc
     contact_person: str
     phone: str
     email: EmailStr
@@ -32,6 +33,7 @@ class VendorCreate(BaseModel):
 class VendorUpdate(BaseModel):
     name: Optional[str] = None
     category: Optional[VendorCategory] = None
+    business_size: Optional[VendorSize] = None
     contact_person: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -47,6 +49,7 @@ class VendorResponse(BaseModel):
     name: str
     category: VendorCategory
     vendor_code: Optional[str]
+    business_size: Optional[VendorSize]
     contact_person: Optional[str]
     phone: Optional[str]
     email: Optional[str]
@@ -56,6 +59,13 @@ class VendorResponse(BaseModel):
     account_number: Optional[str]
     logo_url: Optional[str]          # derived from logo_document.file_path via model property
     logo_document_id: Optional[int]
+    # Compliance documents
+    cac_certificate_url: Optional[str]
+    cac_certificate_document_id: Optional[int]
+    tin_certificate_url: Optional[str]
+    tin_certificate_document_id: Optional[int]
+    vat_certificate_url: Optional[str]
+    vat_certificate_document_id: Optional[int]
     vendor_type: VendorType
     status: VendorStatus
     added_by: Optional[str]

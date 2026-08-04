@@ -90,10 +90,11 @@ class ProcurementService:
         skip: int = 0,
         limit: int = 50,
         status_filter: str | None = None,
+        vendor_id: str | None = None,
     ) -> list[ProcurementRequest]:
         # Staff only see their own requests; admin/super_admin see all
         raised_by = None if current_user.role in (UserRole.admin, UserRole.super_admin) else employee.id
-        return self.repo.list(skip=skip, limit=limit, raised_by=raised_by, status=status_filter)
+        return self.repo.list(skip=skip, limit=limit, raised_by=raised_by, status=status_filter, vendor_id=vendor_id)
 
     def get_request(self, request_id: str, current_user: User, employee: Employee) -> ProcurementRequest:
         req = self._get_or_404(request_id)

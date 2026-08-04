@@ -40,14 +40,15 @@ export default function EmployeePicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const filtered = query.trim()
+  const filtered = (query.trim()
     ? employees.filter(
       (e) =>
         e.name.toLowerCase().includes(query.toLowerCase()) ||
         e.department.toLowerCase().includes(query.toLowerCase()) ||
         e.role.toLowerCase().includes(query.toLowerCase())
     )
-    : employees;
+    : employees
+  ).toSorted((a, b) => a.name.localeCompare(b.name));
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

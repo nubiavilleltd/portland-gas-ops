@@ -28,6 +28,16 @@ class VendorType(str, enum.Enum):
     adhoc    = "adhoc"      # created inline during a procurement request by a regular user
 
 
+class VendorSize(str, enum.Enum):
+    """
+    Business size classification based on annual turnover (Nigerian standards).
+    - small: Turnover ≤ ₦25 million — VAT registration not required
+    - medium_large: Turnover > ₦25 million — VAT registration required
+    """
+    small        = "small"         # ≤ ₦25m turnover
+    medium_large = "medium_large"  # > ₦25m turnover
+
+
 class Vendor(Base):
     __tablename__ = "vendors"
 
@@ -47,6 +57,14 @@ class Vendor(Base):
     vendor_code       = Column(String(20), nullable=True, unique=True, index=True)  # e.g. AT-K7M2
     logo_document_id  = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
 
+    # Business classification — determines document requirements
+    business_size = Column(SAEnum(VendorSize), nullable=True)  # small (≤₦25m) or medium_large (>₦25m)
+
+    # Compliance documents — stored in documents table, linked here
+    cac_certificate_document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    tin_certificate_document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    vat_certificate_document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+
     vendor_type = Column(SAEnum(VendorType), nullable=False, default=VendorType.approved)
     status = Column(SAEnum(VendorStatus), nullable=False, default=VendorStatus.active)
     added_by = Column(CHAR(36), ForeignKey("users.id"), nullable=True)
@@ -57,10 +75,31 @@ class Vendor(Base):
     # Relationships
     added_by_user  = relationship("User", foreign_keys=[added_by])
     logo_document  = relationship("Document", foreign_keys=[logo_document_id])
+    cac_certificate_document = relationship("Document", foreign_keys=[cac_certificate_document_id])
+    tin_certificate_document = relationship("Document", foreign_keys=[tin_certificate_document_id])
+    vat_certificate_document = relationship("Document", foreign_keys=[vat_certificate_document_id])
 
     @property
     def logo_url(self) -> str | None:
         """Derive logo URL from the linked document — consistent with User.profile_picture_url."""
         if self.logo_document and self.logo_document.file_path:
             return self.logo_document.file_path
+        return None
+
+    @property
+    def cac_certificate_url(self) -> str | None:
+        if self.cac_certificate_document and self.cac_certificate_document.file_path:
+            return self.cac_certificate_document.file_path
+        return None
+
+    @property
+    def tin_certificate_url(self) -> str | None:
+        if self.tin_certificate_document and self.tin_certificate_document.file_path:
+            return self.tin_certificate_document.file_path
+        return None
+
+    @property
+    def vat_certificate_url(self) -> str | None:
+        if self.vat_certificate_document and self.vat_certificate_document.file_path:
+            return self.vat_certificate_document.file_path
         return None

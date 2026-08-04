@@ -581,9 +581,10 @@ class WorkflowEngine:
             _ar_id = approval_req.id
             _comment = comment
             _actor_id = actor.id
+            _step_name = current_step.step_name
             self._queue_email(
                 lambda db: workflow_email.notify_request_result(
-                    db, _ar_id, "approved", _comment, _actor_id
+                    db, _ar_id, "approved", _comment, _actor_id, _step_name
                 )
             )
 
@@ -661,9 +662,10 @@ class WorkflowEngine:
         _ar_id = approval_req.id
         _comment = comment
         _actor_id = actor.id
+        _step_name = current_step.step_name
         self._queue_email(
             lambda db: workflow_email.notify_request_result(
-                db, _ar_id, "rejected", _comment, _actor_id
+                db, _ar_id, "rejected", _comment, _actor_id, _step_name
             )
         )
 
@@ -743,9 +745,10 @@ class WorkflowEngine:
         _ar_id = approval_req.id
         _comment = comment
         _actor_id = actor.id
+        _step_name = current_step.step_name
         self._queue_email(
             lambda db: workflow_email.notify_request_result(
-                db, _ar_id, "returned", _comment, _actor_id
+                db, _ar_id, "returned", _comment, _actor_id, _step_name
             )
         )
 

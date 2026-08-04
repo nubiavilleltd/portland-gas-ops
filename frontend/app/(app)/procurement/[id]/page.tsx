@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, AlertCircle, FileText, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, AlertCircle, FileText, Download, Loader2, Eye } from "lucide-react";
 import api from "@/lib/api";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
@@ -55,24 +55,26 @@ export default function ProcurementDetailPage() {
   const [isActioning,       setIsActioning]       = useState(false);
   const [openingAttachment, setOpeningAttachment] = useState(false);
 
-  async function openAttachment() {
+  async function downloadAttachment() {
+    if (!req?.attachment?.file_path) return;
     setOpeningAttachment(true);
     try {
-      const response = await api.get(`/api/procurement/${id}/attachment/download`, {
-        responseType: "blob",
-      });
-      const blob     = new Blob([response.data], { type: String(response.headers["content-type"] || "application/pdf") });
-      const url      = URL.createObjectURL(blob);
-      const filename = req?.attachment?.name ?? "attachment";
-      const a        = document.createElement("a");
-      a.href         = url;
-      a.download     = filename;
+      // Fetch the file and trigger download
+      const response = await fetch(req.attachment.file_path);
+      if (!response.ok) throw new Error("Failed to fetch");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const filename = req.attachment.name ?? "attachment";
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch {
-      toast.error("Could not open attachment. Please try again.");
+      // Fallback: open in new tab if download fails
+      window.open(req.attachment.file_path, "_blank");
     } finally {
       setOpeningAttachment(false);
     }
@@ -332,15 +334,25 @@ export default function ProcurementDetailPage() {
                         : "—"}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={openAttachment}
-                        disabled={openingAttachment}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-purple hover:underline disabled:opacity-50"
-                      >
-                        {openingAttachment
-                          ? <><Loader2 size={12} className="animate-spin" /> Downloading…</>
-                          : <><Download size={12} /> Download</>}
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <a
+                          href={req.attachment.file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-purple hover:underline"
+                        >
+                          <Eye size={12} /> View
+                        </a>
+                        <button
+                          onClick={downloadAttachment}
+                          disabled={openingAttachment}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-purple hover:underline disabled:opacity-50"
+                        >
+                          {openingAttachment
+                            ? <><Loader2 size={12} className="animate-spin" /> Downloading…</>
+                            : <><Download size={12} /> Download</>}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>

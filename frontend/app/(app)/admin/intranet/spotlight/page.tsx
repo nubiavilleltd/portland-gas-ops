@@ -112,6 +112,7 @@ export default function SpotlightPage() {
 
   // Spotlight cards exclude EOM entries
   const cards = all.filter((e) => e.category !== "employee_of_month");
+  const visibleCount = cards.filter((c) => c.is_published).length;
 
   const deleteMutation        = useDeleteSpotlight();
   const togglePublishMutation = useToggleSpotlightPublished();
@@ -148,10 +149,6 @@ export default function SpotlightPage() {
   }
 
   function openCreate() {
-    if (cards.length >= 3) {
-      toast.info("Maximum 3 spotlight cards allowed. Remove one to add another.");
-      return;
-    }
     setEditTarget(null);
     setEmployee(null);
     setForm({ ...EMPTY_FORM, ...defaultTag() });
@@ -214,6 +211,9 @@ export default function SpotlightPage() {
 
   async function handleSave() {
     if (!validate()) return;
+    // Auto-hide if 3 are already visible and this would add another visible one
+    const isNewOrWasHidden = !editTarget || !editTarget.is_published;
+    const forceHidden = form.is_published && isNewOrWasHidden && visibleCount >= 3;
     const payload = {
       employee_id:   employee!.id,
       employee_name: employee!.name,
@@ -228,15 +228,15 @@ export default function SpotlightPage() {
       tag:           form.tag || null,
       tag_color:     form.tag_color || null,
       tag_bg:        form.tag_bg || null,
-      is_published:  form.is_published,
+      is_published:  forceHidden ? false : form.is_published,
     };
     try {
       if (editTarget) {
         await updateMutation.mutateAsync(payload);
-        toast.success("Spotlight card updated.");
+        toast.success(forceHidden ? "Spotlight card updated (saved as hidden — 3 already visible)." : "Spotlight card updated.");
       } else {
         await createMutation.mutateAsync(payload);
-        toast.success("Spotlight card added.");
+        toast.success(forceHidden ? "Spotlight card added as hidden (3 already visible)." : "Spotlight card added.");
       }
       handleClose();
     } catch {
@@ -309,6 +309,11 @@ export default function SpotlightPage() {
       variant: "ghost",
       onClick: (row) => {
         const item = cards.find((c) => c.id === row._numId)!;
+        // Prevent showing if 3 are already visible
+        if (!item.is_published && visibleCount >= 3) {
+          toast.error("Maximum 3 visible spotlight cards allowed. Hide one first before showing another.");
+          return;
+        }
         setToggleConfirm(item);
       },
     },
@@ -334,7 +339,7 @@ export default function SpotlightPage() {
       <BackButton href="/admin" label="Back to Admin" />
       <PageHeader
         title="Employee Spotlight"
-        description={`Manage spotlight cards shown on the intranet homepage (max 3). Currently ${cards.length}/3.`}
+        description={`Manage spotlight cards shown on the intranet homepage (max 3 visible). Currently ${visibleCount}/3 visible${cards.length > visibleCount ? ` (${cards.length - visibleCount} hidden)` : ""}.`}
         className="mb-6"
         action={
           <div className="flex items-center gap-2">
@@ -443,15 +448,31 @@ export default function SpotlightPage() {
             </div>
           )}
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={form.is_published}
-              onChange={(e) => setForm((p) => ({ ...p, is_published: e.target.checked }))}
-              className="w-4 h-4 accent-brand-purple"
-            />
-            <span className="text-sm text-brand-text-primary">Show on intranet</span>
-          </label>
+          {(() => {
+            const isNewOrWasHidden = !editTarget || !editTarget.is_published;
+            const wouldExceedLimit = isNewOrWasHidden && visibleCount >= 3;
+            return (
+              <div className="space-y-1">
+                <label className={`flex items-center gap-2 select-none ${wouldExceedLimit ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                  <input
+                    type="checkbox"
+                    checked={wouldExceedLimit ? false : form.is_published}
+                    onChange={(e) => setForm((p) => ({ ...p, is_published: e.target.checked }))}
+                    disabled={wouldExceedLimit}
+                    className="w-4 h-4 accent-brand-purple disabled:opacity-50"
+                  />
+                  <span className={`text-sm ${wouldExceedLimit ? "text-brand-text-secondary" : "text-brand-text-primary"}`}>
+                    Show on intranet
+                  </span>
+                </label>
+                {wouldExceedLimit && (
+                  <p className="text-xs text-amber-600">
+                    3 spotlight cards are already visible. This will be saved as hidden.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </ActionModal>
 
