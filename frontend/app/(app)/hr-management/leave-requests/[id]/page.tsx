@@ -56,7 +56,7 @@ const ROLE_OPTIONS: { value: PageRole; label: string }[] = [
 const AUDIT_ACTION_LABELS: Record<string, string> = {
   submitted: "Submitted",
   approved:  "Approved",
-  rejected:  "Denied",
+  rejected:  "Rejected",
   returned:  "Returned",
 };
 
@@ -199,7 +199,8 @@ export default function LeaveRequestDetailPage({
   const endNotFinalized = Boolean(apiRecord?.open_ended && !apiRecord?.returned_at);
 
   async function handleMarkReturned() {
-    const endISO = (returnDate ? new Date(returnDate) : new Date()).toISOString().split("T")[0];
+    // returnDate is already YYYY-MM-DD from the picker; blank means "returned today".
+    const endISO = returnDate || TODAY;
     setIsMarkingReturned(true);
     try {
       await leaveRequestsApi.markReturned(id, endISO);
@@ -370,7 +371,7 @@ export default function LeaveRequestDetailPage({
                     min={record.startDate}
                     max={TODAY}
                     value={returnDate}
-                    onChange={(e) => setReturnDate(e.target.value)}
+                    onValueChange={setReturnDate}
                   />
                 </div>
                 <Button onClick={handleMarkReturned} loading={isMarkingReturned} loadingText="Submitting...">
@@ -599,7 +600,7 @@ export default function LeaveRequestDetailPage({
               showReject
               showApprove
               returnLabel="Return"
-              rejectLabel="Deny"
+              rejectLabel="Reject"
               approveLabel="Approve"
               requireCommentForRejectReturn
               disabled={approveMutation.isPending}
@@ -630,7 +631,7 @@ export default function LeaveRequestDetailPage({
                   : "text-amber-800"
                 }`}>
                   {terminalStatus === "approved" ? "Request Approved"
-                    : terminalStatus === "denied" ? "Request Denied"
+                    : terminalStatus === "denied" ? "Request Rejected"
                     : "Returned to Requester"}
                 </p>
               </div>

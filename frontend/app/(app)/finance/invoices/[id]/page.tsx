@@ -29,7 +29,7 @@ const WORKFLOW_STEPS = [
 ];
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
-  submitted: "Submitted", approved: "Approved", rejected: "Denied", returned: "Returned",
+  submitted: "Submitted", approved: "Approved", rejected: "Rejected", returned: "Returned",
 };
 
 type PageRole = "requester" | "approver";
@@ -101,7 +101,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       else await returnMut.mutateAsync(args);
       queryClient.invalidateQueries({ queryKey: ["invoices-processing"] });
       toast.success(
-        action === "approve" ? "Invoice approved" : action === "reject" ? "Invoice denied" : "Returned to requester"
+        action === "approve" ? "Invoice approved" : action === "reject" ? "Invoice rejected" : "Returned to requester"
       );
     } catch (err) {
       toast.error(errMsg(err));
@@ -309,7 +309,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             <ApprovalPanel
               reviewingAs={currentStepName}
               showReturn showReject showApprove
-              returnLabel="Return" rejectLabel="Deny" approveLabel="Approve"
+              returnLabel="Return" rejectLabel="Reject" approveLabel="Approve"
               requireCommentForRejectReturn
               disabled={isBusy}
               onReturn={(comment) => handleAction("return", comment)}
@@ -337,7 +337,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 : "text-amber-800"
               }`}>
                 {terminalStatus === "approved" ? "Invoice Approved"
-                  : terminalStatus === "denied" ? "Invoice Denied"
+                  : terminalStatus === "denied" ? "Invoice Rejected"
                   : "Returned to Requester"}
               </p>
             </div>

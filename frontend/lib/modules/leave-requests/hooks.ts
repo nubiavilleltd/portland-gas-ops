@@ -153,7 +153,7 @@ export function useApproveLeaveRequest() {
 
       const actionMessages = {
         approve: "Request approved successfully",
-        reject: "Request denied",
+        reject: "Request rejected",
         return: "Request returned to requester",
       };
 
