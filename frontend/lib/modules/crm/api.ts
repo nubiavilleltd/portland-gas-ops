@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import type { CRMActivity } from "./types";
+import type { CRMActivity, CreateCustomerContactPayload } from "./types";
 
 export async function getCustomerActivities(
   customerId: string,
@@ -7,4 +7,12 @@ export async function getCustomerActivities(
   const { data } = await api.get(`/crm/activity/customer/${customerId}`);
 
   return data;
+}
+export async function createCustomerContacts(
+  customerId: string,
+  data: CreateCustomerContactPayload,
+) {
+  const response = await api.post(`api/crm/${customerId}/contacts`, data);
+
+  return response.data;
 }

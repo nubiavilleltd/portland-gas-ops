@@ -246,25 +246,27 @@ export interface CustomerForm {
 }
 
 export interface CustomerContact {
-  id: string;
-
-  contact_number: string;
-
+  alternate_phone: string;
+  contact_no: string;
+  created_at: string;
   customer_id: string;
-  customer_name: string;
-
-  primary_contact: ContactPerson;
-
+  department: string;
+  email: string;
+  first_name: string;
+  id: string;
+  is_primary: boolean;
+  last_name: string;
+  phone: string;
+  position: string;
+  preferred_channel: string;
+  role: string;
+  updated_at: string;
   additional_contacts: ContactPerson[];
-
-  status: ContactStatus;
-
-  submitted_by: string;
-  submitted_at: string;
-
+  status: ContactPersonStatus;
   activities: ContactActivity[];
-
   attachments: ContactAttachment[];
+  customer_name: string;
+  created_by: string;
 }
 
 export interface ContactPerson {
@@ -284,7 +286,6 @@ export interface ContactPerson {
   department: string;
 
   preferred_channel: PreferredChannel;
-
   status: ContactPersonStatus;
 }
 
@@ -313,7 +314,7 @@ export interface ContactActivity {
   comment?: string;
 }
 
-export type PreferredChannel = "Email" | "Phone" | "WhatsApp";
+export type PreferredChannel = "email" | "phone" | "whatsApp";
 
 export type ContactPersonStatus = "active" | "inactive";
 export type CustomerType = "potential" | "purchased";
@@ -408,3 +409,30 @@ export interface CRMActivity {
   metadata?: Record<string, unknown>;
   created_at: string;
 }
+
+export type CreateCustomerContactPayload = {
+  additional_contacts: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    alternate_phone?: string;
+    department?: string;
+    position?: string;
+    role?: string;
+    preferred_channel: PreferredChannel;
+  }[];
+};
+
+export type ContactForm = {
+  firstName: string;
+  lastName: string;
+
+  email: string;
+  phone: string;
+  alternatePhone: string;
+  position: string;
+  role: string;
+  department: string;
+  preferred_channel: string;
+};

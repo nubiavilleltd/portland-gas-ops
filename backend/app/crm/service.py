@@ -23,12 +23,19 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.crm.model import CustomersTemp, CustomerContact
+
+
 from app.crm.schemas import (
     CustomerCreate,
     CustomerUpdate,
+    CustomerResponse,
+    CustomerListItem,
     CustomerContactCreate,
     CustomerContactUpdate,
+    CustomerContactsCreate,CustomerContactsCreate, CustomerContactsUpdate
 )
+
+
 from app.crm.activity.service import CRMActivityService
 from app.crm.activity.schemas import (
     CRMActivityEntityType,
@@ -100,7 +107,7 @@ def validate_customer_uniqueness(
     company_email: Optional[str],
     email: str,
     rc_number: Optional[str],
-    customer_id: Optional[int] = None,
+    customer_id: Optional[str] = None,
 ):
 
     if company_email:
@@ -145,7 +152,46 @@ def validate_customer_uniqueness(
                 status_code=400,
                 detail="RC number already exists.",
             )
+def create_contacts(
+    db: Session,
+    customer_id: str,
+    data: CustomerContactsCreate,
+    current_user: User,
+):
+    customer = get_customer(
+        db=db,
+        customer_id=customer_id,
+    )
 
+    contacts: list[CustomerContact] = []
+
+    for item in data.additional_contacts:
+        contact = CustomerContact(
+            customer_id=customer.id,
+            contact_no=_generate_contact_number(db),
+            created_by=current_user.employee.id,
+            status="active",
+            is_primary=False,
+            **item.model_dump(exclude={"is_primary"}),
+        )
+
+        db.add(contact)
+        contacts.append(contact)
+
+    db.commit()
+
+    for contact in contacts:
+        db.refresh(contact)
+
+    log_customer_activity(
+        db=db,
+        customer=customer_id,
+        current_user=current_user,
+        action="Contacts Created",
+        description=f"{len(contacts)} additional contact(s) added to {customer.customer_name}.",
+    )
+
+    return contacts
 
 def create_primary_contact(
     db: Session,
@@ -253,7 +299,7 @@ def deactivate_customer(
 
 def activate_customer(
     db: Session,
-    customer_id: int,
+    customer_id: str,
     current_user,
 ):
 
@@ -317,7 +363,6 @@ def list_customers(
     db: Session,
     current_user: User,
     skip: int = 0,
-    limit: int = 20,
     search: Optional[str] = None,
     status: Optional[str] = None,
     customer_type: Optional[str] = None,
@@ -374,7 +419,6 @@ def list_customers(
             CustomersTemp.created_at.desc(),
         )
         .offset(skip)
-        .limit(limit)
         .all()
     )
 
@@ -443,6 +487,45 @@ def customer_dashboard_summary(
         "individuals": individuals,
     }
 
+def list_all_contacts(
+    db: Session,
+    current_user: User,
+):
+    query = (
+        db.query(CustomerContact, CustomersTemp.customer_name)
+        .join(
+            CustomersTemp,
+            CustomerContact.customer_id == CustomersTemp.id,
+        )
+    )
+
+    if current_user.role not in ["admin", "super_admin"]:
+        employee = (
+            db.query(Employee)
+            .filter(Employee.user_id == current_user.id)
+            .first()
+        )
+
+        if employee is None:
+            return []
+
+        query = query.filter(
+            CustomerContact.created_by == employee.id
+        )
+
+    contacts = (
+        query.order_by(CustomerContact.created_at.desc())
+        .all()
+    )
+
+    results = []
+
+    for contact, customer_name in contacts:
+        contact.customer_name = customer_name
+        results.append(contact)
+
+    return results
+
 def list_customer_contacts(
     db: Session,
     customer_id: str,
@@ -466,10 +549,22 @@ def list_customer_contacts(
         .all()
     )
 
+def list_contacts(
+    db: Session,
+    customer_id: str,
+    current_user: User,
+
+):    
+    return (
+        db.query(CustomerContact)
+        .filter(CustomerContact.customer_id == customer_id)
+        .order_by(CustomerContact.is_primary.desc())
+        .all()
+    )
 
 def get_contact(
     db: Session,
-    contact_id: int,
+    contact_id: str,
 ):
 
     contact = (
@@ -542,6 +637,165 @@ def create_contact(
 
     return contact
 
+
+def activate_contact(
+    db: Session,
+    contact_id: str,
+    current_user: User,
+):
+    contact = (
+        db.query(CustomerContact)
+        .filter(CustomerContact.id == contact_id)
+        .first()
+    )
+
+    if not contact:
+        raise HTTPException(404, "Contact not found")
+
+    contact.status = "active"
+
+    db.commit()
+    db.refresh(contact)
+
+    return contact
+
+def deactivate_contact(
+    db: Session,
+    contact_id: str,
+    current_user: User,
+):
+    contact = (
+        db.query(CustomerContact)
+        .filter(CustomerContact.id == contact_id)
+        .first()
+    )
+
+    if not contact:
+        raise HTTPException(404, "Contact not found")
+
+    contact.status = "inactive"
+
+    db.commit()
+    db.refresh(contact)
+
+    return contact
+
+
+def update_contacts(
+    db: Session,
+    customer_id: str,
+    data: CustomerContactsUpdate,
+    current_user: User,
+):
+    customer = get_customer(db, customer_id)
+
+    #
+    # Update customer (primary contact stored here)
+    #
+    primary = data.primary_contact.model_dump(
+        exclude_unset=True,
+        exclude={"id", "is_primary"},
+    )
+
+    for field, value in primary.items():
+        if hasattr(customer, field):
+            setattr(customer, field, value)
+
+    #
+    # Update primary contact row
+    #
+    primary_contact = (
+        db.query(CustomerContact)
+        .filter(
+            CustomerContact.customer_id == customer.id,
+            CustomerContact.is_primary == True,
+        )
+        .first()
+    )
+
+    if primary_contact:
+        for field, value in primary.items():
+            if hasattr(primary_contact, field):
+                setattr(primary_contact, field, value)
+
+    #
+    # Existing additional contacts
+    #
+    existing_contacts = {
+        c.id: c
+        for c in db.query(CustomerContact)
+        .filter(
+            CustomerContact.customer_id == customer.id,
+            CustomerContact.is_primary == False,
+        )
+        .all()
+    }
+
+    incoming_ids = set()
+
+    #
+    # Update / Create additional contacts
+    #
+    for item in data.additional_contacts:
+
+        values = item.model_dump(
+            exclude_unset=True,
+            exclude={"id", "is_primary"},
+        )
+
+        #
+        # Existing contact
+        #
+        if item.id and item.id in existing_contacts:
+
+            contact = existing_contacts[item.id]
+
+            for field, value in values.items():
+                setattr(contact, field, value)
+
+            incoming_ids.add(item.id)
+
+        #
+        # New contact
+        #
+        else:
+
+            contact = CustomerContact(
+                customer_id=customer.id,
+                contact_no=_generate_contact_number(db),
+                created_by=current_user.employee.id,
+                status="active",
+                is_primary=False,
+                **values,
+            )
+
+            db.add(contact)
+
+    #
+    # Delete removed contacts
+    #
+    for contact_id, contact in existing_contacts.items():
+
+        if contact_id not in incoming_ids:
+            db.delete(contact)
+
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        current_user=current_user,
+        action="Contacts Updated",
+        description=f"Customer contacts updated for {customer.customer_name}.",
+    )
+
+    db.commit()
+
+    contacts = (
+        db.query(CustomerContact)
+        .filter(CustomerContact.customer_id == customer.id)
+        .all()
+    )
+
+    return contacts
 # ─────────────────────────────────────────────────────────────
 # Customer CRUD
 # ─────────────────────────────────────────────────────────────
@@ -702,7 +956,7 @@ def delete_customer(
 def sync_primary_contact(
     db: Session,
     customer: CustomersTemp,
-    employee_id: int,
+    employee_id: str,
 ):
 
     primary = (
@@ -747,3 +1001,5 @@ def sync_primary_contact(
         )
 
         db.add(contact)
+
+

@@ -1,36 +1,86 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import { BackButton } from "@/components/ui/BackButton";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
-import AuditTrail from "@/components/forms/AuditTrail";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
-import { Trash2, Plus } from "lucide-react";
 import {
-  useCustomerContactDetails,
   type CustomerContact,
+  useCustomerContactDetails,
+  useCRMActivityByCustomer,
+  useUpdateCustomerContacts,
+  useActivateCustomerContact,
+  useDeactivateCustomerContact,
+  ContactPerson,
+  PreferredChannel,
+  ContactPersonStatus,
 } from "@/lib/modules/crm";
 import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import ContactInformationCard from "@/lib/modules/crm/components/ContactInformationCard";
 import EmploymentInformationCard from "@/lib/modules/crm/components/EmploymentInformationCard";
 import { useToast } from "@/hooks/useToast";
+import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
+import { useEmployees } from "@/lib/modules/employees/hooks";
+import {
+  buildUpdateContactsPayload,
+  validateContacts2,
+} from "@/lib/modules/crm/utils/contact";
+import ContactDetailsPageSkeleton from "@/lib/modules/crm/components/ContactDetailsPageSkeleton";
 
 export default function ContactDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const toast = useToast();
-  const { data: contact } = useCustomerContactDetails(id);
+  const { data: contacts = [], isLoading } = useCustomerContactDetails(id);
+  console.log(contacts, "contacts");
+  const primaryContact = contacts.find((c) => c.is_primary);
+  const { entries } = useCRMActivityByCustomer(id);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<CustomerContact | null>(null);
+  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
+  const updateContacts = useUpdateCustomerContacts();
+  const activateContact = useActivateCustomerContact();
+  const deactivateContact = useDeactivateCustomerContact();
+  const [statusLoadingId, setStatusLoadingId] = useState<
+    number | string | null
+  >(null);
+
+  const mapAdditionalContacts = (): ContactPerson[] =>
+    contacts
+      .filter((c) => !c.is_primary)
+      .map((c) => ({
+        id: c.id,
+        is_primary: c.is_primary,
+
+        first_name: c.first_name,
+        last_name: c.last_name,
+
+        email: c.email,
+
+        phone: c.phone,
+        alternate_phone: c.alternate_phone ?? "",
+
+        department: c.department ?? "",
+        position: c.position ?? "",
+
+        role: c.role ?? "",
+
+        preferred_channel: c.preferred_channel as PreferredChannel,
+
+        status: c.status as ContactPersonStatus,
+      }));
 
   useEffect(() => {
-    if (contact) {
-      setForm(contact);
-    }
-  }, [contact]);
+    if (!primaryContact) return;
+
+    setForm({
+      ...primaryContact,
+      additional_contacts: mapAdditionalContacts(),
+    });
+  }, [contacts, primaryContact]);
 
   const crmRoles: MockUserRoleOption<"crm_admin">[] = [
     {
@@ -39,73 +89,128 @@ export default function ContactDetailsPage() {
     },
   ];
 
-  function updateContact() {
-    console.log("UPDATE CONTACT", form);
+  async function updateContact() {
+    if (!form) return;
 
-    // await updateContactApi(form)
+    const { valid, errors } = validateContacts2(form, form.additional_contacts);
 
-    toast.success("Customer contact has been updated successfully.");
+    if (!valid) {
+      setErrors(errors);
+      toast.error("Please correct the highlighted errors.");
+      return;
+    }
 
-    setIsEditing(false);
+    try {
+      await updateContacts.mutateAsync({
+        customerId: form.customer_id,
+        data: buildUpdateContactsPayload(form),
+      });
+
+      toast.success("Customer contact updated successfully.");
+
+      setIsEditing(false);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail ?? "Failed to update customer contact.",
+      );
+    }
   }
 
   function cancelEdit() {
-    if (contact) {
-      setForm(contact);
-    }
+    if (!primaryContact) return;
 
+    setForm({
+      ...primaryContact,
+      additional_contacts: mapAdditionalContacts(),
+    });
+
+    setErrors({});
     setIsEditing(false);
   }
 
-  function togglePersonStatus(isPrimary: boolean, index?: number) {
-    setForm((prev) => {
-      if (!prev) return prev;
+  async function togglePersonStatus(isPrimary: boolean, index?: number) {
+    if (!form) return;
 
-      if (isPrimary) {
-        return {
-          ...prev,
-          primary_contact: {
-            ...prev.primary_contact,
-            status:
-              prev.primary_contact.status === "active" ? "inactive" : "active",
-          },
-        };
+    const contact = isPrimary ? form : form.additional_contacts[index!];
+
+    setStatusLoadingId(contact.id);
+
+    try {
+      if (contact.status === "active") {
+        await deactivateContact.mutateAsync(contact.id);
+      } else {
+        await activateContact.mutateAsync(contact.id);
       }
-
-      const contacts = [...prev.additional_contacts];
-
-      contacts[index!] = {
-        ...contacts[index!],
-        status: contacts[index!].status === "active" ? "inactive" : "active",
-      };
-
-      return {
-        ...prev,
-        additional_contacts: contacts,
-      };
-    });
-
-    toast.success("Contact status updated successfully.");
+      toast.success("Status updated successfully.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail ?? "Failed to update status.");
+    } finally {
+      setStatusLoadingId(null);
+    }
   }
-  if (!contact || !form) return null;
+  if (isLoading) {
+    return <ContactDetailsPageSkeleton />;
+  }
+  if (!primaryContact || !form) return null;
   console.log(form);
+
+  const requester = employees.find(
+    (employee) => employee.id === form?.created_by,
+  );
+
+  const primaryContactFieldMap = {
+    firstName: "first_name",
+    lastName: "last_name",
+    email: "email",
+    phone: "phone",
+    alternatePhone: "alternate_phone",
+  } as const;
+
+  const primaryEmploymentFieldMap = {
+    department: "department",
+    position: "position",
+    role: "role",
+    preferred_channel: "preferred_channel",
+  } as const;
+
+  const primaryContactErrorMap = {
+    firstName: "primaryFirstName",
+    lastName: "primaryLastName",
+    email: "primaryEmail",
+    phone: "primaryPhone",
+  } as const;
+
+  const primaryEmploymentErrorMap = {
+    department: "primaryDepartment",
+    position: "primaryPosition",
+    role: "primaryRole",
+    preferred_channel: "primaryPreferredChannel",
+  } as const;
 
   return (
     <AppLayout pageTitle="Customer Contact Details">
       <div className="flex gap-3 justify-between mb-2">
         <BackButton href="/crm/contacts" label="Back to Contacts" />
         {!isEditing && form.status == "active" && (
-          <Button variant="primary" onClick={() => setIsEditing(true)}>
+          <Button
+            variant="primary"
+            disabled={employeesLoading}
+            onClick={() => setIsEditing(true)}
+          >
             Edit
           </Button>
         )}
       </div>
       <div className="space-y-6">
         <RoleBasedRecordHeader
-          id={form.customer_name}
+          id={form.contact_no}
           currentRole="crm_admin"
           onRoleChange={() => {}}
-          roleLabel="CRM Administrator"
+          roleLabel={
+            requester?.user?.role
+              ?.replace(/_/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase()) ?? "Staff"
+          }
           roles={crmRoles}
           recordLabel="Customer Contact"
           status={<></>}
@@ -116,36 +221,56 @@ export default function ContactDetailsPage() {
 
         <FormSection title="Primary Contact">
           <div className="flex items-center gap-3 justify-between">
-            <ApprovalBadge status={form.primary_contact.status} />
+            <ApprovalBadge status={form.status} />
             <Button
               variant="outline"
               size="sm"
+              disabled={isEditing}
               onClick={() => togglePersonStatus(true)}
+              loading={statusLoadingId === form.id}
             >
-              {form.primary_contact.status === "active"
-                ? "Deactivate"
-                : "Activate"}
+              {form.status === "active" ? "Deactivate" : "Activate"}
             </Button>
           </div>
           <ContactInformationCard
             readOnly={!isEditing}
             values={{
-              firstName: form.primary_contact.first_name,
-              lastName: form.primary_contact.last_name,
-              email: form.primary_contact.email,
-              phone: form.primary_contact.phone,
-              alternatePhone: form.primary_contact.alternate_phone,
+              firstName: form.first_name ?? "",
+              lastName: form.last_name ?? "",
+              email: form.email ?? "",
+              phone: form.phone ?? "",
+              alternatePhone: form.alternate_phone ?? "",
+            }}
+            errors={{
+              firstName: errors.primaryFirstName,
+              lastName: errors.primaryLastName,
+              email: errors.primaryEmail,
+              phone: errors.primaryPhone,
             }}
             onChange={(field, value) => {
+              const errorKey =
+                primaryContactErrorMap[
+                  field as keyof typeof primaryContactErrorMap
+                ];
+
+              if (errorKey) {
+                setErrors((prev) => ({
+                  ...prev,
+                  [errorKey]: "",
+                }));
+              }
+
+              const apiField =
+                primaryContactFieldMap[
+                  field as keyof typeof primaryContactFieldMap
+                ];
+
               setForm((prev) => {
                 if (!prev) return prev;
 
                 return {
                   ...prev,
-                  primary_contact: {
-                    ...prev.primary_contact,
-                    [field]: value,
-                  },
+                  [apiField]: value,
                 };
               });
             }}
@@ -154,21 +279,41 @@ export default function ContactDetailsPage() {
           <EmploymentInformationCard
             readOnly={!isEditing}
             values={{
-              department: form.primary_contact.department,
-              position: form.primary_contact.position,
-              role: form.primary_contact.role,
-              preferred_channel: form.primary_contact.preferred_channel,
+              department: form.department ?? "",
+              position: form.position ?? "",
+              role: form.role ?? "",
+              preferred_channel: form.preferred_channel ?? "",
+            }}
+            errors={{
+              department: errors.primaryDepartment,
+              position: errors.primaryPosition,
+              role: errors.primaryRole,
+              preferred_channel: errors.primaryPreferredChannel,
             }}
             onChange={(field, value) => {
+              const errorKey =
+                primaryEmploymentErrorMap[
+                  field as keyof typeof primaryEmploymentErrorMap
+                ];
+
+              if (errorKey) {
+                setErrors((prev) => ({
+                  ...prev,
+                  [errorKey]: "",
+                }));
+              }
+
+              const apiField =
+                primaryEmploymentFieldMap[
+                  field as keyof typeof primaryEmploymentFieldMap
+                ];
+
               setForm((prev) => {
                 if (!prev) return prev;
 
                 return {
                   ...prev,
-                  primary_contact: {
-                    ...prev.primary_contact,
-                    [field]: value,
-                  },
+                  [apiField]: value,
                 };
               });
             }}
@@ -182,13 +327,13 @@ export default function ContactDetailsPage() {
           description="Other contacts linked to this customer."
         >
           <div className="space-y-6">
-            {form.additional_contacts.length === 0 && (
+            {form.additional_contacts?.length === 0 && (
               <div className="rounded-lg border border-dashed py-8 text-center text-sm text-brand-text-secondary">
                 No additional contacts added.
               </div>
             )}
 
-            {form.additional_contacts.map((person, index) => (
+            {form.additional_contacts?.map((person, index) => (
               <div
                 key={person.id}
                 className="rounded-lg border border-brand-border p-6 space-y-6"
@@ -205,33 +350,12 @@ export default function ContactDetailsPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        disabled={isEditing}
+                        loading={statusLoadingId === form.id}
                         onClick={() => togglePersonStatus(false, index)}
                       >
                         {person.status === "active" ? "Deactivate" : "Activate"}
                       </Button>
-                      {isEditing && (
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            setForm((prev) => {
-                              if (!prev) return prev;
-
-                              return {
-                                ...prev,
-                                additional_contacts:
-                                  prev.additional_contacts.filter(
-                                    (_, i) => i !== index,
-                                  ),
-                              };
-                            })
-                          }
-                        >
-                          {/* <Trash2
-                            size={16}
-                            className="text-red-600 hover:text-red-700"
-                          /> */}
-                        </Button>
-                      )}
                     </div>
                   </div>
 
@@ -243,13 +367,40 @@ export default function ContactDetailsPage() {
                 <ContactInformationCard
                   readOnly={!isEditing}
                   values={{
-                    firstName: person.first_name,
-                    lastName: person.last_name,
-                    email: person.email,
-                    phone: person.phone,
-                    alternatePhone: person.alternate_phone,
+                    firstName: person.first_name ?? "",
+                    lastName: person.last_name ?? "",
+                    email: person.email ?? "",
+                    phone: person.phone ?? "",
+                    alternatePhone: person.alternate_phone ?? "",
+                  }}
+                  errors={{
+                    firstName: errors[`additional_${index}_firstName`],
+                    lastName: errors[`additional_${index}_lastName`],
+                    email: errors[`additional_${index}_email`],
+                    phone: errors[`additional_${index}_phone`],
                   }}
                   onChange={(field, value) => {
+                    const errorMap = {
+                      firstName: `additional_${index}_firstName`,
+                      lastName: `additional_${index}_lastName`,
+                      email: `additional_${index}_email`,
+                      phone: `additional_${index}_phone`,
+                    } as const;
+
+                    const errorKey = errorMap[field as keyof typeof errorMap];
+
+                    if (errorKey) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        [errorKey]: "",
+                      }));
+                    }
+
+                    const apiField =
+                      primaryContactFieldMap[
+                        field as keyof typeof primaryContactFieldMap
+                      ];
+
                     setForm((prev) => {
                       if (!prev) return prev;
 
@@ -257,7 +408,7 @@ export default function ContactDetailsPage() {
 
                       contacts[index] = {
                         ...contacts[index],
-                        [field]: value,
+                        [apiField]: value,
                       };
 
                       return {
@@ -271,12 +422,40 @@ export default function ContactDetailsPage() {
                 <EmploymentInformationCard
                   readOnly={!isEditing}
                   values={{
-                    department: person.department,
-                    position: form.primary_contact.position,
-                    role: form.primary_contact.role,
-                    preferred_channel: person.preferred_channel,
+                    department: person.department ?? "",
+                    position: person.position ?? "",
+                    role: person.role ?? "",
+                    preferred_channel: person.preferred_channel ?? "",
+                  }}
+                  errors={{
+                    department: errors[`additional_${index}_department`],
+                    position: errors[`additional_${index}_position`],
+                    role: errors[`additional_${index}_role`],
+                    preferred_channel:
+                      errors[`additional_${index}_preferred_channel`],
                   }}
                   onChange={(field, value) => {
+                    const errorMap = {
+                      department: `additional_${index}_department`,
+                      position: `additional_${index}_position`,
+                      role: `additional_${index}_role`,
+                      preferred_channel: `additional_${index}_preferred_channel`,
+                    } as const;
+
+                    const errorKey = errorMap[field as keyof typeof errorMap];
+
+                    if (errorKey) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        [errorKey]: "",
+                      }));
+                    }
+
+                    const apiField =
+                      primaryEmploymentFieldMap[
+                        field as keyof typeof primaryEmploymentFieldMap
+                      ];
+
                     setForm((prev) => {
                       if (!prev) return prev;
 
@@ -284,7 +463,7 @@ export default function ContactDetailsPage() {
 
                       contacts[index] = {
                         ...contacts[index],
-                        [field]: value,
+                        [apiField]: value,
                       };
 
                       return {
@@ -296,67 +475,33 @@ export default function ContactDetailsPage() {
                 />
               </div>
             ))}
-
-            {/* {isEditing && (
-              <Button
-                variant="secondary"
-                leftIcon={<Plus size={16} />}
-                onClick={() =>
-                  setForm((prev) => {
-                    if (!prev) return prev;
-
-                    return {
-                      ...prev,
-                      additional_contacts: [
-                        ...prev.additional_contacts,
-                        {
-                          id: crypto.randomUUID(),
-                          is_primary: false,
-                          first_name: "",
-                          last_name: "",
-                          email: "",
-                          position: "",
-                          role: "",
-                          phone: "",
-                          alternate_phone: "",
-                          department: "",
-                          preferred_channel: "email",
-                          status: "active",
-                        },
-                      ],
-                    };
-                  })
-                }
-              >
-                Add Contact
-              </Button>
-            )} */}
           </div>
         </FormSection>
 
-        <div className="flex justify-between pb-10">
+        <div className="flex justify-between pb-3">
           <div className="flex gap-3">
             {isEditing && (
               <>
                 <Button variant="outline" onClick={cancelEdit}>
                   Cancel
                 </Button>
-
-                <Button onClick={updateContact}>Update</Button>
+                <Button
+                  onClick={updateContact}
+                  disabled={updateContacts.isPending}
+                >
+                  {updateContacts.isPending ? "Updating..." : "Update"}
+                </Button>{" "}
               </>
             )}
           </div>
         </div>
 
-        <AuditTrail
-          items={form.activities.map((activity) => ({
-            action: activity.action.replaceAll("_", " "),
-            actor: activity.performedBy,
-            role: activity.performedByRole,
-            dateTime: activity.performedAt,
-            comment: activity.comment ?? "-",
-          }))}
-        />
+        <FormSection
+          title="Activity"
+          description="Timeline of actions taken on this customer"
+        >
+          <CRMActivityTimeline entries={entries} />
+        </FormSection>
       </div>
     </AppLayout>
   );

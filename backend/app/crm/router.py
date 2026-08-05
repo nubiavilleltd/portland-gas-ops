@@ -19,7 +19,7 @@ from app.crm.schemas import (
     CustomerListItem,
     CustomerContactCreate,
     CustomerContactUpdate,
-    CustomerContactResponse,
+    CustomerContactResponse,CustomerContactsCreate,CustomerContactsUpdate
 )
 
 router = APIRouter()
@@ -54,6 +54,137 @@ def dashboard(
     """
     return service.dashboard_summary(db)
 
+@router.get(
+    "/contacts",
+    response_model=List[CustomerContactResponse],
+)
+def get_all_contacts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.list_all_contacts(db=db,current_user=current_user)
+
+@router.get(
+    "/contacts/{contact_id}",
+    response_model=CustomerContactResponse,
+)
+def get_contact(
+    contact_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.get_contact(
+        db=db,
+        contact_id=contact_id,
+    )
+
+# ------------------------------------------------------------------
+# Update Contact
+# ------------------------------------------------------------------
+
+
+@router.patch(
+    "/contacts/{contact_id}",
+    response_model=CustomerContactResponse,
+)
+def update_contact(
+    contact_id: str,
+    data: CustomerContactUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.update_contact(
+        db=db,
+        contact_id=contact_id,
+        data=data,
+        current_user=current_user,
+    )
+
+@router.patch(
+    "/{customer_id}/contacts",
+    response_model=List[CustomerContactResponse],
+)
+def update_contacts(
+    customer_id: str,
+    data: CustomerContactsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.update_contacts(
+        db=db,
+        customer_id=customer_id,
+        data=data,
+        current_user=current_user,
+    )
+# ------------------------------------------------------------------
+# Delete Contact
+# ------------------------------------------------------------------
+
+@router.delete(
+    "/contacts/{contact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_contact(
+    contact_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    service.delete_contact(
+        db=db,
+        contact_id=contact_id,
+        current_user=current_user,
+    )
+
+@router.patch(
+    "/contacts/{contact_id}/activate",
+    response_model=CustomerContactResponse,
+)
+def activate_contact(
+    contact_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    return service.activate_contact(
+        db=db,
+        contact_id=contact_id,
+        current_user=current_user,
+    )
+
+
+@router.patch(
+    "/contacts/{contact_id}/deactivate",
+    response_model=CustomerContactResponse,
+)
+def deactivate_contact(
+    contact_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_admin),
+):
+    return service.deactivate_contact(
+        db=db,
+        contact_id=contact_id,
+        current_user=current_user,
+    )
+
+
+# ------------------------------------------------------------------
+# List Contacts
+# ------------------------------------------------------------------
+
+@router.get(
+    "/{customer_id}/contacts",
+    response_model=List[CustomerContactResponse],
+)
+def list_contacts(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.list_contacts(
+        db=db,
+        customer_id=customer_id,
+        current_user= current_user
+    )
 
 # ------------------------------------------------------------------
 # Customer List
@@ -62,7 +193,6 @@ def dashboard(
 @router.get("", response_model=List[CustomerListItem])
 def list_customers(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=200),
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
@@ -77,7 +207,6 @@ def list_customers(
         db=db,
         current_user=current_user,
         skip=skip,
-        limit=limit,
         search=search,
         status=status,
         entity_type=entity_type,
@@ -190,23 +319,7 @@ def activate_customer(
 # ==============================================================
 
 
-# ------------------------------------------------------------------
-# List Contacts
-# ------------------------------------------------------------------
 
-@router.get(
-    "/{customer_id}/contacts",
-    response_model=List[CustomerContactResponse],
-)
-def list_contacts(
-    customer_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return service.list_contacts(
-        db=db,
-        customer_id=customer_id,
-    )
 
 
 # ------------------------------------------------------------------
@@ -215,65 +328,21 @@ def list_contacts(
 
 @router.post(
     "/{customer_id}/contacts",
-    response_model=CustomerContactResponse,
+    response_model=List[CustomerContactResponse],
     status_code=status.HTTP_201_CREATED,
 )
-def create_contact(
+def create_contacts(
     customer_id: str,
-    data: CustomerContactCreate,
+    data: CustomerContactsCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.create_contact(
+    return service.create_contacts(
         db=db,
         customer_id=customer_id,
         data=data,
         current_user=current_user,
     )
-
-
-# ------------------------------------------------------------------
-# Update Contact
-# ------------------------------------------------------------------
-
-@router.patch(
-    "/contacts/{contact_id}",
-    response_model=CustomerContactResponse,
-)
-def update_contact(
-    contact_id: int,
-    data: CustomerContactUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return service.update_contact(
-        db=db,
-        contact_id=contact_id,
-        data=data,
-        current_user=current_user,
-    )
-
-
-# ------------------------------------------------------------------
-# Delete Contact
-# ------------------------------------------------------------------
-
-@router.delete(
-    "/contacts/{contact_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_contact(
-    contact_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(_require_admin),
-):
-    service.delete_contact(
-        db=db,
-        contact_id=contact_id,
-        current_user=current_user,
-    )
-
-
 # ==============================================================
 # OPTIONAL LOOKUP ENDPOINTS
 # ==============================================================
@@ -325,7 +394,6 @@ def referrer_types():
         "consultant",
         "marketing",
     ]
-
 
 # ==============================================================
 # HEALTH CHECK

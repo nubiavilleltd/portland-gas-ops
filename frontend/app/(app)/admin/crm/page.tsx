@@ -322,7 +322,7 @@ export default function CRMDashboardPage() {
 
         <RecentContactsTable
           contacts={contacts
-            .filter((item) => item?.status?.toLowerCase() === "active")
+            .filter((item: any) => item?.status?.toLowerCase() === "active")
             .slice(0, 5)}
         />
 

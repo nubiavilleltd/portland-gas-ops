@@ -17,6 +17,8 @@ from app.crm.model import (
 # ==========================================================
 # CUSTOMER CONTACT
 # ==========================================================
+from typing import List
+
 
 class CustomerContactCreate(BaseModel):
     first_name: str = Field(min_length=1, max_length=100)
@@ -33,6 +35,9 @@ class CustomerContactCreate(BaseModel):
     preferred_channel: PreferredChannel = PreferredChannel.email
 
     is_primary: bool = True
+
+class CustomerContactsCreate(BaseModel):
+    additional_contacts: List[CustomerContactCreate] = []
 
 
 class CustomerContactUpdate(BaseModel):
@@ -54,12 +59,20 @@ class CustomerContactUpdate(BaseModel):
     status: Optional[ContactStatus] = None
 
 
+class CustomerContactEdit(CustomerContactUpdate):
+    id: Optional[str] = None
+
+
+class CustomerContactsUpdate(BaseModel):
+    primary_contact: CustomerContactEdit
+    additional_contacts: List[CustomerContactEdit] = []
+
 class CustomerContactResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
     contact_no: str
-
+    customer_name: str | None = None
     customer_id: str
 
     first_name: str

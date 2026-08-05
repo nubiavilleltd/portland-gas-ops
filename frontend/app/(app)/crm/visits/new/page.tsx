@@ -82,10 +82,7 @@ export default function NewCustomerVisitsPage() {
   const contactOptions = useMemo(() => {
     if (!customerContacts) return [];
 
-    return [
-      customerContacts.primary_contact,
-      ...customerContacts.additional_contacts,
-    ].map((contact) => ({
+    return [...customerContacts.additional_contacts].map((contact) => ({
       value: contact.id,
       label: `${contact.first_name} ${contact.last_name}`,
     }));
