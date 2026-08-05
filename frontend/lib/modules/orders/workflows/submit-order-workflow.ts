@@ -5,6 +5,8 @@ export async function submitOrderWorkflow(
   input: CreateOrderInput,
   existingDraftId?: string,
 ) {
+
+  // await OrdersService.validateOrderStock(input);
   if (existingDraftId) {
     // TODO:
     // Backend should atomically:

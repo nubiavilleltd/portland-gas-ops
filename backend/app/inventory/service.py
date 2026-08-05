@@ -680,3 +680,50 @@ class InventoryService:
                 checked_out_at=None,
                 expected_return_date=None,
             )
+
+    def validate_order_items_availability(
+        self,
+        db: Session,
+        order_items,
+    ):
+        from app.products.service import ProductService
+
+        product_service = ProductService()
+
+        for order_item in order_items:
+
+            product = product_service.get_or_raise(
+                db=db,
+                product_id=order_item.product_id,
+            )
+
+            if product.product_type.value == "tracked":
+
+                available = self.repo.count_available_inventory_items(
+                    db=db,
+                    product_id=product.id,
+                )
+
+            else:
+
+                available = self.repo.get_total_available_consumable_stock(
+                    db=db,
+                    product_id=product.id,
+                )
+
+            if order_item.quantity > available:
+
+                raise AppException(
+                    status_code=400,
+                    error_code=InventoryErrorCode.INSUFFICIENT_STOCK,
+                    message=(
+                        f"Only {available} {product.unit.value} of "
+                        f"{product.name} available."
+                        if product.product_type.value == "consumable"
+                        else
+                        f"Only {available} unit(s) of "
+                        f"{product.name} available."
+                    ),
+                )
+
+    

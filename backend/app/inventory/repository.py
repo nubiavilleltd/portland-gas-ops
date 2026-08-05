@@ -683,3 +683,33 @@ class InventoryRepository:
             .first()
             is not None
         )
+    
+    def count_available_inventory_items(
+        self,
+        db: Session,
+        product_id: str,
+    ) -> int:
+        return (
+            db.query(InventoryItem)
+            .filter(
+                InventoryItem.product_id == product_id,
+                InventoryItem.status == InventoryItemStatus.available,
+            )
+            .count()
+        )
+
+    def get_total_available_consumable_stock(
+        self,
+        db: Session,
+        product_id: str,
+    ) -> Decimal:
+
+        quantity = (
+            db.query(func.sum(ConsumableStock.quantity))
+            .filter(
+                ConsumableStock.product_id == product_id,
+            )
+            .scalar()
+        )
+
+        return quantity or Decimal("0")

@@ -24,6 +24,9 @@ import { getErrorMessage } from "@/lib/errors";
 import { ORDER_ERROR_MESSAGES } from "../errors";
 import { ERROR_MESSAGES } from "@/lib/api/error";
 
+import { InventoryService } from "../../inventory/services/inventory.service";
+import { ProductsService } from "../../products/services/products.service";
+
 export const OrdersService = {
   // ------------------------------------------------------------------
   // Queries

@@ -7,7 +7,7 @@ import { APP_ERROR_MESSAGES } from "./app-errors";
 // ───────────────────────────────────────────────────────────
 
 export const DEFAULT_ERROR_MESSAGE =
-  "Something went wrong. Please try again.";
+  "Something went wrong. Please try again. If issues persist, please contact IT Support";
 
 // ───────────────────────────────────────────────────────────
 // Backend error envelope
@@ -59,11 +59,19 @@ export function getErrorMessage(
     return fallback;
   }
 
+
+  // const message =
+  //   errorMessages[detail.error_code] ??
+  //   APP_ERROR_MESSAGES[
+  //     detail.error_code as keyof typeof APP_ERROR_MESSAGES
+  //   ];
+
   const message =
-    errorMessages[detail.error_code] ??
-    APP_ERROR_MESSAGES[
-      detail.error_code as keyof typeof APP_ERROR_MESSAGES
-    ];
+  errorMessages[detail.error_code] ??
+  APP_ERROR_MESSAGES[
+    detail.error_code as keyof typeof APP_ERROR_MESSAGES
+  ] ??
+  detail.message;
 
   if (!message) {
     console.warn(
