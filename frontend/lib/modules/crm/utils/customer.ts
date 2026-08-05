@@ -1,5 +1,11 @@
 import type { CustomerForm } from "../types";
 
+export function validatePhoneNumber(phone: string): boolean {
+  const phoneRegex = /^\+?[0-9\s\-()]{10,15}$/;
+
+  return phoneRegex.test(phone.trim());
+}
+
 export function validateCustomer(form: CustomerForm) {
   const errors: Record<string, string> = {};
 
@@ -7,11 +13,18 @@ export function validateCustomer(form: CustomerForm) {
   if (!form.customerName.trim()) {
     errors.customerName = "Customer name is required.";
   }
-
   if (!form.entityType) {
     errors.entityType = "Entity type is required.";
   }
-
+  if (!form.position) {
+    errors.position = "Entity type is required.";
+  }
+  if (!form.role) {
+    errors.role = "Entity type is required.";
+  }
+  if (!form.preferredChannel) {
+    errors.preferredChannel = "Entity type is required.";
+  }
   if (!form.category) {
     errors.category = "Customer category is required.";
   }
@@ -56,6 +69,19 @@ export function validateCustomer(form: CustomerForm) {
 
   if (!form.phone.trim()) {
     errors.phone = "Phone number is required.";
+  } else if (!validatePhoneNumber(form.phone)) {
+    errors.phone = "Enter a valid phone number.";
+  }
+
+  if (form.alternatePhone?.trim()) {
+    if (!validatePhoneNumber(form.alternatePhone)) {
+      errors.alternatePhone = "Enter a valid alternate phone number.";
+    }
+
+    if (form.alternatePhone === form.phone) {
+      errors.alternatePhone =
+        "Alternate phone cannot be the same as primary phone.";
+    }
   }
 
   // Address
@@ -139,6 +165,9 @@ export function buildCustomerPayload(
     postal_code: form.postalCode || null,
 
     preferred_products: form.preferredProducts,
+    position: form.position,
+    role: form.role,
+    preferred_channel: form.preferredChannel,
 
     supply_method: form.supplyMethod || null,
     estimated_monthly_demand: form.estimatedMonthlyDemand || null,

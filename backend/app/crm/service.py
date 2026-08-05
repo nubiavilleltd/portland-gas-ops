@@ -971,8 +971,8 @@ def sync_primary_contact(
         email=customer.email,
         phone=customer.phone,
         alternate_phone=customer.alternate_phone,
-        positon=customer.position,
-        role=customer.rolw,
+        position=customer.position,
+        role=customer.role,
         preferred_channel=customer.preferred_channel,
     )
 
@@ -988,7 +988,6 @@ def sync_primary_contact(
             customer_id=customer.id,
             created_by=employee_id,
             is_primary=True,
-            preferred_channel="email",
             status="active",
             **values,
         )

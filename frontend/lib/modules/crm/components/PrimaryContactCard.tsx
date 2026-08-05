@@ -3,10 +3,14 @@
 import Card from "@/components/ui/Card";
 import FormInput from "@/components/forms/FormInput";
 import type { CustomerForm } from "../types";
+import FormSelect from "@/components/forms/FormSelect";
 
 type PrimaryContactField =
   | "contactPerson"
   | "department"
+  | "position"
+  | "role"
+  | "preferredChannel"
   | "email"
   | "phone"
   | "alternatePhone";
@@ -17,6 +21,9 @@ interface Props {
     department: string;
     email: string;
     phone: string;
+    position: string;
+    role: string;
+    preferredChannel: string;
     alternatePhone: string | null;
   };
 
@@ -81,7 +88,12 @@ export default function PrimaryContactCard({
           value={values.phone}
           error={errors?.phone}
           readOnly={readOnly}
-          onChange={(e) => onChange?.("phone", e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (/^[0-9+\s-]*$/.test(value)) {
+              onChange?.("phone", value);
+            }
+          }}
         />
 
         <FormInput
@@ -90,7 +102,45 @@ export default function PrimaryContactCard({
           value={values.alternatePhone ?? ""}
           error={errors?.alternatePhone}
           readOnly={readOnly}
-          onChange={(e) => onChange?.("alternatePhone", e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            // allow only phone characters
+            if (/^[0-9+\s-]*$/.test(value)) {
+              onChange?.("phone", value);
+            }
+          }}
+        />
+
+        <FormInput
+          label="Position"
+          value={values.position}
+          required
+          placeholder="Enter Position"
+          disabled={readOnly}
+          error={errors.position}
+          onChange={(e) => onChange?.("position", e.target.value)}
+        />
+        <FormInput
+          label="Role"
+          value={values.role}
+          placeholder="Enter Role"
+          disabled={readOnly}
+          error={errors.role}
+          required
+          onChange={(e) => onChange?.("role", e.target.value)}
+        />
+        <FormSelect
+          label="Preferred Contact Channel"
+          value={values.preferredChannel}
+          disabled={readOnly}
+          required
+          error={errors.preferredChannel}
+          options={[
+            { label: "Email", value: "email" },
+            { label: "Phone", value: "phone" },
+            { label: "WhatsApp", value: "whatsapp" },
+          ]}
+          onValueChange={(value) => onChange?.("preferredChannel", value)}
         />
       </div>
     </Card>

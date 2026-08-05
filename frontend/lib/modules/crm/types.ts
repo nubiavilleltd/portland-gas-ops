@@ -205,16 +205,12 @@ export interface CustomerForm {
   entityType: EntityType;
   category: CustomerCategory;
   companyEmail: string;
-
   rcNumber: string;
   tin: string;
   vatNumber: string;
   industry: string;
-
   customerType: "potential" | "purchasing";
-
   salesContact: string | null;
-
   referrerType:
     | "employee"
     | "customer"
@@ -222,27 +218,25 @@ export interface CustomerForm {
     | "consultant"
     | "marketing"
     | "";
-
   referrerId: string;
-
   contactPerson: string;
   department: string;
   email: string;
   phone: string;
   alternatePhone: string | null;
-
   country: string;
   state: string;
   city: string;
   addressLine1: string;
   addressLine2: string;
   postalCode: string;
-
   preferredProducts: string[];
   supplyMethod: string;
   estimatedMonthlyDemand: string;
-
   internalNotes: string;
+  position: string;
+  role: string;
+  preferredChannel: string;
 }
 
 export interface CustomerContact {
@@ -314,7 +308,7 @@ export interface ContactActivity {
   comment?: string;
 }
 
-export type PreferredChannel = "email" | "phone" | "whatsApp";
+export type PreferredChannel = "email" | "phone" | "whatsapp";
 
 export type ContactPersonStatus = "active" | "inactive";
 export type CustomerType = "potential" | "purchased";

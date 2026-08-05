@@ -213,6 +213,9 @@ export default function CustomerDetailsPage() {
             email: customer.email,
             phone: customer.phone,
             alternatePhone: customer.alternate_phone ?? "",
+            position: customer.position ?? "",
+            role: customer.role ?? "",
+            preferredChannel: customer.preferred_channel ?? "",
           }}
         />
         <FormSection
