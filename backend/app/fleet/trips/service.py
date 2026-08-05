@@ -76,6 +76,7 @@ class TripService:
         self,
         db: Session,
         data: TripCreate,
+        created_by:str
     ) -> Trip:
 
         trip_no = self.repo.generate_trip_no(db)
@@ -89,6 +90,7 @@ class TripService:
             scheduled_date=data.scheduled_date,
             notes=data.notes,
             status=TripStatus.pending,
+            created_by=created_by
         )
 
     def update(

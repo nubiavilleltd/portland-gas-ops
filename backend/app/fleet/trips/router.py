@@ -130,11 +130,7 @@ def get_trip_audit(
 def create_trip(
     data: TripCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_roles(
-            "super_admin",
-            "admin",
-        )
+    current_user: User = Depends(get_current_user
     ),
 ):
 
@@ -143,6 +139,7 @@ def create_trip(
         data=data,
         actor_employee_id=current_user.employee.id,
         actor_name=current_user.full_name,
+        created_by=current_user.id,
     )
 
     db.commit()
@@ -324,11 +321,7 @@ def cancel_trip(
     trip_id: str,
     data: TripCancel,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_roles(
-            "super_admin",
-            "admin",
-        )
+    current_user: User = Depends(get_current_user
     ),
 ):
 
@@ -358,12 +351,7 @@ def add_order_to_trip(
     trip_id: str,
     data: TripAddOrder,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_roles(
-            "super_admin",
-            "admin",
-        )
-    ),
+    current_user: User = Depends(get_current_user),
 ):
 
     trip = add_order_workflow.execute(

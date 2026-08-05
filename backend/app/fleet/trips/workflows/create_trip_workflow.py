@@ -28,6 +28,7 @@ class CreateTripWorkflow:
         data: TripCreate,
         actor_employee_id: str,
         actor_name: str,
+        created_by:str
     ):
 
         #
@@ -36,6 +37,7 @@ class CreateTripWorkflow:
         trip = self.trip_service.create(
             db=db,
             data=data,
+            created_by=created_by
         )
 
         #

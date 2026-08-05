@@ -26,6 +26,10 @@ class Invoice(Base):
 
     order = relationship("Order", foreign_keys=[order_id], uselist=False)
     payments = relationship("Payment", back_populates="invoice")
+    created_by_user = relationship(
+        "User",
+        foreign_keys=[created_by],
+    )
 
     @property
     def order_no(self) -> str | None:

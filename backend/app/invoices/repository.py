@@ -51,6 +51,7 @@ class InvoiceRepository:
     def list(
         self,
         db: Session,
+        created_by: Optional[str] = None,
         order_id: Optional[str] = None,
         status: Optional[PaymentStatus] = None,
         page: int = 1,
@@ -61,7 +62,13 @@ class InvoiceRepository:
             .options(
                 joinedload(Invoice.order),
                 joinedload(Invoice.payments),
+                joinedload(Invoice.created_by_user),
             )
+        )
+
+        if created_by:
+            query = query.filter(
+                Invoice.created_by == created_by
         )
 
         if order_id:

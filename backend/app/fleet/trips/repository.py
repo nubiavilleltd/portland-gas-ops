@@ -36,6 +36,7 @@ class TripRepository:
     def list(
         self,
         db: Session,
+        created_by: Optional[str] = None,
         status: Optional[str] = None,
     ) -> List[Trip]:
 
@@ -45,7 +46,13 @@ class TripRepository:
                 joinedload(Trip.driver),
                 joinedload(Trip.vehicle),
                 joinedload(Trip.trip_orders).joinedload(TripOrder.order),
+                joinedload(Trip.created_by_user)
             )
+        )
+
+        if created_by:
+            query = query.filter(
+                Trip.created_by == created_by
         )
 
         if status:
