@@ -29,12 +29,14 @@ from app.inventory.schema import (
 )
 from app.orders.model import OrderItem
 from app.fleet.trips.model import Trip
+from app.products.service import ProductService
 
 
 class InventoryService:
 
     def __init__(self):
         self.repo = InventoryRepository()
+        self.product_service = ProductService()
     def list_available_consumable_locations(
         self,
         db: Session,
@@ -725,5 +727,125 @@ class InventoryService:
                         f"{product.name} available."
                     ),
                 )
+
+    # def reserve_for_order(
+    #     self,
+    #     db: Session,
+    #     order,
+    # ):
+
+    #     for order_item in order.order_items:
+
+    #         product = self.product_service.get_or_raise(
+    #             db=db,
+    #             product_id=order_item.product_id,
+    #         )
+
+    #         if product.product_type.value == "tracked":
+
+    #             self._reserve_tracked_item(
+    #                 db=db,
+    #                 order=order,
+    #                 order_item=order_item,
+    #                 product=product,
+    #             )
+
+    #         else:
+
+    #             self._reserve_consumable(
+    #                 db=db,
+    #                 order=order,
+    #                 order_item=order_item,
+    #                 product=product,
+    #             )
+
+    # def _reserve_tracked_item(
+    #     self,
+    #     *,
+    #     db: Session,
+    #     order,
+    #     order_item,
+    #     product,
+    # ):
+    #     """
+    #     Reserve tracked inventory for an order item.
+
+    #     This allocates available inventory items to the order and marks
+    #     them as reserved. Physical checkout happens later during trip
+    #     dispatch.
+    #     """
+
+    #     required_quantity = int(order_item.quantity)
+
+    #     available_items = self.repo.get_available_inventory_items(
+    #         db=db,
+    #         product_id=product.id,
+    #         limit=required_quantity,
+    #     )
+
+    #     if len(available_items) < required_quantity:
+    #         raise AppException(
+    #             status_code=400,
+    #             error_code=InventoryErrorCode.INSUFFICIENT_STOCK,
+    #             message=(
+    #                 f"Only {len(available_items)} unit(s) of "
+    #                 f"{product.name} available."
+    #             ),
+    #         )
+
+    #     movement = self.repo.create_stock_movement(
+    #         db=db,
+    #         movement_no=self.repo.generate_movement_no(db),
+    #         product_id=product.id,
+    #         movement_type=MovementType.reservation,
+    #         quantity=Decimal(required_quantity),
+    #         location_id=available_items[0].location_id,
+    #         reference_type=ReferenceType.order,
+    #         reference_id=str(order.id),
+    #         notes=(
+    #             f"Reserved {required_quantity} unit(s) of "
+    #             f"{product.name} for order {order.order_no}"
+    #         ),
+    #     )
+
+    #     reserved_item_ids = []
+
+    #     for item in available_items:
+
+    #         self.repo.reserve_inventory_item(
+    #             db=db,
+    #             item=item,
+    #             order_id=order.id,
+    #             trip_id=None,
+    #             disposition=order_item.disposition,
+    #         )
+
+    #         self.repo.assign_inventory_to_order_item(
+    #             db=db,
+    #             order_item_id=order_item.id,
+    #             inventory_item_id=item.id,
+    #         )
+
+    #         reserved_item_ids.append(item.id)
+
+    #     self.repo.add_stock_movement_items(
+    #         db=db,
+    #         movement_id=movement.id,
+    #         inventory_item_ids=reserved_item_ids,
+    #     )
+
+    #     AuditService.record(
+    #             db=db,
+    #             entity_type=AuditEntityType.inventory_item,
+    #             entity_id=str(available_items[0].id),
+    #             action="reserved",
+    #             description=(
+    #                 f"{required_quantity} inventory item(s) reserved "
+    #                 f"for order {order.order_no}"
+    #             ),
+    #             actor_type=AuditActorType.system,
+    #         )
+
+    #     return reserved_item_ids
 
     

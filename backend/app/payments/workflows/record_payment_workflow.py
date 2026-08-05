@@ -6,8 +6,9 @@ from app.audit.schema import AuditActorType, AuditEntityType
 from app.audit.service import AuditService
 from app.invoices.service import InvoiceService
 from app.orders.service import OrderService
-from app.payments.enums import PaymentStatus
 from app.payments.service import PaymentService
+from app.inventory.service import InventoryService
+from app.payments.enums import PaymentStatus
 
 
 class RecordPaymentWorkflow:
@@ -15,6 +16,7 @@ class RecordPaymentWorkflow:
         self.payment_service = PaymentService()
         self.invoice_service = InvoiceService()
         self.order_service = OrderService()
+        self.inventory_service = InventoryService()
 
     def execute(
         self,
@@ -60,6 +62,15 @@ class RecordPaymentWorkflow:
             order,
             invoice_status,
         )
+
+
+        # if invoice_status == PaymentStatus.paid:
+        #     self.inventory_service.reserve_for_order(
+        #         db=db,
+        #         order_id=order.id,
+        #         actor_employee_id=actor_employee_id,
+        #         actor_name=actor_name,
+        #     )
 
         
 

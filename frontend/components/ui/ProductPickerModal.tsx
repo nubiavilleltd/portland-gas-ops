@@ -31,15 +31,6 @@ function ProductCard({
 }) {
   const primaryImage = product.images?.[0];
 
-  // const stockLabel = isTracked(product)
-  //   ? `${getAvailableCount(inventoryItems, product.id)} unit(s) available`
-  //   : `${getConsumableStockLevel(consumableStock, product.id).toLocaleString()} ${product.unit} in stock`;
-
-  // const isLow = isTracked(product)
-  //   ? getAvailableCount(inventoryItems, product.id) === 0
-  //   : product.minimumStock != null &&
-  //     getConsumableStockLevel(consumableStock, product.id) <= product.minimumStock;
-
 
 
   const tracked = isTracked(product);
@@ -62,6 +53,8 @@ function ProductCard({
     : hasInventory
       ? `✓ ${consumableQty.toLocaleString()} ${product.unit} available`
       : "⚠ No stock available";
+
+  const isOrderable = hasInventory;
 
   // const helperText = tracked
   //   ? !hasInventory
@@ -154,6 +147,27 @@ export default function ProductPickerModal({
       getKey={(p) => p.id}
       emptyIcon={<Package size={32} />}
       emptyMessage="No products in catalogue"
+      isSelectable={(product) => {
+        const tracked = isTracked(product);
+
+        const availableCount = getAvailableCount(
+          inventoryItems,
+          product.id,
+        );
+
+        const consumableQty = getConsumableStockLevel(
+          consumableStock,
+          product.id,
+        );
+
+        const selectable = tracked
+          ? availableCount > 0
+          : consumableQty > 0;
+
+
+
+        return selectable;
+      }}
       renderCard={(product, isSelected) => (
         <ProductCard
           product={product}
