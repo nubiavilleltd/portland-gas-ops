@@ -241,7 +241,9 @@ class CustomerContact(Base):
         "CustomersTemp",
         back_populates="contacts",
     )
-
+    @property
+    def customer_name(self):
+        return self.customer.customer_name if self.customer else None
     creator = relationship(
         "Employee",
         foreign_keys=[created_by],

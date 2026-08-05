@@ -20,7 +20,7 @@ from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.crm.model import CustomersTemp, CustomerContact
 
@@ -55,6 +55,28 @@ def _generate_contact_number(db: Session) -> str:
         CustomerContact.contact_no,
     )
 
+def log_customer_activity(
+    db: Session,
+    customer: str,
+    current_user,
+    action: str, 
+    entity_type: CRMActivityEntityType,
+    description: str,
+    metadata: dict | None = None,
+):
+    CRMActivityService.record(
+        db=db,
+        customer_id=customer,
+        entity_type=entity_type,
+        entity_id=str(customer),
+        action=action,
+        description=description,
+        actor_type=CRMActivityActorType.employee,
+        actor_employee_id=str(current_user.employee.id),
+        actor_name=current_user.employee.user.full_name,
+        metadata=metadata,
+    )
+    
 
 def get_customer(db, customer_id):
 
@@ -178,7 +200,8 @@ def create_contacts(
         db.add(contact)
         contacts.append(contact)
 
-    db.commit()
+    # Generate IDs and make objects persistent
+    db.flush()
 
     for contact in contacts:
         db.refresh(contact)
@@ -188,8 +211,11 @@ def create_contacts(
         customer=customer_id,
         current_user=current_user,
         action="Contacts Created",
+        entity_type=CRMActivityEntityType.contact,
         description=f"{len(contacts)} additional contact(s) added to {customer.customer_name}.",
     )
+
+    db.commit()
 
     return contacts
 
@@ -220,26 +246,6 @@ def create_primary_contact(
 
     return contact
 
-def log_customer_activity(
-    db: Session,
-    customer: str,
-    current_user,
-    action: str,
-    description: str,
-    metadata: dict | None = None,
-):
-    CRMActivityService.record(
-        db=db,
-        customer_id=customer,
-        entity_type=CRMActivityEntityType.customer,
-        entity_id=str(customer),
-        action=action,
-        description=description,
-        actor_type=CRMActivityActorType.employee,
-        actor_employee_id=str(current_user.employee.id),
-        actor_name=current_user.employee.user.full_name,
-        metadata=metadata,
-    )
 
 def get_customer_detail(
     db: Session,
@@ -275,6 +281,7 @@ def deactivate_customer(
     log_customer_activity(
             db=db,
             customer=customer_id,
+            entity_type=CRMActivityEntityType.contact,
             current_user=current_user,
             action="Deactivated",
             description=f"Customer ({customer.customer_name}) was deactivated.",
@@ -301,6 +308,7 @@ def activate_customer(
         db=db,
         customer=customer_id,
         current_user=current_user,
+        entity_type=CRMActivityEntityType.customer,
         action="Activated",
         description=f"Customer ({customer.customer_name}) was activated.",
     )
@@ -479,11 +487,8 @@ def list_all_contacts(
     current_user: User,
 ):
     query = (
-        db.query(CustomerContact, CustomersTemp.customer_name)
-        .join(
-            CustomersTemp,
-            CustomerContact.customer_id == CustomersTemp.id,
-        )
+        db.query(CustomerContact)
+        .options(joinedload(CustomerContact.customer))
     )
 
     if current_user.role not in ["admin", "super_admin"]:
@@ -496,22 +501,10 @@ def list_all_contacts(
         if employee is None:
             return []
 
-        query = query.filter(
-            CustomerContact.created_by == employee.id
-        )
+        query = query.filter(CustomerContact.created_by == employee.id)
 
-    contacts = (
-        query.order_by(CustomerContact.created_at.desc())
-        .all()
-    )
+    return query.order_by(CustomerContact.created_at.desc()).all()
 
-    results = []
-
-    for contact, customer_name in contacts:
-        contact.customer_name = customer_name
-        results.append(contact)
-
-    return results
 
 def list_customer_contacts(
     db: Session,
@@ -544,6 +537,7 @@ def list_contacts(
 ):    
     return (
         db.query(CustomerContact)
+        .options(joinedload(CustomerContact.customer))
         .filter(CustomerContact.customer_id == customer_id)
         .order_by(CustomerContact.is_primary.desc())
         .all()
@@ -610,18 +604,20 @@ def create_contact(
 
     db.add(contact)
 
-    db.commit()
-
-    db.refresh(contact)
+    
 
     log_customer_activity(
         db=db,
         customer=customer_id,
         current_user=current_employee,
+        entity_type=CRMActivityEntityType.contact,
         action="contact_created",
         description=f"New contact ({contact.first_name} {contact.last_name}) was added by {current_employee.employee.user.full_name}.",
     )
 
+    db.commit()
+
+    db.refresh(contact)
     return contact
 
 
@@ -640,7 +636,14 @@ def activate_contact(
         raise HTTPException(404, "Contact not found")
 
     contact.status = "active"
-
+    log_customer_activity(
+        db=db,
+        customer=str(contact.customer_id),
+        current_user=current_user,
+        entity_type=CRMActivityEntityType.contact,
+        action="Contact Activated",
+        description=f"Contact ({contact.first_name} {contact.last_name}) was activated.",
+    )
     db.commit()
     db.refresh(contact)
 
@@ -661,7 +664,14 @@ def deactivate_contact(
         raise HTTPException(404, "Contact not found")
 
     contact.status = "inactive"
-
+    log_customer_activity(
+        db=db,
+        customer=str(contact.customer_id),
+        current_user=current_user,
+        entity_type=CRMActivityEntityType.contact,
+        action="Contact Deactivated",
+        description=f"Contact ({contact.first_name} {contact.last_name}) was deactivated.",
+    )
     db.commit()
     db.refresh(contact)
 
@@ -687,7 +697,9 @@ def update_contacts(
     for field, value in primary.items():
         if hasattr(customer, field):
             setattr(customer, field, value)
-
+    customer.contact_person = (
+        f"{data.primary_contact.first_name} {data.primary_contact.last_name}"
+    ).strip()
     #
     # Update primary contact row
     #
@@ -771,6 +783,7 @@ def update_contacts(
         customer=str(customer.id),
         current_user=current_user,
         action="Contacts Updated",
+        entity_type=CRMActivityEntityType.contact,
         description=f"Customer contacts updated for {customer.customer_name}.",
     )
 
@@ -853,6 +866,7 @@ def create_customer(
         db=db,
         customer=str(customer.id),
         action="Customer Created",
+        entity_type=CRMActivityEntityType.customer,
         description=f"Customer ({customer.customer_name}) was created.",
         current_user=current_user,
     )
@@ -902,6 +916,7 @@ def update_customer(
         db=db,
         customer=str(customer.id),
         action="Customer Updated",
+        entity_type=CRMActivityEntityType.customer,
         description=f"Customer ({customer.customer_name}) was updated.",
         current_user=current_user,
     )
@@ -937,6 +952,7 @@ def delete_customer(
         db=db,
         customer=str(customer.id),
         action="Customer Deactivated",
+        entity_type=CRMActivityEntityType.customer,
         description=f"Customer ({customer.customer_name}) was deactivated.",
         current_user=current_user,
     )

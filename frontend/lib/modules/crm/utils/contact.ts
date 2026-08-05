@@ -3,6 +3,7 @@ import type {
   ContactPerson,
   CustomerContact,
 } from "@/lib/modules/crm";
+import { validatePhoneNumber } from "./customer";
 
 export function validateContacts(customerId: string, contacts: ContactForm[]) {
   const errors: Record<string, string> = {};
@@ -28,12 +29,24 @@ export function validateContacts(customerId: string, contacts: ContactForm[]) {
 
     if (!contact.phone.trim()) {
       errors[`phone-${index}`] = "Phone number is required.";
+    } else if (!validatePhoneNumber(contact.phone)) {
+      errors[`phone-${index}`] = "Enter a valid phone number.";
     }
 
     if (!contact.department.trim()) {
       errors[`department-${index}`] = "Department is required.";
     }
+    if (contact.alternatePhone?.trim()) {
+      if (!validatePhoneNumber(contact.alternatePhone)) {
+        errors[`alternatePhone-${index}`] =
+          "Enter a valid alternate phone number.";
+      }
 
+      if (contact.alternatePhone === contact.phone) {
+        errors[`alternatePhone-${index}`] =
+          "Alternate phone cannot be the same as phone number.";
+      }
+    }
     if (!contact.position.trim()) {
       errors[`position-${index}`] = "Position is required.";
     }

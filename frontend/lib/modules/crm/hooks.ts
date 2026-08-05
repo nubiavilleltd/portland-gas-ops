@@ -94,6 +94,10 @@ export function useActivateCustomerContact() {
       queryClient.invalidateQueries({
         queryKey: ["crm", "customer-contacts", contact.customer_id],
       });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity", contact.customer_id],
+      });
     },
   });
 }
@@ -121,6 +125,9 @@ export function useDeactivateCustomerContact() {
 
       queryClient.invalidateQueries({
         queryKey: ["crm", "customer-contacts", contact.customer_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity", contact.customer_id],
       });
     },
   });
