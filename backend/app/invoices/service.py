@@ -14,6 +14,10 @@ from app.orders.service import OrderService
 from app.payments.enums import PaymentStatus
 from app.invoices.schema import InvoiceFilters
 from app.orders import guards as order_guards
+from decimal import Decimal
+
+from app.payments.enums import PaymentStatus
+from app.payments.service import PaymentService
 
 
 class InvoiceService:
@@ -21,6 +25,7 @@ class InvoiceService:
     def __init__(self):
         self.repo = InvoiceRepository()
         self.order_service = OrderService()
+        self.payment_service = PaymentService()
 
     # ------------------------------------------------------------------
     # Queries
@@ -141,3 +146,35 @@ class InvoiceService:
             invoice,
             status=status,
         )
+    def refresh_payment_status(
+        self,
+        db: Session,
+        invoice,
+    ) -> PaymentStatus:
+        """
+        Refresh the invoice payment status based on the current total paid.
+
+        Returns the updated status so callers can synchronize dependent entities.
+        """
+
+        total_paid = self.payment_service.get_total_paid_for_invoice(
+            db,
+            invoice.id,
+        )
+        
+
+        remaining_balance = invoice.total_amount - total_paid
+
+        status = (
+            PaymentStatus.paid
+            if remaining_balance <= Decimal("0")
+            else PaymentStatus.partially_paid
+        )
+
+        self.update_status(
+            db,
+            invoice,
+            status,
+        )
+
+        return status

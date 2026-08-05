@@ -1,14 +1,13 @@
 from __future__ import annotations
 import uuid
 
-from decimal import Decimal
 from typing import Optional
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppException
 from app.payments import guards
-from app.payments.enums import PaymentStatus
 from app.payments.error_codes import PaymentErrorCode
 from app.payments.model import Payment
 from app.payments.repository import PaymentRepository
@@ -80,6 +79,17 @@ class PaymentService:
     ):
         return self.repo.get_by_invoice(db, invoice_id)
 
+
+    def get_total_paid_for_invoice(
+        self,
+        db: Session,
+        invoice_id: str,
+    ) -> Decimal:
+        return self.repo.get_total_paid(
+            db,
+            invoice_id,
+        )
+
     # ------------------------------------------------------------------
     # Commands
     # ------------------------------------------------------------------
@@ -87,6 +97,8 @@ class PaymentService:
     def record(
         self,
         db: Session,
+        invoice,
+        order,
         data: PaymentCreate,
         recorded_by: str,
         attachments: list[tuple[bytes, str, str, int]] | None = None,
@@ -112,31 +124,6 @@ class PaymentService:
             )
             if existing:
                 return existing
-
-        # --------------------------------------------------------------
-        # Invoice
-        # --------------------------------------------------------------
-
-        from app.invoices.service import InvoiceService
-
-        invoice_service = InvoiceService()
-        invoice = invoice_service.get_or_raise(
-            db,
-            data.invoice_id,
-        )
-
-
-
-        from app.orders.service import OrderService
-
-        order_service = OrderService()
-
-        order = order_service.get_or_raise(
-            db,
-            invoice.order_id,
-        )
-
-
         # --------------------------------------------------------------
         # Business guards
         # --------------------------------------------------------------
@@ -198,34 +185,6 @@ class PaymentService:
                     attachments=attachments,
                     uploaded_by=uploaded_by,
                 )
-
-        # --------------------------------------------------------------
-        # Recalculate invoice status
-        # --------------------------------------------------------------
-
-        total_paid += data.amount
-        remaining_balance = invoice.total_amount - total_paid
-
-        if remaining_balance <= Decimal("0"):
-            invoice_status = PaymentStatus.paid
-        else:
-            invoice_status = PaymentStatus.partially_paid
-
-        invoice_service.update_status(
-            db,
-            invoice,
-            invoice_status,
-        )
-
-        # --------------------------------------------------------------
-        # Synchronize order payment status
-        # --------------------------------------------------------------
-
-        order_service.update_payment_status(
-            db,
-            order,
-            invoice_status,
-        )
 
         return payment
     
