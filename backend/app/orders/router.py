@@ -164,7 +164,7 @@ def submit_order(
         current_user,
         existing_order
     )
-    order = service.submit(db, order)
+    order = service.submit(db, existing_order)
     AuditService.record(
     db, AuditEntityType.order, order.id,
     "submitted", "Order submitted for processing",

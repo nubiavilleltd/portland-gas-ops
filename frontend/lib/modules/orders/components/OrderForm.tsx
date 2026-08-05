@@ -257,7 +257,7 @@ const discountValue = watch("discountValue") ?? 0;
                 type="text"
                 inputMode="numeric"
                 value={row.quantity ? row.quantity.toLocaleString() : ""}
-                placeholder="0"
+                placeholder="1"
                 onChange={(e) => {
                   const raw = e.target.value.replace(/,/g, "");
                   if (!/^\d*\.?\d*$/.test(raw)) return;
