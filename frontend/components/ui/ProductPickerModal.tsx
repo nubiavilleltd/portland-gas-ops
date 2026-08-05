@@ -63,13 +63,13 @@ function ProductCard({
       ? `✓ ${consumableQty.toLocaleString()} ${product.unit} available`
       : "⚠ No stock available";
 
-  const helperText = tracked
-    ? !hasInventory
-      ? "Order can still be created. Dispatch will not be possible until inventory is checked in."
-      : undefined
-    : !hasInventory
-      ? "Order can still be created. Warehouse must receive stock before dispatch."
-      : undefined;
+  // const helperText = tracked
+  //   ? !hasInventory
+  //     ? "Order can still be created. Dispatch will not be possible until inventory is checked in."
+  //     : undefined
+  //   : !hasInventory
+  //     ? "Order can still be created. Warehouse must receive stock before dispatch."
+  //     : undefined;
 
   return (
     <div className="flex items-center gap-4 px-4 py-3">
@@ -112,11 +112,11 @@ function ProductCard({
             {stockLabel}
           </span>
 
-          {helperText && (
+          {/* {helperText && (
             <p className="mt-1 text-xs text-brand-text-secondary">
               {helperText}
             </p>
-          )}
+          )} */}
 
           <p className="mt-1 text-xs text-brand-text-secondary">
             {formatCurrency(product.defaultUnitPrice)} / {product.unit}

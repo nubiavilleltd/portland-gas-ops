@@ -41,7 +41,6 @@ import {
 } from "../../inventory/hooks/useInventory";
 
 import { useState } from "react";
-import OrderFormSkeleton from "./OrderFormSkeleton";
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -112,14 +111,14 @@ export default function OrderForm({
   const rowErrors: Record<number, Record<string, string>> = {};
   Array.isArray(errors.orderItems)
     ? errors.orderItems?.forEach?.((itemError, index) => {
-        if (!itemError) return;
-        const fieldErrors: Record<string, string> = {};
-        if (itemError.productId?.message)
-          fieldErrors.productId = itemError.productId.message;
-        if (itemError.quantity?.message)
-          fieldErrors.quantity = itemError.quantity.message;
-        if (Object.keys(fieldErrors).length) rowErrors[index] = fieldErrors;
-      })
+      if (!itemError) return;
+      const fieldErrors: Record<string, string> = {};
+      if (itemError.productId?.message)
+        fieldErrors.productId = itemError.productId.message;
+      if (itemError.quantity?.message)
+        fieldErrors.quantity = itemError.quantity.message;
+      if (Object.keys(fieldErrors).length) rowErrors[index] = fieldErrors;
+    })
     : undefined;
 
   const orderItems = watch("orderItems") ?? [];
@@ -135,13 +134,13 @@ export default function OrderForm({
 
 
   const selectedProductIds = orderItems
-  .map(i => i.productId)
-  .filter(Boolean);
+    .map(i => i.productId)
+    .filter(Boolean);
 
-const remainingProducts =
-  activeProducts.length - selectedProductIds.length;
+  const remainingProducts =
+    activeProducts.length - selectedProductIds.length;
 
-const canAddMore = remainingProducts > 0;
+  const canAddMore = remainingProducts > 0;
 
   const discountValue = watch("discountValue") ?? 0;
 
@@ -205,6 +204,24 @@ const canAddMore = remainingProducts > 0;
       renderCell: (row, index, onChange, cellError) => {
         const product = getProductById(activeProducts, row.productId);
         const unitLabel = product ? getUnitLabel(product) : "";
+
+        const hasProduct = !!product;
+
+        const availableQuantity = !hasProduct
+          ? 0
+          : product.productType === "consumable"
+            ? (
+              consumableStock.find(s => s.product_id === product.id)?.quantity ?? 0
+            )
+            : inventoryItems.filter(
+              item =>
+                item.product_id === product.id &&
+                item.status === "available",
+            ).length;
+
+        const exceedsAvailable =
+          hasProduct &&
+          row.quantity > availableQuantity;
         return (
           <div>
             <div className="flex items-center gap-1">
@@ -220,7 +237,8 @@ const canAddMore = remainingProducts > 0;
                 }}
                 className={cn(
                   "w-full text-sm outline-none bg-transparent border border-brand-border focus:border-brand-primary transition-colors p-0.5",
-                  cellError && "text-red-600",
+                  (cellError || (hasProduct && exceedsAvailable)) &&
+                  "text-red-600 border-red-500",
                 )}
               />
               {unitLabel && (
@@ -229,6 +247,27 @@ const canAddMore = remainingProducts > 0;
                 </span>
               )}
             </div>
+            {/* <p className={cn("text-xs text-brand-text-secondary mt-1", exceedsAvailable && "text-red-600")}>
+              Available: {availableQuantity.toLocaleString()} {unitLabel}
+            </p> */}
+            {hasProduct && (
+              <p
+                className={cn(
+                  "text-xs mt-1",
+                  exceedsAvailable
+                    ? "text-red-600"
+                    : "text-brand-text-secondary",
+                )}
+              >
+                Available: {availableQuantity!.toLocaleString()} {unitLabel}
+              </p>
+            )}
+
+            {/* {exceedsAvailable && (
+  <p className="text-xs text-red-600 mt-1">
+    Only {availableQuantity.toLocaleString()} {unitLabel} available.
+  </p>
+)} */}
             {cellError && (
               <p className="text-xs text-red-600 mt-0.5">{cellError}</p>
             )}
