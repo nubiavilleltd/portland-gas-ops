@@ -27,7 +27,15 @@ permissions = OrderPermissions()
 
 
 def _to_response(order) -> OrderResponse:
-    return OrderResponse.model_validate(order)
+    response = OrderResponse.model_validate(order)
+
+    response.created_by_name = (
+        order.created_by_user.full_name
+        if order.created_by_user
+        else None
+    )
+
+    return response
 
 
 @router.get("", response_model=OrderListResponse)

@@ -107,6 +107,8 @@ export interface Order {
   receivedBy?: string;
   deliveryNotes?: string;
 
+  createdByName:string;
+
   // Cancellation
   cancellationReason?: string;
 
