@@ -13,6 +13,18 @@ export const VENDOR_ERRORS: Record<string, string> = {
 };
 
 /**
+ * User-friendly fallback messages for vendor CRUD actions.
+ */
+export const VENDOR_FALLBACKS = {
+  CREATE_VENDOR:     "Failed to create vendor. Please try again.",
+  UPDATE_VENDOR:     "Failed to update vendor.",
+  DELETE_VENDOR:     "Failed to delete vendor.",
+  DEACTIVATE_VENDOR: "Failed to deactivate vendor.",
+  REACTIVATE_VENDOR: "Failed to reactivate vendor.",
+  UPLOAD_LOGO:       "Failed to upload vendor logo.",
+} as const;
+
+/**
  * User-friendly fallback messages for vendor document actions.
  */
 export const VENDOR_DOCUMENT_ERRORS = {
