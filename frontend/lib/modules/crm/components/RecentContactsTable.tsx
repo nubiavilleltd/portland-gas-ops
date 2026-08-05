@@ -15,12 +15,11 @@ const COLUMNS: Column<CustomerContact>[] = [
     render: (_, contact) => (
       <div>
         <p className="font-medium">
-          {contact.primary_contact.first_name}{" "}
-          {contact.primary_contact.last_name}
+          {contact.first_name} {contact.last_name}
         </p>
 
         <p className="text-xs text-brand-text-secondary">
-          {contact.primary_contact.department}
+          {contact.department}
         </p>
       </div>
     ),
@@ -34,9 +33,7 @@ const COLUMNS: Column<CustomerContact>[] = [
   {
     key: "department",
     label: "Department",
-    render: (_, contact) => (
-      <p className="">{contact.primary_contact.department}</p>
-    ),
+    render: (_, contact) => <p className="">{contact.department}</p>,
   },
 
   {
