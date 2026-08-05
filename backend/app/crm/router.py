@@ -17,9 +17,10 @@ from app.crm.schemas import (
     CustomerUpdate,
     CustomerResponse,
     CustomerListItem,
-    CustomerContactCreate,
     CustomerContactUpdate,
-    CustomerContactResponse,CustomerContactsCreate,CustomerContactsUpdate
+    CustomerContactResponse,
+    CustomerContactsCreate,
+    CustomerContactsUpdate
 )
 
 router = APIRouter()
@@ -186,6 +187,29 @@ def list_contacts(
         current_user= current_user
     )
 
+
+# ==============================================================
+# CUSTOMER CONTACTS
+# ==============================================================
+
+
+@router.post(
+    "/{customer_id}/contacts",
+    response_model=List[CustomerContactResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+def create_contacts(
+    customer_id: str,
+    data: CustomerContactsCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.create_contacts(
+        db=db,
+        customer_id=customer_id,
+        data=data,
+        current_user=current_user,
+    )
 # ------------------------------------------------------------------
 # Customer List
 # ------------------------------------------------------------------
@@ -314,35 +338,7 @@ def activate_customer(
         customer_id=customer_id,
         current_user=current_user,
     )
-# ==============================================================
-# CUSTOMER CONTACTS
-# ==============================================================
 
-
-
-
-
-# ------------------------------------------------------------------
-# Create Contact
-# ------------------------------------------------------------------
-
-@router.post(
-    "/{customer_id}/contacts",
-    response_model=List[CustomerContactResponse],
-    status_code=status.HTTP_201_CREATED,
-)
-def create_contacts(
-    customer_id: str,
-    data: CustomerContactsCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return service.create_contacts(
-        db=db,
-        customer_id=customer_id,
-        data=data,
-        current_user=current_user,
-    )
 # ==============================================================
 # OPTIONAL LOOKUP ENDPOINTS
 # ==============================================================

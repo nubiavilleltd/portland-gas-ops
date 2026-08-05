@@ -13,29 +13,18 @@ Handles:
 """
 
 from __future__ import annotations
-
-import logging
-
 from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
-
 from app.crm.model import CustomersTemp, CustomerContact
-
-
 from app.crm.schemas import (
     CustomerCreate,
     CustomerUpdate,
-    CustomerResponse,
-    CustomerListItem,
-    CustomerContactCreate,
-    CustomerContactUpdate,
-    CustomerContactsCreate,CustomerContactsCreate, CustomerContactsUpdate
+    CustomerContactsCreate, 
+    CustomerContactsUpdate
 )
-
-
 from app.crm.activity.service import CRMActivityService
 from app.crm.activity.schemas import (
     CRMActivityEntityType,
@@ -45,7 +34,6 @@ from app.shared.models.user import User
 from app.shared.utils.helpers import generate_reference
 from app.employees.models import Employee
 
-logger = logging.getLogger(__name__)
 
 def _generate_contact_number(db: Session) -> str:
     return generate_reference(
@@ -219,64 +207,17 @@ def create_contacts(
 
     return contacts
 
-def create_primary_contact(
-    db: Session,
-    customer: CustomersTemp,
-):
-
-    contact = CustomerContact(
-
-        contact_no=_generate_contact_number(db),
-        customer_id=customer.id,
-        created_by=customer.created_by,
-        first_name=customer.contact_person,
-        last_name="",
-        position=customer.position,
-        role=customer.role,
-        preferred_channel=customer.preferred_channel,
-        department=customer.department,
-        email=customer.email,
-        phone=customer.phone,
-        alternate_phone=customer.alternate_phone,
-        is_primary=True,
-        status="active",
-    )
-
-    db.add(contact)
-
-    return contact
-
-
-def get_customer_detail(
-    db: Session,
-    customer_id: str,
-) -> CustomersTemp:
-
-    return get_customer(
-        db,
-        customer_id,
-    )
-
-
-
 
 def deactivate_customer(
     db: Session,
     customer_id: str,
     current_user,
 ):
-    customer = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.id == customer_id)
-        .first()
-    )
-
-    if not customer:
-        raise HTTPException(
-            status_code=404,
-            detail="Customer not found.",
+    customer = get_customer(
+            db,
+            customer_id,
         )
-
+    
     customer.status = "inactive"
     log_customer_activity(
             db=db,
@@ -319,19 +260,6 @@ def activate_customer(
 
     return customer
 
-def save_customer_draft(
-    db: Session,
-    data: CustomerCreate,
-    current_employee,
-):
-
-    data.status = "draft"
-
-    return create_customer(
-        db=db,
-        data=data,
-        current_employee=current_employee,
-    )
 
 def build_customer_search(
     query,
@@ -417,13 +345,8 @@ def list_customers(
         .all()
     )
 
-def count_customers(
-    db: Session,
-):
 
-    return db.query(CustomersTemp).count()
-
-def customer_dashboard_summary(
+def dashboard_summary(
     db: Session,
 ):
 
@@ -505,30 +428,6 @@ def list_all_contacts(
 
     return query.order_by(CustomerContact.created_at.desc()).all()
 
-
-def list_customer_contacts(
-    db: Session,
-    customer_id: str,
-):
-
-    get_customer(
-        db,
-        customer_id,
-    )
-
-    return (
-        db.query(CustomerContact)
-        .filter(
-            CustomerContact.customer_id == customer_id,
-            CustomerContact.status == "active",
-        )
-        .order_by(
-            CustomerContact.is_primary.desc(),
-            CustomerContact.first_name,
-        )
-        .all()
-    )
-
 def list_contacts(
     db: Session,
     customer_id: str,
@@ -550,12 +449,9 @@ def get_contact(
 
     contact = (
         db.query(CustomerContact)
-        .filter(
-            CustomerContact.id == contact_id,
-        )
+        .filter(CustomerContact.id == contact_id)
         .first()
     )
-
     if not contact:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -565,72 +461,12 @@ def get_contact(
     return contact
 
 
-def create_contact(
-    db: Session,
-    customer_id: str,
-    data: CustomerContactCreate,
-    current_employee,
-):
-
-    customer = get_customer(
-        db,
-        customer_id,
-    )
-
-    if data.is_primary:
-
-        (
-            db.query(CustomerContact)
-            .filter(
-                CustomerContact.customer_id == customer.id,
-            )
-            .update(
-                {
-                    CustomerContact.is_primary: False,
-                }
-            )
-        )
-
-    contact = CustomerContact(
-
-        customer_id=customer.id,
-
-        contact_no=_generate_contact_number(db),
-
-        created_by=current_employee.id,
-
-        **data.model_dump(),
-    )
-
-    db.add(contact)
-
-    
-
-    log_customer_activity(
-        db=db,
-        customer=customer_id,
-        current_user=current_employee,
-        entity_type=CRMActivityEntityType.contact,
-        action="contact_created",
-        description=f"New contact ({contact.first_name} {contact.last_name}) was added by {current_employee.employee.user.full_name}.",
-    )
-
-    db.commit()
-
-    db.refresh(contact)
-    return contact
-
-
 def activate_contact(
     db: Session,
     contact_id: str,
     current_user: User,
 ):
-    contact = (
-        db.query(CustomerContact)
-        .filter(CustomerContact.id == contact_id)
-        .first()
-    )
+    contact = get_contact(db, contact_id)
 
     if not contact:
         raise HTTPException(404, "Contact not found")
@@ -654,11 +490,7 @@ def deactivate_contact(
     contact_id: str,
     current_user: User,
 ):
-    contact = (
-        db.query(CustomerContact)
-        .filter(CustomerContact.id == contact_id)
-        .first()
-    )
+    contact = get_contact(db, contact_id)
 
     if not contact:
         raise HTTPException(404, "Contact not found")
@@ -707,7 +539,7 @@ def update_contacts(
         db.query(CustomerContact)
         .filter(
             CustomerContact.customer_id == customer.id,
-            CustomerContact.is_primary == True,
+            CustomerContact.is_primary.is_(True),
         )
         .first()
     )
@@ -926,39 +758,6 @@ def update_customer(
 
     return customer
 
-
-def delete_customer(
-    db: Session,
-    customer_id: str,
-    current_user: User,
-):
-
-    customer = get_customer(db, customer_id)
-
-    customer.status = "inactive"
-    primary = (
-        db.query(CustomerContact)
-        .filter(
-            CustomerContact.customer_id == customer.id,
-            CustomerContact.is_primary == True,
-        )
-        .first()
-    )
-
-    if primary:
-        primary.status = "inactive"
-
-    log_customer_activity(
-        db=db,
-        customer=str(customer.id),
-        action="Customer Deactivated",
-        entity_type=CRMActivityEntityType.customer,
-        description=f"Customer ({customer.customer_name}) was deactivated.",
-        current_user=current_user,
-    )
-
-    db.commit()
-
 def sync_primary_contact(
     db: Session,
     customer: CustomersTemp,
@@ -969,7 +768,7 @@ def sync_primary_contact(
         db.query(CustomerContact)
         .filter(
             CustomerContact.customer_id == customer.id,
-            CustomerContact.is_primary == True,
+            CustomerContact.is_primary.is_(True),
         )
         .first()
     )
