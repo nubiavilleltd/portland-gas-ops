@@ -201,31 +201,18 @@ def create_primary_contact(
     contact = CustomerContact(
 
         contact_no=_generate_contact_number(db),
-
         customer_id=customer.id,
-
         created_by=customer.created_by,
-
         first_name=customer.contact_person,
-
         last_name="",
-
-        position=None,
-
-        role="Primary Contact",
-
+        position=customer.position,
+        role=customer.role,
+        preferred_channel=customer.preferred_channel,
         department=customer.department,
-
         email=customer.email,
-
         phone=customer.phone,
-
         alternate_phone=customer.alternate_phone,
-
-        preferred_channel="email",
-
         is_primary=True,
-
         status="active",
     )
 
@@ -848,6 +835,9 @@ def create_customer(
         internal_notes=data.internal_notes,
         status=data.status,
         created_by=current_user.employee.id,
+         position=data.position,
+        role=data.role,
+        preferred_channel=data.preferred_channel,
     )
 
     db.add(customer)
@@ -981,6 +971,9 @@ def sync_primary_contact(
         email=customer.email,
         phone=customer.phone,
         alternate_phone=customer.alternate_phone,
+        positon=customer.position,
+        role=customer.rolw,
+        preferred_channel=customer.preferred_channel,
     )
 
     if primary:

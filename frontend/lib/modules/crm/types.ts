@@ -258,7 +258,7 @@ export interface CustomerContact {
   last_name: string;
   phone: string;
   position: string;
-  preferred_channel: string;
+  preferred_channel: PreferredChannel;
   role: string;
   updated_at: string;
   additional_contacts: ContactPerson[];
@@ -434,5 +434,5 @@ export type ContactForm = {
   position: string;
   role: string;
   department: string;
-  preferred_channel: string;
+  preferred_channel: PreferredChannel;
 };
