@@ -232,7 +232,7 @@ export default function AssetRequestDetailPage() {
             showReturn={false}
             showReject
             showApprove
-            rejectLabel="Deny"
+            rejectLabel="Reject"
             approveLabel="Approve"
             requireCommentForRejectReturn
             onReject={(comment)  => handleApprovalAction("reject",  comment)}

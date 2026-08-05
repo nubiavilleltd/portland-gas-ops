@@ -315,6 +315,17 @@ def my_requests(
     return engine.my_requests(employee.id)
 
 
+@router.get("/my-acted-approvals")
+def my_acted_approvals(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns all requests this employee has acted on (approved/rejected/returned)."""
+    employee = get_employee_by_user_id(current_user.id, db)
+    engine = WorkflowEngine(db)
+    return engine.my_acted_approvals(employee.id)
+
+
 # ── 6. Approval actions (literal prefix — before /{workflow_id}) ─────────────
 
 def _update_source_status(request_type: str, request_id: str, status: str, db: Session) -> None:

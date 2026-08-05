@@ -127,6 +127,27 @@ export function useMyApprovals() {
   });
 }
 
+export interface MyActedApproval {
+  audit_id:       string;
+  request_type:   string;
+  request_id:     string;
+  reference:      string | null;
+  title:          string | null;
+  department:     string | null;
+  current_status: string | null;
+  my_action:      string;
+  my_comment:     string | null;
+  acted_at:       string;
+}
+
+export function useMyActedApprovals() {
+  return useQuery<MyActedApproval[]>({
+    queryKey: ["my-acted-approvals"],
+    queryFn:  () => get<MyActedApproval[]>("/api/workflow/my-acted-approvals"),
+    staleTime: 30 * 1000,
+  });
+}
+
 export interface AuditEntry {
   id:          string;
   action:      string;

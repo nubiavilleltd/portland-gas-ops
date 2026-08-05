@@ -24,7 +24,7 @@ import logging
 from datetime import datetime, date
 from typing import Callable
 
-from sqlalchemy import event as sa_event, func
+from sqlalchemy import event as sa_event, func, tuple_
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -890,6 +890,57 @@ class WorkflowEngine:
                 "next_approver_role":  next_approver_role,
                 "created_at":          utc_isoformat(row.created_at),
                 "updated_at":          utc_isoformat(row.updated_at),
+            })
+        return result
+
+    def my_acted_approvals(self, employee_id: str) -> list[dict]:
+        """
+        Returns all requests where this employee has taken an approval action
+        (approved, rejected, or returned), sorted by most recent action first.
+        """
+        # Get all audit trail entries where this employee acted as approver
+        approver_actions = [AuditAction.approved, AuditAction.rejected, AuditAction.returned]
+
+        audit_rows = (
+            self.db.query(WorkflowAuditTrail)
+            .filter(
+                WorkflowAuditTrail.actor_id == employee_id,
+                WorkflowAuditTrail.action.in_(approver_actions),
+            )
+            .order_by(WorkflowAuditTrail.acted_at.desc())
+            .all()
+        )
+
+        if not audit_rows:
+            return []
+
+        # Get the corresponding AllRequest entries for metadata
+        request_keys = {(row.request_type, row.request_id) for row in audit_rows}
+        all_req_map = {}
+        if request_keys:
+            all_reqs = (
+                self.db.query(AllRequest)
+                .filter(
+                    tuple_(AllRequest.request_type, AllRequest.request_id).in_(request_keys)
+                )
+                .all()
+            )
+            all_req_map = {(r.request_type, r.request_id): r for r in all_reqs}
+
+        result = []
+        for row in audit_rows:
+            all_req = all_req_map.get((row.request_type, row.request_id))
+            result.append({
+                "audit_id":       row.id,
+                "request_type":   row.request_type,
+                "request_id":     row.request_id,
+                "reference":      all_req.reference if all_req else None,
+                "title":          all_req.title if all_req else None,
+                "department":     all_req.department if all_req else None,
+                "current_status": all_req.status.value if all_req else None,
+                "my_action":      row.action.value,
+                "my_comment":     row.comment,
+                "acted_at":       utc_isoformat(row.acted_at),
             })
         return result
 

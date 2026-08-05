@@ -123,6 +123,7 @@ function NewProcurementContent() {
     watch,
     setValue,
     setError,
+    clearErrors,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
@@ -613,9 +614,13 @@ function NewProcurementContent() {
                         const raw = e.target.value.replace(/[^0-9.]/g, "");
                         setQtyDisplays((prev) => ({ ...prev, [i]: applyCommas(e.target.value) }));
                         setValue(`items.${i}.quantity`, raw);
+                        clearErrors(`items.${i}.quantity`);
                         setTimeout(() => updateTotal(i), 0);
                       }}
                     />
+                    {errors.items?.[i]?.quantity && (
+                      <p className="text-[10px] text-red-500 mt-0.5">{errors.items[i]?.quantity?.message}</p>
+                    )}
                   </div>
 
                   <div className="px-2 py-2 border-l border-brand-border/50">
@@ -637,9 +642,13 @@ function NewProcurementContent() {
                         const raw = e.target.value.replace(/[^0-9.]/g, "");
                         setCostDisplays((prev) => ({ ...prev, [i]: applyCommas(e.target.value) }));
                         setValue(`items.${i}.unit_cost`, raw);
+                        clearErrors(`items.${i}.unit_cost`);
                         setTimeout(() => updateTotal(i), 0);
                       }}
                     />
+                    {errors.items?.[i]?.unit_cost && (
+                      <p className="text-[10px] text-red-500 mt-0.5">{errors.items[i]?.unit_cost?.message}</p>
+                    )}
                   </div>
 
                   <div className="px-3 py-2 border-l border-brand-border/50 flex items-center">

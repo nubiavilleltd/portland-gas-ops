@@ -53,6 +53,11 @@ export function getErrorMessage(
     return APP_ERROR_MESSAGES.NETWORK_ERROR;
   }
 
+  // If it's a plain Error (e.g. thrown from mutation with resolved message), use its message
+  if (err instanceof Error && err.message && err.message !== "Request failed") {
+    return err.message;
+  }
+
   const detail = extractApiError(err);
 
   if (!detail) {
