@@ -60,6 +60,9 @@ interface Props {
 
 const labels: Record<string, string> = {
   rejected: "Rejected",
+  // HR and Finance persist the outcome as "denied"; the UI says Rejected
+  // everywhere. Without this the badge falls through to capitalize("denied").
+  denied: "Rejected",
   approved: "Approved",
   acknowledged: "Acknowledged",
   allocated: "Allocated",
