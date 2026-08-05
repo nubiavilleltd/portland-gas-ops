@@ -125,24 +125,52 @@ export default function OrderForm({
   const discountType = watch("discountType");
 
   // ── Subtotal ─────────────────────────────────────────────
-  const subtotal = orderItems.reduce((sum, item) => {
-    const product = getProductById(activeProducts, item.productId);
+  // const subtotal = orderItems.reduce((sum, item) => {
+  //   const product = getProductById(activeProducts, item.productId);
 
-    return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
-  }, 0);
+  //   return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
+  // }, 0);
 
 
 
-  const selectedProductIds = orderItems
-    .map(i => i.productId)
-    .filter(Boolean);
+  // const selectedProductIds = orderItems
+  //   .map(i => i.productId)
+  //   .filter(Boolean);
 
-  const remainingProducts =
-    activeProducts.length - selectedProductIds.length;
+  // const remainingProducts =
+  //   activeProducts.length - selectedProductIds.length;
 
-  const canAddMore = remainingProducts > 0;
+  // const canAddMore = remainingProducts > 0;
 
-  const discountValue = watch("discountValue") ?? 0;
+  // const discountValue = watch("discountValue") ?? 0;
+
+
+
+
+// ── Subtotal ─────────────────────────────────────────────
+const subtotal = orderItems.reduce((sum, item) => {
+  const product = getProductById(activeProducts, item.productId);
+
+  return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
+}, 0);
+
+// ── Check if we can add more products ────────────────────
+// Get all product IDs that are actually selected (non-empty)
+const selectedProductIds = orderItems
+  .map(i => i.productId)
+  .filter(Boolean);
+
+// Check if there are any empty rows (rows without a product selected)
+const hasEmptyRows = orderItems.some(item => !item.productId || item.productId.trim() === "");
+
+// Only allow adding if:
+// 1. There are NO empty rows already
+// 2. We haven't used all available products yet
+const canAddMore = !hasEmptyRows && selectedProductIds.length < activeProducts.length;
+
+const discountValue = watch("discountValue") ?? 0;
+
+
 
   const discountAmount =
     discountType === "percentage"
@@ -462,7 +490,8 @@ export default function OrderForm({
               { shouldValidate: true },
             );
           }}
-          addLabel={canAddMore ? "Add Product" : "All Products Added"}
+          // addLabel={canAddMore ? "Add Product" : "All Products Added"}
+          addLabel={canAddMore ? "Add Product" : ""}
           totals={totals}
           minRows={1}
           error={errors.orderItems?.message}

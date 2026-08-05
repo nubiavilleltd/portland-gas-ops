@@ -12,7 +12,7 @@ import {
 
 export const DEFAULT_LINE_ITEM: OrderLineItem = {
   productId: "",
-  quantity: 1,
+  quantity: 0,
 };
 
 interface UseCreateOrderFormOptions {

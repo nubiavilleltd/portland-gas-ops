@@ -242,7 +242,7 @@ export default function LineItemTable<TRow>({
               : "text-brand-purple hover:text-brand-purple-dark",
           )}
         >
-          <Plus size={15} />
+         { addLabel && <Plus size={15} />}
           {addLabel}
         </button>
       )}
