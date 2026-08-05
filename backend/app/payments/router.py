@@ -24,6 +24,9 @@ from app.payments.service import PaymentService
 # from app.shared.dependencies import require_roles
 from app.payments.permissions import permissions
 from app.shared.models.user import User
+from app.payments.workflows.record_payment_workflow import (
+    RecordPaymentWorkflow,
+)
 
 from app.payments.constants import (
     ALLOWED_ATTACHMENT_TYPES,
@@ -33,6 +36,7 @@ from app.payments.constants import (
 
 router = APIRouter()
 service = PaymentService()
+record_payment_workflow = RecordPaymentWorkflow()
 
 def _uploaded_by(user: User) -> str | None:
     return (
