@@ -16,12 +16,12 @@ import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
 import { BackButton } from "@/components/ui/BackButton";
 import AccountManagementCard from "@/lib/modules/crm/components/AccountManagementCard";
 import { useToast } from "@/hooks/useToast";
-
 import {
   validateCustomer,
   buildCustomerPayload,
 } from "@/lib/modules/crm/utils/customer";
 import { useCreateCustomer } from "@/lib/modules/crm";
+
 export default function NewCustomerPage() {
   const router = useRouter();
   const toast = useToast();
@@ -31,37 +31,32 @@ export default function NewCustomerPage() {
     entityType: "company",
     category: "retail",
     companyEmail: "",
-
     rcNumber: "",
     tin: "",
     vatNumber: "",
     industry: "",
-
     customerType: "potential",
-
     salesContact: "",
-
     referrerType: "employee",
     referrerId: "",
-
     contactPerson: "",
     department: "",
     email: "",
     phone: "",
     alternatePhone: "",
-
     country: "Nigeria",
     state: "",
     city: "",
     addressLine1: "",
     addressLine2: "",
     postalCode: "",
-
     preferredProducts: [],
     supplyMethod: "",
     estimatedMonthlyDemand: "",
-
     internalNotes: "",
+    position: "",
+    role: "",
+    preferredChannel: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -146,6 +141,9 @@ export default function NewCustomerPage() {
             email: form.email,
             phone: form.phone,
             alternatePhone: form.alternatePhone,
+            position: form.position,
+            preferredChannel: form.preferredChannel,
+            role: form.role,
           }}
           errors={errors}
           onChange={handleChange}

@@ -1,6 +1,5 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import (Column)
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.crm.model import (
@@ -17,8 +16,6 @@ from app.crm.model import (
 # ==========================================================
 # CUSTOMER CONTACT
 # ==========================================================
-from typing import List
-
 
 class CustomerContactCreate(BaseModel):
     first_name: str = Field(min_length=1, max_length=100)
@@ -37,8 +34,7 @@ class CustomerContactCreate(BaseModel):
     is_primary: bool = True
 
 class CustomerContactsCreate(BaseModel):
-    additional_contacts: List[CustomerContactCreate] = []
-
+    additional_contacts: List[CustomerContactCreate] = Field(default_factory=list)
 
 class CustomerContactUpdate(BaseModel):
     first_name: Optional[str] = Field(default=None, max_length=100)
@@ -65,7 +61,7 @@ class CustomerContactEdit(CustomerContactUpdate):
 
 class CustomerContactsUpdate(BaseModel):
     primary_contact: CustomerContactEdit
-    additional_contacts: List[CustomerContactEdit] = []
+    additional_contacts: List[CustomerContactEdit] = Field(default_factory=list)
 
 class CustomerContactResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -3,12 +3,12 @@ import uuid
 
 from sqlalchemy import (
     Column,
-    Integer,
     String,
     Text,
     DateTime,
     ForeignKey,
-    JSON,Boolean,
+    JSON,
+    Boolean,
     Enum as SAEnum,
 )
 from sqlalchemy.orm import relationship
@@ -100,7 +100,7 @@ class CustomersTemp(Base):
     String(36),
     ForeignKey("employees.id"),
     nullable=True,
-)
+    )
     referrer_type = Column(
         SAEnum(ReferrerType),
         nullable=True,
@@ -136,7 +136,7 @@ class CustomersTemp(Base):
     String(36),
     ForeignKey("employees.id"),
     nullable=False,
-)
+    )
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -191,7 +191,7 @@ class CustomerContact(Base):
     String(36),
     ForeignKey("employees.id"),
     nullable=False,
-)
+    )
 
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
@@ -241,7 +241,9 @@ class CustomerContact(Base):
         "CustomersTemp",
         back_populates="contacts",
     )
-
+    @property
+    def customer_name(self):
+        return self.customer.customer_name if self.customer else None
     creator = relationship(
         "Employee",
         foreign_keys=[created_by],

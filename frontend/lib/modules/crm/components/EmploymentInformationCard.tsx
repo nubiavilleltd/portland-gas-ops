@@ -66,7 +66,7 @@ export default function EmploymentInformationCard({
           options={[
             { label: "Email", value: "email" },
             { label: "Phone", value: "phone" },
-            { label: "WhatsApp", value: "whatsApp" },
+            { label: "WhatsApp", value: "whatsapp" },
           ]}
           onValueChange={(value) => onChange?.("preferred_channel", value)}
         />

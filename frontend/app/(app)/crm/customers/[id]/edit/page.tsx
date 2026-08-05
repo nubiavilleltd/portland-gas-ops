@@ -36,7 +36,6 @@ export default function EditCustomerPage() {
     customerName: "",
     entityType: "company",
     category: "",
-
     rcNumber: "",
     tin: "",
     vatNumber: "",
@@ -50,7 +49,6 @@ export default function EditCustomerPage() {
     email: "",
     phone: "",
     alternatePhone: "",
-
     country: "",
     state: "",
     city: "",
@@ -62,6 +60,9 @@ export default function EditCustomerPage() {
     supplyMethod: "",
     estimatedMonthlyDemand: "",
     internalNotes: "",
+    position: "",
+    role: "",
+    preferredChannel: "",
   });
   const { data: employees = [] } = useEmployees();
 
@@ -96,6 +97,9 @@ export default function EditCustomerPage() {
       supplyMethod: customer.supply_method ?? "",
       estimatedMonthlyDemand: customer.estimated_monthly_demand ?? "",
       internalNotes: customer.internal_notes ?? "",
+      role: customer.role ?? "",
+      position: customer.position ?? "",
+      preferredChannel: customer.preferred_channel ?? "",
     });
   }, [customer]);
 
@@ -215,6 +219,9 @@ export default function EditCustomerPage() {
             email: form.email,
             phone: form.phone,
             alternatePhone: form.alternatePhone,
+            position: form.position,
+            role: form.role,
+            preferredChannel: form.preferredChannel,
           }}
           errors={errors}
           onChange={handleChange}

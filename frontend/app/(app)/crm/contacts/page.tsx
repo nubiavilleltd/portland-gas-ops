@@ -6,7 +6,6 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Link from "next/link";
 import { useCustomerContacts, type CustomerContact } from "@/lib/modules/crm";
 
@@ -50,7 +49,9 @@ const COLUMNS: Column<GroupedCustomerContact>[] = [
     key: "contacts",
     label: "Contacts",
     render: (_, record) => (
-      <span className="text-sm">{record?.additional_contacts?.length + 1}</span>
+      <span className="text-sm">
+        {(record.primary_contact ? 1 : 0) + record.additional_contacts.length}
+      </span>
     ),
   },
 
@@ -65,12 +66,6 @@ const COLUMNS: Column<GroupedCustomerContact>[] = [
     label: "Email",
     render: (_, record) => record?.primary_contact?.email,
   },
-
-  // {
-  //   key: "status",
-  //   label: "Status",
-  //   render: (_, record) => <ApprovalBadge status={record.status} />,
-  // },
 
   {
     key: "actions",
@@ -109,12 +104,10 @@ export default function ContactsPage() {
           additional_contacts: [],
         };
       }
-      if (contact.status == "active") {
-        if (contact.is_primary) {
-          grouped[contact.customer_id].primary_contact = contact;
-        } else {
-          grouped[contact.customer_id].additional_contacts.push(contact);
-        }
+      if (contact.is_primary) {
+        grouped[contact.customer_id].primary_contact = contact;
+      } else {
+        grouped[contact.customer_id].additional_contacts.push(contact);
       }
     }
 
@@ -142,7 +135,7 @@ export default function ContactsPage() {
       <DataTable<GroupedCustomerContact>
         columns={COLUMNS}
         data={groupedContacts}
-        rowHref={(record) => `/crm/contacts/${record.id}`}
+        rowHref={(record) => `/crm/contacts/${record.customer_id}`}
         searchPlaceholder="Search customer or primary contact..."
         emptyMessage="No contacts found."
         isLoading={isLoading}

@@ -2,8 +2,8 @@
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Card from "@/components/ui/Card";
+import CRMDashboardSkeleton from "@/lib/modules/crm/components/CRMDashboardSkeleton";
 
 import {
   useCustomerOnboarding,
@@ -14,7 +14,6 @@ import {
 import {
   Users,
   UserCheck,
-  Clock3,
   Contact,
   CalendarDays,
   CheckCircle2,
@@ -61,9 +60,7 @@ export default function CRMDashboardPage() {
   if (loading) {
     return (
       <AppLayout pageTitle="CRM Dashboard">
-        <div className="flex justify-center py-20">
-          <LoadingSpinner />
-        </div>
+        <CRMDashboardSkeleton />
       </AppLayout>
     );
   }

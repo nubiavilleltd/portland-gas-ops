@@ -1,6 +1,5 @@
 "use client";
-
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "../utils";
 import type { CRMActivity } from "../types";
 
 interface Props {

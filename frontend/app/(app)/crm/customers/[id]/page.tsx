@@ -213,6 +213,9 @@ export default function CustomerDetailsPage() {
             email: customer.email,
             phone: customer.phone,
             alternatePhone: customer.alternate_phone ?? "",
+            position: customer.position ?? "",
+            role: customer.role ?? "",
+            preferredChannel: customer.preferred_channel ?? "",
           }}
         />
         <FormSection
@@ -239,6 +242,9 @@ export default function CustomerDetailsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
                       Preferred Channel
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
+                      Status
+                    </th>
                   </tr>
                 </thead>
 
@@ -259,6 +265,10 @@ export default function CustomerDetailsPage() {
 
                       <td className="px-4 py-3 text-sm">
                         {contact.preferred_channel}
+                      </td>
+
+                      <td className="px-4 py-3 text-sm">
+                        <ApprovalBadge status={contact.status} />
                       </td>
                     </tr>
                   ))}
