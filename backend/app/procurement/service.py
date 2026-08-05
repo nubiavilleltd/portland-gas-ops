@@ -133,7 +133,8 @@ class ProcurementService:
 
         # Start approval workflow — creates approval_request, notifies approver.
         # Does not commit; the router commits the full transaction.
-        title = f"{req.category or 'Procurement'} — {req.reference}"
+        category_label = req.category.replace("_", " ").title() if req.category else "Procurement"
+        title = f"{category_label} — {req.reference}"
         engine = WorkflowEngine(self.repo.db)
         engine.start(
             request_type="procurement",
@@ -232,7 +233,8 @@ class ProcurementService:
 
         req.status = "pending"
 
-        title = f"{req.category or 'Procurement'} — {req.reference}"
+        category_label = req.category.replace("_", " ").title() if req.category else "Procurement"
+        title = f"{category_label} — {req.reference}"
         engine = WorkflowEngine(self.repo.db)
         engine.start(
             request_type="procurement",

@@ -202,13 +202,14 @@ export default function IntranetFAQsPage() {
   const sortableColumns: SortableColumn<FAQRow>[] = [
     {
       label: "Question",
+      className: "flex-1 min-w-0",
       render: (row) => (
-        <p className="text-sm font-medium text-brand-text-primary max-w-lg">{row.question}</p>
+        <p className="text-sm font-medium text-brand-text-primary truncate">{row.question}</p>
       ),
     },
     {
       label: "Status",
-      className: "w-36 shrink-0",
+      className: "w-20 sm:w-24 shrink-0 text-center",
       render: (row) => (
         <Badge variant={row.is_published ? "success" : "neutral"} label={row.is_published ? "Visible" : "Hidden"} />
       ),
