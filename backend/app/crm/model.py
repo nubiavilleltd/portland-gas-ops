@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     JSON,
     Boolean,
+    Numeric,
     Enum as SAEnum,
 )
 from sqlalchemy.orm import relationship
@@ -247,4 +248,188 @@ class CustomerContact(Base):
     creator = relationship(
         "Employee",
         foreign_keys=[created_by],
+    )
+
+
+
+
+# =================CUSTOMER VISITS======================
+
+# ==========================================================
+# ENUMS
+# ==========================================================
+
+class VisitType(str, enum.Enum):
+    sales = "Sales"
+    courtesy = "Courtesy"
+    follow_up = "Follow-up"
+    complaint = "Complaint"
+    collection = "Collection"
+
+
+class VisitStatus(str, enum.Enum):
+    scheduled = "Scheduled"
+    completed = "Completed"
+    follow_up_required = "Follow-up Required"
+    cancelled = "Cancelled"
+
+
+class CustomerVisit(Base):
+    __tablename__ = "customer_visits"
+
+    id = Column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid.uuid4()),
+    )
+
+    visit_number = Column(
+        String(20),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    customer_id = Column(
+        String(36),
+        ForeignKey("customers_temp.id"),
+        nullable=False,
+    )
+
+    contact_person = Column(
+        String(36),
+        ForeignKey("customer_contacts.id"),
+        nullable=False,
+    )
+
+    visit_type = Column(
+        SAEnum(VisitType),
+        nullable=False,
+    )
+
+    related_visit_id = Column(
+        String(36),
+        ForeignKey("customer_visits.id"),
+        nullable=True,
+    )
+
+    visit_date = Column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    location = Column(
+        String(255),
+        nullable=False,
+    )
+
+    purpose = Column(
+        Text,
+        nullable=False,
+    )
+
+    participants = Column(
+        Text,
+        nullable=True,
+    )
+
+    reminder_date = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    follow_up_required = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    follow_up_date = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ======================================================
+    # Visit Completion
+    # ======================================================
+
+    outcome = Column(Text)
+
+    next_action = Column(Text)
+
+    comment = Column(Text)
+
+    customer_feedback = Column(Text)
+
+    customer_comments = Column(Text)
+
+    recommendation = Column(Text)
+
+    opportunity_identified = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    opportunity_value = Column(
+        Numeric(18, 2),
+        nullable=True,
+    )
+
+    opportunity_notes = Column(Text)
+
+    # ======================================================
+    # Status
+    # ======================================================
+
+    status = Column(
+        SAEnum(VisitStatus),
+        nullable=False,
+        default=VisitStatus.scheduled,
+    )
+
+    created_by = Column(
+        String(36),
+        ForeignKey("employees.id"),
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    completed_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ======================================================
+    # Relationships
+    # ======================================================
+
+    customer = relationship(
+        "CustomersTemp",
+    )
+
+    contact = relationship(
+        "CustomerContact",
+    )
+
+    creator = relationship(
+        "Employee",
+        foreign_keys=[created_by],
+    )
+
+    related_visit = relationship(
+        "CustomerVisit",
+        remote_side=[id],
     )

@@ -20,7 +20,9 @@ from app.crm.schemas import (
     CustomerContactUpdate,
     CustomerContactResponse,
     CustomerContactsCreate,
-    CustomerContactsUpdate
+    CustomerContactsUpdate,
+    CustomerVisitCreate,
+    CustomerVisitUpdate
 )
 
 router = APIRouter()
@@ -401,3 +403,87 @@ def health():
         "module": "CRM",
         "status": "healthy",
     }
+
+
+
+# ==================CUSTOMER VISITS ==============
+
+@router.get("/visits")
+def list_visits(
+    search: str | None = None,
+    customer_id: str | None = None,
+    visit_type: str | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.list_customer_visits(
+        db=db,
+        current_user=current_user,
+        search=search,
+        customer_id=customer_id,
+        visit_type=visit_type,
+        status=status,
+    )
+
+
+@router.get("/visits/{visit_id}")
+def visit_details(
+    visit_id: str,
+    db: Session = Depends(get_db),
+):
+    return service.get_customer_visit(
+        db=db,
+        visit_id=visit_id,
+    )
+
+
+@router.post(
+    "/visits",
+    status_code=status.HTTP_201_CREATED,
+)
+def create_visit(
+    data: CustomerVisitCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.create_customer_visit(
+        db=db,
+        data=data,
+        current_user=current_user,
+    )
+
+
+@router.patch("/visits/{visit_id}")
+def update_visit(
+    visit_id: str,
+    data: CustomerVisitUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.update_customer_visit(
+        db=db,
+        visit_id=visit_id,
+        data=data,
+        current_user=current_user,
+    )
+
+@router.get("/lookup/visit-types")
+def visit_types():
+    return [
+        "Sales",
+        "Courtesy",
+        "Follow-up",
+        "Complaint",
+        "Collection",
+    ]
+
+@router.get("/lookup/visit-status")
+def visit_status():
+    return [
+        "Scheduled",
+        "Completed",
+        "Follow-up Required",
+        "Cancelled",
+    ]
+
