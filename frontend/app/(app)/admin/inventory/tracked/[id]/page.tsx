@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Tag, MapPin, Calendar, Package } from "lucide-react";
+import { ArrowLeft, Tag, MapPin, Calendar, Package, Info } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -26,30 +26,30 @@ import InventoryItemDetailSkeleton from "@/lib/modules/inventory/components/Inve
 
 // ── Status config ─────────────────────────────────────────
 const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
-  available:     "success",
-  reserved:      "warning",
-  checked_out:   "info",
+  available: "success",
+  reserved: "warning",
+  checked_out: "info",
   with_customer: "cyan",
-  maintenance:   "orange",
-  retired:       "neutral",
-  returned:       "neutral",
+  maintenance: "orange",
+  retired: "neutral",
+  returned: "neutral",
 };
 
 const STATUS_LABEL: Record<InventoryItem["status"], string> = {
-  available:     "Available",
-  reserved:      "Reserved",
-  checked_out:   "Checked Out",
+  available: "Available",
+  reserved: "Reserved",
+  checked_out: "Checked Out",
   with_customer: "With Customer",
-  maintenance:   "Maintenance",
-  retired:       "Retired",
-  returned:       "Returned",
+  maintenance: "Maintenance",
+  retired: "Retired",
+  returned: "Returned",
 };
 
 const CONDITION_VARIANT: Record<InventoryItem["condition"], BadgeVariant> = {
-  new:         "success",
+  new: "success",
   refurbished: "info",
-  used:        "neutral",
-  damaged:     "danger",
+  used: "neutral",
+  damaged: "danger",
 };
 
 // ── Info row ──────────────────────────────────────────────
@@ -60,11 +60,17 @@ function InfoRow({
 }: {
   label: string;
   value: React.ReactNode;
-  toolTip?:string;
+  toolTip?: string;
 }) {
   return (
     <div>
-      <p className="text-xs text-brand-text-secondary" title={toolTip ?? ""}>{label}</p>
+      {toolTip ? (
+        <div className="flex items-center gap-2 text-xs text-brand-text-secondary cursor-pointer" title={toolTip}>
+          {label} 
+        <Info size={12} />
+        </div>
+      ) : <p className="text-xs text-brand-text-secondary">{label}</p>}
+
       <div className="font-medium mt-0.5 text-sm">{value ?? "—"}</div>
     </div>
   );
@@ -72,22 +78,22 @@ function InfoRow({
 
 // ── Movement type label ───────────────────────────────────
 const MOVEMENT_LABELS: Record<string, { label: string; variant: BadgeVariant }> = {
-  check_in:    { label: "Check In",    variant: "success" },
-  check_out:   { label: "Check Out",   variant: "info"    },
-  reservation: { label: "Reserved",    variant: "warning" },
-  return:      { label: "Return",      variant: "cyan"    },
-  adjustment:  { label: "Adjustment",  variant: "neutral" },
+  check_in: { label: "Check In", variant: "success" },
+  check_out: { label: "Check Out", variant: "info" },
+  reservation: { label: "Reserved", variant: "warning" },
+  return: { label: "Return", variant: "cyan" },
+  adjustment: { label: "Adjustment", variant: "neutral" },
 };
 
 // ── Page ──────────────────────────────────────────────────
 export default function InventoryItemDetailPage() {
-  const router     = useRouter();
-  const { id }     = useParams<{ id: string }>();
+  const router = useRouter();
+  const { id } = useParams<{ id: string }>();
 
-  const { item,      isLoading: itemLoading      } = useInventoryItemById(id);
+  const { item, isLoading: itemLoading } = useInventoryItemById(id);
   const { movements, isLoading: movementsLoading } = useStockMovementsByItem(id);
-  const { products,  isLoading: productsLoading  } = useProducts();
-  const {order, isLoading: orderLoading} = useOrderById(item?.order_id as string)
+  const { products, isLoading: productsLoading } = useProducts();
+  const { order, isLoading: orderLoading } = useOrderById(item?.order_id as string)
 
   const isLoading = itemLoading || movementsLoading || productsLoading || orderLoading;
 
