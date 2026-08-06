@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { BackButton } from "@/components/ui/BackButton";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -9,7 +9,11 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
-import { useCustomerVisitDetails } from "@/lib/modules/crm";
+import {
+  useCustomerVisitDetails,
+  useUpdateCustomerVisit,
+  useCRMActivityByCustomer,
+} from "@/lib/modules/crm";
 import FormSection from "@/components/ui/FormSection";
 import FormTextarea from "@/components/forms/FormTextarea";
 import Button from "@/components/ui/Button";
@@ -17,27 +21,62 @@ import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import { useToast } from "@/hooks/useToast";
-import AuditTrail from "@/components/forms/AuditTrail";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
+import {
+  validateVisitCompletion,
+  buildVisitUpdatePayload,
+} from "@/lib/modules/crm/utils/visit";
+import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
 
 export default function CustomerVisitDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: visit, isLoading, isError } = useCustomerVisitDetails(id);
   const toast = useToast();
-  const [outcome, setOutcome] = useState(visit?.outcome ?? "");
-  const [nextAction, setNextAction] = useState(visit?.next_action ?? "");
-  const [status, setStatus] = useState("Completed");
-  const [comment, setComment] = useState("");
-  const [customerFeedback, setCustomerFeedback] = useState("");
-  const [discussionPoints, setDiscussionPoints] = useState("");
-  const [recommendations, setRecommendations] = useState("");
+  const updateVisit = useUpdateCustomerVisit();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { entries } = useCRMActivityByCustomer(id);
 
-  const [opportunityCreated, setOpportunityCreated] = useState(false);
-  const [opportunityValue, setOpportunityValue] = useState("");
-  const [opportunityNotes, setOpportunityNotes] = useState("");
+  const [form, setForm] = useState({
+    outcome: "",
+    nextAction: "",
+    status: "Completed",
+    comment: "",
 
-  const [attachments, setAttachments] = useState([]);
+    customerFeedback: "",
+    discussionPoints: "",
+    recommendations: "",
+
+    opportunityCreated: false,
+    opportunityValue: "",
+    opportunityNotes: "",
+
+    attachments: [] as File[],
+  });
+  useEffect(() => {
+    if (!visit) return;
+
+    setForm({
+      outcome: visit.outcome ?? "",
+      nextAction: visit.next_action ?? "",
+      status:
+        visit.status === "Scheduled"
+          ? "Completed"
+          : (visit.status ?? "Completed"),
+
+      comment: visit.comment ?? "",
+
+      customerFeedback: visit.customer_feedback ?? "",
+      discussionPoints: visit.customer_comments ?? "",
+      recommendations: visit.recommendation ?? "",
+
+      opportunityCreated: visit.opportunity_identified ?? false,
+      opportunityValue: visit.opportunity_value?.toString() ?? "",
+      opportunityNotes: visit.opportunity_notes ?? "",
+      attachments: [],
+    });
+  }, [visit]);
+
   if (isLoading) {
     return (
       <AppLayout pageTitle="Visit Details">
@@ -48,26 +87,29 @@ export default function CustomerVisitDetailsPage() {
     );
   }
 
-  function handleCompleteVisit() {
-    console.log({
-      outcome,
-      nextAction,
-      customerFeedback,
-      discussionPoints,
-      recommendations,
-      comment,
-      opportunityCreated,
-      opportunityValue,
-      opportunityNotes,
-      attachments,
-      status,
-    });
+  async function handleCompleteVisit() {
+    const { valid, errors } = validateVisitCompletion(form);
 
-    toast.success("Customer visit updated successfully.");
+    if (!valid) {
+      setErrors(errors);
+      toast.error("Please correct the highlighted errors.");
+      return;
+    }
 
-    setTimeout(() => {
+    try {
+      await updateVisit.mutateAsync({
+        id,
+        data: buildVisitUpdatePayload(form),
+      });
+
+      toast.success("Customer visit updated successfully.");
+
       router.push("/crm/visits");
-    }, 800);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail ?? "Failed to update customer visit.",
+      );
+    }
   }
 
   const crmRoles: MockUserRoleOption<"sales_executive">[] = [
@@ -97,7 +139,7 @@ export default function CustomerVisitDetailsPage() {
           onRoleChange={() => {}}
           roleLabel="Sales Executive"
           recordLabel="Customer Visit"
-          status={<ApprovalBadge status={visit.status?.toLowerCase()} />}
+          status={<ApprovalBadge status={form.status.toLowerCase()} />}
           showRoleSwitcher={false}
         />
       </div>
@@ -244,141 +286,291 @@ export default function CustomerVisitDetailsPage() {
                 <FormTextarea
                   label="Outcome"
                   rows={5}
-                  value={outcome}
-                  onChange={(e) => setOutcome(e.target.value)}
+                  value={form.outcome}
+                  error={errors.outcome}
+                  onChange={(e) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      outcome: e.target.value,
+                    }));
+
+                    setErrors((prev) => ({
+                      ...prev,
+                      outcome: "",
+                    }));
+                  }}
                 />
                 <FormTextarea
                   label="Customer Feedback"
                   rows={4}
-                  value={customerFeedback}
-                  onChange={(e) => setCustomerFeedback(e.target.value)}
+                  value={form.customerFeedback}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      customerFeedback: e.target.value,
+                    }))
+                  }
                 />
 
                 <FormTextarea
                   label="Key Discussion Points"
                   rows={4}
-                  value={discussionPoints}
-                  onChange={(e) => setDiscussionPoints(e.target.value)}
+                  value={form.discussionPoints}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      discussionPoints: e.target.value,
+                    }))
+                  }
                 />
 
                 <FormTextarea
                   label="Recommendations"
                   rows={4}
-                  value={recommendations}
-                  onChange={(e) => setRecommendations(e.target.value)}
+                  value={form.recommendations}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      recommendations: e.target.value,
+                    }))
+                  }
                 />
 
                 <FormTextarea
                   label="Next Action"
                   rows={4}
-                  value={nextAction}
-                  onChange={(e) => setNextAction(e.target.value)}
+                  error={errors.nextAction}
+                  value={form.nextAction}
+                  onChange={(e) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      nextAction: e.target.value,
+                    }));
+
+                    setErrors((prev) => ({
+                      ...prev,
+                      nextAction: "",
+                    }));
+                  }}
                 />
                 <FormTextarea
                   label="Comment"
                   rows={3}
                   placeholder="Add any additional observations or notes..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
+                  value={form.comment}
+                  error={errors.comment}
+                  onChange={(e) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      comment: e.target.value,
+                    }));
+
+                    setErrors((prev) => ({
+                      ...prev,
+                      comment: "",
+                    }));
+                  }}
                 />
                 <FormSelect
                   label="Visit Status"
-                  value={status}
+                  value={form.status}
                   options={[
-                    {
-                      label: "Completed",
-                      value: "Completed",
-                    },
+                    { label: "Completed", value: "Completed" },
                     {
                       label: "Follow-up Required",
                       value: "Follow-up Required",
                     },
-                    {
-                      label: "Cancelled",
-                      value: "Cancelled",
-                    },
+                    { label: "Cancelled", value: "Cancelled" },
                   ]}
-                  onValueChange={setStatus}
+                  onValueChange={(value) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      status: value,
+                    }));
+
+                    setErrors((prev) => ({
+                      ...prev,
+                      outcome: "",
+                      nextAction: "",
+                      comment: "",
+                    }));
+                  }}
                 />
               </div>
             </FormSection>
 
-            <FormSection
-              title="Sales Opportunity"
-              description="Capture any opportunity identified during the visit."
-            >
-              <FormSelect
-                label="Opportunity Created?"
-                value={opportunityCreated ? "Yes" : "No"}
-                options={[
-                  { label: "Yes", value: "Yes" },
-                  { label: "No", value: "No" },
-                ]}
-                onValueChange={(value) =>
-                  setOpportunityCreated(value === "Yes")
-                }
-              />
-
-              {opportunityCreated && (
-                <>
-                  <FormInput
-                    label="Opportunity Value"
-                    value={opportunityValue}
-                    onChange={(e) => setOpportunityValue(e.target.value)}
-                  />
-
-                  <FormTextarea
-                    label="Opportunity Notes"
-                    rows={4}
-                    value={opportunityNotes}
-                    onChange={(e) => setOpportunityNotes(e.target.value)}
-                  />
-                </>
-              )}
-            </FormSection>
-
+            {form.status !== "Cancelled" && (
+              <FormSection
+                title="Sales Opportunity"
+                description="Capture any opportunity identified during the visit."
+              >
+                <FormSelect
+                  label="Opportunity Created?"
+                  value={form.opportunityCreated ? "Yes" : "No"}
+                  options={[
+                    { label: "Yes", value: "Yes" },
+                    { label: "No", value: "No" },
+                  ]}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      opportunityCreated: value === "Yes",
+                      opportunityValue:
+                        value === "Yes" ? prev.opportunityValue : "",
+                      opportunityNotes:
+                        value === "Yes" ? prev.opportunityNotes : "",
+                    }))
+                  }
+                />
+                {form.opportunityCreated && (
+                  <>
+                    <FormInput
+                      label="Opportunity Value"
+                      value={form.opportunityValue}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          opportunityValue: e.target.value,
+                        }))
+                      }
+                    />
+                    <FormTextarea
+                      label="Opportunity Notes"
+                      rows={4}
+                      value={form.opportunityNotes}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          opportunityNotes: e.target.value,
+                        }))
+                      }
+                    />
+                  </>
+                )}
+              </FormSection>
+            )}
             <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={updateVisit.isPending}
+              >
                 Cancel
               </Button>
 
-              <Button onClick={handleCompleteVisit}>Update Visit</Button>
+              <Button
+                onClick={handleCompleteVisit}
+                loading={updateVisit.isPending}
+              >
+                Update Visit
+              </Button>
             </div>
           </>
         ) : (
-          <FormSection
-            title="Visit Outcome"
-            description="Outcome recorded after the visit."
-          >
-            <FormTextarea
-              label="Cancellation Reason"
-              value={visit.comment}
-              rows={4}
-              disabled
-            />
+          <>
+            <FormSection
+              title="Visit Outcome"
+              description="Outcome recorded after the visit."
+            >
+              <div className="space-y-6">
+                <FormTextarea
+                  label="Outcome"
+                  value={visit.outcome}
+                  rows={5}
+                  disabled
+                />
 
-            <FormSelect
-              label="Visit Status"
-              value={visit.status}
-              options={[
-                {
-                  label: visit.status,
-                  value: visit.status,
-                },
-              ]}
-              disabled
-            />
-          </FormSection>
+                <FormTextarea
+                  label="Customer Feedback"
+                  value={visit.customer_feedback}
+                  rows={4}
+                  disabled
+                />
+
+                <FormTextarea
+                  label="Key Discussion Points"
+                  value={visit.customer_comments}
+                  rows={4}
+                  disabled
+                />
+
+                <FormTextarea
+                  label="Recommendations"
+                  value={visit.recommendation}
+                  rows={4}
+                  disabled
+                />
+
+                <FormTextarea
+                  label="Next Action"
+                  value={visit.next_action}
+                  rows={4}
+                  disabled
+                />
+
+                <FormTextarea
+                  label="Comment"
+                  value={visit.comment}
+                  rows={3}
+                  disabled
+                />
+
+                <FormSelect
+                  label="Visit Status"
+                  value={visit.status}
+                  options={[
+                    {
+                      label: visit.status,
+                      value: visit.status,
+                    },
+                  ]}
+                  disabled
+                />
+              </div>
+            </FormSection>
+
+            {(visit.opportunity_identified ||
+              visit.opportunity_value ||
+              visit.opportunity_notes) && (
+              <FormSection
+                title="Sales Opportunity"
+                description="Opportunity identified during the visit."
+              >
+                <div className="space-y-6">
+                  <FormSelect
+                    label="Opportunity Created?"
+                    value={visit.opportunity_identified ? "Yes" : "No"}
+                    options={[
+                      { label: "Yes", value: "Yes" },
+                      { label: "No", value: "No" },
+                    ]}
+                    disabled
+                  />
+
+                  {visit.opportunity_identified && (
+                    <>
+                      <FormInput
+                        label="Opportunity Value"
+                        value={visit.opportunity_value?.toString() ?? ""}
+                        disabled
+                      />
+
+                      <FormTextarea
+                        label="Opportunity Notes"
+                        value={visit.opportunity_notes ?? ""}
+                        rows={4}
+                        disabled
+                      />
+                    </>
+                  )}
+                </div>
+              </FormSection>
+            )}
+          </>
         )}
 
-        <AuditTrail
-          items={(visit.activities ?? []).map((activity) => ({
-            action: activity.action.replaceAll("_", " "),
-            actor: activity.performedBy,
-            role: activity.performedByRole,
-            dateTime: activity.performedAt,
-            comment: activity.comment ?? "-",
-          }))}
+        <CRMActivityTimeline
+          entries={entries.filter((item) => item?.entity_type == "visit")}
         />
       </div>
     </AppLayout>
