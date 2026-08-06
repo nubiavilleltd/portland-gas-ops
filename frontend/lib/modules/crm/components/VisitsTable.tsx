@@ -1,6 +1,5 @@
 "use client";
 
-import Button from "@/components/ui/Button";
 import DataTable, { Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Link from "next/link";
@@ -10,9 +9,10 @@ import { CustomerVisit } from "../types";
 
 type Props = {
   visits: CustomerVisit[];
+  isLoading: boolean | undefined;
 };
 
-export default function VisitsTable({ visits }: Props) {
+export default function VisitsTable({ visits, isLoading }: Props) {
   const columns: Column<CustomerVisit>[] = [
     {
       label: "Visit No.",
@@ -75,6 +75,9 @@ export default function VisitsTable({ visits }: Props) {
   return (
     <DataTable
       data={visits}
+      isLoading={isLoading}
+      rowHref={(record) => `/crm/visits/${record.id}`}
+      emptyMessage="No visits found."
       columns={columns}
       searchable
       searchPlaceholder="Search visits..."

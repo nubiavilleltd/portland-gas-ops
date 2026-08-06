@@ -3,7 +3,6 @@
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 import { Plus } from "lucide-react";
 
@@ -12,26 +11,6 @@ import { useCustomerVisits } from "@/lib/modules/crm";
 
 export default function CustomerVisitsPage() {
   const { data: visits = [], isLoading, isError } = useCustomerVisits();
-
-  if (isLoading) {
-    return (
-      <AppLayout pageTitle="Customer Visits">
-        <div className="flex justify-center py-20">
-          <LoadingSpinner />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (isError) {
-    return (
-      <AppLayout pageTitle="Customer Visits">
-        <div className="py-20 text-center text-brand-text-secondary">
-          Failed to load customer visits.
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout pageTitle="Customer Visits">
@@ -45,7 +24,7 @@ export default function CustomerVisitsPage() {
         }
       />
 
-      <VisitsTable visits={visits} />
+      <VisitsTable visits={visits} isLoading={isLoading} />
     </AppLayout>
   );
 }

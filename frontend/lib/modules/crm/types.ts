@@ -320,7 +320,7 @@ export interface CustomerVisit {
   customer_id: string;
   customer_name: string;
   contact_person: string;
-
+  opportunity_notes?: string;
   visit_type: string;
 
   related_visit_id?: string;
@@ -430,3 +430,25 @@ export type ContactForm = {
   department: string;
   preferred_channel: PreferredChannel;
 };
+
+export interface UpdateCustomerVisitPayload {
+  status: string;
+
+  outcome: string;
+
+  next_action: string;
+
+  comment: string;
+
+  customer_feedback?: string;
+
+  customer_comments?: string;
+
+  recommendation?: string;
+
+  opportunity_identified: boolean;
+
+  opportunity_value?: number | null;
+
+  opportunity_notes?: string | null;
+}
