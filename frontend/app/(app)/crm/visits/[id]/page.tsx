@@ -27,6 +27,7 @@ import {
   buildVisitUpdatePayload,
 } from "@/lib/modules/crm/utils/visit";
 import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
+import { formatDateTime } from "@/lib/modules/crm/utils";
 
 export default function CustomerVisitDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +36,6 @@ export default function CustomerVisitDetailsPage() {
   const toast = useToast();
   const updateVisit = useUpdateCustomerVisit();
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { entries } = useCRMActivityByCustomer(id);
 
   const [form, setForm] = useState({
     outcome: "",
@@ -50,8 +50,6 @@ export default function CustomerVisitDetailsPage() {
     opportunityCreated: false,
     opportunityValue: "",
     opportunityNotes: "",
-
-    attachments: [] as File[],
   });
   useEffect(() => {
     if (!visit) return;
@@ -59,11 +57,7 @@ export default function CustomerVisitDetailsPage() {
     setForm({
       outcome: visit.outcome ?? "",
       nextAction: visit.next_action ?? "",
-      status:
-        visit.status === "Scheduled"
-          ? "Completed"
-          : (visit.status ?? "Completed"),
-
+      status: visit.status,
       comment: visit.comment ?? "",
 
       customerFeedback: visit.customer_feedback ?? "",
@@ -73,9 +67,9 @@ export default function CustomerVisitDetailsPage() {
       opportunityCreated: visit.opportunity_identified ?? false,
       opportunityValue: visit.opportunity_value?.toString() ?? "",
       opportunityNotes: visit.opportunity_notes ?? "",
-      attachments: [],
     });
   }, [visit]);
+  const { entries } = useCRMActivityByCustomer(visit?.customer_id);
 
   if (isLoading) {
     return (
@@ -138,8 +132,8 @@ export default function CustomerVisitDetailsPage() {
           roles={crmRoles}
           onRoleChange={() => {}}
           roleLabel="Sales Executive"
-          recordLabel="Customer Visit"
-          status={<ApprovalBadge status={form.status.toLowerCase()} />}
+          recordLabel={visit.customer_name}
+          status={<ApprovalBadge status={visit.status.toLowerCase()} />}
           showRoleSwitcher={false}
         />
       </div>
@@ -150,7 +144,7 @@ export default function CustomerVisitDetailsPage() {
             name: visit.created_by,
             department: "Commercial",
             role: "Sales Executive",
-            requestDate: visit.created_at,
+            requestDate: formatDateTime(visit.created_at),
           }}
         />
       </div>
@@ -340,6 +334,7 @@ export default function CustomerVisitDetailsPage() {
                   label="Next Action"
                   rows={4}
                   error={errors.nextAction}
+                  required
                   value={form.nextAction}
                   onChange={(e) => {
                     setForm((prev) => ({
@@ -376,6 +371,7 @@ export default function CustomerVisitDetailsPage() {
                   value={form.status}
                   options={[
                     { label: "Completed", value: "Completed" },
+                    { label: "Scheduled", value: "Scheduled" },
                     {
                       label: "Follow-up Required",
                       value: "Follow-up Required",
@@ -473,34 +469,37 @@ export default function CustomerVisitDetailsPage() {
               description="Outcome recorded after the visit."
             >
               <div className="space-y-6">
-                <FormTextarea
-                  label="Outcome"
-                  value={visit.outcome}
-                  rows={5}
-                  disabled
-                />
+                {visit.status !== "Cancelled" && (
+                  <>
+                    <FormTextarea
+                      label="Outcome"
+                      value={visit.outcome}
+                      rows={5}
+                      disabled
+                    />
 
-                <FormTextarea
-                  label="Customer Feedback"
-                  value={visit.customer_feedback}
-                  rows={4}
-                  disabled
-                />
+                    <FormTextarea
+                      label="Customer Feedback"
+                      value={visit.customer_feedback}
+                      rows={4}
+                      disabled
+                    />
 
-                <FormTextarea
-                  label="Key Discussion Points"
-                  value={visit.customer_comments}
-                  rows={4}
-                  disabled
-                />
+                    <FormTextarea
+                      label="Key Discussion Points"
+                      value={visit.customer_comments}
+                      rows={4}
+                      disabled
+                    />
 
-                <FormTextarea
-                  label="Recommendations"
-                  value={visit.recommendation}
-                  rows={4}
-                  disabled
-                />
-
+                    <FormTextarea
+                      label="Recommendations"
+                      value={visit.recommendation}
+                      rows={4}
+                      disabled
+                    />
+                  </>
+                )}
                 <FormTextarea
                   label="Next Action"
                   value={visit.next_action}
@@ -568,10 +567,17 @@ export default function CustomerVisitDetailsPage() {
             )}
           </>
         )}
-
-        <CRMActivityTimeline
-          entries={entries.filter((item) => item?.entity_type == "visit")}
-        />
+        <FormSection
+          title="Activity"
+          description="Timeline of actions taken on this customer"
+        >
+          <CRMActivityTimeline
+            entries={entries.filter(
+              (item) =>
+                item?.entity_type == "visit" && item?.entity_id == visit.id,
+            )}
+          />
+        </FormSection>
       </div>
     </AppLayout>
   );

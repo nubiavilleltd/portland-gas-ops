@@ -260,18 +260,18 @@ class CustomerContact(Base):
 # ==========================================================
 
 class VisitType(str, enum.Enum):
-    sales = "Sales"
-    courtesy = "Courtesy"
-    follow_up = "Follow-up"
-    complaint = "Complaint"
-    collection = "Collection"
+     Sales = "Sales"
+     Courtesy = "Courtesy"
+     FollowUp = "Follow-up"
+     Complaint = "Complaint"
+     Collection = "Collection"
 
 
 class VisitStatus(str, enum.Enum):
-    scheduled = "Scheduled"
-    completed = "Completed"
-    follow_up_required = "Follow-up Required"
-    cancelled = "Cancelled"
+    Scheduled = "Scheduled"
+    Completed = "Completed"
+    FollowUpRequired = "Follow-up Required"
+    Cancelled = "Cancelled"
 
 
 class CustomerVisit(Base):
@@ -385,7 +385,7 @@ class CustomerVisit(Base):
     status = Column(
         SAEnum(VisitStatus),
         nullable=False,
-        default=VisitStatus.scheduled,
+        default=VisitStatus.Scheduled,
     )
 
     created_by = Column(

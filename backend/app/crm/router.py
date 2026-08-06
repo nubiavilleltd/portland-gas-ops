@@ -103,6 +103,27 @@ def update_contact(
         current_user=current_user,
     )
 
+# ==================CUSTOMER VISITS ==============
+
+@router.get("/visits")
+def list_visits(
+    search: str | None = None,
+    customer_id: str | None = None,
+    visit_type: str | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.list_customer_visits(
+        db=db,
+        current_user=current_user,
+        search=search,
+        customer_id=customer_id,
+        visit_type=visit_type,
+        status=status,
+    )
+
+
 @router.patch(
     "/{customer_id}/contacts",
     response_model=List[CustomerContactResponse],
@@ -408,25 +429,6 @@ def health():
 
 # ==================CUSTOMER VISITS ==============
 
-@router.get("/visits")
-def list_visits(
-    search: str | None = None,
-    customer_id: str | None = None,
-    visit_type: str | None = None,
-    status: str | None = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return service.list_customer_visits(
-        db=db,
-        current_user=current_user,
-        search=search,
-        customer_id=customer_id,
-        visit_type=visit_type,
-        status=status,
-    )
-
-
 @router.get("/visits/{visit_id}")
 def visit_details(
     visit_id: str,
@@ -471,11 +473,11 @@ def update_visit(
 @router.get("/lookup/visit-types")
 def visit_types():
     return [
-        "Sales",
-        "Courtesy",
-        "Follow-up",
-        "Complaint",
-        "Collection",
+        "sales",
+        "courtesy",
+        "follow_up",
+        "complaint",
+        "collection",
     ]
 
 @router.get("/lookup/visit-status")

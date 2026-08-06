@@ -77,20 +77,12 @@ export function buildVisitPayload(form: {
 
     visit_type: form.visitType,
     visit_objective: form.visitObjective,
-
     related_visit_id:
       form.visitType === "Follow-up" ? form.relatedVisitId || null : null,
-
     visit_date: form.visitDateTime,
-
     location: form.location.trim(),
     purpose: form.purpose.trim(),
-
-    participants: form.participants
-      .split(",")
-      .map((participant) => participant.trim())
-      .filter(Boolean),
-
+    participants: form.participants,
     reminder_date: form.reminderDate || null,
 
     follow_up_required: form.followUpRequired,
