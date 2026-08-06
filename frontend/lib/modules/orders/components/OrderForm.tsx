@@ -27,9 +27,10 @@ import {
   SaveDraftPayload,
 } from "@/lib/modules/orders/schemas/create-order.schema";
 import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
-import { useActiveProducts } from "@/lib/modules/products/hooks/useProducts";
+import { useActiveProducts, useProductPicker } from "@/lib/modules/products/hooks/useProducts";
 import {
   getActiveProducts,
+  getAvailableQuantity,
   getProductById,
 } from "@/lib/modules/products/selectors/products.selectors";
 import { getUnitLabel } from "@/lib/modules/products/types/product.types";
@@ -92,15 +93,21 @@ export default function OrderForm({
   // ── Data ────────────────────────────────────────────────
   const { options: customerOptions, isLoading: customersLoading } =
     useCustomerSelectOptions();
-  const { products: activeProducts, isLoading: productsLoading } =
-    useActiveProducts();
+  // const { products: activeProducts, isLoading: productsLoading } =
+  //   useActiveProducts();
   const { items: inventoryItems, isLoading: inventoryLoading } =
     useInventoryItems();
-  const { stock: consumableStock, isLoading: consumableStockLoading } =
-    useConsumableStock();
+  // const { stock: consumableStock, isLoading: consumableStockLoading } =
+  //   useConsumableStock();
 
-  const productsReady =
-    !productsLoading && !inventoryLoading && !consumableStockLoading;
+const {
+    products,
+    isLoading: productsLoading,
+} = useProductPicker();
+
+console.log("products picker", products)
+
+  const productsReady = !productsLoading
 
   // ── Field array ─────────────────────────────────────────
   const { append, remove } = useFieldArray({
@@ -149,7 +156,7 @@ export default function OrderForm({
 
 // ── Subtotal ─────────────────────────────────────────────
 const subtotal = orderItems.reduce((sum, item) => {
-  const product = getProductById(activeProducts, item.productId);
+  const product = getProductById(products, item.productId);
 
   return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
 }, 0);
@@ -166,7 +173,7 @@ const hasEmptyRows = orderItems.some(item => !item.productId || item.productId.t
 // Only allow adding if:
 // 1. There are NO empty rows already
 // 2. We haven't used all available products yet
-const canAddMore = !hasEmptyRows && selectedProductIds.length < activeProducts.length;
+const canAddMore = !hasEmptyRows && selectedProductIds.length < products.length;
 
 const discountValue = watch("discountValue") ?? 0;
 
@@ -189,7 +196,7 @@ const discountValue = watch("discountValue") ?? 0;
       label: "Product",
       width: "2fr",
       renderCell: (row, index, _onChange, cellError) => {
-        const selected = getProductById(activeProducts, row.productId);
+        const selected = getProductById(products, row.productId);
         return (
           <div>
             <button
@@ -230,26 +237,32 @@ const discountValue = watch("discountValue") ?? 0;
       label: "Quantity",
       width: "130px",
       renderCell: (row, index, onChange, cellError) => {
-        const product = getProductById(activeProducts, row.productId);
+        const product = getProductById(products, row.productId);
         const unitLabel = product ? getUnitLabel(product) : "";
 
         const hasProduct = !!product;
 
-        const availableQuantity = !hasProduct
-          ? 0
-          : product.productType === "consumable"
-            ? (
-              consumableStock.find(s => s.product_id === product.id)?.quantity ?? 0
-            )
-            : inventoryItems.filter(
-              item =>
-                item.product_id === product.id &&
-                item.status === "available",
-            ).length;
+        // const availableQuantity = !hasProduct
+        //   ? 0
+        //   : product.productType === "consumable"
+        //     ? (
+        //       consumableStock.find(s => s.product_id === product.id)?.quantity ?? 0
+        //     )
+        //     : inventoryItems.filter(
+        //       item =>
+        //         item.product_id === product.id &&
+        //         item.status === "available",
+        //     ).length;
 
-        const exceedsAvailable =
-          hasProduct &&
-          row.quantity > availableQuantity;
+    //     const availableQuantity =
+    // product?.availableQuantity ?? 0;
+
+    //     const exceedsAvailable =
+    //       hasProduct &&
+    //       row.quantity > availableQuantity;
+
+    const availableQuantity = getAvailableQuantity(product);
+const exceedsAvailable = row.quantity > availableQuantity;
         return (
           <div>
             <div className="flex items-center gap-1">
@@ -310,7 +323,7 @@ const discountValue = watch("discountValue") ?? 0;
       width: "140px",
 
       renderCell: (row) => {
-        const product = getProductById(activeProducts, row.productId);
+        const product = getProductById(products, row.productId);
 
         return (
           <span className="text-sm font-medium text-brand-text-secondary">
@@ -324,7 +337,7 @@ const discountValue = watch("discountValue") ?? 0;
       label: "Total",
       width: "120px",
       renderCell: (row) => {
-        const product = getProductById(activeProducts, row.productId);
+        const product = getProductById(products, row.productId);
 
         const itemTotal =
           (row.quantity || 0) * (product?.defaultUnitPrice || 0);
@@ -651,7 +664,7 @@ const discountValue = watch("discountValue") ?? 0;
           {submitLabel}
         </Button>
       </div>
-
+{/* 
       <ProductPickerModal
         open={pickerIndex !== null}
         onClose={() => setPickerIndex(null)}
@@ -679,7 +692,35 @@ const discountValue = watch("discountValue") ?? 0;
         inventoryItems={inventoryItems}
         consumableStock={consumableStock}
         selectedProductIds={selectedProductIds}
-      />
+      /> */}
+
+
+      <ProductPickerModal
+  open={pickerIndex !== null}
+  onClose={() => setPickerIndex(null)}
+  onSelect={(product) => {
+    if (pickerIndex === null) return;
+
+    const isDuplicate = orderItems.some(
+      (item, i) => i !== pickerIndex && item.productId === product.id,
+    );
+
+    if (isDuplicate) {
+      toast.error(
+        "This product is already in the order. Update the quantity instead.",
+      );
+      return;
+    }
+
+    setValue(`orderItems.${pickerIndex}.productId`, product.id, {
+      shouldValidate: true,
+    });
+
+    setPickerIndex(null);
+  }}
+  products={products}
+  selectedProductIds={selectedProductIds}
+/>
     </form>
   );
 }

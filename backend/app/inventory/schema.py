@@ -127,6 +127,16 @@ class InventoryItemListResponse(BaseModel):
     has_next: bool
 
 
+class ProductAvailabilityResponse(BaseModel):
+    product_id: str
+    physical_quantity: Decimal
+    committed_quantity: Decimal
+    available_quantity: Decimal
+
+    class Config:
+        from_attributes = True
+
+
 # ============================================================================
 # Consumable Stock
 # ============================================================================

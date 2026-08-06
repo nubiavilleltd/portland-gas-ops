@@ -17,6 +17,10 @@ from app.inventory.model import (
     WarehouseLocation,
 )
 
+from app.orders.model import Order, OrderItem
+from app.payments.enums import PaymentStatus
+from app.inventory import utils
+
 
 class InventoryRepository:
 
@@ -711,5 +715,31 @@ class InventoryRepository:
             )
             .scalar()
         )
+
+        return quantity or Decimal("0")
+
+    def get_committed_quantity(
+        self,
+        db: Session,
+        product_id: str,
+    ) -> Decimal:
+        """
+        Returns the total quantity of a product that has already been
+        committed by orders with any payment received.
+        """
+
+        query = (
+            db.query(func.sum(OrderItem.quantity))
+            .join(
+                Order,
+                Order.id == OrderItem.order_id,
+            )
+            .filter(
+                OrderItem.product_id == product_id,
+            )
+        )
+
+        query = utils.committed_order_filters(query)
+        quantity = query.scalar()
 
         return quantity or Decimal("0")
