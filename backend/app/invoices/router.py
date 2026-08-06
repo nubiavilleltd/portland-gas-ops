@@ -61,7 +61,7 @@ def list_invoices(
         page_size=page_size,
     )
 
-    items, total = service.list(db, filters)
+    items, total = service.list(db, filters, current_user)
 
     return InvoiceListResponse(
         items=[_to_response(i) for i in items],

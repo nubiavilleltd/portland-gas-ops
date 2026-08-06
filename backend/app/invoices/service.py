@@ -18,6 +18,7 @@ from decimal import Decimal
 
 from app.payments.enums import PaymentStatus
 from app.payments.service import PaymentService
+from app.invoices import policies
 
 
 class InvoiceService:
@@ -73,13 +74,24 @@ class InvoiceService:
         self,
         db: Session,
         filters: InvoiceFilters,
-    ):
+        current_user
+    ) -> tuple[list[Invoice], int]:
+
+        if policies.can_manage_invoices(current_user):
+            return self.repo.list(
+                db=db,
+                order_id=filters.order_id,
+                status=filters.status.value if filters.status else None,
+                page=filters.page,
+                page_size=filters.page_size,
+            )
         return self.repo.list(
-            db=db,
-            order_id=filters.order_id,
-            status=filters.status.value if filters.status else None,
-            page=filters.page,
-            page_size=filters.page_size,
+                    db=db,
+                    created_by=current_user.id,
+                    order_id=filters.order_id,
+                    status=filters.status.value if filters.status else None,
+                    page=filters.page,
+                    page_size=filters.page_size,
         )
 
     # ------------------------------------------------------------------

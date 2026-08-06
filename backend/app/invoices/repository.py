@@ -67,7 +67,7 @@ class InvoiceRepository:
         )
 
         if created_by:
-            query = query.filter(
+            q = q.filter(
                 Invoice.created_by == created_by
         )
 
