@@ -14,6 +14,7 @@ Handles:
 
 from __future__ import annotations
 from typing import Optional
+from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_
@@ -34,6 +35,16 @@ from app.shared.models.user import User
 from app.shared.utils.helpers import generate_reference
 from app.employees.models import Employee
 
+from app.crm.model import (
+    CustomerVisit,
+    VisitStatus,
+    VisitType,
+)
+
+from app.crm.schemas import (
+    CustomerVisitCreate,
+    CustomerVisitUpdate,
+)
 
 def _generate_contact_number(db: Session) -> str:
     return generate_reference(
@@ -810,3 +821,434 @@ def sync_primary_contact(
         db.add(contact)
 
 
+# ===================CUSTOMER VISITS===============
+
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+
+def _get_visit(db: Session, visit_id: str) -> CustomerVisit:
+
+    visit = (
+        db.query(CustomerVisit)
+        .options(
+            joinedload(CustomerVisit.customer),
+            joinedload(CustomerVisit.contact),
+            joinedload(CustomerVisit.creator),
+            joinedload(CustomerVisit.related_visit),
+        )
+        .filter(CustomerVisit.id == visit_id)
+        .first()
+    )
+
+    if not visit:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer visit not found.",
+        )
+
+    return visit
+
+
+def _generate_visit_number(db: Session) -> str:
+
+    latest = (
+        db.query(CustomerVisit)
+        .order_by(CustomerVisit.created_at.desc())
+        .first()
+    )
+
+    if not latest:
+        return "VIS000001"
+
+    try:
+        number = int(latest.visit_number.replace("VIS", "")) + 1
+    except Exception:
+        number = 1
+
+    return f"VIS{number:06d}"
+
+
+def create_customer_visit(
+    *,
+    db: Session,
+    data: CustomerVisitCreate,
+    current_user: User,
+):
+    customer = (
+        db.query(CustomersTemp)
+        .filter(CustomersTemp.id == data.customer_id)
+        .first()
+    )
+
+    if not customer:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found.",
+        )
+    contact = (
+        db.query(CustomerContact)
+        .filter(
+            CustomerContact.id == data.contact_person,
+            CustomerContact.customer_id == customer.id,
+        )
+        .first()
+    )
+
+    if not contact:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer contact not found.",
+        )
+
+        related_visit = None
+
+    if data.visit_type == VisitType.follow_up:
+
+        if not data.related_visit_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Related visit is required.",
+            )
+
+        related_visit = (
+            db.query(CustomerVisit)
+            .filter(
+                CustomerVisit.id == data.related_visit_id
+            )
+            .first()
+        )
+
+        if not related_visit:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Related visit not found.",
+            )
+
+        if related_visit.status == VisitStatus.scheduled:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot follow up on a scheduled visit.",
+            )
+
+        visit = CustomerVisit(
+
+        visit_number=_generate_visit_number(db),
+
+        customer_id=customer.id,
+
+        contact_person=contact.id,
+
+        visit_type=data.visit_type,
+
+        related_visit_id=data.related_visit_id,
+
+        visit_date=data.visit_date,
+
+        location=data.location,
+
+        purpose=data.purpose,
+
+        participants=data.participants,
+
+        reminder_date=data.reminder_date,
+
+        follow_up_required=data.follow_up_required,
+
+        follow_up_date=data.follow_up_date,
+
+        status=VisitStatus.scheduled,
+
+        created_by=current_user.employee.id,
+    )
+    log_customer_activity(
+
+        db=db,
+        customer=str(customer.id),
+        entity_type="visit",
+        action="Visit Created",
+        performed_by=current_user.employee.id,
+        description=f"Scheduled {visit.visit_type.value} visit "
+                    f"({visit.visit_number}).",
+    )
+    db.add(visit)
+
+    db.commit()
+
+    db.refresh(visit)
+
+    return visit
+
+
+def list_customer_visits(
+    *,
+    db: Session,
+    current_user: User,
+    search: str | None = None,
+    customer_id: str | None = None,
+    visit_type: str | None = None,
+    status: str | None = None,
+):
+    query = (
+        db.query(CustomerVisit)
+        .options(
+            joinedload(CustomerVisit.customer),
+            joinedload(CustomerVisit.contact),
+            joinedload(CustomerVisit.creator),
+            joinedload(CustomerVisit.related_visit),
+        )
+    )
+
+    # ----------------------------------------------------
+    # Permission
+    # ----------------------------------------------------
+
+    if current_user.role not in ("admin", "super_admin"):
+        query = query.filter(
+            CustomerVisit.created_by == current_user.employee.id
+        )
+
+    # ----------------------------------------------------
+    # Filters
+    # ----------------------------------------------------
+
+    if customer_id:
+        query = query.filter(
+            CustomerVisit.customer_id == customer_id
+        )
+
+    if visit_type:
+        query = query.filter(
+            CustomerVisit.visit_type == visit_type
+        )
+
+    if status:
+        query = query.filter(
+            CustomerVisit.status == status
+        )
+
+    if search:
+
+        query = query.join(CustomersTemp)
+
+        query = query.filter(
+            or_(
+                CustomerVisit.visit_number.ilike(f"%{search}%"),
+                CustomersTemp.customer_name.ilike(f"%{search}%"),
+                CustomerVisit.location.ilike(f"%{search}%"),
+            )
+        )
+
+    visits = (
+        query.order_by(CustomerVisit.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": visit.id,
+
+            "visit_number": visit.visit_number,
+
+            "customer_id": visit.customer_id,
+
+            "customer_name": visit.customer.customer_name,
+
+            "contact_person":
+                f"{visit.contact.first_name} {visit.contact.last_name}",
+
+            "visit_type": visit.visit_type.value,
+
+            "visit_date": visit.visit_date,
+
+            "status": visit.status.value,
+
+            "created_by":
+                visit.creator.full_name,
+
+            "created_at": visit.created_at,
+        }
+
+        for visit in visits
+    ]
+
+def get_customer_visit(
+    *,
+    db: Session,
+    visit_id: str,
+):
+
+    visit = _get_visit(db, visit_id)
+    related = visit.related_visit
+
+    return {
+
+        "id": visit.id,
+
+        "visit_number": visit.visit_number,
+
+        "customer_id": visit.customer.id,
+
+        "customer_name": visit.customer.customer_name,
+
+        "contact_person":
+            f"{visit.contact.first_name} {visit.contact.last_name}",
+
+        "visit_type": visit.visit_type.value,
+
+        "related_visit_id":
+            related.id if related else None,
+
+        "related_visit_number":
+            related.visit_number if related else None,
+
+        "related_visit_type":
+            related.visit_type.value if related else None,
+
+        "related_visit_date":
+            related.visit_date if related else None,
+
+        "related_visit_status":
+            related.status.value if related else None,
+
+        "visit_date": visit.visit_date,
+
+        "location": visit.location,
+
+        "purpose": visit.purpose,
+
+        "participants": visit.participants,
+
+        "reminder_date": visit.reminder_date,
+
+        "follow_up_required": visit.follow_up_required,
+
+        "follow_up_date": visit.follow_up_date,
+
+        "outcome": visit.outcome,
+
+        "next_action": visit.next_action,
+
+        "comment": visit.comment,
+
+        "customer_feedback": visit.customer_feedback,
+
+        "customer_comments": visit.customer_comments,
+
+        "recommendation": visit.recommendation,
+
+        "opportunity_identified":
+            visit.opportunity_identified,
+
+        "opportunity_value":
+            visit.opportunity_value,
+
+        "opportunity_notes":
+            visit.opportunity_notes,
+
+        "status": visit.status.value,
+
+        "created_by":
+            visit.creator.full_name,
+
+        "created_at": visit.created_at,
+
+        "updated_at": visit.updated_at,
+
+        "completed_at": visit.completed_at,
+    }
+
+def update_customer_visit(
+    *,
+    db: Session,
+    visit_id: str,
+    data: CustomerVisitUpdate,
+    current_user: User,
+):
+    visit = _get_visit(db, visit_id)
+
+    if (
+        current_user.role not in ("admin", "super_admin")
+        and visit.created_by != current_user.employee.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to update this visit.",
+        )
+
+    visit.outcome = data.outcome
+    visit.next_action = data.next_action
+    visit.comment = data.comment
+
+    visit.customer_feedback = data.customer_feedback
+    visit.customer_comments = data.customer_comments
+    visit.recommendation = data.recommendation
+
+    visit.opportunity_identified = data.opportunity_identified
+    visit.opportunity_value = data.opportunity_value
+    visit.opportunity_notes = data.opportunity_notes
+
+    visit.status = data.status
+
+    if data.status != VisitStatus.Scheduled:
+        visit.completed_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(visit)
+
+    # CRM Activity
+    log_customer_activity(
+        db=db,
+        customer=str(visit.customer_id),
+        entity_type="visit",
+        action="Visit Updated",
+        performed_by=current_user.employee.id,
+        description=f"Visit {visit.visit_number} marked as {visit.status.value}.",
+    )
+
+    return get_customer_visit(
+        db=db,
+        visit_id=visit.id,
+    )
+
+
+def dashboard_summary(db: Session):
+
+    total = db.query(CustomerVisit).count()
+
+    scheduled = (
+        db.query(CustomerVisit)
+        .filter(CustomerVisit.status == VisitStatus.Scheduled)
+        .count()
+    )
+
+    completed = (
+        db.query(CustomerVisit)
+        .filter(CustomerVisit.status == VisitStatus.Completed)
+        .count()
+    )
+
+    follow_up = (
+        db.query(CustomerVisit)
+        .filter(
+            CustomerVisit.status == VisitStatus.FollowUpRequired
+        )
+        .count()
+    )
+
+    cancelled = (
+        db.query(CustomerVisit)
+        .filter(CustomerVisit.status == VisitStatus.Cancelled)
+        .count()
+    )
+
+    return {
+        "total_visits": total,
+        "scheduled": scheduled,
+        "completed": completed,
+        "follow_up_required": follow_up,
+        "cancelled": cancelled,
+    }
