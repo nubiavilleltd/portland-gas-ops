@@ -25,6 +25,7 @@ from app.fleet.trips.schema import (
     TripAddOrder,
     TripResponse,
     TripListResponse,
+    TripFilters
 )
 
 from app.fleet.trips.service import TripService
@@ -72,17 +73,42 @@ add_order_workflow = AddOrderToTripWorkflow()
 
 @router.get(
     "",
-    response_model=List[TripResponse],
+    response_model=TripListResponse,
 )
 def list_trips(
     status: Optional[TripStatus] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
 
-    return trip_service.list(
-        db=db,
+    filters = TripFilters(
         status=status,
+        page=page,
+        page_size=page_size,
+    )
+
+    items, total = trip_service.list(
+        db=db,
+        filters=filters,
+        current_user=current_user,
+    )
+
+    # return TripListResponse(
+    #     items=items,
+    #     total=total,
+    #     page=page,
+    #     page_size=page_size,
+    #     has_next=(page * page_size) < total,
+    # )
+
+    return TripListResponse(
+        items=[TripResponse.model_validate(t) for t in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_next=(page * page_size) < total,
     )
 
 

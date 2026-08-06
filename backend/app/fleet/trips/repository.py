@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 
 from app.fleet.trips.model import Trip, TripOrder
 from app.fleet.trips.enums import TripStatus
@@ -37,8 +38,10 @@ class TripRepository:
         self,
         db: Session,
         created_by: Optional[str] = None,
-        status: Optional[str] = None,
-    ) -> List[Trip]:
+        status: Optional[TripStatus] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[Trip], int]:
 
         q = (
             db.query(Trip)
@@ -46,20 +49,30 @@ class TripRepository:
                 joinedload(Trip.driver),
                 joinedload(Trip.vehicle),
                 joinedload(Trip.trip_orders).joinedload(TripOrder.order),
-                joinedload(Trip.created_by_user)
+                joinedload(Trip.created_by_user),
             )
         )
 
         if created_by:
-            query = query.filter(
+            q = q.filter(
                 Trip.created_by == created_by
-        )
+            )
 
         if status:
-            q = q.filter(Trip.status == status)
+            q = q.filter(
+                Trip.status == status
+            )
 
-        return q.order_by(Trip.created_at.desc()).all()
+        total = q.with_entities(func.count(Trip.id)).scalar() or 0
 
+        items = (
+            q.order_by(Trip.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+
+        return items, total
     def create(
         self,
         db: Session,

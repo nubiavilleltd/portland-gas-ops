@@ -32,18 +32,5 @@ def can_update_fulfillment(user):
 def can_assign_invoice(user):
     return auth.is_admin(user)
 
-def can_manage_invoices(user):
-    return auth.is_admin(user)
-
-def can_manage_trips(user):
-    return auth.is_admin(user)
-
-
 def is_order_owner(user, order):
     return order.created_by == user.id
-
-def is_invoice_owner(user, invoice):
-    return invoice.created_by == user.id
-
-def is_trip_owner(user, trip):
-    return trip.created_by == user.id

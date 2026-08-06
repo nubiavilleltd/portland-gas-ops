@@ -115,6 +115,14 @@ interface BackendTrip {
     created_by_name:string;
 }
 
+interface BackendTripList {
+    items: BackendTrip[];
+    total: number;
+    page: number;
+    page_size: number;
+    has_next: boolean;
+}
+
 // ── Adapters ──────────────────────────────────────────────
 
 export function adaptDriver(raw: BackendDriver): Driver {
@@ -180,6 +188,10 @@ export function adaptTrip(raw: BackendTrip): Trip {
         created_at: raw.created_at,
         created_by_name: raw.created_by_name,
     };
+}
+
+export function adaptTripList(raw: BackendTripList): Trip[] {
+    return raw.items.map(adaptTrip);
 }
 
 
