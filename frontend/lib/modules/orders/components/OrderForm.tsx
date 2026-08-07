@@ -105,8 +105,6 @@ const {
     isLoading: productsLoading,
 } = useProductPicker();
 
-console.log("products picker", products)
-
   const productsReady = !productsLoading
 
   // ── Field array ─────────────────────────────────────────
