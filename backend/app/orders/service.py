@@ -17,6 +17,7 @@ from app.orders import guards
 from app.payments.enums import PaymentStatus
 from app.core.exceptions import AppException, ErrorCode
 from app.products.service import ProductService
+from app.inventory.service import InventoryService
 from app.orders.enums import DiscountType
 from app.orders.model import OrderItem
 
@@ -27,6 +28,7 @@ class OrderService:
         self.repo = OrderRepository()
         self.customer_repo = CustomerRepository()
         self.product_service = ProductService()
+        self.inventory_service = InventoryService()
     def _filter_real_items(self, order_items: list) -> list:
         """Drop placeholder rows with no product selected — treated as
         'not yet provided', mirroring the frontend's draft filtering."""
@@ -137,6 +139,10 @@ class OrderService:
         return order
 
     def create_and_submit(self, db: Session, data: OrderCreate, created_by: str) -> Order:
+        self.inventory_service.validate_order_items_availability(
+            db=db,
+            order_items=data.order_items,
+        )
         order = self.create_draft(db, data, created_by)
         guards.ensure_can_submit(order)
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
@@ -222,6 +228,10 @@ class OrderService:
 
     def submit(self, db: Session, order: Order) -> Order:
         # order = self.get_or_raise(db, order_id)
+        self.inventory_service.validate_order_items_availability(
+                    db=db,
+                    order_items=order.order_items,
+                )
         guards.ensure_can_submit(order)
         return self.repo.update(db, order, order_status=OrderStatus.submitted)
 

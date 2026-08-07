@@ -109,6 +109,7 @@ export default function VehicleForm({
     formState: { errors, isSubmitting },
   } = useForm<VehicleFormInput, unknown, VehicleFormData>({
     resolver: zodResolver(vehicleSchema),
+    mode: "onChange",
     defaultValues: {
       name: "",
       plate_number: "",
@@ -213,7 +214,9 @@ export default function VehicleForm({
                   inputMode="numeric"
                   placeholder="e.g. 2020"
                   value={field.value}
-                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                  onChange={(e) =>
+                    field.onChange(e.target.value.replace(/\D/g, "").slice(0, 4))
+                  }
                   onBlur={field.onBlur}
                   error={fieldState.error?.message}
                 />

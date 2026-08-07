@@ -15,7 +15,7 @@ from app.shared.dependencies import require_roles
 from app.products.service import ProductService
 from app.products.schema import (
     ProductCreate, ProductUpdate, ProductFilters,
-    ProductResponse, ProductListResponse,
+    ProductResponse, ProductListResponse, ProductPickerListResponse
 )
 from app.products.enums import ProductType, ProductStatus
 from app.shared.models.user import User
@@ -164,6 +164,40 @@ def get_product_by_no(
 ):
     product = service.get_by_no_or_raise(db, product_no)
     return _to_response(db, product)
+
+@router.get(
+    "/picker",
+    response_model=ProductPickerListResponse,
+)
+def list_products_for_picker(
+    search: Optional[str] = Query(None),
+    product_type: Optional[ProductType] = Query(None),
+    status: Optional[ProductStatus] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    filters = ProductFilters(
+        search=search,
+        product_type=product_type,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
+
+    items, total = service.list_for_picker(
+        db=db,
+        filters=filters,
+    )
+
+    return ProductPickerListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_next=(page * page_size) < total,
+    )
 
 
 # ── Read: primary, id-based ─────────────────────────────────────────

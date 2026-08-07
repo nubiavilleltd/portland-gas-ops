@@ -14,6 +14,7 @@ import {
   adaptCreateProductInput,
   adaptProduct,
   adaptProductList,
+  adaptProductPickerList,
   adaptUpdateProductInput,
 } from "../adapters/product.adapter";
 
@@ -21,6 +22,7 @@ import type {
   CreateProductInput,
   CreateProductPayload,
   Product,
+  ProductPickerProduct,
   ProductStatus,
   ProductType,
   UpdateProductInput,
@@ -166,4 +168,21 @@ export class ProductsService {
       );
     }
   }
+
+
+  static async getProductsForPicker(): Promise<ProductPickerProduct[]> {
+  try {
+    const raw = await productsApi.picker();
+
+    return adaptProductPickerList(raw);
+  } catch (err) {
+    throw new Error(
+      getErrorMessage(
+        err,
+        PRODUCT_ERROR_MESSAGES,
+        "Failed to fetch products",
+      ),
+    );
+  }
+}
 }

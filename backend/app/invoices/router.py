@@ -34,7 +34,15 @@ def _to_response(invoice) -> InvoiceResponse:
 
     Denormalized values come from snapshots stored on Invoice.
     """
-    return InvoiceResponse.model_validate(invoice)
+    response = InvoiceResponse.model_validate(invoice)
+
+    response.created_by_name = (
+        invoice.created_by_user.full_name
+        if invoice.created_by_user
+        else None
+    )
+
+    return response
 
 
 @router.get("", response_model=InvoiceListResponse)
@@ -53,7 +61,7 @@ def list_invoices(
         page_size=page_size,
     )
 
-    items, total = service.list(db, filters)
+    items, total = service.list(db, filters, current_user)
 
     return InvoiceListResponse(
         items=[_to_response(i) for i in items],

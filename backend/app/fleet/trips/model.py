@@ -74,6 +74,13 @@ class Trip(Base):
         onupdate=func.now(),
     )
 
+    created_by = Column(
+        CHAR(36),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+
+
     driver = relationship(
         "Driver",
         back_populates="trips",
@@ -85,12 +92,20 @@ class Trip(Base):
         back_populates="trips",
         foreign_keys=[vehicle_id],
     )
+    created_by_user = relationship(
+        "User",
+        foreign_keys=[created_by],
+    )
 
     trip_orders = relationship(
         "TripOrder",
         back_populates="trip",
         cascade="all, delete-orphan",
     )
+
+   
+
+  
     
     @property
     def driver_name(self) -> str | None:
@@ -99,6 +114,13 @@ class Trip(Base):
     @property
     def vehicle_name(self) -> str | None:
         return self.vehicle.name if self.vehicle else None
+    @property
+    def created_by_name(self) -> str | None:
+        return (
+            self.created_by_user.full_name
+            if self.created_by_user
+            else None
+        )
 
 
 class TripOrder(Base):

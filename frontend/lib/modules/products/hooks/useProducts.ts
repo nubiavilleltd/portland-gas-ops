@@ -63,3 +63,21 @@ export function useProductSelectOptions() {
     ...query,
   };
 }
+
+
+
+export function useProductPicker() {
+  const query = useQuery({
+    queryKey: PRODUCT_KEYS.picker(),
+    queryFn: () => ProductsService.getProductsForPicker(),
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    products: query.data ?? [],
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
