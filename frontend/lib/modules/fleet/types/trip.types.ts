@@ -44,6 +44,8 @@ export interface Trip {
   completed_at?: string;    // When all deliveries confirmed
   cancelled_at?: string;    // When the trip was cancelled
 
+  created_by_name:string;
+
   // Cancellation
   cancellation_reason?: string;
 

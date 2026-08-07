@@ -80,7 +80,9 @@ interface OrderResponse {
     delivered_at: string | null;
 
     received_by: string;
-    delivery_notes: string
+    delivery_notes: string;
+
+    created_by_name:string;
 
 
     created_at: string;
@@ -282,6 +284,8 @@ export function adaptOrder(raw: OrderResponse): Order {
 
         receivedBy: raw.received_by ?? undefined,
         deliveryNotes: raw.delivery_notes ?? undefined,
+
+        createdByName:raw.created_by_name ?? undefined
     };
 }
 

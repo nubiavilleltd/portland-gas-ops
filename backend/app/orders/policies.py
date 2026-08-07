@@ -32,6 +32,5 @@ def can_update_fulfillment(user):
 def can_assign_invoice(user):
     return auth.is_admin(user)
 
-
 def is_order_owner(user, order):
     return order.created_by == user.id

@@ -47,9 +47,15 @@ export default function CheckInPage() {
 
   const { products, isLoading: productsLoading } = useProducts();
   const { locations, isLoading: locationsLoading } = useLocations();
+  const [selectedProductId, setSelectedProductId] =
+    useState<string>("");
+
 
   const checkInTracked = useCheckInTracked();
   const checkInConsumable = useCheckInConsumable();
+
+ 
+
 
   const activeProducts = getActiveProducts(products);
   const defaultLocationId = locations.find((l) => l.is_default)?.id ?? "";
@@ -67,13 +73,7 @@ export default function CheckInPage() {
     description: isTracked(p) ? "Tracked Asset" : "Consumable",
   }));
 
-    if (productsLoading || locationsLoading) {
-    return <CheckInSkeleton />;
-  }
-
-
-  // ── Tracked form ──────────────────────────────────────────
-  const trackedForm = useForm<CheckInTrackedFormInput, unknown, CheckInTrackedFormOutput>({
+     const trackedForm = useForm<CheckInTrackedFormInput, unknown, CheckInTrackedFormOutput>({
     resolver: zodResolver(checkInTrackedSchema),
     mode: "onTouched",
     defaultValues: {
@@ -84,6 +84,10 @@ export default function CheckInPage() {
       notes: "",
     },
   });
+
+ 
+
+  // ── Tracked form ──────────────────────────────────────────
 
   // ── Consumable form ───────────────────────────────────────
   const consumableForm = useForm<CheckInConsumableFormInput, unknown, CheckInConsumableFormOutput>({
@@ -103,13 +107,17 @@ export default function CheckInPage() {
 
   // The "active" product drives which form is shown
   // We use a single product selector that feeds both forms
-  const [selectedProductId, setSelectedProductId] =
-    useState<string>("");
 
   const selectedProduct = getProductById(products, selectedProductId);
   const productType = selectedProduct
     ? isTracked(selectedProduct) ? "tracked" : "consumable"
     : null;
+
+
+  if (productsLoading || locationsLoading) {
+    return <CheckInSkeleton />;
+  }
+
 
   // Sync product selection into the correct form
   function handleProductChange(productId: string) {

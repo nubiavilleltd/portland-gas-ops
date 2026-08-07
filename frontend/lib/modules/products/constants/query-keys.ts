@@ -2,6 +2,7 @@ export const PRODUCT_KEYS = {
   all: ["products"] as const,
 
   lists: () => [...PRODUCT_KEYS.all, "list"] as const,
+  picker: () => [...PRODUCT_KEYS.all, "picker"] as const,
 
   list: (filters?: {
     search?: string;

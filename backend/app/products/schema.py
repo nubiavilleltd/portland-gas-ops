@@ -154,6 +154,19 @@ class ProductResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ProductPickerResponse(ProductResponse):
+    physical_quantity: Decimal
+    committed_quantity: Decimal
+    available_quantity: Decimal
+    is_orderable: bool
+
+class ProductPickerListResponse(BaseModel):
+    items: list[ProductPickerResponse]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+
 
 class ProductListResponse(BaseModel):
     items: list[ProductResponse]
@@ -161,3 +174,26 @@ class ProductListResponse(BaseModel):
     page: int
     page_size: int
     has_next: bool
+
+
+# # ─────────────────────────────────────────────────────────────────────────────
+# # Product Picker
+# # ─────────────────────────────────────────────────────────────────────────────
+
+# class ProductPickerResponse(BaseModel):
+#     id: str
+#     product_no: str
+#     name: str
+#     code: str | None
+#     product_type: ProductType
+#     unit: ProductUnit
+#     default_unit_price: Decimal
+
+#     available_quantity: Decimal
+
+#     class Config:
+#         from_attributes = True
+
+
+# class ProductPickerListResponse(BaseModel):
+#     items: list[ProductPickerResponse]

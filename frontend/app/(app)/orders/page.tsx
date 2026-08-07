@@ -55,6 +55,7 @@ export default function OrdersListPage() {
       label: "CREATED AT",
       render: (value) => (value ? formatDate(value as string) : "—"),
     },
+    { key: "createdByName", label: "CREATED BY" },
     {
       key: "customerName",
       label: "CUSTOMER",

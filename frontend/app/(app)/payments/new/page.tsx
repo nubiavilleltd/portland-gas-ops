@@ -279,7 +279,7 @@ useEffect(() => {
                       ? "Transaction Reference"
                       : "Reference (Optional)"
                   }
-                  placeholder="Auto-generated if left empty"
+                  placeholder={requiresProof ? "": "Auto-generated if left empty"}
                   {...register("reference")}
                   required={requiresProof}
                 />

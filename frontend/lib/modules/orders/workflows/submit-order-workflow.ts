@@ -3,9 +3,11 @@ import { OrdersService } from "../services/orders.service";
 
 export async function submitOrderWorkflow(
   input: CreateOrderInput,
-  existingDraftNo?: string,
+  existingDraftId?: string,
 ) {
-  if (existingDraftNo) {
+
+  // await OrdersService.validateOrderStock(input);
+  if (existingDraftId) {
     // TODO:
     // Backend should atomically:
     //   1. Update the draft
@@ -13,11 +15,11 @@ export async function submitOrderWorkflow(
     //
     // This should eventually become:
     //
-    // return OrdersService.submitOrder(existingDraftNo, input);
+    // return OrdersService.submitOrder(existingDraftId, input);
 
-    await OrdersService.updateDraftOrder(existingDraftNo, input);
+    await OrdersService.updateDraftOrder(existingDraftId, input);
 
-    return OrdersService.submitOrder(existingDraftNo);
+    return OrdersService.submitOrder(existingDraftId);
   }
 
  return OrdersService.createOrder(input);

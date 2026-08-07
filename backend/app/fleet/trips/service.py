@@ -20,7 +20,8 @@ from app.fleet.trips.guards import (
 )
 from app.fleet.trips.model import Trip
 from app.fleet.trips.repository import TripRepository
-from app.fleet.trips.schema import TripCreate
+from app.fleet.trips.schema import TripCreate, TripFilters
+from app.fleet.trips import policies
 
 
 class TripService:
@@ -61,11 +62,24 @@ class TripService:
     def list(
         self,
         db: Session,
-        status: Optional[TripStatus] = None,
-    ) -> List[Trip]:
+        filters: TripFilters,
+        current_user,
+    ) -> tuple[list[Trip], int]:
+
+        if policies.can_manage_trips(current_user):
+            return self.repo.list(
+                db=db,
+                status=filters.status,
+                page=filters.page,
+                page_size=filters.page_size,
+            )
+
         return self.repo.list(
             db=db,
-            status=status,
+            created_by=current_user.id,
+            status=filters.status,
+            page=filters.page,
+            page_size=filters.page_size,
         )
 
     # ------------------------------------------------------------------
@@ -76,6 +90,7 @@ class TripService:
         self,
         db: Session,
         data: TripCreate,
+        created_by:str
     ) -> Trip:
 
         trip_no = self.repo.generate_trip_no(db)
@@ -89,6 +104,7 @@ class TripService:
             scheduled_date=data.scheduled_date,
             notes=data.notes,
             status=TripStatus.pending,
+            created_by=created_by
         )
 
     def update(

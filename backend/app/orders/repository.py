@@ -22,7 +22,10 @@ class OrderRepository:
     def get_by_id(self, db: Session, order_id: str) -> Optional[Order]:
         return (
             db.query(Order)
-            .options(joinedload(Order.order_items))
+            .options(
+                joinedload(Order.order_items),
+                joinedload(Order.created_by_user),
+            )
             .filter(Order.id == order_id)
             .first()
         )
@@ -30,7 +33,10 @@ class OrderRepository:
     def get_by_no(self, db: Session, order_no: str) -> Optional[Order]:
         return (
             db.query(Order)
-            .options(joinedload(Order.order_items))
+            .options(
+                joinedload(Order.order_items),
+                joinedload(Order.created_by_user),
+            )
             .filter(Order.order_no == order_no)
             .first()
         )
@@ -51,8 +57,11 @@ class OrderRepository:
     ) -> Tuple[List[Order], int]:
           
         query = (
-            db.query(Order)
-            .options(joinedload(Order.order_items))
+                db.query(Order)
+                .options(
+                    joinedload(Order.order_items),
+                    joinedload(Order.created_by_user),
+                )
         )
         
         if created_by:
