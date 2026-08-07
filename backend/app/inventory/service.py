@@ -436,7 +436,6 @@ class InventoryService:
                     product_id=order_item.product_id,
                 )
 
-                # Consumables don't require inventory checkout.
                 if product.product_type.value == "tracked":
                     self._check_out_order_item(
                         db=db,
@@ -637,22 +636,78 @@ class InventoryService:
         )
 
 
+    # def release_trip_inventory(
+    #     self,
+    #     db: Session,
+    #     trip_id: str,
+    # ) -> None:
+    #     """
+    #     Releases every inventory item allocated to a trip.
+
+    #     If the trip was cancelled before dispatch,
+    #     reserved items become available.
+
+    #     If the trip was cancelled after dispatch,
+    #     checked-out items become available.
+
+    #     Other statuses are ignored.
+    #     """
+
+    #     items = self.repo.get_allocated_inventory_for_trip(
+    #         db=db,
+    #         trip_id=trip_id,
+    #     )
+
+    #     for item in items:
+
+    #         if item.status not in (
+    #             InventoryItemStatus.reserved,
+    #             InventoryItemStatus.checked_out,
+    #         ):
+    #             continue
+
+    #         self.repo.update_inventory_item(
+    #             db=db,
+    #             item=item,
+    #             status=InventoryItemStatus.available,
+    #             disposition=None,
+    #             order_id=None,
+    #             trip_id=None,
+    #             customer_id=None,
+    #             checked_out_at=None,
+    #             expected_return_date=None,
+    #         )
+
+
+
     def release_trip_inventory(
         self,
         db: Session,
         trip_id: str,
     ) -> None:
         """
-        Releases every inventory item allocated to a trip.
+        Releases inventory associated with a trip.
 
-        If the trip was cancelled before dispatch,
-        reserved items become available.
+        Tracked inventory:
+            reserved/checked_out → available
 
-        If the trip was cancelled after dispatch,
-        checked-out items become available.
+        Consumable inventory:
+            restores the quantity deducted during Mark Ready.
 
-        Other statuses are ignored.
+        This is used when a trip is cancelled.
         """
+
+        from app.fleet.trips.service import TripService
+        from app.orders.service import OrderService
+        from app.products.service import ProductService
+
+        trip_service = TripService()
+        order_service = OrderService()
+        product_service = ProductService()
+
+        # ------------------------------------------------------------------
+        # Tracked inventory
+        # ------------------------------------------------------------------
 
         items = self.repo.get_allocated_inventory_for_trip(
             db=db,
@@ -678,6 +733,53 @@ class InventoryService:
                 checked_out_at=None,
                 expected_return_date=None,
             )
+
+        # ------------------------------------------------------------------
+        # Consumable inventory
+        # ------------------------------------------------------------------
+
+        order_ids = trip_service.get_order_ids(
+            db=db,
+            trip_id=trip_id,
+        )
+
+        for order_id in order_ids:
+
+            order_items = order_service.get_order_items(
+                db=db,
+                order_id=order_id,
+            )
+
+            for order_item in order_items:
+
+                product = product_service.get_or_raise(
+                    db=db,
+                    product_id=order_item.product_id,
+                )
+
+                if product.product_type != ProductType.consumable:
+                    continue
+
+                if order_item.location_id is None:
+                    raise AppException(
+                        status_code=400,
+                        error_code=InventoryErrorCode.LOCATION_NOT_FOUND,
+                        message=(
+                            f"Consumable order item {order_item.id} "
+                            "has no assigned warehouse."
+                        ),
+                    )
+
+                quantity = Decimal(str(order_item.quantity))
+
+                self.repo.restore_consumable_stock(
+                    db=db,
+                    product_id=order_item.product_id,
+                    location_id=order_item.location_id,
+                    quantity=quantity,
+                )
+
+
 
     def validate_order_items_availability(
         self,
@@ -738,39 +840,6 @@ class InventoryService:
             product_id=product_id,
         )
 
-
-    # def get_available_quantity(
-    #     self,
-    #     db: Session,
-    #     product:Product,
-    # ) -> Decimal:
-    #     """
-    #     Returns the quantity currently available for sale.
-
-    #     Available = Physical Stock - Committed Quantity
-    #     """
-
-    #     committed = self.get_committed_quantity(
-    #         db=db,
-    #         product_id=product.id,
-    #     )
-
-    #     if product.product_type == ProductType.tracked:
-    #         physical = Decimal(
-    #             self.repo.count_available_inventory_items(
-    #                 db=db,
-    #                 product_id=product.id,
-    #             )
-    #         )
-    #     else:
-    #         physical = self.repo.get_total_available_consumable_stock(
-    #             db=db,
-    #             product_id=product.id,
-    #         )
-
-    #     available = physical - committed
-
-    #     return max(available, Decimal("0"))
 
     def get_product_availability(
         self,
