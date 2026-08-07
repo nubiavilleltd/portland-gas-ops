@@ -1,7 +1,6 @@
 import type { AxiosError } from "axios";
 import { APP_ERROR_MESSAGES } from "./app-errors";
 
-
 // ───────────────────────────────────────────────────────────
 // Generic fallback
 // ───────────────────────────────────────────────────────────
@@ -24,7 +23,7 @@ export function extractApiError(
 ): ApiErrorDetail | null {
   const axiosErr =
     err as AxiosError<{ detail: ApiErrorDetail | string }>;
-    
+
   const detail = axiosErr?.response?.data?.detail;
 
   if (!detail) return null;
@@ -53,41 +52,32 @@ export function getErrorMessage(
     return APP_ERROR_MESSAGES.NETWORK_ERROR;
   }
 
-  // If it's a plain Error (e.g. thrown from mutation with resolved message), use its message
-  if (err instanceof Error && err.message && err.message !== "Request failed") {
+  // AxiosError extends Error, so extract the structured
+  // backend response before checking instanceof Error.
+  const detail = extractApiError(err);
+
+  if (detail) {
+    return (
+      // 1. Module-specific frontend message
+      errorMessages[detail.error_code] ??
+      // 2. Global frontend message
+      APP_ERROR_MESSAGES[
+        detail.error_code as keyof typeof APP_ERROR_MESSAGES
+      ] ??
+      // 3. Backend message for errors not yet mapped on frontend
+      detail.message ??
+      // 4. Generic fallback
+      fallback
+    );
+  }
+
+  // Only use a plain Error message when there is no
+  // structured backend error available.
+  if (err instanceof Error && err.message) {
     return err.message;
   }
 
-  const detail = extractApiError(err);
-
-  if (!detail) {
-    return fallback;
-  }
-
-
-  // const message =
-  //   errorMessages[detail.error_code] ??
-  //   APP_ERROR_MESSAGES[
-  //     detail.error_code as keyof typeof APP_ERROR_MESSAGES
-  //   ];
-
-  const message =
-  errorMessages[detail.error_code] ??
-  APP_ERROR_MESSAGES[
-    detail.error_code as keyof typeof APP_ERROR_MESSAGES
-  ] ??
-  detail.message;
-
-  if (!message) {
-    console.warn(
-      `[Unmapped API error] ${detail.error_code}`,
-      detail,
-    );
-
-    return DEFAULT_ERROR_MESSAGE;
-  }
-
-  return message;
+  return fallback;
 }
 
 // ───────────────────────────────────────────────────────────
@@ -113,9 +103,11 @@ export function parseError(
   }
 
   return (
+    detail.message ??
     APP_ERROR_MESSAGES[
       detail.error_code as keyof typeof APP_ERROR_MESSAGES
-    ] ?? fallback
+    ] ??
+    fallback
   );
 }
 

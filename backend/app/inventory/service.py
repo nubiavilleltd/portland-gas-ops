@@ -780,15 +780,15 @@ class InventoryService:
                 )
 
 
-
     def validate_order_items_availability(
         self,
         db: Session,
-        order_items:list[OrderItem],
+        order_items: list,
     ):
         from app.products.service import ProductService
 
         product_service = ProductService()
+        insufficient_items = []
 
         for order_item in order_items:
 
@@ -812,19 +812,24 @@ class InventoryService:
                 )
 
             if order_item.quantity > available:
-
-                raise AppException(
-                    status_code=400,
-                    error_code=InventoryErrorCode.INSUFFICIENT_STOCK,
-                    message=(
-                        f"Only {available} {product.unit.value} of "
-                        f"{product.name} available."
-                        if product.product_type.value == "consumable"
-                        else
-                        f"Only {available} unit(s) of "
-                        f"{product.name} available."
-                    ),
+                insufficient_items.append(
+                    {
+                        "product_name": product.name,
+                        "requested": str(order_item.quantity),
+                        "available": str(available),
+                        "unit": product.unit.value,
+                    }
                 )
+
+        if insufficient_items:
+            raise AppException(
+                status_code=400,
+                error_code=InventoryErrorCode.INSUFFICIENT_STOCK,
+                message="One or more items have insufficient stock.",
+                details={
+                    "items": insufficient_items,
+                },
+            )
 
     def get_committed_quantity(
         self,
