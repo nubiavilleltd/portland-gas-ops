@@ -35,7 +35,10 @@ export default function CustomerDetailsPage() {
 
   const { data: customer, isLoading: customerLoading } =
     useCustomerOnboardingDetails(id);
-  const { data: contacts } = useCustomerContactDetails(id);
+  const { data: contacts = [] } = useCustomerContactDetails(id);
+
+  const primaryContact = contacts.find((c) => c.is_primary);
+  const additionalContacts = contacts.filter((c) => !c.is_primary);
   const { entries } = useCRMActivityByCustomer(id);
   const deactivateCustomerMutation = useDeactivateCustomer();
   const activateCustomerMutation = useActivateCustomer();
@@ -210,13 +213,16 @@ export default function CustomerDetailsPage() {
             email: customer.email,
             phone: customer.phone,
             alternatePhone: customer.alternate_phone ?? "",
+            position: customer.position ?? "",
+            role: customer.role ?? "",
+            preferredChannel: customer.preferred_channel ?? "",
           }}
         />
         <FormSection
           title="Additional Contacts"
           description="Other contacts assigned to this customer."
         >
-          {contacts?.additional_contacts.length ? (
+          {additionalContacts.length ? (
             <div className="overflow-x-auto rounded-lg border border-brand-border">
               <table className="min-w-full divide-y divide-brand-border">
                 <thead className="bg-brand-surface">
@@ -236,11 +242,14 @@ export default function CustomerDetailsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
                       Preferred Channel
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-brand-text-secondary">
+                      Status
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-brand-border bg-white">
-                  {contacts.additional_contacts.map((contact) => (
+                  {additionalContacts.map((contact) => (
                     <tr key={contact.id} className="hover:bg-brand-surface/40">
                       <td className="px-4 py-3 font-medium text-sm">
                         {contact.first_name} {contact.last_name}
@@ -256,6 +265,10 @@ export default function CustomerDetailsPage() {
 
                       <td className="px-4 py-3 text-sm">
                         {contact.preferred_channel}
+                      </td>
+
+                      <td className="px-4 py-3 text-sm">
+                        <ApprovalBadge status={contact.status} />
                       </td>
                     </tr>
                   ))}

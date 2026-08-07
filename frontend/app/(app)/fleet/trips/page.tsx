@@ -33,6 +33,10 @@ export default function TripsPage() {
     },
 
     {
+      key: "created_by_name",
+      label: "CREATED BY",
+    },
+    {
       key: "status",
       label: "Status",
       render: (_, row) => <TripStatusBadge status={row.status} />,

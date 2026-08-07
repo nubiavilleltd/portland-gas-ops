@@ -14,7 +14,6 @@ export default function InvoicesPage() {
   const { invoices, isLoading:isLoadingInvoice } = useInvoices();
 
 
-
   const columns: Column<Invoice>[] = [
     {
       key: "invoice_number",
@@ -24,6 +23,7 @@ export default function InvoicesPage() {
 
 
     { key: "order_no", label: "Order" },
+    { key: "created_by_name", label: "CREATED BY" },
 
     {
       key: "issued_date",

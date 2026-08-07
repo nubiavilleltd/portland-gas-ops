@@ -15,6 +15,7 @@ export interface Invoice {
   issued_date: string;
 
   due_date: string;
+  created_by_name:string;
 }
 
 

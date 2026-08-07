@@ -41,6 +41,7 @@ class InvoiceResponse(BaseModel):
     notes: Optional[str]
 
     created_by: str
+    created_by_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

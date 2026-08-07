@@ -80,4 +80,9 @@ export const productsApi = {
     const { data } = await api.post(`/api/products/${id}/deactivate`);
     return data;
   },
+
+  picker: async () => {
+    const { data } = await api.get("/api/products/picker");
+    return data;
+  },
 };

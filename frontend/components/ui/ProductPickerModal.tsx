@@ -3,7 +3,7 @@
 import { Package, Check } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import PickerModal from "@/components/ui/PickerModal";
-import type { Product } from "@/lib/modules/products/types/product.types";
+import type { Product, ProductPickerProduct } from "@/lib/modules/products/types/product.types";
 import type { InventoryItem, ConsumableStock } from "@/lib/modules/inventory/types/inventory.types";
 import { getAvailableCount, getConsumableStockLevel } from "@/lib/modules/inventory/selectors/inventory.selectors";
 import { isTracked } from "@/lib/modules/products/types/product.types";
@@ -12,64 +12,62 @@ interface ProductPickerModalProps {
   open: boolean;
   onClose: () => void;
   onSelect: (product: Product) => void;
-  products: Product[];
-  inventoryItems: InventoryItem[];
-  consumableStock: ConsumableStock[];
+  products: ProductPickerProduct[];
+  // inventoryItems: InventoryItem[];
+  // consumableStock: ConsumableStock[];
   selectedProductIds?: string[];
 }
 
 function ProductCard({
   product,
-  inventoryItems,
-  consumableStock,
   isSelected,
 }: {
-  product: Product;
-  inventoryItems: InventoryItem[];
-  consumableStock: ConsumableStock[];
+  product: ProductPickerProduct;
   isSelected: boolean;
 }) {
   const primaryImage = product.images?.[0];
 
-  // const stockLabel = isTracked(product)
-  //   ? `${getAvailableCount(inventoryItems, product.id)} unit(s) available`
-  //   : `${getConsumableStockLevel(consumableStock, product.id).toLocaleString()} ${product.unit} in stock`;
-
-  // const isLow = isTracked(product)
-  //   ? getAvailableCount(inventoryItems, product.id) === 0
-  //   : product.minimumStock != null &&
-  //     getConsumableStockLevel(consumableStock, product.id) <= product.minimumStock;
 
 
+  // const tracked = isTracked(product);
 
-  const tracked = isTracked(product);
+  // const availableCount = getAvailableCount(inventoryItems, product.id);
 
-  const availableCount = getAvailableCount(inventoryItems, product.id);
+  // const consumableQty = getConsumableStockLevel(
+  //   consumableStock,
+  //   product.id,
+  // );
 
-  const consumableQty = getConsumableStockLevel(
-    consumableStock,
-    product.id,
-  );
+  // const hasInventory = tracked
+  //   ? availableCount > 0
+  //   : consumableQty > 0;
 
-  const hasInventory = tracked
-    ? availableCount > 0
-    : consumableQty > 0;
+  const hasInventory = product.isOrderable;
 
-  const stockLabel = tracked
-    ? hasInventory
-      ? `✓ ${availableCount} inventory item(s) available`
-      : "⚠ No inventory available"
-    : hasInventory
-      ? `✓ ${consumableQty.toLocaleString()} ${product.unit} available`
-      : "⚠ No stock available";
+  const stockLabel = isTracked(product)
+  ? hasInventory
+    ? `✓ ${product.availableQuantity} inventory item(s) available`
+    : "⚠ No inventory available"
+  : hasInventory
+    ? `✓ ${product.availableQuantity.toLocaleString()} ${product.unit} available`
+    : "⚠ No stock available";
 
-  const helperText = tracked
-    ? !hasInventory
-      ? "Order can still be created. Dispatch will not be possible until inventory is checked in."
-      : undefined
-    : !hasInventory
-      ? "Order can still be created. Warehouse must receive stock before dispatch."
-      : undefined;
+  // const stockLabel = tracked
+  //   ? hasInventory
+  //     ? `✓ ${availableCount} inventory item(s) available`
+  //     : "⚠ No inventory available"
+  //   : hasInventory
+  //     ? `✓ ${consumableQty.toLocaleString()} ${product.unit} available`
+  //     : "⚠ No stock available";
+
+
+  // const helperText = tracked
+  //   ? !hasInventory
+  //     ? "Order can still be created. Dispatch will not be possible until inventory is checked in."
+  //     : undefined
+  //   : !hasInventory
+  //     ? "Order can still be created. Warehouse must receive stock before dispatch."
+  //     : undefined;
 
   return (
     <div className="flex items-center gap-4 px-4 py-3">
@@ -112,11 +110,11 @@ function ProductCard({
             {stockLabel}
           </span>
 
-          {helperText && (
+          {/* {helperText && (
             <p className="mt-1 text-xs text-brand-text-secondary">
               {helperText}
             </p>
-          )}
+          )} */}
 
           <p className="mt-1 text-xs text-brand-text-secondary">
             {formatCurrency(product.defaultUnitPrice)} / {product.unit}
@@ -137,11 +135,11 @@ function ProductCard({
 
 export default function ProductPickerModal({
   open, onClose, onSelect,
-  products, inventoryItems, consumableStock,
+  products,
   selectedProductIds = [],
 }: ProductPickerModalProps) {
   return (
-    <PickerModal<Product>
+    <PickerModal<ProductPickerProduct>
       open={open}
       onClose={onClose}
       onSelect={onSelect}
@@ -154,11 +152,32 @@ export default function ProductPickerModal({
       getKey={(p) => p.id}
       emptyIcon={<Package size={32} />}
       emptyMessage="No products in catalogue"
+      isSelectable={(product) => {
+        // const tracked = isTracked(product);
+
+        // const availableCount = getAvailableCount(
+        //   inventoryItems,
+        //   product.id,
+        // );
+
+        // const consumableQty = getConsumableStockLevel(
+        //   consumableStock,
+        //   product.id,
+        // );
+
+        // const selectable = tracked
+        //   ? availableCount > 0
+        //   : consumableQty > 0;
+
+
+
+        // return selectable;
+
+        return product.isOrderable;
+      }}
       renderCard={(product, isSelected) => (
         <ProductCard
           product={product}
-          inventoryItems={inventoryItems}
-          consumableStock={consumableStock}
           isSelected={isSelected}
         />
       )}

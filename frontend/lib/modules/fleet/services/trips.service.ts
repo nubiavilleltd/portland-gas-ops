@@ -7,7 +7,7 @@
 
 
 import { fleetApi } from "../api/fleet.api";
-import { adaptTrip } from "../adapters/fleet.adapter";
+import { adaptTrip, adaptTripList } from "../adapters/fleet.adapter";
 import { getErrorMessage } from "@/lib/api/error";
 import type { Trip } from "../types/trip.types";
 import { InventoryAssignment } from "../../inventory/types/inventory.types";
@@ -16,7 +16,7 @@ export class TripsService {
 
   static async getTrips(): Promise<Trip[]> {
     const raw = await fleetApi.listTrips();
-    return raw.map(adaptTrip);
+    return adaptTripList(raw);
   }
 
   static async getTripById(id: string): Promise<Trip | undefined> {

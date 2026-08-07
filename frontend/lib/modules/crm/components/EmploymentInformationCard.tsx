@@ -36,33 +36,37 @@ export default function EmploymentInformationCard({
           placeholder="Enter Department"
           disabled={readOnly}
           error={errors.department}
+          required
           onChange={(e) => onChange?.("department", e.target.value)}
         />
         <FormInput
           label="Position"
           value={values.position}
+          required
           placeholder="Enter Position"
           disabled={readOnly}
           error={errors.position}
           onChange={(e) => onChange?.("position", e.target.value)}
-        />{" "}
+        />
         <FormInput
           label="Role"
           value={values.role}
           placeholder="Enter Role"
           disabled={readOnly}
           error={errors.role}
+          required
           onChange={(e) => onChange?.("role", e.target.value)}
         />
         <FormSelect
           label="Preferred Contact Channel"
           value={values.preferred_channel}
           disabled={readOnly}
+          required
           error={errors.preferred_channel}
           options={[
             { label: "Email", value: "email" },
             { label: "Phone", value: "phone" },
-            { label: "WhatsApp", value: "whatsApp" },
+            { label: "WhatsApp", value: "whatsapp" },
           ]}
           onValueChange={(value) => onChange?.("preferred_channel", value)}
         />

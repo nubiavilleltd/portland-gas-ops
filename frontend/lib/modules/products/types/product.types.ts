@@ -48,6 +48,14 @@ export interface Product {
 }
 
 
+export interface ProductPickerProduct extends Product {
+  physicalQuantity: number;
+  committedQuantity: number;
+  availableQuantity: number;
+  isOrderable: boolean;
+}
+
+
 
 export interface CreateProductInput {
   name: string;

@@ -12,6 +12,7 @@ interface BackendInvoice {
     due_date: string;
     notes: string | null;
     created_at: string;
+    created_by_name:string;
 }
 
 interface BackendInvoiceList {
@@ -32,6 +33,7 @@ export function adaptInvoice(raw: BackendInvoice): Invoice {
         status: raw.status as PaymentStatus,
         issued_date: raw.issued_date,
         due_date: raw.due_date,
+        created_by_name:raw.created_by_name
     };
 }
 

@@ -205,16 +205,12 @@ export interface CustomerForm {
   entityType: EntityType;
   category: CustomerCategory;
   companyEmail: string;
-
   rcNumber: string;
   tin: string;
   vatNumber: string;
   industry: string;
-
   customerType: "potential" | "purchasing";
-
   salesContact: string | null;
-
   referrerType:
     | "employee"
     | "customer"
@@ -222,49 +218,49 @@ export interface CustomerForm {
     | "consultant"
     | "marketing"
     | "";
-
   referrerId: string;
-
   contactPerson: string;
   department: string;
   email: string;
   phone: string;
   alternatePhone: string | null;
-
   country: string;
   state: string;
   city: string;
   addressLine1: string;
   addressLine2: string;
   postalCode: string;
-
   preferredProducts: string[];
   supplyMethod: string;
   estimatedMonthlyDemand: string;
-
   internalNotes: string;
+  position: string;
+  role: string;
+  preferredChannel: string;
 }
 
 export interface CustomerContact {
-  id: string;
-
-  contact_number: string;
-
+  alternate_phone: string;
+  contact_no: string;
+  created_at: string;
   customer_id: string;
-  customer_name: string;
-
-  primary_contact: ContactPerson;
-
+  department: string;
+  email: string;
+  first_name: string;
+  id: string;
+  is_primary: boolean;
+  last_name: string;
+  phone: string;
+  position: string;
+  preferred_channel: PreferredChannel;
+  role: string;
+  updated_at: string;
   additional_contacts: ContactPerson[];
-
-  status: ContactStatus;
-
-  submitted_by: string;
-  submitted_at: string;
-
+  status: ContactPersonStatus;
   activities: ContactActivity[];
-
   attachments: ContactAttachment[];
+  customer_name: string;
+  created_by: string;
 }
 
 export interface ContactPerson {
@@ -284,7 +280,6 @@ export interface ContactPerson {
   department: string;
 
   preferred_channel: PreferredChannel;
-
   status: ContactPersonStatus;
 }
 
@@ -313,7 +308,7 @@ export interface ContactActivity {
   comment?: string;
 }
 
-export type PreferredChannel = "Email" | "Phone" | "WhatsApp";
+export type PreferredChannel = "email" | "phone" | "whatsapp";
 
 export type ContactPersonStatus = "active" | "inactive";
 export type CustomerType = "potential" | "purchased";
@@ -325,7 +320,7 @@ export interface CustomerVisit {
   customer_id: string;
   customer_name: string;
   contact_person: string;
-
+  opportunity_notes?: string;
   visit_type: string;
 
   related_visit_id?: string;
@@ -407,4 +402,53 @@ export interface CRMActivity {
   actor_name?: string;
   metadata?: Record<string, unknown>;
   created_at: string;
+}
+
+export type CreateCustomerContactPayload = {
+  additional_contacts: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    alternate_phone?: string;
+    department?: string;
+    position?: string;
+    role?: string;
+    preferred_channel: PreferredChannel;
+  }[];
+};
+
+export type ContactForm = {
+  firstName: string;
+  lastName: string;
+
+  email: string;
+  phone: string;
+  alternatePhone: string;
+  position: string;
+  role: string;
+  department: string;
+  preferred_channel: PreferredChannel;
+};
+
+export interface UpdateCustomerVisitPayload {
+  status: string;
+
+  outcome: string;
+
+  next_action: string;
+
+  comment: string;
+
+  customer_feedback?: string;
+
+  customer_comments?: string;
+
+  recommendation?: string;
+
+  opportunity_identified: boolean;
+
+  opportunity_value?: number | null;
+
+  opportunity_notes?: string | null;
 }

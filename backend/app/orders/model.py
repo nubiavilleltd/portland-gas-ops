@@ -62,6 +62,10 @@ class Order(Base):
     # Relationships
     customer   = relationship("Customer", foreign_keys=[customer_id])
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    created_by_user = relationship(
+        "User",
+        foreign_keys=[created_by],
+    )
 
 
 class OrderItem(Base):

@@ -222,23 +222,14 @@ class MarkReadyWorkflow:
                 None,
             )
 
-            print(
-                "Order item:",
-                order_item.id,
-                order_item.product.name,
-                order_item.quantity,
-            )
+     
 
             if order_item is None:
                 raise ValueError(
                     f"Product {assignment.product_id} "
                     f"does not exist on order {assignment.order_id}."
                 )
-            print(
-                "Tracked?"
-                if assignment.item_ids
-                else "Consumable"
-            )
+        
 
             if assignment.item_ids:
                 self._process_tracked_assignment(

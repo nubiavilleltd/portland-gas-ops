@@ -15,7 +15,10 @@ import type {
   ProductType,
   ProductUnit,
   UpdateProductInput,
+  ProductPickerProduct
 } from "../types/product.types";
+
+
 
 // ─────────────────────────────────────────────────────────────
 // Backend response shapes
@@ -49,6 +52,13 @@ interface BackendProduct {
 
   created_at: string;
   updated_at: string;
+}
+
+interface BackendProductPicker extends BackendProduct {
+  physical_quantity: string | number;
+  committed_quantity: string | number;
+  available_quantity: string | number;
+  is_orderable: boolean;
 }
 
 interface BackendProductList {
@@ -203,4 +213,28 @@ export function adaptUpdateProductInput(
     minimum_stock: input.minimumStock,
     status: input.status,
   };
+}
+
+
+
+
+export function adaptProductPicker(
+  raw: BackendProductPicker,
+): ProductPickerProduct {
+  return {
+    ...adaptProduct(raw),
+
+    physicalQuantity: Number(raw.physical_quantity),
+    committedQuantity: Number(raw.committed_quantity),
+    availableQuantity: Number(raw.available_quantity),
+    isOrderable: raw.is_orderable,
+  };
+}
+
+export function adaptProductPickerList(
+  raw: {
+    items: BackendProductPicker[];
+  },
+): ProductPickerProduct[] {
+  return raw.items.map(adaptProductPicker);
 }

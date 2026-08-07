@@ -112,6 +112,15 @@ interface BackendTrip {
     cancellation_reason: string | null;
     cancelled_at: string | null;
     created_at: string;
+    created_by_name:string;
+}
+
+interface BackendTripList {
+    items: BackendTrip[];
+    total: number;
+    page: number;
+    page_size: number;
+    has_next: boolean;
 }
 
 // ── Adapters ──────────────────────────────────────────────
@@ -177,7 +186,12 @@ export function adaptTrip(raw: BackendTrip): Trip {
         cancellation_reason: raw.cancellation_reason ?? undefined,
         cancelled_at: raw.cancelled_at ?? undefined,
         created_at: raw.created_at,
+        created_by_name: raw.created_by_name,
     };
+}
+
+export function adaptTripList(raw: BackendTripList): Trip[] {
+    return raw.items.map(adaptTrip);
 }
 
 

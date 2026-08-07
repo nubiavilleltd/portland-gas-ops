@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-import type {
-  CustomerOnboarding,
-  CustomerContact,
-  CustomerVisit,
-} from "./types";
+import type { CustomerContact, CustomerVisit } from "./types";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import { getCustomerActivities } from "./api";
+import { getCustomerActivities, createCustomerContacts } from "./api";
+import {
+  CreateCustomerContactPayload,
+  UpdateCustomerVisitPayload,
+} from "./types";
 
 export function useCRMActivityByCustomer(customerId?: string) {
   const query = useQuery({
@@ -50,6 +49,93 @@ export function useCustomerOnboarding() {
   });
 }
 
+export function useCreateCustomerContacts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      customerId,
+      data,
+    }: {
+      customerId: string;
+      data: CreateCustomerContactPayload;
+    }) => createCustomerContacts(customerId, data),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["customer-contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["customers"],
+      });
+    },
+  });
+}
+
+export function useActivateCustomerContact() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (contactId: string) => {
+      const response = await api.patch(
+        `api/crm/contacts/${contactId}/activate`,
+      );
+
+      return response.data;
+    },
+
+    onSuccess: (contact) => {
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-contacts", contact.customer_id],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity", contact.customer_id],
+      });
+    },
+  });
+}
+
+export function useDeactivateCustomerContact() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (contactId: string) => {
+      const response = await api.patch(
+        `api/crm/contacts/${contactId}/deactivate`,
+      );
+
+      return response.data;
+    },
+
+    onSuccess: (contact) => {
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-contacts", contact.customer_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity", contact.customer_id],
+      });
+    },
+  });
+}
+
 export function useCustomerOnboardingDetails(id: string) {
   return useQuery({
     queryKey: ["crm", "customers", id],
@@ -64,20 +150,63 @@ export function useCustomerOnboardingDetails(id: string) {
   });
 }
 
-export const MOCK_CUSTOMER_CONTACTS: CustomerContact[] = [];
-
-export function useCustomerContactDetails(id: string) {
+export function useCustomerContactDetails(customerId: string) {
   return useQuery({
-    queryKey: ["crm", "customer-contact", id],
-    queryFn: async () =>
-      MOCK_CUSTOMER_CONTACTS.find((contact) => contact.id === id) ?? null,
+    queryKey: ["crm", "customer-contacts", customerId],
+    enabled: !!customerId,
+    queryFn: async () => {
+      const { data } = await api.get<CustomerContact[]>(
+        `api/crm/${customerId}/contacts`,
+      );
+
+      return data;
+    },
   });
 }
 
 export function useCustomerContacts() {
   return useQuery({
-    queryKey: ["crm", "customer-contacts"],
-    queryFn: async () => MOCK_CUSTOMER_CONTACTS,
+    queryKey: ["crm", "contacts"],
+    queryFn: async () => {
+      const { data } = await api.get("api/crm/contacts");
+      return data;
+    },
+  });
+}
+
+export async function updateCustomerContacts(
+  customerId: string,
+  data: CreateCustomerContactPayload,
+) {
+  const response = await api.patch(`api/crm/${customerId}/contacts`, data);
+
+  return response.data;
+}
+
+export function useUpdateCustomerContacts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      customerId,
+      data,
+    }: {
+      customerId: string;
+      data: CreateCustomerContactPayload;
+    }) => updateCustomerContacts(customerId, data),
+
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["customer-contacts", variables.customerId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["customer-contacts"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity", variables.customerId],
+      });
+    },
   });
 }
 
@@ -569,21 +698,68 @@ export function useCustomerVisits() {
   });
 }
 
-export function useCustomerContactsByCustomer(customerId?: string) {
-  return useQuery({
-    queryKey: ["crm", "customer-contacts", customerId],
-    enabled: !!customerId,
-    queryFn: async () =>
-      MOCK_CUSTOMER_CONTACTS.find(
-        (contact) => contact.customer_id === customerId,
-      ),
-  });
-}
-
 export function useCustomerVisitDetails(id: string) {
   return useQuery({
     queryKey: ["customer-visit", id],
     queryFn: async () =>
       customerVisits.find((visit) => visit.id === id) ?? null,
   });
+}
+
+export function useCreateCustomerVisit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: Record<string, any>) => {
+      const { data } = await api.post("api/crm/visits", payload);
+      return data;
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["customer-visits"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "dashboard"],
+      });
+    },
+  });
+}
+
+export function useUpdateCustomerVisit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateCustomerVisitPayload;
+    }) => updateCustomerVisit(id, data),
+
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-visits"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-visit", variables.id],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "activity"],
+      });
+    },
+  });
+}
+
+export async function updateCustomerVisit(
+  id: string,
+  data: UpdateCustomerVisitPayload,
+) {
+  const response = await api.patch(`/crm/customer-visits/${id}`, data);
+
+  return response.data;
 }

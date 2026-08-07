@@ -3,6 +3,7 @@ from app.orders.model import Order
 from app.orders.enums import OrderStatus, FulfillmentStatus
 from app.core.exceptions import AppException
 from app.orders.error_codes import OrderErrorCode
+from app.payments.enums import PaymentStatus
 
 
 def _status_label(status: str | FulfillmentStatus) -> str:
@@ -47,6 +48,42 @@ def ensure_can_cancel(
             error_code=OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
             message="Dispatched orders cannot be cancelled.",
         )
+
+    if order.payment_status in (
+        PaymentStatus.partially_paid,
+        PaymentStatus.paid,
+    ):
+        raise AppException(
+            status_code=400,
+            error_code=OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
+            message="Paid or partially paid orders cannot be cancelled.",
+        )
+
+# def ensure_can_cancel(
+#     order: Order,
+# ) -> None:
+
+#     if order.order_status in (
+#         OrderStatus.completed,
+#         OrderStatus.cancelled,
+#         OrderStatus.draft,
+#     ):
+#         raise AppException(
+#             status_code=400,
+#             error_code=OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
+#             message="This order cannot be cancelled.",
+#         )
+
+#     if order.fulfillment_status in (
+#         FulfillmentStatus.dispatched,
+#         FulfillmentStatus.in_transit,
+#         FulfillmentStatus.delivered,
+#     ):
+#         raise AppException(
+#             status_code=400,
+#             error_code=OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
+#             message="Dispatched orders cannot be cancelled.",
+#         )
     
 def ensure_can_confirm(order: Order) -> None:
     if order.order_status != OrderStatus.submitted:

@@ -104,8 +104,17 @@ class TripResponse(BaseModel):
     cancelled_at: Optional[datetime]
 
     created_at: datetime
+    created_by: str
+    created_by_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class TripFilters(BaseModel):
+    status: Optional[TripStatus] = None
+
+    page: int = 1
+    page_size: int = 50
 
 class TripListResponse(BaseModel):
     items: list[TripResponse]

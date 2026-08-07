@@ -15,11 +15,16 @@ from app.products.schema import (
     ProductFilters,
     ProductImageResponse,
     ProductUpdate,
+    ProductPickerResponse,
+    ProductResponse
 )
 from app.shared.services.cloudinary_service import (
     ResourceType,
     get_storage_service,
 )
+
+from app.inventory.service import InventoryService
+
 
 
 class ProductService:
@@ -69,6 +74,62 @@ class ProductService:
             page=filters.page,
             page_size=filters.page_size,
         )
+
+
+    def list_for_picker(
+        self,
+        db: Session,
+        filters: ProductFilters,
+    ):
+        """
+        Returns products enriched with inventory availability for the
+        Product Picker.
+
+        Availability is calculated as:
+
+            Physical Inventory - Committed Inventory
+
+        This endpoint is the single source of truth for determining
+        whether a product can be added to a new order.
+        """
+
+        products, total = self.list(
+            db=db,
+            filters=filters,
+        )
+
+        inventory_service = InventoryService()
+
+        items: list[ProductPickerResponse] = []
+
+        for product in products:
+
+            availability = inventory_service.get_product_availability(
+                db=db,
+                product=product,
+            )
+
+            images = self.get_images(
+                db,
+                product,
+            )
+
+            data = ProductResponse.model_validate(product).model_dump()
+
+            # Replace the images from the dumped model with the ones we just loaded.
+            data["images"] = images
+
+            item = ProductPickerResponse(
+                **data,
+                physical_quantity=availability.physical_quantity,
+                committed_quantity=availability.committed_quantity,
+                available_quantity=availability.available_quantity,
+                is_orderable=availability.available_quantity > 0,
+            )
+
+            items.append(item)
+
+        return items, total
 
     def get_images(
         self,

@@ -2,38 +2,56 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
 import AppLayout from "@/components/layout/AppLayout";
 import { BackButton } from "@/components/ui/BackButton";
 import PageHeader from "@/components/ui/PageHeader";
 import FormSection from "@/components/ui/FormSection";
 import Button from "@/components/ui/Button";
 import FormDateTimeInput from "@/components/forms/FormDateTimeInput";
-import { useCustomerVisits } from "@/lib/modules/crm";
+import {
+  useCustomerContactDetails,
+  useCustomerVisits,
+  useCustomerOnboarding,
+  useCreateCustomerVisit,
+} from "@/lib/modules/crm";
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import { useCustomerContactsByCustomer } from "@/lib/modules/crm";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import { useToast } from "@/hooks/useToast";
-import { useCustomerOnboarding } from "@/lib/modules/crm";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import {
+  validateVisit,
+  buildVisitPayload,
+} from "@/lib/modules/crm/utils/visit";
 
 export default function NewCustomerVisitsPage() {
   const router = useRouter();
   const toast = useToast();
-
+  const createVisit = useCreateCustomerVisit();
   const { data: customers = [] } = useCustomerOnboarding();
+  const { user } = useCurrentUser();
 
-  const customerOptions = useMemo(
-    () =>
-      customers
-        .filter((c: any) => c.customer_status === "active")
-        .map((customer: any) => ({
-          label: customer.customer_name,
-          value: customer.id,
-        })),
-    [customers],
-  );
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+
+  const customerOptions = useMemo(() => {
+    const filtered = customers.filter((customer: any) => {
+      const isVisible = isAdmin || customer.created_by === user?.employee?.id;
+
+      const isActive =
+        customer.status === "approved" ||
+        customer.status === "active" ||
+        customer.customer_status === "active";
+
+      return isVisible && isActive;
+    });
+
+    return filtered.map((customer: any) => ({
+      label: customer.customer_name,
+      value: customer.id,
+    }));
+  }, [customers, isAdmin, user]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { data: customerVisits = [] } = useCustomerVisits();
   const [form, setForm] = useState({
     customerId: "",
@@ -65,30 +83,38 @@ export default function NewCustomerVisitsPage() {
       }));
   }, [form.customerId]);
 
-  function submit() {
-    console.log(form);
+  async function submit() {
+    const { valid, errors } = validateVisit(form);
 
-    toast.success("Customer visit scheduled successfully.");
+    if (!valid) {
+      setErrors(errors);
+      toast.error("Please correct the highlighted errors.");
+      return;
+    }
 
-    setTimeout(() => {
+    try {
+      await createVisit.mutateAsync(buildVisitPayload(form));
+
+      toast.success("Customer visit scheduled successfully.");
       router.push("/crm/visits");
-    }, 800);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail?.message ??
+          "Failed to schedule customer visit.",
+      );
+    }
   }
 
-  const { data: customerContacts } = useCustomerContactsByCustomer(
-    form.customerId,
-  );
+  const { data: customerContacts = [], isLoading: contactsLoading } =
+    useCustomerContactDetails(form.customerId);
 
   const contactOptions = useMemo(() => {
-    if (!customerContacts) return [];
-
-    return [
-      customerContacts.primary_contact,
-      ...customerContacts.additional_contacts,
-    ].map((contact) => ({
-      value: contact.id,
-      label: `${contact.first_name} ${contact.last_name}`,
-    }));
+    return [...customerContacts]
+      .sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+      .map((contact) => ({
+        value: contact.id,
+        label: `${contact.first_name} ${contact.last_name}`,
+      }));
   }, [customerContacts]);
 
   return (
@@ -110,18 +136,31 @@ export default function NewCustomerVisitsPage() {
             value={form.customerId}
             options={customerOptions}
             placeholder="Select Customer"
-            onValueChange={(value) =>
+            required
+            error={errors.customerId}
+            onValueChange={(value) => {
               setForm((prev) => ({
                 ...prev,
                 customerId: value,
-              }))
-            }
+                contact_person: "",
+                relatedVisitId: "",
+              }));
+
+              setErrors((prev) => ({
+                ...prev,
+                customerId: "",
+                contact_person: "",
+                relatedVisitId: "",
+              }));
+            }}
           />
 
           <div className="grid gap-6 md:grid-cols-2">
             <FormSelect
               label="Visit Type"
               value={form.visitType}
+              required
+              error={errors.visitType}
               options={[
                 { label: "Sales", value: "Sales" },
                 { label: "Courtesy", value: "Courtesy" },
@@ -129,98 +168,127 @@ export default function NewCustomerVisitsPage() {
                 { label: "Complaint", value: "Complaint" },
                 { label: "Collection", value: "Collection" },
               ]}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
                   visitType: value,
                   relatedVisitId:
                     value === "Follow-up" ? prev.relatedVisitId : "",
-                }))
-              }
+                }));
+
+                setErrors((prev) => ({
+                  ...prev,
+                  visitType: "",
+                  relatedVisitId: "",
+                }));
+              }}
             />
             {form.visitType === "Follow-up" && (
               <div className="mt-6">
                 <FormSelect
                   label="Related Visit"
-                  placeholder="Select previous visit"
+                  placeholder={
+                    previousVisitOptions.length === 0
+                      ? "No completed visits available"
+                      : "Select previous visit"
+                  }
+                  disabled={previousVisitOptions.length === 0}
                   value={form.relatedVisitId}
+                  required
+                  error={errors.relatedVisitId}
                   options={previousVisitOptions.map((visit) => ({
                     value: visit.value,
                     label: `${visit.visitNumber} • ${visit.visitType} • ${visit.visitDate}`,
                   }))}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
                     setForm((prev) => ({
                       ...prev,
                       relatedVisitId: value,
-                    }))
-                  }
+                    }));
+
+                    setErrors((prev) => ({
+                      ...prev,
+                      relatedVisitId: "",
+                    }));
+                  }}
                 />
               </div>
             )}
-            {/* <FormSelect
-            label="Visit Objective"
-            value={form.purpose}
-            options={[
-              { label: "New Business", value: "New Business" },
-              { label: "Contract Renewal", value: "Contract Renewal" },
-              {
-                label: "Relationship Management",
-                value: "Relationship Management",
-              },
-              { label: "Complaint Resolution", value: "Complaint Resolution" },
-              { label: "Payment Collection", value: "Payment Collection" },
-              { label: "Technical Support", value: "Technical Support" },
-            ]}
-            onValueChange={(value) =>
-              setForm((prev) => ({
-                ...prev,
-                visitObjective: value,
-              }))
-            }
-          /> */}
-
             <FormSelect
               label="Contact Person"
               value={form.contact_person}
               options={contactOptions}
               placeholder="Select Contact Person"
-              onValueChange={(value) =>
+              disabled={!form.customerId || contactsLoading}
+              required
+              error={errors.contact_person}
+              onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
                   contact_person: value,
-                }))
-              }
+                }));
+
+                setErrors((prev) => ({
+                  ...prev,
+                  contact_person: "",
+                }));
+              }}
             />
 
             <FormDateTimeInput
               label="Visit Date & Time"
               value={form.visitDateTime}
+              required
+              error={errors.visitDateTime}
               min={new Date().toISOString().slice(0, 16)}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
                   visitDateTime: value,
-                }))
-              }
-            />
+                }));
 
+                setErrors((prev) => ({
+                  ...prev,
+                  visitDateTime: "",
+                }));
+              }}
+            />
             <FormInput
               label="Location"
               placeholder="Enter visit location"
               value={form.location}
-              onChange={(e) =>
+              required
+              error={errors.location}
+              onChange={(e) => {
                 setForm((prev) => ({
                   ...prev,
                   location: e.target.value,
-                }))
-              }
+                }));
+
+                setErrors((prev) => ({
+                  ...prev,
+                  location: "",
+                }));
+              }}
             />
 
             <FormTextarea
               label="Purpose of Visit"
               rows={5}
               value={form.purpose}
-              onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+              required
+              error={errors.purpose}
+              onChange={(e) => {
+                setForm((prev) => ({
+                  ...prev,
+                  purpose: e.target.value,
+                }));
+
+                setErrors((prev) => ({
+                  ...prev,
+                  purpose: "",
+                }));
+              }}
             />
             <FormTextarea
               label="Participants"
@@ -245,14 +313,18 @@ export default function NewCustomerVisitsPage() {
             <FormDatePicker
               label="Reminder Date"
               value={form.reminderDate}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
                   reminderDate: value,
-                }))
-              }
-            />
+                }));
 
+                setErrors((prev) => ({
+                  ...prev,
+                  reminderDate: "",
+                }));
+              }}
+            />
             <FormSelect
               label="Follow-up Required?"
               value={form.followUpRequired ? "Yes" : "No"}
@@ -260,34 +332,54 @@ export default function NewCustomerVisitsPage() {
                 { label: "Yes", value: "Yes" },
                 { label: "No", value: "No" },
               ]}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
                   followUpRequired: value === "Yes",
-                }))
-              }
+                  followUpDate: value === "Yes" ? prev.followUpDate : "",
+                }));
+
+                setErrors((prev) => ({
+                  ...prev,
+                  followUpDate: "",
+                }));
+              }}
             />
 
             {form.followUpRequired && (
               <FormDatePicker
                 label="Expected Follow-up Date"
+                required
+                error={errors.followUpDate}
                 value={form.followUpDate}
-                onValueChange={(value) =>
+                onValueChange={(value) => {
                   setForm((prev) => ({
                     ...prev,
                     followUpDate: value,
-                  }))
-                }
+                  }));
+
+                  setErrors((prev) => ({
+                    ...prev,
+                    followUpDate: "",
+                  }));
+                }}
               />
             )}
           </div>
         </FormSection>
       </div>
-      <div className="mt-8 flex justify-end gap-3 pb-10">
-        <Button variant="outline" onClick={() => router.back()}>
+      <div className="mt-8 flex justify-start gap-3 pb-10">
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          disabled={createVisit.isPending}
+        >
           Cancel
         </Button>
-        <Button onClick={submit}>Schedule Visit</Button>
+
+        <Button loading={createVisit.isPending} onClick={submit}>
+          Schedule Visit
+        </Button>
       </div>
     </AppLayout>
   );

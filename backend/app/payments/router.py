@@ -24,6 +24,9 @@ from app.payments.service import PaymentService
 # from app.shared.dependencies import require_roles
 from app.payments.permissions import permissions
 from app.shared.models.user import User
+from app.payments.workflows.record_payment_workflow import (
+    RecordPaymentWorkflow,
+)
 
 from app.payments.constants import (
     ALLOWED_ATTACHMENT_TYPES,
@@ -33,6 +36,7 @@ from app.payments.constants import (
 
 router = APIRouter()
 service = PaymentService()
+record_payment_workflow = RecordPaymentWorkflow()
 
 def _uploaded_by(user: User) -> str | None:
     return (
@@ -176,70 +180,19 @@ async def record_payment(
     uploaded_by = _uploaded_by(current_user)
     idempotency_key = request.headers.get("idempotency-key")
 
-    payment = service.record(
+ 
+
+    payment = record_payment_workflow.execute(
         db=db,
-        data=payload,
+        payload=payload,
         attachments=attachment_files,
         uploaded_by=uploaded_by,
         recorded_by=current_user.id,
         idempotency_key=idempotency_key,
+        actor_employee_id=current_user.employee.id,
+        actor_name=current_user.full_name,
     )
 
-    from app.invoices.service import InvoiceService
-    from app.orders.service import OrderService
-
-    invoice_service = InvoiceService()
-    order_service = OrderService()
-
-    invoice = invoice_service.get_or_raise(
-        db,
-        payment.invoice_id,
-    )
-
-    order = order_service.get_or_raise(
-        db,
-        invoice.order_id,
-    )
-
-    AuditService.record(
-        db,
-        AuditEntityType.payment,
-        payment.id,
-        "recorded",
-        f"Payment {payment.payment_no} recorded.",
-        AuditActorType.employee,
-        current_user.employee.id,
-        current_user.full_name
-    )
-
-    AuditService.record(
-        db,
-        AuditEntityType.invoice,
-        invoice.id,
-        "payment_recorded",
-        (
-            f"Payment {payment.payment_no} "
-            f"recorded for ₦{payment.amount:,.2f}."
-        ),
-        AuditActorType.employee,
-        current_user.employee.id,
-        current_user.full_name,
-    )
-
-    AuditService.record(
-        db,
-        AuditEntityType.order,
-        order.id,
-        "payment_recorded",
-        (
-            f"Payment {payment.payment_no} "
-            f"recorded for ₦{payment.amount:,.2f} "
-            f"via {payment.method.value}."
-        ),
-        AuditActorType.employee,
-        current_user.employee.id,
-        current_user.full_name,
-    )
 
     db.commit()
     db.refresh(payment)

@@ -35,6 +35,7 @@ export default function ContactInformationCard({
           placeholder="Enter First Name"
           value={values.firstName}
           disabled={readOnly}
+          required
           error={errors.firstName}
           onChange={(e) => onChange?.("firstName", e.target.value)}
         />
@@ -45,6 +46,7 @@ export default function ContactInformationCard({
           placeholder="Enter Last Name"
           disabled={readOnly}
           error={errors.lastName}
+          required
           onChange={(e) => onChange?.("lastName", e.target.value)}
         />
 
@@ -53,6 +55,7 @@ export default function ContactInformationCard({
           value={values.email}
           placeholder="Enter Email Address"
           disabled={readOnly}
+          required
           error={errors.email}
           onChange={(e) => onChange?.("email", e.target.value)}
         />
@@ -61,6 +64,7 @@ export default function ContactInformationCard({
           label="Phone Number"
           placeholder="Enter Phone Number"
           value={values.phone}
+          required
           disabled={readOnly}
           error={errors.phone}
           onChange={(e) => onChange?.("phone", e.target.value)}

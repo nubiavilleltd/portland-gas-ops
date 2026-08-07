@@ -6,29 +6,40 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import EmptyState from "@/components/ui/EmptyState";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Link from "next/link";
 import { useCustomerContacts, type CustomerContact } from "@/lib/modules/crm";
 
-const COLUMNS: Column<CustomerContact>[] = [
+type GroupedCustomerContact = {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  status: string;
+  primary_contact: CustomerContact | null;
+  additional_contacts: CustomerContact[];
+};
+
+const COLUMNS: Column<GroupedCustomerContact>[] = [
   {
     key: "customer_name",
     label: "Customer",
   },
 
   {
-    key: "primary_contact",
+    key: "first_name",
     label: "Primary Contact",
+
+    getSearchValue: (row) =>
+      `${row.primary_contact?.first_name ?? ""} ${row.primary_contact?.last_name ?? ""}`,
+
     render: (_, record) => (
       <div>
         <p className="font-medium">
-          {record.primary_contact.first_name} {record.primary_contact.last_name}
+          {record.primary_contact?.first_name}{" "}
+          {record.primary_contact?.last_name}
         </p>
 
         <p className="text-xs text-brand-text-secondary">
-          {record.primary_contact.department}
+          {record.primary_contact?.department}
         </p>
       </div>
     ),
@@ -38,26 +49,22 @@ const COLUMNS: Column<CustomerContact>[] = [
     key: "contacts",
     label: "Contacts",
     render: (_, record) => (
-      <span className="text-sm">{record.additional_contacts.length + 1}</span>
+      <span className="text-sm">
+        {(record.primary_contact ? 1 : 0) + record.additional_contacts.length}
+      </span>
     ),
   },
 
   {
     key: "phone",
     label: "Phone",
-    render: (_, record) => record.primary_contact.phone,
+    render: (_, record) => record?.primary_contact?.phone,
   },
 
   {
     key: "email",
     label: "Email",
-    render: (_, record) => record.primary_contact.email,
-  },
-
-  {
-    key: "status",
-    label: "Status",
-    render: (_, record) => <ApprovalBadge status={record.status} />,
+    render: (_, record) => record?.primary_contact?.email,
   },
 
   {
@@ -67,7 +74,7 @@ const COLUMNS: Column<CustomerContact>[] = [
     searchable: false,
     render: (_, record) => (
       <Link
-        href={`/crm/contacts/${record.id}`}
+        href={`/crm/contacts/${record.customer_id}`}
         onClick={(e) => e.stopPropagation()}
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-purple transition-colors hover:bg-brand-purple-faint"
         title="View Contact"
@@ -80,6 +87,34 @@ const COLUMNS: Column<CustomerContact>[] = [
 
 export default function ContactsPage() {
   const { data: contacts = [], isLoading, isError } = useCustomerContacts();
+  console.log(contacts, "contacts");
+  function groupContacts(
+    contacts: CustomerContact[],
+  ): GroupedCustomerContact[] {
+    const grouped: Record<string, GroupedCustomerContact> = {};
+
+    for (const contact of contacts) {
+      if (!grouped[contact.customer_id]) {
+        grouped[contact.customer_id] = {
+          id: contact.id,
+          customer_id: contact.customer_id,
+          customer_name: contact?.customer_name,
+          status: contact.status,
+          primary_contact: null,
+          additional_contacts: [],
+        };
+      }
+      if (contact.is_primary) {
+        grouped[contact.customer_id].primary_contact = contact;
+      } else {
+        grouped[contact.customer_id].additional_contacts.push(contact);
+      }
+    }
+
+    return Object.values(grouped);
+  }
+
+  const groupedContacts = groupContacts(contacts);
 
   return (
     <AppLayout pageTitle="Contacts">
@@ -97,28 +132,14 @@ export default function ContactsPage() {
         }
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <LoadingSpinner />
-        </div>
-      ) : isError ? (
-        <div className="py-20 text-center text-brand-text-secondary">
-          Failed to load contacts.
-        </div>
-      ) : contacts.length === 0 ? (
-        <EmptyState
-          title="No contacts found"
-          description="Add contacts for approved customers."
-        />
-      ) : (
-        <DataTable<CustomerContact>
-          columns={COLUMNS}
-          data={contacts}
-          rowHref={(record) => `/crm/contacts/${record.id}`}
-          searchPlaceholder="Search customer or primary contact..."
-          emptyMessage="No contacts found."
-        />
-      )}
+      <DataTable<GroupedCustomerContact>
+        columns={COLUMNS}
+        data={groupedContacts}
+        rowHref={(record) => `/crm/contacts/${record.customer_id}`}
+        searchPlaceholder="Search customer or primary contact..."
+        emptyMessage="No contacts found."
+        isLoading={isLoading}
+      />
     </AppLayout>
   );
 }

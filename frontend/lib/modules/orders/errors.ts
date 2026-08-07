@@ -13,4 +13,6 @@ export const ORDER_ERROR_MESSAGES = {
 
   ORDER_ITEMS_REQUIRED:
     "Add at least one item before submitting the order.",
+  INSUFFICIENT_STOCK:
+    "One or more items have insufficient stock.",
 } as const;

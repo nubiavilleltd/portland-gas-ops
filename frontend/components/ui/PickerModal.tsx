@@ -23,6 +23,7 @@ export interface PickerModalProps<T> {
   searchKeys: (item: T) => string[];
   getKey: (item: T) => string;
   renderCard: (item: T, isSelected: boolean) => React.ReactNode;
+  isSelectable?: (item: T) => boolean;
   emptyIcon?: React.ReactNode;
   emptyMessage?: string;
 }
@@ -42,6 +43,7 @@ export default function PickerModal<T>({
   searchKeys,
   getKey,
   renderCard,
+  isSelectable,
   emptyIcon,
   emptyMessage = "No results found",
 }: PickerModalProps<T>) {
@@ -114,7 +116,7 @@ export default function PickerModal<T>({
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-        style={{minHeight:"100vh"}}
+        style={{ minHeight: "100vh" }}
         onClick={handleClose}
       />
 
@@ -202,8 +204,14 @@ export default function PickerModal<T>({
                 const isSelected = multiSelect
                   ? internalSelected.includes(key)
                   : selectedIds.includes(key);
+
+                const selectable = isSelectable?.(item) ?? true;
+
                 const isDisabled =
-                  multiSelect && !isSelected && atMax;
+                  !selectable ||
+                  (multiSelect && !isSelected && atMax);
+                // const isDisabled =
+                //   multiSelect && !isSelected && atMax;
 
                 return (
                   <div
@@ -219,8 +227,8 @@ export default function PickerModal<T>({
                       isDisabled
                         ? "opacity-40 cursor-not-allowed"
                         : isSelected
-                        ? "bg-brand-purple/5 cursor-pointer"
-                        : "hover:bg-gray-50 cursor-pointer"
+                          ? "bg-brand-purple/5 cursor-pointer"
+                          : "hover:bg-gray-50 cursor-pointer"
                     )}
                   >
                     {renderCard(item, isSelected)}
