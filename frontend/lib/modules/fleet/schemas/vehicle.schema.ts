@@ -56,13 +56,13 @@ export const vehicleSchema = z
       ),
 
     next_service_date: z
-      .string()
-      .min(1, "Next service date is required")
-      .refine((val) => !isNaN(Date.parse(val)), "Invalid date")
-      .refine(
-        (val) => new Date(val) >= new Date(),
-        "Next service date cannot be in the past",
-      ),
+  .string()
+  .min(1, "Next service date is required")
+  .refine((val) => !isNaN(Date.parse(val)), "Invalid date")
+  .refine(
+    (val) => val >= new Date().toISOString().split("T")[0],
+    "Next service date cannot be in the past",
+  ),
 
     insurance_expiry_date: z
       .string()
@@ -76,7 +76,7 @@ export const vehicleSchema = z
   })
   .refine(
     (data) =>
-      new Date(data.next_service_date) > new Date(data.last_service_date),
+      new Date(data.next_service_date) >= new Date(data.last_service_date),
     {
       message: "Next service date must be after the last service date",
       path: ["next_service_date"],
