@@ -29,7 +29,8 @@ export default function NewCustomerVisitsPage() {
   const router = useRouter();
   const toast = useToast();
   const createVisit = useCreateCustomerVisit();
-  const { data: customers = [] } = useCustomerOnboarding();
+  const { data: customers = [], isLoading: customersLoading } =
+    useCustomerOnboarding();
   const { user } = useCurrentUser();
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
@@ -133,8 +134,11 @@ export default function NewCustomerVisitsPage() {
           <FormSelect
             label="Customer"
             value={form.customerId}
+            searchable={true}
             options={customerOptions}
-            placeholder="Select Customer"
+            placeholder={
+              customersLoading ? "Loading customers..." : "Select Customer"
+            }
             required
             error={errors.customerId}
             onValueChange={(value) => {
@@ -217,7 +221,13 @@ export default function NewCustomerVisitsPage() {
               label="Contact Person"
               value={form.contact_person}
               options={contactOptions}
-              placeholder="Select Contact Person"
+              placeholder={
+                !form.customerId
+                  ? "Select a customer first"
+                  : contactsLoading
+                    ? "Loading contacts..."
+                    : "Select Contact Person"
+              }
               disabled={!form.customerId || contactsLoading}
               required
               error={errors.contact_person}

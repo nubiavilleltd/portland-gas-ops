@@ -296,7 +296,7 @@ class CustomerVisitCreate(BaseModel):
 
     contact_person: str
 
-    visit_type: VisitType
+    visit_type: str
 
     related_visit_id: Optional[str] = None
 
@@ -360,7 +360,7 @@ class CustomerVisitListItem(BaseModel):
 
     contact_person: str
 
-    visit_type: VisitType
+    visit_type: str
 
     visit_date: datetime
 
@@ -389,7 +389,7 @@ class CustomerVisitResponse(BaseModel):
 
     contact_person: str
 
-    visit_type: VisitType
+    visit_type: str
 
     related_visit_id: Optional[str]
 

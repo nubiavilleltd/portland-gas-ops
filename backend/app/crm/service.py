@@ -902,7 +902,7 @@ def create_customer_visit(
             detail="Customer contact not found.",
         )
 
-        related_visit = None
+    related_visit = None
 
     if data.visit_type == VisitType.FollowUp:
 
@@ -943,7 +943,7 @@ def create_customer_visit(
 
         contact_person=contact.id,
 
-        visit_type=data.visit_type,
+        visit_type=VisitType(data.visit_type),
 
         related_visit_id=data.related_visit_id,
 
@@ -977,8 +977,7 @@ def create_customer_visit(
         entity_id=str(visit.id),
         current_user=current_user,
         description = (
-            f"Scheduled {visit.visit_type.value} visit "
-            f"for {visit.visit_date.strftime('%d %B %Y')}"
+            f"current_user scheduled a visit for {visit.visit_date.strftime('%d %B %Y')}"
         )                   
     )
     
@@ -1066,7 +1065,7 @@ def list_customer_visits(
             "contact_person":
                 f"{visit.contact.first_name} {visit.contact.last_name}",
 
-            "visit_type": visit.visit_type.value,
+            "visit_type": visit.visit_type,
 
             "visit_date": visit.visit_date,
 
@@ -1103,7 +1102,7 @@ def get_customer_visit(
         "contact_person":
             f"{visit.contact.first_name} {visit.contact.last_name}",
 
-        "visit_type": visit.visit_type.value,
+        "visit_type": visit.visit_type,
 
         "related_visit_id":
             related.id if related else None,
