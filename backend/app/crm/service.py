@@ -61,13 +61,14 @@ def log_customer_activity(
     action: str, 
     entity_type: CRMActivityEntityType,
     description: str,
+    entity_id: str | None = None,
     metadata: dict | None = None,
 ):
     CRMActivityService.record(
         db=db,
         customer_id=customer,
         entity_type=entity_type,
-        entity_id=str(customer),
+        entity_id=entity_id or customer,
         action=action,
         description=description,
         actor_type=CRMActivityActorType.employee,
@@ -834,7 +835,7 @@ def _get_visit(db: Session, visit_id: str) -> CustomerVisit:
         .options(
             joinedload(CustomerVisit.customer),
             joinedload(CustomerVisit.contact),
-            joinedload(CustomerVisit.creator),
+            joinedload(CustomerVisit.creator).joinedload(Employee.user),
             joinedload(CustomerVisit.related_visit),
         )
         .filter(CustomerVisit.id == visit_id)
@@ -901,9 +902,9 @@ def create_customer_visit(
             detail="Customer contact not found.",
         )
 
-        related_visit = None
+    related_visit = None
 
-    if data.visit_type == VisitType.follow_up:
+    if data.visit_type == VisitType.FollowUp:
 
         if not data.related_visit_id:
 
@@ -927,14 +928,14 @@ def create_customer_visit(
                 detail="Related visit not found.",
             )
 
-        if related_visit.status == VisitStatus.scheduled:
+        if related_visit.status == VisitStatus.Scheduled:
 
             raise HTTPException(
                 status_code=400,
                 detail="Cannot follow up on a scheduled visit.",
             )
 
-        visit = CustomerVisit(
+    visit = CustomerVisit(
 
         visit_number=_generate_visit_number(db),
 
@@ -942,7 +943,7 @@ def create_customer_visit(
 
         contact_person=contact.id,
 
-        visit_type=data.visit_type,
+        visit_type=VisitType(data.visit_type),
 
         related_visit_id=data.related_visit_id,
 
@@ -960,22 +961,26 @@ def create_customer_visit(
 
         follow_up_date=data.follow_up_date,
 
-        status=VisitStatus.scheduled,
+        status=VisitStatus.Scheduled,
 
         created_by=current_user.employee.id,
     )
+    db.add(visit)
+    db.flush()
+
     log_customer_activity(
 
         db=db,
         customer=str(customer.id),
         entity_type="visit",
         action="Visit Created",
-        performed_by=current_user.employee.id,
-        description=f"Scheduled {visit.visit_type.value} visit "
-                    f"({visit.visit_number}).",
+        entity_id=str(visit.id),
+        current_user=current_user,
+        description = (
+            f"current_user scheduled a visit for {visit.visit_date.strftime('%d %B %Y')}"
+        )                   
     )
-    db.add(visit)
-
+    
     db.commit()
 
     db.refresh(visit)
@@ -997,7 +1002,7 @@ def list_customer_visits(
         .options(
             joinedload(CustomerVisit.customer),
             joinedload(CustomerVisit.contact),
-            joinedload(CustomerVisit.creator),
+            joinedload(CustomerVisit.creator).joinedload(Employee.user),
             joinedload(CustomerVisit.related_visit),
         )
     )
@@ -1060,14 +1065,14 @@ def list_customer_visits(
             "contact_person":
                 f"{visit.contact.first_name} {visit.contact.last_name}",
 
-            "visit_type": visit.visit_type.value,
+            "visit_type": visit.visit_type,
 
             "visit_date": visit.visit_date,
 
             "status": visit.status.value,
 
             "created_by":
-                visit.creator.full_name,
+                visit.creator.user.full_name,
 
             "created_at": visit.created_at,
         }
@@ -1097,7 +1102,7 @@ def get_customer_visit(
         "contact_person":
             f"{visit.contact.first_name} {visit.contact.last_name}",
 
-        "visit_type": visit.visit_type.value,
+        "visit_type": visit.visit_type,
 
         "related_visit_id":
             related.id if related else None,
@@ -1152,7 +1157,7 @@ def get_customer_visit(
         "status": visit.status.value,
 
         "created_by":
-            visit.creator.full_name,
+            visit.creator.user.full_name,
 
         "created_at": visit.created_at,
 
@@ -1196,8 +1201,7 @@ def update_customer_visit(
     if data.status != VisitStatus.Scheduled:
         visit.completed_at = datetime.utcnow()
 
-    db.commit()
-    db.refresh(visit)
+    
 
     # CRM Activity
     log_customer_activity(
@@ -1205,10 +1209,12 @@ def update_customer_visit(
         customer=str(visit.customer_id),
         entity_type="visit",
         action="Visit Updated",
-        performed_by=current_user.employee.id,
-        description=f"Visit {visit.visit_number} marked as {visit.status.value}.",
+        current_user=current_user,
+        entity_id=str(visit.id),
+        description=f"Visit marked as {visit.status.value}.",
     )
-
+    db.commit()
+    db.refresh(visit)
     return get_customer_visit(
         db=db,
         visit_id=visit.id,

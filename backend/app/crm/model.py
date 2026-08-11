@@ -1,5 +1,6 @@
 import enum
 import uuid
+from enum import Enum
 
 from sqlalchemy import (
     Column,
@@ -259,19 +260,19 @@ class CustomerContact(Base):
 # ENUMS
 # ==========================================================
 
-class VisitType(str, enum.Enum):
-    sales = "Sales"
-    courtesy = "Courtesy"
-    follow_up = "Follow-up"
-    complaint = "Complaint"
-    collection = "Collection"
+class VisitType(str, Enum):
+    Sales = "Sales"
+    Courtesy = "Courtesy"
+    FollowUp = "Follow-up"
+    Complaint = "Complaint"
+    Collection = "Collection"
 
 
-class VisitStatus(str, enum.Enum):
-    scheduled = "Scheduled"
-    completed = "Completed"
-    follow_up_required = "Follow-up Required"
-    cancelled = "Cancelled"
+class VisitStatus(str, Enum):
+    Scheduled = "Scheduled"
+    Completed = "Completed"
+    FollowUpRequired = "Follow-up Required"
+    Cancelled = "Cancelled"
 
 
 class CustomerVisit(Base):
@@ -303,7 +304,7 @@ class CustomerVisit(Base):
     )
 
     visit_type = Column(
-        SAEnum(VisitType),
+        String(50),
         nullable=False,
     )
 
@@ -385,7 +386,7 @@ class CustomerVisit(Base):
     status = Column(
         SAEnum(VisitStatus),
         nullable=False,
-        default=VisitStatus.scheduled,
+        default=VisitStatus.Scheduled,
     )
 
     created_by = Column(

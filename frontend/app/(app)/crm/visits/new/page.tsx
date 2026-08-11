@@ -29,7 +29,8 @@ export default function NewCustomerVisitsPage() {
   const router = useRouter();
   const toast = useToast();
   const createVisit = useCreateCustomerVisit();
-  const { data: customers = [] } = useCustomerOnboarding();
+  const { data: customers = [], isLoading: customersLoading } =
+    useCustomerOnboarding();
   const { user } = useCurrentUser();
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
@@ -91,7 +92,6 @@ export default function NewCustomerVisitsPage() {
       toast.error("Please correct the highlighted errors.");
       return;
     }
-
     try {
       await createVisit.mutateAsync(buildVisitPayload(form));
 
@@ -134,8 +134,11 @@ export default function NewCustomerVisitsPage() {
           <FormSelect
             label="Customer"
             value={form.customerId}
+            searchable={true}
             options={customerOptions}
-            placeholder="Select Customer"
+            placeholder={
+              customersLoading ? "Loading customers..." : "Select Customer"
+            }
             required
             error={errors.customerId}
             onValueChange={(value) => {
@@ -218,7 +221,13 @@ export default function NewCustomerVisitsPage() {
               label="Contact Person"
               value={form.contact_person}
               options={contactOptions}
-              placeholder="Select Contact Person"
+              placeholder={
+                !form.customerId
+                  ? "Select a customer first"
+                  : contactsLoading
+                    ? "Loading contacts..."
+                    : "Select Contact Person"
+              }
               disabled={!form.customerId || contactsLoading}
               required
               error={errors.contact_person}
@@ -240,7 +249,9 @@ export default function NewCustomerVisitsPage() {
               value={form.visitDateTime}
               required
               error={errors.visitDateTime}
-              min={new Date().toISOString().slice(0, 16)}
+              min={new Date(Date.now() + 24 * 60 * 60 * 1000)
+                .toISOString()
+                .slice(0, 16)}
               onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
@@ -313,6 +324,8 @@ export default function NewCustomerVisitsPage() {
             <FormDatePicker
               label="Reminder Date"
               value={form.reminderDate}
+              min={new Date().toISOString().split("T")[0]}
+              max={form.visitDateTime?.split("T")[0]}
               onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
@@ -352,6 +365,15 @@ export default function NewCustomerVisitsPage() {
                 required
                 error={errors.followUpDate}
                 value={form.followUpDate}
+                min={
+                  form.visitDateTime
+                    ? (() => {
+                        const date = new Date(form.visitDateTime);
+                        date.setDate(date.getDate() + 7);
+                        return date.toISOString().split("T")[0];
+                      })()
+                    : undefined
+                }
                 onValueChange={(value) => {
                   setForm((prev) => ({
                     ...prev,
