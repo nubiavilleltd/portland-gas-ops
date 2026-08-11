@@ -214,7 +214,7 @@ export function useCustomers() {
   return useQuery({
     queryKey: ["crm", "customers"],
     queryFn: async () => {
-      const { data } = await api.get("api/crm");
+      const { data } = await api.get("/api/crm");
       return data;
     },
   });
