@@ -27,7 +27,7 @@ export function useCreateCustomer() {
 
   return useMutation({
     mutationFn: async (payload: any) => {
-      const { data } = await api.post("api/crm", payload);
+      const { data } = await api.post("/api/crm", payload);
       return data;
     },
 
@@ -79,7 +79,7 @@ export function useActivateCustomerContact() {
   return useMutation({
     mutationFn: async (contactId: string) => {
       const response = await api.patch(
-        `api/crm/contacts/${contactId}/activate`,
+        `/api/crm/contacts/${contactId}/activate`,
       );
 
       return response.data;
@@ -111,7 +111,7 @@ export function useDeactivateCustomerContact() {
   return useMutation({
     mutationFn: async (contactId: string) => {
       const response = await api.patch(
-        `api/crm/contacts/${contactId}/deactivate`,
+        `/api/crm/contacts/${contactId}/deactivate`,
       );
 
       return response.data;
@@ -141,7 +141,7 @@ export function useCustomerOnboardingDetails(id: string) {
     queryKey: ["crm", "customers", id],
 
     queryFn: async () => {
-      const response = await api.get(`api/crm/${id}`);
+      const response = await api.get(`/api/crm/${id}`);
 
       return response.data;
     },
@@ -156,7 +156,7 @@ export function useCustomerContactDetails(customerId: string) {
     enabled: !!customerId,
     queryFn: async () => {
       const { data } = await api.get<CustomerContact[]>(
-        `api/crm/${customerId}/contacts`,
+        `/api/crm/${customerId}/contacts`,
       );
 
       return data;
@@ -168,7 +168,7 @@ export function useCustomerContacts() {
   return useQuery({
     queryKey: ["crm", "contacts"],
     queryFn: async () => {
-      const { data } = await api.get("api/crm/contacts");
+      const { data } = await api.get("/api/crm/contacts");
       return data;
     },
   });
@@ -178,7 +178,7 @@ export async function updateCustomerContacts(
   customerId: string,
   data: CreateCustomerContactPayload,
 ) {
-  const response = await api.patch(`api/crm/${customerId}/contacts`, data);
+  const response = await api.patch(`/api/crm/${customerId}/contacts`, data);
 
   return response.data;
 }
@@ -226,7 +226,7 @@ export function useCustomerDetails(id: string) {
     enabled: !!id,
 
     queryFn: async () => {
-      const response = await api.get(`api/crm/${id}`);
+      const response = await api.get(`/api/crm/${id}`);
       return response.data;
     },
   });
@@ -243,7 +243,7 @@ export function useUpdateCustomer() {
       id: string;
       data: Record<string, any>;
     }) => {
-      const response = await api.patch(`api/crm/${id}`, data);
+      const response = await api.patch(`/api/crm/${id}`, data);
       return response.data;
     },
 
@@ -268,7 +268,7 @@ export function useActivateCustomer() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.patch(`api/crm/${id}/activate`);
+      const response = await api.patch(`/api/crm/${id}/activate`);
       return response.data;
     },
 
@@ -294,7 +294,7 @@ export function useDeactivateCustomer() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.patch(`api/crm/${id}/deactivate`);
+      const response = await api.patch(`/api/crm/${id}/deactivate`);
 
       return response.data;
     },
@@ -322,7 +322,7 @@ export function useCustomerVisits() {
   return useQuery({
     queryKey: ["crm", "customer-visits"],
     queryFn: async () => {
-      const { data } = await api.get("api/crm/visits");
+      const { data } = await api.get("/api/crm/visits");
       return data as CustomerVisit[];
     },
   });
@@ -333,7 +333,7 @@ export function useCustomerVisitDetails(id?: string) {
     queryKey: ["crm", "customer-visit", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data } = await api.get(`api/crm/visits/${id}`);
+      const { data } = await api.get(`/api/crm/visits/${id}`);
       return data as CustomerVisit;
     },
   });
@@ -344,7 +344,7 @@ export function useCreateCustomerVisit() {
 
   return useMutation({
     mutationFn: async (payload: Record<string, any>) => {
-      const { data } = await api.post("api/crm/visits", payload);
+      const { data } = await api.post("/api/crm/visits", payload);
       return data;
     },
 
@@ -396,7 +396,7 @@ export async function updateCustomerVisit(
   id: string,
   data: UpdateCustomerVisitPayload,
 ) {
-  const response = await api.patch(`api/crm/visits/${id}`, data);
+  const response = await api.patch(`/api/crm/visits/${id}`, data);
 
   return response.data;
 }
