@@ -28,6 +28,7 @@ import {
 } from "@/lib/modules/crm/utils/visit";
 import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
 import { formatDateTime } from "@/lib/modules/crm/utils";
+import CustomerVisitDetailsSkeleton from "@/lib/modules/crm/components/CustomerVisitDetailsSkeleton";
 
 export default function CustomerVisitDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -74,9 +75,7 @@ export default function CustomerVisitDetailsPage() {
   if (isLoading) {
     return (
       <AppLayout pageTitle="Visit Details">
-        <div className="flex justify-center py-20">
-          <LoadingSpinner />
-        </div>
+        <CustomerVisitDetailsSkeleton />
       </AppLayout>
     );
   }
@@ -112,6 +111,9 @@ export default function CustomerVisitDetailsPage() {
       label: "Sales Executive",
     },
   ];
+
+  const canCompleteVisit = visit && new Date() >= new Date(visit.visit_date);
+
   if (isError || !visit) {
     return (
       <AppLayout pageTitle="Visit Details">
@@ -196,7 +198,7 @@ export default function CustomerVisitDetailsPage() {
 
             <FormTextarea
               label="Participants"
-              value={visit.participants}
+              value={visit.participants ?? ""}
               rows={3}
               disabled
             />
@@ -210,25 +212,25 @@ export default function CustomerVisitDetailsPage() {
             <div className="grid gap-6 md:grid-cols-2">
               <FormInput
                 label="Visit Number"
-                value={visit.related_visit_number}
+                value={visit.related_visit_number ?? ""}
                 disabled
               />
 
               <FormInput
                 label="Visit Type"
-                value={visit.related_visit_type}
+                value={visit.related_visit_type ?? ""}
                 disabled
               />
 
               <FormDatePicker
                 label="Visit Date"
-                value={visit.related_visit_date}
+                value={visit.related_visit_date ?? ""}
                 disabled
               />
 
               <FormSelect
                 label="Visit Status"
-                value={visit.related_visit_status}
+                value={visit.related_visit_status ?? ""}
                 options={[
                   {
                     label: visit.related_visit_status,
@@ -247,7 +249,7 @@ export default function CustomerVisitDetailsPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <FormDatePicker
               label="Reminder Date"
-              value={visit.reminder_date}
+              value={visit.reminder_date ?? ""}
               disabled
             />
 
@@ -264,13 +266,13 @@ export default function CustomerVisitDetailsPage() {
             {visit.follow_up_required && (
               <FormDatePicker
                 label="Expected Follow-up Date"
-                value={visit.follow_up_date}
+                value={visit.follow_up_date ?? ""}
                 disabled
               />
             )}
           </div>
         </FormSection>
-        {visit.status === "Scheduled" ? (
+        {visit.status === "Scheduled" && canCompleteVisit ? (
           <>
             <FormSection
               title="Visit Outcome"
@@ -280,7 +282,8 @@ export default function CustomerVisitDetailsPage() {
                 <FormTextarea
                   label="Outcome"
                   rows={5}
-                  value={form.outcome}
+                  required
+                  value={form.outcome ?? ""}
                   error={errors.outcome}
                   onChange={(e) => {
                     setForm((prev) => ({
@@ -296,20 +299,27 @@ export default function CustomerVisitDetailsPage() {
                 />
                 <FormTextarea
                   label="Customer Feedback"
+                  required
                   rows={4}
+                  error={errors.customerFeedback ?? ""}
                   value={form.customerFeedback}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setForm((prev) => ({
                       ...prev,
                       customerFeedback: e.target.value,
-                    }))
-                  }
+                    }));
+
+                    setErrors((prev) => ({
+                      ...prev,
+                      customerFeedback: "",
+                    }));
+                  }}
                 />
 
                 <FormTextarea
                   label="Key Discussion Points"
                   rows={4}
-                  value={form.discussionPoints}
+                  value={form.discussionPoints ?? ""}
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
@@ -321,7 +331,7 @@ export default function CustomerVisitDetailsPage() {
                 <FormTextarea
                   label="Recommendations"
                   rows={4}
-                  value={form.recommendations}
+                  value={form.recommendations ?? ""}
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
@@ -333,7 +343,7 @@ export default function CustomerVisitDetailsPage() {
                 <FormTextarea
                   label="Next Action"
                   rows={4}
-                  error={errors.nextAction}
+                  error={errors.nextAction ?? ""}
                   required
                   value={form.nextAction}
                   onChange={(e) => {
@@ -352,7 +362,7 @@ export default function CustomerVisitDetailsPage() {
                   label="Comment"
                   rows={3}
                   placeholder="Add any additional observations or notes..."
-                  value={form.comment}
+                  value={form.comment ?? ""}
                   error={errors.comment}
                   onChange={(e) => {
                     setForm((prev) => ({
@@ -473,28 +483,28 @@ export default function CustomerVisitDetailsPage() {
                   <>
                     <FormTextarea
                       label="Outcome"
-                      value={visit.outcome}
+                      value={visit.outcome ?? ""}
                       rows={5}
                       disabled
                     />
 
                     <FormTextarea
                       label="Customer Feedback"
-                      value={visit.customer_feedback}
+                      value={visit.customer_feedback ?? ""}
                       rows={4}
                       disabled
                     />
 
                     <FormTextarea
                       label="Key Discussion Points"
-                      value={visit.customer_comments}
+                      value={visit.customer_comments ?? ""}
                       rows={4}
                       disabled
                     />
 
                     <FormTextarea
                       label="Recommendations"
-                      value={visit.recommendation}
+                      value={visit.recommendation ?? ""}
                       rows={4}
                       disabled
                     />
@@ -502,14 +512,14 @@ export default function CustomerVisitDetailsPage() {
                 )}
                 <FormTextarea
                   label="Next Action"
-                  value={visit.next_action}
+                  value={visit.next_action ?? ""}
                   rows={4}
                   disabled
                 />
 
                 <FormTextarea
                   label="Comment"
-                  value={visit.comment}
+                  value={visit.comment ?? ""}
                   rows={3}
                   disabled
                 />
@@ -566,6 +576,21 @@ export default function CustomerVisitDetailsPage() {
               </FormSection>
             )}
           </>
+        )}
+
+        {visit.status === "Scheduled" && !canCompleteVisit && (
+          <FormSection
+            title="Visit Outcome"
+            description="This visit cannot be completed yet."
+          >
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              This visit is scheduled for{" "}
+              <strong>{formatDateTime(visit.visit_date)}</strong>.
+              <br />
+              You can update the outcome only after the scheduled visit date and
+              time.
+            </div>
+          </FormSection>
         )}
         <FormSection
           title="Activity"
