@@ -82,7 +82,7 @@ export default function CustomerVisitDetailsPage() {
 
   async function handleCompleteVisit() {
     const { valid, errors } = validateVisitCompletion(form);
-
+    console.log(errors, "errors");
     if (!valid) {
       setErrors(errors);
       toast.error("Please correct the highlighted errors.");
@@ -113,7 +113,7 @@ export default function CustomerVisitDetailsPage() {
   ];
 
   const canCompleteVisit = visit && new Date() >= new Date(visit.visit_date);
-
+  console.log(visit);
   if (isError || !visit) {
     return (
       <AppLayout pageTitle="Visit Details">
@@ -222,7 +222,7 @@ export default function CustomerVisitDetailsPage() {
                 disabled
               />
 
-              <FormDatePicker
+              <FormDateTimeInput
                 label="Visit Date"
                 value={visit.related_visit_date ?? ""}
                 disabled
@@ -282,7 +282,7 @@ export default function CustomerVisitDetailsPage() {
                 <FormTextarea
                   label="Outcome"
                   rows={5}
-                  required
+                  required={form.status !== "Cancelled"}
                   value={form.outcome ?? ""}
                   error={errors.outcome}
                   onChange={(e) => {
@@ -299,7 +299,7 @@ export default function CustomerVisitDetailsPage() {
                 />
                 <FormTextarea
                   label="Customer Feedback"
-                  required
+                  required={form.status !== "Cancelled"}
                   rows={4}
                   error={errors.customerFeedback ?? ""}
                   value={form.customerFeedback}
@@ -344,7 +344,7 @@ export default function CustomerVisitDetailsPage() {
                   label="Next Action"
                   rows={4}
                   error={errors.nextAction ?? ""}
-                  required
+                  required={form.status !== "Cancelled"}
                   value={form.nextAction}
                   onChange={(e) => {
                     setForm((prev) => ({
@@ -361,6 +361,7 @@ export default function CustomerVisitDetailsPage() {
                 <FormTextarea
                   label="Comment"
                   rows={3}
+                  required={form.status === "Cancelled"}
                   placeholder="Add any additional observations or notes..."
                   value={form.comment ?? ""}
                   error={errors.comment}
@@ -430,7 +431,7 @@ export default function CustomerVisitDetailsPage() {
                 />
                 {form.opportunityCreated && (
                   <>
-                    <FormInput
+                    {/* <FormInput
                       label="Opportunity Value"
                       value={form.opportunityValue}
                       onChange={(e) =>
@@ -439,7 +440,7 @@ export default function CustomerVisitDetailsPage() {
                           opportunityValue: e.target.value,
                         }))
                       }
-                    />
+                    /> */}
                     <FormTextarea
                       label="Opportunity Notes"
                       rows={4}
@@ -467,6 +468,7 @@ export default function CustomerVisitDetailsPage() {
               <Button
                 onClick={handleCompleteVisit}
                 loading={updateVisit.isPending}
+                disabled={form.status === visit.status}
               >
                 Update Visit
               </Button>

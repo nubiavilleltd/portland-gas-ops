@@ -977,7 +977,7 @@ def create_customer_visit(
         entity_id=str(visit.id),
         current_user=current_user,
         description = (
-            f"current_user scheduled a visit for {visit.visit_date.strftime('%d %B %Y')}"
+            f"{current_user.employee.user.full_name} scheduled a visit for {visit.visit_date.strftime('%d %B %Y')}"
         )                   
     )
     
@@ -1111,8 +1111,10 @@ def get_customer_visit(
             related.visit_number if related else None,
 
         "related_visit_type":
-            related.visit_type.value if related else None,
-
+        related.visit_type.value
+        if related and hasattr(related.visit_type, "value")
+        else related.visit_type if related
+        else None,
         "related_visit_date":
             related.visit_date if related else None,
 
