@@ -76,6 +76,7 @@ export default function UpcomingVisitsTable({ visits }: Props) {
         <DataTable
           columns={columns}
           data={visits}
+          rowHref={(visit) => `/crm/visits/${visit.id}`}
           emptyMessage="No upcoming visits."
           searchPlaceholder="Search visits..."
         />

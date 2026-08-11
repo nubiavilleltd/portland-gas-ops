@@ -176,13 +176,13 @@ export function validateVisitCompletion(form: {
     }
   }
 
-  if (form.opportunityCreated) {
-    if (!form.opportunityValue.trim()) {
-      errors.opportunityValue = "Opportunity value is required.";
-    } else if (Number(form.opportunityValue) <= 0) {
-      errors.opportunityValue = "Opportunity value must be greater than zero.";
-    }
-  }
+  // if (form.opportunityCreated) {
+  //   if (!form.opportunityValue.trim()) {
+  //     errors.opportunityValue = "Opportunity value is required.";
+  //   } else if (Number(form.opportunityValue) <= 0) {
+  //     errors.opportunityValue = "Opportunity value must be greater than zero.";
+  //   }
+  // }
 
   return {
     valid: Object.keys(errors).length === 0,

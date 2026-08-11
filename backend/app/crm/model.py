@@ -384,9 +384,11 @@ class CustomerVisit(Base):
     # ======================================================
 
     status = Column(
-        SAEnum(VisitStatus),
-        nullable=False,
-        default=VisitStatus.Scheduled,
+    SAEnum(
+        VisitStatus,
+        values_callable=lambda enum_cls: [item.value for item in enum_cls],
+    ),
+    nullable=False,
     )
 
     created_by = Column(

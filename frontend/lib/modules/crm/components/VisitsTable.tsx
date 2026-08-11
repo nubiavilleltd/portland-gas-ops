@@ -37,15 +37,10 @@ export default function VisitsTable({ visits, isLoading }: Props) {
       render: (_, visit) => `${formatDateTime(visit.visit_date)}`,
     },
     {
-      label: "Follow-up",
-      key: "follow_up_required",
+      label: "Contact Person",
+      key: "contact_person",
       searchable: false,
-      render: (_, visit) =>
-        visit.follow_up_required ? (
-          <span className="text-sm ">Required</span>
-        ) : (
-          <span className="text-sm ">No</span>
-        ),
+      render: (_, visit) => visit.contact_person,
     },
     {
       key: "status",

@@ -32,7 +32,13 @@ export default function NewCustomerVisitsPage() {
   const { data: customers = [], isLoading: customersLoading } =
     useCustomerOnboarding();
   const { user } = useCurrentUser();
+  const now = new Date();
 
+  const localDateTime = new Date(
+    now.getTime() - now.getTimezoneOffset() * 60000,
+  )
+    .toISOString()
+    .slice(0, 16);
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   const customerOptions = useMemo(() => {
@@ -73,7 +79,8 @@ export default function NewCustomerVisitsPage() {
     return customerVisits
       .filter(
         (visit) =>
-          visit.customer_id === form.customerId && visit.status !== "Scheduled",
+          visit.customer_id === form.customerId &&
+          (visit.status == "Completed" || visit.status == "Follow-up Required"),
       )
       .map((visit) => ({
         value: visit.id,
@@ -187,12 +194,12 @@ export default function NewCustomerVisitsPage() {
               }}
             />
             {form.visitType === "Follow-up" && (
-              <div className="mt-6">
+              <div>
                 <FormSelect
                   label="Related Visit"
                   placeholder={
                     previousVisitOptions.length === 0
-                      ? "No completed visits available"
+                      ? "No visits available for follow up"
                       : "Select previous visit"
                   }
                   disabled={previousVisitOptions.length === 0}
@@ -249,9 +256,7 @@ export default function NewCustomerVisitsPage() {
               value={form.visitDateTime}
               required
               error={errors.visitDateTime}
-              min={new Date(Date.now() + 24 * 60 * 60 * 1000)
-                .toISOString()
-                .slice(0, 16)}
+              min={localDateTime}
               onValueChange={(value) => {
                 setForm((prev) => ({
                   ...prev,
@@ -324,7 +329,11 @@ export default function NewCustomerVisitsPage() {
             <FormDatePicker
               label="Reminder Date"
               value={form.reminderDate}
-              min={new Date().toISOString().split("T")[0]}
+              min={
+                new Date(Date.now() + 24 * 60 * 60 * 1000)
+                  .toISOString()
+                  .split("T")[0]
+              }
               max={form.visitDateTime?.split("T")[0]}
               onValueChange={(value) => {
                 setForm((prev) => ({

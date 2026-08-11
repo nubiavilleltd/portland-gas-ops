@@ -279,7 +279,6 @@ class VisitType(str, Enum):
     Complaint = "Complaint"
     Collection = "Collection"
 
-
 class VisitStatus(str, Enum):
     Scheduled = "Scheduled"
     Completed = "Completed"

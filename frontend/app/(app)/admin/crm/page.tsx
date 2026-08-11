@@ -166,7 +166,7 @@ export default function CRMDashboardPage() {
             icon={<Users className="h-5 w-5" />}
             title="Total Customers"
             description={
-              <span className="text-3xl font-bold">{customers.length}</span>
+              <span className="text-2xl font-bold">{customers.length}</span>
             }
           />
 
@@ -174,7 +174,7 @@ export default function CRMDashboardPage() {
             icon={<UserCheck className="h-5 w-5" />}
             title="Active Customers"
             description={
-              <span className="text-3xl font-bold">
+              <span className="text-2xl font-bold">
                 {activeCustomers.length}
               </span>
             }
@@ -184,7 +184,7 @@ export default function CRMDashboardPage() {
             icon={<Contact className="h-5 w-5" />}
             title="Total Contacts"
             description={
-              <span className="text-3xl font-bold">{contacts.length}</span>
+              <span className="text-2xl font-bold">{contacts.length}</span>
             }
           />
         </div>
@@ -211,14 +211,14 @@ export default function CRMDashboardPage() {
             icon={<ShoppingCart className="h-5 w-5" />}
             title="Total Orders"
             description={
-              <span className="text-3xl font-bold">{totalOrders}</span>
+              <span className="text-2xl font-bold">{totalOrders}</span>
             }
           />
           <Card
             icon={<Wallet className="h-5 w-5" />}
             title="Total Revenue"
             description={
-              <span className="text-3xl font-bold">
+              <span className="text-2xl font-bold">
                 ₦{totalRevenue.toLocaleString()}
               </span>
             }
@@ -228,7 +228,7 @@ export default function CRMDashboardPage() {
             icon={<TrendingUp className="h-5 w-5" />}
             title="Average Order Value"
             description={
-              <span className="text-3xl font-bold">
+              <span className="text-2xl font-bold">
                 ₦{averageOrderValue.toLocaleString()}
               </span>
             }
@@ -241,7 +241,7 @@ export default function CRMDashboardPage() {
             icon={<CalendarDays className="h-5 w-5" />}
             title="Scheduled Visits"
             description={
-              <span className="text-3xl font-bold">
+              <span className="text-2xl font-bold">
                 {scheduledVisits.length}
               </span>
             }
@@ -250,7 +250,7 @@ export default function CRMDashboardPage() {
             icon={<CheckCircle2 className="h-5 w-5" />}
             title="Completed Visits"
             description={
-              <span className="text-3xl font-bold">
+              <span className="text-2xl font-bold">
                 {completedVisits.length}
               </span>
             }
@@ -260,7 +260,7 @@ export default function CRMDashboardPage() {
             icon={<RotateCw className="h-5 w-5" />}
             title="Follow-ups Due"
             description={
-              <span className="text-3xl font-bold">{followUpsDue.length}</span>
+              <span className="text-2xl font-bold">{followUpsDue.length}</span>
             }
           />
 
@@ -268,7 +268,7 @@ export default function CRMDashboardPage() {
             icon={<XCircle className="h-5 w-5" />}
             title="Cancelled Visits"
             description={
-              <span className="text-3xl font-bold">
+              <span className="text-2xl font-bold">
                 {cancelledVisits.length}
               </span>
             }
@@ -278,7 +278,7 @@ export default function CRMDashboardPage() {
             icon={<Clock3 className="h-5 w-5" />}
             title="Visits This Month"
             description={
-              <span className="text-3xl font-bold">{visits.length}</span>
+              <span className="text-2xl font-bold">{visits.length}</span>
             }
           /> */}
         </div>

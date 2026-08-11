@@ -11,7 +11,7 @@ import type { CustomerContact } from "@/lib/modules/crm";
 const COLUMNS: Column<CustomerContact>[] = [
   {
     key: "primary_contact",
-    label: "Primary Contact",
+    label: "Contact Name",
     render: (_, contact) => (
       <div>
         <p className="font-medium">
@@ -90,7 +90,7 @@ export default function RecentContactsTable({ contacts }: Props) {
         <DataTable<CustomerContact>
           columns={COLUMNS}
           data={contacts}
-          rowHref={(contact) => `/crm/contacts/${contact.id}`}
+          rowHref={(contact) => `/crm/contacts/${contact.customer_id}`}
           searchPlaceholder="Search contacts..."
           emptyMessage="No contacts found."
         />
