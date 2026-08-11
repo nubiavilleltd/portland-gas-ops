@@ -4,7 +4,7 @@ import DataTable, { Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Link from "next/link";
 import { Eye } from "lucide-react";
-
+import { formatDateTime } from "../utils";
 import { CustomerVisit } from "../types";
 
 type Props = {
@@ -27,25 +27,20 @@ export default function VisitsTable({ visits, isLoading }: Props) {
       key: "visit_type",
     },
     {
-      label: "Objective",
-      key: "visit_objective",
-      render: (_, visit) => visit.visit_objective || "-",
+      label: "Visit By",
+      key: "created_by",
+      render: (_, visit) => visit.created_by || "-",
     },
     {
       label: "Visit Date",
       key: "visit_date",
-      render: (_, visit) => `${visit.visit_date} • ${visit.visit_time}`,
+      render: (_, visit) => `${formatDateTime(visit.visit_date)}`,
     },
     {
-      label: "Follow-up",
-      key: "follow_up_required",
+      label: "Contact Person",
+      key: "contact_person",
       searchable: false,
-      render: (_, visit) =>
-        visit.follow_up_required ? (
-          <span className="text-sm ">Required</span>
-        ) : (
-          <span className="text-sm ">No</span>
-        ),
+      render: (_, visit) => visit.contact_person,
     },
     {
       key: "status",

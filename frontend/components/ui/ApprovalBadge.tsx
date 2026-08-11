@@ -51,6 +51,9 @@ const variants: Record<string, BadgeVariant> = {
   overdue: "danger",
   scheduled: "warning",
   completed: "success",
+
+  // crm
+  "follow-up required": "info",
 };
 
 interface Props {

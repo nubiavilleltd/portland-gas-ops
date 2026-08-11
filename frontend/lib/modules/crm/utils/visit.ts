@@ -77,20 +77,12 @@ export function buildVisitPayload(form: {
 
     visit_type: form.visitType,
     visit_objective: form.visitObjective,
-
     related_visit_id:
       form.visitType === "Follow-up" ? form.relatedVisitId || null : null,
-
     visit_date: form.visitDateTime,
-
     location: form.location.trim(),
     purpose: form.purpose.trim(),
-
-    participants: form.participants
-      .split(",")
-      .map((participant) => participant.trim())
-      .filter(Boolean),
-
+    participants: form.participants,
     reminder_date: form.reminderDate || null,
 
     follow_up_required: form.followUpRequired,
@@ -144,7 +136,7 @@ export function validateVisitCompletion(form: {
   nextAction: string;
   status: string;
   comment: string;
-
+  customerFeedback: string;
   opportunityCreated: boolean;
   opportunityValue: string;
 }) {
@@ -158,6 +150,10 @@ export function validateVisitCompletion(form: {
     if (!form.nextAction.trim()) {
       errors.nextAction = "Next action is required.";
     }
+
+    if (!form.customerFeedback.trim()) {
+      errors.customerFeedback = "Customer feedback is required.";
+    }
   }
 
   if (form.status === "Cancelled") {
@@ -166,17 +162,27 @@ export function validateVisitCompletion(form: {
     }
   }
 
-  if (form.status === "Follow-up Required" && !form.nextAction.trim()) {
-    errors.nextAction = "Next action is required.";
-  }
+  if (form.status === "Follow-up Required") {
+    if (!form.outcome.trim()) {
+      errors.outcome = "Outcome is required.";
+    }
 
-  if (form.opportunityCreated) {
-    if (!form.opportunityValue.trim()) {
-      errors.opportunityValue = "Opportunity value is required.";
-    } else if (Number(form.opportunityValue) <= 0) {
-      errors.opportunityValue = "Opportunity value must be greater than zero.";
+    if (!form.nextAction.trim()) {
+      errors.nextAction = "Next action is required.";
+    }
+
+    if (!form.customerFeedback.trim()) {
+      errors.customerFeedback = "Customer feedback is required.";
     }
   }
+
+  // if (form.opportunityCreated) {
+  //   if (!form.opportunityValue.trim()) {
+  //     errors.opportunityValue = "Opportunity value is required.";
+  //   } else if (Number(form.opportunityValue) <= 0) {
+  //     errors.opportunityValue = "Opportunity value must be greater than zero.";
+  //   }
+  // }
 
   return {
     valid: Object.keys(errors).length === 0,

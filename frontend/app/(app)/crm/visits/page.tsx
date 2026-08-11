@@ -11,7 +11,7 @@ import { useCustomerVisits } from "@/lib/modules/crm";
 
 export default function CustomerVisitsPage() {
   const { data: visits = [], isLoading, isError } = useCustomerVisits();
-
+  console.log(visits, "visits from db");
   return (
     <AppLayout pageTitle="Customer Visits">
       <PageHeader
