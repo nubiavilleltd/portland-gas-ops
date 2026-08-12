@@ -60,7 +60,7 @@ class Order(Base):
     updated_at          = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    customer   = relationship("Customer", foreign_keys=[customer_id])
+    customer   = relationship("Customers", foreign_keys=[customer_id])
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     created_by_user = relationship(
         "User",

@@ -134,12 +134,6 @@ export const moduleGroups: readonly ModuleGroup[] = [
       },
 
       {
-        name: "Customers",
-        description: "Customer accounts and records",
-        icon: Users,
-        href: "/admin/customers",
-      },
-      {
         name: "Products",
         description: "Gas products and pricing",
         icon: Package,

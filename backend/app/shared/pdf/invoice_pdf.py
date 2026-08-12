@@ -114,7 +114,7 @@ def generate_invoice_pdf(
     #
     left_height = builder.draw_label_value(
         label="Address",
-        value=customer.address if customer else "—",
+        value=customer.address_line1 if customer else "—",
         x=col1,
         y=y,
         width=col_width,
