@@ -4,11 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { OrdersService } from "@/lib/modules/orders/services/orders.service";
 import type { OrderKPIs } from "@/lib/modules/orders/types/orders.types";
 import {
+  getCustomerSelectOptions,
   getOrderKPIs,
 } from "@/lib/modules/orders/selectors/orders.selectors";
 import { parseError } from "@/lib/errors";
 import { ORDER_KEYS } from "@/lib/query-keys";
 import { useAuthStore } from "@/store/authStore";
+import { CustomerOnboarding } from "../../crm";
 
 // ── Base hook ─────────────────────────────────────────────
 function shouldRetry(failureCount: number, error: unknown) {
@@ -100,3 +102,13 @@ export function useOrderKPIs() {
     refetch,
   };
 }
+
+
+export function useCustomerSelectOptions(customers:CustomerOnboarding[]) {
+  return {
+    options: getCustomerSelectOptions(customers),
+  
+  };
+}
+
+

@@ -170,7 +170,7 @@ class InventoryItem(Base):
     )
 
     customer = relationship(
-        "Customer",
+        "Customers",
         foreign_keys=[customer_id],
     )
 

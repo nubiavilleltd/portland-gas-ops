@@ -17,7 +17,6 @@ from app.vendors import models as _vendor_models  # noqa: F401
 from app.assets import models as _asset_models  # noqa: F401
 from app.procurement import models as _procurement_models  # noqa: F401
 from app.products.model import Product    # noqa: F401
-from app.customers.model import Customer 
 from app.safety.checklists import models as _safety_checklist_models  # noqa: F401
 from app.safety.incidents import models as _safety_incident_models  # noqa: F401
 from app.safety.work_initiations import models as _safety_work_initiation_models  # noqa: F401

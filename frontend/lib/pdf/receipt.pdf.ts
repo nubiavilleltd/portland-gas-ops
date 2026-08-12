@@ -13,13 +13,12 @@ import {
 } from "./builder";
 import type { Payment } from "@/lib/modules/payments/types/payments.types";
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
-import type { Customer } from "@/lib/modules/customers/types/customer.types";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 
 export interface GenerateReceiptPdfInput {
   payment: Payment;
   invoice: Invoice;
-  customer?: Customer;
+  customer?: any;
   allInvoicePayments: Payment[]; // all payments on the invoice, for cumulative calculation
 }
 
@@ -70,12 +69,12 @@ export async function generateReceiptPdf(input: GenerateReceiptPdfInput): Promis
   const col2 = PAGE.width / 2 + 4;
   const colW = PAGE.width / 2 - ml - 4;
 
-  drawLabelValue(doc, "Received From", customer?.name ?? "—", col1, y, colW);
+  drawLabelValue(doc, "Received From", customer?.customer_name ?? "—", col1, y, colW);
   drawLabelValue(doc, "Payment Date", fmtDate(payment.paymentDate), col2, y, colW);
   y += 15;
 
-  if (customer?.address) {
-    drawLabelValue(doc, "Address", customer.address, col1, y, colW);
+  if (customer?.address_line1) {
+    drawLabelValue(doc, "Address", customer.address_line1, col1, y, colW);
   }
   drawLabelValue(doc, "Payment Method", formatPaymentMethodLabel(payment.method), col2, y, colW);
   y += 15;
