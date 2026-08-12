@@ -26,7 +26,6 @@ import {
   usePaymentsByInvoice,
   usePaymentSummary,
 } from "@/lib/modules/payments/hooks/usePayments";
-import { useCustomerById } from "@/lib/modules/customers/hooks/useCustomers";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
@@ -37,6 +36,7 @@ import { Download } from "lucide-react";
 import { useState } from "react";
 import { generateInvoicePdf } from "@/lib/pdf/invoice.pdf";
 import InvoiceDetailSkeleton from "@/lib/modules/invoices/components/InvoiceDetailSkeleton";
+import { useCustomerOnboardingDetails } from "@/lib/modules/crm";
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -48,7 +48,8 @@ export default function InvoiceDetailPage() {
   const { order, isLoading:isLoadingOrders } = useOrderById(
     invoice?.order_id ?? ""
   );
-  const { customer, isLoading:isLoadingCustomers } = useCustomerById(order?.customerId as string)
+  const { data:customer, isLoading:isLoadingCustomers } = useCustomerOnboardingDetails(order?.customerId as string)
+ 
   const { products, isLoading:isLoadingProducts } = useProducts();
 
     const { summary: paymentSummary } =

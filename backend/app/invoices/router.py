@@ -198,12 +198,11 @@ def download_invoice_pdf(
     db: Session = Depends(get_db),
 ):
     from app.orders.service import OrderService
-    from app.customers.service import CustomerService
+    from app.crm.service import get_customer
     from app.invoices.service import InvoiceService
 
     invoice_service = InvoiceService()
     order_service = OrderService()
-    customer_service = CustomerService()
     invoice = invoice_service.get_or_raise(
         db=db,
         invoice_id=invoice_id,
@@ -214,7 +213,7 @@ def download_invoice_pdf(
         order_id=invoice.order_id,
     )
 
-    customer = customer_service.get_or_raise(
+    customer = get_customer(
         db=db,
         customer_id=order.customer_id,
     )

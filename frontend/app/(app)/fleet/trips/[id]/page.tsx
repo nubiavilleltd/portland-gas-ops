@@ -17,7 +17,6 @@ import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
 import { useDriverById } from "@/lib/modules/fleet/hooks/useDrivers";
 import { useVehicleById } from "@/lib/modules/fleet/hooks/useVehicles";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import {
   canAssignInventory,
   canAssignResourcesToTrip,

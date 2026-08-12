@@ -14,12 +14,12 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaymentById, usePaymentByNo, usePaymentsByInvoice } from "@/lib/modules/payments/hooks/usePayments";
 import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
-import { useCustomers } from "@/lib/modules/customers/hooks/useCustomers";
 import { generateReceiptPdf } from "@/lib/pdf/receipt.pdf";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import { PaymentsService } from "@/lib/modules/payments/services/payments.service";
 import PaymentReceiptSkeleton from "@/lib/modules/payments/components/PaymentReceiptSkeleton";
+import { useCustomers } from "@/lib/modules/crm";
 
 export default function PaymentReceiptPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,9 +29,12 @@ export default function PaymentReceiptPage() {
   const { invoice, isLoading: invoiceLoading } = useInvoiceById(payment?.invoiceId ?? "");
   const { order, isLoading: orderLoading } = useOrderById(invoice?.order_id ?? "");
   const { payments: allInvoicePayments, isLoading: invoicePaymentsLoading } = usePaymentsByInvoice(payment?.invoiceId ?? "");
-  const { customers, isLoading: customersLoading } = useCustomers();
+  const { data:customers, isLoading: customersLoading } = useCustomers();
 
-  const customer = order ? customers.find((c) => c.id === order.customerId) : undefined;
+
+  const customer = order ? customers.find((c:any) => c.id === order.customerId) : undefined;
+
+
 
   const isLoading =
     paymentLoading ||
@@ -157,11 +160,11 @@ export default function PaymentReceiptPage() {
             description="Customer who made this payment"
           >
             <div className="grid grid-cols-2 md:grid-cols-3 gap-5 text-sm">
-              <InfoRow label="Customer" value={customer.name} />
+              <InfoRow label="Customer" value={customer.customer_name} />
               <InfoRow label="Phone" value={customer.phone} />
               <InfoRow label="Email" value={customer.email} />
-              {customer.address && (
-                <InfoRow label="Address" value={customer.address} />
+              {customer.address_line1 && (
+                <InfoRow label="Address" value={customer.address_line1} />
               )}
             </div>
           </FormSection>

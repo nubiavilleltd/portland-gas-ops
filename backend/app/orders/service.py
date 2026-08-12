@@ -1,6 +1,4 @@
 from __future__ import annotations
-from app.customers.error_codes import CustomerErrorCode
-from app.customers.repository import CustomerRepository
 from app.orders import policies
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -20,13 +18,13 @@ from app.products.service import ProductService
 from app.inventory.service import InventoryService
 from app.orders.enums import DiscountType
 from app.orders.model import OrderItem
+from app.crm.service import get_customer
 
 
 class OrderService:
 
     def __init__(self):
         self.repo = OrderRepository()
-        self.customer_repo = CustomerRepository()
         self.product_service = ProductService()
         self.inventory_service = InventoryService()
     def _filter_real_items(self, order_items: list) -> list:
@@ -97,13 +95,7 @@ class OrderService:
 
     def create_draft(self, db: Session, data: Union[OrderCreate, OrderDraftCreate], created_by: str) -> Order:
         """Create an order in draft status."""
-        customer = self.customer_repo.get_by_id(db, data.customer_id)
-        if not customer:
-            raise AppException(
-                404,
-                CustomerErrorCode.CUSTOMER_NOT_FOUND,
-                "Customer not found",
-            )
+        customer = get_customer(db, data.customer_id)
         real_items = self._filter_real_items(data.order_items)
         items, subtotal = self._build_order_items(db, real_items) if real_items else ([], Decimal("0"))
         discount_amount, total_amount = self._calculate_order_total(
@@ -117,7 +109,7 @@ class OrderService:
             db,
             order_no           = order_no,
             customer_id        = data.customer_id,
-            customer_name       = customer.name,
+            customer_name       = customer.customer_name,
             order_status       = OrderStatus.draft,
             fulfillment_status = FulfillmentStatus.pending,
             payment_status     = PaymentStatus.unpaid,
@@ -155,15 +147,9 @@ class OrderService:
         
         # Handle customer update
         if data.customer_id is not None:
-            customer = self.customer_repo.get_by_id(db, data.customer_id)
-            if not customer:
-                raise AppException(
-                    404,
-                    CustomerErrorCode.CUSTOMER_NOT_FOUND,
-                    "Customer not found",
-                )
+            customer = get_customer(db, data.customer_id)
             updates["customer_id"] = data.customer_id
-            updates["customer_name"] = customer.name
+            updates["customer_name"] = customer.customer_name
 
         # Handle delivery fields
         if data.delivery_address is not None:

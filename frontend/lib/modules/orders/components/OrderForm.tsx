@@ -26,7 +26,6 @@ import {
   saveDraftSchema,
   SaveDraftPayload,
 } from "@/lib/modules/orders/schemas/create-order.schema";
-import { useCustomerSelectOptions } from "@/lib/modules/customers/hooks/useCustomers";
 import { useActiveProducts, useProductPicker } from "@/lib/modules/products/hooks/useProducts";
 import {
   getActiveProducts,
@@ -42,6 +41,10 @@ import {
 } from "../../inventory/hooks/useInventory";
 
 import { useState } from "react";
+import { useCustomerSelectOptions } from "../hooks/useOrders";
+import { useCustomers } from "../../crm";
+
+ 
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -91,8 +94,14 @@ export default function OrderForm({
   } = form;
 
   // ── Data ────────────────────────────────────────────────
-  const { options: customerOptions, isLoading: customersLoading } =
-    useCustomerSelectOptions();
+  
+
+ 
+const { data: customers = [], isLoading:customersLoading } = useCustomers();
+ 
+
+  const { options:customerOptions} =
+    useCustomerSelectOptions(customers);
   // const { products: activeProducts, isLoading: productsLoading } =
   //   useActiveProducts();
   const { items: inventoryItems, isLoading: inventoryLoading } =
@@ -128,28 +137,6 @@ const {
 
   const orderItems = watch("orderItems") ?? [];
   const discountType = watch("discountType");
-
-  // ── Subtotal ─────────────────────────────────────────────
-  // const subtotal = orderItems.reduce((sum, item) => {
-  //   const product = getProductById(activeProducts, item.productId);
-
-  //   return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
-  // }, 0);
-
-
-
-  // const selectedProductIds = orderItems
-  //   .map(i => i.productId)
-  //   .filter(Boolean);
-
-  // const remainingProducts =
-  //   activeProducts.length - selectedProductIds.length;
-
-  // const canAddMore = remainingProducts > 0;
-
-  // const discountValue = watch("discountValue") ?? 0;
-
-
 
 
 // ── Subtotal ─────────────────────────────────────────────

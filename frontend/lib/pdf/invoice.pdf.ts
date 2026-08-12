@@ -15,7 +15,6 @@ import {
 } from "./builder";
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import type { Order, OrderLineItem } from "@/lib/modules/orders/types/orders.types";
-import type { Customer } from "@/lib/modules/customers/types/customer.types";
 import type { Payment } from "@/lib/modules/payments/types/payments.types";
 import { COMPANY_BANK_DETAILS } from "@/config/company.config";
 import { toTitleCase } from "../utils";
@@ -23,7 +22,7 @@ import { toTitleCase } from "../utils";
 export interface GenerateInvoicePdfInput {
   invoice: Invoice;
   order?: Order;
-  customer?: Customer;
+  customer?: any;
   payments: Payment[];
   amountPaid: number;
   productUnitMap: Map<string, string>; // product_id → unit label, for quantity formatting
@@ -53,8 +52,8 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
   drawLabelValue(doc, "Due Date", fmtDate(invoice.due_date), col2, y, colW);
   y += 15;
 
-  if (customer?.address) {
-    drawLabelValue(doc, "Address", customer.address, col1, y, colW);
+  if (customer?.address_line1) {
+    drawLabelValue(doc, "_line1", customer.address_line1, col1, y, colW);
   }
   if (order?.orderNumber) {
     drawLabelValue(doc, "Order Number", order.orderNumber, col2, y, colW);

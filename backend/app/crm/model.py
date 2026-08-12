@@ -69,8 +69,8 @@ class ContactStatus(str, enum.Enum):
 # CUSTOMER
 # ==========================================================
 
-class CustomersTemp(Base):
-    __tablename__ = "customers_temp"
+class Customers(Base):
+    __tablename__ = "customers"
 
     id = Column(
         String(36),
@@ -185,7 +185,7 @@ class CustomerContact(Base):
 
     customer_id = Column(
          String(36),
-        ForeignKey("customers_temp.id"),
+        ForeignKey("customers.id"),
         nullable=False,
     )
 
@@ -240,7 +240,7 @@ class CustomerContact(Base):
     # ------------------------------------------------------
 
     customer = relationship(
-        "CustomersTemp",
+        "Customers",
         back_populates="contacts",
     )
     @property
@@ -293,7 +293,7 @@ class CustomerVisit(Base):
 
     customer_id = Column(
         String(36),
-        ForeignKey("customers_temp.id"),
+        ForeignKey("customers.id"),
         nullable=False,
     )
 
@@ -420,7 +420,7 @@ class CustomerVisit(Base):
     # ======================================================
 
     customer = relationship(
-        "CustomersTemp",
+        "Customers",
     )
 
     contact = relationship(

@@ -5,6 +5,7 @@ import type {
   OrderKPIs,
 } from "../types/orders.types";
 import type { PaymentStatus } from "../../payments/types/payments.types";
+import { Customer, CustomerOnboarding } from "../../crm";
 
 // ── LOOKUPS ─────────────────────────────────────────────
 
@@ -94,4 +95,17 @@ export function getOrderKPIs(
       0
     ),
   };
+}
+
+
+export function getActiveCustomers(customers: CustomerOnboarding[]): CustomerOnboarding[] {
+  return customers.filter((c) => c.status === "active");
+}
+
+
+export function getCustomerSelectOptions(customers: CustomerOnboarding[]) {
+  return getActiveCustomers(customers).map((c) => ({
+    value: c.id,
+    label: c.customer_name,
+  }));
 }
