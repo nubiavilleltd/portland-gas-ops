@@ -106,7 +106,7 @@ export default function PrimaryContactCard({
             const value = e.target.value;
             // allow only phone characters
             if (/^[0-9+\s-]*$/.test(value)) {
-              onChange?.("phone", value);
+              onChange?.("alternatePhone", value);
             }
           }}
         />

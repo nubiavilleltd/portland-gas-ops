@@ -44,7 +44,7 @@ class CRMActivityLog(Base):
 
     customer_id = Column(
         String(36),
-        ForeignKey("customers_temp.id"),
+        ForeignKey("customers.id"),
         nullable=False,
         index=True,
     )

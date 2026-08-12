@@ -19,7 +19,7 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
-from app.crm.model import CustomersTemp, CustomerContact
+from app.crm.model import Customers, CustomerContact
 from app.crm.schemas import (
     CustomerCreate,
     CustomerUpdate,
@@ -81,9 +81,9 @@ def log_customer_activity(
 def get_customer(db, customer_id):
 
     customer = (
-        db.query(CustomersTemp)
+        db.query(Customers)
         .filter(
-            CustomersTemp.id == customer_id
+            Customers.id == customer_id
         )
         .first()
     )
@@ -100,11 +100,11 @@ def get_customer(db, customer_id):
 def get_customer_by_number(
     db: Session,
     customer_no: str,
-) -> Optional[CustomersTemp]:
+) -> Optional[Customers]:
 
     return (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.customer_no == customer_no)
+        db.query(Customers)
+        .filter(Customers.customer_no == customer_no)
         .first()
     )
 
@@ -134,12 +134,12 @@ def validate_customer_uniqueness(
 
     if company_email:
 
-        query = db.query(CustomersTemp).filter(
-            CustomersTemp.company_email == company_email
+        query = db.query(Customers).filter(
+            Customers.company_email == company_email
         )
 
         if customer_id:
-            query = query.filter(CustomersTemp.id != customer_id)
+            query = query.filter(Customers.id != customer_id)
 
         if query.first():
             raise HTTPException(
@@ -147,12 +147,12 @@ def validate_customer_uniqueness(
                 detail="Company email already exists.",
             )
 
-    query = db.query(CustomersTemp).filter(
-        CustomersTemp.email == email
+    query = db.query(Customers).filter(
+        Customers.email == email
     )
 
     if customer_id:
-        query = query.filter(CustomersTemp.id != customer_id)
+        query = query.filter(Customers.id != customer_id)
 
     if query.first():
         raise HTTPException(
@@ -162,12 +162,12 @@ def validate_customer_uniqueness(
 
     if rc_number:
 
-        query = db.query(CustomersTemp).filter(
-            CustomersTemp.rc_number == rc_number
+        query = db.query(Customers).filter(
+            Customers.rc_number == rc_number
         )
 
         if customer_id:
-            query = query.filter(CustomersTemp.id != customer_id)
+            query = query.filter(Customers.id != customer_id)
 
         if query.first():
             raise HTTPException(
@@ -285,12 +285,12 @@ def build_customer_search(
 
     return query.filter(
         or_(
-            CustomersTemp.customer_name.ilike(term),
-            CustomersTemp.customer_no.ilike(term),
-            CustomersTemp.contact_person.ilike(term),
-            CustomersTemp.company_email.ilike(term),
-            CustomersTemp.email.ilike(term),
-            CustomersTemp.phone.ilike(term),
+            Customers.customer_name.ilike(term),
+            Customers.customer_no.ilike(term),
+            Customers.contact_person.ilike(term),
+            Customers.company_email.ilike(term),
+            Customers.email.ilike(term),
+            Customers.phone.ilike(term),
         )
     )
 
@@ -306,7 +306,7 @@ def list_customers(
     sales_contact: Optional[str] = None,
 ):
 
-    query = db.query(CustomersTemp)
+    query = db.query(Customers)
     if current_user.role not in ["admin", "super_admin"]:
         employee = (
             db.query(Employee)
@@ -318,30 +318,30 @@ def list_customers(
             return []
 
         query = query.filter(
-            CustomersTemp.created_by == employee.id
+            Customers.created_by == employee.id
         )
     if status:
         query = query.filter(
-            CustomersTemp.status == status,
+            Customers.status == status,
         )
 
     if customer_type:
         query = query.filter(
-            CustomersTemp.customer_type == customer_type,
+            Customers.customer_type == customer_type,
         )
 
     if entity_type:
         query = query.filter(
-            CustomersTemp.entity_type == entity_type,
+            Customers.entity_type == entity_type,
         )
 
     if category:
         query = query.filter(
-            CustomersTemp.category == category,
+            Customers.category == category,
         )
     if sales_contact:
         query = query.filter(
-            CustomersTemp.sales_contact == sales_contact
+            Customers.sales_contact == sales_contact
         )
 
     query = build_customer_search(
@@ -351,7 +351,7 @@ def list_customers(
 
     return (
         query.order_by(
-            CustomersTemp.created_at.desc(),
+            Customers.created_at.desc(),
         )
         .offset(skip)
         .all()
@@ -362,47 +362,47 @@ def dashboard_summary(
     db: Session,
 ):
 
-    total = db.query(CustomersTemp).count()
+    total = db.query(Customers).count()
 
     active = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.status == "active")
+        db.query(Customers)
+        .filter(Customers.status == "active")
         .count()
     )
 
     draft = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.status == "draft")
+        db.query(Customers)
+        .filter(Customers.status == "draft")
         .count()
     )
 
     inactive = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.status == "inactive")
+        db.query(Customers)
+        .filter(Customers.status == "inactive")
         .count()
     )
 
     potential = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.customer_type == "potential")
+        db.query(Customers)
+        .filter(Customers.customer_type == "potential")
         .count()
     )
 
     purchasing = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.customer_type == "purchasing")
+        db.query(Customers)
+        .filter(Customers.customer_type == "purchasing")
         .count()
     )
 
     companies = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.entity_type == "company")
+        db.query(Customers)
+        .filter(Customers.entity_type == "company")
         .count()
     )
 
     individuals = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.entity_type == "individual")
+        db.query(Customers)
+        .filter(Customers.entity_type == "individual")
         .count()
     )
 
@@ -648,7 +648,7 @@ def create_customer(
     db: Session,
     data: CustomerCreate,
     current_user: User,
-) -> CustomersTemp:
+) -> Customers:
     validate_customer_uniqueness(
             db=db,
             company_email=data.company_email,
@@ -658,10 +658,10 @@ def create_customer(
     customer_no = generate_reference(
         "CUS",
         db,
-        CustomersTemp,
-        CustomersTemp.customer_no,
+        Customers,
+        Customers.customer_no,
     )
-    customer = CustomersTemp(
+    customer = Customers(
         customer_no=customer_no,
         customer_name=data.customer_name,
         entity_type=data.entity_type,
@@ -726,7 +726,7 @@ def update_customer(
     customer_id: str,
     data: CustomerUpdate,
     current_user: User,
-) -> CustomersTemp:
+) -> Customers:
 
     customer = get_customer(db, customer_id)
 
@@ -772,7 +772,7 @@ def update_customer(
 
 def sync_primary_contact(
     db: Session,
-    customer: CustomersTemp,
+    customer: Customers,
     employee_id: str,
 ):
 
@@ -877,8 +877,8 @@ def create_customer_visit(
     current_user: User,
 ):
     customer = (
-        db.query(CustomersTemp)
-        .filter(CustomersTemp.id == data.customer_id)
+        db.query(Customers)
+        .filter(Customers.id == data.customer_id)
         .first()
     )
 
@@ -1037,12 +1037,12 @@ def list_customer_visits(
 
     if search:
 
-        query = query.join(CustomersTemp)
+        query = query.join(Customers)
 
         query = query.filter(
             or_(
                 CustomerVisit.visit_number.ilike(f"%{search}%"),
-                CustomersTemp.customer_name.ilike(f"%{search}%"),
+                Customers.customer_name.ilike(f"%{search}%"),
                 CustomerVisit.location.ilike(f"%{search}%"),
             )
         )

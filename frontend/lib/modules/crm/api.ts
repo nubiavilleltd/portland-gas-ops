@@ -4,7 +4,7 @@ import type { CRMActivity, CreateCustomerContactPayload } from "./types";
 export async function getCustomerActivities(
   customerId: string,
 ): Promise<CRMActivity[]> {
-  const { data } = await api.get(`/crm/activity/customer/${customerId}`);
+  const { data } = await api.get(`/api/crm/activity/customer/${customerId}`);
 
   return data;
 }
