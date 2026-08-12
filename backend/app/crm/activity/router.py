@@ -9,9 +9,7 @@ from app.core.database import get_db
 from app.crm.activity.schemas import CRMActivityResponse
 from app.crm.activity.service import CRMActivityService
 
-router = APIRouter(
-    tags=["CRM Activity"],
-)
+router = APIRouter()
 
 
 @router.get(
