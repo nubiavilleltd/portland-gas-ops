@@ -168,7 +168,7 @@ app.include_router(setups_router, prefix="/api/setups", tags=["Setups"])
 app.include_router(crm_router, prefix="/api/crm", tags=["CRM"])
 app.include_router(
     crm_activity_router,
-    prefix="/api/crm/activity",
+    prefix="/crm/activity",
 )
 @app.get("/api/health")
 def health_check():
