@@ -10,7 +10,6 @@ from app.crm.activity.schemas import CRMActivityResponse
 from app.crm.activity.service import CRMActivityService
 
 router = APIRouter(
-    prefix="/activity",
     tags=["CRM Activity"],
 )
 
