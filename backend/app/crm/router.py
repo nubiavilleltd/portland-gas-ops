@@ -3,6 +3,7 @@ CRM Router
 """
 
 from typing import List, Optional
+from fastapi import HTTPException, UploadFile, status
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -285,6 +286,22 @@ def get_customer(
 # ------------------------------------------------------------------
 # Create Customer
 # ------------------------------------------------------------------
+@router.post(
+    "/{customer_id}/logo",
+    response_model=CustomerResponse,
+)
+def upload_customer_logo(
+    customer_id: str,
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.upload_customer_logo(
+        db=db,
+        customer_id=customer_id,
+        file=file,
+        current_user=current_user,
+    )
 
 @router.post(
     "",

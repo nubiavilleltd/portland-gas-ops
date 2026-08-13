@@ -113,6 +113,7 @@ class CustomerCreate(BaseModel):
     referrer_id: Optional[str] = None
     contact_person: str = Field(min_length=1, max_length=150)
     department: Optional[str] = Field(default=None, max_length=100)
+    logo_url: Optional[str] = Field(default=None, max_length=1000)
     email: EmailStr
     phone: str
     alternate_phone: Optional[str] = None
@@ -139,7 +140,9 @@ class CustomerUpdate(BaseModel):
     company_email: Optional[EmailStr] = None
     rc_number: Optional[str] = None
     tin: Optional[str] = None
-    vat_number: Optional[str] = None
+    vat_number: Optional[str] = None    
+    logo_url: Optional[str] = Field(default=None, max_length=1000)
+
     industry: Optional[str] = None
     customer_type: Optional[CustomerType] = None
     sales_contact: Optional[str] = None
@@ -178,6 +181,7 @@ class CustomerListItem(BaseModel):
     category: CustomerCategory
 
     company_email: Optional[str]
+    logo_url: Optional[str] = Field(default=None, max_length=1000)
 
     rc_number: Optional[str]
     tin: Optional[str]
@@ -229,6 +233,7 @@ class CustomerResponse(BaseModel):
     entity_type: CustomerEntityType
     category: CustomerCategory
     company_email: Optional[str]
+    logo_url: Optional[str] = Field(default=None, max_length=1000)
     rc_number: Optional[str]
     tin: Optional[str]
     vat_number: Optional[str]

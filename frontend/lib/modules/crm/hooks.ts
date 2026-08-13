@@ -22,6 +22,27 @@ export function useCRMActivityByCustomer(customerId?: string) {
     ...query,
   };
 }
+
+export async function uploadCustomerLogo(
+  customerId: string,
+  formData: FormData,
+) {
+  const response = await api.post(`/api/crm/${customerId}/logo`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+}
+
+export function useUploadCustomerLogo() {
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: FormData }) =>
+      uploadCustomerLogo(id, data),
+  });
+}
+
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
 

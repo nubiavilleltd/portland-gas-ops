@@ -11,12 +11,13 @@ Handles:
 - Activity Logging
 
 """
-
 from __future__ import annotations
+
+from app.shared.services import cloudinary_service
 from typing import Optional
 from datetime import datetime
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status,UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 from app.crm.model import Customers, CustomerContact
@@ -676,6 +677,7 @@ def create_customer(
         referrer_type=data.referrer_type,
         referrer_id=data.referrer_id,
         contact_person=data.contact_person,
+        logo_url=data.logo_url,
         department=data.department,
         email=data.email,
         phone=data.phone,
@@ -1260,3 +1262,57 @@ def dashboard_summary(db: Session):
         "follow_up_required": follow_up,
         "cancelled": cancelled,
     }
+def upload_customer_logo(
+    db: Session,
+    customer_id: str,
+    file: UploadFile,
+    current_user: User,
+) -> Customers:
+    customer = get_customer(
+        db=db,
+        customer_id=customer_id,
+    )
+
+    allowed_types = {
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/svg+xml",
+    }
+
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PNG, JPG, SVG or WebP images are allowed.",
+        )
+
+    file_bytes = file.file.read()
+
+    if len(file_bytes) > 2 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Logo must not exceed 2 MB.",
+        )
+
+    url = cloudinary_service.upload(
+        file_bytes,
+        public_id=f"customer-{customer_id}-logo",
+        folder="portland-gas/customer-logos",
+        resource_type="image",
+    )
+
+    customer.logo_url = url
+
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Logo Updated",
+        entity_type=CRMActivityEntityType.customer,
+        description=f"Logo for customer ({customer.customer_name}) was updated.",
+        current_user=current_user,
+    )
+
+    db.commit()
+    db.refresh(customer)
+
+    return customer
