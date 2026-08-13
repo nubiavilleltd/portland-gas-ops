@@ -301,7 +301,7 @@ class CustomerVisitCreate(BaseModel):
 
     visit_date: datetime
 
-    location: str
+    # location: str
 
     purpose: str
 
@@ -402,7 +402,7 @@ class CustomerVisitResponse(BaseModel):
 
     visit_date: datetime
 
-    location: str
+    # location: str
 
     purpose: str
 

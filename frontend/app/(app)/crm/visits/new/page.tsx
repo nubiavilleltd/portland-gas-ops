@@ -24,6 +24,7 @@ import {
   validateVisit,
   buildVisitPayload,
 } from "@/lib/modules/crm/utils/visit";
+import { X, CheckCircle2 } from "lucide-react";
 
 export default function NewCustomerVisitsPage() {
   const router = useRouter();
@@ -105,9 +106,40 @@ export default function NewCustomerVisitsPage() {
       toast.success("Customer visit scheduled successfully.");
       router.push("/crm/visits");
     } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+
+      // Backend field validation errors
+      const backendErrors = detail?.details?.errors;
+
+      if (Array.isArray(backendErrors)) {
+        const fieldErrors: Record<string, string> = {};
+
+        for (const item of backendErrors) {
+          const field = item?.loc?.find(
+            (location: unknown) => location !== "body",
+          );
+
+          if (typeof field === "string") {
+            fieldErrors[field] = item?.msg || "Invalid value.";
+          }
+        }
+
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({
+            ...prev,
+            ...fieldErrors,
+          }));
+
+          toast.error("Please correct the highlighted errors.");
+          return;
+        }
+      }
+
+      // Backend business/application error
       toast.error(
-        error?.response?.data?.detail?.message ??
-          "Failed to schedule customer visit.",
+        detail?.message ??
+          (typeof detail === "string" ? detail : null) ??
+          "Failed to schedule customer visit. Please try again.",
       );
     }
   }
@@ -269,7 +301,7 @@ export default function NewCustomerVisitsPage() {
                 }));
               }}
             />
-            <FormInput
+            {/* <FormInput
               label="Location"
               placeholder="Enter visit location"
               value={form.location}
@@ -286,13 +318,18 @@ export default function NewCustomerVisitsPage() {
                   location: "",
                 }));
               }}
-            />
+            /> */}
 
             <FormTextarea
               label="Purpose of Visit"
               rows={5}
               value={form.purpose}
-              required
+              required={form.visitType !== "Courtesy"}
+              placeholder={
+                form.visitType === "Courtesy"
+                  ? "Optional: Add a note about the courtesy visit"
+                  : "Describe the purpose of this visit"
+              }
               error={errors.purpose}
               onChange={(e) => {
                 setForm((prev) => ({
@@ -404,11 +441,16 @@ export default function NewCustomerVisitsPage() {
           variant="outline"
           onClick={() => router.back()}
           disabled={createVisit.isPending}
+          leftIcon={<X size={14} />}
         >
           Cancel
         </Button>
 
-        <Button loading={createVisit.isPending} onClick={submit}>
+        <Button
+          loading={createVisit.isPending}
+          onClick={submit}
+          leftIcon={<CheckCircle2 size={15} />}
+        >
           Schedule Visit
         </Button>
       </div>

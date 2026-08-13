@@ -20,11 +20,23 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
   {
     key: "entity_type",
     label: "Entity Type",
+    render: (value) =>
+      typeof value === "string" && value
+        ? value.charAt(0).toUpperCase() + value.slice(1)
+        : "-",
+  },
+  {
+    key: "company_email",
+    label: "Company Email",
   },
 
   {
     key: "industry",
     label: "Industry",
+    render: (value) =>
+      typeof value === "string" && value
+        ? value.charAt(0).toUpperCase() + value.slice(1)
+        : "-",
   },
 
   {

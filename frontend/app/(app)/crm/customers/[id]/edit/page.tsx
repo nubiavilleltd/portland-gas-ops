@@ -22,6 +22,7 @@ import {
   validateCustomer,
   buildCustomerPayload,
 } from "@/lib/modules/crm/utils/customer";
+import { X, CheckCircle2 } from "lucide-react";
 
 export default function EditCustomerPage() {
   const router = useRouter();
@@ -98,7 +99,7 @@ export default function EditCustomerPage() {
       estimatedMonthlyDemand: customer.estimated_monthly_demand ?? "",
       internalNotes: customer.internal_notes ?? "",
       role: customer.role ?? "",
-      position: customer.position ?? "",
+      position: customer.role ?? "",
       preferredChannel: customer.preferred_channel ?? "",
     });
   }, [customer]);
@@ -207,6 +208,7 @@ export default function EditCustomerPage() {
             tin: form.tin,
             vatNumber: form.vatNumber,
             industry: form.industry,
+            otherIndustry: form.otherIndustry ?? "",
           }}
           errors={errors}
           onChange={handleChange}
@@ -267,13 +269,18 @@ export default function EditCustomerPage() {
         <div className="flex justify-between pb-10">
           {canEdit && (
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button
+                variant="outline"
+                leftIcon={<X size={14} />}
+                onClick={() => router.back()}
+              >
                 Cancel
               </Button>
 
               <Button
                 loading={updateCustomer.isPending}
                 onClick={updateCustomerInfo}
+                leftIcon={<CheckCircle2 size={15} />}
               >
                 Save Changes
               </Button>

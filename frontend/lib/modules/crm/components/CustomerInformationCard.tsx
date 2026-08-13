@@ -54,6 +54,8 @@ export default function CustomerInformationCard({
             label: type.charAt(0).toUpperCase() + type.slice(1),
             value: type,
           }))}
+          searchable={true}
+          placeholder="Select Entity"
           onValueChange={(value) => onChange?.("entityType", value)}
         />
 

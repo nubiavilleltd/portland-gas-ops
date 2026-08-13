@@ -39,7 +39,7 @@ export default function EmploymentInformationCard({
           required
           onChange={(e) => onChange?.("department", e.target.value)}
         />
-        <FormInput
+        {/* <FormInput
           label="Position"
           value={values.position}
           required
@@ -47,7 +47,7 @@ export default function EmploymentInformationCard({
           disabled={readOnly}
           error={errors.position}
           onChange={(e) => onChange?.("position", e.target.value)}
-        />
+        /> */}
         <FormInput
           label="Role"
           value={values.role}
