@@ -86,7 +86,9 @@ export default function AddressInformationCard({
           value={values.postalCode ?? ""}
           error={errors?.postalCode}
           readOnly={readOnly}
-          onChange={(e) => onChange?.("postalCode", e.target.value)}
+          onChange={(e) =>
+            onChange?.("postalCode", e.target.value.replace(/\D/g, ""))
+          }
         />
 
         <div className="md:col-span-2">

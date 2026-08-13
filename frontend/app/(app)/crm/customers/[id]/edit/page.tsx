@@ -23,16 +23,25 @@ import {
   buildCustomerPayload,
 } from "@/lib/modules/crm/utils/customer";
 import { X, CheckCircle2 } from "lucide-react";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function EditCustomerPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { user: currentUser } = useCurrentUser();
+  const { orders = [], isLoading: ordersLoading } = useOrders();
 
   const { data: customer, isLoading } = useCustomerDetails(id);
   const updateCustomer = useUpdateCustomer();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
+  const customerOrders = orders.filter(
+    (order) => order.customerId === customer.id,
+  );
+
+  const hasPurchased = customerOrders.length > 0;
+
+  const customerType = hasPurchased ? "purchasing" : customer.customer_type;
   const [form, setForm] = useState<any>({
     customerName: "",
     entityType: "company",
@@ -81,7 +90,7 @@ export default function EditCustomerPage() {
       salesContact: customer.sales_contact ?? "",
       referrerType: customer.referrer_type ?? "employee",
       referrerId: customer.referrer_id ?? "",
-      customerType: customer.customer_type ?? "potential",
+      customerType,
       contactPerson: customer.contact_person ?? "",
       department: customer.department ?? "",
       email: customer.email ?? "",
@@ -157,7 +166,7 @@ export default function EditCustomerPage() {
 
   const canEdit = isAdmin || isOwner;
 
-  if (isLoading) {
+  if (isLoading || ordersLoading) {
     return (
       <AppLayout pageTitle="Edit Customer">
         <div className="space-y-6">

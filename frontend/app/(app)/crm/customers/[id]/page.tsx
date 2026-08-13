@@ -29,6 +29,7 @@ import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimelin
 import { useCRMActivityByCustomer } from "@/lib/modules/crm";
 import { toast } from "sonner";
 import { Tag, Pencil, PowerOff, Power } from "lucide-react";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +38,7 @@ export default function CustomerDetailsPage() {
   const { data: customer, isLoading: customerLoading } =
     useCustomerOnboardingDetails(id);
   const { data: contacts = [] } = useCustomerContactDetails(id);
-
+  const { orders = [], isLoading: ordersLoading } = useOrders();
   const primaryContact = contacts.find((c) => c.is_primary);
   const additionalContacts = contacts.filter((c) => !c.is_primary);
   const { entries } = useCRMActivityByCustomer(id);
@@ -46,7 +47,7 @@ export default function CustomerDetailsPage() {
 
   const { data: employees = [], isLoading: employeesLoading } = useEmployees();
 
-  if (customerLoading || employeesLoading) {
+  if (customerLoading || employeesLoading || ordersLoading) {
     return (
       <AppLayout pageTitle="Customer Details">
         <div className="space-y-6">
@@ -118,6 +119,13 @@ export default function CustomerDetailsPage() {
   }
 
   const canActivateDeactivate = isAdmin;
+  const customerOrders = orders.filter(
+    (order) => order.customerId === customer.id,
+  );
+
+  const hasPurchased = customerOrders.length > 0;
+
+  const customerType = hasPurchased ? "purchasing" : customer.customer_type;
 
   return (
     <AppLayout pageTitle="Customer Details">
@@ -311,7 +319,7 @@ export default function CustomerDetailsPage() {
         <AccountManagementCard
           readOnly={readOnly}
           values={{
-            customerType: customer.customer_type,
+            customerType,
             salesContact: customer.sales_contact ?? "",
             referrerType: customer.referrer_type ?? "",
             referrerId: customer.referrer_id ?? "",
