@@ -67,7 +67,13 @@ export default function ContactInformationCard({
           required
           disabled={readOnly}
           error={errors.phone}
-          onChange={(e) => onChange?.("phone", e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            // allow only phone characters
+            if (/^[0-9+\s-]*$/.test(value)) {
+              onChange?.("phone", value);
+            }
+          }}
         />
 
         <FormInput
@@ -76,7 +82,13 @@ export default function ContactInformationCard({
           placeholder="Enter Alternate Phone Number"
           disabled={readOnly}
           error={errors.alternatePhone}
-          onChange={(e) => onChange?.("alternatePhone", e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            // allow only phone characters
+            if (/^[0-9+\s-]*$/.test(value)) {
+              onChange?.("alternatePhone", value);
+            }
+          }}
         />
       </div>
     </FormSection>

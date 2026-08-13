@@ -4,9 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { BackButton } from "@/components/ui/BackButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import RoleBasedTabSection from "@/components/ui/RoleBasedTabSection";
 import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
 import {
@@ -29,6 +28,7 @@ import {
 import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
 import { formatDateTime } from "@/lib/modules/crm/utils";
 import CustomerVisitDetailsSkeleton from "@/lib/modules/crm/components/CustomerVisitDetailsSkeleton";
+import { X, CheckCircle2 } from "lucide-react";
 
 export default function CustomerVisitDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -128,7 +128,7 @@ export default function CustomerVisitDetailsPage() {
     <AppLayout pageTitle="Visit Details">
       <BackButton href="/crm/visits" label="Back to Visits" />
       <div className="mb-3">
-        <RoleBasedRecordHeader
+        <RoleBasedTabSection
           id={visit.visit_number}
           currentRole="sales_executive"
           roles={crmRoles}
@@ -187,7 +187,7 @@ export default function CustomerVisitDetailsPage() {
               disabled
             />
 
-            <FormInput label="Location" value={visit.location} disabled />
+            {/* <FormInput label="Location" value={visit.location} disabled /> */}
 
             <FormTextarea
               label="Purpose of Visit"
@@ -461,6 +461,7 @@ export default function CustomerVisitDetailsPage() {
                 variant="outline"
                 onClick={() => router.back()}
                 disabled={updateVisit.isPending}
+                leftIcon={<X size={14} />}
               >
                 Cancel
               </Button>
@@ -469,6 +470,7 @@ export default function CustomerVisitDetailsPage() {
                 onClick={handleCompleteVisit}
                 loading={updateVisit.isPending}
                 disabled={form.status === visit.status}
+                leftIcon={<CheckCircle2 size={15} />}
               >
                 Update Visit
               </Button>

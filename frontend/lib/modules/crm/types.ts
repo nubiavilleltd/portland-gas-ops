@@ -202,8 +202,8 @@ export interface CustomerAttachment {
 
 export interface CustomerForm {
   customerName: string;
-  entityType: EntityType;
-  category: CustomerCategory;
+  entityType: EntityType | "";
+  category: CustomerCategory | "";
   companyEmail: string;
   rcNumber: string;
   tin: string;
@@ -211,6 +211,7 @@ export interface CustomerForm {
   industry: string;
   customerType: "potential" | "purchasing";
   salesContact: string | null;
+  otherIndustry: string;
   referrerType:
     | "employee"
     | "customer"

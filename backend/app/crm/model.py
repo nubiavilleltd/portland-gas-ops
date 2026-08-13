@@ -319,10 +319,10 @@ class CustomerVisit(Base):
         nullable=False,
     )
 
-    location = Column(
-        String(255),
-        nullable=False,
-    )
+    # location = Column(
+    #     String(255),
+    #     nullable=False,
+    # )
 
     purpose = Column(
         Text,

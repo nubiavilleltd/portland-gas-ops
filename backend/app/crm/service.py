@@ -798,7 +798,7 @@ def sync_primary_contact(
         email=customer.email,
         phone=customer.phone,
         alternate_phone=customer.alternate_phone,
-        position=customer.position,
+        position=customer.role,
         role=customer.role,
         preferred_channel=customer.preferred_channel,
     )
@@ -949,7 +949,7 @@ def create_customer_visit(
 
         visit_date=data.visit_date,
 
-        location=data.location,
+        # location=data.location,
 
         purpose=data.purpose,
 
@@ -1043,7 +1043,7 @@ def list_customer_visits(
             or_(
                 CustomerVisit.visit_number.ilike(f"%{search}%"),
                 Customers.customer_name.ilike(f"%{search}%"),
-                CustomerVisit.location.ilike(f"%{search}%"),
+                # CustomerVisit.location.ilike(f"%{search}%"),
             )
         )
 
@@ -1123,7 +1123,7 @@ def get_customer_visit(
 
         "visit_date": visit.visit_date,
 
-        "location": visit.location,
+        # "location": visit.location,
 
         "purpose": visit.purpose,
 

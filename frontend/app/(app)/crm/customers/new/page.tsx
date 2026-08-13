@@ -21,6 +21,7 @@ import {
   buildCustomerPayload,
 } from "@/lib/modules/crm/utils/customer";
 import { useCreateCustomer } from "@/lib/modules/crm";
+import { X, CheckCircle2 } from "lucide-react";
 
 export default function NewCustomerPage() {
   const router = useRouter();
@@ -28,8 +29,8 @@ export default function NewCustomerPage() {
 
   const [form, setForm] = useState<CustomerForm>({
     customerName: "",
-    entityType: "company",
-    category: "retail",
+    entityType: "",
+    category: "",
     companyEmail: "",
     rcNumber: "",
     tin: "",
@@ -37,14 +38,14 @@ export default function NewCustomerPage() {
     industry: "",
     customerType: "potential",
     salesContact: "",
-    referrerType: "employee",
+    referrerType: "",
     referrerId: "",
     contactPerson: "",
     department: "",
     email: "",
     phone: "",
     alternatePhone: "",
-    country: "Nigeria",
+    country: "",
     state: "",
     city: "",
     addressLine1: "",
@@ -57,6 +58,7 @@ export default function NewCustomerPage() {
     position: "",
     role: "",
     preferredChannel: "",
+    otherIndustry: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -81,11 +83,13 @@ export default function NewCustomerPage() {
 
   async function submitCustomer() {
     const { valid, errors } = validateCustomer(form);
+
     if (!valid) {
       setErrors(errors);
       toast.error("Please correct the highlighted errors.");
       return;
     }
+
     try {
       const payload = buildCustomerPayload(form, "active");
 
@@ -93,9 +97,39 @@ export default function NewCustomerPage() {
 
       router.push("/crm/customers");
     } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+
+      // Backend field validation errors
+      const backendErrors = detail?.details?.errors;
+
+      if (Array.isArray(backendErrors)) {
+        const fieldErrors: Record<string, string> = {};
+
+        for (const item of backendErrors) {
+          const field = item?.loc?.find(
+            (location: unknown) => location !== "body",
+          );
+
+          if (typeof field === "string") {
+            fieldErrors[field] = item?.msg || "Invalid value.";
+          }
+        }
+
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({
+            ...prev,
+            ...fieldErrors,
+          }));
+
+          toast.error("Please correct the highlighted errors.");
+          return;
+        }
+      }
+
+      // Backend business/application error
       toast.error(
-        error?.response?.data?.detail?.message ??
-          error?.response?.data?.detail ??
+        detail?.message ??
+          (typeof detail === "string" ? detail : null) ??
           "Failed to create customer. Please try again.",
       );
     }
@@ -128,6 +162,7 @@ export default function NewCustomerPage() {
               tin: form.tin,
               vatNumber: form.vatNumber,
               industry: form.industry,
+              otherIndustry: form.otherIndustry ?? "",
             }}
             errors={errors}
             onChange={handleChange}
@@ -141,7 +176,7 @@ export default function NewCustomerPage() {
             email: form.email,
             phone: form.phone,
             alternatePhone: form.alternatePhone,
-            position: form.position,
+            position: form.role,
             preferredChannel: form.preferredChannel,
             role: form.role,
           }}
@@ -188,11 +223,19 @@ export default function NewCustomerPage() {
         />
 
         <div className="flex justify-start gap-3 pb-10">
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button
+            variant="outline"
+            leftIcon={<X size={14} />}
+            onClick={() => router.back()}
+          >
             Cancel
           </Button>
 
-          <Button disabled={createCustomer.isPending} onClick={submitCustomer}>
+          <Button
+            disabled={createCustomer.isPending}
+            leftIcon={<CheckCircle2 size={15} />}
+            onClick={submitCustomer}
+          >
             Submit
           </Button>
         </div>

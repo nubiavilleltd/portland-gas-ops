@@ -22,16 +22,26 @@ import {
   validateCustomer,
   buildCustomerPayload,
 } from "@/lib/modules/crm/utils/customer";
+import { X, CheckCircle2 } from "lucide-react";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function EditCustomerPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { user: currentUser } = useCurrentUser();
+  const { orders = [], isLoading: ordersLoading } = useOrders();
 
   const { data: customer, isLoading } = useCustomerDetails(id);
   const updateCustomer = useUpdateCustomer();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
+  const customerOrders = orders.filter(
+    (order) => order.customerId === customer.id,
+  );
+
+  const hasPurchased = customerOrders.length > 0;
+
+  const customerType = hasPurchased ? "purchasing" : customer.customer_type;
   const [form, setForm] = useState<any>({
     customerName: "",
     entityType: "company",
@@ -80,7 +90,7 @@ export default function EditCustomerPage() {
       salesContact: customer.sales_contact ?? "",
       referrerType: customer.referrer_type ?? "employee",
       referrerId: customer.referrer_id ?? "",
-      customerType: customer.customer_type ?? "potential",
+      customerType,
       contactPerson: customer.contact_person ?? "",
       department: customer.department ?? "",
       email: customer.email ?? "",
@@ -98,7 +108,7 @@ export default function EditCustomerPage() {
       estimatedMonthlyDemand: customer.estimated_monthly_demand ?? "",
       internalNotes: customer.internal_notes ?? "",
       role: customer.role ?? "",
-      position: customer.position ?? "",
+      position: customer.role ?? "",
       preferredChannel: customer.preferred_channel ?? "",
     });
   }, [customer]);
@@ -156,7 +166,7 @@ export default function EditCustomerPage() {
 
   const canEdit = isAdmin || isOwner;
 
-  if (isLoading) {
+  if (isLoading || ordersLoading) {
     return (
       <AppLayout pageTitle="Edit Customer">
         <div className="space-y-6">
@@ -207,6 +217,7 @@ export default function EditCustomerPage() {
             tin: form.tin,
             vatNumber: form.vatNumber,
             industry: form.industry,
+            otherIndustry: form.otherIndustry ?? "",
           }}
           errors={errors}
           onChange={handleChange}
@@ -267,13 +278,18 @@ export default function EditCustomerPage() {
         <div className="flex justify-between pb-10">
           {canEdit && (
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button
+                variant="outline"
+                leftIcon={<X size={14} />}
+                onClick={() => router.back()}
+              >
                 Cancel
               </Button>
 
               <Button
                 loading={updateCustomer.isPending}
                 onClick={updateCustomerInfo}
+                leftIcon={<CheckCircle2 size={15} />}
               >
                 Save Changes
               </Button>
