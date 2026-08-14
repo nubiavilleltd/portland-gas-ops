@@ -987,7 +987,7 @@ def send_customer_visit_notifications(
         # ---------------------------------------------------------
 
         action_url = (
-            f"{settings.FRONTEND_URL}/customer-visits/{visit.id}"
+            email_service.get_request_url("visits", visit.id)
         )
 
         # =========================================================
@@ -1032,6 +1032,7 @@ def send_customer_visit_notifications(
                             content.get("intro_message")
                             or ""
                         ),
+                        "greeting": content.get("greeting") or "",
                         "result_message": (
                             content.get("result_message")
                             or ""
@@ -1111,6 +1112,7 @@ def send_customer_visit_notifications(
                             content.get("intro_message")
                             or ""
                         ),
+                        "greeting": content.get("greeting") or "",
                         "result_message": (
                             content.get("result_message")
                             or ""

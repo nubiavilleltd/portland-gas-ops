@@ -13,9 +13,11 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
     label: "Customer",
     render: (_, customer) => (
       <div>
-        <p className="font-medium">{customer.customer_name}</p>
+        <p className="font-medium capitalize">{customer.customer_name}</p>
 
-        <p className="text-xs text-brand-text-secondary">{customer.industry}</p>
+        <p className="text-xs text-brand-text-secondary capitalize">
+          {customer.industry}
+        </p>
       </div>
     ),
   },
@@ -25,7 +27,7 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
     label: "Primary Contact",
     render: (_, customer) => (
       <div>
-        <p>{customer.contact_person}</p>
+        <p className="capitalize">{customer.contact_person}</p>
 
         <p className="text-xs text-brand-text-secondary">{customer.phone}</p>
       </div>
@@ -35,6 +37,9 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
   {
     key: "category",
     label: "Category",
+    render: (value) => (
+      <span className="capitalize">{String(value ?? "")}</span>
+    ),
   },
 
   {

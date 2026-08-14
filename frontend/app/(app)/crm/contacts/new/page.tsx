@@ -238,6 +238,7 @@ export default function NewCustomerContactPage() {
                     lastName: errors[`lastName-${index}`],
                     email: errors[`email-${index}`],
                     phone: errors[`phone-${index}`],
+                    alternatePhone: errors[`alternatePhone-${index}`],
                   }}
                   onChange={(field, value) =>
                     updateAdditional(index, field as keyof ContactForm, value)
