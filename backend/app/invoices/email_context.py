@@ -89,7 +89,7 @@ def get_invoice_email_context(
     return {
         "recipient_email": customer.email,
 
-        "customer_name": customer.name,
+        "customer_name": customer.customer_name,
 
         "invoice_no": invoice.invoice_no,
         "order_no": order.order_no,
