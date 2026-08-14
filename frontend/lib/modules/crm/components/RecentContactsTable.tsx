@@ -14,11 +14,11 @@ const COLUMNS: Column<CustomerContact>[] = [
     label: "Contact Name",
     render: (_, contact) => (
       <div>
-        <p className="font-medium">
+        <p className="font-medium capitalize">
           {contact.first_name} {contact.last_name}
         </p>
 
-        <p className="text-xs text-brand-text-secondary">
+        <p className="text-xs text-brand-text-secondary capitalize">
           {contact.department}
         </p>
       </div>
@@ -28,18 +28,21 @@ const COLUMNS: Column<CustomerContact>[] = [
   {
     key: "customer_name",
     label: "Customer",
+    render: (value) => (
+      <span className="capitalize">{String(value ?? "")}</span>
+    ),
   },
 
   {
     key: "department",
     label: "Department",
-    render: (_, contact) => <p className="">{contact.department}</p>,
+    render: (_, contact) => <p className="capitalize">{contact.department}</p>,
   },
 
   {
     key: "role",
     label: "Role",
-    render: (_, contact) => <p className="">{contact.role}</p>,
+    render: (_, contact) => <p className="capitalize">{contact.role}</p>,
   },
 
   // {
