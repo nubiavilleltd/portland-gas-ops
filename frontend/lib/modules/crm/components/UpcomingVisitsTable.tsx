@@ -22,10 +22,16 @@ export default function UpcomingVisitsTable({ visits }: Props) {
     {
       key: "customer_name",
       label: "Customer",
+      render: (value) => (
+        <span className="capitalize">{String(value ?? "")}</span>
+      ),
     },
     {
       key: "visit_type",
       label: "Visit Type",
+      render: (value) => (
+        <span className="capitalize">{String(value ?? "")}</span>
+      ),
     },
     {
       key: "visit_date",
