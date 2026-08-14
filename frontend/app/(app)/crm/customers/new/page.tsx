@@ -110,6 +110,8 @@ export default function NewCustomerPage() {
           data: formData,
         });
       }
+      toast.success("Customer created successfully.");
+
       router.push("/crm/customers");
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
