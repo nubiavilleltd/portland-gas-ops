@@ -1,11 +1,12 @@
 """
-Email service using Brevo (formerly Sendinblue) API.
+Email service using Postmark API.
 
 Templates live in app/templates/email/. Edit the HTML files there — no Python
 changes needed for copy/layout updates.
 
-When BREVO_API_KEY is not set, all emails are logged to the console instead
-of being sent. This lets the team develop and test without a live API key.
+When POSTMARK_SERVER_TOKEN is not set, all emails are logged to the console
+instead of being sent. This lets the team develop and test without a live
+server token.
 """
 
 import logging
@@ -72,14 +73,14 @@ def _render(template_name: str, variables: dict) -> str:
 
 def _send(to_email: str, subject: str, html: str, attachments: list[EmailAttachment] | None = None) -> None:
     """
-    Send an email via Brevo, or log to console if API key not configured.
-    Drop your BREVO_API_KEY into .env and this will start sending live emails
-    with no other code changes.
+    Send an email via Postmark, or log to console if server token not configured.
+    Drop your POSTMARK_SERVER_TOKEN into .env and this will start sending live
+    emails with no other code changes.
     """
-    if not settings.BREVO_API_KEY:
-        logger.warning("BREVO_API_KEY not set — email not sent. To: %s | Subject: %s", to_email, subject)
+    if not settings.POSTMARK_SERVER_TOKEN:
+        logger.warning("POSTMARK_SERVER_TOKEN not set — email not sent. To: %s | Subject: %s", to_email, subject)
         return
-    
+
     if attachments:
         logger.info(
             "Attachments: %s",
@@ -87,48 +88,42 @@ def _send(to_email: str, subject: str, html: str, attachments: list[EmailAttachm
         )
 
     try:
-
+        from_header = (
+            f"{settings.POSTMARK_FROM_NAME} <{settings.POSTMARK_FROM_EMAIL}>"
+            if settings.POSTMARK_FROM_NAME
+            else settings.POSTMARK_FROM_EMAIL
+        )
 
         payload = {
-            "sender": {
-                "name": settings.BREVO_FROM_NAME,
-                "email": settings.BREVO_FROM_EMAIL,
-            },
-            "to": [
-                {
-                    "email": to_email,
-                }
-            ],
-            "subject": subject,
-            "htmlContent": html,
+            "From": from_header,
+            "To": to_email,
+            "Subject": subject,
+            "HtmlBody": html,
+            "MessageStream": "outbound",
         }
 
         if attachments:
-
-            payload["attachment"] = [
-
+            payload["Attachments"] = [
                 {
-                    "name": attachment.filename,
-
-                    "content": base64.b64encode(
-                        attachment.content,
-                    ).decode("utf-8"),
+                    "Name": attachment.filename,
+                    "Content": base64.b64encode(attachment.content).decode("utf-8"),
+                    "ContentType": attachment.mime_type,
                 }
-
                 for attachment in attachments
             ]
 
         response = httpx.post(
-            "https://api.brevo.com/v3/smtp/email",
+            "https://api.postmarkapp.com/email",
             headers={
-                "api-key": settings.BREVO_API_KEY,
+                "X-Postmark-Server-Token": settings.POSTMARK_SERVER_TOKEN,
+                "Accept": "application/json",
                 "Content-Type": "application/json",
             },
             json=payload,
             timeout=10,
         )
         if not response.is_success:
-            logger.error("Brevo rejected email to %s — %s: %s", to_email, response.status_code, response.text)
+            logger.error("Postmark rejected email to %s — %s: %s", to_email, response.status_code, response.text)
             return
         logger.info("Email sent to %s — subject: %s", to_email, subject)
     except Exception as exc:
