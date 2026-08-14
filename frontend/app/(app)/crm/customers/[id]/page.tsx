@@ -120,7 +120,7 @@ export default function CustomerDetailsPage() {
 
   const canActivateDeactivate = isAdmin;
   const customerOrders = orders.filter(
-    (order) => order.customerId === customer.id,
+    (order) => order.customerId === customer?.id,
   );
 
   const hasPurchased = customerOrders.length > 0;
@@ -202,6 +202,35 @@ export default function CustomerDetailsPage() {
             requestDate: formatDateTime(customer.created_at),
           }}
         />
+        <FormSection title="Customer Logo" description="Company logo">
+          <div className="flex items-center gap-5">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-brand-border bg-gray-50">
+              {customer.logo_url ? (
+                <img
+                  src={customer.logo_url}
+                  alt={`${customer.customer_name} logo`}
+                  className="h-full w-full object-contain p-2"
+                />
+              ) : (
+                <span className="text-3xl font-bold text-gray-300">
+                  {customer.customer_name?.charAt(0).toUpperCase() ?? "?"}
+                </span>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-brand-text">
+                {customer.customer_name}
+              </p>
+
+              <p className="mt-1 text-xs text-brand-text-secondary">
+                {customer.logo_url
+                  ? "Customer logo uploaded"
+                  : "No customer logo uploaded"}
+              </p>
+            </div>
+          </div>
+        </FormSection>
         <CustomerInformationCard
           readOnly={readOnly}
           values={{

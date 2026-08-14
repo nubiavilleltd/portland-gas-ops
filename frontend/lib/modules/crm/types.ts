@@ -238,6 +238,7 @@ export interface CustomerForm {
   position: string;
   role: string;
   preferredChannel: string;
+  logo_url?: string;
 }
 
 export interface CustomerContact {
