@@ -2,7 +2,7 @@
 
 import Card from "@/components/ui/Card";
 import FormInput from "@/components/forms/FormInput";
-
+import FormSelect from "@/components/forms/FormSelect";
 interface Props {
   values: {
     country: string;
@@ -19,6 +19,23 @@ interface Props {
 
   onChange?: (field: keyof Props["values"], value: string) => void;
 }
+const COUNTRIES = [
+  { value: "Nigeria", label: "Nigeria" },
+  { value: "Ghana", label: "Ghana" },
+  { value: "Kenya", label: "Kenya" },
+  { value: "South Africa", label: "South Africa" },
+  { value: "United States", label: "United States" },
+  { value: "United Kingdom", label: "United Kingdom" },
+  { value: "Canada", label: "Canada" },
+  { value: "United Arab Emirates", label: "United Arab Emirates" },
+  { value: "Saudi Arabia", label: "Saudi Arabia" },
+  { value: "India", label: "India" },
+  { value: "China", label: "China" },
+  { value: "Germany", label: "Germany" },
+  { value: "France", label: "France" },
+  { value: "Netherlands", label: "Netherlands" },
+  { value: "Australia", label: "Australia" },
+];
 
 export default function AddressInformationCard({
   values,
@@ -33,14 +50,14 @@ export default function AddressInformationCard({
       </h2>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        <FormInput
+        <FormSelect
           label="Country"
-          placeholder="Enter Country"
           required
           value={values.country}
           error={errors?.country}
-          readOnly={readOnly}
-          onChange={(e) => onChange?.("country", e.target.value)}
+          disabled={readOnly}
+          options={COUNTRIES}
+          onValueChange={(value) => onChange?.("country", value)}
         />
 
         <FormInput
@@ -69,7 +86,9 @@ export default function AddressInformationCard({
           value={values.postalCode ?? ""}
           error={errors?.postalCode}
           readOnly={readOnly}
-          onChange={(e) => onChange?.("postalCode", e.target.value)}
+          onChange={(e) =>
+            onChange?.("postalCode", e.target.value.replace(/\D/g, ""))
+          }
         />
 
         <div className="md:col-span-2">

@@ -68,7 +68,6 @@ export default function AccountManagementCard({
       <div className="grid gap-6 md:grid-cols-2">
         <FormInput
           label="Customer Type"
-          required
           value={
             values.customerType === "purchasing"
               ? "Purchasing Customer"

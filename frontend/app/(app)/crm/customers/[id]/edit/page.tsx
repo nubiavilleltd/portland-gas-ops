@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -15,23 +15,46 @@ import CommercialInformationCard from "@/lib/modules/crm/components/CommercialIn
 import InternalNotesCard from "@/lib/modules/crm/components/InternalNotesCard";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/useToast";
-import { useCustomerDetails, useUpdateCustomer } from "@/lib/modules/crm";
+import {
+  useCustomerDetails,
+  useUpdateCustomer,
+  useUploadCustomerLogo,
+} from "@/lib/modules/crm";
 import { Skeleton } from "@/lib/modules/crm/components/Skeleton";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import {
   validateCustomer,
   buildCustomerPayload,
 } from "@/lib/modules/crm/utils/customer";
+import Image from "next/image";
+import FormSection from "@/components/ui/FormSection";
+import { Upload, X, CheckCircle2 } from "lucide-react";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function EditCustomerPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { user: currentUser } = useCurrentUser();
+  const { orders = [], isLoading: ordersLoading } = useOrders();
 
   const { data: customer, isLoading } = useCustomerDetails(id);
   const updateCustomer = useUpdateCustomer();
+  const uploadCustomerLogo = useUploadCustomerLogo();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
+  const customerOrders = orders.filter(
+    (order) => order.customerId === customer.id,
+  );
+  const hasPurchased = customerOrders.length > 0;
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [logoError, setLogoError] = useState<string | null>(null);
+
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_LOGO_SIZE_MB = 2;
+  const MAX_LOGO_SIZE_BYTES = MAX_LOGO_SIZE_MB * 1024 * 1024;
+  const customerType = hasPurchased ? "purchasing" : customer?.customer_type;
   const [form, setForm] = useState<any>({
     customerName: "",
     entityType: "company",
@@ -68,6 +91,7 @@ export default function EditCustomerPage() {
 
   useEffect(() => {
     if (!customer) return;
+    setLogoPreview(customer.logo_url ?? "");
 
     setForm({
       customerName: customer.customer_name ?? "",
@@ -80,7 +104,7 @@ export default function EditCustomerPage() {
       salesContact: customer.sales_contact ?? "",
       referrerType: customer.referrer_type ?? "employee",
       referrerId: customer.referrer_id ?? "",
-      customerType: customer.customer_type ?? "potential",
+      customerType,
       contactPerson: customer.contact_person ?? "",
       department: customer.department ?? "",
       email: customer.email ?? "",
@@ -98,7 +122,7 @@ export default function EditCustomerPage() {
       estimatedMonthlyDemand: customer.estimated_monthly_demand ?? "",
       internalNotes: customer.internal_notes ?? "",
       role: customer.role ?? "",
-      position: customer.position ?? "",
+      position: customer.role ?? "",
       preferredChannel: customer.preferred_channel ?? "",
     });
   }, [customer]);
@@ -116,7 +140,56 @@ export default function EditCustomerPage() {
       }));
     }
   }
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
 
+    if (!file) return;
+
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/svg+xml",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setLogoError("Only PNG, JPG, SVG or WebP images are allowed.");
+
+      if (logoInputRef.current) {
+        logoInputRef.current.value = "";
+      }
+
+      return;
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      setLogoError(
+        `File is too large. Maximum size is ${MAX_LOGO_SIZE_MB} MB.`,
+      );
+
+      if (logoInputRef.current) {
+        logoInputRef.current.value = "";
+      }
+
+      return;
+    }
+
+    setLogoError(null);
+    setLogoFile(file);
+
+    const previewUrl = URL.createObjectURL(file);
+    setLogoPreview(previewUrl);
+  }
+
+  function removeLogo() {
+    setLogoFile(null);
+    setLogoPreview("");
+    setLogoError(null);
+
+    if (logoInputRef.current) {
+      logoInputRef.current.value = "";
+    }
+  }
   async function updateCustomerInfo() {
     const { valid, errors } = validateCustomer(form);
 
@@ -133,7 +206,15 @@ export default function EditCustomerPage() {
         id,
         data: payload,
       });
+      if (logoFile) {
+        const formData = new FormData();
+        formData.append("file", logoFile);
 
+        await uploadCustomerLogo.mutateAsync({
+          id,
+          data: formData,
+        });
+      }
       toast.success("Customer updated successfully.");
 
       router.push(`/crm/customers/${id}`);
@@ -156,7 +237,7 @@ export default function EditCustomerPage() {
 
   const canEdit = isAdmin || isOwner;
 
-  if (isLoading) {
+  if (isLoading || ordersLoading) {
     return (
       <AppLayout pageTitle="Edit Customer">
         <div className="space-y-6">
@@ -190,6 +271,75 @@ export default function EditCustomerPage() {
       />
 
       <div className="space-y-6">
+        <FormSection
+          title="Customer Logo"
+          description="Upload an optional logo for this customer. This is useful for company customers."
+        >
+          <div className="flex items-center gap-5">
+            {/* Logo Preview */}
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-brand-border bg-gray-50 flex items-center justify-center">
+              {logoPreview ? (
+                <Image
+                  src={logoPreview}
+                  alt={`${form.customerName || "Customer"} logo`}
+                  width={80}
+                  height={80}
+                  className="h-full w-full object-contain"
+                  unoptimized
+                />
+              ) : (
+                <span className="text-2xl font-bold text-gray-300">
+                  {form.customerName
+                    ? form.customerName.charAt(0).toUpperCase()
+                    : "?"}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={handleLogoChange}
+              />
+
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => logoInputRef.current?.click()}
+                  leftIcon={<Upload size={14} />}
+                >
+                  {logoPreview ? "Change Logo" : "Upload Logo"}
+                </Button>
+
+                {logoPreview && (
+                  <>
+                    <span className="h-5 w-px bg-brand-border" />
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={removeLogo}
+                      leftIcon={<X size={13} />}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      Remove Logo
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <p className="text-xs text-brand-text-secondary">
+                Optional. PNG, JPG, SVG or WebP. Maximum size: 2 MB.
+              </p>
+
+              {logoError && <p className="text-xs text-red-600">{logoError}</p>}
+            </div>
+          </div>
+        </FormSection>
         <CustomerInformationCard
           values={{
             customerName: form.customerName,
@@ -207,6 +357,7 @@ export default function EditCustomerPage() {
             tin: form.tin,
             vatNumber: form.vatNumber,
             industry: form.industry,
+            otherIndustry: form.otherIndustry ?? "",
           }}
           errors={errors}
           onChange={handleChange}
@@ -267,13 +418,18 @@ export default function EditCustomerPage() {
         <div className="flex justify-between pb-10">
           {canEdit && (
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button
+                variant="outline"
+                leftIcon={<X size={14} />}
+                onClick={() => router.back()}
+              >
                 Cancel
               </Button>
 
               <Button
                 loading={updateCustomer.isPending}
                 onClick={updateCustomerInfo}
+                leftIcon={<CheckCircle2 size={15} />}
               >
                 Save Changes
               </Button>

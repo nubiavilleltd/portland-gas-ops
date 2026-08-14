@@ -11,12 +11,22 @@ Handles:
 - Activity Logging
 
 """
-
 from __future__ import annotations
+import logging
+import importlib
+
+from app.shared.services import email_service
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+from app.shared.services import cloudinary_service
 from typing import Optional
 from datetime import datetime
+from app.crm.email_content.customer_visit import on_scheduled
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status,UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 from app.crm.model import Customers, CustomerContact
@@ -40,7 +50,9 @@ from app.crm.model import (
     VisitStatus,
     VisitType,
 )
-
+CUSTOMER_VISIT_EMAIL_CONTENT = (
+    "app.crm.email_content.customer_visit"
+)
 from app.crm.schemas import (
     CustomerVisitCreate,
     CustomerVisitUpdate,
@@ -676,6 +688,7 @@ def create_customer(
         referrer_type=data.referrer_type,
         referrer_id=data.referrer_id,
         contact_person=data.contact_person,
+        logo_url=data.logo_url,
         department=data.department,
         email=data.email,
         phone=data.phone,
@@ -798,7 +811,7 @@ def sync_primary_contact(
         email=customer.email,
         phone=customer.phone,
         alternate_phone=customer.alternate_phone,
-        position=customer.position,
+        position=customer.role,
         role=customer.role,
         preferred_channel=customer.preferred_channel,
     )
@@ -868,6 +881,278 @@ def _generate_visit_number(db: Session) -> str:
         number = 1
 
     return f"VIS{number:06d}"
+
+
+def _call_customer_visit_hook(
+    hook_name: str,
+    ctx: dict,
+) -> dict | None:
+    """
+    Load and execute a customer-visit email content hook.
+    """
+    try:
+        module = importlib.import_module(
+            CUSTOMER_VISIT_EMAIL_CONTENT
+        )
+
+        hook = getattr(module, hook_name, None)
+
+        if not hook:
+            logger.warning(
+                "Customer visit email hook '%s' not found",
+                hook_name,
+            )
+            return None
+
+        return hook(ctx)
+
+    except Exception:
+        logger.exception(
+            "Customer visit email hook '%s' failed",
+            hook_name,
+        )
+        return None
+    
+
+def send_customer_visit_notifications(
+    *,
+    db,
+    visit,
+    customer,
+    contact,
+    current_user,
+) -> None:
+    """
+    Send customer-visit scheduled emails to:
+
+    1. Customer contact
+    2. Employee who scheduled the visit
+
+    Email failures must never break visit creation.
+    """
+
+    try:
+        # ---------------------------------------------------------
+        # Resolve employee who actually created the visit
+        # ---------------------------------------------------------
+
+        submitter = (
+            db.query(Employee)
+            .options(joinedload(Employee.user))
+            .filter(Employee.id == visit.created_by)
+            .first()
+        )
+
+        if not submitter or not submitter.user:
+            logger.warning(
+                "No submitter found for customer visit %s",
+                visit.visit_number,
+            )
+            return
+
+        requester_name = (
+            submitter.user.full_name
+            or submitter.employee_no
+            or "CRM Team"
+        )
+
+        # ---------------------------------------------------------
+        # Common template values
+        # ---------------------------------------------------------
+
+        visit_date = visit.visit_date.strftime("%d %B %Y")
+        visit_time = visit.visit_date.strftime("%I:%M %p")
+
+        visit_type = (
+            visit.visit_type.value.replace("_", " ").title()
+            if hasattr(visit.visit_type, "value")
+            else str(visit.visit_type).replace("_", " ").title()
+        )
+
+        contact_person = (
+            f"{contact.first_name or ''} "
+            f"{contact.last_name or ''}"
+        ).strip() or "N/A"
+
+        # ---------------------------------------------------------
+        # Build action URL
+        # ---------------------------------------------------------
+        #
+        # IMPORTANT:
+        # Replace this with the actual URL pattern used by your
+        # application.
+        #
+        # If your existing email templates already have a helper
+        # for URLs, use that helper here instead.
+        # ---------------------------------------------------------
+
+        action_url = (
+            f"{settings.FRONTEND_URL}/customer-visits/{visit.id}"
+        )
+
+        # =========================================================
+        # 1. CUSTOMER EMAIL
+        # =========================================================
+
+        if contact.email:
+            try:
+                customer_ctx = {
+                    "db": db,
+                    "visit": visit,
+                    "customer": customer,
+                    "contact": contact,
+                    "requester_name": requester_name,
+                    "recipient_type": "customer",
+                }
+
+                content = on_scheduled(customer_ctx) or {}
+
+                subject = (
+                    content.get("subject")
+                    or "Customer Visit Scheduled"
+                )
+
+                html = email_service._render(
+                    "customer_visit_scheduled.html",
+                    {
+                        "subject": subject,
+                        "requester_name": requester_name,
+                        "customer_name": (
+                            customer.customer_name or "Customer"
+                        ),
+                        "visit_number": visit.visit_number,
+                        "visit_date": visit_date,
+                        "visit_time": visit_time,
+                        "visit_type": visit_type,
+                        "contact_person": contact_person,
+                        "purpose": visit.purpose or "-",
+                        "visit": visit,
+                        "contact": contact,
+                        "intro_message": (
+                            content.get("intro_message")
+                            or ""
+                        ),
+                        "result_message": (
+                            content.get("result_message")
+                            or ""
+                        ),
+                        "button_label": (
+                            content.get("button_label")
+                            or "View Visit"
+                        ),
+                        "action_url": action_url,
+                    },
+                )
+
+                email_service._send(
+                    contact.email.strip(),
+                    subject,
+                    html,
+                )
+
+                logger.info(
+                    "Customer visit email sent to customer contact %s "
+                    "for visit %s",
+                    contact.email,
+                    visit.visit_number,
+                )
+
+            except Exception:
+                logger.exception(
+                    "Failed to send customer email for visit %s",
+                    visit.visit_number,
+                )
+
+        else:
+            logger.warning(
+                "Customer contact has no email for visit %s",
+                visit.visit_number,
+            )
+
+        # =========================================================
+        # 2. SUBMITTER EMAIL
+        # =========================================================
+
+        if submitter.user.email:
+            try:
+                submitter_ctx = {
+                    "db": db,
+                    "visit": visit,
+                    "customer": customer,
+                    "contact": contact,
+                    "requester_name": requester_name,
+                    "recipient_type": "submitter",
+                }
+
+                content = on_scheduled(submitter_ctx) or {}
+
+                subject = (
+                    content.get("subject")
+                    or "Customer Visit Scheduled"
+                )
+
+                html = email_service._render(
+                    "customer_visit_scheduled.html",
+                    {
+                        "subject": subject,
+                        "requester_name": requester_name,
+                        "customer_name": (
+                            customer.customer_name or "Customer"
+                        ),
+                        "visit_number": visit.visit_number,
+                        "visit_date": visit_date,
+                        "visit_time": visit_time,
+                        "visit_type": visit_type,
+                        "contact_person": contact_person,
+                        "purpose": visit.purpose or "-",
+                        "visit": visit,
+                        "contact": contact,
+                        "intro_message": (
+                            content.get("intro_message")
+                            or ""
+                        ),
+                        "result_message": (
+                            content.get("result_message")
+                            or ""
+                        ),
+                        "button_label": (
+                            content.get("button_label")
+                            or "View Visit"
+                        ),
+                        "action_url": action_url,
+                    },
+                )
+
+                email_service._send(
+                    submitter.user.email.strip(),
+                    subject,
+                    html,
+                )
+
+                logger.info(
+                    "Customer visit email sent to submitter %s "
+                    "for visit %s",
+                    submitter.user.email,
+                    visit.visit_number,
+                )
+
+            except Exception:
+                logger.exception(
+                    "Failed to send submitter email for visit %s",
+                    visit.visit_number,
+                )
+
+        else:
+            logger.warning(
+                "Submitter has no email for visit %s",
+                visit.visit_number,
+            )
+
+    except Exception:
+        logger.exception(
+            "Failed to prepare customer visit notifications for %s",
+            getattr(visit, "visit_number", None),
+        )
 
 
 def create_customer_visit(
@@ -949,7 +1234,7 @@ def create_customer_visit(
 
         visit_date=data.visit_date,
 
-        location=data.location,
+        # location=data.location,
 
         purpose=data.purpose,
 
@@ -982,8 +1267,23 @@ def create_customer_visit(
     )
     
     db.commit()
-
     db.refresh(visit)
+
+    # Email notifications
+    try:
+        send_customer_visit_notifications(
+            db=db,
+            visit=visit,
+            customer=customer,
+            contact=contact,
+            current_user=current_user,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to send customer visit notification emails "
+            "for visit %s",
+            visit.visit_number,
+        )
 
     return visit
 
@@ -1043,7 +1343,7 @@ def list_customer_visits(
             or_(
                 CustomerVisit.visit_number.ilike(f"%{search}%"),
                 Customers.customer_name.ilike(f"%{search}%"),
-                CustomerVisit.location.ilike(f"%{search}%"),
+                # CustomerVisit.location.ilike(f"%{search}%"),
             )
         )
 
@@ -1123,7 +1423,7 @@ def get_customer_visit(
 
         "visit_date": visit.visit_date,
 
-        "location": visit.location,
+        # "location": visit.location,
 
         "purpose": visit.purpose,
 
@@ -1260,3 +1560,57 @@ def dashboard_summary(db: Session):
         "follow_up_required": follow_up,
         "cancelled": cancelled,
     }
+def upload_customer_logo(
+    db: Session,
+    customer_id: str,
+    file: UploadFile,
+    current_user: User,
+) -> Customers:
+    customer = get_customer(
+        db=db,
+        customer_id=customer_id,
+    )
+
+    allowed_types = {
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/svg+xml",
+    }
+
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PNG, JPG, SVG or WebP images are allowed.",
+        )
+
+    file_bytes = file.file.read()
+
+    if len(file_bytes) > 2 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Logo must not exceed 2 MB.",
+        )
+
+    url = cloudinary_service.upload(
+        file_bytes,
+        public_id=f"customer-{customer_id}-logo",
+        folder="portland-gas/customer-logos",
+        resource_type="image",
+    )
+
+    customer.logo_url = url
+
+    log_customer_activity(
+        db=db,
+        customer=str(customer.id),
+        action="Customer Logo Updated",
+        entity_type=CRMActivityEntityType.customer,
+        description=f"Logo for customer ({customer.customer_name}) was updated.",
+        current_user=current_user,
+    )
+
+    db.commit()
+    db.refresh(customer)
+
+    return customer

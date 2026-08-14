@@ -2,6 +2,7 @@
 
 import Card from "@/components/ui/Card";
 import FormInput from "@/components/forms/FormInput";
+import SelectInput from "@/components/forms/SelectInput";
 
 interface Props {
   values: {
@@ -9,6 +10,7 @@ interface Props {
     tin: string;
     vatNumber: string;
     industry: string;
+    otherIndustry: string;
   };
 
   errors?: Partial<Record<keyof Props["values"], string>>;
@@ -17,13 +19,35 @@ interface Props {
 
   onChange?: (field: keyof Props["values"], value: string) => void;
 }
-
+export const INDUSTRIES = [
+  "oil_and_gas",
+  "manufacturing",
+  "construction",
+  "telecommunications",
+  "banking_and_finance",
+  "healthcare",
+  "pharmaceuticals",
+  "agriculture",
+  "transportation_and_logistics",
+  "retail",
+  "wholesale",
+  "hospitality",
+  "real_estate",
+  "education",
+  "government",
+  "energy",
+  "technology",
+  "professional_services",
+  "other",
+] as const;
 export default function BusinessInformationCard({
   values,
   errors,
   readOnly = false,
   onChange,
 }: Props) {
+  const isOtherIndustry = values.industry === "other";
+
   return (
     <Card>
       <h2 className="mb-5 text-base font-semibold text-brand-text-primary">
@@ -59,15 +83,32 @@ export default function BusinessInformationCard({
           onChange={(e) => onChange?.("vatNumber", e.target.value)}
         />
 
-        <FormInput
+        <SelectInput
           label="Industry"
-          placeholder="Enter Industry"
+          required
           value={values.industry}
           error={errors?.industry}
-          required
-          readOnly={readOnly}
-          onChange={(e) => onChange?.("industry", e.target.value)}
+          disabled={readOnly}
+          options={INDUSTRIES.map((industry) => ({
+            label: industry
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (char) => char.toUpperCase()),
+            value: industry,
+          }))}
+          onValueChange={(value) => onChange?.("industry", value)}
         />
+
+        {isOtherIndustry && (
+          <FormInput
+            label="Other Industry"
+            placeholder="Enter Industry"
+            value={values.otherIndustry}
+            error={errors?.otherIndustry}
+            required
+            readOnly={readOnly}
+            onChange={(e) => onChange?.("otherIndustry", e.target.value)}
+          />
+        )}
       </div>
     </Card>
   );

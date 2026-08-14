@@ -3,7 +3,7 @@
 import Card from "@/components/ui/Card";
 import FormMultiSelect from "@/components/forms/FormMultiSelect";
 import SelectInput from "@/components/forms/SelectInput";
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { useProductPicker } from "@/lib/modules/products/hooks/useProducts";
 
 import { PRODUCT_OPTIONS, DEMAND_RANGES, SUPPLY_METHODS } from "../constants";
 
@@ -27,8 +27,8 @@ export default function CommercialInformationCard({
   readOnly = false,
   onChange,
 }: Props) {
-  const { products, isLoading, error, refetch } = useProducts();
-
+  const { products, isLoading, error, refetch } = useProductPicker();
+  console.log(products, "products");
   const productOptions = isLoading
     ? [{ label: "Loading products...", value: "", disabled: true }]
     : products

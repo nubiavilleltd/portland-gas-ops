@@ -20,6 +20,7 @@ import {
   validateContacts,
   buildContactsPayload,
 } from "@/lib/modules/crm/utils/contact";
+import { X, CheckCircle2, Trash } from "lucide-react";
 
 function emptyContact(): ContactForm {
   return {
@@ -143,8 +144,40 @@ export default function NewCustomerContactPage() {
       toast.success("Contacts created successfully.");
       router.push("/crm/contacts");
     } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+
+      // Backend field validation errors
+      const backendErrors = detail?.details?.errors;
+
+      if (Array.isArray(backendErrors)) {
+        const fieldErrors: Record<string, string> = {};
+
+        for (const item of backendErrors) {
+          const field = item?.loc?.find(
+            (location: unknown) => location !== "body",
+          );
+
+          if (typeof field === "string") {
+            fieldErrors[field] = item?.msg || "Invalid value.";
+          }
+        }
+
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors((prev) => ({
+            ...prev,
+            ...fieldErrors,
+          }));
+
+          toast.error("Please correct the highlighted errors.");
+          return;
+        }
+      }
+
+      // Backend business/application error
       toast.error(
-        error?.response?.data?.detail?.message ?? "Failed to create contacts.",
+        detail?.message ??
+          (typeof detail === "string" ? detail : null) ??
+          "Failed to create contact. Please try again.",
       );
     }
   }
@@ -176,16 +209,17 @@ export default function NewCustomerContactPage() {
         {form.customerId && (
           <>
             {form.additionalContacts.map((contact, index) => (
-              <div key={index} className="rounded-lg border p-6 space-y-6">
+              <div key={index} className="rounded-lg space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">
+                  <h5 className="font-medium">
                     Additional Contact #{index + 1}
-                  </h4>
+                  </h5>
 
                   <Button
                     variant="danger"
                     size="sm"
                     onClick={() => removeContact(index)}
+                    leftIcon={<Trash size={14} />}
                   >
                     Remove
                   </Button>
@@ -214,7 +248,7 @@ export default function NewCustomerContactPage() {
                   values={{
                     department: contact.department,
                     preferred_channel: contact.preferred_channel,
-                    position: contact.position,
+                    position: contact.role,
                     role: contact.role,
                   }}
                   errors={{
@@ -234,11 +268,19 @@ export default function NewCustomerContactPage() {
             </Button>
 
             <div className="flex justify-start gap-3 pb-10">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button
+                variant="outline"
+                leftIcon={<X size={14} />}
+                onClick={() => router.back()}
+              >
                 Cancel
               </Button>
 
-              <Button loading={createContacts.isPending} onClick={submit}>
+              <Button
+                leftIcon={<CheckCircle2 size={15} />}
+                loading={createContacts.isPending}
+                onClick={submit}
+              >
                 Submit
               </Button>
             </div>

@@ -81,6 +81,10 @@ class Customers(Base):
 
     customer_no = Column(String(20), unique=True, nullable=False)
     customer_name = Column(String(200), nullable=False)
+    logo_url = Column(
+    String(1000),
+    nullable=True,
+    )
     entity_type = Column(
         SAEnum(CustomerEntityType),
         nullable=False,
@@ -319,10 +323,10 @@ class CustomerVisit(Base):
         nullable=False,
     )
 
-    location = Column(
-        String(255),
-        nullable=False,
-    )
+    # location = Column(
+    #     String(255),
+    #     nullable=False,
+    # )
 
     purpose = Column(
         Text,

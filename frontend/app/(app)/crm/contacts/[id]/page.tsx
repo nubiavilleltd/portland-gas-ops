@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import { BackButton } from "@/components/ui/BackButton";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import RoleBasedTabSection from "@/components/ui/RoleBasedTabSection";
 import Button from "@/components/ui/Button";
 import FormSection from "@/components/ui/FormSection";
 import {
@@ -29,6 +29,7 @@ import {
   validateContacts2,
 } from "@/lib/modules/crm/utils/contact";
 import ContactDetailsPageSkeleton from "@/lib/modules/crm/components/ContactDetailsPageSkeleton";
+import { Pencil, PowerOff, Power, X, CheckCircle2 } from "lucide-react";
 
 export default function ContactDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -196,13 +197,14 @@ export default function ContactDetailsPage() {
             variant="primary"
             disabled={employeesLoading}
             onClick={() => setIsEditing(true)}
+            leftIcon={<Pencil size={14} />}
           >
             Edit
           </Button>
         )}
       </div>
       <div className="space-y-6">
-        <RoleBasedRecordHeader
+        <RoleBasedTabSection
           id={form.contact_no}
           currentRole="crm_admin"
           onRoleChange={() => {}}
@@ -328,36 +330,34 @@ export default function ContactDetailsPage() {
           >
             <div className="space-y-6">
               {form.additional_contacts?.map((person, index) => (
-                <div
-                  key={person.id}
-                  className="rounded-lg border border-brand-border p-6 space-y-6"
-                >
-                  <div className="pb-3 border-b">
-                    <div className="flex items-center justify-between">
-                      <div className="flex">
-                        <h3 className="font-semibold mr-2">
-                          Contact #{index + 2}
-                        </h3>
-                        <ApprovalBadge status={person.status} />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isEditing}
-                          loading={statusLoadingId === person.id}
-                          onClick={() => togglePersonStatus(false, index)}
-                        >
-                          {person.status === "active"
-                            ? "Deactivate"
-                            : "Activate"}
-                        </Button>
-                      </div>
+                <div key={person.id} className="rounded-lg space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex">
+                      <h3 className="font-semibold mr-2">
+                        Contact #{index + 2}
+                      </h3>
+                      <ApprovalBadge status={person.status} />
                     </div>
-
-                    <p className="mt-1 text-sm text-brand-text-secondary">
-                      Additional customer contact.
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant={
+                          person.status === "active" ? "danger" : "primary"
+                        }
+                        size="sm"
+                        disabled={isEditing}
+                        loading={statusLoadingId === person.id}
+                        onClick={() => togglePersonStatus(false, index)}
+                        leftIcon={
+                          person.status === "active" ? (
+                            <PowerOff size={14} />
+                          ) : (
+                            <Power size={14} />
+                          )
+                        }
+                      >
+                        {person.status === "active" ? "Deactivate" : "Activate"}
+                      </Button>
+                    </div>
                   </div>
 
                   <ContactInformationCard
@@ -478,12 +478,17 @@ export default function ContactDetailsPage() {
           <div className="flex gap-3">
             {isEditing && (
               <>
-                <Button variant="outline" onClick={cancelEdit}>
+                <Button
+                  variant="outline"
+                  leftIcon={<X size={14} />}
+                  onClick={cancelEdit}
+                >
                   Cancel
                 </Button>
                 <Button
                   onClick={updateContact}
                   disabled={updateContacts.isPending}
+                  leftIcon={<CheckCircle2 size={15} />}
                 >
                   {updateContacts.isPending ? "Updating..." : "Update"}
                 </Button>{" "}

@@ -15,7 +15,7 @@ import {
   useDeactivateCustomer,
 } from "@/lib/modules/crm";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
-import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
+import RoleBasedTabSection from "@/components/ui/RoleBasedTabSection";
 import RequesterDetailsSection from "@/lib/modules/crm/components/RequesterDetailsSection";
 import type { MockUserRoleOption } from "@/components/ui/MockUserSwitcher";
 import Button from "@/components/ui/Button";
@@ -28,6 +28,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import CRMActivityTimeline from "@/lib/modules/crm/components/CRMActivityTimeline";
 import { useCRMActivityByCustomer } from "@/lib/modules/crm";
 import { toast } from "sonner";
+import { Tag, Pencil, PowerOff, Power } from "lucide-react";
+import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 
 export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +38,7 @@ export default function CustomerDetailsPage() {
   const { data: customer, isLoading: customerLoading } =
     useCustomerOnboardingDetails(id);
   const { data: contacts = [] } = useCustomerContactDetails(id);
-
+  const { orders = [], isLoading: ordersLoading } = useOrders();
   const primaryContact = contacts.find((c) => c.is_primary);
   const additionalContacts = contacts.filter((c) => !c.is_primary);
   const { entries } = useCRMActivityByCustomer(id);
@@ -45,7 +47,7 @@ export default function CustomerDetailsPage() {
 
   const { data: employees = [], isLoading: employeesLoading } = useEmployees();
 
-  if (customerLoading || employeesLoading) {
+  if (customerLoading || employeesLoading || ordersLoading) {
     return (
       <AppLayout pageTitle="Customer Details">
         <div className="space-y-6">
@@ -117,6 +119,13 @@ export default function CustomerDetailsPage() {
   }
 
   const canActivateDeactivate = isAdmin;
+  const customerOrders = orders.filter(
+    (order) => order.customerId === customer?.id,
+  );
+
+  const hasPurchased = customerOrders.length > 0;
+
+  const customerType = hasPurchased ? "purchasing" : customer.customer_type;
 
   return (
     <AppLayout pageTitle="Customer Details">
@@ -126,9 +135,10 @@ export default function CustomerDetailsPage() {
         <div>
           {canActivateDeactivate && customer.status !== "inactive" && (
             <Button
-              variant="outline"
+              variant="danger"
               loading={deactivateCustomerMutation.isPending}
               onClick={deactivateCustomer}
+              leftIcon={<PowerOff size={14} />}
             >
               Deactivate Customer
             </Button>
@@ -136,9 +146,10 @@ export default function CustomerDetailsPage() {
 
           {canActivateDeactivate && customer.status === "inactive" && (
             <Button
-              variant="outline"
+              // variant="outline"
               loading={activateCustomerMutation.isPending}
               onClick={activateCustomer}
+              leftIcon={<Power size={14} />}
             >
               Activate Customer
             </Button>
@@ -149,12 +160,16 @@ export default function CustomerDetailsPage() {
                 variant="outline"
                 className="mr-2 ml-2"
                 href={`/crm/customers/${customer.id}/edit`}
+                leftIcon={<Pencil size={14} />}
               >
                 Edit Customer
               </Button>
 
               {isActive && (
-                <Button href={`/crm/contacts/${customer.id}`}>
+                <Button
+                  leftIcon={<Tag size={16} />}
+                  href={`/crm/contacts/${customer.id}`}
+                >
                   Manage Contacts
                 </Button>
               )}
@@ -163,7 +178,7 @@ export default function CustomerDetailsPage() {
         </div>
       </div>
       <div className="space-y-6 mb-3">
-        <RoleBasedRecordHeader
+        <RoleBasedTabSection
           id={customer.customer_no}
           currentRole="crm_admin"
           onRoleChange={() => {}}
@@ -187,6 +202,35 @@ export default function CustomerDetailsPage() {
             requestDate: formatDateTime(customer.created_at),
           }}
         />
+        <FormSection title="Customer Logo" description="Company logo">
+          <div className="flex items-center gap-5">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-brand-border bg-gray-50">
+              {customer.logo_url ? (
+                <img
+                  src={customer.logo_url}
+                  alt={`${customer.customer_name} logo`}
+                  className="h-full w-full object-contain p-2"
+                />
+              ) : (
+                <span className="text-3xl font-bold text-gray-300">
+                  {customer.customer_name?.charAt(0).toUpperCase() ?? "?"}
+                </span>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-brand-text">
+                {customer.customer_name}
+              </p>
+
+              <p className="mt-1 text-xs text-brand-text-secondary">
+                {customer.logo_url
+                  ? "Customer logo uploaded"
+                  : "No customer logo uploaded"}
+              </p>
+            </div>
+          </div>
+        </FormSection>
         <CustomerInformationCard
           readOnly={readOnly}
           values={{
@@ -203,6 +247,7 @@ export default function CustomerDetailsPage() {
             tin: customer.tin ?? "",
             vatNumber: customer.vat_number ?? "",
             industry: customer.industry ?? "",
+            otherIndustry: customer.otherIndustry ?? "",
           }}
         />
         <PrimaryContactCard
@@ -213,7 +258,7 @@ export default function CustomerDetailsPage() {
             email: customer.email,
             phone: customer.phone,
             alternatePhone: customer.alternate_phone ?? "",
-            position: customer.position ?? "",
+            position: customer.role ?? "",
             role: customer.role ?? "",
             preferredChannel: customer.preferred_channel ?? "",
           }}
@@ -303,7 +348,7 @@ export default function CustomerDetailsPage() {
         <AccountManagementCard
           readOnly={readOnly}
           values={{
-            customerType: customer.customer_type,
+            customerType,
             salesContact: customer.sales_contact ?? "",
             referrerType: customer.referrer_type ?? "",
             referrerId: customer.referrer_id ?? "",

@@ -6,7 +6,7 @@ import { Eye } from "lucide-react";
 import DataTable, { Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
-
+import { formatDateTime } from "@/lib/utils";
 import { CustomerVisit } from "../types";
 
 type Props = {
@@ -30,6 +30,7 @@ export default function UpcomingVisitsTable({ visits }: Props) {
     {
       key: "visit_date",
       label: "Visit Date",
+      render: (date) => formatDateTime(date as string),
     },
     {
       key: "status",

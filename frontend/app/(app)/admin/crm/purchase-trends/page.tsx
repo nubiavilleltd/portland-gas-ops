@@ -178,7 +178,7 @@ export default function PurchaseTrendsPage() {
           columns={columns}
           searchable
           searchPlaceholder="Search customers..."
-          rowHref={(customer) => `/crm/purchase-trends/${customer.customerId}`}
+          rowHref={(customer) => `/admin/crm/purchase-trends/${customer.id}`}
           emptyMessage="No purchase history available."
         />
       </div>

@@ -1,0 +1,201 @@
+<!-- Injected into base.html {{body_content}} -->
+<!-- Sent when a customer visit is scheduled -->
+
+<h1>Customer Visit Scheduled</h1>
+
+<p>{{greeting}}</p>
+
+<p>{{intro_message}}</p>
+
+<table
+  style="
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    border-collapse: collapse;
+    margin: 20px 0;
+  "
+>
+  <tr style="background: #f9fafb">
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+        width: 40%;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      Customer
+    </td>
+
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #111118;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      {{customer_name}}
+    </td>
+  </tr>
+
+  <tr>
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      Visit Number
+    </td>
+
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #111118;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      {{visit_number}}
+    </td>
+  </tr>
+
+  <tr style="background: #f9fafb">
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      Date
+    </td>
+
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #111118;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      {{visit_date}}
+    </td>
+  </tr>
+
+  <tr>
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      Time
+    </td>
+
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #111118;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      {{visit_time}}
+    </td>
+  </tr>
+
+  <tr style="background: #f9fafb">
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      Visit Type
+    </td>
+
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #111118;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      {{visit_type}}
+    </td>
+  </tr>
+
+  <tr>
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      Contact Person
+    </td>
+
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #111118;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      {{contact_person}}
+    </td>
+  </tr>
+
+  <tr style="background: #f9fafb">
+    <td
+      style="
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+      "
+    >
+      Purpose
+    </td>
+
+    <td style="padding: 10px 14px; font-size: 13px; color: #111118">
+      {{purpose}}
+    </td>
+  </tr>
+</table>
+
+<p style="color: #6b7280; font-size: 13px">{{result_message}}</p>
+
+<a href="{{action_url}}" class="btn">{{button_label}}</a>
+
+<hr class="divider" />
+
+<p style="font-size: 12px; color: #9ca3af">
+  If the button above does not work, copy and paste this link into your
+  browser:<br />
+
+  <a href="{{action_url}}" style="color: #7c3aed; word-break: break-all">
+    {{action_url}}
+  </a>
+</p>

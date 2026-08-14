@@ -160,9 +160,9 @@ export default function CRMDashboardPage() {
       />
 
       <div className="space-y-8">
-        {/* Customer Overview */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card
+            className="h-full"
             icon={<Users className="h-5 w-5" />}
             title="Total Customers"
             description={
@@ -171,6 +171,7 @@ export default function CRMDashboardPage() {
           />
 
           <Card
+            className="h-full"
             icon={<UserCheck className="h-5 w-5" />}
             title="Active Customers"
             description={
@@ -181,17 +182,16 @@ export default function CRMDashboardPage() {
           />
 
           <Card
+            className="h-full"
             icon={<Contact className="h-5 w-5" />}
             title="Total Contacts"
             description={
               <span className="text-2xl font-bold">{contacts.length}</span>
             }
           />
-        </div>
 
-        {/* Sales & Purchase Performance */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card
+            className="h-full"
             icon={<BadgeDollarSign className="h-5 w-5" />}
             title="Top Purchasing Customer"
             description={
@@ -207,14 +207,18 @@ export default function CRMDashboardPage() {
               )
             }
           />
+
           <Card
+            className="h-full"
             icon={<ShoppingCart className="h-5 w-5" />}
             title="Total Orders"
             description={
               <span className="text-2xl font-bold">{totalOrders}</span>
             }
           />
+
           <Card
+            className="h-full"
             icon={<Wallet className="h-5 w-5" />}
             title="Total Revenue"
             description={
@@ -225,6 +229,7 @@ export default function CRMDashboardPage() {
           />
 
           <Card
+            className="h-full"
             icon={<TrendingUp className="h-5 w-5" />}
             title="Average Order Value"
             description={
@@ -233,11 +238,9 @@ export default function CRMDashboardPage() {
               </span>
             }
           />
-        </div>
 
-        {/* Customer Engagement */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card
+            className="h-full"
             icon={<CalendarDays className="h-5 w-5" />}
             title="Scheduled Visits"
             description={
@@ -246,7 +249,9 @@ export default function CRMDashboardPage() {
               </span>
             }
           />
+
           <Card
+            className="h-full"
             icon={<CheckCircle2 className="h-5 w-5" />}
             title="Completed Visits"
             description={
@@ -257,6 +262,7 @@ export default function CRMDashboardPage() {
           />
 
           <Card
+            className="h-full"
             icon={<RotateCw className="h-5 w-5" />}
             title="Follow-ups Due"
             description={
@@ -265,6 +271,7 @@ export default function CRMDashboardPage() {
           />
 
           <Card
+            className="h-full"
             icon={<XCircle className="h-5 w-5" />}
             title="Cancelled Visits"
             description={
@@ -273,14 +280,6 @@ export default function CRMDashboardPage() {
               </span>
             }
           />
-
-          {/* <Card
-            icon={<Clock3 className="h-5 w-5" />}
-            title="Visits This Month"
-            description={
-              <span className="text-2xl font-bold">{visits.length}</span>
-            }
-          /> */}
         </div>
 
         {/* Business Insights */}
