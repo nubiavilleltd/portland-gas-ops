@@ -15,9 +15,14 @@ export default function CRMActivityTimeline({ entries }: Props) {
     );
   }
 
+  const sortedEntries = [...entries].sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+
   return (
     <div className="space-y-0">
-      {entries.map((entry, i) => (
+      {sortedEntries.map((entry, i) => (
         <div key={entry.id} className="relative flex gap-3 pb-4">
           {/* Timeline dot + line */}
           <div className="flex shrink-0 flex-col items-center">
