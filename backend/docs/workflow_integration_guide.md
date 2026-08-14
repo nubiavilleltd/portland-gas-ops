@@ -415,7 +415,7 @@ Submit a request of your type and check the server logs. Even if Brevo is not
 configured, you will see:
 
 ```
-WARNING email_service: BREVO_API_KEY not set — email not sent.
+WARNING email_service: POSTMARK_SERVER_TOKEN not set — email not sent.
          To: approver@portlandgas.com | Subject: Work Initiation Submitted — WI-2026-0001
 ```
 

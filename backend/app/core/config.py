@@ -13,10 +13,10 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
     ENVIRONMENT: str = "development"
 
-    # Brevo — optional until API key is provided
-    BREVO_API_KEY: Optional[str] = None
-    BREVO_FROM_EMAIL: str = "ebukaezeanya14@gmail.com"
-    BREVO_FROM_NAME: str = "Portland Gas Operations"
+    # Postmark — optional until server token is provided
+    POSTMARK_SERVER_TOKEN: Optional[str] = None
+    POSTMARK_FROM_EMAIL: str = "appnotice@nubiaville.com"
+    POSTMARK_FROM_NAME: str = "Portland Gas Operations"
 
     # Database SSL (set to true for cloud databases like Aiven)
     DATABASE_SSL: bool = False
