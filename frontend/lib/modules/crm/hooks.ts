@@ -37,9 +37,17 @@ export async function uploadCustomerLogo(
 }
 
 export function useUploadCustomerLogo() {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: FormData }) =>
       uploadCustomerLogo(id, data),
+
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["crm", "customers", variables.id],
+      });
+    },
   });
 }
 

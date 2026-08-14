@@ -362,7 +362,8 @@ export default function NewCustomerPage() {
           </Button>
 
           <Button
-            disabled={createCustomer.isPending}
+            loading={createCustomer.isPending || uploadCustomerLogo.isPending}
+            disabled={createCustomer.isPending || uploadCustomerLogo.isPending}
             leftIcon={<CheckCircle2 size={15} />}
             onClick={submitCustomer}
           >

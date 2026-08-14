@@ -425,10 +425,14 @@ export default function EditCustomerPage() {
               >
                 Cancel
               </Button>
-
               <Button
-                loading={updateCustomer.isPending}
+                loading={
+                  updateCustomer.isPending || uploadCustomerLogo.isPending
+                }
                 onClick={updateCustomerInfo}
+                disabled={
+                  updateCustomer.isPending || uploadCustomerLogo.isPending
+                }
                 leftIcon={<CheckCircle2 size={15} />}
               >
                 Save Changes
