@@ -256,6 +256,20 @@ class InventoryRepository:
         inventory_item_id: str,
     ) -> OrderItemInventory:
 
+        existing = (
+            db.query(OrderItemInventory)
+            .filter(
+                OrderItemInventory.order_item_id == order_item_id,
+                OrderItemInventory.inventory_item_id == inventory_item_id,
+            )
+            .first()
+        )
+
+        if existing is not None:
+            existing.released_at = None
+            db.flush()
+            return existing
+
         allocation = OrderItemInventory(
             order_item_id=order_item_id,
             inventory_item_id=inventory_item_id,
@@ -266,6 +280,26 @@ class InventoryRepository:
 
         return allocation
 
+    def release_order_item_inventory_for_item(
+        self,
+        db: Session,
+        inventory_item_id: str,
+    ) -> None:
+
+        (
+            db.query(OrderItemInventory)
+            .filter(
+                OrderItemInventory.inventory_item_id == inventory_item_id,
+                OrderItemInventory.released_at.is_(None),
+            )
+            .update(
+                {OrderItemInventory.released_at: func.now()},
+                synchronize_session=False,
+            )
+        )
+
+        db.flush()
+
     def get_allocated_inventory_for_order_item(
         self,
         db: Session,
@@ -275,7 +309,10 @@ class InventoryRepository:
         return (
             db.query(OrderItemInventory)
             .options(joinedload(OrderItemInventory.inventory_item))
-            .filter(OrderItemInventory.order_item_id == order_item_id)
+            .filter(
+                OrderItemInventory.order_item_id == order_item_id,
+                OrderItemInventory.released_at.is_(None),
+            )
             .all()
         )
     
@@ -643,11 +680,11 @@ class InventoryRepository:
     ) -> bool:
         return db.query(
             exists().where(
-                OrderItemInventory.inventory_item_id == inventory_item_id
+                OrderItemInventory.inventory_item_id == inventory_item_id,
+                OrderItemInventory.released_at.is_(None),
             )
         ).scalar()
     
-   
     def count_available_inventory_items(
         self,
         db: Session,
