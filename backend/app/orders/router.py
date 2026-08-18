@@ -180,54 +180,6 @@ def submit_order(
     db.refresh(order)
     return _to_response(order)
 
-# @router.post("/{order_id}/cancel", response_model=OrderResponse)
-# def cancel_order(
-#     order_id:     str,
-#     body:         CancelOrderRequest,
-#     db:           Session = Depends(get_db),
-#     current_user: User    = Depends(get_current_user),
-# ):
-#     """
-#     Cancel order. Backend also voids any linked invoice atomically.
-#     Import InvoiceService here to avoid circular imports.
-#     """
-#     from app.invoices.service import InvoiceService
-#     invoice_service = InvoiceService()
-
-#     existing_order = service.get_or_raise(db, order_id)
-
-
-#     permissions.ensure_can_cancel_order(
-#         current_user,
-#         existing_order
-#     )
-
-#     order = service.cancel(db, existing_order, reason=body.reason)
-
-#     # Cascade: void linked invoice if exists
-#     if order.invoice_id:
-#         invoice = invoice_service.get_or_none(db, order.invoice_id)
-#         if invoice and invoice.status in (
-#             PaymentStatus.paid,
-#             PaymentStatus.partially_paid,
-#         ):
-#             raise AppException(
-#                 400,
-#                 OrderErrorCode.ORDER_CANNOT_BE_CANCELLED,
-#                 "Orders with paid or partially paid invoices cannot be cancelled."
-#             )
-    
-#     AuditService.record(
-#     db, AuditEntityType.order, order.id,
-#     "cancelled",
-#     f"Order cancelled: {body.reason}" if body.reason else "Order cancelled",
-#     AuditActorType.employee, current_user.employee.id, current_user.full_name)
-
-#     db.commit()
-#     db.refresh(order)
-#     return _to_response(order)
-
-
 
 @router.post("/{order_id}/cancel", response_model=OrderResponse)
 def cancel_order(
