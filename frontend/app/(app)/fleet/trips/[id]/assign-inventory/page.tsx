@@ -155,6 +155,7 @@ export default function AssignInventoryPage() {
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products, isLoading: productsLoading } = useProducts();
   const { items, isLoading: itemsLoading } = useInventoryItems();
+  const [justSubmitted, setJustSubmitted] = useState(false);
 
   const [selection, setSelection] = useState<SelectionMap>({});
   const [activePicker, setActivePicker] = useState<{
@@ -195,7 +196,7 @@ export default function AssignInventoryPage() {
   }
 
   // ── Guard ─────────────────────────────────────────────────
-  if (!canAssignInventory(trip)) {
+  if (!justSubmitted && !canAssignInventory(trip)) {
     return (
       <AppLayout pageTitle="Cannot Assign Inventory">
         <div className="bg-white border border-brand-border rounded-2xl p-8 max-w-lg mt-6">
@@ -341,10 +342,23 @@ export default function AssignInventoryPage() {
         }),
     );
 
-    await assignInventory.mutateAsync({
-      trip: trip as Trip,
-      assignments,
-    });
+    // await assignInventory.mutateAsync({
+    //   trip: trip as Trip,
+    //   assignments,
+    // });
+
+    // new_str
+    setJustSubmitted(true);
+
+    try {
+      await assignInventory.mutateAsync({
+        trip: trip as Trip,
+        assignments,
+      });
+    } catch (err) {
+      setJustSubmitted(false);
+      throw err;
+    }
   }
 
   // ── Render ────────────────────────────────────────────────
