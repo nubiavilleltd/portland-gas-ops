@@ -53,7 +53,7 @@ export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promis
   y += 15;
 
   if (customer?.address_line1) {
-    drawLabelValue(doc, "_line1", customer.address_line1, col1, y, colW);
+    drawLabelValue(doc, "Address", customer.address_line1, col1, y, colW);
   }
   if (order?.orderNumber) {
     drawLabelValue(doc, "Order Number", order.orderNumber, col2, y, colW);

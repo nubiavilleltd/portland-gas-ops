@@ -355,6 +355,11 @@ class OrderItemInventory(Base):
         nullable=False,
     )
 
+    released_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     order_item = relationship(
         "OrderItem",
         back_populates="inventory_assignments",

@@ -636,50 +636,6 @@ class InventoryService:
         )
 
 
-    # def release_trip_inventory(
-    #     self,
-    #     db: Session,
-    #     trip_id: str,
-    # ) -> None:
-    #     """
-    #     Releases every inventory item allocated to a trip.
-
-    #     If the trip was cancelled before dispatch,
-    #     reserved items become available.
-
-    #     If the trip was cancelled after dispatch,
-    #     checked-out items become available.
-
-    #     Other statuses are ignored.
-    #     """
-
-    #     items = self.repo.get_allocated_inventory_for_trip(
-    #         db=db,
-    #         trip_id=trip_id,
-    #     )
-
-    #     for item in items:
-
-    #         if item.status not in (
-    #             InventoryItemStatus.reserved,
-    #             InventoryItemStatus.checked_out,
-    #         ):
-    #             continue
-
-    #         self.repo.update_inventory_item(
-    #             db=db,
-    #             item=item,
-    #             status=InventoryItemStatus.available,
-    #             disposition=None,
-    #             order_id=None,
-    #             trip_id=None,
-    #             customer_id=None,
-    #             checked_out_at=None,
-    #             expected_return_date=None,
-    #         )
-
-
-
     def release_trip_inventory(
         self,
         db: Session,
@@ -721,6 +677,11 @@ class InventoryService:
                 InventoryItemStatus.checked_out,
             ):
                 continue
+
+            self.repo.release_order_item_inventory_for_item(
+                db=db,
+                inventory_item_id=item.id,
+            )
 
             self.repo.update_inventory_item(
                 db=db,
