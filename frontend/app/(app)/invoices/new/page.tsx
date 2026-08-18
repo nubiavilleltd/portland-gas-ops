@@ -103,20 +103,20 @@ function CreateInvoicePageContent() {
   const canInvoice = order ? canGenerateInvoice(order) : false;
 
   const minimumInvoiceDate = useMemo(() => {
-  return new Date(
-    Math.max(
-      new Date().setHours(0, 0, 0, 0),
-      new Date(order?.createdAt ?? "").setHours(0, 0, 0, 0),
-    ),
-  )
-    .toISOString()
-    .split("T")[0];
-}, [order?.createdAt]);
+    return new Date(
+      Math.max(
+        new Date().setHours(0, 0, 0, 0),
+        new Date(order?.createdAt ?? "").setHours(0, 0, 0, 0),
+      ),
+    )
+      .toISOString()
+      .split("T")[0];
+  }, [order?.createdAt]);
 
-const schema = useMemo(
-  () => createInvoiceSchema(order?.createdAt ?? ""),
-  [order?.createdAt]
-);
+  const schema = useMemo(
+    () => createInvoiceSchema(order?.createdAt ?? ""),
+    [order?.createdAt]
+  );
 
 
 
@@ -228,11 +228,11 @@ const schema = useMemo(
 
   async function onSubmit(data: InvoiceForm) {
     try {
-      await generateInvoice(data);
+      const invoice = await generateInvoice(data);
       toast.success("Invoice generated successfully");
-      // router.push(INVOICE_ROUTES.list());
+      router.replace(INVOICE_ROUTES.detail(invoice.id));
 
-      router.replace(INVOICE_ROUTES.detail(order?.invoiceId ?? ""));
+
     } catch (error) {
       setSubmitError(parseError(error));
       toast.error(parseError(error));
@@ -306,7 +306,7 @@ const schema = useMemo(
                   onBlur={field.onBlur}
                   error={fieldState.error?.message}
                   min={
-                   minimumInvoiceDate
+                    minimumInvoiceDate
                   }
                 />
               )}

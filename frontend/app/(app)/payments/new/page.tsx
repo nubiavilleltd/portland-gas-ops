@@ -109,9 +109,9 @@ function CreatePaymentPageContent() {
 
 
 
-  const { mutate: recordPayment, isPending } = useRecordPaymentWorkflow(
-    selectedInvoice ?? ({ id: "" } as Invoice)
-  );
+ const { mutate: recordPayment, isPending } = useRecordPaymentWorkflow(
+  selectedInvoice
+);
 
 
 
