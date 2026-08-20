@@ -103,7 +103,7 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                   active
-                    ? "bg-brand-purple/15 text-white border-l-2 border-brand-purple"
+                    ? "bg-brand-purple/15 text-white border-l-5 border-brand-purple"
                     : "text-gray-400 hover:text-white hover:bg-white/5"
                 )}
               >
