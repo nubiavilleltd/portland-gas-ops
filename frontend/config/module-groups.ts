@@ -21,6 +21,7 @@ import {
   Building2,
   Contact,
   CalendarCheck2,
+  ShieldCheck,
 } from "lucide-react";
 
 export type ModuleProcess = {
@@ -32,8 +33,58 @@ export type ModuleProcess = {
   showOnHome?: boolean;
 };
 
+export type ModuleColor = "purple" | "blue" | "green" | "amber" | "violet";
+export type GroupSize = "compact" | "wide";
+
+// export const moduleSizeClasses: Record<GroupSize, string> = {
+//   compact: "lg:basis-[420px] lg:flex-1",
+//   wide: "lg:basis-[600px] lg:flex-1",
+// };
+export const moduleSizeClasses: Record<GroupSize, string> = {
+  compact: "lg:basis-[420px] lg:grow-0 lg:shrink-0",
+  wide: "lg:basis-[600px] lg:flex-1",
+};
+
+export const moduleColorClasses: Record<ModuleColor,
+  { badgeBg: string; badgeText: string; tileBg: string; tileText: string }
+> = {
+  purple: {
+    badgeBg: "bg-purple-50",
+    badgeText: "text-purple-600",
+    tileBg: "bg-purple-50",
+    tileText: "text-purple-600",
+  },
+  blue: {
+    badgeBg: "bg-blue-50",
+    badgeText: "text-blue-600",
+    tileBg: "bg-blue-50",
+    tileText: "text-blue-600",
+  },
+  green: {
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-600",
+    tileBg: "bg-emerald-50",
+    tileText: "text-emerald-600",
+  },
+  amber: {
+    badgeBg: "bg-amber-50",
+    badgeText: "text-amber-600",
+    tileBg: "bg-amber-50",
+    tileText: "text-amber-600",
+  },
+  violet: {
+    badgeBg: "bg-violet-50",
+    badgeText: "text-violet-600",
+    tileBg: "bg-violet-50",
+    tileText: "text-violet-600",
+  },
+};
+
 export type ModuleGroup = {
   title: string;
+  icon: LucideIcon;
+  color: ModuleColor;
+  size: GroupSize;
   routePrefixes?: readonly string[];
   processes: readonly ModuleProcess[];
 };
@@ -52,6 +103,10 @@ export const moduleGroups: readonly ModuleGroup[] = [
   // },
   {
     title: "Customer Relationship Management",
+    icon: Users,
+    color: "purple",
+    size: "compact",
+
     processes: [
       {
         name: "Customers",
@@ -75,6 +130,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Finance & HR Management",
+    icon: Banknote,
+    color: "blue",
+    size: "wide",
     routePrefixes: [
       "/finance",
       "/hr-management/leave-requests",
@@ -123,6 +181,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Operations",
+     icon: Truck,
+    color: "green",
+    size: "compact",
     processes: [
       {
         name: "Trips & Dispatch",
@@ -153,6 +214,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Safety & Compliance",
+    icon: ShieldCheck,
+    color: "amber",
+    size: "wide",
     routePrefixes: ["/safety"],
     processes: [
       {
@@ -184,6 +248,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Supply Chain",
+     icon: Package,
+    color: "violet",
+    size: "compact",
     processes: [
       {
         name: "Assets",
