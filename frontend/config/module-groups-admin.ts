@@ -36,8 +36,81 @@ export type ModuleProcess = {
   showOnHome?: boolean;
 };
 
+export type ModuleColor =
+  | "purple"
+  | "blue"
+  | "green"
+  | "amber"
+  | "violet"
+  | "rose"
+  | "indigo"
+  | "teal";
+
+export type GroupSize = "compact" | "wide";
+
+export const moduleSizeClasses: Record<GroupSize, string> = {
+  compact: "lg:basis-[420px] lg:grow-0 lg:shrink-0",
+  wide: "lg:basis-[600px] lg:flex-1",
+};
+
+export const moduleColorClasses: Record<ModuleColor,
+  { badgeBg: string; badgeText: string; tileBg: string; tileText: string }
+> = {
+  purple: {
+    badgeBg: "bg-purple-50",
+    badgeText: "text-purple-600",
+    tileBg: "bg-purple-50",
+    tileText: "text-purple-600",
+  },
+  blue: {
+    badgeBg: "bg-blue-50",
+    badgeText: "text-blue-600",
+    tileBg: "bg-blue-50",
+    tileText: "text-blue-600",
+  },
+  green: {
+    badgeBg: "bg-emerald-50",
+    badgeText: "text-emerald-600",
+    tileBg: "bg-emerald-50",
+    tileText: "text-emerald-600",
+  },
+  amber: {
+    badgeBg: "bg-amber-50",
+    badgeText: "text-amber-600",
+    tileBg: "bg-amber-50",
+    tileText: "text-amber-600",
+  },
+  violet: {
+    badgeBg: "bg-violet-50",
+    badgeText: "text-violet-600",
+    tileBg: "bg-violet-50",
+    tileText: "text-violet-600",
+  },
+  rose: {
+    badgeBg: "bg-rose-50",
+    badgeText: "text-rose-600",
+    tileBg: "bg-rose-50",
+    tileText: "text-rose-600",
+  },
+  indigo: {
+    badgeBg: "bg-indigo-50",
+    badgeText: "text-indigo-600",
+    tileBg: "bg-indigo-50",
+    tileText: "text-indigo-600",
+  },
+  teal: {
+    badgeBg: "bg-teal-50",
+    badgeText: "text-teal-600",
+    tileBg: "bg-teal-50",
+    tileText: "text-teal-600",
+  },
+};
+
 export type ModuleGroup = {
   title: string;
+  icon: LucideIcon;
+  color: ModuleColor;
+  size: GroupSize;
   routePrefixes?: readonly string[];
   processes: readonly ModuleProcess[];
 };
@@ -45,6 +118,9 @@ export type ModuleGroup = {
 export const moduleGroups: readonly ModuleGroup[] = [
   {
     title: "Customer Relationship Management",
+    icon: Users,
+    color: "purple",
+    size: "compact",
     routePrefixes: ["/admin/crm"],
     processes: [
       {
@@ -65,6 +141,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
 
   {
     title: "Intranet CMS",
+    icon: Newspaper,
+    color: "blue",
+    size: "wide",
     routePrefixes: ["/admin/intranet"],
     processes: [
       {
@@ -119,6 +198,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Operations",
+    icon: Truck,
+    color: "green",
+    size: "compact",
     processes: [
       {
         name: "Vehicles",
@@ -149,6 +231,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "People & Administration",
+    icon: Users2,
+    color: "amber",
+    size: "wide",
     routePrefixes: ["/admin/accounts", "/admin/employees"],
     processes: [
       {
@@ -209,6 +294,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
 
   {
     title: "Safety & Compliance",
+    icon: ShieldCheck,
+    color: "rose",
+    size: "compact",
     routePrefixes: ["/admin/safety"],
     processes: [
       {
@@ -223,6 +311,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
 
   {
     title: "Supply Chain",
+    icon: Store,
+    color: "violet",
+    size: "wide",
     routePrefixes: ["/admin/assets", "/admin/vendors"],
     processes: [
       {
@@ -243,6 +334,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Workflow & Approvals",
+    icon: GitBranch,
+    color: "indigo",
+    size: "compact",
     routePrefixes: ["/admin/workflows"],
     processes: [
       {
@@ -263,6 +357,9 @@ export const moduleGroups: readonly ModuleGroup[] = [
   },
   {
     title: "Setups",
+    icon: Building2,
+    color: "teal",
+    size: "wide",
     routePrefixes: ["/admin/setups"],
     processes: [
       {
