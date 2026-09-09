@@ -1,12 +1,16 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { useReactToPrint } from "react-to-print";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Tag, MapPin, Calendar, Package, Info } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
+import QrCode from "@/components/ui/QrCode";
+import PrintableQrLabel from "@/lib/modules/inventory/components/PrintableQrLabel";
 
 import {
   useInventoryItemById,
@@ -17,7 +21,7 @@ import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 import { canReturn } from "@/lib/modules/inventory/guards/inventory.guards";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
-import { formatDate } from "@/lib/utils";
+import { formatDate, buildFrontendUrl } from "@/lib/utils";
 
 import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
 import { BadgeVariant } from "@/config/badge.config";
@@ -89,6 +93,7 @@ const MOVEMENT_LABELS: Record<string, { label: string; variant: BadgeVariant }> 
 export default function InventoryItemDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const printRef = useRef<HTMLDivElement>(null);
 
   const { item, isLoading: itemLoading } = useInventoryItemById(id);
   const { movements, isLoading: movementsLoading } = useStockMovementsByItem(id);
@@ -96,6 +101,26 @@ export default function InventoryItemDetailPage() {
   const { order, isLoading: orderLoading } = useOrderById(item?.order_id as string)
 
   const isLoading = itemLoading || movementsLoading || productsLoading || orderLoading;
+
+
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `QR-Label-${item?.tag_number || "item"}`,
+    onAfterPrint: () => {
+      console.log("Print completed");
+    },
+    pageStyle: `
+      @page {
+        margin: 0.5in;
+        size: A4;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: white;
+      }
+    `,
+  });
 
   if (isLoading) {
     return <InventoryItemDetailSkeleton />;
@@ -110,6 +135,7 @@ export default function InventoryItemDetailPage() {
   }
 
   const product = getProductById(products, item.product_id);
+  const itemUrl = buildFrontendUrl(INVENTORY_ROUTES.trackedDetail(item.id));
 
   return (
     <AppLayout pageTitle={item.tag_number}>
@@ -154,10 +180,6 @@ export default function InventoryItemDetailPage() {
               label="Product"
               value={product?.name}
             />
-            {/* <InfoRow
-              label="Serial Number"
-              value={item.serial_number}
-            /> */}
             <InfoRow
               label="Status"
               value={
@@ -209,6 +231,28 @@ export default function InventoryItemDetailPage() {
               <p className="text-sm">{item.notes}</p>
             </div>
           )}
+        </div>
+
+        {/* ── QR CODE ──────────────────────────────────── */}
+        <div className="bg-white border border-brand-border rounded-2xl">
+          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+            <h2 className="text-sm font-semibold text-brand-text-primary">
+              QR Code
+            </h2>
+          </div>
+          <div className="p-6 flex flex-col items-center gap-4">
+            <QrCode value={itemUrl} size={180} />
+            <p className="text-sm text-brand-text-secondary text-center max-w-xs">
+              Scan to open this inventory item's details page.
+            </p>
+          <Button 
+  variant="outline" 
+  size="sm"
+  onClick={handlePrint}
+>
+  Print QR Code
+</Button>
+          </div>
         </div>
 
         {/* ── CUSTOMER / ORDER INFO (if out) ─────────────── */}
@@ -306,6 +350,15 @@ export default function InventoryItemDetailPage() {
         </div>
 
       </div>
+
+    <div style={{ display: "none" }}>
+  <PrintableQrLabel
+    ref={printRef}
+    item={item}
+    productName={product?.name}
+    qrValue={itemUrl}
+  />
+</div>
     </AppLayout>
   );
 }
