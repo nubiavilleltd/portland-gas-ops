@@ -15,9 +15,7 @@ import {
   ClipboardList,
   ArrowRight,
   History,
-  Download,
 } from "lucide-react";
-import QRCode from "react-qr-code";
 import AppLayout from "@/components/layout/AppLayout";
 import AdminAssetDetailSkeleton from "./AdminAssetDetailSkeleton";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -37,7 +35,7 @@ import {
 import EmployeePicker, { type PickedEmployee } from "@/components/ui/EmployeePicker";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useToast } from "@/hooks/useToast";
-import { formatCurrency, formatDate, capitalize } from "@/lib/utils";
+import { formatCurrency, formatDate, capitalize, buildFrontendUrl } from "@/lib/utils";
 import type {
   AssetMaintenanceLog,
   MaintenanceType,
@@ -47,6 +45,8 @@ import CurrencyInput from "@/components/forms/CurrencyInput";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
+import PrintableAssetQrLabel from "@/lib/modules/assets/components/PrintableAssetQrLabel";
+import QrCode from "@/components/ui/QrCode";
 
 const conditionOptions = [
   { value: "new", label: "New" },
@@ -55,10 +55,10 @@ const conditionOptions = [
   { value: "poor", label: "Poor" },
 ];
 const statusOptions = [
-  { value: "available",         label: "Available" },
-  { value: "assigned",          label: "Assigned" },
+  { value: "available", label: "Available" },
+  { value: "assigned", label: "Assigned" },
   { value: "under_maintenance", label: "Under Maintenance" },
-  { value: "decommissioned",    label: "Decommissioned" },
+  { value: "decommissioned", label: "Decommissioned" },
 ];
 const maintenanceTypeOptions = [
   { value: "routine", label: "Routine Service" },
@@ -75,10 +75,10 @@ const frequencyOptions = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  available:         "bg-green-100 text-green-700",
-  assigned:          "bg-blue-100 text-blue-700",
+  available: "bg-green-100 text-green-700",
+  assigned: "bg-blue-100 text-blue-700",
   under_maintenance: "bg-amber-100 text-amber-700",
-  decommissioned:    "bg-gray-100 text-gray-500",
+  decommissioned: "bg-gray-100 text-gray-500",
 };
 const CONDITION_STYLES: Record<string, string> = {
   new: "bg-purple-100 text-purple-700",
@@ -838,6 +838,10 @@ export default function AdminAssetDetailPage() {
     URL.revokeObjectURL(url);
   }
 
+
+  const handlePrint = () => window.print();
+  const assetUrl = asset ? buildFrontendUrl(`/assets/${asset.id}`) : "";
+
   async function handleDelete() {
     try {
       await deleteAsset.mutateAsync(id);
@@ -879,110 +883,397 @@ export default function AdminAssetDetailPage() {
 
   return (
     <AppLayout pageTitle="Admin — Assets">
-      <button
-        onClick={() => router.push("/admin/assets")}
-        className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-      >
-        <ArrowLeft size={14} /> Back to Assets
-      </button>
-      <div className="space-y-5">
-        {/* Header */}
-        <div className="bg-white border border-brand-border rounded-2xl p-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-semibold text-brand-text-primary">
-                {asset.name}
-              </h1>
-              {asset.category && (
-                <p className="text-sm text-brand-text-secondary mt-0.5">
-                  {asset.category.name}
-                </p>
-              )}
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
-                <span
-                  className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}
-                >
-                  {capitalize(asset.status.replace(/_/g, " "))}
-                </span>
-                <span
-                  className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}
-                >
-                  {capitalize(asset.condition)}
-                </span>
-                {asset.asset_tag && (
-                  <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full">
-                    {asset.asset_tag}
-                  </span>
+      <div className="print:hidden">
+        <button
+          onClick={() => router.push("/admin/assets")}
+          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
+        >
+          <ArrowLeft size={14} /> Back to Assets
+        </button>
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="bg-white border border-brand-border rounded-2xl p-6">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-semibold text-brand-text-primary">
+                  {asset.name}
+                </h1>
+                {asset.category && (
+                  <p className="text-sm text-brand-text-secondary mt-0.5">
+                    {asset.category.name}
+                  </p>
                 )}
-                {asset.is_maintenance_due && (
-                  <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">
-                    <Wrench size={10} /> Maintenance Due
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <span
+                    className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}
+                  >
+                    {capitalize(asset.status.replace(/_/g, " "))}
                   </span>
-                )}
+                  <span
+                    className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}
+                  >
+                    {capitalize(asset.condition)}
+                  </span>
+                  {asset.asset_tag && (
+                    <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full">
+                      {asset.asset_tag}
+                    </span>
+                  )}
+                  {asset.is_maintenance_due && (
+                    <span className="flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                      <Wrench size={10} /> Maintenance Due
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  onClick={() => setTransferOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary"
+                >
+                  <ArrowRight size={13} /> Transfer
+                </button>
+                <button
+                  onClick={() => setEditOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary"
+                >
+                  <Pencil size={13} /> Edit
+                </button>
+                <button
+                  onClick={() => setDeleteOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 flex-wrap">
-              <button
-                onClick={() => setTransferOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary"
-              >
-                <ArrowRight size={13} /> Transfer
-              </button>
-              <button
-                onClick={() => setEditOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-brand-border rounded-lg hover:bg-gray-50 transition-colors text-brand-text-primary"
-              >
-                <Pencil size={13} /> Edit
-              </button>
-              <button
-                onClick={() => setDeleteOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                <Trash2 size={13} /> Delete
-              </button>
-            </div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-brand-border rounded-xl p-1 w-fit">
-          {(["details", "log", "maintenance"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={[
-                "px-4 py-1.5 text-sm rounded-lg transition-colors capitalize",
-                activeTab === tab
-                  ? "bg-brand-purple text-white font-medium"
-                  : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
-              ].join(" ")}
-            >
-              {tab === "log"
-                ? "Activity Log"
-                : tab === "maintenance"
-                  ? "Maintenance"
-                  : "Details"}
-            </button>
-          ))}
-        </div>
+          {/* Tabs */}
+          <div className="flex gap-1 bg-white border border-brand-border rounded-xl p-1 w-fit">
+            {(["details", "log", "maintenance"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={[
+                  "px-4 py-1.5 text-sm rounded-lg transition-colors capitalize",
+                  activeTab === tab
+                    ? "bg-brand-purple text-white font-medium"
+                    : "text-brand-text-secondary hover:text-brand-text-primary hover:bg-gray-50",
+                ].join(" ")}
+              >
+                {tab === "log"
+                  ? "Activity Log"
+                  : tab === "maintenance"
+                    ? "Maintenance"
+                    : "Details"}
+              </button>
+            ))}
+          </div>
 
-        {/* Details Tab */}
-        {activeTab === "details" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 space-y-5">
+          {/* Details Tab */}
+          {activeTab === "details" && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className="lg:col-span-2 space-y-5">
+                <div className="bg-white border border-brand-border rounded-2xl">
+                  <div className="relative h-64 bg-gray-50 flex items-center justify-center rounded-2xl overflow-hidden">
+                    {asset.attachment_url ? (
+                      <Image
+                        src={asset.attachment_url}
+                        alt={asset.name}
+                        fill
+                        className="object-contain"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-gray-300">
+                        <Package size={48} />
+                        <p className="text-sm">No image</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-white border border-brand-border rounded-2xl">
+                  <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+                    <h2 className="text-sm font-semibold text-brand-text-primary">
+                      Asset Details
+                    </h2>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
+                      {(
+                        [
+                          ["Category", asset.category?.name ?? "—"],
+                          ["Asset Type", asset.asset_type?.name ?? "—"],
+                          ["Asset Tag", asset.asset_tag ?? "—"],
+                          ["Serial Number", asset.serial_number ?? "—"],
+                          ["Location", asset.location ?? "—"],
+                          ["Assigned To", asset.assigned_to_name ?? asset.assigned_to ?? "—"],
+                          ["Purchase Date", formatDate(asset.purchase_date)],
+                          [
+                            "Purchase Cost",
+                            asset.purchase_cost
+                              ? formatCurrency(Number(asset.purchase_cost))
+                              : "—",
+                          ],
+                          ["Added", formatDate(asset.created_at)],
+                        ] as [string, string][]
+                      ).map(([label, value]) => (
+                        <div key={label}>
+                          <p className="text-xs text-brand-text-secondary mb-0.5">
+                            {label}
+                          </p>
+                          <p className="font-medium text-brand-text-primary">
+                            {value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {asset.description && (
+                      <div className="mt-5 pt-5 border-t border-brand-border">
+                        <p className="text-xs text-brand-text-secondary mb-1">
+                          Description
+                        </p>
+                        <p className="text-sm text-brand-text-primary">
+                          {asset.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-5">
+                <div className="bg-white border border-brand-border rounded-2xl p-5">
+                  <h3 className="text-sm font-semibold text-brand-text-primary mb-4">
+                    Quick Info
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-brand-text-secondary">Status</span>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}
+                      >
+                        {capitalize(asset.status.replace(/_/g, " "))}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-brand-text-secondary">Condition</span>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}
+                      >
+                        {capitalize(asset.condition)}
+                      </span>
+                    </div>
+                    {asset.assigned_to && (
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-brand-text-secondary shrink-0">
+                          Assigned To
+                        </span>
+                        <span className="font-medium text-brand-text-primary text-right">
+                          {asset.assigned_to_name ?? asset.assigned_to}
+                        </span>
+                      </div>
+                    )}
+                    {asset.location && (
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-brand-text-secondary shrink-0">
+                          Location
+                        </span>
+                        <span className="font-medium text-brand-text-primary text-right">
+                          {asset.location}
+                        </span>
+                      </div>
+                    )}
+                    {asset.category && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-brand-text-secondary">
+                          Category
+                        </span>
+                        <span className="font-medium text-brand-text-primary">
+                          {asset.category.name}
+                        </span>
+                      </div>
+                    )}
+                    {asset.asset_type && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-brand-text-secondary">
+                          Asset Type
+                        </span>
+                        <span className="font-medium text-brand-text-primary">
+                          {asset.asset_type.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-white border border-brand-border rounded-2xl p-5">
+                  <h3 className="text-sm font-semibold text-brand-text-primary mb-4">
+                    QR Code
+                  </h3>
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="p-3 bg-white border border-brand-border rounded-xl">
+                      <QrCode value={assetUrl} size={140} />
+                    </div>
+                    {asset.asset_tag && (
+                      <p className="text-xs font-mono text-brand-text-secondary">
+                        {asset.asset_tag}
+                      </p>
+                    )}
+                    <button
+                      onClick={handlePrint}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-brand-border text-brand-text-primary text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Print QR Code
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Activity Log Tab */}
+          {activeTab === "log" && (
+            <div className="bg-white border border-brand-border rounded-2xl">
+              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center gap-2">
+                <History size={14} className="text-brand-purple" />
+                <div>
+                  <h2 className="text-sm font-semibold text-brand-text-primary">
+                    Activity Log
+                  </h2>
+                  <p className="text-xs text-brand-text-secondary mt-0.5">
+                    {assignmentLogs.length} event
+                    {assignmentLogs.length !== 1 ? "s" : ""} recorded
+                  </p>
+                </div>
+              </div>
+              {assignmentLogs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-brand-text-secondary">
+                  <History size={28} className="mb-2 text-gray-300" />
+                  <p className="text-sm">No activity recorded yet</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-brand-border">
+                  {assignmentLogs.map((log) => (
+                    <div key={log.id} className="px-6 py-4">
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${LOG_EVENT_COLOURS[log.event_type] ?? "bg-gray-100 text-gray-500"}`}
+                            >
+                              {capitalize(log.event_type.replace(/_/g, " "))}
+                            </span>
+                          </div>
+                          <p className="text-sm text-brand-text-primary">
+                            {logEventDescription(log)}
+                          </p>
+                          {log.notes &&
+                            log.event_type !== "status_changed" && (
+                              <p className="text-xs text-brand-text-secondary mt-0.5">
+                                {log.notes}
+                              </p>
+                            )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-brand-text-secondary">
+                            {formatDate(log.performed_at)}
+                          </p>
+                          {log.performed_by_name && (
+                            <p className="text-[10px] text-brand-text-secondary mt-0.5">
+                              {log.performed_by_name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Maintenance Tab */}
+          {activeTab === "maintenance" && (
+            <div className="space-y-5">
               <div className="bg-white border border-brand-border rounded-2xl">
-                <div className="relative h-64 bg-gray-50 flex items-center justify-center rounded-2xl overflow-hidden">
-                  {asset.attachment_url ? (
-                    <Image
-                      src={asset.attachment_url}
-                      alt={asset.name}
-                      fill
-                      className="object-contain"
-                    />
+                <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-brand-text-primary">
+                      Maintenance Schedule
+                    </h2>
+                    <p className="text-xs text-brand-text-secondary mt-0.5">
+                      Recurring maintenance configuration
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setLogOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
+                  >
+                    <Plus size={14} /> Log Maintenance
+                  </button>
+                </div>
+                <div className="p-6">
+                  {asset.maintenance_type ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                      <div>
+                        <p className="text-xs text-brand-text-secondary mb-1">
+                          Type
+                        </p>
+                        <p className="text-sm font-medium text-brand-text-primary capitalize">
+                          {asset.maintenance_type.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-brand-text-secondary mb-1">
+                          Frequency
+                        </p>
+                        <p className="text-sm font-medium text-brand-text-primary">
+                          {asset.maintenance_frequency_months
+                            ? asset.maintenance_frequency_months === 1
+                              ? "Every month"
+                              : asset.maintenance_frequency_months === 12
+                                ? "Every year"
+                                : asset.maintenance_frequency_months === 24
+                                  ? "Every 2 years"
+                                  : `Every ${asset.maintenance_frequency_months} months`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-brand-text-secondary mb-1">
+                          Next Due
+                        </p>
+                        <p
+                          className={`text-sm font-medium ${asset.is_maintenance_due ? "text-red-600" : "text-brand-text-primary"}`}
+                        >
+                          {asset.next_maintenance_due
+                            ? formatDate(asset.next_maintenance_due)
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-brand-text-secondary mb-1">
+                          Status
+                        </p>
+                        {asset.is_maintenance_due ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                            Due Now
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                            On Schedule
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   ) : (
-                    <div className="flex flex-col items-center gap-2 text-gray-300">
-                      <Package size={48} />
-                      <p className="text-sm">No image</p>
+                    <div className="text-center py-6 text-brand-text-secondary">
+                      <Wrench size={28} className="mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">
+                        No maintenance schedule configured
+                      </p>
+                      <p className="text-xs mt-1">
+                        Edit the asset to add a maintenance schedule
+                      </p>
                     </div>
                   )}
                 </div>
@@ -990,404 +1281,108 @@ export default function AdminAssetDetailPage() {
               <div className="bg-white border border-brand-border rounded-2xl">
                 <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
                   <h2 className="text-sm font-semibold text-brand-text-primary">
-                    Asset Details
+                    Maintenance History
                   </h2>
+                  <p className="text-xs text-brand-text-secondary mt-0.5">
+                    {logs.length} log{logs.length !== 1 ? "s" : ""} recorded
+                  </p>
                 </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-5 text-sm">
-                    {(
-                      [
-                        ["Category", asset.category?.name ?? "—"],
-                        ["Asset Type", asset.asset_type?.name ?? "—"],
-                        ["Asset Tag", asset.asset_tag ?? "—"],
-                        ["Serial Number", asset.serial_number ?? "—"],
-                        ["Location", asset.location ?? "—"],
-                        ["Assigned To", asset.assigned_to_name ?? asset.assigned_to ?? "—"],
-                        ["Purchase Date", formatDate(asset.purchase_date)],
-                        [
-                          "Purchase Cost",
-                          asset.purchase_cost
-                            ? formatCurrency(Number(asset.purchase_cost))
-                            : "—",
-                        ],
-                        ["Added", formatDate(asset.created_at)],
-                      ] as [string, string][]
-                    ).map(([label, value]) => (
-                      <div key={label}>
-                        <p className="text-xs text-brand-text-secondary mb-0.5">
-                          {label}
-                        </p>
-                        <p className="font-medium text-brand-text-primary">
-                          {value}
-                        </p>
+                {logsLoading ? (
+                  <div className="divide-y divide-brand-border animate-pulse">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="px-6 py-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 w-24 bg-gray-200 rounded" />
+                            <div className="h-3 w-32 bg-gray-100 rounded" />
+                          </div>
+                          <div className="text-right space-y-2">
+                            <div className="h-4 w-20 bg-gray-200 rounded ml-auto" />
+                            <div className="h-3 w-16 bg-gray-100 rounded ml-auto" />
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
-                  {asset.description && (
-                    <div className="mt-5 pt-5 border-t border-brand-border">
-                      <p className="text-xs text-brand-text-secondary mb-1">
-                        Description
-                      </p>
-                      <p className="text-sm text-brand-text-primary">
-                        {asset.description}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-5">
-              <div className="bg-white border border-brand-border rounded-2xl p-5">
-                <h3 className="text-sm font-semibold text-brand-text-primary mb-4">
-                  Quick Info
-                </h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-brand-text-secondary">Status</span>
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[asset.status] ?? "bg-gray-100 text-gray-500"}`}
+                ) : logs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-brand-text-secondary">
+                    <ClipboardList size={28} className="mb-2 text-gray-300" />
+                    <p className="text-sm">No maintenance logs yet</p>
+                    <button
+                      onClick={() => setLogOpen(true)}
+                      className="mt-3 text-sm text-brand-purple hover:underline font-medium"
                     >
-                      {capitalize(asset.status.replace(/_/g, " "))}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-brand-text-secondary">Condition</span>
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${CONDITION_STYLES[asset.condition] ?? "bg-gray-100 text-gray-500"}`}
-                    >
-                      {capitalize(asset.condition)}
-                    </span>
-                  </div>
-                  {asset.assigned_to && (
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-brand-text-secondary shrink-0">
-                        Assigned To
-                      </span>
-                      <span className="font-medium text-brand-text-primary text-right">
-                        {asset.assigned_to_name ?? asset.assigned_to}
-                      </span>
-                    </div>
-                  )}
-                  {asset.location && (
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-brand-text-secondary shrink-0">
-                        Location
-                      </span>
-                      <span className="font-medium text-brand-text-primary text-right">
-                        {asset.location}
-                      </span>
-                    </div>
-                  )}
-                  {asset.category && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-brand-text-secondary">
-                        Category
-                      </span>
-                      <span className="font-medium text-brand-text-primary">
-                        {asset.category.name}
-                      </span>
-                    </div>
-                  )}
-                  {asset.asset_type && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-brand-text-secondary">
-                        Asset Type
-                      </span>
-                      <span className="font-medium text-brand-text-primary">
-                        {asset.asset_type.name}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="bg-white border border-brand-border rounded-2xl p-5">
-                <h3 className="text-sm font-semibold text-brand-text-primary mb-4">
-                  QR Code
-                </h3>
-                <div className="flex flex-col items-center gap-3">
-                  <div
-                    ref={qrRef}
-                    className="p-3 bg-white border border-brand-border rounded-xl"
-                  >
-                    {asset.qr_url ? (
-                      <img src={asset.qr_url} alt="QR Code" width={140} height={140} />
-                    ) : (
-                      <QRCode
-                        value={`${typeof window !== "undefined" ? window.location.origin : ""}/assets/${asset.id}`}
-                        size={140}
-                        fgColor="#1a1a1a"
-                        bgColor="#ffffff"
-                      />
-                    )}
-                  </div>
-                  {asset.asset_tag && (
-                    <p className="text-xs font-mono text-brand-text-secondary">
-                      {asset.asset_tag}
-                    </p>
-                  )}
-                  <button
-                    onClick={downloadQR}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-brand-border text-brand-text-primary text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <Download size={13} /> Download QR
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Activity Log Tab */}
-        {activeTab === "log" && (
-          <div className="bg-white border border-brand-border rounded-2xl">
-            <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center gap-2">
-              <History size={14} className="text-brand-purple" />
-              <div>
-                <h2 className="text-sm font-semibold text-brand-text-primary">
-                  Activity Log
-                </h2>
-                <p className="text-xs text-brand-text-secondary mt-0.5">
-                  {assignmentLogs.length} event
-                  {assignmentLogs.length !== 1 ? "s" : ""} recorded
-                </p>
-              </div>
-            </div>
-            {assignmentLogs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-brand-text-secondary">
-                <History size={28} className="mb-2 text-gray-300" />
-                <p className="text-sm">No activity recorded yet</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-brand-border">
-                {assignmentLogs.map((log) => (
-                  <div key={log.id} className="px-6 py-4">
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${LOG_EVENT_COLOURS[log.event_type] ?? "bg-gray-100 text-gray-500"}`}
-                          >
-                            {capitalize(log.event_type.replace(/_/g, " "))}
-                          </span>
-                        </div>
-                        <p className="text-sm text-brand-text-primary">
-                          {logEventDescription(log)}
-                        </p>
-                        {log.notes &&
-                          log.event_type !== "status_changed" && (
-                            <p className="text-xs text-brand-text-secondary mt-0.5">
-                              {log.notes}
-                            </p>
-                          )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-brand-text-secondary">
-                          {formatDate(log.performed_at)}
-                        </p>
-                        {log.performed_by_name && (
-                          <p className="text-[10px] text-brand-text-secondary mt-0.5">
-                            {log.performed_by_name}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Maintenance Tab */}
-        {activeTab === "maintenance" && (
-          <div className="space-y-5">
-            <div className="bg-white border border-brand-border rounded-2xl">
-              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-brand-text-primary">
-                    Maintenance Schedule
-                  </h2>
-                  <p className="text-xs text-brand-text-secondary mt-0.5">
-                    Recurring maintenance configuration
-                  </p>
-                </div>
-                <button
-                  onClick={() => setLogOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand-purple text-white text-sm font-medium rounded-lg hover:bg-brand-purple-dark transition-colors"
-                >
-                  <Plus size={14} /> Log Maintenance
-                </button>
-              </div>
-              <div className="p-6">
-                {asset.maintenance_type ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                    <div>
-                      <p className="text-xs text-brand-text-secondary mb-1">
-                        Type
-                      </p>
-                      <p className="text-sm font-medium text-brand-text-primary capitalize">
-                        {asset.maintenance_type.replace(/_/g, " ")}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-brand-text-secondary mb-1">
-                        Frequency
-                      </p>
-                      <p className="text-sm font-medium text-brand-text-primary">
-                        {asset.maintenance_frequency_months
-                          ? asset.maintenance_frequency_months === 1
-                            ? "Every month"
-                            : asset.maintenance_frequency_months === 12
-                              ? "Every year"
-                              : asset.maintenance_frequency_months === 24
-                                ? "Every 2 years"
-                                : `Every ${asset.maintenance_frequency_months} months`
-                          : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-brand-text-secondary mb-1">
-                        Next Due
-                      </p>
-                      <p
-                        className={`text-sm font-medium ${asset.is_maintenance_due ? "text-red-600" : "text-brand-text-primary"}`}
-                      >
-                        {asset.next_maintenance_due
-                          ? formatDate(asset.next_maintenance_due)
-                          : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-brand-text-secondary mb-1">
-                        Status
-                      </p>
-                      {asset.is_maintenance_due ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">
-                          Due Now
-                        </span>
-                      ) : (
-                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-green-100 text-green-700">
-                          On Schedule
-                        </span>
-                      )}
-                    </div>
+                      + Log first maintenance
+                    </button>
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-brand-text-secondary">
-                    <Wrench size={28} className="mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">
-                      No maintenance schedule configured
-                    </p>
-                    <p className="text-xs mt-1">
-                      Edit the asset to add a maintenance schedule
-                    </p>
+                  <div className="divide-y divide-brand-border">
+                    {logs.map((log) => (
+                      <div key={log.id} className="px-6 py-4">
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-brand-text-primary capitalize">
+                                {log.maintenance_type.replace(/_/g, " ")}
+                              </span>
+                            </div>
+                            {log.technician && (
+                              <p className="text-xs text-brand-text-secondary">
+                                By: {log.technician}
+                              </p>
+                            )}
+                            {log.notes && (
+                              <p className="text-sm text-brand-text-primary mt-1">
+                                {log.notes}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-start gap-3 shrink-0">
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-brand-text-primary">
+                                {formatDate(log.performed_date)}
+                              </p>
+                              {log.cost != null && (
+                                <p className="text-xs text-brand-text-secondary mt-0.5">
+                                  {formatCurrency(Number(log.cost))}
+                                </p>
+                              )}
+                              {log.logged_by_name && (
+                                <p className="text-[10px] text-brand-text-secondary mt-1">
+                                  Logged by {log.logged_by_name}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setEditLogTarget(log)}
+                                className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
+                                title="Edit log"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteLogTarget(log)}
+                                className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-500 transition-colors"
+                                title="Delete log"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             </div>
-            <div className="bg-white border border-brand-border rounded-2xl">
-              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-                <h2 className="text-sm font-semibold text-brand-text-primary">
-                  Maintenance History
-                </h2>
-                <p className="text-xs text-brand-text-secondary mt-0.5">
-                  {logs.length} log{logs.length !== 1 ? "s" : ""} recorded
-                </p>
-              </div>
-              {logsLoading ? (
-                <div className="divide-y divide-brand-border animate-pulse">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="px-6 py-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 w-24 bg-gray-200 rounded" />
-                          <div className="h-3 w-32 bg-gray-100 rounded" />
-                        </div>
-                        <div className="text-right space-y-2">
-                          <div className="h-4 w-20 bg-gray-200 rounded ml-auto" />
-                          <div className="h-3 w-16 bg-gray-100 rounded ml-auto" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : logs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-brand-text-secondary">
-                  <ClipboardList size={28} className="mb-2 text-gray-300" />
-                  <p className="text-sm">No maintenance logs yet</p>
-                  <button
-                    onClick={() => setLogOpen(true)}
-                    className="mt-3 text-sm text-brand-purple hover:underline font-medium"
-                  >
-                    + Log first maintenance
-                  </button>
-                </div>
-              ) : (
-                <div className="divide-y divide-brand-border">
-                  {logs.map((log) => (
-                    <div key={log.id} className="px-6 py-4">
-                      <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium text-brand-text-primary capitalize">
-                              {log.maintenance_type.replace(/_/g, " ")}
-                            </span>
-                          </div>
-                          {log.technician && (
-                            <p className="text-xs text-brand-text-secondary">
-                              By: {log.technician}
-                            </p>
-                          )}
-                          {log.notes && (
-                            <p className="text-sm text-brand-text-primary mt-1">
-                              {log.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-start gap-3 shrink-0">
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-brand-text-primary">
-                              {formatDate(log.performed_date)}
-                            </p>
-                            {log.cost != null && (
-                              <p className="text-xs text-brand-text-secondary mt-0.5">
-                                {formatCurrency(Number(log.cost))}
-                              </p>
-                            )}
-                            {log.logged_by_name && (
-                              <p className="text-[10px] text-brand-text-secondary mt-1">
-                                Logged by {log.logged_by_name}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setEditLogTarget(log)}
-                              className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-gray-100 hover:text-brand-text-primary transition-colors"
-                              title="Edit log"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteLogTarget(log)}
-                              className="h-7 w-7 flex items-center justify-center rounded-lg text-brand-text-secondary hover:bg-red-50 hover:text-red-500 transition-colors"
-                              title="Delete log"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
 
       {editOpen && (
         <EditModal
@@ -1435,6 +1430,11 @@ export default function AdminAssetDetailPage() {
         destructive
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
+      />
+
+      <PrintableAssetQrLabel
+        asset={asset}
+        qrValue={assetUrl}
       />
     </AppLayout>
   );
