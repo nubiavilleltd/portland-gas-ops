@@ -123,3 +123,17 @@ button:disabled,
 .animate-fade-up-3 { animation-delay: 0.15s; }
 .animate-fade-up-4 { animation-delay: 0.20s; }
 .animate-fade-up-5 { animation-delay: 0.25s; }
+
+
+
+@media print {
+  body {
+    min-height: 0;
+  }
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+}
+
+
+
