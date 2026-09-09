@@ -36,6 +36,7 @@ export default function RootLayout({
           expand={false}
           visibleToasts={3}
           toastOptions={{ duration: 8000 }}
+          className="print:hidden"
         />
       </body>
     </html>

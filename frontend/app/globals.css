@@ -126,3 +126,14 @@ button:disabled,
 
 
 
+@media print {
+  body {
+    min-height: 0;
+  }
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+}
+
+
+
