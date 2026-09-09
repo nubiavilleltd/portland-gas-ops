@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Mulish } from "next/font/google";
 import { Toaster } from "sonner";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,6 +19,21 @@ export const mulish = Mulish({
 export const metadata: Metadata = {
   title: "Portland Gas Operations",
   description: "Internal ERP platform for Portland Gas Limited",
+  applicationName: "Portland Gas Operations",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/icon-192.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#1C043B",
 };
 
 export default function RootLayout({
@@ -28,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.className} ${mulish.variable}`} suppressHydrationWarning>
       <body className="min-h-screen bg-brand-bg antialiased" suppressHydrationWarning>
+        <ServiceWorkerRegistration />
         {children}
         <Toaster
           position="top-right"

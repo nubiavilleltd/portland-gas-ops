@@ -46,13 +46,9 @@ export default function PushManager() {
 
     async function setup() {
       try {
-        // 1. Register service worker
-        const registration = await navigator.serviceWorker.register("/sw.js", {
-          scope: "/",
-        });
-
-        // Wait until the SW is active (handles first-load install)
-        await navigator.serviceWorker.ready;
+        // The app-level registration runs independently of authentication.
+        // Reuse the active registration here for push subscription setup.
+        const registration = await navigator.serviceWorker.ready;
 
         if (cancelled) return;
 

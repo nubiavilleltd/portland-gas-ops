@@ -9,6 +9,8 @@ import {
   ListInvoicesParams,
   POOption,
   VendorOption,
+  MarkPaidPayload,
+  CancelInvoicePayload,
 } from "./types";
 
 function adaptInvoice(item: InvoiceListItem): InvoiceRequest {
@@ -34,6 +36,11 @@ function adaptInvoice(item: InvoiceListItem): InvoiceRequest {
     requesterId: item.requester_id || undefined,
     nextActor: item.next_actor_name || undefined,
     currentStepName: item.current_step_name || undefined,
+    paidAt: item.paid_at || undefined,
+    paymentReference: item.payment_reference || undefined,
+    cancelledAt: item.cancelled_at || undefined,
+    cancellationReason: item.cancellation_reason || undefined,
+    settledByName: item.settled_by_name || undefined,
   };
 }
 
@@ -71,6 +78,18 @@ const invoicesApi = {
 
   async resubmit(id: string, payload: InvoiceCreatePayload): Promise<InvoiceDetail> {
     const response = await api.post(`/api/finance/invoices/${id}/resubmit`, payload);
+    return response.data;
+  },
+
+  // Settlement at the final workflow step. "Mark as paid" IS that step's
+  // approval — it completes the workflow and settles the invoice in one action.
+  async markPaid(id: string, payload: MarkPaidPayload = {}): Promise<InvoiceDetail> {
+    const response = await api.post(`/api/finance/invoices/${id}/mark-paid`, payload);
+    return response.data;
+  },
+
+  async cancel(id: string, payload: CancelInvoicePayload): Promise<InvoiceDetail> {
+    const response = await api.post(`/api/finance/invoices/${id}/cancel`, payload);
     return response.data;
   },
 
