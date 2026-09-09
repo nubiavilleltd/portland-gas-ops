@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from fastapi import HTTPException, status
 from typing import Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.finance.models import (
     CashRequisition, CashRequisitionStatus,
@@ -478,3 +478,188 @@ def resubmit_invoice(
 
     submit_invoice_for_approval(db, inv.id, payload.picked_approvers)
     return inv
+
+
+# ── Invoice settlement (final workflow step) ─────────────────────────────────
+#
+# The LAST step of the invoice workflow does not "approve" in the ordinary
+# sense — it settles. Its approver either marks the invoice paid (which IS
+# that step's approval, completing the workflow) or cancels it outright.
+#
+# Everything here derives the final step from the workflow at run time, so
+# adding, removing or reordering steps moves the settlement point automatically
+# and no code needs to change.
+
+
+def get_invoice_approval_request(db: Session, invoice_id: str) -> Optional[ApprovalRequest]:
+    """The invoice's live (pending) workflow attempt, if any."""
+    return (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.request_type == "invoice",
+            ApprovalRequest.request_id == invoice_id,
+            ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
+        )
+        .order_by(ApprovalRequest.created_at.desc())
+        .first()
+    )
+
+
+def get_final_step_number(db: Session, workflow_id: str) -> Optional[int]:
+    """Highest step_number in a workflow — the settlement step, whatever it is."""
+    from sqlalchemy import func as sa_func
+    from app.shared.models.approval import WorkflowStep
+
+    return (
+        db.query(sa_func.max(WorkflowStep.step_number))
+        .filter(WorkflowStep.workflow_id == workflow_id)
+        .scalar()
+    )
+
+
+def _load_settleable_invoice(db: Session, invoice_id: str) -> Tuple[InvoiceProcessing, ApprovalRequest]:
+    """
+    Fetch an invoice that is legitimately at its settlement point.
+
+    Guards, in order: the invoice is in a live workflow, that workflow has
+    steps, and it is currently sitting on the LAST one. Actor identity is left
+    to the engine, which already rejects anyone not assigned to the step.
+    """
+    inv = get_invoice_by_id(db, invoice_id)
+
+    if inv.status in (
+        InvoiceProcessingStatus.paid,
+        InvoiceProcessingStatus.cancelled,
+        InvoiceProcessingStatus.denied,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This invoice is already {inv.status.value}",
+        )
+
+    approval_req = get_invoice_approval_request(db, inv.id)
+    if not approval_req:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This invoice is not in an active approval workflow",
+        )
+
+    final_step = get_final_step_number(db, approval_req.workflow_id)
+    if final_step is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The invoice workflow has no steps configured",
+        )
+
+    if approval_req.current_step_number != final_step:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This invoice has not reached the final approval step yet",
+        )
+
+    return inv, approval_req
+
+
+def mark_invoice_paid(
+    db: Session,
+    invoice_id: str,
+    actor: Employee,
+    payment_reference: Optional[str] = None,
+    payment_notes: Optional[str] = None,
+) -> InvoiceProcessing:
+    """
+    Settle the invoice as PAID. This is the final step's approval: it drives the
+    workflow engine's approve() so history, audit trail, all_requests and the
+    requester notification are all recorded exactly as a normal approval would be.
+    """
+    inv, approval_req = _load_settleable_invoice(db, invoice_id)
+
+    def on_final_approval() -> None:
+        # Runs only when the engine confirms this was the last step — so the
+        # invoice can never be marked paid by a mid-workflow approval.
+        inv.status = InvoiceProcessingStatus.paid
+        inv.paid_at = datetime.now(timezone.utc)
+        inv.paid_by = actor.id
+        inv.payment_reference = payment_reference
+        inv.payment_notes = payment_notes
+
+    engine = WorkflowEngine(db)
+    engine.approve(
+        approval_req.id,
+        actor,
+        payment_notes or "Marked as paid",
+        on_final_approval=on_final_approval,
+    )
+
+    if inv.status != InvoiceProcessingStatus.paid:
+        # Defensive: the step moved on instead of completing, so this was not
+        # actually the final step. Refuse rather than leave a half-settled row.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This invoice has not reached the final approval step yet",
+        )
+
+    db.flush()
+    return inv
+
+
+def cancel_invoice(
+    db: Session,
+    invoice_id: str,
+    actor: Employee,
+    reason: str,
+) -> InvoiceProcessing:
+    """
+    Settle the invoice as CANCELLED — terminal, and the requester cannot
+    resubmit. Driven through the engine's reject() so the workflow attempt is
+    closed out properly instead of being left pending forever.
+    """
+    if not reason or not reason.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A reason is required to cancel an invoice",
+        )
+
+    inv, approval_req = _load_settleable_invoice(db, invoice_id)
+
+    def on_rejected() -> None:
+        inv.status = InvoiceProcessingStatus.cancelled
+        inv.cancelled_at = datetime.now(timezone.utc)
+        inv.cancelled_by = actor.id
+        inv.cancellation_reason = reason.strip()
+
+    engine = WorkflowEngine(db)
+    engine.reject(approval_req.id, actor, reason.strip(), on_rejected=on_rejected)
+
+    db.flush()
+    return inv
+
+
+def get_invoice_settlement_info(db: Session, inv: InvoiceProcessing) -> dict:
+    """
+    Detail-view extras: who settled the invoice, and whether it is currently
+    sitting on the final (settlement) step. Two small queries, no per-row loop.
+    """
+    from app.shared.models.user import User
+
+    info: dict = {"settled_by_name": None, "is_final_step": False}
+
+    settler_id = inv.paid_by or inv.cancelled_by
+    if settler_id:
+        row = (
+            db.query(User.first_name, User.last_name)
+            .join(Employee, Employee.user_id == User.id)
+            .filter(Employee.id == settler_id)
+            .first()
+        )
+        if row:
+            info["settled_by_name"] = f"{row[0] or ''} {row[1] or ''}".strip() or None
+
+    approval_req = get_invoice_approval_request(db, inv.id)
+    if approval_req:
+        final_step = get_final_step_number(db, approval_req.workflow_id)
+        info["is_final_step"] = (
+            final_step is not None and approval_req.current_step_number == final_step
+        )
+
+    return info
