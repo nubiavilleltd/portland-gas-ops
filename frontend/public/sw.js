@@ -3,7 +3,19 @@
  *
  * Handles push events while the tab is closed/backgrounded.
  * Clicking the notification navigates to the deep-link URL passed in the payload.
+ *
+ * Installability is enabled by registering this worker globally. Offline caching
+ * is intentionally not enabled yet; authenticated ERP data needs a deliberate
+ * cache and privacy strategy before it is persisted on a device.
  */
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
 self.addEventListener("push", (event) => {
   if (!event.data) return;
@@ -18,8 +30,8 @@ self.addEventListener("push", (event) => {
   const title   = data.title || "Portland Gas Ops";
   const options = {
     body:    data.body  || "",
-    icon:    data.icon  || "/icon.png",
-    badge:   "/icon.png",
+    icon:    data.icon  || "/icons/icon-192.png",
+    badge:   "/icons/icon-192.png",
     tag:     data.tag   || "portlandgas-notif",
     data:    { url: data.url || "/" },
     // Reuse an existing notification with the same tag instead of stacking
