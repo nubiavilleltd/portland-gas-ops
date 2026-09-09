@@ -45,8 +45,8 @@ import CurrencyInput from "@/components/forms/CurrencyInput";
 import FormDatePicker from "@/components/forms/FormDatePicker";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
-import PrintableAssetQrLabel from "@/lib/modules/assets/components/PrintableAssetQrLabel";
 import QrCode from "@/components/ui/QrCode";
+import PrintableQrLabel from "@/components/ui/PrintableQrLabel";
 
 const conditionOptions = [
   { value: "new", label: "New" },
@@ -1432,10 +1432,11 @@ export default function AdminAssetDetailPage() {
         onCancel={() => setDeleteOpen(false)}
       />
 
-      <PrintableAssetQrLabel
-        asset={asset}
-        qrValue={assetUrl}
-      />
+     <PrintableQrLabel
+  qrValue={assetUrl}
+  primaryIdentifier={asset.asset_tag ?? "No Tag"}
+  secondaryIdentifier={asset.name}
+/>
     </AppLayout>
   );
 }

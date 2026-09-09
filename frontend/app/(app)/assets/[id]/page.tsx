@@ -9,8 +9,8 @@ import AssetDetailSkeleton from "./AssetDetailSkeleton";
 import { useAsset, useAssignmentLogs } from "@/lib/modules/assets";
 import { formatDate, capitalize, buildFrontendUrl } from "@/lib/utils";
 import type { AssetAssignmentLog } from "@/types";
-import PrintableAssetQrLabel from "@/lib/modules/assets/components/PrintableAssetQrLabel";
 import QrCode from "@/components/ui/QrCode";
+import PrintableQrLabel from "@/components/ui/PrintableQrLabel";
 
 const STATUS_STYLES: Record<string, string> = {
   available: "bg-green-100 text-green-700",
@@ -210,10 +210,11 @@ export default function AssetDetailPage() {
 
 
 
-      <PrintableAssetQrLabel
-        asset={asset}
-        qrValue={assetUrl}
-      />
+      <PrintableQrLabel
+  qrValue={assetUrl}
+  primaryIdentifier={asset.asset_tag ?? "No Tag"}
+  secondaryIdentifier={asset.name}
+/>
     </AppLayout>
   );
 }

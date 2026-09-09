@@ -9,7 +9,6 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import QrCode from "@/components/ui/QrCode";
-import PrintableQrLabel from "@/lib/modules/inventory/components/PrintableQrLabel";
 
 import {
   useInventoryItemById,
@@ -26,6 +25,7 @@ import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.type
 import { BadgeVariant } from "@/config/badge.config";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import InventoryItemDetailSkeleton from "@/lib/modules/inventory/components/InventoryItemDetailSkeleton";
+import PrintableQrLabel from "@/components/ui/PrintableQrLabel";
 
 // ── Status config ─────────────────────────────────────────
 const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
@@ -333,11 +333,11 @@ export default function InventoryItemDetailPage() {
         </div>
       </div>
 
-      <PrintableQrLabel
-        item={item}
-        productName={product?.name}
-        qrValue={itemUrl}
-      />
+    <PrintableQrLabel
+  qrValue={itemUrl}
+  primaryIdentifier={item.tag_number}
+  secondaryIdentifier={product?.name ?? "Unknown Product"}
+/>
     </AppLayout>
   );
 }
