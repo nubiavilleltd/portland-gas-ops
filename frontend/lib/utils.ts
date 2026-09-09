@@ -66,6 +66,10 @@ export function toTitleCase(str: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+export function buildFrontendUrl(path: string): string {
+  return new URL(path, window.location.origin).toString();
+}
+
 // function capolizeFirstLetter(str: string): string {
 //   if (!str) return "";
 //   return str[0].toUpperCase() + str.slice(1).toLowerCase();
