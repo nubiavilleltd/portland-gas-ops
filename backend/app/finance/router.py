@@ -11,7 +11,7 @@ from app.finance.models import CashRequisition, InvoiceProcessing
 from app.finance.schemas import (
     CashRequisitionCreate, CashRequisitionRead,
     InvoiceProcessingCreate, InvoiceProcessingRead, POOption, VendorOption,
-    FinanceSubmit,
+    FinanceSubmit, InvoiceMarkPaid, InvoiceCancel,
 )
 from app.finance import service
 from app.employees.service import get_employee_by_user_id
@@ -272,6 +272,9 @@ def get_invoice(
     if info:
         result.next_actor_name = info["name"]
         result.current_step_name = info["step_name"]
+    settlement = service.get_invoice_settlement_info(db, inv)
+    result.settled_by_name = settlement["settled_by_name"]
+    result.is_final_step = settlement["is_final_step"]
     return result
 
 
@@ -365,3 +368,57 @@ def submit_invoice_for_approval(
         "status": approval_request.overall_status,
         "current_step_number": approval_request.current_step_number,
     }
+
+
+# ── Invoice settlement (final workflow step) ────────────────────────────────
+#
+# At the LAST step of the invoice workflow the approver does not press
+# "Approve" — they either mark the invoice paid (which completes the workflow)
+# or cancel it. The step is resolved from the workflow at request time, so
+# changing the number or order of approval steps needs no change here.
+
+
+@router.post("/invoices/{invoice_id}/mark-paid", response_model=InvoiceProcessingRead)
+def mark_invoice_paid(
+    invoice_id: str,
+    body: InvoiceMarkPaid | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Final approver marks the invoice paid — this is also the final approval."""
+    actor = get_employee_by_user_id(current_user.id, db)
+    inv = service.mark_invoice_paid(
+        db,
+        invoice_id,
+        actor,
+        payment_reference=body.payment_reference if body else None,
+        payment_notes=body.payment_notes if body else None,
+    )
+    db.commit()
+    db.refresh(inv)
+
+    result = InvoiceProcessingRead.model_validate(inv)
+    settlement = service.get_invoice_settlement_info(db, inv)
+    result.settled_by_name = settlement["settled_by_name"]
+    result.is_final_step = settlement["is_final_step"]
+    return result
+
+
+@router.post("/invoices/{invoice_id}/cancel", response_model=InvoiceProcessingRead)
+def cancel_invoice(
+    invoice_id: str,
+    body: InvoiceCancel,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Final approver cancels the invoice instead of paying it. Terminal."""
+    actor = get_employee_by_user_id(current_user.id, db)
+    inv = service.cancel_invoice(db, invoice_id, actor, body.reason)
+    db.commit()
+    db.refresh(inv)
+
+    result = InvoiceProcessingRead.model_validate(inv)
+    settlement = service.get_invoice_settlement_info(db, inv)
+    result.settled_by_name = settlement["settled_by_name"]
+    result.is_final_step = settlement["is_final_step"]
+    return result

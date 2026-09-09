@@ -116,6 +116,11 @@ export interface InvoiceRequest {
   requesterId?: string;      // user id of who raised the request
   nextActor?: string;        // current pending step assignee
   currentStepName?: string;  // name of the current pending step
+  paidAt?: string;           // settlement — set at the final workflow step
+  paymentReference?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+  settledByName?: string;
 }
 
 // ── Seed data ─────────────────────────────────────────────────────────────────

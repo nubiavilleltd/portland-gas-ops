@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import invoicesApi from "./api";
-import { InvoiceCreatePayload, ListInvoicesParams } from "./types";
+import { InvoiceCreatePayload, ListInvoicesParams, MarkPaidPayload, CancelInvoicePayload } from "./types";
 
 const QUERY_KEYS = {
   all: ["invoices-processing"],
@@ -52,4 +52,35 @@ export function useCreateInvoice() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all });
     },
   });
+}
+
+// ── Settlement (final workflow step) ────────────────────────────────────────
+// Both actions are terminal and both close out the workflow, so they
+// invalidate the workflow queries too — the request must drop off the
+// approver's "my approvals" list immediately.
+
+function useSettlementMutation<TPayload>(
+  mutationFn: (vars: { id: string; payload: TPayload }) => Promise<unknown>,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ["my-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-trail"] });
+    },
+  });
+}
+
+export function useMarkInvoicePaid() {
+  return useSettlementMutation<MarkPaidPayload>(({ id, payload }) =>
+    invoicesApi.markPaid(id, payload),
+  );
+}
+
+export function useCancelInvoice() {
+  return useSettlementMutation<CancelInvoicePayload>(({ id, payload }) =>
+    invoicesApi.cancel(id, payload),
+  );
 }

@@ -104,6 +104,18 @@ class InvoiceProcessingRead(BaseModel):
     approval_request_id: Optional[str] = None
     next_actor_name: Optional[str] = None
     current_step_name: Optional[str] = None
+
+    # Settlement (final workflow step)
+    paid_at: Optional[datetime] = None
+    payment_reference: Optional[str] = None
+    payment_notes: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    settled_by_name: Optional[str] = None
+    # True when the request is sitting on the LAST workflow step, i.e. the
+    # viewer's action there is Mark as Paid / Cancel rather than Approve.
+    is_final_step: bool = False
+
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -118,3 +130,12 @@ class POOption(BaseModel):
 class VendorOption(BaseModel):
     id: str
     name: str
+
+
+class InvoiceMarkPaid(BaseModel):
+    payment_reference: Optional[str] = None
+    payment_notes: Optional[str] = None
+
+
+class InvoiceCancel(BaseModel):
+    reason: str

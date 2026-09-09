@@ -4,7 +4,7 @@ import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Paperclip, CheckCircle2, XCircle, RotateCcw, ExternalLink } from "lucide-react";
+import { ArrowLeft, Paperclip, CheckCircle2, XCircle, RotateCcw, ExternalLink, Banknote, Ban } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
@@ -17,19 +17,23 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import AuditTrail from "@/components/forms/AuditTrail";
 import { useToast } from "@/hooks/useToast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useMyApprovals, useAuditTrail } from "@/lib/modules/workflow/queries";
+import { useMyApprovals, useAuditTrail, useWorkflowForType } from "@/lib/modules/workflow/queries";
 import { useWorkflowApprove, useWorkflowReject, useWorkflowReturn } from "@/lib/modules/workflow/mutations";
-import { useInvoice, usePoOptions, useVendorOptions } from "@/lib/modules/invoices-processing/hooks";
+import {
+  useInvoice, usePoOptions, useVendorOptions,
+  useMarkInvoicePaid, useCancelInvoice,
+} from "@/lib/modules/invoices-processing/hooks";
 import invoicesApi from "@/lib/modules/invoices-processing/api";
 import { CURRENCY_OPTIONS } from "../../_components/_data";
 
-const WORKFLOW_STEPS = [
-  { step: 1, name: "Operations Manager" },
-  { step: 2, name: "Finance Manager" },
-];
-
 const AUDIT_ACTION_LABELS: Record<string, string> = {
   submitted: "Submitted", approved: "Approved", rejected: "Rejected", returned: "Returned",
+};
+
+// The final step settles rather than approves, so its engine-recorded
+// approved/rejected row is relabelled to match what the actor actually did.
+const SETTLEMENT_AUDIT_LABELS: Record<string, string> = {
+  approved: "Marked as Paid", rejected: "Cancelled",
 };
 
 type PageRole = "requester" | "approver";
@@ -69,7 +73,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const approveMut = useWorkflowApprove();
   const rejectMut = useWorkflowReject();
   const returnMut = useWorkflowReturn();
-  const isBusy = approveMut.isPending || rejectMut.isPending || returnMut.isPending;
+  const markPaidMut = useMarkInvoicePaid();
+  const cancelMut = useCancelInvoice();
+  const isBusy =
+    approveMut.isPending || rejectMut.isPending || returnMut.isPending ||
+    markPaidMut.isPending || cancelMut.isPending;
 
   const status = (apiRecord?.status || "").toLowerCase();
 
@@ -77,7 +85,24 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     ? myApprovals.find((a) => a.request_type === "invoice" && a.request_id === apiRecord.id)
     : undefined;
   const canActNow = Boolean(myApproval);
-  const currentStepName = WORKFLOW_STEPS.find((s) => s.step === myApproval?.current_step_number)?.name ?? "Approver";
+  // Step names come from the live workflow definition, so adding, renaming or
+  // reordering approval steps needs no change here.
+  const { data: workflowDef } = useWorkflowForType("invoice");
+  const currentStepName =
+    workflowDef?.steps.find((s) => s.step_number === myApproval?.current_step_number)?.step_name ??
+    apiRecord?.current_step_name ??
+    "Approver";
+
+  // The LAST step settles instead of approving. Server-derived (is_final_step);
+  // the workflow definition is only a fallback while that request is in flight.
+  const lastStepNumber = workflowDef?.steps.length
+    ? Math.max(...workflowDef.steps.map((s) => s.step_number))
+    : undefined;
+  const isFinalStep =
+    apiRecord?.is_final_step ??
+    (lastStepNumber !== undefined && myApproval?.current_step_number === lastStepNumber);
+  const isSettlementStep = canActNow && isFinalStep;
+  const isSettled = status === "paid" || status === "cancelled";
 
   const isRequester = apiRecord && currentUser ? apiRecord.requester_id === currentUser.id : false;
   const canResubmit = isRequester && status === "returned";
@@ -85,8 +110,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const viewingAsLabel = canActNow ? currentStepName : isRequester ? "Requester" : "Viewer";
   const currentRole: PageRole = canActNow ? "approver" : "requester";
 
-  const terminalStatus: "approved" | "denied" | "returned" | null =
-    status === "approved" ? "approved" : status === "denied" ? "denied" : status === "returned" ? "returned" : null;
+  const terminalStatus: "paid" | "cancelled" | "approved" | "denied" | "returned" | null =
+    status === "paid" ? "paid"
+    : status === "cancelled" ? "cancelled"
+    : status === "approved" ? "approved"
+    : status === "denied" ? "denied"
+    : status === "returned" ? "returned"
+    : null;
 
   async function handleAction(action: "approve" | "reject" | "return", comment: string) {
     const approvalRequestId = myApproval?.approval_request_id ?? apiRecord?.approval_request_id;
@@ -103,6 +133,28 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       toast.success(
         action === "approve" ? "Invoice approved" : action === "reject" ? "Invoice rejected" : "Returned to requester"
       );
+    } catch (err) {
+      toast.error(errMsg(err));
+    }
+  }
+
+  async function handleSettle(action: "paid" | "cancel", comment: string) {
+    if (!apiRecord) return;
+    if (action === "cancel" && !comment.trim()) {
+      toast.error("A reason is required to cancel this invoice");
+      return;
+    }
+    try {
+      if (action === "paid") {
+        await markPaidMut.mutateAsync({
+          id: apiRecord.id,
+          payload: { payment_notes: comment.trim() || undefined },
+        });
+      } else {
+        await cancelMut.mutateAsync({ id: apiRecord.id, payload: { reason: comment.trim() } });
+      }
+      queryClient.invalidateQueries({ queryKey: ["invoices-processing"] });
+      toast.success(action === "paid" ? "Invoice marked as paid" : "Invoice cancelled");
     } catch (err) {
       toast.error(errMsg(err));
     }
@@ -305,7 +357,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             </ViewSection>
           )}
 
-          {canActNow && (
+          {canActNow && !isSettlementStep && (
             <ApprovalPanel
               reviewingAs={currentStepName}
               showReturn showReject showApprove
@@ -318,34 +370,88 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             />
           )}
 
-          {terminalStatus && (
-            <div className={`rounded-2xl p-4 flex items-start gap-3 border ${
-              terminalStatus === "approved" ? "bg-green-50 border-green-200"
-              : terminalStatus === "denied" ? "bg-red-50 border-red-200"
-              : "bg-amber-50 border-amber-200"
-            }`}>
-              {terminalStatus === "approved" ? (
-                <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" />
-              ) : terminalStatus === "denied" ? (
-                <XCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
-              ) : (
-                <RotateCcw size={18} className="text-amber-600 shrink-0 mt-0.5" />
-              )}
-              <p className={`text-sm font-semibold ${
-                terminalStatus === "approved" ? "text-green-800"
-                : terminalStatus === "denied" ? "text-red-800"
-                : "text-amber-800"
-              }`}>
-                {terminalStatus === "approved" ? "Invoice Approved"
-                  : terminalStatus === "denied" ? "Invoice Rejected"
-                  : "Returned to Requester"}
-              </p>
-            </div>
+          {isSettlementStep && (
+            <ApprovalPanel
+              title="Invoice Processing"
+              description="This invoice has cleared the earlier approvals and is awaiting processing. Marking it paid completes the approval."
+              reviewingAs={currentStepName}
+              showApprove={false}
+              showReject={false}
+              showReturn
+              returnLabel="Return"
+              requireCommentForRejectReturn
+              commentLabel="Payment reference / notes"
+              commentPlaceholder="Payment reference, or the reason if cancelling"
+              disabled={isBusy}
+              onReturn={(comment) => handleAction("return", comment)}
+              extraActions={[
+                {
+                  key: "cancel-invoice",
+                  label: "Cancel Invoice",
+                  variant: "reject",
+                  icon: <Ban size={16} />,
+                  loading: cancelMut.isPending,
+                  onClick: (comment) => handleSettle("cancel", comment),
+                },
+                {
+                  key: "mark-paid",
+                  label: "Mark as Paid",
+                  variant: "approve",
+                  icon: <Banknote size={16} />,
+                  loading: markPaidMut.isPending,
+                  onClick: (comment) => handleSettle("paid", comment),
+                },
+              ]}
+            />
           )}
 
+          {terminalStatus && (() => {
+            const isPositive = terminalStatus === "paid" || terminalStatus === "approved";
+            const isNegative = terminalStatus === "denied" || terminalStatus === "cancelled";
+            const tone = isPositive
+              ? { box: "bg-green-50 border-green-200", text: "text-green-800", icon: <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" /> }
+              : isNegative
+              ? { box: "bg-red-50 border-red-200", text: "text-red-800", icon: <XCircle size={18} className="text-red-600 shrink-0 mt-0.5" /> }
+              : { box: "bg-amber-50 border-amber-200", text: "text-amber-800", icon: <RotateCcw size={18} className="text-amber-600 shrink-0 mt-0.5" /> };
+            const heading =
+              terminalStatus === "paid" ? "Invoice Paid"
+              : terminalStatus === "cancelled" ? "Invoice Cancelled"
+              : terminalStatus === "approved" ? "Invoice Approved"
+              : terminalStatus === "denied" ? "Invoice Rejected"
+              : "Returned to Requester";
+            const detail =
+              terminalStatus === "paid"
+                ? [
+                    apiRecord.settled_by_name ? `Marked paid by ${apiRecord.settled_by_name}` : null,
+                    apiRecord.paid_at ? formatDateTime(apiRecord.paid_at) : null,
+                    apiRecord.payment_reference ? `Ref: ${apiRecord.payment_reference}` : null,
+                  ].filter(Boolean).join(" · ")
+                : terminalStatus === "cancelled"
+                ? [
+                    apiRecord.settled_by_name ? `Cancelled by ${apiRecord.settled_by_name}` : null,
+                    apiRecord.cancelled_at ? formatDateTime(apiRecord.cancelled_at) : null,
+                    apiRecord.cancellation_reason || null,
+                  ].filter(Boolean).join(" · ")
+                : "";
+            return (
+              <div className={`rounded-2xl p-4 flex items-start gap-3 border ${tone.box}`}>
+                {tone.icon}
+                <div>
+                  <p className={`text-sm font-semibold ${tone.text}`}>{heading}</p>
+                  {detail && <p className={`text-sm mt-0.5 ${tone.text} opacity-80`}>{detail}</p>}
+                </div>
+              </div>
+            );
+          })()}
+
           <AuditTrail
-            items={auditEntries.map((entry) => ({
-              action: AUDIT_ACTION_LABELS[entry.action] ?? entry.action,
+            items={auditEntries.map((entry, idx) => ({
+              // A settled invoice's last engine row IS the settlement, so it
+              // reads "Marked as Paid" / "Cancelled" rather than the generic
+              // Approved / Rejected the engine records for every step.
+              action: isSettled && idx === auditEntries.length - 1
+                ? (SETTLEMENT_AUDIT_LABELS[entry.action] ?? AUDIT_ACTION_LABELS[entry.action] ?? entry.action)
+                : (AUDIT_ACTION_LABELS[entry.action] ?? entry.action),
               actor: entry.actor_name ?? "—",
               role: entry.actor_role ?? "—",
               dateTime: formatDateTime(entry.acted_at),

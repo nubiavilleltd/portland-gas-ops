@@ -106,6 +106,7 @@ class InvoiceProcessingStatus(str, enum.Enum):
     denied = "denied"
     paid = "paid"
     partially_paid = "partially_paid"
+    cancelled = "cancelled"
 
 
 class InvoiceProcessing(Base):
@@ -136,12 +137,24 @@ class InvoiceProcessing(Base):
 
     status = Column(SAEnum(InvoiceProcessingStatus), default=InvoiceProcessingStatus.draft)
 
+    # Settlement — recorded at the FINAL workflow step, which is terminal either way.
+    # "Mark as paid" doubles as that step's approval; "cancel" ends the request instead.
+    paid_at             = Column(DateTime(timezone=True), nullable=True)
+    paid_by             = Column(CHAR(36), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
+    payment_reference   = Column(String(100), nullable=True)
+    payment_notes       = Column(Text, nullable=True)
+    cancelled_at        = Column(DateTime(timezone=True), nullable=True)
+    cancelled_by        = Column(CHAR(36), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
+    cancellation_reason = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     requester = relationship("User")
     document = relationship("Document", foreign_keys=[document_id])
+    payer     = relationship("Employee", foreign_keys=[paid_by])
+    canceller = relationship("Employee", foreign_keys=[cancelled_by])
 
     @property
     def requester_name(self) -> Optional[str]:
