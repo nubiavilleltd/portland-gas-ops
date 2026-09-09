@@ -28,6 +28,21 @@ export interface InvoiceListItem {
   approval_request_id?: string;
   next_actor_name?: string;
   current_step_name?: string;
+
+  /** Settlement — recorded at the final workflow step. */
+  paid_at?: string;
+  payment_reference?: string;
+  payment_notes?: string;
+  cancelled_at?: string;
+  cancellation_reason?: string;
+  settled_by_name?: string;
+  /**
+   * True when the request sits on the LAST workflow step, where the action is
+   * Mark as Paid / Cancel rather than Approve. Server-derived, so changing the
+   * number or order of approval steps moves this automatically.
+   */
+  is_final_step?: boolean;
+
   created_at: string;
   updated_at?: string;
 }
@@ -75,4 +90,13 @@ export interface POOption {
 export interface VendorOption {
   id: string;
   name: string;
+}
+
+export interface MarkPaidPayload {
+  payment_reference?: string;
+  payment_notes?: string;
+}
+
+export interface CancelInvoicePayload {
+  reason: string;
 }
