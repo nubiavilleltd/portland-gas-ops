@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", "/reset-password"];
 
 // These are public regardless of auth state — never redirect away from them
-const ALWAYS_PUBLIC_PATHS = ["/setup-account"];
+const ALWAYS_PUBLIC_PATHS = ["/setup-account", "/inventory",];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
