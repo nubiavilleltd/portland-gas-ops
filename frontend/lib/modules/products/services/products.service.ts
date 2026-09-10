@@ -65,6 +65,7 @@ export class ProductsService {
     productId: string,
   ): Promise<Product> {
     try {
+      console.log("prod", productId)
       const raw = await productsApi.get(productId);
 
       return adaptProduct(raw);
@@ -74,6 +75,9 @@ export class ProductsService {
       );
     }
   }
+
+
+
 
   // ───────────────────────────────────────────────────────────
   // Create

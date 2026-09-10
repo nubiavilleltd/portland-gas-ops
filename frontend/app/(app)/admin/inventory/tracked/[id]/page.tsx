@@ -69,8 +69,8 @@ function InfoRow({
     <div>
       {toolTip ? (
         <div className="flex items-center gap-2 text-xs text-brand-text-secondary cursor-pointer" title={toolTip}>
-          {label} 
-        <Info size={12} />
+          {label}
+          <Info size={12} />
         </div>
       ) : <p className="text-xs text-brand-text-secondary">{label}</p>}
 
@@ -150,91 +150,51 @@ export default function InventoryItemDetailPage() {
                 Item Details
               </h2>
             </div>
-            <div className="p-6 grid grid-cols-2 gap-5">
-              <InfoRow
-                label="Tag Number"
-                value={
-                  <span className="font-mono">{item.tag_number}</span>
-                }
-              />
-              <InfoRow
-                label="Product"
-                value={product?.name}
-              />
-              <InfoRow
-                label="Status"
-                value={
-                  <Badge
-                    variant={STATUS_VARIANT[item.status]}
-                    label={STATUS_LABEL[item.status]}
-                  />
-                }
-              />
-              <InfoRow
-                label="Condition"
-                value={
-                  <Badge
-                    variant={CONDITION_VARIANT[item.condition]}
-                    label={item.condition}
-                  />
-                }
-              />
-              <InfoRow
-                label="Disposition"
-                value={item.disposition ?? "—"}
-                toolTip="The mode of check-out e.g sold or loaned"
-              />
-              <InfoRow
-                label="Location"
-                value={item.location_name}
-              />
-              <InfoRow
-                label="Received"
-                value={formatDate(item.received_at)}
-              />
-              {item.checked_out_at && (
-                <InfoRow
-                  label="Checked Out"
-                  value={formatDate(item.checked_out_at)}
-                />
-              )}
-              {item.expected_return_date && (
-                <InfoRow
-                  label="Expected Return"
-                  value={formatDate(item.expected_return_date)}
-                />
-              )}
-            </div>
 
-            {item.notes && (
-              <div className="px-6 pb-6">
-                <p className="text-xs text-brand-text-secondary mb-1">Notes</p>
-                <p className="text-sm">{item.notes}</p>
+            {/* 3-column grid: 2 cols for details, 1 col for QR */}
+            <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+              {/* ── Details: span 2 columns ── */}
+              <div className="lg:col-span-2 grid grid-cols-2 gap-5">
+                <InfoRow label="Tag Number" value={<span className="font-mono">{item.tag_number}</span>} />
+                <InfoRow label="Product" value={product?.name} />
+                <InfoRow label="Status" value={<Badge variant={STATUS_VARIANT[item.status]} label={STATUS_LABEL[item.status]} />} />
+                <InfoRow label="Condition" value={<Badge variant={CONDITION_VARIANT[item.condition]} label={item.condition} />} />
+                <InfoRow label="Disposition" value={item.disposition ?? "—"} toolTip="The mode of check-out e.g sold or loaned" />
+                <InfoRow label="Location" value={item.location_name} />
+                <InfoRow label="Received" value={formatDate(item.received_at)} />
+                {item.checked_out_at && (
+                  <InfoRow label="Checked Out" value={formatDate(item.checked_out_at)} />
+                )}
+                {item.expected_return_date && (
+                  <InfoRow label="Expected Return" value={formatDate(item.expected_return_date)} />
+                )}
               </div>
-            )}
+
+              {/* ── QR: 1 column ── */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 bg-white border border-brand-border rounded-xl">
+                  <QrCode value={itemUrl} size={120} />
+                </div>
+
+
+                {/* <p className="text-xs text-brand-text-secondary text-center max-w-[140px]">
+                  Scan to open this item's details.
+                </p> */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrint}
+                // className="w-[120px]"
+                >
+                  Print QR Code
+                </Button>
+              </div>
+
+            </div>
           </div>
 
-          {/* ── QR CODE ──────────────────────────────────── */}
-          <div className="bg-white border border-brand-border rounded-2xl">
-            <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-              <h2 className="text-sm font-semibold text-brand-text-primary">
-                QR Code
-              </h2>
-            </div>
-            <div className="p-6 flex flex-col items-center gap-4">
-              <QrCode value={itemUrl} size={180} />
-              <p className="text-sm text-brand-text-secondary text-center max-w-xs">
-                Scan to open this inventory item's details page.
-              </p>
-            <Button 
-    variant="outline" 
-    size="sm"
-    onClick={handlePrint}
-  >
-    Print QR Code
-  </Button>
-            </div>
-          </div>
+
 
           {/* ── CUSTOMER / ORDER INFO (if out) ─────────────── */}
           {(item.order_id || item.customer_id) && (
@@ -333,11 +293,11 @@ export default function InventoryItemDetailPage() {
         </div>
       </div>
 
-    <PrintableQrLabel
-  qrValue={itemUrl}
-  primaryIdentifier={item.tag_number}
-  secondaryIdentifier={product?.name ?? "Unknown Product"}
-/>
+      <PrintableQrLabel
+        qrValue={itemUrl}
+        primaryIdentifier={item.tag_number}
+        secondaryIdentifier={product?.name ?? "Unknown Product"}
+      />
     </AppLayout>
   );
 }
