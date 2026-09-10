@@ -398,11 +398,14 @@ export default function IntranetLayout({ children }: Props) {
         {/* Mobile nav */}
         <div
           className={cn(
-            "lg:hidden bg-[#1C043B] px-4 overflow-hidden transition-all duration-300 ease-in-out",
+            "lg:hidden bg-[#1C043B] px-4 overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out",
             mobileOpen
-              ? "max-h-64 opacity-100 py-3 border-t border-white/10"
+              ? "max-h-[calc(100dvh-4rem)] opacity-100 py-3 border-t border-white/10"
               : "max-h-0 opacity-0 py-0 border-t-0"
           )}
+          style={{
+            paddingBottom: mobileOpen ? "max(0.75rem, env(safe-area-inset-bottom))" : undefined,
+          }}
         >
           <div className="space-y-1">
             {NAV_LINKS.map((link) => (
@@ -421,6 +424,13 @@ export default function IntranetLayout({ children }: Props) {
             <Link href="/home" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#c084fc] font-semibold">
               <LayoutDashboard size={14} /> Workflow Portal
             </Link>
+            <button
+              type="button"
+              onClick={() => { setMobileOpen(false); openFeedback(); }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-[#FFBC00] font-semibold"
+            >
+              <MessageSquarePlus size={14} /> Feedback
+            </button>
           </div>
         </div>
       </header>
