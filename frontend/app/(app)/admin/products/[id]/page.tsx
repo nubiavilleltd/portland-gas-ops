@@ -32,12 +32,9 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-
   const { product, isLoading, error } = useProductById(id);
   const { stock, quantity } = useConsumableStockByProduct(id);
-  const isLow = getStockStatus(product as Product, quantity);
-  // product?.minimumStock != null && quantity <= product?.minimumStock;
-  // const [actionError, setActionError] = useState<string | null>(null);
+
 
   const isActive = product?.status == "active";
   const { mutate: toggleStatus, isPending: isToggling } =
@@ -69,6 +66,8 @@ export default function ProductDetailPage() {
       </AppLayout>
     );
   }
+
+const isLow = getStockStatus(product, quantity);
 
 
   return (
@@ -196,7 +195,7 @@ export default function ProductDetailPage() {
               <InfoRow
                 label="Minimum Threshold"
                 value={
-                  product.minimumStock
+                  product?.minimumStock
                     ? `${product.minimumStock.toLocaleString()} ${product.unit}`
                     : "Not set"
                 }

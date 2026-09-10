@@ -208,6 +208,7 @@ def get_product(
     current_user: User    = Depends(get_current_user),
 ):
     product = service.get_or_raise(db, product_id)
+
     return _to_response(db, product)
 
 
