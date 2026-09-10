@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Mulish } from "next/font/google";
 import { Toaster } from "sonner";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import "./globals.css";
 
 const inter = Inter({
@@ -45,6 +46,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} ${mulish.variable}`} suppressHydrationWarning>
       <body className="min-h-screen bg-brand-bg antialiased" suppressHydrationWarning>
         <ServiceWorkerRegistration />
+        <PWAInstallPrompt />
         {children}
         <Toaster
           position="top-right"
