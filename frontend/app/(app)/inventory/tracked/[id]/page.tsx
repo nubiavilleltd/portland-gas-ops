@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Info } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Info } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
-import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import QrCode from "@/components/ui/QrCode";
@@ -17,7 +15,6 @@ import {
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 
 import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
-import { canReturn } from "@/lib/modules/inventory/guards/inventory.guards";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 import { formatDate, buildFrontendUrl } from "@/lib/utils";
 
@@ -90,7 +87,6 @@ const MOVEMENT_LABELS: Record<string, { label: string; variant: BadgeVariant }> 
 
 // ── Page ──────────────────────────────────────────────────
 export default function InventoryItemDetailPage() {
-  const router = useRouter();
   const { id } = useParams<{ id: string }>();
 
   const { item, isLoading: itemLoading } = useInventoryItemById(id);
@@ -120,26 +116,7 @@ export default function InventoryItemDetailPage() {
   return (
     <AppLayout pageTitle={item.tag_number}>
       <div className="print:hidden">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
-        >
-          <ArrowLeft size={14} />
-          Back to Inventory
-        </button>
-
-        <PageHeader
-          title={item.tag_number}
-          description={product?.name ?? "Tracked Asset"}
-          className="mb-6"
-          action={
-            canReturn(item) ? (
-              <Button href={INVENTORY_ROUTES.returnTracked(id)}>
-                Return Item
-              </Button>
-            ) : undefined
-          }
-        />
+ 
 
         <div className="space-y-6">
 
@@ -197,37 +174,30 @@ export default function InventoryItemDetailPage() {
 
 
           {/* ── CUSTOMER / ORDER INFO (if out) ─────────────── */}
-          {(item.order_id || item.customer_id) && (
-            <div className="bg-white border border-brand-border rounded-2xl">
-              <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-                <h2 className="text-sm font-semibold text-brand-text-primary">
-                  Assignment
-                </h2>
-              </div>
-              <div className="p-6 grid grid-cols-2 gap-5">
-                {item.order_id && (
-                  <InfoRow
-                    label="Order"
-                    value={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        href={`/orders/${order?.id}`}
-                      >
-                        View Order
-                      </Button>
-                    }
-                  />
-                )}
-                {item.customer_id && (
-                  <InfoRow
-                    label="Customer"
-                    value={order?.customerName}
-                  />
-                )}
-              </div>
-            </div>
-          )}
+    {/* ── ASSIGNMENT (reference only, no links) ─────── */}
+{(item.order_id || item.customer_id) && (
+  <div className="bg-white border border-brand-border rounded-2xl">
+    <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+      <h2 className="text-sm font-semibold text-brand-text-primary">
+        Assignment
+      </h2>
+    </div>
+    <div className="p-6 grid grid-cols-2 gap-5">
+      {item.order_id && (
+        <InfoRow
+          label="Order Reference"
+          value={<span className="font-mono">{order?.id ?? item.order_id}</span>}
+        />
+      )}
+      {item.customer_id && (
+        <InfoRow
+          label="Assigned To"
+          value={order?.customerName ?? "—"}
+        />
+      )}
+    </div>
+  </div>
+)}
 
           {/* ── MOVEMENT HISTORY ───────────────────────────── */}
           <div className="bg-white border border-brand-border rounded-2xl">

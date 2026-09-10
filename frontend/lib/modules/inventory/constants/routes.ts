@@ -10,6 +10,7 @@ export const INVENTORY_ROUTES = {
 
   trackedDetail: (id: string) =>
     `/admin/inventory/tracked/${id}`,
+  publicTrackedDetail: (id: string) => `/inventory/tracked/${id}`,
 
   returnTracked: (id: string) =>
     `/admin/inventory/tracked/${id}/return`,
