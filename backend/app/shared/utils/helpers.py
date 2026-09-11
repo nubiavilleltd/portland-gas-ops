@@ -53,3 +53,15 @@ def sanitize_str(value: str) -> str:
 def paginate(query, skip: int = 0, limit: int = 20):
     """Apply skip/limit pagination to a SQLAlchemy query."""
     return query.offset(skip).limit(limit).all()
+
+
+def indefinite_article(word: str) -> str:
+    """
+    "a" or "an" for the word that follows — "an invoice", "a procurement".
+
+    Request-type slugs are interpolated straight into notification and email
+    copy, so a fixed "A" reads wrong for every type starting with a vowel.
+    Plain vowel-letter rule: the slugs in use are ordinary words, none of the
+    awkward cases ("an hour", "a university") occur among them.
+    """
+    return "an" if word[:1].lower() in "aeiou" else "a"

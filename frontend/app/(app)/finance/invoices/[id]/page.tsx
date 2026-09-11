@@ -10,6 +10,8 @@ import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import RoleBasedRecordHeader from "@/components/ui/RoleBasedRecordHeader";
 import ApprovalPanel from "@/components/ui/ApprovalPanel";
 import Button from "@/components/ui/Button";
+import FileDropzone from "@/components/ui/FileDropzone";
+import WorkflowApproversSection from "@/components/ui/WorkflowApproversSection";
 import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import FormSelect from "@/components/forms/FormSelect";
@@ -19,6 +21,7 @@ import { useToast } from "@/hooks/useToast";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMyApprovals, useAuditTrail, useWorkflowForType } from "@/lib/modules/workflow/queries";
 import { useWorkflowApprove, useWorkflowReject, useWorkflowReturn } from "@/lib/modules/workflow/mutations";
+import { useApproverPicker } from "@/lib/modules/workflow/useApproverPicker";
 import {
   useInvoice, usePoOptions, useVendorOptions,
   useMarkInvoicePaid, useCancelInvoice,
@@ -161,6 +164,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   }
 
   // ── Inline edit & resubmit (returned invoice) ─────────────────────────────
+  // Resubmitting restarts the workflow from step 1, so every requester_pick
+  // step needs its approver chosen again. Without this the workflow restarts
+  // with no assignment for those steps, and the failure only surfaces later —
+  // either on submit, or as a 422 for whoever tries to approve the step before.
+  const approverPicker = useApproverPicker("invoice", apiRecord?.id);
   const [resubmitFiles, setResubmitFiles] = useState<File[]>([]);
   const [isResubmitting, setIsResubmitting] = useState(false);
   const resubmitForm = useForm<ResubmitForm>();
@@ -194,6 +202,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       toast.error("Enter a valid net amount");
       return;
     }
+    const picksError = approverPicker.validate();
+    if (picksError) {
+      toast.error(picksError);
+      return;
+    }
     setIsResubmitting(true);
     try {
       const updated = await invoicesApi.resubmit(id, {
@@ -206,6 +219,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         tax_amount: parseFloat(String(data.tax_amount).replace(/,/g, "")) || 0,
         amount,
         currency: data.currency,
+        picked_approvers: approverPicker.picksPayload,
       });
       if (resubmitFiles.length > 0 && updated?.id) {
         for (const file of resubmitFiles) {
@@ -257,7 +271,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             onRoleChange={() => undefined}
             roleLabel={viewingAsLabel}
             roles={ROLE_OPTIONS}
-            status={<ApprovalBadge status={status === "in_progress" ? "pending" : status} />}
+            status={<ApprovalBadge status={status} />}
             recordLabel="Invoice"
             title={apiRecord.title}
             nextApproverName={
@@ -313,7 +327,35 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   <div className="sm:col-span-2">
                     <FormTextarea label="Description of Goods / Services" rows={3} {...resubmitForm.register("description")} />
                   </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-sm font-medium text-brand-text-primary mb-2">Supporting Documents</p>
+                    {apiRecord.document ? (
+                      <a
+                        href={apiRecord.document.file_path || "#"}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg border border-brand-border bg-gray-50 hover:bg-gray-100 transition-colors group"
+                      >
+                        <Paperclip size={14} className="text-brand-text-secondary shrink-0" />
+                        <span className="text-sm text-brand-text-primary truncate group-hover:text-brand-purple">{apiRecord.document.name}</span>
+                        <ExternalLink size={14} className="text-brand-text-secondary shrink-0 ml-auto group-hover:text-brand-purple" />
+                      </a>
+                    ) : (
+                      <p className="text-sm text-brand-text-secondary px-3 py-2.5 mb-2 rounded-lg border border-brand-border bg-gray-50">
+                        No documents attached
+                      </p>
+                    )}
+                    <FileDropzone
+                      value={resubmitFiles}
+                      onChange={setResubmitFiles}
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      maxFiles={1}
+                      hint={apiRecord.document
+                        ? "Attaching a file replaces the document above (optional)."
+                        : "Attach the scanned or digital invoice (optional)."}
+                    />
+                  </div>
                 </div>
+                <WorkflowApproversSection {...approverPicker} />
                 <div className="flex justify-end pt-1">
                   <Button type="submit" loading={isResubmitting} loadingText="Resubmitting...">
                     Resubmit for Approval
@@ -405,7 +447,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             />
           )}
 
-          {terminalStatus && (() => {
+          {terminalStatus && !isSettlementStep && (() => {
             const isPositive = terminalStatus === "paid" || terminalStatus === "approved";
             const isNegative = terminalStatus === "denied" || terminalStatus === "cancelled";
             const tone = isPositive
@@ -416,13 +458,13 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             const heading =
               terminalStatus === "paid" ? "Invoice Paid"
               : terminalStatus === "cancelled" ? "Invoice Cancelled"
-              : terminalStatus === "approved" ? "Invoice Approved"
+              : terminalStatus === "approved" ? "Invoice Approved — awaiting payment"
               : terminalStatus === "denied" ? "Invoice Rejected"
               : "Returned to Requester";
             const detail =
               terminalStatus === "paid"
                 ? [
-                    apiRecord.settled_by_name ? `Marked paid by ${apiRecord.settled_by_name}` : null,
+                    apiRecord.settled_by_name ? `Marked as paid by ${apiRecord.settled_by_name}` : null,
                     apiRecord.paid_at ? formatDateTime(apiRecord.paid_at) : null,
                     apiRecord.payment_reference ? `Ref: ${apiRecord.payment_reference}` : null,
                   ].filter(Boolean).join(" · ")
