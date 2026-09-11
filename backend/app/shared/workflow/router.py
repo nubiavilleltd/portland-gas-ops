@@ -372,7 +372,17 @@ def _update_source_status(request_type: str, request_id: str, status: str, db: S
             elif status == "returned":
                 row.status = InvoiceProcessingStatus.returned
             elif status == "in_progress":
-                row.status = InvoiceProcessingStatus.in_progress
+                # Invoices are the one request type whose LAST step settles
+                # (mark as paid) instead of approving. Landing on that step
+                # therefore means every approval is done, so the invoice reads
+                # "approved — awaiting payment" rather than "in progress".
+                # Derived from the workflow, so it holds for any step count.
+                from app.finance.service import invoice_is_at_final_step
+                row.status = (
+                    InvoiceProcessingStatus.approved
+                    if invoice_is_at_final_step(db, request_id)
+                    else InvoiceProcessingStatus.in_progress
+                )
 
     elif request_type == "asset":
         from app.assets.models import AssetRequest, AssetRequestStatus

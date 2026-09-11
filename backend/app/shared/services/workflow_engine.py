@@ -45,6 +45,7 @@ from app.shared.models.approval import (
     AssigneeType,
 )
 from app.core.datetime_utils import utc_isoformat
+from app.shared.utils.helpers import indefinite_article
 from app.employees.models import Employee
 from app.shared.services import notification_service
 from app.shared.services import workflow_email
@@ -396,7 +397,8 @@ class WorkflowEngine:
             type=NotificationType.approval_required,
             title="Approval Required",
             message=(
-                f"A {request_type} request requires your approval: \"{title}\" "
+                f"{indefinite_article(request_type).capitalize()} {request_type} request "
+                f"requires your approval: \"{title}\" "
                 f"(Step {first_step.step_number}: {first_step.step_name})."
             ),
             reference_type=request_type,
@@ -517,7 +519,8 @@ class WorkflowEngine:
                 type=NotificationType.approval_required,
                 title="Approval Required",
                 message=(
-                    f"A {approval_req.request_type} request requires your approval "
+                    f"{indefinite_article(approval_req.request_type).capitalize()} "
+                    f"{approval_req.request_type} request requires your approval "
                     f"(Step {next_step.step_number}: {next_step.step_name})."
                 ),
                 reference_type=approval_req.request_type,

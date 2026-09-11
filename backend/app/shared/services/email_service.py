@@ -13,6 +13,7 @@ import logging
 import httpx
 from pathlib import Path
 from app.core.config import settings
+from app.shared.utils.helpers import indefinite_article
 from collections.abc import Mapping
 from dataclasses import dataclass
 import base64
@@ -260,7 +261,8 @@ def send_approval_required(
         "step_name":          step_name,
         "intro_message":      intro_message
         or (
-            f"A {request_type_label} request has been submitted and is "
+            f"{indefinite_article(request_type_label).capitalize()} "
+            f"{request_type_label} request has been submitted and is "
             "waiting for your approval."
         ),
         "action_message":     action_message
