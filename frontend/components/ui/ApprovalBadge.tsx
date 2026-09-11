@@ -63,6 +63,9 @@ interface Props {
 
 const labels: Record<string, string> = {
   rejected: "Rejected",
+  // At least one approver has acted but the request has not reached its final
+  // step. Distinct from "pending", which means nobody has acted yet.
+  in_progress: "In Progress",
   // HR and Finance persist the outcome as "denied"; the UI says Rejected
   // everywhere. Without this the badge falls through to capitalize("denied").
   denied: "Rejected",

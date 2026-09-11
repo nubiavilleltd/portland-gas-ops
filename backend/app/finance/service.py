@@ -663,3 +663,19 @@ def get_invoice_settlement_info(db: Session, inv: InvoiceProcessing) -> dict:
         )
 
     return info
+
+
+def invoice_is_at_final_step(db: Session, invoice_id: str) -> bool:
+    """
+    True when the invoice's live workflow is sitting on its LAST step.
+
+    That step settles (mark as paid / cancel) rather than approves, so arriving
+    there means every approval step is already done — which is why the invoice
+    reads "approved" from that point on rather than "in progress". Derived from
+    the workflow at call time, so it holds for any number of approval steps.
+    """
+    approval_req = get_invoice_approval_request(db, invoice_id)
+    if not approval_req:
+        return False
+    final_step = get_final_step_number(db, approval_req.workflow_id)
+    return final_step is not None and approval_req.current_step_number == final_step
