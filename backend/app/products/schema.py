@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.products.enums import ProductStatus, ProductType, ProductUnit
+from app.products.enums import InventoryTracking, ProductStatus
 from app.products.validators import (
     validate_default_unit_price,
     validate_minimum_stock,
@@ -30,12 +30,20 @@ class ProductImageResponse(BaseModel):
 
 class ProductCreate(BaseModel):
     name: str
-    product_type: ProductType = ProductType.consumable
-    unit: ProductUnit = ProductUnit.kg
+    category_id: str
+    unit_id: str
+    inventory_tracking: InventoryTracking
+
     default_unit_price: Decimal
-    code: str | None = None
-    description: str | None = None
     minimum_stock: Decimal | None = None
+
+    # SKU: optional, unique when present
+    code: str | None = None
+
+    # Tag prefix: required for individual_items, must be null for stock_quantity
+    tag_prefix: str | None = None
+
+    description: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -62,28 +70,52 @@ class ProductCreate(BaseModel):
     def description_validator(cls, v: str | None) -> str | None:
         return validate_optional_description(v)
 
+    @field_validator("tag_prefix")
+    @classmethod
+    def tag_prefix_validator(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip().upper()
+        if not v:
+            return None
+        if len(v) > 50:
+            raise ValueError("Tag prefix must be at most 50 characters")
+        if not v.replace("-", "").replace("_", "").isalnum():
+            raise ValueError(
+                "Tag prefix may only contain letters, numbers, hyphens, and underscores"
+            )
+        return v
+
     @model_validator(mode="after")
-    def tracked_requires_code(self) -> ProductCreate:
-        if self.product_type == ProductType.tracked and not self.code:
-            raise ValueError("Product code is required for tracked assets")
-
-        # Tracked products are always measured in units.
-        if self.product_type == ProductType.tracked:
-            self.unit = ProductUnit.unit
-
+    def validate_tracking_rules(self) -> ProductCreate:
+        if self.inventory_tracking == InventoryTracking.individual_items:
+            if not self.tag_prefix:
+                raise ValueError(
+                    "Tag prefix is required for products with individual-item tracking"
+                )
+        else:
+            if self.tag_prefix is not None:
+                raise ValueError(
+                    "Tag prefix must not be supplied for stock-quantity products"
+                )
         return self
 
 
 class ProductUpdate(BaseModel):
     name: str | None = None
-    product_type: ProductType | None = None
-    unit: ProductUnit | None = None
+    category_id: str | None = None
+    unit_id: str | None = None
+    inventory_tracking: InventoryTracking | None = None
+
     default_unit_price: Decimal | None = None
-    code: str | None = None
-    description: str | None = None
     minimum_stock: Decimal | None = None
+
+    code: str | None = None
+    tag_prefix: str | None = None
+
+    description: str | None = None
     status: ProductStatus | None = None
-    primary_document_id: str | None = None
+    primary_document_id: int | None = None
 
     @field_validator("name")
     @classmethod
@@ -110,10 +142,26 @@ class ProductUpdate(BaseModel):
     def description_validator(cls, v: str | None) -> str | None:
         return validate_optional_description(v)
 
+    @field_validator("tag_prefix")
+    @classmethod
+    def tag_prefix_validator(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip().upper()
+        if not v:
+            return None
+        if len(v) > 50:
+            raise ValueError("Tag prefix must be at most 50 characters")
+        if not v.replace("-", "").replace("_", "").isalnum():
+            raise ValueError(
+                "Tag prefix may only contain letters, numbers, hyphens, and underscores"
+            )
+        return v
+
 
 class ProductFilters(BaseModel):
     search: str | None = None
-    product_type: ProductType | None = None
+    inventory_tracking: InventoryTracking | None = None
     status: ProductStatus | None = None
     page: int = 1
     page_size: int = 50
@@ -139,26 +187,37 @@ class ProductResponse(BaseModel):
     id: str
     product_no: str
     name: str
+
     code: str | None
+    tag_prefix: str | None
+
     description: str | None
-    product_type: ProductType
-    unit: ProductUnit
+    inventory_tracking: InventoryTracking
+
+    category_id: str
+    unit_id: str
+
     default_unit_price: Decimal
     minimum_stock: Decimal | None
+
     status: ProductStatus
     primary_document_id: int | None = None
+
     images: list[ProductImageResponse] = Field(default_factory=list)
+
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
 
+
 class ProductPickerResponse(ProductResponse):
     physical_quantity: Decimal
     committed_quantity: Decimal
     available_quantity: Decimal
     is_orderable: bool
+
 
 class ProductPickerListResponse(BaseModel):
     items: list[ProductPickerResponse]
@@ -174,26 +233,3 @@ class ProductListResponse(BaseModel):
     page: int
     page_size: int
     has_next: bool
-
-
-# # ─────────────────────────────────────────────────────────────────────────────
-# # Product Picker
-# # ─────────────────────────────────────────────────────────────────────────────
-
-# class ProductPickerResponse(BaseModel):
-#     id: str
-#     product_no: str
-#     name: str
-#     code: str | None
-#     product_type: ProductType
-#     unit: ProductUnit
-#     default_unit_price: Decimal
-
-#     available_quantity: Decimal
-
-#     class Config:
-#         from_attributes = True
-
-
-# class ProductPickerListResponse(BaseModel):
-#     items: list[ProductPickerResponse]
