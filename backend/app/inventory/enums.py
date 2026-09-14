@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from enum import Enum
@@ -7,9 +6,10 @@ from enum import Enum
 class InventoryItemStatus(str, Enum):
     available = "available"
     reserved = "reserved"
-    checked_out   = "checked_out"
+    checked_out = "checked_out"
     with_customer = "with_customer"
     maintenance = "maintenance"
+    sold = "sold"
     retired = "retired"
 
 
