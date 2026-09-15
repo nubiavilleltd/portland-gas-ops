@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from decimal import Decimal
@@ -13,7 +12,7 @@ from app.invoices.model import Invoice
 from app.orders.enums import DiscountType
 from app.orders.model import Order, OrderItem
 from app.payments.model import Payment
-from app.shared.config.company import COMPANY_BANK_DETAILS
+from app.shared.config.company import COMPANY_BANK_DETAILS, COMPANY_INFO
 from app.shared.pdf.builder import (
     DARK_TEXT,
     MUTED_TEXT,
@@ -44,14 +43,14 @@ def generate_invoice_pdf(
         • audit archive
     """
 
+    currency = COMPANY_INFO.currency_code
+
     ###########################################################
     # Create document
     ###########################################################
 
     buffer = BytesIO()
-
     canvas = Canvas(buffer)
-
     builder = PdfBuilder(canvas)
 
     ###########################################################
@@ -77,9 +76,7 @@ def generate_invoice_pdf(
     ###########################################################
 
     col1 = builder.margin_left
-
     col2 = builder.page_width / 2 + 4 * mm
-
     col_width = (
         builder.page_width / 2
         - builder.margin_left
@@ -155,7 +152,6 @@ def generate_invoice_pdf(
     # Divider
     #
     builder.draw_divider(y)
-
     builder.cursor_y = y - 6 * mm
 
     ###########################################################
@@ -167,7 +163,7 @@ def generate_invoice_pdf(
         unit = ""
 
         if item.product and item.product.unit:
-            unit = item.product.unit.value.replace("_", " ")
+            unit = item.product.unit.label
 
         quantity = (
             f"{Decimal(item.quantity):,.3f}"
@@ -194,23 +190,18 @@ def generate_invoice_pdf(
         ),
 
         TableColumn[OrderItem](
-            header="Unit Price (NGN)",
+            header=f"Unit Price ({currency})",
             width=37 * mm,
             align="right",
-            renderer=lambda item: fmt_currency(
-                item.unit_price,
-            ),
+            renderer=lambda item: fmt_currency(item.unit_price),
         ),
 
         TableColumn[OrderItem](
-            header="Total (NGN)",
+            header=f"Total ({currency})",
             width=37 * mm,
             align="right",
-            renderer=lambda item: fmt_currency(
-                item.total,
-            ),
+            renderer=lambda item: fmt_currency(item.total),
         ),
-
     ]
 
     builder.draw_table(
@@ -225,27 +216,16 @@ def generate_invoice_pdf(
     ###########################################################
 
     subtotal = invoice.total_amount
-
     discount = Decimal("0.00")
 
     if order:
+        discount = Decimal(order.discount_amount or 0)
+        subtotal = Decimal(invoice.total_amount) + discount
 
-        discount = Decimal(
-            order.discount_amount or 0
-        )
-
-        subtotal = (
-            Decimal(invoice.total_amount)
-            + discount
-        )
-            #
+    #
     # Subtotal
     #
-    builder.canvas.setFont(
-        "Helvetica",
-        8.5,
-    )
-
+    builder.canvas.setFont("Helvetica", 8.5)
     builder.canvas.setFillColor(DARK_TEXT)
 
     right_label_x = builder.margin_right - 60 * mm
@@ -262,7 +242,7 @@ def generate_invoice_pdf(
         builder.canvas.drawRightString(
             right_value_x,
             builder.cursor_y,
-            f"NGN {fmt_currency(subtotal)}",
+            f"{currency} {fmt_currency(subtotal)}",
         )
 
         builder.cursor_y -= 7 * mm
@@ -271,9 +251,7 @@ def generate_invoice_pdf(
             order
             and order.discount_type == DiscountType.percentage
         ):
-            discount_label = (
-                f"Discount ({order.discount_value}%)"
-            )
+            discount_label = f"Discount ({order.discount_value}%)"
         else:
             discount_label = "Discount"
 
@@ -286,7 +264,7 @@ def generate_invoice_pdf(
         builder.canvas.drawRightString(
             right_value_x,
             builder.cursor_y,
-            f"- NGN {fmt_currency(discount)}",
+            f"- {currency} {fmt_currency(discount)}",
         )
 
         builder.cursor_y -= 9 * mm
@@ -296,7 +274,7 @@ def generate_invoice_pdf(
     #
     builder.draw_total_row(
         label="GRAND TOTAL",
-        value=f"NGN {fmt_currency(invoice.total_amount)}",
+        value=f"{currency} {fmt_currency(invoice.total_amount)}",
     )
 
     builder.cursor_y -= 10 * mm
@@ -305,28 +283,17 @@ def generate_invoice_pdf(
     # Payment Summary
     ###########################################################
 
-    payments: list[Payment] = (
-        invoice.payments or []
-    )
+    payments: list[Payment] = invoice.payments or []
 
     amount_paid = sum(
         Decimal(payment.amount)
         for payment in payments
     )
 
-    balance = (
-        Decimal(invoice.total_amount)
-        - amount_paid
-    )
+    balance = Decimal(invoice.total_amount) - amount_paid
 
-    builder.canvas.setFont(
-        "Helvetica-Bold",
-        6.5,
-    )
-
-    builder.canvas.setFillColor(
-        MUTED_TEXT,
-    )
+    builder.canvas.setFont("Helvetica-Bold", 6.5)
+    builder.canvas.setFillColor(MUTED_TEXT)
 
     builder.canvas.drawString(
         builder.margin_left,
@@ -338,7 +305,7 @@ def generate_invoice_pdf(
 
     left_height = builder.draw_label_value(
         label="Amount Paid",
-        value=f"NGN {fmt_currency(amount_paid)}",
+        value=f"{currency} {fmt_currency(amount_paid)}",
         x=col1,
         y=builder.cursor_y,
         width=col_width,
@@ -346,16 +313,13 @@ def generate_invoice_pdf(
 
     right_height = builder.draw_label_value(
         label="Balance Due",
-        value=f"NGN {fmt_currency(balance)}",
+        value=f"{currency} {fmt_currency(balance)}",
         x=col2,
         y=builder.cursor_y,
         width=col_width,
     )
 
-    builder.cursor_y -= (
-        max(left_height, right_height)
-        + 8 * mm
-    )
+    builder.cursor_y -= max(left_height, right_height) + 8 * mm
 
     ###########################################################
     # Payment History
@@ -363,14 +327,8 @@ def generate_invoice_pdf(
 
     if payments:
 
-        builder.canvas.setFont(
-            "Helvetica-Bold",
-            6.5,
-        )
-
-        builder.canvas.setFillColor(
-            MUTED_TEXT,
-        )
+        builder.canvas.setFont("Helvetica-Bold", 6.5)
+        builder.canvas.setFillColor(MUTED_TEXT)
 
         builder.canvas.drawString(
             builder.margin_left,
@@ -386,41 +344,29 @@ def generate_invoice_pdf(
                 header="Reference",
                 width=50 * mm,
                 align="left",
-                renderer=lambda p:
-                    p.reference or "-",
+                renderer=lambda p: p.reference or "-",
             ),
 
             TableColumn[Payment](
                 header="Date",
                 width=40 * mm,
                 align="center",
-                renderer=lambda p:
-                    fmt_date(
-                        p.payment_date,
-                    ),
+                renderer=lambda p: fmt_date(p.payment_date),
             ),
 
             TableColumn[Payment](
                 header="Method",
                 width=44 * mm,
                 align="center",
-                renderer=lambda p:
-                    p.method.value.replace(
-                        "_",
-                        " ",
-                    ).title(),
+                renderer=lambda p: p.method.value.replace("_", " ").title(),
             ),
 
             TableColumn[Payment](
-                header="Amount (NGN)",
+                header=f"Amount ({currency})",
                 width=40 * mm,
                 align="right",
-                renderer=lambda p:
-                    fmt_currency(
-                        p.amount,
-                    ),
+                renderer=lambda p: fmt_currency(p.amount),
             ),
-
         ]
 
         builder.draw_table(
@@ -434,24 +380,15 @@ def generate_invoice_pdf(
     # Divider
     ###########################################################
 
-    builder.draw_divider(
-        builder.cursor_y + 3 * mm,
-    )
-
+    builder.draw_divider(builder.cursor_y + 3 * mm)
     builder.cursor_y -= 3 * mm
 
     ###########################################################
     # Payment Instructions
     ###########################################################
 
-    builder.canvas.setFont(
-        "Helvetica-Bold",
-        6.5,
-    )
-
-    builder.canvas.setFillColor(
-        MUTED_TEXT,
-    )
+    builder.canvas.setFont("Helvetica-Bold", 6.5)
+    builder.canvas.setFillColor(MUTED_TEXT)
 
     builder.canvas.drawString(
         builder.margin_left,
@@ -477,10 +414,7 @@ def generate_invoice_pdf(
         width=col_width,
     )
 
-    builder.cursor_y -= (
-        max(left_height, right_height)
-        + 5 * mm
-    )
+    builder.cursor_y -= max(left_height, right_height) + 5 * mm
 
     builder.draw_label_value(
         label="Account Number",
@@ -496,8 +430,8 @@ def generate_invoice_pdf(
 
     builder.draw_footer(
         disclaimer=(
-            "This is a computer-generated invoice. "
-            "Portland Gas Limited — Internal Operations Platform."
+            f"This is a computer-generated invoice. "
+            f"{COMPANY_INFO.name} — Internal Operations Platform."
         ),
     )
 
@@ -506,11 +440,9 @@ def generate_invoice_pdf(
     ###########################################################
 
     canvas.showPage()
-
     canvas.save()
 
     pdf = buffer.getvalue()
-
     buffer.close()
 
     return pdf
