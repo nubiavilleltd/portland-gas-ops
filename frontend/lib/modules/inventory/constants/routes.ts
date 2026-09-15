@@ -17,4 +17,6 @@ export const INVENTORY_ROUTES = {
 
   stockDetail: (id: string) =>
     `/admin/inventory/stock/${id}`,
+  productDetail: (productId: string) =>
+  `/admin/inventory/${productId}`,
 } as const;

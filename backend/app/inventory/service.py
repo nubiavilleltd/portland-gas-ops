@@ -85,6 +85,34 @@ class InventoryService:
     # Retrieval
     # -------------------------------------------------------------------------
 
+    def has_inventory(
+        self,
+        db: Session,
+        product_id: str,
+    ) -> bool:
+        """
+        Returns True if any inventory records exist for the product.
+
+        Used by the products module to decide whether certain product
+        fields (tag_prefix, inventory_tracking) are still mutable.
+        """
+        item_exists = (
+            db.query(InventoryItem.id)
+            .filter(InventoryItem.product_id == product_id)
+            .first()
+            is not None
+        )
+        if item_exists:
+            return True
+
+        stock_exists = (
+            db.query(ConsumableStock.id)
+            .filter(ConsumableStock.product_id == product_id)
+            .first()
+            is not None
+        )
+        return stock_exists
+    
     def get_item_or_raise(self, db: Session, item_id: str) -> InventoryItem:
         item = self.repo.get_inventory_item_by_id(db, item_id)
         if not item:

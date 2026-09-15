@@ -209,6 +209,50 @@ class ProductService:
 
         product = self.get_or_raise(db, product_id)
 
+        # ── Immutability rules ────────────────────────────────
+        # Once a product has inventory, its tag_prefix and
+        # inventory_tracking cannot change.
+
+        from app.inventory.service import InventoryService
+        from app.products.error_codes import ProductErrorCode
+
+        inventory_locked = InventoryService().has_inventory(
+            db=db,
+            product_id=product_id,
+        )
+
+        if inventory_locked:
+
+            if (
+                data.tag_prefix is not None
+                and data.tag_prefix != product.tag_prefix
+            ):
+                raise AppException(
+                    status_code=409,
+                    error_code=ProductErrorCode.PRODUCT_TAG_PREFIX_IMMUTABLE,
+                    message=(
+                        "Tag prefix cannot be changed once the product "
+                        "has inventory."
+                    ),
+                    details={"field": "tag_prefix"},
+                )
+
+            if (
+                data.inventory_tracking is not None
+                and data.inventory_tracking != product.inventory_tracking
+            ):
+                raise AppException(
+                    status_code=409,
+                    error_code=ProductErrorCode.PRODUCT_INVENTORY_TRACKING_IMMUTABLE,
+                    message=(
+                        "Inventory tracking mode cannot be changed once "
+                        "the product has inventory."
+                    ),
+                    details={"field": "inventory_tracking"},
+                )
+
+        # ── Uniqueness checks ─────────────────────────────────
+
         if data.name and data.name.lower() != product.name.lower():
             self._ensure_unique_name(db, data.name)
 
@@ -217,10 +261,6 @@ class ProductService:
 
         if data.tag_prefix and data.tag_prefix != product.tag_prefix:
             self._ensure_unique_tag_prefix(db, data.tag_prefix)
-
-        # NOTE: immutability rules for tag_prefix and inventory_tracking
-        # will be enforced in a later step, once inventory existence can
-        # be checked without a circular import.
 
         updates = data.model_dump(exclude_unset=True)
 
@@ -258,7 +298,6 @@ class ProductService:
             )
 
         return product
-
     # ─────────────────────────────────────────────────────────────
     # Status
     # ─────────────────────────────────────────────────────────────

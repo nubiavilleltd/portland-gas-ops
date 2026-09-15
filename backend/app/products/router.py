@@ -41,6 +41,13 @@ service = ProductService()
 def _to_response(db: Session, product: Product) -> ProductResponse:
     response = ProductResponse.model_validate(product)
     response.images = service.get_images(db, product)
+
+    from app.inventory.service import InventoryService
+    response.has_inventory = InventoryService().has_inventory(
+        db=db,
+        product_id=product.id,
+    )
+
     return response
 
 

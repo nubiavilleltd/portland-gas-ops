@@ -33,6 +33,15 @@ export type ItemDisposition = "sold" | "loaned";
 //   disposition: ItemDisposition;
 // }
 
+// ── PRODUCT AVAILABILITY ──────────────────────────────────
+export interface ProductAvailability {
+  productId: string;
+  total: number;
+  available: number;
+  reserved: number;
+  sold: number;
+}
+
 export interface InventoryAssignment {
   order_id: string;
   product_id: string;

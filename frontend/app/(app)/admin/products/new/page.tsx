@@ -21,7 +21,7 @@ import { parseError } from "@/lib/errors";
 export default function NewProductPage() {
   const router = useRouter();
 
-  const { mutateAsync: createProduct, isPending } = useCreateProduct();
+  const { mutateAsync: createProduct } = useCreateProduct();
 
   async function handleSubmit(
     data: CreateProductFormOutput,
@@ -31,6 +31,7 @@ export default function NewProductPage() {
       const imageFiles = images
         .filter((image) => image.kind === "new")
         .map((image) => image.file);
+
       await createProduct({
         product: data,
         imageFiles,
@@ -46,14 +47,11 @@ export default function NewProductPage() {
 
   return (
     <AppLayout pageTitle="New Product">
-      <BackButton
-        href={PRODUCT_ROUTES.list()}
-        label="Back to Products"
-      />
+      <BackButton href={PRODUCT_ROUTES.list()} label="Back to Products" />
 
       <PageHeader
         title="New Product"
-        description="Add a product to the catalogue. It will be available for selection when creating orders"
+        description="Add a product to the catalogue. It will be available for selection when creating orders."
         className="mb-6"
       />
 
@@ -66,7 +64,6 @@ export default function NewProductPage() {
           onCancel={() => router.back()}
           submitLabel="Create Product"
           submitLoadingLabel="Creating…"
-          // isSubmitting={isPending}
         />
       </FormSection>
     </AppLayout>

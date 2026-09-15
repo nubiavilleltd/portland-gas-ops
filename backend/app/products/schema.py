@@ -226,12 +226,15 @@ class ProductResponse(BaseModel):
 
     images: list[ProductImageResponse] = Field(default_factory=list)
 
+    # True once any inventory has been received for this product.
+    # Frontend uses this to disable tag_prefix and inventory_tracking.
+    has_inventory: bool = False
+
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
-
 
 class ProductPickerResponse(ProductResponse):
     total: Decimal
