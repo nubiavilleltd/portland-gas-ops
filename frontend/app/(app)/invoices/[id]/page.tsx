@@ -13,24 +13,22 @@ import { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 
 import { PaymentStatusBadge } from "@/lib/modules/orders/badges/PaymentStatusBadge";
 
+import { useInvoiceById } from "@/lib/modules/invoices/hooks/useInvoices";
 
-import {
-  useInvoiceById,
-} from "@/lib/modules/invoices/hooks/useInvoices";
-
-import {
-  useOrderById,
-} from "@/lib/modules/orders/hooks/useOrders";
+import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 
 import {
   usePaymentsByInvoice,
   usePaymentSummary,
 } from "@/lib/modules/payments/hooks/usePayments";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
-import { Payment, PaymentStatus } from "@/lib/modules/payments/types/payments.types";
+import {
+  Payment,
+  PaymentStatus,
+} from "@/lib/modules/payments/types/payments.types";
 import { BackButton } from "@/components/ui/BackButton";
 import { canMakePayment } from "@/lib/modules/orders/guards/orders.guards";
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { useProducts, useUnits } from "@/lib/modules/products/hooks/useProducts";
 import { needsPayment } from "@/lib/modules/payments/types/payments.types";
 import { Download } from "lucide-react";
 import { useState } from "react";
@@ -43,58 +41,52 @@ export default function InvoiceDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
-    const { invoice, isLoading } = useInvoiceById(id);
+  const { invoice, isLoading } = useInvoiceById(id);
 
-  const { order, isLoading:isLoadingOrders } = useOrderById(
-    invoice?.order_id ?? ""
+  const { order, isLoading: isLoadingOrders } = useOrderById(
+    invoice?.order_id ?? "",
   );
-  const { data:customer, isLoading:isLoadingCustomers } = useCustomerOnboardingDetails(order?.customerId as string)
- 
-  const { products, isLoading:isLoadingProducts } = useProducts();
+  const { data: customer, isLoading: isLoadingCustomers } =
+    useCustomerOnboardingDetails(order?.customerId as string);
 
-    const { summary: paymentSummary } =
-    usePaymentSummary(invoice?.id);
+  const { products, isLoading: isLoadingProducts } = useProducts();
+  const { units } = useUnits();
 
-  const { payments: invoicePayments } =
-    usePaymentsByInvoice(invoice?.id as string);
+  const { summary: paymentSummary } = usePaymentSummary(invoice?.id);
 
+  const { payments: invoicePayments } = usePaymentsByInvoice(
+    invoice?.id as string,
+  );
 
   const [downloading, setDownloading] = useState(false);
 
-
-
   const productMap = new Map(products.map((p) => [p.id, p]));
+  const unitLabelById = new Map(units.map((u) => [u.id, u.label]));
 
-
-
-
-
-
-if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
-  return (
-    <AppLayout pageTitle="Invoice">
-      <InvoiceDetailSkeleton />
-    </AppLayout>
-  );
-}
-
-  if (!invoice) {
+  if (
+    isLoading ||
+    isLoadingCustomers ||
+    isLoadingOrders ||
+    isLoadingProducts
+  ) {
     return (
-      <AppLayout pageTitle="Invoice Not Found">
-        <p className="mt-6 text-brand-text-secondary">
-          Invoice not found.
-        </p>
+      <AppLayout pageTitle="Invoice">
+        <InvoiceDetailSkeleton />
       </AppLayout>
     );
   }
 
+  if (!invoice) {
+    return (
+      <AppLayout pageTitle="Invoice Not Found">
+        <p className="mt-6 text-brand-text-secondary">Invoice not found.</p>
+      </AppLayout>
+    );
+  }
 
+  const amountPaid = paymentSummary?.amountPaid ?? 0;
 
-  const amountPaid =
-    paymentSummary?.amountPaid ?? 0;
-
-  const balance =
-    invoice.total_amount - amountPaid;
+  const balance = invoice.total_amount - amountPaid;
 
   const badgeStatus: PaymentStatus = invoice.status;
 
@@ -110,9 +102,11 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
     {
       label: "Quantity",
       render: (item) => {
-        const unit = productMap.get(item.productId)?.unit ?? "unit";
-        // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
-        return `${item.quantity.toLocaleString()} ${unit}`;
+        const product = productMap.get(item.productId);
+        const unitLabel = product
+          ? unitLabelById.get(product.unitId) ?? ""
+          : "";
+        return `${item.quantity.toLocaleString()} ${unitLabel}`.trim();
       },
     },
     {
@@ -152,19 +146,27 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
       label: "",
       align: "right",
       render: (payment) => (
-        <Button size="sm" variant="outline" href={`/payments/${payment.id}/receipt`}>
+        <Button
+          size="sm"
+          variant="outline"
+          href={`/payments/${payment.id}/receipt`}
+        >
           View Receipt →
         </Button>
       ),
     },
   ];
 
-
   async function handleDownloadPdf() {
     if (!invoice) return;
     setDownloading(true);
     try {
-      const productUnitMap = new Map(products.map((p) => [p.id, p.unit]));
+      const productUnitMap = new Map(
+        products.map((p) => [
+          p.id,
+          unitLabelById.get(p.unitId) ?? "",
+        ]),
+      );
       await generateInvoicePdf({
         invoice,
         order,
@@ -182,25 +184,12 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
 
   return (
     <AppLayout pageTitle="Invoice Details">
-
       <BackButton label="Back" />
       <PageHeader
         title={invoice.invoice_number}
         description="Invoice lifecycle and payment tracking"
         action={
           <div className="flex gap-2">
-            {/* {!isPaid && (
-              <Button
-                href={`/payments/new?invoiceId=${invoice.id}`}
-              >
-                Record Payment
-              </Button>
-            )} */}
-
-            {/* <Button variant="outline">
-              View PDF
-            </Button> */}
-
             <Button
               variant="primary"
               onClick={handleDownloadPdf}
@@ -223,9 +212,7 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
           <div className="mb-6 flex items-start justify-between">
             <div />
 
-            <PaymentStatusBadge
-              status={badgeStatus}
-            />
+            <PaymentStatusBadge status={badgeStatus} />
           </div>
 
           <div className="grid grid-cols-1 gap-5 text-sm md:grid-cols-3">
@@ -246,9 +233,7 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
 
             <InfoRow
               label="Total Amount"
-              value={formatCurrency(
-                invoice.total_amount
-              )}
+              value={formatCurrency(invoice.total_amount)}
             />
 
             <div>
@@ -262,15 +247,12 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
             </div>
 
             <div>
-              <p className="text-xs text-brand-text-secondary">
-                Balance
-              </p>
+              <p className="text-xs text-brand-text-secondary">Balance</p>
 
               <p
-                className={`mt-1 font-medium ${balance > 0
-                  ? "text-red-600"
-                  : "text-green-600"
-                  }`}
+                className={`mt-1 font-medium ${
+                  balance > 0 ? "text-red-600" : "text-green-600"
+                }`}
               >
                 {formatCurrency(balance)}
               </p>
@@ -294,7 +276,9 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
             </div>
 
             <div className="border-t border-brand-border pt-4 mb-4">
-              <p className="text-xs text-brand-text-secondary mb-3">Order Items</p>
+              <p className="text-xs text-brand-text-secondary mb-3">
+                Order Items
+              </p>
               <SimpleTable
                 columns={itemColumns}
                 rows={order.orderItems}
@@ -302,16 +286,24 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
                 footer={
                   <>
                     <tr>
-                      <td colSpan={3} className="pt-3 text-right text-xs text-brand-text-secondary">
+                      <td
+                        colSpan={3}
+                        className="pt-3 text-right text-xs text-brand-text-secondary"
+                      >
                         Subtotal
                       </td>
                       <td className="pt-3 text-right text-sm">
-                        {formatCurrency(order.totalAmount + order.discountAmount)}
+                        {formatCurrency(
+                          order.totalAmount + order.discountAmount,
+                        )}
                       </td>
                     </tr>
                     {order.discountAmount > 0 && (
                       <tr>
-                        <td colSpan={3} className="text-right text-xs text-brand-text-secondary">
+                        <td
+                          colSpan={3}
+                          className="text-right text-xs text-brand-text-secondary"
+                        >
                           {order.discountType === "percentage"
                             ? `Discount (${order.discountValue}%)`
                             : "Discount"}
@@ -322,7 +314,10 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
                       </tr>
                     )}
                     <tr>
-                      <td colSpan={3} className="pt-1 text-right text-xs font-semibold text-brand-text-secondary">
+                      <td
+                        colSpan={3}
+                        className="pt-1 text-right text-xs font-semibold text-brand-text-secondary"
+                      >
                         Grand Total
                       </td>
                       <td className="pt-1 text-right font-semibold">
@@ -341,7 +336,10 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
         )}
 
         {/* PAYMENTS */}
-        <FormSection title="Payments" description="Review payment history and invoice payment status.">
+        <FormSection
+          title="Payments"
+          description="Review payment history and invoice payment status."
+        >
           <div className="mb-4 flex items-center justify-end">
             {needsPayment(invoice.status) && canPay && (
               <Button
@@ -352,8 +350,6 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
               </Button>
             )}
           </div>
-
-
 
           <SimpleTable
             columns={paymentColumns}
@@ -373,39 +369,18 @@ if (isLoading || isLoadingCustomers || isLoadingOrders || isLoadingProducts) {
               ) : undefined
             }
           />
-
-          {/* {invoice.status === "paid" && invoicePayments.length > 0 && (
-            <div className="mt-4 flex gap-2">
-              <Button
-                href={`/payments/${invoice.id}/receipt`}
-                variant="outline"
-              >
-                View Receipt →
-              </Button>
-            </div>
-          )} */}
         </FormSection>
       </div>
     </AppLayout>
   );
 }
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs text-brand-text-secondary">
-        {label}
-      </p>
+      <p className="text-xs text-brand-text-secondary">{label}</p>
 
-      <p className="mt-1 font-medium">
-        {value}
-      </p>
+      <p className="mt-1 font-medium">{value}</p>
     </div>
   );
 }

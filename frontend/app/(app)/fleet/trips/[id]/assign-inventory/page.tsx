@@ -22,7 +22,7 @@ import {
 import { useAssignInventoryWorkflow } from "@/lib/modules/fleet/hooks/useAssignInventoryWorkflow";
 
 import { getAvailableItems } from "@/lib/modules/inventory/selectors/inventory.selectors";
-import { isTracked } from "@/lib/modules/products/types/product.types";
+import { isIndividualItems } from "@/lib/modules/products/types/product.types";
 import { canAssignInventory } from "@/lib/modules/fleet/guards/trip.guards";
 import InventoryUnitPickerModal from "@/components/ui/InventoryUnitPickerModal";
 
@@ -39,7 +39,6 @@ import AssignmentProgress from "@/components/ui/AssignmentProgress";
 import AssignInventorySkeleton from "@/lib/modules/fleet/components/AssignInventorySkeleton";
 
 // ── Types ─────────────────────────────────────────────────
-// Each tracked line item now carries its own disposition alongside selected unit ids
 type LineSelection = {
   itemIds: string[];
   disposition: ItemDisposition;
@@ -53,18 +52,6 @@ function lineItemKey(orderId: string, productId: string) {
 }
 
 // ── Sub-components ────────────────────────────────────────
-
-// function ConsumableLineItem({ productName }: { productName: string }) {
-//   return (
-//     <div className="flex items-center gap-3 py-3 px-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
-//       <CheckCircle size={15} className="shrink-0" />
-//       <span>
-//         <span className="font-medium">{productName}</span>
-//         {" — "}Consumable, no unit assignment needed
-//       </span>
-//     </div>
-//   );
-// }
 
 function ConsumableLineItem({
   productId,
@@ -181,12 +168,10 @@ export default function AssignInventoryPage() {
   const isLoading =
     tripLoading || ordersLoading || productsLoading || itemsLoading;
 
-  // ── Loading ──────────────────────────────────────────────
   if (isLoading) {
     return <AssignInventorySkeleton />;
   }
 
-  // ── Not found ────────────────────────────────────────────
   if (!trip) {
     return (
       <AppLayout pageTitle="Trip Not Found">
@@ -195,7 +180,6 @@ export default function AssignInventoryPage() {
     );
   }
 
-  // ── Guard ─────────────────────────────────────────────────
   if (!justSubmitted && !canAssignInventory(trip)) {
     return (
       <AppLayout pageTitle="Cannot Assign Inventory">
@@ -207,10 +191,7 @@ export default function AssignInventoryPage() {
             This trip is not awaiting inventory assignment. Current status:{" "}
             <strong>{trip.status}</strong>
           </p>
-          <Button
-            variant="outline"
-            href={FLEET_ROUTES.tripDetail(id)}
-          >
+          <Button variant="outline" href={FLEET_ROUTES.tripDetail(id)}>
             Back to Trip
           </Button>
         </div>
@@ -218,7 +199,6 @@ export default function AssignInventoryPage() {
     );
   }
 
-  // ── No orders on this trip ────────────────────────────────
   if (trip.order_ids.length === 0) {
     return (
       <AppLayout pageTitle="Assign Inventory">
@@ -229,18 +209,16 @@ export default function AssignInventoryPage() {
     );
   }
 
-  // ── Derive trip orders ────────────────────────────────────
   const tripOrders = orders.filter((order) =>
     trip.order_ids.includes(order.id),
   );
 
-  // ── Derive all tracked line items across this trip ────────
   function getTrackedLineItems() {
     return tripOrders.flatMap((order) =>
       (order?.orderItems ?? [])
         .filter((lineItem) => {
           const product = productMap.get(lineItem.productId);
-          return product && isTracked(product);
+          return product && isIndividualItems(product);
         })
         .map((lineItem) => ({
           order: order!,
@@ -252,7 +230,6 @@ export default function AssignInventoryPage() {
     );
   }
 
-  // ── Disposition handler ────────────────────────────────────
   function handleDispositionChange(key: string, disposition: ItemDisposition) {
     setSelection((prev) => ({
       ...prev,
@@ -260,7 +237,6 @@ export default function AssignInventoryPage() {
     }));
   }
 
-  // ── Validation ────────────────────────────────────────────
   function isTrackedInventoryAssigned(): boolean {
     return getTrackedLineItems().every(({ key, required }) => {
       const selected = selection[key]?.itemIds.length ?? 0;
@@ -273,7 +249,7 @@ export default function AssignInventoryPage() {
       order.orderItems
         .filter((lineItem) => {
           const product = productMap.get(lineItem.productId);
-          return product && !isTracked(product);
+          return product && !isIndividualItems(product);
         })
         .map((lineItem) => ({
           order,
@@ -305,7 +281,6 @@ export default function AssignInventoryPage() {
     return Boolean(selection[key]?.locationId);
   }).length;
 
-  // ── Submit ────────────────────────────────────────────────
   async function handleSubmit() {
     if (!isTrackedInventoryAssigned()) {
       toast.error("Please assign all tracked inventory before proceeding");
@@ -324,7 +299,7 @@ export default function AssignInventoryPage() {
           const key = lineItemKey(order.id, lineItem.productId);
           const product = productMap.get(lineItem.productId)!;
 
-          if (isTracked(product)) {
+          if (isIndividualItems(product)) {
             return {
               order_id: order.id,
               product_id: lineItem.productId,
@@ -342,12 +317,6 @@ export default function AssignInventoryPage() {
         }),
     );
 
-    // await assignInventory.mutateAsync({
-    //   trip: trip as Trip,
-    //   assignments,
-    // });
-
-    // new_str
     setJustSubmitted(true);
 
     try {
@@ -361,7 +330,6 @@ export default function AssignInventoryPage() {
     }
   }
 
-  // ── Render ────────────────────────────────────────────────
   return (
     <AppLayout pageTitle="Assign Inventory">
       <button
@@ -383,25 +351,23 @@ export default function AssignInventoryPage() {
           if (!order) return null;
 
           return (
-            <section
-              key={order.id}
-              className="py-6 first:pt-0"
-            >
+            <section key={order.id} className="py-6 first:pt-0">
               <div className="flex items-center justify-between pb-2 border-b border-brand-border">
-                <h2 className="text-base font-semibold">{order.orderNumber}</h2>
+                <h2 className="text-base font-semibold">
+                  {order.orderNumber}
+                </h2>
 
                 <span className="text-sm text-brand-text-secondary">
                   {order.orderItems.length} item(s)
                 </span>
               </div>
 
-              {/* Line items */}
               <div className="p-6 space-y-3">
                 {order.orderItems?.map((lineItem) => {
                   const product = productMap.get(lineItem.productId);
                   if (!product) return null;
 
-                  if (!isTracked(product)) {
+                  if (!isIndividualItems(product)) {
                     const key = lineItemKey(order.id, lineItem.productId);
                     return (
                       <ConsumableLineItem
@@ -419,7 +385,8 @@ export default function AssignInventoryPage() {
 
                   const key = lineItemKey(order.id, lineItem.productId);
                   const selectedIds = selection[key]?.itemIds ?? [];
-                  const disposition = selection[key]?.disposition ?? "sold";
+                  const disposition =
+                    selection[key]?.disposition ?? "sold";
                   const required = Math.ceil(lineItem.quantity);
                   const fulfilled = selectedIds.length >= required;
 
@@ -428,7 +395,6 @@ export default function AssignInventoryPage() {
                       key={lineItem.productId}
                       className="border border-brand-border rounded-xl overflow-hidden"
                     >
-                      {/* Header */}
                       <div className="px-4 py-3 bg-gray-50 border-b border-brand-border flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Package
@@ -448,7 +414,6 @@ export default function AssignInventoryPage() {
                         />
                       </div>
 
-                      {/* Unit selection trigger */}
                       <div className="px-4 py-4 flex items-center justify-between">
                         <div>
                           <p className="text-sm text-brand-text-secondary">
@@ -470,7 +435,9 @@ export default function AssignInventoryPage() {
 
                         <Button
                           size="sm"
-                          variant={selectedIds.length ? "outline" : "primary"}
+                          variant={
+                            selectedIds.length ? "outline" : "primary"
+                          }
                           onClick={() =>
                             setActivePicker({
                               orderId: order.id,
@@ -486,11 +453,12 @@ export default function AssignInventoryPage() {
                         </Button>
                       </div>
 
-                      {/* Disposition — only shown once at least one unit is selected */}
                       {selectedIds.length > 0 && (
                         <DispositionPicker
                           value={disposition}
-                          onChange={(d) => handleDispositionChange(key, d)}
+                          onChange={(d) =>
+                            handleDispositionChange(key, d)
+                          }
                         />
                       )}
                     </div>
@@ -508,34 +476,24 @@ export default function AssignInventoryPage() {
           consumablesTotal={consumableItems.length}
         />
 
-        {/* Actions */}
-   <div className="sticky bottom-0 z-20 -mx-6 mt-8 border-t border-brand-border bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
-    <div className="mx-auto flex items-center justify-between px-6 py-4">
-        {/* <div>
-            <p className="text-sm font-medium text-brand-text-primary">
-                {statusMessage}
-            </p>
-        </div> */}
-
-        <div className="flex gap-3">
-            <Button
-                variant="outline"
-                onClick={() => router.back()}
-            >
+        <div className="sticky bottom-0 z-20 -mx-6 mt-8 border-t border-brand-border bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
+          <div className="mx-auto flex items-center justify-between px-6 py-4">
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => router.back()}>
                 Cancel
-            </Button>
+              </Button>
 
-            <Button
+              <Button
                 onClick={handleSubmit}
                 disabled={!isAllAssigned()}
                 loading={assignInventory.isPending}
-            >
+              >
                 Confirm &amp; Mark Ready
-            </Button>
+              </Button>
+            </div>
+          </div>
         </div>
-    </div>
-</div>
-        {/* Inventory Unit Picker Modal */}
+
         {activePicker && (
           <InventoryUnitPickerModal
             open={activePicker !== null}
