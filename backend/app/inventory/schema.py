@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -29,6 +28,7 @@ class CreateLocationInput(BaseModel):
     address: str | None = None
     is_default: bool = False
 
+
 class LocationResponse(BaseModel):
     id: str
     name: str
@@ -44,7 +44,7 @@ class LocationResponse(BaseModel):
 # Check In
 # ============================================================================
 
-class CheckInTrackedInput(BaseModel):
+class CheckInIndividualItemsInput(BaseModel):
     product_id: str
     location_id: str
     quantity: int
@@ -57,7 +57,7 @@ class CheckInTrackedInput(BaseModel):
         return validate_positive_integer(value)
 
 
-class CheckInConsumableInput(BaseModel):
+class CheckInStockQuantityInput(BaseModel):
     product_id: str
     location_id: str
     quantity: Decimal
@@ -86,8 +86,10 @@ class InventoryItemResponse(BaseModel):
     id: str
 
     product_id: str
+    product_no: Optional[str] = None
     product_name: Optional[str] = None
-    product_code: Optional[str] = None
+    sku: Optional[str] = None
+    tag_prefix: Optional[str] = None
 
     tag_number: Optional[str] = None
     serial_number: Optional[str] = None
@@ -129,29 +131,34 @@ class InventoryItemListResponse(BaseModel):
 
 class ProductAvailabilityResponse(BaseModel):
     product_id: str
-    physical_quantity: Decimal
-    committed_quantity: Decimal
-    available_quantity: Decimal
+    total: Decimal
+    available: Decimal
+    reserved: Decimal
+    sold: Decimal
 
     class Config:
         from_attributes = True
 
 
 # ============================================================================
-# Consumable Stock
+# Stock Quantity
 # ============================================================================
 
 class ConsumableStockResponse(BaseModel):
     id: str
 
     product_id: str
+    product_no: Optional[str] = None
     product_name: Optional[str] = None
-    product_code: Optional[str] = None
+    sku: Optional[str] = None
+    tag_prefix: Optional[str] = None
 
     location_id: str
     location_name: Optional[str] = None
 
     quantity: Decimal
+    reserved_quantity: Decimal
+    sold_quantity: Decimal
     updated_at: datetime
 
     class Config:
@@ -164,24 +171,28 @@ class ConsumableStockListResponse(BaseModel):
 
 
 # ============================================================================
-# Consumable Stock Detail
+# Stock Quantity Detail
 # ============================================================================
 
 class ConsumableStockDetailResponse(BaseModel):
     id: str
 
     product_id: str
+    product_no: Optional[str] = None
     product_name: Optional[str] = None
-    product_code: Optional[str] = None
+    sku: Optional[str] = None
+    tag_prefix: Optional[str] = None
 
     location_id: str
     location_name: Optional[str] = None
 
     quantity: Decimal
+    reserved_quantity: Decimal
+    sold_quantity: Decimal
 
     updated_at: datetime
 
-    movements: List[StockMovementResponse] = []
+    movements: List["StockMovementResponse"] = []
 
     class Config:
         from_attributes = True
@@ -241,10 +252,9 @@ class InventoryKPIResponse(BaseModel):
     maintenance_items: int
 
 
-class AvailableConsumableLocationResponse(BaseModel):
+class AvailableStockQuantityLocationResponse(BaseModel):
     location_id: str
     location_name: str
     available_quantity: Decimal
 
     model_config = ConfigDict(from_attributes=True)
-
