@@ -7,27 +7,30 @@
 //    • Translating API errors into user-friendly errors
 // ============================================================
 
-// import { getErrorMessage } from "@/lib/api/error";
-
 import { productsApi } from "../api/products.api";
 import {
   adaptCreateProductInput,
   adaptProduct,
+  adaptProductCategory,
   adaptProductList,
   adaptProductPickerList,
+  adaptProductUnit,
   adaptUpdateProductInput,
 } from "../adapters/product.adapter";
 
 import type {
   CreateProductInput,
   CreateProductPayload,
+  InventoryTracking,
   Product,
+  ProductCategory,
   ProductPickerProduct,
   ProductStatus,
-  ProductType,
+  ProductUnit,
   UpdateProductInput,
   UpdateProductPayload,
 } from "../types/product.types";
+
 import { getErrorMessage } from "@/lib/errors";
 import { PRODUCT_ERROR_MESSAGES } from "../errors";
 
@@ -39,14 +42,16 @@ export class ProductsService {
   static async getProducts(filters?: {
     search?: string;
     status?: ProductStatus;
-    productType?: ProductType;
+    inventoryTracking?: InventoryTracking;
+    categoryId?: string;
   }): Promise<Product[]> {
     try {
       const raw = await productsApi.list({
         page_size: 200,
         search: filters?.search,
         status: filters?.status,
-        product_type: filters?.productType,
+        inventory_tracking: filters?.inventoryTracking,
+        category_id: filters?.categoryId,
       });
 
       return adaptProductList(raw);
@@ -61,23 +66,50 @@ export class ProductsService {
     }
   }
 
-  static async getProduct(
-    productId: string,
-  ): Promise<Product> {
+  static async getProduct(productId: string): Promise<Product> {
     try {
-      console.log("prod", productId)
       const raw = await productsApi.get(productId);
-
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to fetch product"),
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to fetch product",
+        ),
       );
     }
   }
 
+  static async getCategories(): Promise<ProductCategory[]> {
+    try {
+      const raw = await productsApi.categories();
+      return raw.map(adaptProductCategory);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to fetch categories",
+        ),
+      );
+    }
+  }
 
-
+  static async getUnits(): Promise<ProductUnit[]> {
+    try {
+      const raw = await productsApi.units();
+      return raw.map(adaptProductUnit);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to fetch units",
+        ),
+      );
+    }
+  }
 
   // ───────────────────────────────────────────────────────────
   // Create
@@ -88,18 +120,16 @@ export class ProductsService {
   ): Promise<Product> {
     try {
       const { product, imageFiles } = payload;
-
-      const backendInput =
-        adaptCreateProductInput(product);
-      const raw = await productsApi.create(
-        backendInput,
-        imageFiles,
-      );
-
+      const backendInput = adaptCreateProductInput(product);
+      const raw = await productsApi.create(backendInput, imageFiles);
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to create product"),
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to create product",
+        ),
       );
     }
   }
@@ -113,28 +143,27 @@ export class ProductsService {
     payload: UpdateProductPayload,
   ): Promise<Product> {
     try {
-      const {
-        product,
-        newImageFiles,
-        keptImageIds,
-        primaryImageId,
-      } = payload;
+      const { product, newImageFiles, keptImageIds, primaryImageId } =
+        payload;
 
-      const backendInput =
-        adaptUpdateProductInput(product);
+      const backendInput = adaptUpdateProductInput(product);
 
       const raw = await productsApi.update(
         productId,
         backendInput,
         newImageFiles,
         keptImageIds,
-        primaryImageId
+        primaryImageId,
       );
 
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to update product"),
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to update product",
+        ),
       );
     }
   }
@@ -143,50 +172,52 @@ export class ProductsService {
   // Status
   // ───────────────────────────────────────────────────────────
 
-  static async activateProduct(
-    productId: string,
-  ): Promise<Product> {
+  static async activateProduct(productId: string): Promise<Product> {
     try {
-      const raw =
-        await productsApi.activate(productId);
-
+      const raw = await productsApi.activate(productId);
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to activate product"),
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to activate product",
+        ),
       );
     }
   }
 
-  static async deactivateProduct(
-    productId: string,
-  ): Promise<Product> {
+  static async deactivateProduct(productId: string): Promise<Product> {
     try {
-      const raw =
-        await productsApi.deactivate(productId);
-
+      const raw = await productsApi.deactivate(productId);
       return adaptProduct(raw);
     } catch (err) {
       throw new Error(
-        getErrorMessage(err, PRODUCT_ERROR_MESSAGES, "Failed to deactivate product"),
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to deactivate product",
+        ),
       );
     }
   }
 
+  // ───────────────────────────────────────────────────────────
+  // Picker
+  // ───────────────────────────────────────────────────────────
 
   static async getProductsForPicker(): Promise<ProductPickerProduct[]> {
-  try {
-    const raw = await productsApi.picker();
-
-    return adaptProductPickerList(raw);
-  } catch (err) {
-    throw new Error(
-      getErrorMessage(
-        err,
-        PRODUCT_ERROR_MESSAGES,
-        "Failed to fetch products",
-      ),
-    );
+    try {
+      const raw = await productsApi.picker();
+      return adaptProductPickerList(raw);
+    } catch (err) {
+      throw new Error(
+        getErrorMessage(
+          err,
+          PRODUCT_ERROR_MESSAGES,
+          "Failed to fetch products",
+        ),
+      );
+    }
   }
-}
 }

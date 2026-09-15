@@ -346,7 +346,7 @@ class ProductService:
         if tag_prefix and self.repo.get_by_tag_prefix(db, tag_prefix):
             raise AppException(
                 status_code=409,
-                error_code=ProductErrorCode.PRODUCT_CODE_ALREADY_EXISTS,
+                error_code=ProductErrorCode.PRODUCT_TAG_PREFIX_ALREADY_EXISTS,
                 message=f"Tag prefix '{tag_prefix}' is already in use",
                 details={"field": "tag_prefix"},
             )

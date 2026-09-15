@@ -1,83 +1,117 @@
+// ============================================================
+//  PRODUCT MODULE — CANONICAL TYPE DEFINITIONS
+// ============================================================
+
 export interface ProductImage {
   id: string;
-  // NOTE: object URL in POC — valid for this session only.
-  // Replace with Cloudinary URL in production.
   url: string;
   name: string;
 }
 
-
 export type ProductFormImage =
-  | {
-      kind: "existing";
-      image: ProductImage;
-    }
-  | {
-      kind: "new";
-      file: File;
-    };
+  | { kind: "existing"; image: ProductImage }
+  | { kind: "new"; file: File };
 
-export type ProductType = "consumable" | "tracked";
+// ── Enums ─────────────────────────────────────────────────
 
-export type ProductStatus =
-  | "active"
-  | "inactive";
+export type InventoryTracking = "INDIVIDUAL_ITEMS" | "STOCK_QUANTITY";
 
-export type ProductUnit =
-  | "kg"
-  | "litre"
-  | "m3"
-  | "tonne"
-  | "unit";
+export type ProductStatus = "active" | "inactive";
+
+// ── Reference tables (categories and units) ───────────────
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+  parentId?: string;
+  isActive: boolean;
+}
+
+export interface ProductUnit {
+  id: string;
+  code: string;
+  label: string;
+  category?: string;
+  isSystem: boolean;
+  isActive: boolean;
+}
+
+// ── Product ───────────────────────────────────────────────
 
 export interface Product {
   id: string;
-  name: string;
-  code?: string;
   productNo: string;
+  name: string;
+
+  // SKU — optional, unique when present
+  code?: string;
+
+  // Tag prefix — required for INDIVIDUAL_ITEMS, absent for STOCK_QUANTITY
+  tagPrefix?: string;
+
   description?: string;
+
+  inventoryTracking: InventoryTracking;
+
+  categoryId: string;
+  unitId: string;
+
   defaultUnitPrice: number;
-  unit: ProductUnit;
-  unitLabel?: string;
-  status: ProductStatus;
-  productType: ProductType;
   minimumStock?: number;
+
+  status: ProductStatus;
+
   images?: ProductImage[];
+
   createdAt: string;
   updatedAt?: string;
 }
 
+// ── Product picker ────────────────────────────────────────
 
 export interface ProductPickerProduct extends Product {
-  physicalQuantity: number;
-  committedQuantity: number;
-  availableQuantity: number;
+  total: number;
+  available: number;
+  reserved: number;
+  sold: number;
   isOrderable: boolean;
 }
 
-
+// ── Inputs ────────────────────────────────────────────────
 
 export interface CreateProductInput {
   name: string;
-  unit: ProductUnit;
-  defaultUnitPrice: number;  // always number here — no form concerns
-  productType: ProductType;
-  description?: string;
-  code?: string;
-  status?: ProductStatus;
+  categoryId: string;
+  unitId: string;
+  inventoryTracking: InventoryTracking;
+
+  defaultUnitPrice: number;
   minimumStock?: number;
+
+  code?: string;
+  tagPrefix?: string;
+
+  description?: string;
+  status?: ProductStatus;
+
   images?: ProductImage[];
 }
 
 export interface UpdateProductInput {
   name?: string;
-  unit?: ProductUnit;
+  categoryId?: string;
+  unitId?: string;
+  inventoryTracking?: InventoryTracking;
+
   defaultUnitPrice?: number;
-  productType?: ProductType;
-  description?: string;
-  code?: string;
-  status?: ProductStatus;
   minimumStock?: number;
+
+  code?: string;
+  tagPrefix?: string;
+
+  description?: string;
+  status?: ProductStatus;
+
   images?: ProductImage[];
 }
 
@@ -93,31 +127,16 @@ export interface UpdateProductPayload {
   primaryImageId?: string;
 }
 
-export const UNIT_LABELS: Record<ProductUnit, string> = {
-  kg:     "kg",
-  litre:  "L",
-  m3:     "m³",
-  unit:   "unit",
-  tonne:  "t",
-};
+// ── Helper predicates ─────────────────────────────────────
 
-export function getUnitLabel(
-  product: Pick<Product, "unit" | "unitLabel">
-): string {
-  return product.unitLabel ?? UNIT_LABELS[product.unit];
+export function isIndividualItems(
+  product: Pick<Product, "inventoryTracking">,
+): boolean {
+  return product.inventoryTracking === "INDIVIDUAL_ITEMS";
 }
 
-
-// export function getUnitLabel(
-//   product: Pick<Product, "unit" | "unit_label">
-// ): string {
-//   return UNIT_LABELS[product.unit];
-// }
-
-export function isTracked(product: Pick<Product, "productType">): boolean {
-  return product.productType === "tracked";
-}
-
-export function isConsumable(product: Pick<Product, "productType">): boolean {
-  return product.productType === "consumable";
+export function isStockQuantity(
+  product: Pick<Product, "inventoryTracking">,
+): boolean {
+  return product.inventoryTracking === "STOCK_QUANTITY";
 }
