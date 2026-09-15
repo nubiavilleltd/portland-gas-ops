@@ -709,6 +709,73 @@ class InventoryRepository:
             )
         ).scalar()
 
+    def get_overview_aggregates(
+        self,
+        db: Session,
+        product_ids: list[str],
+    ) -> dict:
+        """
+        Return aggregate availability data for a set of products.
+
+        Two queries, one per tracking mode, regardless of how many
+        products are requested. No N+1.
+
+        Returns:
+            {
+              "individual_item_counts": {product_id: {status: count}},
+              "stock_quantity_totals":  {product_id: {quantity, reserved, sold}},
+            }
+        """
+
+        individual_item_counts: dict[str, dict] = {}
+        stock_quantity_totals: dict[str, dict] = {}
+
+        if not product_ids:
+            return {
+                "individual_item_counts": individual_item_counts,
+                "stock_quantity_totals": stock_quantity_totals,
+            }
+
+        # Query A — individual item status counts
+        item_rows = (
+            db.query(
+                InventoryItem.product_id,
+                InventoryItem.status,
+                func.count(InventoryItem.id),
+            )
+            .filter(InventoryItem.product_id.in_(product_ids))
+            .group_by(InventoryItem.product_id, InventoryItem.status)
+            .all()
+        )
+
+        for product_id, status, count in item_rows:
+            individual_item_counts.setdefault(product_id, {})[status] = count
+
+        # Query B — stock quantity totals
+        stock_rows = (
+            db.query(
+                ConsumableStock.product_id,
+                func.coalesce(func.sum(ConsumableStock.quantity), 0),
+                func.coalesce(func.sum(ConsumableStock.reserved_quantity), 0),
+                func.coalesce(func.sum(ConsumableStock.sold_quantity), 0),
+            )
+            .filter(ConsumableStock.product_id.in_(product_ids))
+            .group_by(ConsumableStock.product_id)
+            .all()
+        )
+
+        for product_id, qty, res, sold in stock_rows:
+            stock_quantity_totals[product_id] = {
+                "quantity": Decimal(qty or 0),
+                "reserved": Decimal(res or 0),
+                "sold": Decimal(sold or 0),
+            }
+
+        return {
+            "individual_item_counts": individual_item_counts,
+            "stock_quantity_totals": stock_quantity_totals,
+        }
+
     def get_individual_item_counts(
         self,
         db: Session,

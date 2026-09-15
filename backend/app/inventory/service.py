@@ -728,6 +728,143 @@ class InventoryService:
     # Availability
     # -------------------------------------------------------------------------
 
+
+    def _compute_availability_from_aggregates(
+        self,
+        product: Product,
+        aggregates: dict,
+    ) -> dict:
+        """
+        Compute total / available / reserved / sold for one product
+        given pre-fetched aggregate data.
+        """
+
+        if product.inventory_tracking == InventoryTracking.individual_items:
+
+            counts = aggregates["individual_item_counts"].get(product.id, {})
+
+            available = Decimal(counts.get(InventoryItemStatus.available, 0))
+            reserved = Decimal(counts.get(InventoryItemStatus.reserved, 0))
+            sold = Decimal(counts.get(InventoryItemStatus.sold, 0))
+
+            total = sum(
+                Decimal(c)
+                for s, c in counts.items()
+                if s != InventoryItemStatus.retired
+            )
+
+        else:
+
+            totals = aggregates["stock_quantity_totals"].get(
+                product.id,
+                {"quantity": Decimal("0"), "reserved": Decimal("0"), "sold": Decimal("0")},
+            )
+
+            quantity = totals["quantity"]
+            reserved = totals["reserved"]
+            sold = totals["sold"]
+            available = quantity - reserved
+            total = quantity + sold
+
+        return {
+            "total": total,
+            "available": available,
+            "reserved": reserved,
+            "sold": sold,
+        }
+
+    def get_inventory_overview(
+        self,
+        db: Session,
+        *,
+        search: Optional[str] = None,
+        inventory_tracking: Optional[InventoryTracking] = None,
+        category_id: Optional[str] = None,
+        stock_status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[dict], int]:
+        """
+        Returns one row per product with aggregated availability.
+
+        NOTE: `stock_status` filtering is applied after fetching the page.
+        `total` reflects the unfiltered count. This is acceptable while
+        page sizes are small (<=200) and stock status is a secondary filter.
+        A future refactor can push the filter into SQL.
+        """
+        from app.products.repository import ProductRepository
+
+        product_repo = ProductRepository()
+
+        products, total = product_repo.list(
+            db,
+            search=search,
+            inventory_tracking=(
+                inventory_tracking.value if inventory_tracking else None
+            ),
+            category_id=category_id,
+            status="active",
+            page=page,
+            page_size=page_size,
+        )
+
+        if not products:
+            return [], total
+
+        product_ids = [p.id for p in products]
+
+        aggregates = self.repo.get_overview_aggregates(
+            db=db,
+            product_ids=product_ids,
+        )
+
+        items: list[dict] = []
+
+        for product in products:
+
+            availability = self._compute_availability_from_aggregates(
+                product=product,
+                aggregates=aggregates,
+            )
+
+            category_name = (
+                product.category.name if product.category else None
+            )
+
+            is_low = (
+                product.minimum_stock is not None
+                and availability["available"] <= product.minimum_stock
+            )
+
+            # stock_status filter (post-fetch)
+            if stock_status:
+                if stock_status == "out" and availability["available"] > 0:
+                    continue
+                if stock_status == "low" and not is_low:
+                    continue
+                if stock_status == "ok" and is_low:
+                    continue
+
+            items.append({
+                "product_id": product.id,
+                "product_no": product.product_no,
+                "product_name": product.name,
+                "sku": product.code,
+                "tag_prefix": product.tag_prefix,
+                "category_id": product.category_id,
+                "category_name": category_name,
+                "inventory_tracking": product.inventory_tracking,
+                "unit_label": product.unit.label,
+                "unit_code": product.unit.code,
+                "total": availability["total"],
+                "available": availability["available"],
+                "reserved": availability["reserved"],
+                "sold": availability["sold"],
+                "minimum_stock": product.minimum_stock,
+                "is_low_stock": is_low,
+            })
+
+        return items, total
     def validate_order_items_availability(
         self,
         db: Session,

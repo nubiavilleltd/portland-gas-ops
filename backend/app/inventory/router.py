@@ -22,6 +22,8 @@ from app.inventory.schema import (
     InventoryKPIResponse,
     ConsumableStockDetailResponse,
     AvailableStockQuantityLocationResponse,
+    InventoryOverviewListResponse,
+    ProductAvailabilityResponse
 )
 
 from app.audit.schema import AuditLogResponse, AuditEntityType
@@ -79,6 +81,58 @@ def get_kpis(
     current_user: User = Depends(get_current_user),
 ):
     return service.get_kpis(db)
+
+
+
+# -------------------------------------------------------------------------
+# Inventory Overview
+# -------------------------------------------------------------------------
+
+@router.get(
+    "/overview",
+    response_model=InventoryOverviewListResponse,
+)
+def get_inventory_overview(
+    search: Optional[str] = Query(None),
+    inventory_tracking: Optional[InventoryTracking] = Query(None),
+    category_id: Optional[str] = Query(None),
+    stock_status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items, total = service.get_inventory_overview(
+        db=db,
+        search=search,
+        inventory_tracking=inventory_tracking,
+        category_id=category_id,
+        stock_status=stock_status,
+        page=page,
+        page_size=page_size,
+    )
+
+    return InventoryOverviewListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_next=(page * page_size) < total,
+    )
+
+
+@router.get(
+    "/products/{product_id}/availability",
+    response_model=ProductAvailabilityResponse,
+)
+def get_product_availability(
+    product_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.products.service import ProductService
+    product = ProductService().get_or_raise(db, product_id)
+    return service.get_product_availability(db=db, product=product)
 
 
 # -------------------------------------------------------------------------

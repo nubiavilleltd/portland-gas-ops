@@ -45,6 +45,7 @@ class ProductRepository:
         db: Session,
         search: str | None = None,
         inventory_tracking: str | None = None,
+        category_id: str | None = None,
         status: str | None = None,
         page: int = 1,
         page_size: int = 50,
@@ -66,6 +67,9 @@ class ProductRepository:
         if inventory_tracking:
             q = q.filter(Product.inventory_tracking == inventory_tracking)
 
+        if category_id:
+            q = q.filter(Product.category_id == category_id)
+
         if status:
             q = q.filter(Product.status == status)
 
@@ -82,7 +86,7 @@ class ProductRepository:
         )
 
         return items, total
-
+    
     def create(
         self,
         db: Session,

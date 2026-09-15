@@ -17,6 +17,7 @@ from app.inventory.validators import (
     validate_positive_decimal,
     validate_positive_integer,
 )
+from app.products.enums import InventoryTracking
 
 
 # ============================================================================
@@ -233,6 +234,38 @@ class StockMovementResponse(BaseModel):
 
 class StockMovementListResponse(BaseModel):
     items: List[StockMovementResponse]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+
+
+
+# ============================================================================
+# Inventory Overview
+# ============================================================================
+
+class InventoryOverviewItemResponse(BaseModel):
+    product_id: str
+    product_no: str
+    product_name: str
+    sku: Optional[str]
+    tag_prefix: Optional[str]
+    category_id: str
+    category_name: Optional[str]
+    inventory_tracking: InventoryTracking
+    unit_label: str
+    unit_code: str
+    total: Decimal
+    available: Decimal
+    reserved: Decimal
+    sold: Decimal
+    minimum_stock: Optional[Decimal]
+    is_low_stock: bool
+
+
+class InventoryOverviewListResponse(BaseModel):
+    items: List[InventoryOverviewItemResponse]
     total: int
     page: int
     page_size: int

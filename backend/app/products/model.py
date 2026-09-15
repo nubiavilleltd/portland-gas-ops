@@ -96,7 +96,10 @@ class Product(Base):
     description = Column(Text, nullable=True)
 
     inventory_tracking = Column(
-        SAEnum(InventoryTracking),
+        SAEnum(
+            InventoryTracking,
+            values_callable=lambda enum_cls: [e.value for e in enum_cls],
+        ),
         nullable=False,
     )
 
