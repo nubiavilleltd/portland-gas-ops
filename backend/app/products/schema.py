@@ -25,6 +25,27 @@ class ProductImageResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ProductCategoryResponse(BaseModel):
+    id: str
+    name: str
+    parent_id: str | None
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ProductUnitResponse(BaseModel):
+    id: str
+    code: str
+    label: str
+    category: str | None
+    is_system: bool
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
 
 # ── Request schemas ────────────────────────────────────────────────────────────
 

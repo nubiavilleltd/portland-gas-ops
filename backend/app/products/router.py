@@ -26,6 +26,8 @@ from app.products.schema import (
     ProductPickerListResponse,
     ProductResponse,
     ProductUpdate,
+    ProductCategoryResponse,
+    ProductUnitResponse,
 )
 from app.products.service import ProductService
 from app.shared.dependencies import require_roles
@@ -170,6 +172,40 @@ async def create_product(
     db.refresh(product)
     return _to_response(db, product)
 
+
+
+@router.get(
+    "/categories",
+    response_model=list[ProductCategoryResponse],
+)
+def list_product_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.products.model import ProductCategory
+    return (
+        db.query(ProductCategory)
+        .filter(ProductCategory.is_active.is_(True))
+        .order_by(ProductCategory.name.asc())
+        .all()
+    )
+
+
+@router.get(
+    "/units",
+    response_model=list[ProductUnitResponse],
+)
+def list_product_units(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.products.model import ProductUnit
+    return (
+        db.query(ProductUnit)
+        .filter(ProductUnit.is_active.is_(True))
+        .order_by(ProductUnit.category.asc(), ProductUnit.label.asc())
+        .all()
+    )
 
 @router.get("/by-no/{product_no}", response_model=ProductResponse)
 def get_product_by_no(
