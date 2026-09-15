@@ -84,9 +84,8 @@ class ProductService:
         Returns products enriched with inventory availability for the
         Product Picker.
 
-        NOTE: the availability shape here is still the old
-        physical/committed/available triple. It will be replaced in a
-        later step with the new total/available/reserved/sold model.
+        Availability now uses the total / available / reserved / sold
+        model. `is_orderable` is derived as `available > 0`.
         """
 
         from app.inventory.service import InventoryService
@@ -111,16 +110,16 @@ class ProductService:
 
             item = ProductPickerResponse(
                 **data,
-                physical_quantity=availability.physical_quantity,
-                committed_quantity=availability.committed_quantity,
-                available_quantity=availability.available_quantity,
-                is_orderable=availability.available_quantity > 0,
+                total=availability.total,
+                available=availability.available,
+                reserved=availability.reserved,
+                sold=availability.sold,
+                is_orderable=availability.available > 0,
             )
 
             items.append(item)
 
         return items, total
-
     def get_images(
         self,
         db: Session,

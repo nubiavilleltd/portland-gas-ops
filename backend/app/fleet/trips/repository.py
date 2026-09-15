@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from app.orders.model import OrderItem
 from app.products.model import Product
-from app.products.enums import ProductType
+from app.products.enums import InventoryTracking
 
 
 class TripRepository:
@@ -138,7 +138,7 @@ class TripRepository:
             .join(Product, Product.id == OrderItem.product_id)
             .filter(
                 OrderItem.order_id.in_(order_ids),
-                Product.product_type == ProductType.tracked,
+                Product.inventory_tracking == InventoryTracking.individual_items,
             )
             .count()
         )

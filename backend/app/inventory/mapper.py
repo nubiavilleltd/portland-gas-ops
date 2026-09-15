@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.inventory.schema import (
     InventoryItemResponse,
     ConsumableStockResponse,
@@ -6,17 +8,32 @@ from app.inventory.schema import (
 )
 
 
+def _product_fields(product) -> dict:
+    """
+    Extract the fields we surface about a product on inventory responses.
+
+    Returns None values if product is missing.
+    """
+    if not product:
+        return {
+            "product_no": None,
+            "product_name": None,
+            "sku": None,
+            "tag_prefix": None,
+        }
+    return {
+        "product_no": product.product_no,
+        "product_name": product.name,
+        "sku": product.code,
+        "tag_prefix": product.tag_prefix,
+    }
+
 
 def inventory_item_to_response(item) -> InventoryItemResponse:
     response = InventoryItemResponse.model_validate(item)
 
-    response.product_name = (
-        item.product.name if item.product else None
-    )
-
-    response.product_code = (
-        item.product.code if item.product else None
-    )
+    for key, value in _product_fields(item.product).items():
+        setattr(response, key, value)
 
     response.location_name = (
         item.location.name if item.location else None
@@ -37,27 +54,20 @@ def inventory_item_to_response(item) -> InventoryItemResponse:
     return response
 
 
-
 def consumable_stock_to_response(
     stock,
 ) -> ConsumableStockResponse:
 
     response = ConsumableStockResponse.model_validate(stock)
 
-    response.product_name = (
-        stock.product.name if stock.product else None
-    )
-
-    response.product_code = (
-        stock.product.code if stock.product else None
-    )
+    for key, value in _product_fields(stock.product).items():
+        setattr(response, key, value)
 
     response.location_name = (
         stock.location.name if stock.location else None
     )
 
     return response
-
 
 
 def stock_movement_to_response(
@@ -85,7 +95,6 @@ def stock_movement_to_response(
     )
 
     return response
-
 
 
 def consumable_stock_detail_to_response(

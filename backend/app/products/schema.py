@@ -213,9 +213,10 @@ class ProductResponse(BaseModel):
 
 
 class ProductPickerResponse(ProductResponse):
-    physical_quantity: Decimal
-    committed_quantity: Decimal
-    available_quantity: Decimal
+    total: Decimal
+    available: Decimal
+    reserved: Decimal
+    sold: Decimal
     is_orderable: bool
 
 
