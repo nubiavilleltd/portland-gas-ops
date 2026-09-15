@@ -14,9 +14,7 @@ import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import {
-  useInventoryItemById,
-} from "@/lib/modules/inventory/hooks/useInventory";
+import { useInventoryItemById } from "@/lib/modules/inventory/hooks/useInventory";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import { useReturnItem } from "@/lib/modules/inventory/hooks/useInventoryMutations";
 
@@ -26,43 +24,40 @@ import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 import { CONDITION_OPTIONS } from "@/lib/modules/inventory/constants/inventory-form.constants";
 import { formatDate } from "@/lib/utils";
 
-import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
-import { BadgeVariant } from "@/config/badge.config";
+import type { InventoryItem, InventoryItemStatus } from "@/lib/modules/inventory/types/inventory.types";
+import type { BadgeVariant } from "@/config/badge.config";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 
-// ── Schema ────────────────────────────────────────────────
 const returnItemSchema = z.object({
   condition: z.enum(
     ["new", "used", "refurbished", "damaged"],
-    { message: "Select the condition on return" }
+    { message: "Select the condition on return" },
   ),
   notes: z.string().optional(),
 });
 
 type ReturnItemFormValues = z.infer<typeof returnItemSchema>;
 
-// ── Status config ─────────────────────────────────────────
-const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
-  available:     "success",
-  reserved:      "warning",
-  checked_out:   "info",
+const STATUS_VARIANT: Record<InventoryItemStatus, BadgeVariant> = {
+  available: "success",
+  reserved: "warning",
+  checked_out: "info",
   with_customer: "cyan",
-  maintenance:   "orange",
-  retired:       "neutral",
-  returned:       "neutral",
+  maintenance: "orange",
+  sold: "neutral",
+  retired: "neutral",
 };
 
-const STATUS_LABEL: Record<InventoryItem["status"], string> = {
-  available:     "Available",
-  reserved:      "Reserved",
-  checked_out:   "Checked Out",
+const STATUS_LABEL: Record<InventoryItemStatus, string> = {
+  available: "Available",
+  reserved: "Reserved",
+  checked_out: "Checked Out",
   with_customer: "With Customer",
-  maintenance:   "Maintenance",
-  retired:       "Retired",
-  returned:       "Returned",
+  maintenance: "Maintenance",
+  sold: "Sold",
+  retired: "Retired",
 };
 
-// ── Info row ──────────────────────────────────────────────
 function InfoRow({
   label,
   value,
@@ -78,13 +73,12 @@ function InfoRow({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────
 export default function ReturnItemPage() {
-  const router   = useRouter();
-  const { id }   = useParams<{ id: string }>();
+  const router = useRouter();
+  const { id } = useParams<{ id: string }>();
 
-  const { item,     isLoading: itemLoading     } = useInventoryItemById(id);
-  const {order} = useOrderById(item?.order_id as string)
+  const { item, isLoading: itemLoading } = useInventoryItemById(id);
+  const { order } = useOrderById(item?.order_id as string);
   const { products, isLoading: productsLoading } = useProducts();
   const returnItem = useReturnItem();
 
@@ -98,13 +92,12 @@ export default function ReturnItemPage() {
     resolver: zodResolver(returnItemSchema),
     defaultValues: {
       condition: "used",
-      notes:     "",
+      notes: "",
     },
   });
 
   const isLoading = itemLoading || productsLoading;
 
-  // ── Loading ───────────────────────────────────────────────
   if (isLoading) {
     return (
       <AppLayout pageTitle="Return Item">
@@ -113,7 +106,6 @@ export default function ReturnItemPage() {
     );
   }
 
-  // ── Not found ─────────────────────────────────────────────
   if (!item) {
     return (
       <AppLayout pageTitle="Item Not Found">
@@ -122,7 +114,6 @@ export default function ReturnItemPage() {
     );
   }
 
-  // ── Guard ─────────────────────────────────────────────────
   if (!canReturn(item)) {
     return (
       <AppLayout pageTitle="Cannot Return Item">
@@ -140,7 +131,8 @@ export default function ReturnItemPage() {
             />
             {item.disposition && (
               <>
-                {" "}· Disposition:{" "}
+                {" "}
+                · Disposition:{" "}
                 <span className="font-medium">{item.disposition}</span>
               </>
             )}
@@ -158,14 +150,12 @@ export default function ReturnItemPage() {
 
   const product = getProductById(products, item.product_id);
 
-  // ── Submit ────────────────────────────────────────────────
   async function handleFormSubmit(data: ReturnItemFormValues) {
     try {
       await returnItem.mutateAsync({
-        item_id:     id,
-        condition:   data.condition,
-        notes:       data.notes,
-        recorded_by: "Warehouse Staff",
+        item_id: id,
+        condition: data.condition,
+        notes: data.notes,
       });
       router.push(INVENTORY_ROUTES.trackedDetail(id));
     } catch (err) {
@@ -176,7 +166,6 @@ export default function ReturnItemPage() {
     }
   }
 
-  // ── Render ────────────────────────────────────────────────
   return (
     <AppLayout pageTitle="Return Item">
       <button
@@ -194,8 +183,6 @@ export default function ReturnItemPage() {
       />
 
       <div className="space-y-6">
-
-        {/* ── ITEM SUMMARY ───────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <h2 className="text-sm font-semibold text-brand-text-primary">
@@ -205,19 +192,11 @@ export default function ReturnItemPage() {
           <div className="p-6 grid grid-cols-2 gap-4">
             <InfoRow
               label="Tag Number"
-              value={
-                <span className="font-mono">{item.tag_number}</span>
-              }
+              value={<span className="font-mono">{item.tag_number}</span>}
             />
-            <InfoRow
-              label="Product"
-              value={product?.name}
-            />
+            <InfoRow label="Product" value={product?.name} />
             {item.serial_number && (
-              <InfoRow
-                label="Serial Number"
-                value={item.serial_number}
-              />
+              <InfoRow label="Serial Number" value={item.serial_number} />
             )}
             <InfoRow
               label="Current Status"
@@ -241,7 +220,7 @@ export default function ReturnItemPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    href={`/orders/${order?.orderNumber}`}
+                    href={`/orders/${item.order_id}`}
                   >
                     View Order
                   </Button>
@@ -251,13 +230,12 @@ export default function ReturnItemPage() {
           </div>
         </div>
 
-        {/* ── WHAT HAPPENS NEXT ──────────────────────────── */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-sm text-blue-800 space-y-1">
           <p className="font-medium">What happens after return:</p>
           <ul className="space-y-1 text-blue-700 list-disc list-inside">
             <li>
-              <strong>Good / Used / Refurbished</strong> → item goes back
-              to <strong>Available</strong>
+              <strong>Good / Used / Refurbished</strong> → item goes back to{" "}
+              <strong>Available</strong>
             </li>
             <li>
               <strong>Damaged</strong> → item goes to{" "}
@@ -266,7 +244,6 @@ export default function ReturnItemPage() {
           </ul>
         </div>
 
-        {/* ── RETURN FORM ────────────────────────────────── */}
         <div className="bg-white border border-brand-border rounded-2xl">
           <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
             <h2 className="text-sm font-semibold text-brand-text-primary">
@@ -321,7 +298,6 @@ export default function ReturnItemPage() {
             </div>
           </form>
         </div>
-
       </div>
     </AppLayout>
   );

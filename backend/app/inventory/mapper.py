@@ -11,8 +11,6 @@ from app.inventory.schema import (
 def _product_fields(product) -> dict:
     """
     Extract the fields we surface about a product on inventory responses.
-
-    Returns None values if product is missing.
     """
     if not product:
         return {
@@ -20,12 +18,17 @@ def _product_fields(product) -> dict:
             "product_name": None,
             "sku": None,
             "tag_prefix": None,
+            "unit_label": None,
+            "unit_code": None,
         }
+    unit = getattr(product, "unit", None)
     return {
         "product_no": product.product_no,
         "product_name": product.name,
         "sku": product.code,
         "tag_prefix": product.tag_prefix,
+        "unit_label": unit.label if unit else None,
+        "unit_code": unit.code if unit else None,
     }
 
 

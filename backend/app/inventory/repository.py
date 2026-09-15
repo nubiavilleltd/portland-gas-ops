@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import func, exists
+from sqlalchemy import func, exists, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.shared.utils.number_generator import generate_entity_no
@@ -20,6 +20,7 @@ from app.inventory.model import (
 
 from app.orders.model import Order, OrderItem
 from app.inventory import utils
+from app.products.model import Product
 
 
 class InventoryRepository:
@@ -154,6 +155,7 @@ class InventoryRepository:
         product_id: Optional[str] = None,
         status: Optional[InventoryItemStatus] = None,
         location_id: Optional[str] = None,
+        search: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ) -> Tuple[List[InventoryItem], int]:
@@ -178,6 +180,15 @@ class InventoryRepository:
         if location_id:
             q = q.filter(InventoryItem.location_id == location_id)
 
+        if search:
+            term = f"%{search.strip()}%"
+            q = q.filter(
+                or_(
+                    InventoryItem.tag_number.ilike(term),
+                    InventoryItem.serial_number.ilike(term),
+                )
+            )
+
         total = q.with_entities(func.count(InventoryItem.id)).scalar() or 0
 
         items = (
@@ -188,7 +199,6 @@ class InventoryRepository:
         )
 
         return items, total
-
     def create_inventory_item(
         self,
         db: Session,
@@ -374,7 +384,7 @@ class InventoryRepository:
         return (
             db.query(ConsumableStock)
             .options(
-                joinedload(ConsumableStock.product),
+                joinedload(ConsumableStock.product).joinedload(Product.unit),
                 joinedload(ConsumableStock.location),
             )
             .filter(ConsumableStock.id == stock_id)
@@ -399,15 +409,21 @@ class InventoryRepository:
     def list_consumable_stock(
         self,
         db: Session,
+        product_id: Optional[str] = None,
     ) -> List[ConsumableStock]:
-        return (
+
+        q = (
             db.query(ConsumableStock)
             .options(
-                joinedload(ConsumableStock.product),
+                joinedload(ConsumableStock.product).joinedload(Product.unit),
                 joinedload(ConsumableStock.location),
             )
-            .all()
         )
+
+        if product_id:
+            q = q.filter(ConsumableStock.product_id == product_id)
+
+        return q.all()
 
     def increase_stock(
         self,

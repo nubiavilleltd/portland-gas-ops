@@ -152,7 +152,8 @@ class InventoryService:
         db: Session,
         product_id: Optional[str] = None,
         status: Optional[InventoryItemStatus] = None,
-        location_id: Optional[int] = None,
+        location_id: Optional[str] = None,
+        search: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ):
@@ -161,14 +162,19 @@ class InventoryService:
             product_id=product_id,
             status=status,
             location_id=location_id,
+            search=search,
             page=page,
             page_size=page_size,
         )
         return items
 
-    def list_stock(self, db: Session):
-        return self.repo.list_consumable_stock(db)
-
+    def list_stock(
+        self,
+        db: Session,
+        product_id: Optional[str] = None,
+    ):
+        return self.repo.list_consumable_stock(db, product_id=product_id)
+    
     def list_movements(
         self,
         db: Session,

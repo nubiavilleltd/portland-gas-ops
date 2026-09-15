@@ -154,6 +154,9 @@ class ConsumableStockResponse(BaseModel):
     sku: Optional[str] = None
     tag_prefix: Optional[str] = None
 
+    unit_label: Optional[str] = None
+    unit_code: Optional[str] = None
+
     location_id: str
     location_name: Optional[str] = None
 
@@ -164,6 +167,7 @@ class ConsumableStockResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 
 class ConsumableStockListResponse(BaseModel):
@@ -183,6 +187,9 @@ class ConsumableStockDetailResponse(BaseModel):
     product_name: Optional[str] = None
     sku: Optional[str] = None
     tag_prefix: Optional[str] = None
+
+    unit_label: Optional[str] = None
+    unit_code: Optional[str] = None
 
     location_id: str
     location_name: Optional[str] = None

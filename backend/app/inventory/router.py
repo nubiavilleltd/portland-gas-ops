@@ -143,6 +143,8 @@ def get_product_availability(
 def list_inventory_items(
     product_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    location_id: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -150,6 +152,8 @@ def list_inventory_items(
         db,
         product_id=product_id,
         status=status,
+        location_id=location_id,
+        search=search,
     )
     return [inventory_item_to_response(item) for item in items]
 
@@ -191,12 +195,12 @@ def return_inventory_item(
 
 @router.get("/stock", response_model=List[ConsumableStockResponse])
 def list_consumable_stock(
+    product_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    stock = service.list_stock(db)
+    stock = service.list_stock(db, product_id=product_id)
     return [consumable_stock_to_response(item) for item in stock]
-
 
 @router.get("/stock/{stock_id}", response_model=ConsumableStockDetailResponse)
 def get_consumable_stock(

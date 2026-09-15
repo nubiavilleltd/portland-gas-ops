@@ -55,6 +55,9 @@ interface BackendConsumableStock {
   sku: string | null;
   tag_prefix: string | null;
 
+  unit_label: string | null;
+  unit_code: string | null;
+
   location_id: string;
   location_name: string | null;
 
@@ -182,6 +185,9 @@ export function adaptConsumableStock(
     sku: raw.sku ?? undefined,
     tag_prefix: raw.tag_prefix ?? undefined,
 
+    unit_label: raw.unit_label ?? undefined,
+    unit_code: raw.unit_code ?? undefined,
+
     location_id: raw.location_id,
     location_name: raw.location_name ?? "",
 
@@ -241,6 +247,7 @@ export function adaptInventoryOverviewItem(
   raw: BackendInventoryOverviewItem,
 ): InventoryOverviewItem {
   return {
+    id: raw.product_id,
     productId: raw.product_id,
     productNo: raw.product_no,
     productName: raw.product_name,

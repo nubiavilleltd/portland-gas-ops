@@ -117,6 +117,9 @@ export interface ConsumableStock {
   sku?: string;
   tag_prefix?: string;
 
+  unit_label?: string;    // NEW
+  unit_code?: string;     // NEW
+
   location_id: string;
   location_name: string;
 
@@ -144,6 +147,7 @@ export interface ProductAvailability {
 export type InventoryTracking = "INDIVIDUAL_ITEMS" | "STOCK_QUANTITY";
 
 export interface InventoryOverviewItem {
+  id: string; 
   productId: string;
   productNo: string;
   productName: string;

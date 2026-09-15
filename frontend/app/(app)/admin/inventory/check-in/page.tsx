@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -14,53 +14,53 @@ import FormInput from "@/components/forms/FormInput";
 import FormTextarea from "@/components/forms/FormTextarea";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import {
+  useProducts,
+  useUnits,
+} from "@/lib/modules/products/hooks/useProducts";
 import { useLocations } from "@/lib/modules/inventory/hooks/useInventory";
 import {
-  useCheckInTracked,
-  useCheckInConsumable,
+  useCheckInIndividualItems,
+  useCheckInStockQuantity,
 } from "@/lib/modules/inventory/hooks/useInventoryMutations";
 
 import {
   getActiveProducts,
   getProductById,
 } from "@/lib/modules/products/selectors/products.selectors";
-import { isTracked } from "@/lib/modules/products/types/product.types";
+import {
+  isIndividualItems,
+  isStockQuantity,
+} from "@/lib/modules/products/types/product.types";
 
 import {
-  checkInTrackedSchema,
-  checkInConsumableSchema,
-  type CheckInTrackedFormInput,
-  type CheckInTrackedFormOutput,
-  type CheckInConsumableFormInput,
-  type CheckInConsumableFormOutput,
+  checkInIndividualItemsSchema,
+  checkInStockQuantitySchema,
+  type CheckInIndividualItemsFormInput,
+  type CheckInIndividualItemsFormOutput,
+  type CheckInStockQuantityFormInput,
+  type CheckInStockQuantityFormOutput,
 } from "@/lib/modules/inventory/schemas/checkIn.schema";
 
 import { CONDITION_OPTIONS } from "@/lib/modules/inventory/constants/inventory-form.constants";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
-import { useState } from "react";
 import CheckInSkeleton from "@/lib/modules/inventory/components/CheckInSkeleton";
 
-// ── Page ──────────────────────────────────────────────────
 export default function CheckInPage() {
   const router = useRouter();
 
   const { products, isLoading: productsLoading } = useProducts();
+  const { units, isLoading: unitsLoading } = useUnits();
   const { locations, isLoading: locationsLoading } = useLocations();
-  const [selectedProductId, setSelectedProductId] =
-    useState<string>("");
 
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
 
-  const checkInTracked = useCheckInTracked();
-  const checkInConsumable = useCheckInConsumable();
-
- 
-
+  const checkInIndividualItems = useCheckInIndividualItems();
+  const checkInStockQuantity = useCheckInStockQuantity();
 
   const activeProducts = getActiveProducts(products);
-  const defaultLocationId = locations.find((l) => l.is_default)?.id ?? "";
-
-
+  const defaultLocationId =
+    locations.find((l) => l.is_default)?.id ?? "";
 
   const locationOptions = locations.map((l) => ({
     value: l.id,
@@ -70,11 +70,17 @@ export default function CheckInPage() {
   const productOptions = activeProducts.map((p) => ({
     value: p.id,
     label: p.name,
-    description: isTracked(p) ? "Tracked Asset" : "Consumable",
+    description: isIndividualItems(p)
+      ? "Individual Items"
+      : "Stock Quantity",
   }));
 
-     const trackedForm = useForm<CheckInTrackedFormInput, unknown, CheckInTrackedFormOutput>({
-    resolver: zodResolver(checkInTrackedSchema),
+  const individualForm = useForm<
+    CheckInIndividualItemsFormInput,
+    unknown,
+    CheckInIndividualItemsFormOutput
+  >({
+    resolver: zodResolver(checkInIndividualItemsSchema),
     mode: "onTouched",
     defaultValues: {
       product_id: "",
@@ -85,13 +91,12 @@ export default function CheckInPage() {
     },
   });
 
- 
-
-  // ── Tracked form ──────────────────────────────────────────
-
-  // ── Consumable form ───────────────────────────────────────
-  const consumableForm = useForm<CheckInConsumableFormInput, unknown, CheckInConsumableFormOutput>({
-    resolver: zodResolver(checkInConsumableSchema),
+  const stockForm = useForm<
+    CheckInStockQuantityFormInput,
+    unknown,
+    CheckInStockQuantityFormOutput
+  >({
+    resolver: zodResolver(checkInStockQuantitySchema),
     mode: "onTouched",
     defaultValues: {
       product_id: "",
@@ -101,45 +106,36 @@ export default function CheckInPage() {
     },
   });
 
-  // ── Watch selected product across both forms ──────────────
-  const trackedProductId = trackedForm.watch("product_id");
-  const consumableProductId = consumableForm.watch("product_id");
-
-  // The "active" product drives which form is shown
-  // We use a single product selector that feeds both forms
-
   const selectedProduct = getProductById(products, selectedProductId);
-  const productType = selectedProduct
-    ? isTracked(selectedProduct) ? "tracked" : "consumable"
-    : null;
+  const selectedUnit = selectedProduct
+    ? units.find((u) => u.id === selectedProduct.unitId)
+    : undefined;
 
+  const isLoading =
+    productsLoading || locationsLoading || unitsLoading;
 
-  if (productsLoading || locationsLoading) {
+  if (isLoading) {
     return <CheckInSkeleton />;
   }
 
-
-  // Sync product selection into the correct form
   function handleProductChange(productId: string) {
     setSelectedProductId(productId);
     const product = getProductById(products, productId);
     if (!product) return;
 
-    if (isTracked(product)) {
-      trackedForm.setValue("product_id", productId);
-      trackedForm.setValue("location_id", defaultLocationId);
-      // Reset consumable form
-      consumableForm.reset({
+    if (isIndividualItems(product)) {
+      individualForm.setValue("product_id", productId);
+      individualForm.setValue("location_id", defaultLocationId);
+      stockForm.reset({
         product_id: "",
         location_id: defaultLocationId,
         quantity: "",
         notes: "",
       });
     } else {
-      consumableForm.setValue("product_id", productId);
-      consumableForm.setValue("location_id", defaultLocationId);
-      // Reset tracked form
-      trackedForm.reset({
+      stockForm.setValue("product_id", productId);
+      stockForm.setValue("location_id", defaultLocationId);
+      individualForm.reset({
         product_id: "",
         location_id: defaultLocationId,
         quantity: "",
@@ -149,45 +145,54 @@ export default function CheckInPage() {
     }
   }
 
-  // ── Submit — tracked ──────────────────────────────────────
-  async function handleTrackedSubmit(data: CheckInTrackedFormOutput) {
+  async function handleIndividualSubmit(
+    data: CheckInIndividualItemsFormOutput,
+  ) {
     try {
-      const product = getProductById(products, data.product_id);
-      await checkInTracked.mutateAsync({
-        ...data,
-        product_code: product?.code ?? data.product_id.toUpperCase().slice(0, 3),
-        recorded_by: "Warehouse Staff",
+      await checkInIndividualItems.mutateAsync({
+        product_id: data.product_id,
+        location_id: data.location_id,
+        quantity: data.quantity,
+        condition: data.condition,
+        notes: data.notes,
       });
-      trackedForm.reset();
+      individualForm.reset();
       setSelectedProductId("");
-      router.push(
-        INVENTORY_ROUTES.list("tracked"),
-      );
+      router.push(INVENTORY_ROUTES.list());
     } catch (err) {
-      trackedForm.setError("root", {
-        message: err instanceof Error ? err.message : "Failed to check in items",
+      individualForm.setError("root", {
+        message:
+          err instanceof Error ? err.message : "Failed to check in items",
       });
     }
   }
 
-  // ── Submit — consumable ───────────────────────────────────
-  async function handleConsumableSubmit(data: CheckInConsumableFormOutput) {
+  async function handleStockSubmit(
+    data: CheckInStockQuantityFormOutput,
+  ) {
     try {
-      await checkInConsumable.mutateAsync({
-        ...data,
-        recorded_by: "Warehouse Staff",
+      await checkInStockQuantity.mutateAsync({
+        product_id: data.product_id,
+        location_id: data.location_id,
+        quantity: data.quantity,
+        notes: data.notes,
       });
-      consumableForm.reset();
+      stockForm.reset();
       setSelectedProductId("");
-      router.push(
-        INVENTORY_ROUTES.list("consumable"),
-      );
+      router.push(INVENTORY_ROUTES.list());
     } catch (err) {
-      consumableForm.setError("root", {
-        message: err instanceof Error ? err.message : "Failed to update stock",
+      stockForm.setError("root", {
+        message:
+          err instanceof Error ? err.message : "Failed to update stock",
       });
     }
   }
+
+  const tracking = selectedProduct
+    ? isIndividualItems(selectedProduct)
+      ? "individual"
+      : "stock"
+    : null;
 
   return (
     <AppLayout pageTitle="Check In Stock">
@@ -205,165 +210,158 @@ export default function CheckInPage() {
         className="mb-6"
       />
 
-      <div className="">
-        <div className="bg-white border border-brand-border rounded-2xl">
-          <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-sm font-semibold text-brand-text-primary">
-              Stock Check-In
-            </h2>
-            <p className="text-xs text-brand-text-secondary mt-0.5">
-              Select a product — the form adapts based on product type
-            </p>
-          </div>
+      <div className="bg-white border border-brand-border rounded-2xl">
+        <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
+          <h2 className="text-sm font-semibold text-brand-text-primary">
+            Stock Check-In
+          </h2>
+          <p className="text-xs text-brand-text-secondary mt-0.5">
+            Select a product — the form adapts based on its tracking mode
+          </p>
+        </div>
 
-          <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5">
+          <FormSelect
+            label="Product"
+            required
+            placeholder="Select a product"
+            options={productOptions}
+            value={selectedProductId}
+            onValueChange={handleProductChange}
+            hint={
+              selectedProduct
+                ? isIndividualItems(selectedProduct)
+                  ? `Individual Items — each unit will get a tag with prefix ${selectedProduct.tagPrefix ?? "?"}`
+                  : `Stock Quantity — stock level will be updated in ${selectedUnit?.label ?? ""}`
+                : "Select a product to continue"
+            }
+            searchable
+          />
 
-            {/* ── Product selector — always visible ──────── */}
-            <FormSelect
-              label="Product"
-              required
-              placeholder="Select a product"
-              options={productOptions}
-              value={selectedProductId}
-              onValueChange={handleProductChange}
-              hint={
-                selectedProduct
-                  ? isTracked(selectedProduct)
-                    ? "Tracked asset — each unit will get a tag number"
-                    : `Consumable — stock level will be updated in ${selectedProduct.unit}`
-                  : "Select a product to continue"
-              }
-              searchable
-            />
-
-            {/* ── Tracked form fields ─────────────────────── */}
-            {productType === "tracked" && (
-              <form
-                onSubmit={trackedForm.handleSubmit(handleTrackedSubmit)}
-                className="space-y-3"
-              >
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <Controller
-                    control={trackedForm.control}
-                    name="location_id"
-                    render={({ field }) => (
-                      <FormSelect
-                        label="Location"
-                        required
-                        options={locationOptions}
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        error={trackedForm.formState.errors.location_id?.message}
-                      />
-                    )}
-                  />
-
-                  <FormInput
-                    label="Quantity"
-                    type="number"
-                    required
-                    placeholder="How many units arriving?"
-                    hint="A tag number will be generated for each unit"
-                    error={trackedForm.formState.errors.quantity?.message}
-                    {...trackedForm.register("quantity")}
-                  />
-
-                </div>
-
+          {tracking === "individual" && (
+            <form
+              onSubmit={individualForm.handleSubmit(handleIndividualSubmit)}
+              className="space-y-5"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Controller
-                  control={trackedForm.control}
-                  name="condition"
+                  control={individualForm.control}
+                  name="location_id"
                   render={({ field }) => (
                     <FormSelect
-                      label="Condition"
+                      label="Location"
                       required
-                      options={CONDITION_OPTIONS}
+                      options={locationOptions}
                       value={field.value}
                       onValueChange={field.onChange}
-                      error={trackedForm.formState.errors.condition?.message}
-                      searchable
+                      error={
+                        individualForm.formState.errors.location_id?.message
+                      }
                     />
                   )}
                 />
 
-                <FormTextarea
-                  label="Notes"
-                  placeholder="Supplier reference, delivery note number, etc."
-                  {...trackedForm.register("notes")}
+                <FormInput
+                  label="Quantity"
+                  type="number"
+                  required
+                  placeholder="How many units arriving?"
+                  hint="A tag number will be generated for each unit"
+                  error={individualForm.formState.errors.quantity?.message}
+                  {...individualForm.register("quantity")}
                 />
+              </div>
 
-                <ErrorBanner
-                  message={trackedForm.formState.errors.root?.message}
-                />
-
-                <Button
-                  type="submit"
-                  loading={trackedForm.formState.isSubmitting}
-                  loadingText="Checking in…"
-                >
-                  Check In Items
-                </Button>
-              </form>
-            )}
-
-            {/* ── Consumable form fields ──────────────────── */}
-            {productType === "consumable" && (
-              <form
-                onSubmit={consumableForm.handleSubmit(handleConsumableSubmit)}
-                className="space-y-5"
-              >
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <Controller
-                    control={consumableForm.control}
-                    name="location_id"
-                    render={({ field }) => (
-                      <FormSelect
-                        label="Location"
-                        required
-                        options={locationOptions}
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        error={consumableForm.formState.errors.location_id?.message}
-                      />
-                    )}
-                  />
-
-                  <FormInput
-                    label="Quantity"
-                    type="text"
-                    inputMode="numeric"
+              <Controller
+                control={individualForm.control}
+                name="condition"
+                render={({ field }) => (
+                  <FormSelect
+                    label="Condition"
                     required
-                    placeholder="e.g. 5,000"
-                    hint={`Unit: ${selectedProduct?.unit ?? ""}`}
-                    error={consumableForm.formState.errors.quantity?.message}
-                    {...consumableForm.register("quantity")}
+                    options={CONDITION_OPTIONS}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    error={individualForm.formState.errors.condition?.message}
+                    searchable
                   />
+                )}
+              />
 
-                </div>
+              <FormTextarea
+                label="Notes"
+                placeholder="Supplier reference, delivery note number, etc."
+                {...individualForm.register("notes")}
+              />
 
-                <FormTextarea
-                  label="Notes"
-                  placeholder="Supplier reference, delivery note number, etc."
-                  {...consumableForm.register("notes")}
+              <ErrorBanner
+                message={individualForm.formState.errors.root?.message}
+              />
+
+              <Button
+                type="submit"
+                loading={checkInIndividualItems.isPending}
+                loadingText="Checking in…"
+              >
+                Check In Items
+              </Button>
+            </form>
+          )}
+
+          {tracking === "stock" && (
+            <form
+              onSubmit={stockForm.handleSubmit(handleStockSubmit)}
+              className="space-y-5"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Controller
+                  control={stockForm.control}
+                  name="location_id"
+                  render={({ field }) => (
+                    <FormSelect
+                      label="Location"
+                      required
+                      options={locationOptions}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      error={
+                        stockForm.formState.errors.location_id?.message
+                      }
+                    />
+                  )}
                 />
 
-                <ErrorBanner
-                  message={consumableForm.formState.errors.root?.message}
+                <FormInput
+                  label="Quantity"
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  placeholder="e.g. 500"
+                  hint={`Unit: ${selectedUnit?.label ?? ""}`}
+                  error={stockForm.formState.errors.quantity?.message}
+                  {...stockForm.register("quantity")}
                 />
+              </div>
 
-                <Button
-                  type="submit"
-                  loading={consumableForm.formState.isSubmitting}
-                  loadingText="Updating stock…"
-                >
-                  Update Stock
-                </Button>
-              </form>
-            )}
+              <FormTextarea
+                label="Notes"
+                placeholder="Supplier reference, delivery note number, etc."
+                {...stockForm.register("notes")}
+              />
 
-          </div>
+              <ErrorBanner
+                message={stockForm.formState.errors.root?.message}
+              />
+
+              <Button
+                type="submit"
+                loading={checkInStockQuantity.isPending}
+                loadingText="Updating stock…"
+              >
+                Update Stock
+              </Button>
+            </form>
+          )}
         </div>
       </div>
     </AppLayout>
