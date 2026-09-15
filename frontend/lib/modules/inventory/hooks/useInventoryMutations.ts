@@ -1,21 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { inventoryApi } from "../api/inventory.api";
-import { adaptInventoryItem, adaptConsumableStock } from "../adapters/inventory.adapter";
+
+import { InventoryService } from "../services/inventory.service";
 import { getErrorMessage } from "@/lib/api/error";
 import { INVENTORY_ROUTES } from "../constants/routes";
 import { INVENTORY_KEYS } from "../constants/inventory-query-keys";
-import { InventoryService } from "../services/inventory.service";
 
-
-
-export function useCheckInTracked() {
+export function useCheckInIndividualItems() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   return useMutation({
-    mutationFn: InventoryService.checkInTracked,
+    mutationFn: InventoryService.checkInIndividualItems,
 
     onSuccess: (items) => {
       queryClient.invalidateQueries({
@@ -25,11 +22,18 @@ export function useCheckInTracked() {
       queryClient.invalidateQueries({
         queryKey: INVENTORY_KEYS.movements(),
       });
+
       queryClient.invalidateQueries({
         queryKey: INVENTORY_KEYS.kpis(),
       });
 
-      toast.success(`${items.length} item(s) checked in successfully`);
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.overview(),
+      });
+
+      toast.success(
+        `${items.length} item(s) checked in successfully`,
+      );
 
       router.push(INVENTORY_ROUTES.list());
     },
@@ -40,11 +44,11 @@ export function useCheckInTracked() {
   });
 }
 
-export function useCheckInConsumable() {
+export function useCheckInStockQuantity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: InventoryService.checkInConsumable,
+    mutationFn: InventoryService.checkInStockQuantity,
 
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -54,8 +58,13 @@ export function useCheckInConsumable() {
       queryClient.invalidateQueries({
         queryKey: INVENTORY_KEYS.movements(),
       });
+
       queryClient.invalidateQueries({
         queryKey: INVENTORY_KEYS.kpis(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.overview(),
       });
 
       toast.success("Stock updated successfully");
@@ -81,8 +90,13 @@ export function useReturnItem() {
       queryClient.invalidateQueries({
         queryKey: INVENTORY_KEYS.movements(),
       });
+
       queryClient.invalidateQueries({
         queryKey: INVENTORY_KEYS.kpis(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: INVENTORY_KEYS.overview(),
       });
 
       toast.success("Item returned successfully");

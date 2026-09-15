@@ -1,10 +1,16 @@
 import { z } from "zod";
 
-export const CONDITION_VALUES = ["new", "used", "refurbished", "damaged"] as const;
-export const DISPOSITION_VALUES = ["sold", "loaned", "rented"] as const;
+export const CONDITION_VALUES = [
+  "new",
+  "used",
+  "refurbished",
+  "damaged",
+] as const;
 
-// ── Tracked check-in ─────────────────────────────────────
-export const checkInTrackedSchema = z.object({
+export const DISPOSITION_VALUES = ["sold", "loaned"] as const;
+
+// ── Individual items check-in ─────────────────────────────
+export const checkInIndividualItemsSchema = z.object({
   product_id: z.string().min(1, "Select a product"),
   location_id: z.string().min(1, "Select a location"),
   quantity: z
@@ -16,8 +22,8 @@ export const checkInTrackedSchema = z.object({
   notes: z.string().optional(),
 });
 
-// ── Consumable check-in ──────────────────────────────────
-export const checkInConsumableSchema = z.object({
+// ── Stock quantity check-in ───────────────────────────────
+export const checkInStockQuantitySchema = z.object({
   product_id: z.string().min(1, "Select a product"),
   location_id: z.string().min(1, "Select a location"),
   quantity: z
@@ -28,9 +34,17 @@ export const checkInConsumableSchema = z.object({
   notes: z.string().optional(),
 });
 
-// ── Types ────────────────────────────────────────────────
-export type CheckInTrackedFormInput  = z.input<typeof checkInTrackedSchema>;
-export type CheckInTrackedFormOutput = z.output<typeof checkInTrackedSchema>;
+// ── Types ─────────────────────────────────────────────────
+export type CheckInIndividualItemsFormInput = z.input<
+  typeof checkInIndividualItemsSchema
+>;
+export type CheckInIndividualItemsFormOutput = z.output<
+  typeof checkInIndividualItemsSchema
+>;
 
-export type CheckInConsumableFormInput  = z.input<typeof checkInConsumableSchema>;
-export type CheckInConsumableFormOutput = z.output<typeof checkInConsumableSchema>;
+export type CheckInStockQuantityFormInput = z.input<
+  typeof checkInStockQuantitySchema
+>;
+export type CheckInStockQuantityFormOutput = z.output<
+  typeof checkInStockQuantitySchema
+>;
