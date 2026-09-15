@@ -3,6 +3,7 @@ import { Eye, Download, Trash2 } from "lucide-react";
 import type { Column } from "@/components/data-table/data-table";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import { formatDate } from "@/lib/utils";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 import type { Employee, EmployeeRecord, LeaveRequest, PaySlip, PayrollRun } from "./_data";
 
 const fmt  = (n: number) => (n === 0 ? "—" : `₦${n.toLocaleString("en-NG")}`);
@@ -167,7 +168,7 @@ export function createEmployeeRecordColumns(
               pdf.rect(0, 0, 210, 18, "F");
               pdf.setFont("helvetica", "bold"); pdf.setFontSize(13);
               pdf.setTextColor(255, 255, 255);
-              pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+              pdf.text(`${getStoredCompanyBranding().name.toUpperCase()} OPERATIONS`, 20, 11);
               pdf.setTextColor(30, 30, 30); pdf.setFontSize(11); pdf.setFont("helvetica", "bold");
               pdf.text(row.docType, 20, 34);
               pdf.setFontSize(9); pdf.setFont("helvetica", "normal"); pdf.setTextColor(100, 100, 100);
@@ -189,7 +190,7 @@ export function createEmployeeRecordColumns(
               pdf.rect(0, 0, 210, 18, "F");
               pdf.setFont("helvetica", "bold"); pdf.setFontSize(13);
               pdf.setTextColor(255, 255, 255);
-              pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+              pdf.text(`${getStoredCompanyBranding().name.toUpperCase()} OPERATIONS`, 20, 11);
               pdf.setTextColor(30, 30, 30); pdf.setFontSize(11); pdf.setFont("helvetica", "bold");
               pdf.text(row.docType, 20, 34);
               pdf.setFontSize(9); pdf.setFont("helvetica", "normal"); pdf.setTextColor(100, 100, 100);

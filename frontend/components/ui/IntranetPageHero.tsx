@@ -1,12 +1,14 @@
 "use client";
 
+import { useCompanyBranding } from "@/lib/company-branding";
+
 /**
  * IntranetPageHero — animated dark-purple hero banner used across intranet
  * listing pages (/news, /events, /people, etc.)
  *
  * Usage:
  *   <IntranetPageHero
- *     label="Portland Gas Intranet"
+ *     label="Company Intranet"
  *     title="News & Announcements"
  *     subtitle="Stay informed with the latest from across the company."
  *     imageSrc="https://…"   // optional company photo (shown at low opacity)
@@ -21,7 +23,10 @@ interface Props {
   imageSrc?: string;
 }
 
-export default function IntranetPageHero({ label = "Portland Gas Intranet", title, subtitle, imageSrc }: Props) {
+export default function IntranetPageHero({ label, title, subtitle, imageSrc }: Props) {
+  const { name } = useCompanyBranding();
+  const resolvedLabel = label ?? `${name} Intranet`;
+
   return (
     <div className="relative bg-[#1C043B] pt-12 pb-10 px-4 lg:px-8 overflow-hidden">
 
@@ -110,7 +115,7 @@ export default function IntranetPageHero({ label = "Portland Gas Intranet", titl
       {/* ── Content ──────────────────────────────────────────────────────── */}
       <div className="max-w-[1400px] mx-auto relative z-10">
         <p className="text-[#FFBC00] text-[10px] font-extrabold uppercase tracking-[0.2em] mb-3">
-          {label}
+          {resolvedLabel}
         </p>
         <h1
           className="text-3xl lg:text-4xl font-extrabold text-white mb-2 leading-tight"

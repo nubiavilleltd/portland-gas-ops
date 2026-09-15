@@ -9,6 +9,7 @@ import Pagination from "@/components/ui/Pagination";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { cn } from "@/lib/utils";
 import { useIntranetEventsPublished } from "@/lib/modules/intranet/queries";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 const PAGE_SIZE = 6;
 
@@ -63,7 +64,6 @@ export default function EventsPage() {
       <IntranetPageHero
         title="Upcoming Events"
         subtitle="Townhalls, training sessions, workshops and more — all in one place."
-        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/NASENI-PORTLAND-GAS-LAUNCH-4-scaled-1.jpg"
       />
 
       {/* ── Grid ─────────────────────────────────────────────────────────── */}
@@ -168,7 +168,7 @@ export default function EventsPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-8">
         <div className="max-w-[1400px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
     </IntranetLayout>

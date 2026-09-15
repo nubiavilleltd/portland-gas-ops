@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import type { ProcurementRequest, PurchaseOrder } from "@/types";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -52,7 +53,10 @@ function issuerName(po: PurchaseOrder | undefined): string {
 }
 
 export async function generatePO(req: ProcurementRequest, po?: PurchaseOrder): Promise<void> {
-  const logoDataUrl = await loadImageAsBase64("/Portland-gas-logo.png");
+  const branding = getStoredCompanyBranding();
+  const logoDataUrl = branding.logoDataUrl
+    ? await loadImageAsBase64(branding.logoDataUrl)
+    : null;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -74,19 +78,13 @@ export async function generatePO(req: ProcurementRequest, po?: PurchaseOrder): P
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...darkText);
-    doc.text("Portland Gas Limited", ml, 20);
+    doc.text(branding.name, ml, 20);
   }
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mutedText);
-  doc.text("Clean Energy | CNG | LPG | EV Charging", ml, 28);
-
-  doc.setFontSize(7.5);
-  doc.setTextColor(...mutedText);
-  doc.text("2B Water Corporation Road, Victoria Island, Lagos", mr, 14, { align: "right" });
-  doc.text("Tel: +234 (0) 800 PORTLAND  |  info@portlandgasltd.com", mr, 19, { align: "right" });
-  doc.text("www.portlandgasltd.com", mr, 24, { align: "right" });
+  doc.text("Operations Platform", ml, 28);
 
   // Divider
   doc.setDrawColor(...lightBorder);
@@ -293,7 +291,7 @@ export async function generatePO(req: ProcurementRequest, po?: PurchaseOrder): P
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mutedText);
   doc.text(
-    "This is a computer-generated Purchase Order. Portland Gas Limited — Internal Operations Platform.",
+    `This is a computer-generated Purchase Order. ${branding.name} — Internal Operations Platform.`,
     pageW / 2,
     pageH - 10,
     { align: "center" }

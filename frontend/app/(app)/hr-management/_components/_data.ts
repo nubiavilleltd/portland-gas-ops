@@ -1,5 +1,9 @@
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+import { getStoredCompanyBranding } from "@/lib/company-branding";
+
+const COMPANY_NAME = getStoredCompanyBranding().name;
+
 export const HR_DEPARTMENTS = [
   "Legal", "Commercial", "Assets", "Engineering", "Operations",
   "Finance", "HR", "IT", "Safety", "Admin",
@@ -170,13 +174,13 @@ export interface PayrollRun {
 // ── Seed data ─────────────────────────────────────────────────────────────────
 
 export const SEED_EMPLOYEES: Employee[] = [
-  { id: "1", firstName: "Magdalene",  lastName: "Edozie",   title: "Software Developer",    department: "Legal",      birthday: "2025-12-17", category: "Full Time", grade: "7",  email: "magdalene.edozie@portlandgas.com",   lineManager: "Oluwaseun Sowemimo", lineManagerEmail: "oluwaseun.sowemimo@portlandgas.com", basicSalary: 650000,  housingAllowance: 150000, transportAllowance: 80000,  mealAllowance: 40000, paye: 85000,  pension: 52000, nhf: 16250, loanRepayment: 30000 },
-  { id: "2", firstName: "Oluwaseun",  lastName: "Sowemimo", title: "Software Developer",    department: "Commercial", birthday: "",           category: "Full Time", grade: "14", email: "oluwaseun.sowemimo@portlandgas.com", lineManager: "Bola Adeyemi",       lineManagerEmail: "bola.adeyemi@portlandgas.com",       basicSalary: 950000,  housingAllowance: 250000, transportAllowance: 120000, mealAllowance: 60000, paye: 165000, pension: 76000, nhf: 23750, loanRepayment: 0     },
-  { id: "3", firstName: "Opeyemi",    lastName: "Busari",   title: "Data Analyst",          department: "Assets",     birthday: "2025-01-26", category: "Full Time", grade: "10", email: "opeyemi.busari@portlandgas.com",     lineManager: "Ifeanyi Chukwu",     lineManagerEmail: "ifeanyi.chukwu@portlandgas.com",     basicSalary: 720000,  housingAllowance: 180000, transportAllowance: 90000,  mealAllowance: 45000, paye: 100000, pension: 57600, nhf: 18000, loanRepayment: 0     },
-  { id: "4", firstName: "Felix",      lastName: "Ohemu",    title: "Field Supervisor",      department: "Assets",     birthday: "2026-04-15", category: "Full Time", grade: "10", email: "felix.ohemu@portlandgas.com",        lineManager: "Ifeanyi Chukwu",     lineManagerEmail: "ifeanyi.chukwu@portlandgas.com",     basicSalary: 700000,  housingAllowance: 175000, transportAllowance: 85000,  mealAllowance: 42000, paye: 95000,  pension: 56000, nhf: 17500, loanRepayment: 0     },
-  { id: "5", firstName: "Johnson",    lastName: "Ibikunle", title: "Application Developer", department: "Legal",      birthday: "",           category: "Full Time", grade: "7",  email: "johnson.ibikunle@portlandgas.com",   lineManager: "Magdalene Edozie",   lineManagerEmail: "magdalene.edozie@portlandgas.com",   basicSalary: 600000,  housingAllowance: 140000, transportAllowance: 75000,  mealAllowance: 38000, paye: 75000,  pension: 48000, nhf: 15000, loanRepayment: 0     },
-  { id: "6", firstName: "Joseph",     lastName: "Chika",    title: "Operations Manager",    department: "Operations", birthday: "1990-03-12", category: "Full Time", grade: "12", email: "joseph.chika@portlandgas.com",       lineManager: "Johnson Ibikunle",   lineManagerEmail: "johnson.ibikunle@portlandgas.com",   basicSalary: 850000,  housingAllowance: 200000, transportAllowance: 100000, mealAllowance: 50000, paye: 125000, pension: 68000, nhf: 21250, loanRepayment: 0     },
-  { id: "7", firstName: "David",      lastName: "Okeke",    title: "Safety Officer",        department: "Safety",     birthday: "1988-07-22", category: "Full Time", grade: "9",  email: "david.okeke@portlandgas.com",        lineManager: "Samuel Eze",         lineManagerEmail: "samuel.eze@portlandgas.com",         basicSalary: 750000,  housingAllowance: 185000, transportAllowance: 92000,  mealAllowance: 46000, paye: 105000, pension: 60000, nhf: 18750, loanRepayment: 0     },
+  { id: "1", firstName: "Magdalene",  lastName: "Edozie",   title: "Software Developer",    department: "Legal",      birthday: "2025-12-17", category: "Full Time", grade: "7",  email: "magdalene.edozie@company.com",   lineManager: "Oluwaseun Sowemimo", lineManagerEmail: "oluwaseun.sowemimo@company.com", basicSalary: 650000,  housingAllowance: 150000, transportAllowance: 80000,  mealAllowance: 40000, paye: 85000,  pension: 52000, nhf: 16250, loanRepayment: 30000 },
+  { id: "2", firstName: "Oluwaseun",  lastName: "Sowemimo", title: "Software Developer",    department: "Commercial", birthday: "",           category: "Full Time", grade: "14", email: "oluwaseun.sowemimo@company.com", lineManager: "Bola Adeyemi",       lineManagerEmail: "bola.adeyemi@company.com",       basicSalary: 950000,  housingAllowance: 250000, transportAllowance: 120000, mealAllowance: 60000, paye: 165000, pension: 76000, nhf: 23750, loanRepayment: 0     },
+  { id: "3", firstName: "Opeyemi",    lastName: "Busari",   title: "Data Analyst",          department: "Assets",     birthday: "2025-01-26", category: "Full Time", grade: "10", email: "opeyemi.busari@company.com",     lineManager: "Ifeanyi Chukwu",     lineManagerEmail: "ifeanyi.chukwu@company.com",     basicSalary: 720000,  housingAllowance: 180000, transportAllowance: 90000,  mealAllowance: 45000, paye: 100000, pension: 57600, nhf: 18000, loanRepayment: 0     },
+  { id: "4", firstName: "Felix",      lastName: "Ohemu",    title: "Field Supervisor",      department: "Assets",     birthday: "2026-04-15", category: "Full Time", grade: "10", email: "felix.ohemu@company.com",        lineManager: "Ifeanyi Chukwu",     lineManagerEmail: "ifeanyi.chukwu@company.com",     basicSalary: 700000,  housingAllowance: 175000, transportAllowance: 85000,  mealAllowance: 42000, paye: 95000,  pension: 56000, nhf: 17500, loanRepayment: 0     },
+  { id: "5", firstName: "Johnson",    lastName: "Ibikunle", title: "Application Developer", department: "Legal",      birthday: "",           category: "Full Time", grade: "7",  email: "johnson.ibikunle@company.com",   lineManager: "Magdalene Edozie",   lineManagerEmail: "magdalene.edozie@company.com",   basicSalary: 600000,  housingAllowance: 140000, transportAllowance: 75000,  mealAllowance: 38000, paye: 75000,  pension: 48000, nhf: 15000, loanRepayment: 0     },
+  { id: "6", firstName: "Joseph",     lastName: "Chika",    title: "Operations Manager",    department: "Operations", birthday: "1990-03-12", category: "Full Time", grade: "12", email: "joseph.chika@company.com",       lineManager: "Johnson Ibikunle",   lineManagerEmail: "johnson.ibikunle@company.com",   basicSalary: 850000,  housingAllowance: 200000, transportAllowance: 100000, mealAllowance: 50000, paye: 125000, pension: 68000, nhf: 21250, loanRepayment: 0     },
+  { id: "7", firstName: "David",      lastName: "Okeke",    title: "Safety Officer",        department: "Safety",     birthday: "1988-07-22", category: "Full Time", grade: "9",  email: "david.okeke@company.com",        lineManager: "Samuel Eze",         lineManagerEmail: "samuel.eze@company.com",         basicSalary: 750000,  housingAllowance: 185000, transportAllowance: 92000,  mealAllowance: 46000, paye: 105000, pension: 60000, nhf: 18750, loanRepayment: 0     },
 ];
 
 export const EMPLOYEE_STORE: Employee[] = [...SEED_EMPLOYEES];
@@ -210,11 +214,11 @@ export const POLICY_DOCS: Record<number, PolicyDoc> = {
   1: {
     title: "Employee Handbook 2026",
     sections: [
-      { heading: "1. Introduction",            body: "Welcome to Portland Gas. This handbook outlines the policies, procedures, and expectations that govern your employment. All employees are expected to familiarize themselves with its contents and comply with the guidelines herein." },
-      { heading: "2. Employment Terms",         body: "Employment at Portland Gas is governed by the terms set forth in your offer letter and this handbook. Standard working hours are 8:00 AM to 5:00 PM, Monday through Friday. Overtime must be pre-approved by your Line Manager. Probationary period for new hires is 6 months." },
+      { heading: "1. Introduction",            body: `Welcome to ${COMPANY_NAME}. This handbook outlines the policies, procedures, and expectations that govern your employment. All employees are expected to familiarize themselves with its contents and comply with the guidelines herein.` },
+      { heading: "2. Employment Terms",         body: `Employment at ${COMPANY_NAME} is governed by the terms set forth in your offer letter and this handbook. Standard working hours are 8:00 AM to 5:00 PM, Monday through Friday. Overtime must be pre-approved by your Line Manager. Probationary period for new hires is 6 months.` },
       { heading: "3. Compensation & Benefits", body: "Salaries are paid monthly on the 25th of each month via direct bank transfer. Benefits include health insurance (HMO), pension contributions (in line with the Pension Reform Act), housing allowance, transport allowance, and meal subsidy. Annual salary reviews are conducted in Q1." },
       { heading: "4. Leave Entitlements",       body: "Annual Leave: 20 working days per year. Sick Leave: 10 working days (medical certificate required after 2 consecutive days). Maternity Leave: 12 weeks. Paternity Leave: 10 working days. Casual Leave: 5 days per year. Study Leave: subject to approval." },
-      { heading: "5. Disciplinary Procedures", body: "Portland Gas follows a progressive discipline approach: verbal warning, written warning, final written warning, and termination. Gross misconduct (fraud, theft, violence, harassment) may result in immediate dismissal. All disciplinary actions are documented in the employee's record." },
+      { heading: "5. Disciplinary Procedures", body: `${COMPANY_NAME} follows a progressive discipline approach: verbal warning, written warning, final written warning, and termination. Gross misconduct (fraud, theft, violence, harassment) may result in immediate dismissal. All disciplinary actions are documented in the employee's record.` },
     ],
   },
   2: {
@@ -228,7 +232,7 @@ export const POLICY_DOCS: Record<number, PolicyDoc> = {
   3: {
     title: "Code of Conduct",
     sections: [
-      { heading: "1. Professional Behaviour", body: "Employees are expected to maintain the highest standards of professional conduct. This includes punctuality, respectful communication, appropriate dress code, and adherence to company policies. Representing Portland Gas externally requires prior approval." },
+      { heading: "1. Professional Behaviour", body: `Employees are expected to maintain the highest standards of professional conduct. This includes punctuality, respectful communication, appropriate dress code, and adherence to company policies. Representing ${COMPANY_NAME} externally requires prior approval.` },
       { heading: "2. Conflict of Interest",   body: "Employees must avoid situations where personal interests conflict with the company's interests. Any potential conflicts must be disclosed to HR immediately. Outside employment or business activities require written approval from the Head of Department." },
       { heading: "3. Confidentiality",        body: "All proprietary information, trade secrets, client data, and internal communications are strictly confidential. Unauthorized disclosure of company information — during or after employment — is grounds for disciplinary action and potential legal proceedings." },
     ],
@@ -236,7 +240,7 @@ export const POLICY_DOCS: Record<number, PolicyDoc> = {
   4: {
     title: "Health & Safety Policy",
     sections: [
-      { heading: "1. General Safety",       body: "Portland Gas is committed to providing a safe and healthy work environment for all employees, contractors, and visitors. All personnel must comply with safety regulations, wear required PPE, and report hazards immediately to the Safety Officer." },
+      { heading: "1. General Safety",       body: `${COMPANY_NAME} is committed to providing a safe and healthy work environment for all employees, contractors, and visitors. All personnel must comply with safety regulations, wear required PPE, and report hazards immediately to the Safety Officer.` },
       { heading: "2. Emergency Procedures", body: "Emergency assembly points are clearly marked at all facilities. Fire drills are conducted quarterly. All employees must familiarize themselves with evacuation routes and first aid locations. Emergency contact: Safety Hotline — 0800-SAFE-PG." },
       { heading: "3. Incident Reporting",   body: "All workplace incidents, injuries, near-misses, and unsafe conditions must be reported within 24 hours using the HSE Incident Report form. Failure to report incidents is a disciplinary offence. Investigations are conducted by the Safety Committee." },
     ],
@@ -252,7 +256,7 @@ export const POLICY_DOCS: Record<number, PolicyDoc> = {
   6: {
     title: "Anti-Harassment Policy",
     sections: [
-      { heading: "1. Policy Statement",          body: "Portland Gas has zero tolerance for harassment, bullying, or discrimination of any kind. This policy applies to all employees, contractors, and visitors across all company premises, events, and digital platforms." },
+      { heading: "1. Policy Statement",          body: `${COMPANY_NAME} has zero tolerance for harassment, bullying, or discrimination of any kind. This policy applies to all employees, contractors, and visitors across all company premises, events, and digital platforms.` },
       { heading: "2. What Constitutes Harassment", body: "Harassment includes but is not limited to: unwelcome physical contact, verbal abuse, intimidation, offensive jokes or comments, sexual advances, cyberbullying, exclusion or isolation, and retaliation against those who report harassment." },
       { heading: "3. Reporting & Resolution",    body: "Reports can be made to your Line Manager, HR, or anonymously via the Ethics Hotline. All reports are investigated confidentially within 10 working days. Substantiated cases result in disciplinary action up to and including termination. Whistleblower protections apply." },
     ],

@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Calendar, Tag, ChevronRight, ExternalLink } from "lu
 import IntranetLayout from "@/components/layout/IntranetLayout";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useIntranetEventDetail, useIntranetEventsPublished } from "@/lib/modules/intranet/queries";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 const TYPE_STYLES: Record<string, { pill: string; dot: string }> = {
   "Town Hall": { pill: "bg-[#F3EEFF] text-[#7234BD]",  dot: "#7234BD" },
@@ -171,7 +172,7 @@ export default function EventDetailPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-4">
         <div className="max-w-[1400px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
     </IntranetLayout>

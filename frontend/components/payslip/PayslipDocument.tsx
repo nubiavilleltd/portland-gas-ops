@@ -1,7 +1,7 @@
 "use client";
 
-import { COMPANY_INFO } from "@/config/company.config";
 import type { PayslipPdfInput } from "@/lib/pdf/payslip.pdf";
+import { useCompanyBranding } from "@/lib/company-branding";
 
 // Matches the PDF's fmtCurrency: en-NG grouping, 2 decimals, no symbol.
 const money = (n: number) =>
@@ -61,6 +61,7 @@ function AmountTable({
  * with purple totals, optional loan context, and the Net Pay highlight.
  */
 export default function PayslipDocument({ slip }: { slip: PayslipPdfInput }) {
+  const { name, logoDataUrl } = useCompanyBranding();
   const gross = slip.basic + slip.housing + slip.transport + slip.meal;
   const ded = slip.paye + slip.pension + slip.nhf + slip.loan;
 
@@ -69,14 +70,16 @@ export default function PayslipDocument({ slip }: { slip: PayslipPdfInput }) {
       {/* Header — logo + company details */}
       <div className="flex flex-col sm:flex-row items-start justify-between gap-4 pb-4 border-b border-brand-border">
         <div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={COMPANY_INFO.logoPath} alt={COMPANY_INFO.name} className="h-12 w-auto object-contain" />
-          <p className="text-[11px] text-brand-text-secondary mt-2">{COMPANY_INFO.tagline}</p>
+          {logoDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoDataUrl} alt={`${name} logo`} className="h-12 w-auto object-contain" />
+          ) : (
+            <p className="text-base font-semibold text-brand-text-primary">{name}</p>
+          )}
+          <p className="text-[11px] text-brand-text-secondary mt-2">Operations Platform</p>
         </div>
         <div className="text-left sm:text-right text-[11px] text-brand-text-secondary leading-relaxed">
-          <p>{COMPANY_INFO.address}</p>
-          <p>Tel: {COMPANY_INFO.phone}&nbsp; | &nbsp;{COMPANY_INFO.email}</p>
-          <p>{COMPANY_INFO.website}</p>
+          <p>{name}</p>
         </div>
       </div>
 
@@ -145,7 +148,7 @@ export default function PayslipDocument({ slip }: { slip: PayslipPdfInput }) {
 
       {/* Footer */}
       <p className="text-center text-[10px] text-brand-text-secondary mt-8 pt-4 border-t border-brand-border">
-        This is a computer-generated payslip. Portland Gas Limited — Internal Operations Platform.
+        This is a computer-generated payslip. {name} — Internal Operations Platform.
       </p>
     </div>
   );

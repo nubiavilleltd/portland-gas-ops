@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
 import { API_URL } from "@/lib/constants";
 import { useAuthStore } from "@/store/authStore";
+import BrandingGate from "@/components/branding/BrandingGate";
+import { useCompanyBranding } from "@/lib/company-branding";
 
 // Module-level singleton — safe to import anywhere (including outside React tree)
 export const queryClient = new QueryClient({
@@ -49,11 +51,22 @@ function AuthRestore() {
   return null;
 }
 
+function BrandingRestore() {
+  useEffect(() => {
+    if (!useCompanyBranding.persist.hasHydrated()) {
+      void useCompanyBranding.persist.rehydrate();
+    }
+  }, []);
+
+  return null;
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthRestore />
-      {children}
+      <BrandingRestore />
+      <BrandingGate>{children}</BrandingGate>
     </QueryClientProvider>
   );
 }

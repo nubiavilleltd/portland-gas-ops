@@ -10,6 +10,7 @@ import Avatar from "@/components/ui/Avatar";
 import FormSelect from "@/components/forms/FormSelect";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useDepartments } from "@/lib/modules/setups";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 const PAGE_SIZE = 12;
 
@@ -42,7 +43,6 @@ export default function PeoplePage() {
       <IntranetPageHero
         title="Employee Directory"
         subtitle="Find your colleagues — names, roles, departments and contact info."
-        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/Portland-gas-29-scaled-1.png"
       />
 
       {/* ── Body ─────────────────────────────────────────────────────────── */}

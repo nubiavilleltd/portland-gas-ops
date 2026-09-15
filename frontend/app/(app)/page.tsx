@@ -31,6 +31,8 @@ import { useIntranetNewsPublished, useIntranetNewsCategories, useIntranetEventsP
 import { useSubmitFeedback } from "@/lib/modules/intranet/mutations";
 import { useWeekBirthdays, useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useSendBirthdayWishes } from "@/lib/modules/notifications/hooks";
+import { useCompanyBranding } from "@/lib/company-branding";
+import CompanyLogo from "@/components/branding/CompanyLogo";
 
 type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
 const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = [
@@ -42,7 +44,7 @@ const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = 
 ];
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const HERO_BG = "/portland-hero.jpg";
+const HERO_BG = "";
 
 // Tailwind-safe badge classes by color key — driven by category.color from DB
 const COLOR_BADGE_CLASS: Record<string, string> = {
@@ -90,6 +92,7 @@ function todayStr() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function IntranetHomePage() {
   const { user } = useCurrentUser();
+  const { name } = useCompanyBranding();
   const toast = useToast();
   const [tab,                setTab]                = useState("All");
   const [q,                  setQ]                  = useState("");
@@ -244,7 +247,7 @@ export default function IntranetHomePage() {
   useEffect(() => {
     if (!mounted || !isMyBirthday) return;
     const todayKey = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-    const shownKey = "portland-gas-birthday-shown";
+    const shownKey = "birthday-shown";
     if (localStorage.getItem(shownKey) !== todayKey) {
       setBirthdayModalOpen(true);
       localStorage.setItem(shownKey, todayKey);
@@ -355,7 +358,7 @@ export default function IntranetHomePage() {
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url('${HERO_BG}')`,
+            backgroundImage: HERO_BG ? `url('${HERO_BG}')` : "none",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -469,7 +472,7 @@ export default function IntranetHomePage() {
             <span className="w-1.5 h-1.5 rounded-full bg-[#FFBC00]" />
             <span className="text-[10px] font-black uppercase tracking-widest text-[#FFBC00]">People First</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-[#1C043B] mb-5">People at Portland Gas</h2>
+          <h2 className="text-2xl font-extrabold text-[#1C043B] mb-5">People at {name}</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-5 items-stretch">
 
@@ -983,7 +986,7 @@ export default function IntranetHomePage() {
 
           <div className="rounded-2xl p-6 flex flex-col justify-between" style={{ backgroundColor: "#1C043B" }}>
             <div>
-              <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-2">Portland Gas Podcast</p>
+              <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-2">{name} Podcast</p>
               {featuredPodcast ? (
                 <>
                   <h3 className="text-white font-bold text-sm leading-snug mb-1 line-clamp-2">
@@ -1043,15 +1046,8 @@ export default function IntranetHomePage() {
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8">
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <Image
-            src="https://portlandgasltd.com/wp-content/uploads/2024/06/Portland-gas-42.png"
-            alt="Portland Gas"
-            width={100}
-            height={26}
-            style={{ height: "24px", width: "auto" }}
-            className="opacity-50"
-          />
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyLogo size={100} className="h-6 w-auto opacity-50" />
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} {name} · Internal use only</p>
           <p className="text-xs text-gray-400">The Clean Energy Standard</p>
         </div>
       </footer>
@@ -1099,7 +1095,7 @@ export default function IntranetHomePage() {
               Happy Birthday, {firstName}!
             </h2>
             <p className="text-gray-500 text-sm mb-5 leading-relaxed">
-              Portland Gas wishes you a wonderful day filled with joy, laughter, and everything you love. 🎉
+              {name} wishes you a wonderful day filled with joy, laughter, and everything you love. 🎉
             </p>
 
             <div className="flex items-center justify-center gap-2 text-2xl mb-6 select-none">
@@ -1114,7 +1110,7 @@ export default function IntranetHomePage() {
             </button>
 
             <p className="text-[11px] text-gray-500 mt-4">
-              From the entire Portland Gas family
+              From the entire {name} family
             </p>
           </div>
         </div>,

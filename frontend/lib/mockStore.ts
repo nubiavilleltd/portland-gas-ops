@@ -25,6 +25,9 @@ import type {
   AssetMaintenanceLog,
   AssetRequestStatus,
 } from "@/types";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
+
+const COMPANY_ADMIN = `${getStoredCompanyBranding().name} Admin`;
 
 // ── Store version — bump this when seed data changes to force a re-seed ────────
 const STORE_VERSION = "3";
@@ -354,18 +357,18 @@ const SEED_ASSETS: Asset[] = [
 
 const SEED_ASSIGNMENT_LOGS: AssetAssignmentLog[] = [
   // a1 — Laptop
-  { id: "al1", asset_id: "a1", asset_tag: "DEL-LKI-001", event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "IT Store, HQ",           notes: "Registered into asset registry",              performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-01-15T00:00:00Z" },
-  { id: "al2", asset_id: "a1", asset_tag: "DEL-LKI-001", event_type: "assigned",       from_person: null,             from_location: "IT Store, HQ",         to_person: "Tunde Okafor",     to_location: "Lekki Office, Floor 2",  notes: "Assigned for permanent use",                  performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-02-01T00:00:00Z" },
+  { id: "al1", asset_id: "a1", asset_tag: "DEL-LKI-001", event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "IT Store, HQ",           notes: "Registered into asset registry",              performed_by: null, performed_by_name: COMPANY_ADMIN, performed_at: "2024-01-15T00:00:00Z" },
+  { id: "al2", asset_id: "a1", asset_tag: "DEL-LKI-001", event_type: "assigned",       from_person: null,             from_location: "IT Store, HQ",         to_person: "Tunde Okafor",     to_location: "Lekki Office, Floor 2",  notes: "Assigned for permanent use",                  performed_by: null, performed_by_name: COMPANY_ADMIN, performed_at: "2024-02-01T00:00:00Z" },
   // a3 — Chair
-  { id: "al3", asset_id: "a3", asset_tag: "EXE-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: "Board Room",       to_location: "Board Room, HQ",         notes: "Registered and placed in board room",         performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2023-06-01T00:00:00Z" },
+  { id: "al3", asset_id: "a3", asset_tag: "EXE-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: "Board Room",       to_location: "Board Room, HQ",         notes: "Registered and placed in board room",         performed_by: null, performed_by_name: COMPANY_ADMIN, performed_at: "2023-06-01T00:00:00Z" },
   // a4 — Helmet
-  { id: "al7", asset_id: "a4", asset_tag: "SAF-APJ-001", event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Apapa Depot Store",      notes: "Registered into safety equipment store",      performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-03-01T00:00:00Z" },
+  { id: "al7", asset_id: "a4", asset_tag: "SAF-APJ-001", event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Apapa Depot Store",      notes: "Registered into safety equipment store",      performed_by: null, performed_by_name: COMPANY_ADMIN, performed_at: "2024-03-01T00:00:00Z" },
   // a2 — Printer
-  { id: "al8", asset_id: "a2", asset_tag: "HPO-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Admin Office, HQ",       notes: "Registered and placed in admin office",       performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-02-01T00:00:00Z" },
+  { id: "al8", asset_id: "a2", asset_tag: "HPO-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Admin Office, HQ",       notes: "Registered and placed in admin office",       performed_by: null, performed_by_name: COMPANY_ADMIN, performed_at: "2024-02-01T00:00:00Z" },
   // a5 — ThinkPad (available laptop)
-  { id: "al10", asset_id: "a5", asset_tag: "LEN-HQ-001",  event_type: "registered",   from_person: null,             from_location: null,                   to_person: null,               to_location: "IT Store, HQ",           notes: "Registered into IT store",                    performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-06-01T00:00:00Z" },
+  { id: "al10", asset_id: "a5", asset_tag: "LEN-HQ-001",  event_type: "registered",   from_person: null,             from_location: null,                   to_person: null,               to_location: "IT Store, HQ",           notes: "Registered into IT store",                    performed_by: null, performed_by_name: COMPANY_ADMIN, performed_at: "2024-06-01T00:00:00Z" },
   // a6 — Fire Extinguisher
-  { id: "al9", asset_id: "a6", asset_tag: "FIR-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Server Room, HQ",        notes: "Registered and wall-mounted in server room",  performed_by: null, performed_by_name: "Portland Gas Admin", performed_at: "2024-01-01T00:00:00Z" },
+  { id: "al9", asset_id: "a6", asset_tag: "FIR-HQ-001",  event_type: "registered",    from_person: null,             from_location: null,                   to_person: null,               to_location: "Server Room, HQ",        notes: "Registered and wall-mounted in server room",  performed_by: null, performed_by_name: COMPANY_ADMIN, performed_at: "2024-01-01T00:00:00Z" },
 ];
 
 // ── Seed: Procurement Requests ─────────────────────────────────────────────────
@@ -380,7 +383,7 @@ const SEED_PROCUREMENT_LIST: ProcurementListItem[] = [
     attachment_url: null,
     po_url: null,
     payment_status: "unpaid" as PaymentStatus,
-    created_by: "Portland Gas Admin",
+    created_by: COMPANY_ADMIN,
     created_at: "2025-04-01T09:00:00Z",
     vendor: SEED_VENDORS[0],
     one_time_vendor: null,
@@ -394,7 +397,7 @@ const SEED_PROCUREMENT_LIST: ProcurementListItem[] = [
     attachment_url: null,
     po_url: "generated",
     payment_status: "unpaid" as PaymentStatus,
-    created_by: "Portland Gas Admin",
+    created_by: COMPANY_ADMIN,
     created_at: "2025-04-10T10:00:00Z",
     vendor: SEED_VENDORS[1],
     one_time_vendor: null,
@@ -408,7 +411,7 @@ const SEED_PROCUREMENT_LIST: ProcurementListItem[] = [
     attachment_url: null,
     po_url: "generated",
     payment_status: "paid" as PaymentStatus,
-    created_by: "Portland Gas Admin",
+    created_by: COMPANY_ADMIN,
     created_at: "2025-03-01T08:00:00Z",
     vendor: SEED_VENDORS[2],
     one_time_vendor: null,
@@ -430,7 +433,7 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     po_issued_by: null,
     payment_terms: null,
     payment_status: "unpaid" as PaymentStatus,
-    created_by: "felix.ohemu@portlandgas.com",
+    created_by: "felix.ohemu@company.com",
     requester: { name: "Felix Ohemu", department: "Assets", job_title: "Field Supervisor" },
     is_active: true,
     created_at: "2025-04-01T09:00:00Z",
@@ -458,7 +461,7 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     po_issued_by: "Emeka Nwosu",
     payment_terms: "Net 30",
     payment_status: "unpaid" as PaymentStatus,
-    created_by: "david.okeke@portlandgas.com",
+    created_by: "david.okeke@company.com",
     requester: { name: "David Okeke", department: "Safety", job_title: "Safety Officer" },
     is_active: true,
     created_at: "2025-04-10T10:00:00Z",
@@ -489,7 +492,7 @@ const SEED_PROCUREMENT_FULL: ProcurementRequest[] = [
     po_issued_by: "Emeka Nwosu",
     payment_terms: "Payment on delivery",
     payment_status: "paid" as PaymentStatus,
-    created_by: "opeyemi.busari@portlandgas.com",
+    created_by: "opeyemi.busari@company.com",
     requester: { name: "Opeyemi Busari", department: "Assets", job_title: "Data Analyst" },
     is_active: true,
     created_at: "2025-03-01T08:00:00Z",
@@ -518,7 +521,7 @@ const SEED_ASSET_REQUESTS_LIST: AssetRequestListItem[] = [
     purpose: "Site inspection at Eleme facility — need laptop for documentation",
     return_date: "2025-06-01",
     status: "approved",
-    requested_by: "felix.ohemu@portlandgas.com",
+    requested_by: "felix.ohemu@company.com",
     requester_name: "Felix Ohemu",
     item_count: 1,
     created_at: "2025-05-01T08:00:00Z",
@@ -530,7 +533,7 @@ const SEED_ASSET_REQUESTS_LIST: AssetRequestListItem[] = [
     purpose: "Permanent assignment of safety helmet for new field engineer",
     return_date: null,
     status: "pending",
-    requested_by: "david.okeke@portlandgas.com",
+    requested_by: "david.okeke@company.com",
     requester_name: "David Okeke",
     item_count: 1,
     created_at: "2025-05-10T10:00:00Z",
@@ -546,7 +549,7 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     return_date: "2025-06-01",
     status: "approved",
     rejection_reason: null,
-    requested_by: "felix.ohemu@portlandgas.com",
+    requested_by: "felix.ohemu@company.com",
     requester_name: "Felix Ohemu",
     requester: { name: "Felix Ohemu", department: "Assets", job_title: "Field Supervisor" },
     approved_by: "admin-001",
@@ -573,7 +576,7 @@ const SEED_ASSET_REQUESTS_FULL: AssetRequest[] = [
     return_date: null,
     status: "pending",
     rejection_reason: null,
-    requested_by: "david.okeke@portlandgas.com",
+    requested_by: "david.okeke@company.com",
     requester_name: "David Okeke",
     requester: { name: "David Okeke", department: "Safety", job_title: "Safety Officer" },
     approved_by: null,
@@ -605,7 +608,7 @@ const SEED_MAINTENANCE_LOGS: AssetMaintenanceLog[] = [
     cost: 85000,
     notes: "Oil change, filter replacement, brake fluid top-up",
     logged_by: "admin-001",
-    logged_by_name: "Portland Gas Admin",
+    logged_by_name: COMPANY_ADMIN,
     created_at: "2025-02-01T10:00:00Z",
   },
 ];
@@ -765,7 +768,7 @@ export const assetStore = {
       to_location: data.location ?? null,
       notes: data.assigned_to_name ? `Registered and assigned to ${data.assigned_to_name}` : "Registered into asset registry",
       performed_by: null,
-      performed_by_name: "Portland Gas Admin",
+      performed_by_name: COMPANY_ADMIN,
       performed_at: new Date().toISOString(),
     });
     return asset;
@@ -805,7 +808,7 @@ export const assetStore = {
       to_location: data.to_location,
       notes: data.notes ?? null,
       performed_by: null,
-      performed_by_name: "Portland Gas Admin",
+      performed_by_name: COMPANY_ADMIN,
       performed_at: new Date().toISOString(),
     });
     return updated;
@@ -887,14 +890,14 @@ export const procurementStore = {
       payment_terms: null,
       payment_status: "unpaid" as PaymentStatus,
       created_by: "current-user",
-      requester: { name: "Portland Gas Admin", department: "—", job_title: "—" },
+      requester: { name: COMPANY_ADMIN, department: "—", job_title: "—" },
       is_active: true,
       created_at: now,
       updated_at: null,
       vendor,
       one_time_vendor: oneTimeVendor,
       auditTrail: [
-        { action: "Submitted", actor: "Portland Gas Admin", role: "Requester", dateTime: new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), comment: "Request submitted." },
+        { action: "Submitted", actor: COMPANY_ADMIN, role: "Requester", dateTime: new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), comment: "Request submitted." },
       ],
       items: data.items.map((item, i) => ({
         id: `${id}-item-${i}`,
@@ -916,7 +919,7 @@ export const procurementStore = {
       attachment_url: null,
       po_url: null,
       payment_status: "unpaid" as PaymentStatus,
-      created_by: "Portland Gas Admin",
+      created_by: COMPANY_ADMIN,
       created_at: now,
       vendor,
       one_time_vendor: oneTimeVendor,
@@ -987,15 +990,15 @@ export const assetRequestStore = {
       status: "pending",
       rejection_reason: null,
       requested_by: "current-user",
-      requester_name: "Portland Gas Admin",
-      requester: { name: "Portland Gas Admin", department: "—", job_title: "—" },
+      requester_name: COMPANY_ADMIN,
+      requester: { name: COMPANY_ADMIN, department: "—", job_title: "—" },
       approved_by: null,
       approved_at: null,
       allocated_at: null,
       allocated_by_name: null,
       allocated_asset_ids: null,
       auditTrail: [
-        { action: "Submitted", actor: "Portland Gas Admin", role: "Requester", dateTime: new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), comment: "Request submitted." },
+        { action: "Submitted", actor: COMPANY_ADMIN, role: "Requester", dateTime: new Date().toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), comment: "Request submitted." },
       ],
       items: data.items.map((item, i) => ({
         id: `${id}-item-${i}`,
@@ -1016,7 +1019,7 @@ export const assetRequestStore = {
       return_date: data.return_date ?? null,
       status: "pending",
       requested_by: "current-user",
-      requester_name: "Portland Gas Admin",
+      requester_name: COMPANY_ADMIN,
       item_count: data.items.length,
       created_at: now,
     };
@@ -1118,7 +1121,7 @@ export const maintenanceLogStore = {
       cost: data.cost ?? null,
       notes: data.notes ?? null,
       logged_by: "admin-001",
-      logged_by_name: "Portland Gas Admin",
+      logged_by_name: COMPANY_ADMIN,
       created_at: new Date().toISOString(),
     };
     const existing = maintenanceLogStore.getByAsset(assetId);

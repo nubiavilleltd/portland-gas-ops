@@ -7,6 +7,7 @@ import IntranetLayout from "@/components/layout/IntranetLayout";
 import IntranetPageHero from "@/components/ui/IntranetPageHero";
 import { cn } from "@/lib/utils";
 import { useIntranetFAQsPublished, useIntranetFAQCategories } from "@/lib/modules/intranet/queries";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 // Map DB iconName strings → Lucide components
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -106,7 +107,6 @@ export default function FAQPage() {
       <IntranetPageHero
         title="Frequently Asked Questions"
         subtitle="IT, HR, HSE, Procurement and more — all in one place."
-        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/Portland-gas-70.png"
       />
 
       <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
@@ -182,7 +182,7 @@ export default function FAQPage() {
             </div>
           </div>
           <a
-            href="mailto:support@portlandgas.com"
+            href="mailto:support@company.com"
             className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7234BD] text-white text-sm font-semibold hover:bg-[#5c2899] transition-colors"
           >
             Contact Support
@@ -193,7 +193,7 @@ export default function FAQPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-4">
         <div className="max-w-[1400px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
     </IntranetLayout>

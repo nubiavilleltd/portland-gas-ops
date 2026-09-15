@@ -3,9 +3,11 @@
 
 import { useState } from "react";
 import type { SpotlightEntry } from "../types/intranet.types";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 
 const AV = "https://i.pravatar.cc/150";
 const NOW = new Date().toISOString();
+const COMPANY_NAME = getStoredCompanyBranding().name;
 
 // Employee of the Month — category: "employee_of_month"
 const INITIAL_EOM: SpotlightEntry = {
@@ -16,7 +18,7 @@ const INITIAL_EOM: SpotlightEntry = {
   employee_dept: "Supply Chain",
   avatar_url: `${AV}?img=49`,
   title: "Employee of the Month — June 2026",
-  message: "Adaeze led our vendor rationalisation initiative, cutting procurement cycle time by 34% in Q2. Her process discipline and mentorship of junior colleagues embodies the Portland Gas standard.",
+  message: `Adaeze led our vendor rationalisation initiative, cutting procurement cycle time by 34% in Q2. Her process discipline and mentorship of junior colleagues embodies the ${COMPANY_NAME} standard.`,
   category: "employee_of_month",
   month: 6,
   year: 2026,

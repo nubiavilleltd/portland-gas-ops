@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
@@ -34,11 +33,11 @@ import { useSubmitFeedback } from "@/lib/modules/intranet/mutations";
 import PushManager from "./PushManager";
 import { useToast } from "@/hooks/useToast";
 import NotificationToaster from "./NotificationToaster";
+import CompanyLogo from "@/components/branding/CompanyLogo";
+import { useCompanyBranding } from "@/lib/company-branding";
 
 type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
 const FEEDBACK_CATEGORIES: FeedbackCategory[] = ["General", "IT", "HR", "Suggestion", "Complaint"];
-
-const DEMO_NAME = "Portland Gas";
 
 const NAV_LINKS = [
   { label: "Home",    href: "/" },
@@ -102,6 +101,7 @@ export default function IntranetLayout({ children }: Props) {
   const router = useRouter();
   const { user } = useCurrentUser();
   const { logout } = useAuth();
+  const { name: companyName } = useCompanyBranding();
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen,   setNotifOpen]   = useState(false);
@@ -174,8 +174,8 @@ export default function IntranetLayout({ children }: Props) {
   }, []);
 
   const displayName = user
-    ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.name || DEMO_NAME
-    : DEMO_NAME;
+    ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.name || companyName
+    : companyName;
   const firstName = displayName.split(" ")[0];
 
   // Close dropdowns on outside click
@@ -217,15 +217,7 @@ export default function IntranetLayout({ children }: Props) {
 
           {/* Logo */}
           <Link href="/" className="shrink-0">
-            <Image
-              src="https://portlandgasltd.com/wp-content/uploads/2024/06/Portland-gas-42.png"
-              alt="Portland Gas"
-              width={130}
-              height={34}
-              className="h-7 w-auto object-contain brightness-0 invert"
-              style={{ width: "auto" }}
-              priority
-            />
+            <CompanyLogo size={32} className="h-7 w-7 brightness-0 invert" />
           </Link>
 
           {/* Desktop nav — centred */}

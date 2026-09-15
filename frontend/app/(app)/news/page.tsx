@@ -9,6 +9,8 @@ import IntranetPageHero from "@/components/ui/IntranetPageHero";
 import Pagination from "@/components/ui/Pagination";
 import { cn } from "@/lib/utils";
 import { useIntranetNewsPublished, useIntranetNewsCategories } from "@/lib/modules/intranet/queries";
+import { useCompanyBranding } from "@/lib/company-branding";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 import type { NewsCategoryColor } from "@/lib/modules/intranet/types/intranet.types";
 
 const PAGE_SIZE = 6;
@@ -26,6 +28,7 @@ const COLOR_BADGE_CLASS: Record<NewsCategoryColor, string> = {
 };
 
 export default function NewsPage() {
+  const { name } = useCompanyBranding();
   const [tab,  setTab]  = useState("All");
   const [q,    setQ]    = useState("");
   const [page, setPage] = useState(1);
@@ -75,8 +78,7 @@ export default function NewsPage() {
     <IntranetLayout>
       <IntranetPageHero
         title="News & Announcements"
-        subtitle="Stay informed with the latest updates from across Portland Gas."
-        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/13TH-OF-AUGUST-52-scaled-1.jpg"
+        subtitle={`Stay informed with the latest updates from across ${name}.`}
       />
 
       <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
@@ -170,7 +172,7 @@ export default function NewsPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-8">
         <div className="max-w-[1400px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
     </IntranetLayout>

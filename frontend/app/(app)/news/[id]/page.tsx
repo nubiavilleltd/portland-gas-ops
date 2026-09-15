@@ -7,6 +7,8 @@ import { ArrowLeft, Calendar, User, Tag } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
 import { useIntranetNewsDetail, useIntranetNewsPublished, useIntranetNewsCategories } from "@/lib/modules/intranet/queries";
 import type { NewsCategoryColor } from "@/lib/modules/intranet/types/intranet.types";
+import { useCompanyBranding } from "@/lib/company-branding";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 const COLOR_BADGE_CLASS: Record<NewsCategoryColor, string> = {
   purple: "bg-[#7234BD] text-white",
@@ -20,6 +22,7 @@ const COLOR_BADGE_CLASS: Record<NewsCategoryColor, string> = {
 };
 
 export default function NewsDetailPage() {
+  const { name } = useCompanyBranding();
   const { id }  = useParams<{ id: string }>();
   const router  = useRouter();
 
@@ -137,7 +140,7 @@ export default function NewsDetailPage() {
             <div className="relative flex items-center gap-4 mb-8">
               <div className="flex-1 h-px bg-gray-200" />
               <span className="shrink-0 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400 px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50">
-                More from Portland Gas
+                More from {name}
               </span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
@@ -171,7 +174,7 @@ export default function NewsDetailPage() {
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-4">
         <div className="max-w-[1400px] mx-auto">
           <p className="text-xs text-gray-400 text-center">
-            © {new Date().getFullYear()} Portland Gas Limited · Internal use only
+            <CompanyCopyright />
           </p>
         </div>
       </footer>

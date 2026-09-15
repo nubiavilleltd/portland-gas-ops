@@ -6,8 +6,11 @@ import IntranetLayout from "@/components/layout/IntranetLayout";
 import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import { useState } from "react";
 import { usePodcastsPublished } from "@/lib/modules/intranet/queries";
+import { useCompanyBranding } from "@/lib/company-branding";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 export default function PodcastPage() {
+  const { name } = useCompanyBranding();
   const [q, setQ] = useState("");
   const { data: episodes = [] } = usePodcastsPublished();
 
@@ -23,9 +26,9 @@ export default function PodcastPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#7234BD] mb-1">Portland Gas</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#7234BD] mb-1">{name}</p>
             <h1 className="text-2xl font-extrabold text-[#1C043B]" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
-              The Portland Gas Podcast
+              The {name} Podcast
             </h1>
             <p className="text-sm text-gray-500 mt-1">Conversations with our people and leaders.</p>
           </div>
@@ -133,7 +136,7 @@ export default function PodcastPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-auto">
         <div className="max-w-[1280px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
       </div>

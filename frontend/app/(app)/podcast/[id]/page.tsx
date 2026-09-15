@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Play, Pause, Volume2, Mic2, Clock, Star, Video } from "lucide-react";
 import IntranetLayout from "@/components/layout/IntranetLayout";
 import { usePodcastsPublished, usePodcastDetail } from "@/lib/modules/intranet/queries";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 /** Convert a YouTube/Vimeo share URL to an embeddable src. Returns null if not a known platform. */
 function getEmbedSrc(url: string | null): string | null {
@@ -231,7 +232,7 @@ export default function PodcastPlayerPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-10">
         <div className="max-w-[1280px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
     </IntranetLayout>
