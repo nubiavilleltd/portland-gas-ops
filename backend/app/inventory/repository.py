@@ -332,12 +332,13 @@ class InventoryRepository:
         *,
         order_id: str,
         trip_id: str,
-        disposition: DispositionStatus,
+        disposition: Optional[DispositionStatus] = None,
     ) -> None:
+
         item.status = InventoryItemStatus.reserved
         item.order_id = order_id
         item.trip_id = trip_id
-        item.disposition = disposition
+        item.disposition = disposition or DispositionStatus.sold
 
         db.flush()
 

@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, CheckCircle, Package } from "lucide-react";
+import { ArrowLeft, Package } from "lucide-react";
 import { toast } from "sonner";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -11,13 +11,12 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 
-import { useTripById, useTripByNo } from "@/lib/modules/fleet/hooks/useTrips";
+import { useTripById } from "@/lib/modules/fleet/hooks/useTrips";
 import { useOrders } from "@/lib/modules/orders/hooks/useOrders";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
 import {
   useConsumableLocations,
   useInventoryItems,
-  useLocations,
 } from "@/lib/modules/inventory/hooks/useInventory";
 import { useAssignInventoryWorkflow } from "@/lib/modules/fleet/hooks/useAssignInventoryWorkflow";
 
@@ -27,33 +26,32 @@ import { canAssignInventory } from "@/lib/modules/fleet/guards/trip.guards";
 import InventoryUnitPickerModal from "@/components/ui/InventoryUnitPickerModal";
 
 import { FLEET_ROUTES } from "@/lib/modules/fleet/constants/routes";
-import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
-import { DISPOSITION_OPTIONS } from "@/lib/modules/inventory/constants/inventory-form.constants";
 import { cn } from "@/lib/utils";
 
 import type { Trip } from "@/lib/modules/fleet/types/trip.types";
-import type { ItemDisposition } from "@/lib/modules/inventory/types/inventory.types";
 import FormSelect from "@/components/forms/FormSelect";
 import CollapsibleTagList from "@/components/ui/CollapsibleTagList";
 import AssignmentProgress from "@/components/ui/AssignmentProgress";
 import AssignInventorySkeleton from "@/lib/modules/fleet/components/AssignInventorySkeleton";
 
 // ── Types ─────────────────────────────────────────────────
+
 type LineSelection = {
   itemIds: string[];
-  disposition: ItemDisposition;
   locationId?: string;
 };
+
 type SelectionMap = Record<string, LineSelection>;
 
 // ── Helper ────────────────────────────────────────────────
+
 function lineItemKey(orderId: string, productId: string) {
   return `${orderId}__${productId}`;
 }
 
 // ── Sub-components ────────────────────────────────────────
 
-function ConsumableLineItem({
+function StockQuantityLineItem({
   productId,
   productName,
   available_quantity,
@@ -72,6 +70,7 @@ function ConsumableLineItem({
     value: location.location_id,
     label: `${location.location_name} (${location.available_quantity})`,
   }));
+
   return (
     <div className="border border-brand-border rounded-xl">
       <div className="px-4 py-3 bg-gray-50 border-b border-brand-border">
@@ -79,7 +78,7 @@ function ConsumableLineItem({
           <span className="font-medium">{productName}</span>
           <Badge
             variant="neutral"
-            label={`Consumable × ${available_quantity}`}
+            label={`Stock Quantity × ${available_quantity}`}
           />
         </div>
       </div>
@@ -100,39 +99,8 @@ function ConsumableLineItem({
   );
 }
 
-function DispositionPicker({
-  value,
-  onChange,
-}: {
-  value: ItemDisposition;
-  onChange: (disposition: ItemDisposition) => void;
-}) {
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 border-t border-brand-border bg-white">
-      <p className="text-xs text-brand-text-secondary shrink-0">Disposition:</p>
-      <div className="flex gap-2">
-        {DISPOSITION_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value as ItemDisposition)}
-            title={opt.description}
-            className={cn(
-              "px-3 py-1 text-xs rounded-full border transition-colors",
-              value === opt.value
-                ? "bg-brand-purple text-white border-brand-purple"
-                : "border-brand-border text-brand-text-secondary hover:border-brand-purple/50",
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────
+
 export default function AssignInventoryPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
@@ -159,7 +127,6 @@ export default function AssignInventoryPage() {
       ...prev,
       [key]: {
         itemIds: prev[key]?.itemIds ?? [],
-        disposition: prev[key]?.disposition ?? "sold",
         locationId,
       },
     }));
@@ -213,7 +180,7 @@ export default function AssignInventoryPage() {
     trip.order_ids.includes(order.id),
   );
 
-  function getTrackedLineItems() {
+  function getIndividualLineItems() {
     return tripOrders.flatMap((order) =>
       (order?.orderItems ?? [])
         .filter((lineItem) => {
@@ -230,21 +197,14 @@ export default function AssignInventoryPage() {
     );
   }
 
-  function handleDispositionChange(key: string, disposition: ItemDisposition) {
-    setSelection((prev) => ({
-      ...prev,
-      [key]: { itemIds: prev[key]?.itemIds ?? [], disposition },
-    }));
-  }
-
-  function isTrackedInventoryAssigned(): boolean {
-    return getTrackedLineItems().every(({ key, required }) => {
+  function isIndividualInventoryAssigned(): boolean {
+    return getIndividualLineItems().every(({ key, required }) => {
       const selected = selection[key]?.itemIds.length ?? 0;
       return selected >= required;
     });
   }
 
-  function getConsumableLineItems() {
+  function getStockQuantityLineItems() {
     return tripOrders.flatMap((order) =>
       order.orderItems
         .filter((lineItem) => {
@@ -260,35 +220,35 @@ export default function AssignInventoryPage() {
     );
   }
 
-  function isConsumablesAssigned(): boolean {
-    return getConsumableLineItems().every(({ key }) =>
+  function isStockQuantityAssigned(): boolean {
+    return getStockQuantityLineItems().every(({ key }) =>
       Boolean(selection[key]?.locationId),
     );
   }
 
   function isAllAssigned() {
-    return isTrackedInventoryAssigned() && isConsumablesAssigned();
+    return isIndividualInventoryAssigned() && isStockQuantityAssigned();
   }
 
-  const trackedItems = getTrackedLineItems();
-  const consumableItems = getConsumableLineItems();
+  const individualItems = getIndividualLineItems();
+  const stockQuantityItems = getStockQuantityLineItems();
 
-  const trackedAssigned = trackedItems.filter(({ key, required }) => {
+  const individualAssigned = individualItems.filter(({ key, required }) => {
     return (selection[key]?.itemIds.length ?? 0) >= required;
   }).length;
 
-  const consumablesAssigned = consumableItems.filter(({ key }) => {
+  const stockQuantityAssigned = stockQuantityItems.filter(({ key }) => {
     return Boolean(selection[key]?.locationId);
   }).length;
 
   async function handleSubmit() {
-    if (!isTrackedInventoryAssigned()) {
-      toast.error("Please assign all tracked inventory before proceeding");
+    if (!isIndividualInventoryAssigned()) {
+      toast.error("Please assign all individual items before proceeding");
       return;
     }
 
-    if (!isConsumablesAssigned()) {
-      toast.error("Please select a warehouse for all consumable items");
+    if (!isStockQuantityAssigned()) {
+      toast.error("Please select a warehouse for all stock-quantity items");
       return;
     }
 
@@ -304,7 +264,6 @@ export default function AssignInventoryPage() {
               order_id: order.id,
               product_id: lineItem.productId,
               item_ids: selection[key]?.itemIds ?? [],
-              disposition: selection[key]?.disposition ?? "sold",
             };
           }
 
@@ -342,7 +301,7 @@ export default function AssignInventoryPage() {
 
       <PageHeader
         title="Assign Inventory"
-        description="Select the specific units to send out for each tracked line item"
+        description="Select the specific units to send out for each line item"
         className="mb-6"
       />
 
@@ -370,7 +329,7 @@ export default function AssignInventoryPage() {
                   if (!isIndividualItems(product)) {
                     const key = lineItemKey(order.id, lineItem.productId);
                     return (
-                      <ConsumableLineItem
+                      <StockQuantityLineItem
                         key={lineItem.productId}
                         productId={lineItem.productId}
                         productName={product.name}
@@ -385,8 +344,6 @@ export default function AssignInventoryPage() {
 
                   const key = lineItemKey(order.id, lineItem.productId);
                   const selectedIds = selection[key]?.itemIds ?? [];
-                  const disposition =
-                    selection[key]?.disposition ?? "sold";
                   const required = Math.ceil(lineItem.quantity);
                   const fulfilled = selectedIds.length >= required;
 
@@ -452,15 +409,6 @@ export default function AssignInventoryPage() {
                             : "Review Units"}
                         </Button>
                       </div>
-
-                      {selectedIds.length > 0 && (
-                        <DispositionPicker
-                          value={disposition}
-                          onChange={(d) =>
-                            handleDispositionChange(key, d)
-                          }
-                        />
-                      )}
                     </div>
                   );
                 })}
@@ -470,10 +418,10 @@ export default function AssignInventoryPage() {
         })}
 
         <AssignmentProgress
-          trackedAssigned={trackedAssigned}
-          trackedTotal={trackedItems.length}
-          consumablesAssigned={consumablesAssigned}
-          consumablesTotal={consumableItems.length}
+          trackedAssigned={individualAssigned}
+          trackedTotal={individualItems.length}
+          consumablesAssigned={stockQuantityAssigned}
+          consumablesTotal={stockQuantityItems.length}
         />
 
         <div className="sticky bottom-0 z-20 -mx-6 mt-8 border-t border-brand-border bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
@@ -507,7 +455,6 @@ export default function AssignInventoryPage() {
                 ...prev,
                 [key]: {
                   itemIds,
-                  disposition: prev[key]?.disposition ?? "sold",
                 },
               }));
               setActivePicker(null);

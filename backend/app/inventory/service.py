@@ -11,6 +11,7 @@ from app.audit.service import AuditService
 from app.core.exceptions import AppException
 from app.inventory import guards
 from app.inventory.enums import (
+    DispositionStatus,
     InventoryItemCondition,
     InventoryItemStatus,
     MovementType,
@@ -537,7 +538,8 @@ class InventoryService:
             self.repo.update_inventory_item(
                 db=db,
                 item=item,
-                status=InventoryItemStatus.checked_out,
+                status=InventoryItemStatus.sold,
+                disposition=DispositionStatus.sold,
                 checked_out_at=checked_out_at,
                 trip_id=trip.id,
             )
@@ -681,6 +683,7 @@ class InventoryService:
             if item.status not in (
                 InventoryItemStatus.reserved,
                 InventoryItemStatus.checked_out,
+                InventoryItemStatus.sold,
             ):
                 continue
 

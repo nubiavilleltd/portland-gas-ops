@@ -25,7 +25,7 @@ export default function AssignmentProgress({
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-brand-text-secondary">
-            Tracked Items
+            Individual Items
           </span>
 
           <span className="font-medium">
@@ -35,7 +35,7 @@ export default function AssignmentProgress({
 
         <div className="flex justify-between">
           <span className="text-brand-text-secondary">
-            Consumables
+            Stock Quantity
           </span>
 
           <span className="font-medium">

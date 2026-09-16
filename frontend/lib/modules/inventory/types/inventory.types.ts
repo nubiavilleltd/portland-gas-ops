@@ -28,14 +28,11 @@ export interface InventoryAssignment {
   order_id: string;
   product_id: string;
 
-  // tracked products
+  // individual items
   item_ids: string[];
 
   // warehouse selected for stock-quantity products
   location_id?: string;
-
-  // business disposition
-  disposition?: ItemDisposition;
 }
 
 // ── 5. INVENTORY ITEM ────────────────────────────────────

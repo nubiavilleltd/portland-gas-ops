@@ -135,15 +135,9 @@ class MarkReadyWorkflow:
             raise ValueError(
                 "A warehouse must be selected for consumable products."
             )
-        print("=" * 80)
-        print("CONSUMABLE ASSIGNMENT")
-        print("Trip:", trip.trip_no)
-        print("Product:", assignment.product_id)
-        print("Location:", assignment.location_id)
-        print("Order Item Qty:", order_item.quantity)
-        print("=" * 80)
 
-        self.inventory_repo.deduct_consumable_stock(
+
+        self.inventory_repo.reserve_consumable_stock(
             db=db,
             product_id=assignment.product_id,
             location_id=assignment.location_id,
