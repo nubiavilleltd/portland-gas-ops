@@ -217,7 +217,7 @@ export default function IntranetLayout({ children }: Props) {
 
           {/* Logo */}
           <Link href="/" className="shrink-0">
-            <CompanyLogo size={32} className="h-7 w-7 brightness-0 invert" />
+            <CompanyLogo size={32} className="h-7 w-7 rounded-md" />
           </Link>
 
           {/* Desktop nav — centred */}

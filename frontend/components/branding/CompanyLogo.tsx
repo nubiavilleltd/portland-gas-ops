@@ -1,6 +1,7 @@
 "use client";
 
 import { Building2 } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useCompanyBranding } from "@/lib/company-branding";
 
@@ -15,11 +16,12 @@ export default function CompanyLogo({ size = 40, className, iconClassName }: Pro
 
   if (logoDataUrl) {
     return (
-      <img
+      <Image
         src={logoDataUrl}
         alt={`${name} logo`}
         width={size}
         height={size}
+        unoptimized
         className={cn("shrink-0 object-contain", className)}
       />
     );
