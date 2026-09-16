@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ChevronDown, ChevronRight } from "lucide-react";
+import { Lock, Building2, ChevronDown, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import { post } from "@/lib/api";
 import { useToast } from "@/hooks/useToast";
 import { useAuth } from "@/hooks/useAuth";
 import { passwordSchema } from "@/lib/validations";
+import WorkspaceSettingsForm from "@/components/branding/WorkspaceSettingsForm";
 
 // ── Change Password Form ───────────────────────────────────────────────────────
 
@@ -163,11 +164,20 @@ export default function SettingsPage() {
 
   return (
     <AppLayout pageTitle="Settings">
-      <div className="max-w-xl">
+      <div className="max-w-3xl">
         <h2 className="text-xl font-semibold text-brand-text-primary mb-1">Settings</h2>
-        <p className="text-sm text-brand-text-secondary mb-6">Manage your account preferences.</p>
+        <p className="text-sm text-brand-text-secondary mb-6">Manage your account and workspace preferences.</p>
 
         <div className="space-y-3">
+          <SettingRow
+            icon={Building2}
+            title="Workspace branding & setup"
+            description="Change your company identity, features, and automations."
+            expanded={openSection === "workspace"}
+            onToggle={() => toggle("workspace")}
+          >
+            <WorkspaceSettingsForm />
+          </SettingRow>
           <SettingRow
             icon={Lock}
             title="Change Password"
