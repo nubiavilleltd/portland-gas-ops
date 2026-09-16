@@ -55,11 +55,6 @@ export default function IndividualItemsSection({
       ),
     },
     {
-      key: "serial_number",
-      label: "Serial",
-      render: (value) => (value as string | undefined) ?? "—",
-    },
-    {
       key: "condition",
       label: "Condition",
       render: (value) => {

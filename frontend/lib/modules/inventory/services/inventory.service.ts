@@ -92,10 +92,13 @@ export class InventoryService {
   }
 
 
-    static async getItemsForProduct(
+  static async getItemsForProduct(
     productId: string,
   ): Promise<InventoryItem[]> {
-    const raw = await inventoryApi.listItems({ product_id: productId });
+    const raw = await inventoryApi.listItems({
+      product_id: productId,
+      page_size: 500,
+    });
     return raw.map(adaptInventoryItem);
   }
 
@@ -106,10 +109,13 @@ export class InventoryService {
     return raw.map(adaptConsumableStock);
   }
 
-  static async getMovementsForProduct(
+   static async getMovementsForProduct(
     productId: string,
   ): Promise<StockMovement[]> {
-    const raw = await inventoryApi.listMovements({ product_id: productId });
+    const raw = await inventoryApi.listMovements({
+      product_id: productId,
+      page_size: 500,
+    });
     return raw.map(adaptStockMovement);
   }
 

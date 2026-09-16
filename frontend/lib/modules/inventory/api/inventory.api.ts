@@ -35,7 +35,12 @@ export const inventoryApi = {
 
   // ── Individual items ────────────────────────────────────
   listItems: async (
-    params: { product_id?: string; status?: string } = {},
+    params: {
+      product_id?: string;
+      status?: string;
+      page?: number;
+      page_size?: number;
+    } = {},
   ) => {
     const { data } = await api.get("/api/inventory/items", { params });
     return data;
@@ -71,8 +76,12 @@ export const inventoryApi = {
   },
 
   // ── Movements ───────────────────────────────────────────
-  listMovements: async (
-    params: { product_id?: string; item_id?: string } = {},
+   listMovements: async (
+    params: {
+      product_id?: string;
+      item_id?: string;
+      page_size?: number;
+    } = {},
   ) => {
     const { data } = await api.get("/api/inventory/movements", { params });
     return data;
