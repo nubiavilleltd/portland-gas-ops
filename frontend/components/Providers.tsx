@@ -7,6 +7,7 @@ import { API_URL } from "@/lib/constants";
 import { useAuthStore } from "@/store/authStore";
 import BrandingGate from "@/components/branding/BrandingGate";
 import { useCompanyBranding } from "@/lib/company-branding";
+import { useWorkspacePreferences } from "@/lib/workspace-preferences";
 
 // Module-level singleton — safe to import anywhere (including outside React tree)
 export const queryClient = new QueryClient({
@@ -55,6 +56,9 @@ function BrandingRestore() {
   useEffect(() => {
     if (!useCompanyBranding.persist.hasHydrated()) {
       void useCompanyBranding.persist.rehydrate();
+    }
+    if (!useWorkspacePreferences.persist.hasHydrated()) {
+      void useWorkspacePreferences.persist.rehydrate();
     }
   }, []);
 

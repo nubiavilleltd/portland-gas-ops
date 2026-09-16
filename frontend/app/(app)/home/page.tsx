@@ -20,6 +20,10 @@ import { ArrowRight, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
+import {
+  filterModuleGroupsByFeatures,
+  useWorkspacePreferences,
+} from "@/lib/workspace-preferences";
 
 // TODO: implement real per-role access control
 function canAccessModule(href: string, role: UserRole | undefined): boolean {
@@ -55,10 +59,15 @@ function filterModuleGroups(
 
 export default function HomePage() {
   const { user } = useCurrentUser();
+  const { enabledFeatures } = useWorkspacePreferences();
   const [query, setQuery] = useState("");
+  const enabledGroups = useMemo(
+    () => filterModuleGroupsByFeatures(homeModuleGroups, enabledFeatures),
+    [enabledFeatures],
+  );
   const visibleGroups = useMemo(
-    () => filterModuleGroups(homeModuleGroups, query),
-    [query],
+    () => filterModuleGroups(enabledGroups, query),
+    [enabledGroups, query],
   );
 
 
