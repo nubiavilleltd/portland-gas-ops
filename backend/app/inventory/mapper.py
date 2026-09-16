@@ -10,7 +10,7 @@ from app.inventory.schema import (
 
 def _product_fields(product) -> dict:
     """
-    Extract the fields we surface about a product on inventory responses.
+    Product fields common to inventory items and stock records.
     """
     if not product:
         return {
@@ -18,18 +18,29 @@ def _product_fields(product) -> dict:
             "product_name": None,
             "sku": None,
             "tag_prefix": None,
-            "unit_label": None,
-            "unit_code": None,
         }
-    unit = getattr(product, "unit", None)
     return {
         "product_no": product.product_no,
         "product_name": product.name,
         "sku": product.code,
         "tag_prefix": product.tag_prefix,
-        "unit_label": unit.label if unit else None,
-        "unit_code": unit.code if unit else None,
     }
+
+
+def _product_fields_with_unit(product) -> dict:
+    """
+    Product fields including the unit, for stock-quantity responses.
+    """
+    fields = _product_fields(product)
+    if not product:
+        fields["unit_label"] = None
+        fields["unit_code"] = None
+        return fields
+
+    unit = getattr(product, "unit", None)
+    fields["unit_label"] = unit.label if unit else None
+    fields["unit_code"] = unit.code if unit else None
+    return fields
 
 
 def inventory_item_to_response(item) -> InventoryItemResponse:
@@ -63,7 +74,7 @@ def consumable_stock_to_response(
 
     response = ConsumableStockResponse.model_validate(stock)
 
-    for key, value in _product_fields(stock.product).items():
+    for key, value in _product_fields_with_unit(stock.product).items():
         setattr(response, key, value)
 
     response.location_name = (

@@ -16,7 +16,7 @@ import {
 import {
   useProductAvailability,
   useInventoryItemsByProduct,
-  useConsumableStock,
+  useConsumableStockByProduct,
   useStockMovementsByProduct,
 } from "@/lib/modules/inventory/hooks/useInventory";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
@@ -36,7 +36,11 @@ export default function ProductInventoryDrillDownPage() {
   const router = useRouter();
   const productId = params.productId as string;
 
-  const { product, isLoading: productLoading, error } = useProductById(productId);
+  const {
+    product,
+    isLoading: productLoading,
+    error,
+  } = useProductById(productId);
   const { categories } = useCategories();
   const { units } = useUnits();
 
@@ -46,12 +50,18 @@ export default function ProductInventoryDrillDownPage() {
   const { items, isLoading: itemsLoading } =
     useInventoryItemsByProduct(productId);
 
-  const { stock, isLoading: stockLoading } = useConsumableStock();
+  const { stock, isLoading: stockLoading } =
+    useConsumableStockByProduct(productId);
+
   const { movements, isLoading: movementsLoading } =
     useStockMovementsByProduct(productId);
 
   const isLoading =
-    productLoading || availabilityLoading || itemsLoading || stockLoading || movementsLoading;
+    productLoading ||
+    availabilityLoading ||
+    itemsLoading ||
+    stockLoading ||
+    movementsLoading;
 
   if (isLoading) {
     return <InventoryListSkeleton />;
@@ -83,11 +93,8 @@ export default function ProductInventoryDrillDownPage() {
   const isIndividualItems =
     product.inventoryTracking === "INDIVIDUAL_ITEMS";
 
-  const productStock = stock.filter((s) => s.product_id === productId);
-  const isStockQuantityProduct = !isIndividualItems;
-
-  const displayUnitLabel = isStockQuantityProduct
-    ? productStock[0]?.unit_label ?? unitLabel
+  const displayUnitLabel = !isIndividualItems
+    ? stock[0]?.unit_label ?? unitLabel
     : undefined;
 
   return (
@@ -112,9 +119,7 @@ export default function ProductInventoryDrillDownPage() {
           <span>{categoryName}</span>
           <span>•</span>
           <Badge
-            variant={
-              isIndividualItems ? "info" : "neutral"
-            }
+            variant={isIndividualItems ? "info" : "neutral"}
             label={TRACKING_LABEL[product.inventoryTracking]}
           />
         </p>
@@ -133,7 +138,7 @@ export default function ProductInventoryDrillDownPage() {
         <IndividualItemsSection items={items} isLoading={itemsLoading} />
       ) : (
         <StockQuantitySection
-          stock={productStock}
+          stock={stock}
           movements={movements}
           productId={productId}
           isLoading={stockLoading || movementsLoading}

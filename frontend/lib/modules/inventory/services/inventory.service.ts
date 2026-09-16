@@ -91,6 +91,28 @@ export class InventoryService {
     }
   }
 
+
+    static async getItemsForProduct(
+    productId: string,
+  ): Promise<InventoryItem[]> {
+    const raw = await inventoryApi.listItems({ product_id: productId });
+    return raw.map(adaptInventoryItem);
+  }
+
+  static async getConsumableStockForProduct(
+    productId: string,
+  ): Promise<ConsumableStock[]> {
+    const raw = await inventoryApi.listStock({ product_id: productId });
+    return raw.map(adaptConsumableStock);
+  }
+
+  static async getMovementsForProduct(
+    productId: string,
+  ): Promise<StockMovement[]> {
+    const raw = await inventoryApi.listMovements({ product_id: productId });
+    return raw.map(adaptStockMovement);
+  }
+
   // ── Stock quantity ───────────────────────────────────────
 
   static async getConsumableStock(): Promise<ConsumableStock[]> {

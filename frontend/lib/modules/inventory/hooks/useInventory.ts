@@ -145,13 +145,18 @@ export function useInventoryItemByTag(tagNumber: string) {
 }
 
 export function useInventoryItemsByProduct(productId: string) {
-  const { items, isLoading, error, refetch } = useInventoryItems();
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.itemsByProduct(productId),
+    queryFn: () => InventoryService.getItemsForProduct(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
 
   return {
-    items: getItemsByProduct(items, productId),
-    isLoading,
-    error,
-    refetch,
+    items: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
   };
 }
 
@@ -232,14 +237,19 @@ export function useConsumableStockDetail(id: string) {
 }
 
 export function useConsumableStockByProduct(productId: string) {
-  const { stock, isLoading, error, refetch } = useConsumableStock();
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.consumableStockByProduct(productId),
+    queryFn: () =>
+      InventoryService.getConsumableStockForProduct(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
 
   return {
-    stock: getConsumableStockByProduct(stock, productId),
-    quantity: getConsumableStockLevel(stock, productId),
-    isLoading,
-    error,
-    refetch,
+    stock: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
   };
 }
 
@@ -277,12 +287,18 @@ export function useStockMovements() {
 }
 
 export function useStockMovementsByProduct(productId: string) {
-  const { movements, isLoading, error } = useStockMovements();
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.movementsByProduct(productId),
+    queryFn: () => InventoryService.getMovementsForProduct(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
 
   return {
-    movements: getMovementsByProduct(movements, productId),
-    isLoading,
-    error,
+    movements: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
   };
 }
 

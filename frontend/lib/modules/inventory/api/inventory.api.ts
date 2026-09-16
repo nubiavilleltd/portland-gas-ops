@@ -58,8 +58,10 @@ export const inventoryApi = {
   },
 
   // ── Stock quantity ──────────────────────────────────────
-  listStock: async () => {
-    const { data } = await api.get("/api/inventory/stock");
+   listStock: async (
+    params: { product_id?: string } = {},
+  ) => {
+    const { data } = await api.get("/api/inventory/stock", { params });
     return data;
   },
 
