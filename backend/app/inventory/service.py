@@ -644,6 +644,8 @@ class InventoryService:
         self,
         db: Session,
         trip_id: str,
+        *,
+        was_dispatched: bool = False,
     ) -> None:
         """
         Releases inventory associated with a trip.
@@ -666,12 +668,7 @@ class InventoryService:
         order_service = OrderService()
         product_service = ProductService()
 
-        trip = trip_service.get_or_raise(db=db, trip_id=trip_id)
-        already_dispatched = trip.status in (
-            TripStatus.dispatched,
-            TripStatus.in_transit,
-            TripStatus.completed,
-        )
+     
 
         # ------------------------------------------------------------------
         # Individual items
@@ -737,7 +734,7 @@ class InventoryService:
                 quantity = Decimal(str(order_item.quantity))
 
                 try:
-                    if already_dispatched:
+                    if was_dispatched:
                         self.repo.restore_dispatched_consumable_stock(
                             db=db,
                             product_id=order_item.product_id,

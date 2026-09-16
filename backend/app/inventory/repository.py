@@ -517,23 +517,25 @@ class InventoryRepository:
         product_id: str,
         location_id: str,
         quantity: Decimal,
-    ) -> ConsumableStock:
+    ) -> Optional[ConsumableStock]:
 
         stock = self.get_consumable_stock(
             db=db,
             product_id=product_id,
             location_id=location_id,
         )
+
         if stock is None:
-            raise ValueError("Consumable stock not found.")
+            # Nothing to release — no stock record for this product/location.
+            return None
 
-        if stock.reserved_quantity < quantity:
-            raise ValueError(
-                f"Cannot release more than reserved. "
-                f"Reserved {stock.reserved_quantity}, requested release {quantity}."
-            )
+        if stock.reserved_quantity <= 0:
+            # No reservation exists to release. Cancellation is idempotent.
+            return stock
 
-        stock.reserved_quantity -= quantity
+        # Cap the release at what's actually reserved rather than raising.
+        to_release = min(quantity, stock.reserved_quantity)
+        stock.reserved_quantity -= to_release
         db.flush()
         return stock
 
