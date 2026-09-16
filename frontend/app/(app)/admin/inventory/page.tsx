@@ -83,17 +83,22 @@ function InventoryListContent() {
       label: "Sold",
       render: (_value, row) => row.sold.toLocaleString(),
     },
-    {
-      key: "isLowStock",
-      label: "Status",
-      render: (_value, row) => {
-        const out = row.available <= 0;
-        const low = row.isLowStock;
-        if (out) return <Badge variant="danger" label="Out" />;
-        if (low) return <Badge variant="warning" label="Low" />;
-        return <Badge variant="success" label="OK" />;
-      },
-    },
+{
+  key: "isLowStock",
+  label: "Status",
+  render: (_value, row) => {
+    if (row.total === 0) {
+      return <Badge variant="neutral" label="Not Stocked" />;
+    }
+    if (row.available <= 0) {
+      return <Badge variant="danger" label="Out" />;
+    }
+    if (row.isLowStock) {
+      return <Badge variant="warning" label="Low" />;
+    }
+    return <Badge variant="success" label="OK" />;
+  },
+},
   ];
 
   return (
