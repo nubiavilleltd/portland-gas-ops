@@ -32,9 +32,20 @@ export default function InventoryListPage() {
 function InventoryListContent() {
   const { items, isLoading, error } = useInventoryOverview();
 
-  const totalProducts = items.length;
-  const lowStockProducts = items.filter((i) => i.isLowStock).length;
-  const outOfStockProducts = items.filter((i) => i.available <= 0).length;
+const totalProducts = items.length;
+
+// Match the four-state logic used by the table's Status column:
+//   Not Stocked (total === 0)               — not counted in either KPI
+//   Out         (available === 0, total > 0) — counted as out
+//   Low         (available > 0, isLowStock)  — counted as low
+//   OK          (available > 0, not low)     — counted as neither
+const outOfStockProducts = items.filter(
+  (i) => i.total > 0 && i.available <= 0,
+).length;
+
+const lowStockProducts = items.filter(
+  (i) => i.total > 0 && i.available > 0 && i.isLowStock,
+).length;
 
   const columns: Column<InventoryOverviewItem>[] = [
     {
