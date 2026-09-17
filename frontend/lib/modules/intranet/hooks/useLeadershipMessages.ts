@@ -3,13 +3,15 @@
 
 import { useState } from "react";
 import type { LeadershipMessage } from "../types/intranet.types";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 
 const AV = "https://i.pravatar.cc/150";
 const NOW = new Date().toISOString();
+const COMPANY_NAME = getStoredCompanyBranding().name;
 
 const INITIAL_MESSAGES: LeadershipMessage[] = [
   { id: 1, author_id: 1, author_name: "Adeola Ogunleye", author_role: "Managing Director",       author_dept: "MD's Office",  avatar_url: `${AV}?img=68`, title: "Message from the MD — June 2026",        body: "As we close Q2 and look ahead to an ambitious second half of 2026, I want to personally thank every one of you. The commissioning of our 14th CNG station is a testament to what this team achieves together. Our pipeline expansion is on schedule, our safety record remains strong, and our culture is one I am proud of every single day.", is_published: true, published_at: "2026-06-10T08:00:00Z", order: 0, created_at: NOW, updated_at: NOW },
-  { id: 2, author_id: 2, author_name: "Chidi Okonkwo",   author_role: "Chief Executive Officer", author_dept: "CEO's Office", avatar_url: `${AV}?img=52`, title: "Message from the CEO — June 2026",        body: "Portland Gas is at an inflection point. The investments we are making today in infrastructure, people, and technology will define our next decade. I am proud to lead an organisation with this level of dedication.",                                                                                                                       is_published: true, published_at: "2026-06-05T08:00:00Z", order: 1, created_at: NOW, updated_at: NOW },
+  { id: 2, author_id: 2, author_name: "Chidi Okonkwo",   author_role: "Chief Executive Officer", author_dept: "CEO's Office", avatar_url: `${AV}?img=52`, title: "Message from the CEO — June 2026",        body: `${COMPANY_NAME} is at an inflection point. The investments we are making today in infrastructure, people, and technology will define our next decade. I am proud to lead an organisation with this level of dedication.`, is_published: true, published_at: "2026-06-05T08:00:00Z", order: 1, created_at: NOW, updated_at: NOW },
   { id: 3, author_id: 3, author_name: "Amaka Eze",        author_role: "Chief Operating Officer", author_dept: "Operations",   avatar_url: `${AV}?img=45`, title: "Message from the COO — June 2026",        body: "Operational excellence is not a destination — it is a daily commitment. Our teams in the field continue to deliver safely and on time, and that does not happen by accident. It happens because each of you shows up prepared, trained, and focused.",                                                                                    is_published: true, published_at: "2026-06-02T08:00:00Z", order: 2, created_at: NOW, updated_at: NOW },
 ];
 

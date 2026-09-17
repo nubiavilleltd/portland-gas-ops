@@ -43,7 +43,7 @@ export default function DocsIndexPage() {
     <AppLayout pageTitle="Documentation">
       <PageHeader
         title="Documentation"
-        description="Developer guides and integration references for the Portland Gas platform."
+        description="Developer guides and integration references for the operations platform."
         className="mb-8"
       />
 

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import logo from "@/public/Portland-gas-logo.png";
+import CompanyLogo from "@/components/branding/CompanyLogo";
+import { useCompanyBranding } from "@/lib/company-branding";
 import { usePathname } from "next/navigation";
 import {
   Home,
@@ -49,6 +49,7 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const { logout } = useAuth();
+  const { name } = useCompanyBranding();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   function isActive(href: string) {
@@ -62,22 +63,19 @@ export default function AppSidebar({ isOpen, onClose }: Props) {
         "fixed inset-y-0 left-0 z-30 w-64 flex flex-col overflow-y-auto transition-transform duration-300 ease-in-out",
         // Mobile: slide in/out. Desktop: always visible
         isOpen ? "translate-x-0" : "-translate-x-full",
-        "lg:translate-x-0"
+      "lg:translate-x-0"
       )}
       style={{
-        backgroundImage: "linear-gradient(180deg, rgba(26,15,46,0.92) 0%, rgba(17,8,38,0.88) 45%, rgba(13,13,18,0.95) 100%), url('/Portland-sidebar.png')",
-        backgroundSize: "auto, cover",
-        backgroundPosition: "center, center 30%",
-        backgroundRepeat: "no-repeat, no-repeat",
+        backgroundImage: "linear-gradient(180deg, color-mix(in srgb, var(--brand-secondary) 92%, transparent) 0%, color-mix(in srgb, var(--brand-secondary) 78%, #000 22%) 45%, #0d0d12 100%)",
       }}
     >
       {/* Logo + mobile close button */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <Image src={logo} alt="Portland Gas" width={32} height={32} className="brightness-0 invert shrink-0" />
+          <CompanyLogo size={32} className="rounded-md" />
           <div>
-            <p className="text-white text-sm font-semibold leading-none">Portland Gas</p>
-            <p className="text-purple-400 text-xs mt-0.5">Operations</p>
+            <p className="text-white text-sm font-semibold leading-none">{name}</p>
+            <p className="text-brand-purple-light text-xs mt-0.5">Operations</p>
           </div>
         </Link>
         {/* Close button — mobile only */}

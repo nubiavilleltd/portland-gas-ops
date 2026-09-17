@@ -12,6 +12,7 @@ import {
   drawFooter,
   type TableColumn,
 } from "./builder";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 
 /** Minimal payslip shape the PDF needs — satisfied by both the API display shape and
  * the pages' PaySlip type. Loan context is optional (only structured loans set it). */
@@ -53,6 +54,7 @@ function amountColumns(sectionLabel: string): TableColumn<AmountRow>[] {
  * invoices/receipts). Returns the jsPDF doc so callers can save it or bundle it. */
 export async function buildPayslipDoc(slip: PayslipPdfInput): Promise<jsPDF> {
   const { marginLeft: ml, width } = PAGE;
+  const branding = getStoredCompanyBranding();
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
   await drawHeader(doc);
@@ -126,7 +128,7 @@ export async function buildPayslipDoc(slip: PayslipPdfInput): Promise<jsPDF> {
 
   drawFooter(
     doc,
-    "This is a computer-generated payslip. Portland Gas Limited — Internal Operations Platform."
+    `This is a computer-generated payslip. ${branding.name} — Internal Operations Platform.`
   );
 
   return doc;

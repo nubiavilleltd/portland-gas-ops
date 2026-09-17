@@ -11,6 +11,7 @@ import AuthBrand from "@/components/auth/AuthBrand";
 import PasswordChecklist from "@/components/auth/PasswordChecklist";
 import { post } from "@/lib/api";
 import { passwordSchema } from "@/lib/validations";
+import CompanyFooter from "@/components/branding/CompanyFooter";
 
 const schema = z.object({
   name: z.string().min(2, "Full name is required"),
@@ -62,7 +63,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <FormInput label="Full name" placeholder="Chukwuemeka Obi" required error={errors.name?.message} {...register("name")} />
-            <FormInput label="Email address" type="email" placeholder="you@portlandgas.com" required autoComplete="email" error={errors.email?.message} {...register("email")} />
+            <FormInput label="Email address" type="email" placeholder="you@company.com" required autoComplete="email" error={errors.email?.message} {...register("email")} />
 
             <div className="flex flex-col gap-1">
               <FormInput

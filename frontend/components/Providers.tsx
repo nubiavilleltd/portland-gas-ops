@@ -5,16 +5,25 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
 import { API_URL } from "@/lib/constants";
 import { useAuthStore } from "@/store/authStore";
+import BrandingGate from "@/components/branding/BrandingGate";
+import BrandTheme from "@/components/branding/BrandTheme";
+import { useCompanyBranding } from "@/lib/company-branding";
+import { useWorkspacePreferences } from "@/lib/workspace-preferences";
+import {
+  fetchCurrentWorkspace,
+  toCompanyBranding,
+} from "@/lib/workspace-branding-api";
 
 // Module-level singleton — safe to import anywhere (including outside React tree)
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60 * 1000,
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
         // Never retry on 401 — the interceptor handles token refresh; retrying here
         // would flood the refresh endpoint and cause an infinite request storm.
-        if (error?.response?.status === 401) return false;
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 401) return false;
         return failureCount < 1;
       },
     },
@@ -49,11 +58,59 @@ function AuthRestore() {
   return null;
 }
 
+function BrandingRestore() {
+  const accessToken = useAuthStore((state) => state.accessToken);
+
+  useEffect(() => {
+    if (!useCompanyBranding.persist.hasHydrated()) {
+      void useCompanyBranding.persist.rehydrate();
+    }
+    if (!useWorkspacePreferences.persist.hasHydrated()) {
+      void useWorkspacePreferences.persist.rehydrate();
+    }
+  }, []);
+
+  useEffect(() => {
+    const branding = useCompanyBranding.getState();
+
+    if (!accessToken) {
+      branding.setWorkspaceResolved(false);
+      return;
+    }
+
+    let cancelled = false;
+    branding.setWorkspaceResolved(false);
+
+    fetchCurrentWorkspace()
+      .then((workspace) => {
+        if (!cancelled && workspace.is_configured) {
+          useCompanyBranding.getState().setBranding(toCompanyBranding(workspace));
+        }
+      })
+      .catch(() => {
+        // Keep the existing local branding as a backwards-compatible fallback.
+      })
+      .finally(() => {
+        if (!cancelled) {
+          useCompanyBranding.getState().setWorkspaceResolved(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  return null;
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthRestore />
-      {children}
+      <BrandingRestore />
+      <BrandTheme />
+      <BrandingGate>{children}</BrandingGate>
     </QueryClientProvider>
   );
 }

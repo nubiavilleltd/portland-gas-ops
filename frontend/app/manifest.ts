@@ -1,12 +1,12 @@
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
-  const name = process.env.NEXT_PUBLIC_APP_NAME ?? "Portland Gas Operations";
+  const name = process.env.NEXT_PUBLIC_APP_NAME ?? "Operations Platform";
 
   return {
     name,
-    short_name: "Portland Gas",
-    description: "Internal ERP platform for Portland Gas Limited",
+    short_name: "Operations",
+    description: "Internal operations platform",
     start_url: "/",
     scope: "/",
     display: "standalone",

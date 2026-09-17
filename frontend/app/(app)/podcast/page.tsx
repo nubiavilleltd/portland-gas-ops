@@ -6,8 +6,11 @@ import IntranetLayout from "@/components/layout/IntranetLayout";
 import IntranetSearchBar from "@/components/ui/IntranetSearchBar";
 import { useState } from "react";
 import { usePodcastsPublished } from "@/lib/modules/intranet/queries";
+import { useCompanyBranding } from "@/lib/company-branding";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 export default function PodcastPage() {
+  const { name } = useCompanyBranding();
   const [q, setQ] = useState("");
   const { data: episodes = [] } = usePodcastsPublished();
 
@@ -23,9 +26,9 @@ export default function PodcastPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#7234BD] mb-1">Portland Gas</p>
-            <h1 className="text-2xl font-extrabold text-[#1C043B]" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
-              The Portland Gas Podcast
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--brand-primary)] mb-1">{name}</p>
+            <h1 className="text-2xl font-extrabold text-[var(--brand-secondary)]" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
+              The {name} Podcast
             </h1>
             <p className="text-sm text-gray-500 mt-1">Conversations with our people and leaders.</p>
           </div>
@@ -38,7 +41,7 @@ export default function PodcastPage() {
         {featured && q === "" && (
           <Link
             href={`/podcast/${featured.id}`}
-            className="block rounded-2xl overflow-hidden bg-[#1C043B] hover:opacity-95 transition-opacity"
+            className="block rounded-2xl overflow-hidden bg-[var(--brand-secondary)] hover:opacity-95 transition-opacity"
           >
             <div className="flex flex-col sm:flex-row gap-0">
               {/* Cover */}
@@ -67,7 +70,7 @@ export default function PodcastPage() {
                 </div>
                 <div className="flex items-center gap-4 mt-6">
                   <div className="h-12 w-12 rounded-full bg-[#FFBC00] flex items-center justify-center shadow-lg">
-                    <Play size={16} className="text-[#1C043B] ml-0.5 fill-[#1C043B]" />
+                    <Play size={16} className="text-[var(--brand-secondary)] ml-0.5 fill-[var(--brand-secondary)]" />
                   </div>
                   {featured.duration && (
                     <span className="flex items-center gap-1.5 text-white/50 text-xs">
@@ -84,7 +87,7 @@ export default function PodcastPage() {
         {(episodes.length > 0 || q) && (
         <div>
           {(q || rest.length > 0) && (
-          <h2 className="text-sm font-bold text-[#1C043B] uppercase tracking-wider mb-4">
+          <h2 className="text-sm font-bold text-[var(--brand-secondary)] uppercase tracking-wider mb-4">
             {q ? `Results for "${q}"` : "All Episodes"}
           </h2>
           )}
@@ -96,10 +99,10 @@ export default function PodcastPage() {
                 <Link
                   key={ep.id}
                   href={`/podcast/${ep.id}`}
-                  className="group flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-5 hover:border-[#7234BD]/30 hover:shadow-md transition-all"
+                  className="group flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-5 hover:border-[var(--brand-primary)]/30 hover:shadow-md transition-all"
                 >
                   {/* Cover thumbnail */}
-                  <div className="h-36 rounded-xl bg-[#1C043B] flex items-center justify-center overflow-hidden">
+                  <div className="h-36 rounded-xl bg-[var(--brand-secondary)] flex items-center justify-center overflow-hidden">
                     {ep.cover_image_url ? (
                       <img src={ep.cover_image_url} alt={ep.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
@@ -107,8 +110,8 @@ export default function PodcastPage() {
                     )}
                   </div>
                   <div className="flex-1 flex flex-col gap-1">
-                    <p className="text-[10px] font-bold text-[#7234BD] uppercase tracking-wider">EP. {ep.episode_number}</p>
-                    <p className="text-sm font-semibold text-[#1C043B] leading-snug line-clamp-2 group-hover:text-[#7234BD] transition-colors" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
+                    <p className="text-[10px] font-bold text-[var(--brand-primary)] uppercase tracking-wider">EP. {ep.episode_number}</p>
+                    <p className="text-sm font-semibold text-[var(--brand-secondary)] leading-snug line-clamp-2 group-hover:text-[var(--brand-primary)] transition-colors" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
                       {ep.title}
                     </p>
                     {ep.guest_name && <p className="text-xs text-gray-400">with {ep.guest_name}</p>}
@@ -119,8 +122,8 @@ export default function PodcastPage() {
                         <Clock size={11} /> {ep.duration}
                       </span>
                     ) : <span />}
-                    <div className="h-8 w-8 rounded-full bg-[#7234BD]/10 flex items-center justify-center group-hover:bg-[#7234BD] transition-colors">
-                      <Play size={12} className="text-[#7234BD] ml-0.5 group-hover:text-white fill-[#7234BD] group-hover:fill-white transition-colors" />
+                    <div className="h-8 w-8 rounded-full bg-[var(--brand-primary)]/10 flex items-center justify-center group-hover:bg-[var(--brand-primary)] transition-colors">
+                      <Play size={12} className="text-[var(--brand-primary)] ml-0.5 group-hover:text-white fill-[var(--brand-primary)] group-hover:fill-white transition-colors" />
                     </div>
                   </div>
                 </Link>
@@ -133,7 +136,7 @@ export default function PodcastPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-auto">
         <div className="max-w-[1280px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
       </div>

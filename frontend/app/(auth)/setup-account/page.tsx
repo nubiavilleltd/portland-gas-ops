@@ -12,6 +12,7 @@ import PasswordChecklist from "@/components/auth/PasswordChecklist";
 import { post } from "@/lib/api";
 import { useToast } from "@/hooks/useToast";
 import { passwordSchema } from "@/lib/validations";
+import CompanyFooter from "@/components/branding/CompanyFooter";
 
 const schema = z.object({
   new_password: passwordSchema,
@@ -76,7 +77,7 @@ function SetupAccountContent() {
             </div>
             <h2 className="text-base font-semibold text-brand-text-primary mb-2">Account ready</h2>
             <p className="text-sm text-brand-text-secondary mb-6">
-              Your password has been set. You can now sign in to Portland Gas Ops.
+              Your password has been set. You can now sign in to the operations platform.
             </p>
             <Link
               href="/login"
@@ -98,7 +99,7 @@ function SetupAccountContent() {
         <div className="bg-white border border-brand-border rounded-2xl p-8 shadow-sm">
           <h2 className="text-base font-semibold text-brand-text-primary mb-1">Set up your account</h2>
           <p className="text-sm text-brand-text-secondary mb-6">
-            Choose a password to activate your Portland Gas account.
+            Choose a password to activate your account.
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
@@ -133,9 +134,7 @@ function SetupAccountContent() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-brand-text-secondary mt-6">
-          Portland Gas Limited &mdash; Internal Platform
-        </p>
+        <CompanyFooter />
       </div>
     </div>
   );

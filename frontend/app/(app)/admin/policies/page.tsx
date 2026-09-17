@@ -7,6 +7,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import { SEED_POLICIES, POLICY_DOCS, POLICY_CATEGORIES, type Policy } from "../_components/_data";
+import { useCompanyBranding } from "@/lib/company-branding";
 
 const CATEGORY_COLORS: Record<string, string> = {
   General: "bg-purple-50 text-brand-purple",
@@ -17,11 +18,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   Travel:  "bg-slate-100 text-slate-700",
 };
 
-function downloadPolicy(policy: Policy) {
+function downloadPolicy(policy: Policy, companyName: string) {
   const doc = POLICY_DOCS[policy.id];
   if (!doc) return;
   const body = doc.sections.map((s) => `${s.heading}\n\n${s.body}`).join("\n\n---\n\n");
-  const text = `PORTLAND GAS OPERATIONS\n${"=".repeat(40)}\n\n${doc.title}\nVersion: ${policy.version} | Effective: ${policy.effectiveDate}\n\n${"=".repeat(40)}\n\n${body}\n\n---\nEnd of document.\n© Portland Gas Operations ${new Date().getFullYear()}`;
+  const text = `${companyName.toUpperCase()} OPERATIONS\n${"=".repeat(40)}\n\n${doc.title}\nVersion: ${policy.version} | Effective: ${policy.effectiveDate}\n\n${"=".repeat(40)}\n\n${body}\n\n---\nEnd of document.\n© ${companyName} Operations ${new Date().getFullYear()}`;
   const blob = new Blob([text], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -32,6 +33,7 @@ function downloadPolicy(policy: Policy) {
 }
 
 export default function PoliciesPage() {
+  const { name } = useCompanyBranding();
   const [policies, setPolicies] = useState<Policy[]>(SEED_POLICIES);
   const [search, setSearch] = useState("");
   const [catF, setCatF] = useState("");
@@ -78,11 +80,11 @@ export default function PoliciesPage() {
                 </div>
                 <h1 className="text-2xl font-bold text-brand-text-primary">{doc?.title}</h1>
                 <p className="text-sm text-brand-text-secondary mt-1">
-                  Effective: {viewing.effectiveDate} · Portland Gas Operations
+                  Effective: {viewing.effectiveDate} · {name} Operations
                 </p>
               </div>
               <div className="flex gap-2 shrink-0">
-                <Button variant="outline" onClick={() => downloadPolicy(viewing)} className="flex items-center gap-1.5 text-xs">
+                <Button variant="outline" onClick={() => downloadPolicy(viewing, name)} className="flex items-center gap-1.5 text-xs">
                   <Download size={13} /> Download
                 </Button>
                 <Button onClick={() => acknowledge(viewing.id)} className="flex items-center gap-1.5 text-xs">
@@ -105,7 +107,7 @@ export default function PoliciesPage() {
             )}
 
             <div className="mt-10 pt-6 border-t border-brand-border text-center text-xs text-brand-text-secondary">
-              Portland Gas Operations · Confidential · {doc?.title} · v{viewing.version}
+              {name} Operations · Confidential · {doc?.title} · v{viewing.version}
             </div>
           </div>
         </div>
@@ -187,7 +189,7 @@ export default function PoliciesPage() {
                   <Eye size={12} /> View
                 </button>
                 <button
-                  onClick={() => downloadPolicy(p)}
+                  onClick={() => downloadPolicy(p, name)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-brand-text-secondary hover:bg-gray-200 transition"
                 >
                   <Download size={12} /> Download

@@ -156,7 +156,7 @@ export default function NewEmployeePage() {
               onChange={(e) => ue("lastName", e.target.value)}
             />
             <FormInput
-              label="Email" required type="email" placeholder="email@portlandgas.com"
+              label="Email" required type="email" placeholder="email@company.com"
               value={empForm.email ?? ""}
               onChange={(e) => ue("email", e.target.value)}
             />

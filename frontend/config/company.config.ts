@@ -1,16 +1,19 @@
-// lib/config/company.config.ts
+import { DEFAULT_COMPANY_NAME } from "@/lib/company-branding";
+
+// Static company details will move to the database in a later phase. Name and
+// logo are already resolved through the frontend branding store.
 export const COMPANY_INFO = {
-  name: "Portland Gas Limited",
-  tagline: "Clean Energy | CNG | LPG | EV Charging",
-  address: "2B Water Corporation Road, Victoria Island, Lagos",
-  phone: "+234 (0) 800 PORTLAND",
-  email: "info@portlandgasltd.com",
-  website: "www.portlandgasltd.com",
-  logoPath: "/Portland-gas-logo.png",
+  name: DEFAULT_COMPANY_NAME,
+  tagline: "Operations Platform",
+  address: "",
+  phone: "",
+  email: "",
+  website: "",
+  logoPath: "",
 } as const;
 
 export const COMPANY_BANK_DETAILS = {
   bankName: "GTBank",
-  accountName: "Portland Gas Limited",
+  accountName: DEFAULT_COMPANY_NAME,
   accountNumber: "0123456789",
 } as const;

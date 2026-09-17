@@ -31,6 +31,8 @@ import { useIntranetNewsPublished, useIntranetNewsCategories, useIntranetEventsP
 import { useSubmitFeedback } from "@/lib/modules/intranet/mutations";
 import { useWeekBirthdays, useMyEmployee } from "@/lib/modules/employees/hooks";
 import { useSendBirthdayWishes } from "@/lib/modules/notifications/hooks";
+import { useCompanyBranding } from "@/lib/company-branding";
+import CompanyLogo from "@/components/branding/CompanyLogo";
 
 type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
 const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = [
@@ -42,13 +44,13 @@ const FEEDBACK_CATEGORY_OPTIONS: { value: FeedbackCategory; label: string }[] = 
 ];
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const HERO_BG = "/portland-hero.jpg";
+const HERO_BG = "";
 
 // Tailwind-safe badge classes by color key — driven by category.color from DB
 const COLOR_BADGE_CLASS: Record<string, string> = {
-  purple: "bg-[#7234BD] text-white",
-  yellow: "bg-[#FFBC00] text-[#1C043B]",
-  gray:   "bg-gray-100 text-[#1C043B]",
+  purple: "bg-[var(--brand-primary)] text-white",
+  yellow: "bg-[#FFBC00] text-[var(--brand-secondary)]",
+  gray:   "bg-gray-100 text-[var(--brand-secondary)]",
   red:    "bg-red-100 text-red-700",
   blue:   "bg-blue-100 text-blue-700",
   green:  "bg-green-100 text-green-700",
@@ -90,6 +92,7 @@ function todayStr() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function IntranetHomePage() {
   const { user } = useCurrentUser();
+  const { name } = useCompanyBranding();
   const toast = useToast();
   const [tab,                setTab]                = useState("All");
   const [q,                  setQ]                  = useState("");
@@ -162,15 +165,15 @@ export default function IntranetHomePage() {
       highlight: s.message,
       avatar:   s.avatar_url ?? null,
       tag:      s.tag ?? "",
-      tagColor: s.tag_color ?? "#7234BD",
-      tagBg:    s.tag_bg ?? "#F3EEFF",
+      tagColor: s.tag_color ?? "var(--brand-primary)",
+      tagBg:    s.tag_bg ?? "var(--brand-primary-faint)",
     }));
   const TABS = ["All", ...categories.map((c) => c.name)];
   const colorByName = Object.fromEntries(categories.map((c) => [c.name, c.color]));
   const NEWS = rawNews.map((n) => ({
     id:          n.id,
     category:    n.category,
-    badge:       COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[#1C043B]",
+    badge:       COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[var(--brand-secondary)]",
     title:       n.title,
     bodyHtml:    n.body,
     excerptText: n.body.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(),
@@ -244,7 +247,7 @@ export default function IntranetHomePage() {
   useEffect(() => {
     if (!mounted || !isMyBirthday) return;
     const todayKey = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-    const shownKey = "portland-gas-birthday-shown";
+    const shownKey = "birthday-shown";
     if (localStorage.getItem(shownKey) !== todayKey) {
       setBirthdayModalOpen(true);
       localStorage.setItem(shownKey, todayKey);
@@ -349,27 +352,30 @@ export default function IntranetHomePage() {
       {/* -mt-16 pulls the hero behind the fixed transparent header; pt-16 inside keeps text clear */}
       <section
         className="w-full relative overflow-hidden -mt-16"
-        style={{ minHeight: 460, backgroundColor: "#1C043B" }}
+        style={{ minHeight: 460, backgroundColor: "var(--brand-secondary)" }}
       >
         {/* Background photo — inline styles so no Next.js domain config needed */}
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url('${HERO_BG}')`,
+            backgroundImage: HERO_BG ? `url('${HERO_BG}')` : "none",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
           aria-hidden="true"
         />
-        {/* Dark overlay */}
-        <div className="absolute inset-0" style={{ backgroundColor: "rgba(28, 4, 59, 0.85)" }} />
+        {/* Brand-tinted overlay keeps a future background image readable. */}
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: "color-mix(in srgb, var(--brand-secondary) 85%, transparent)" }}
+        />
 
         {/* Content constrained to same max-width as body */}
         <div className="relative z-10 max-w-[1400px] mx-auto px-4 lg:px-8 flex flex-col lg:flex-row w-full" style={{ minHeight: 460 }}>
 
         {/* Left panel — pt-16 extra to clear the fixed navbar */}
         <div className="flex-1 lg:w-[55%] px-6 pt-24 pb-12 flex flex-col justify-center">
-          <p className="text-[#FFBC00] text-xs font-bold uppercase tracking-widest mb-3" suppressHydrationWarning>
+          <p className="text-[var(--brand-primary)] text-xs font-bold uppercase tracking-widest mb-3" suppressHydrationWarning>
             {mounted ? todayStr() : ""}
           </p>
           <h1 className="text-4xl font-extrabold text-white leading-tight mb-2">
@@ -385,7 +391,7 @@ export default function IntranetHomePage() {
                 href={href}
                 className="bg-white/[0.08] border border-white/10 rounded-full px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-white/70 hover:bg-white/[0.15] hover:text-white transition-all"
               >
-                <Icon size={13} className="text-[#FFBC00] shrink-0" />
+                <Icon size={13} className="text-[var(--brand-primary)] shrink-0" />
                 {label}
               </Link>
             ))}
@@ -421,7 +427,7 @@ export default function IntranetHomePage() {
               </div>
             ) : msg ? (
               <>
-                <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-4">
+                <p className="text-[var(--brand-primary)] text-[9px] font-extrabold uppercase tracking-widest mb-4">
                   {msg.dept} · {msg.date}
                 </p>
                 <p className="text-white/85 text-sm leading-relaxed flex-1">
@@ -443,7 +449,7 @@ export default function IntranetHomePage() {
                 <button
                   key={i}
                   onClick={() => setSlide(i)}
-                  className={cn("rounded-full transition-all duration-300", i === slide ? "bg-[#FFBC00] w-5 h-1.5" : "bg-white/20 w-1.5 h-1.5")}
+                  className={cn("rounded-full transition-all duration-300", i === slide ? "bg-[var(--brand-primary)] w-5 h-1.5" : "bg-white/20 w-1.5 h-1.5")}
                   aria-label={`Go to slide ${i + 1}`}
                 />
               ))}
@@ -469,12 +475,12 @@ export default function IntranetHomePage() {
             <span className="w-1.5 h-1.5 rounded-full bg-[#FFBC00]" />
             <span className="text-[10px] font-black uppercase tracking-widest text-[#FFBC00]">People First</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-[#1C043B] mb-5">People at Portland Gas</h2>
+          <h2 className="text-2xl font-extrabold text-[var(--brand-secondary)] mb-5">People at {name}</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-5 items-stretch">
 
             {/* Employee of the Month */}
-            <div className="rounded-2xl p-7 flex flex-col items-center text-center h-full" style={{ backgroundColor: "#1C043B" }}>
+            <div className="rounded-2xl p-7 flex flex-col items-center text-center h-full" style={{ backgroundColor: "var(--brand-secondary)" }}>
               {peopleLoading ? (
                 <div className="flex flex-col items-center w-full animate-pulse flex-1">
                   <div className="h-3 w-32 bg-white/10 rounded mb-5" />
@@ -504,12 +510,12 @@ export default function IntranetHomePage() {
                   {EMPLOYEE_OF_MONTH.employeeId ? (
                     <Link
                       href={`/people/${EMPLOYEE_OF_MONTH.employeeId}`}
-                      className="mt-auto bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors"
+                      className="mt-auto bg-[#FFBC00] text-[var(--brand-secondary)] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors"
                     >
                       View Profile →
                     </Link>
                   ) : (
-                    <button className="mt-auto bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors">
+                    <button className="mt-auto bg-[#FFBC00] text-[var(--brand-secondary)] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors">
                       View Profile →
                     </button>
                   )}
@@ -525,8 +531,8 @@ export default function IntranetHomePage() {
             {/* Employee Spotlight — same height via flex-col + h-full */}
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#1C043B] text-sm">Employee Spotlight</h3>
-                <Link href="/people" className="text-xs text-[#7234BD] font-semibold hover:underline">View all →</Link>
+                <h3 className="font-bold text-[var(--brand-secondary)] text-sm">Employee Spotlight</h3>
+                <Link href="/people" className="text-xs text-[var(--brand-primary)] font-semibold hover:underline">View all →</Link>
               </div>
               <div className={cn(
                 "grid gap-4 flex-1",
@@ -561,9 +567,9 @@ export default function IntranetHomePage() {
                     <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-3" style={{ backgroundColor: s.tagBg, color: s.tagColor }}>
                       {s.tag}
                     </span>
-                    <h4 className="font-bold text-sm text-[#1C043B] mb-0.5">{s.name}</h4>
+                    <h4 className="font-bold text-sm text-[var(--brand-secondary)] mb-0.5">{s.name}</h4>
                     <p className="text-gray-400 text-xs mb-1">{s.role}</p>
-                    <p className="text-xs font-semibold mb-3" style={{ color: "#7234BD" }}>{s.dept}</p>
+                    <p className="text-xs font-semibold mb-3" style={{ color: "var(--brand-primary)" }}>{s.dept}</p>
                     <p className="text-gray-500 text-xs leading-relaxed flex-1">{s.highlight}</p>
                   </div>
                 ))}
@@ -587,7 +593,7 @@ export default function IntranetHomePage() {
                 </div>
               </div>
               {/* "View all" on mobile */}
-              <Link href="/people" className="sm:hidden text-xs text-[#7234BD] font-semibold hover:underline whitespace-nowrap">View all →</Link>
+              <Link href="/people" className="sm:hidden text-xs text-[var(--brand-primary)] font-semibold hover:underline whitespace-nowrap">View all →</Link>
             </div>
 
             {/* Birthday cards grid */}
@@ -621,13 +627,13 @@ export default function IntranetHomePage() {
                     <div className="flex items-center gap-3">
                       <Avatar name={b.name} src={b.avatar_url ?? undefined} size="xl" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-[#1C043B] leading-tight truncate">{b.name}</p>
+                        <p className="text-xs font-semibold text-[var(--brand-secondary)] leading-tight truncate">{b.name}</p>
                         <p className="text-[10px] text-gray-400 truncate">{b.department ?? ""}</p>
                       </div>
                       <span className={cn(
                         "shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap",
-                        label === "Today"    ? "bg-[#FFBC00] text-[#1C043B]" :
-                        label === "Tomorrow" ? "bg-[#F3EEFF] text-[#7234BD]" :
+                        label === "Today"    ? "bg-[#FFBC00] text-[var(--brand-secondary)]" :
+                        label === "Tomorrow" ? "bg-[var(--brand-primary-faint)] text-[var(--brand-primary)]" :
                                                "bg-gray-100 text-gray-500"
                       )}>
                         {label}
@@ -664,7 +670,7 @@ export default function IntranetHomePage() {
 
             {/* View all — hidden on mobile (shown above), visible on sm+ */}
             <div className="hidden sm:flex items-center">
-              <Link href="/people" className="text-xs text-[#7234BD] font-semibold hover:underline whitespace-nowrap">View all →</Link>
+              <Link href="/people" className="text-xs text-[var(--brand-primary)] font-semibold hover:underline whitespace-nowrap">View all →</Link>
             </div>
           </div>
         </div>
@@ -674,10 +680,10 @@ export default function IntranetHomePage() {
 
           {/* Left — News panel in white container */}
           <section className="bg-white rounded-2xl border border-gray-100 p-6 h-full flex flex-col">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[#7234BD] mb-2 tracking-[0.15em]">From the Newsroom</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-primary)] mb-2 tracking-[0.15em]">From the Newsroom</p>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-extrabold text-[#1C043B]">Latest News</h2>
-              <Link href="/news" className="text-xs text-[#7234BD] font-semibold hover:underline">View all →</Link>
+              <h2 className="text-xl font-extrabold text-[var(--brand-secondary)]">Latest News</h2>
+              <Link href="/news" className="text-xs text-[var(--brand-primary)] font-semibold hover:underline">View all →</Link>
             </div>
 
             {/* Tab pills */}
@@ -689,8 +695,8 @@ export default function IntranetHomePage() {
                   className={cn(
                     "shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-150",
                     tab === t
-                      ? "bg-[#1C043B] text-white shadow-sm"
-                      : "bg-white text-gray-500 border border-gray-200 hover:text-[#7234BD] hover:border-[#7234BD]/30"
+                      ? "bg-[var(--brand-secondary)] text-white shadow-sm"
+                      : "bg-white text-gray-500 border border-gray-200 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
                   )}
                 >
                   {t}
@@ -748,7 +754,7 @@ export default function IntranetHomePage() {
                         </span>
                       </div>
                       <div className="flex-1 p-5 flex flex-col justify-center min-w-0">
-                        <h3 className="font-extrabold text-xl text-[#1C043B] leading-snug mb-2">
+                        <h3 className="font-extrabold text-xl text-[var(--brand-secondary)] leading-snug mb-2">
                           {feed[0].title}
                         </h3>
                         <div
@@ -774,11 +780,11 @@ export default function IntranetHomePage() {
                             <span className="text-[10px] text-gray-400">{item.author}</span>
                             <span className="text-[10px] text-gray-300 ml-auto shrink-0">{item.date}</span>
                           </div>
-                          <p className="text-sm font-semibold text-[#1C043B] group-hover:text-[#7234BD] line-clamp-1 transition-colors">
+                          <p className="text-sm font-semibold text-[var(--brand-secondary)] group-hover:text-[var(--brand-primary)] line-clamp-1 transition-colors">
                             {item.title}
                           </p>
                         </div>
-                        <ArrowUpRight size={14} className="text-gray-300 group-hover:text-[#7234BD] shrink-0 mt-1 transition-colors" />
+                        <ArrowUpRight size={14} className="text-gray-300 group-hover:text-[var(--brand-primary)] shrink-0 mt-1 transition-colors" />
                       </Link>
                     ))}
                   </div>
@@ -793,21 +799,21 @@ export default function IntranetHomePage() {
             {/* Calendar header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-[#7234BD]" />
-                <h3 className="text-base font-bold text-[#1C043B]">
+                <Calendar size={16} className="text-[var(--brand-primary)]" />
+                <h3 className="text-base font-bold text-[var(--brand-secondary)]">
                   {MONTH_NAMES[calMonth]} {calYear}
                 </h3>
                 {isCurrentMo && (
-                  <span className="text-[9px] font-bold uppercase tracking-wide bg-[#7234BD] text-white px-2 py-0.5 rounded-full ml-1">
+                  <span className="text-[9px] font-bold uppercase tracking-wide bg-[var(--brand-primary)] text-white px-2 py-0.5 rounded-full ml-1">
                     TODAY · {todayNum}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={prevMonth} className="h-7 w-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-[#7234BD] hover:text-[#7234BD] transition-all" aria-label="Previous month">
+                <button onClick={prevMonth} className="h-7 w-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all" aria-label="Previous month">
                   <ChevronLeft size={13} />
                 </button>
-                <button onClick={nextMonth} className="h-7 w-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-[#7234BD] hover:text-[#7234BD] transition-all" aria-label="Next month">
+                <button onClick={nextMonth} className="h-7 w-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-all" aria-label="Next month">
                   <ChevronRight size={13} />
                 </button>
               </div>
@@ -845,7 +851,7 @@ export default function IntranetHomePage() {
                       hasEv && !isToday && "cursor-pointer hover:opacity-80",
                     )}
                     style={
-                      isToday    ? { backgroundColor: "#7234BD" } :
+                      isToday    ? { backgroundColor: "var(--brand-primary)" } :
                       isSelected ? { backgroundColor: firstEv?.colorBg, color: firstEv?.color, outline: `2px solid ${firstEv?.color}`, outlineOffset: "0px" } :
                       hasEv      ? { backgroundColor: firstEv?.colorBg, color: firstEv?.color } :
                                    {}
@@ -897,7 +903,7 @@ export default function IntranetHomePage() {
                 {selectedDay && (
                   <button
                     onClick={() => setSelectedDay(null)}
-                    className="flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#F3EEFF] text-[#7234BD] hover:bg-[#E9D5FF] transition-all ml-auto"
+                    className="flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[var(--brand-primary-faint)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary-mid)] transition-all ml-auto"
                   >
                     Show all <X size={9} />
                   </button>
@@ -953,7 +959,7 @@ export default function IntranetHomePage() {
                           <p className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: ev.color }}>
                             {ev.type}
                           </p>
-                          <p className="text-xs font-semibold text-[#1C043B] leading-snug mb-0.5">{ev.title}</p>
+                          <p className="text-xs font-semibold text-[var(--brand-secondary)] leading-snug mb-0.5">{ev.title}</p>
                           <div className="flex items-center gap-1">
                             <MapPin size={9} className="text-gray-400 shrink-0" />
                             <p className="text-[10px] text-gray-400 truncate">{ev.location}</p>
@@ -972,18 +978,18 @@ export default function IntranetHomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
 
           <Link href="/faq" className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col gap-3 hover:shadow-md transition-all">
-            <div className="h-10 w-10 rounded-xl bg-[#F3EEFF] flex items-center justify-center shrink-0">
-              <HelpCircle size={20} className="text-[#7234BD]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--brand-primary-faint)] flex items-center justify-center shrink-0">
+              <HelpCircle size={20} className="text-[var(--brand-primary)]" />
             </div>
             <div>
-              <p className="font-bold text-sm text-[#1C043B]">Frequently Asked Questions</p>
+              <p className="font-bold text-sm text-[var(--brand-secondary)]">Frequently Asked Questions</p>
               <p className="text-xs text-gray-400 mt-1">IT support, HR, HSE, procurement — all in one place.</p>
             </div>
           </Link>
 
-          <div className="rounded-2xl p-6 flex flex-col justify-between" style={{ backgroundColor: "#1C043B" }}>
+          <div className="rounded-2xl p-6 flex flex-col justify-between" style={{ backgroundColor: "var(--brand-secondary)" }}>
             <div>
-              <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-2">Portland Gas Podcast</p>
+              <p className="text-[#FFBC00] text-[9px] font-extrabold uppercase tracking-widest mb-2">{name} Podcast</p>
               {featuredPodcast ? (
                 <>
                   <h3 className="text-white font-bold text-sm leading-snug mb-1 line-clamp-2">
@@ -1004,7 +1010,7 @@ export default function IntranetHomePage() {
             {featuredPodcast ? (
               <Link href={`/podcast/${featuredPodcast.id}`} className="mt-4 flex items-center gap-3 group self-start">
                 <div className="h-10 w-10 rounded-full bg-[#FFBC00] flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-                  <Play size={14} className="text-[#1C043B] ml-0.5 fill-[#1C043B]" />
+                  <Play size={14} className="text-[var(--brand-secondary)] ml-0.5 fill-[var(--brand-secondary)]" />
                 </div>
                 <span className="text-white/60 text-xs group-hover:text-white transition-colors">
                   {featuredPodcast.is_featured ? "Play featured episode" : "Play episode"}
@@ -1020,7 +1026,7 @@ export default function IntranetHomePage() {
             )}
           </div>
 
-          <div className="rounded-2xl p-6 flex flex-col gap-3" style={{ backgroundColor: "#7234BD" }}>
+          <div className="rounded-2xl p-6 flex flex-col gap-3" style={{ backgroundColor: "var(--brand-primary)" }}>
             <Mic2 size={22} className="text-white" />
             <div>
               <h3 className="text-white font-extrabold text-lg leading-tight">Your Voice Matters</h3>
@@ -1030,7 +1036,7 @@ export default function IntranetHomePage() {
             </div>
             <button
               onClick={() => window.dispatchEvent(new Event("open-feedback-modal"))}
-              className="mt-auto self-start bg-[#FFBC00] text-[#1C043B] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors"
+              className="mt-auto self-start bg-[#FFBC00] text-[var(--brand-secondary)] font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-300 transition-colors"
             >
               Submit Feedback
             </button>
@@ -1043,15 +1049,8 @@ export default function IntranetHomePage() {
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8">
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <Image
-            src="https://portlandgasltd.com/wp-content/uploads/2024/06/Portland-gas-42.png"
-            alt="Portland Gas"
-            width={100}
-            height={26}
-            style={{ height: "24px", width: "auto" }}
-            className="opacity-50"
-          />
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyLogo size={100} className="h-6 w-auto opacity-50" />
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} {name} · Internal use only</p>
           <p className="text-xs text-gray-400">The Clean Energy Standard</p>
         </div>
       </footer>
@@ -1095,11 +1094,11 @@ export default function IntranetHomePage() {
 
             <div className="text-6xl mb-4 animate-bounce select-none">🎂</div>
 
-            <h2 className="text-2xl font-extrabold text-[#1C043B] mb-2 leading-tight">
+            <h2 className="text-2xl font-extrabold text-[var(--brand-secondary)] mb-2 leading-tight">
               Happy Birthday, {firstName}!
             </h2>
             <p className="text-gray-500 text-sm mb-5 leading-relaxed">
-              Portland Gas wishes you a wonderful day filled with joy, laughter, and everything you love. 🎉
+              {name} wishes you a wonderful day filled with joy, laughter, and everything you love. 🎉
             </p>
 
             <div className="flex items-center justify-center gap-2 text-2xl mb-6 select-none">
@@ -1108,13 +1107,13 @@ export default function IntranetHomePage() {
 
             <button
               onClick={() => setBirthdayModalOpen(false)}
-              className="w-full bg-[#7234BD] text-white font-bold py-3 rounded-xl hover:bg-[#5b2699] transition-colors text-sm"
+              className="w-full bg-[var(--brand-primary)] text-white font-bold py-3 rounded-xl hover:bg-brand-purple-dark transition-colors text-sm"
             >
               Thank you! 💜
             </button>
 
             <p className="text-[11px] text-gray-500 mt-4">
-              From the entire Portland Gas family
+              From the entire {name} family
             </p>
           </div>
         </div>,

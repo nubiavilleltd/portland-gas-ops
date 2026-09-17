@@ -7,6 +7,7 @@ import IntranetLayout from "@/components/layout/IntranetLayout";
 import IntranetPageHero from "@/components/ui/IntranetPageHero";
 import { cn } from "@/lib/utils";
 import { useIntranetFAQsPublished, useIntranetFAQCategories } from "@/lib/modules/intranet/queries";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 // Map DB iconName strings → Lucide components
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -20,7 +21,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 // UI metadata for known categories (matches the admin hook)
 const CAT_META: Record<string, { color: string; bg: string; iconName: string }> = {
   "IT Support":   { color: "#1E40AF", bg: "#EFF6FF", iconName: "Laptop"      },
-  "HR & Payroll": { color: "#7234BD", bg: "#F3EEFF", iconName: "Users"       },
+  "HR & Payroll": { color: "var(--brand-primary)", bg: "var(--brand-primary-faint)", iconName: "Users"       },
   "HSE":          { color: "#166534", bg: "#F0FDF4", iconName: "ShieldCheck" },
   "Procurement":  { color: "#C2410C", bg: "#FFF7ED", iconName: "Briefcase"   },
   "General":      { color: "#B45309", bg: "#FFFBEB", iconName: "Phone"       },
@@ -33,14 +34,14 @@ function FAQItem({ q, a }: { q: string; a: string }) {
     <div className="border-b border-gray-100 last:border-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between py-4 text-left gap-4 hover:text-[#7234BD] transition-colors group"
+        className="w-full flex items-center justify-between py-4 text-left gap-4 hover:text-[var(--brand-primary)] transition-colors group"
       >
-        <span className={cn("text-sm font-medium leading-snug", open ? "text-[#7234BD]" : "text-[#1C043B]")}>
+        <span className={cn("text-sm font-medium leading-snug", open ? "text-[var(--brand-primary)]" : "text-[var(--brand-secondary)]")}>
           {q}
         </span>
         <ChevronDown
           size={15}
-          className={cn("text-gray-300 shrink-0 transition-transform duration-200 group-hover:text-[#7234BD]", open && "rotate-180 text-[#7234BD]")}
+          className={cn("text-gray-300 shrink-0 transition-transform duration-200 group-hover:text-[var(--brand-primary)]", open && "rotate-180 text-[var(--brand-primary)]")}
         />
       </button>
       {open && (
@@ -106,7 +107,6 @@ export default function FAQPage() {
       <IntranetPageHero
         title="Frequently Asked Questions"
         subtitle="IT, HR, HSE, Procurement and more — all in one place."
-        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/Portland-gas-70.png"
       />
 
       <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
@@ -117,7 +117,7 @@ export default function FAQPage() {
             onClick={() => setActiveCategory(null)}
             className={cn(
               "px-4 py-2 rounded-full text-sm font-semibold transition-all",
-              !activeCategory ? "bg-[#7234BD] text-white" : "bg-white border border-gray-200 text-gray-500 hover:text-[#7234BD] hover:border-[#7234BD]/30"
+              !activeCategory ? "bg-[var(--brand-primary)] text-white" : "bg-white border border-gray-200 text-gray-500 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
             )}
           >
             All
@@ -133,8 +133,8 @@ export default function FAQPage() {
                   className={cn(
                     "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all",
                     activeCategory === cat.label
-                      ? "bg-[#7234BD] text-white"
-                      : "bg-white border border-gray-200 text-gray-500 hover:text-[#7234BD] hover:border-[#7234BD]/30"
+                      ? "bg-[var(--brand-primary)] text-white"
+                      : "bg-white border border-gray-200 text-gray-500 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
                   )}
                 >
                   <cat.Icon size={13} />
@@ -156,7 +156,7 @@ export default function FAQPage() {
                   <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: cat.bg }}>
                     <cat.Icon size={16} style={{ color: cat.color }} />
                   </div>
-                  <p className="text-sm font-bold text-[#1C043B]">{cat.label}</p>
+                  <p className="text-sm font-bold text-[var(--brand-secondary)]">{cat.label}</p>
                   <span className="ml-auto text-xs text-gray-400">{cat.faqs.length} questions</span>
                 </div>
                 {/* FAQs */}
@@ -171,19 +171,19 @@ export default function FAQPage() {
         )}
 
         {/* Bottom CTA */}
-        <div className="mt-10 rounded-2xl bg-[#F3EEFF] border border-[#7234BD]/15 px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-5">
+        <div className="mt-10 rounded-2xl bg-[var(--brand-primary-faint)] border border-[var(--brand-primary)]/15 px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-5">
           <div className="flex items-center gap-4">
-            <div className="h-11 w-11 rounded-2xl bg-[#7234BD] flex items-center justify-center shrink-0">
+            <div className="h-11 w-11 rounded-2xl bg-[var(--brand-primary)] flex items-center justify-center shrink-0">
               <HelpCircle size={20} className="text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold text-[#1C043B]">Can&apos;t find your answer?</p>
+              <p className="text-sm font-bold text-[var(--brand-secondary)]">Can&apos;t find your answer?</p>
               <p className="text-xs text-gray-500 mt-0.5">Reach out to the relevant team and we&apos;ll help you out.</p>
             </div>
           </div>
           <a
-            href="mailto:support@portlandgas.com"
-            className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#7234BD] text-white text-sm font-semibold hover:bg-[#5c2899] transition-colors"
+            href="mailto:support@company.com"
+            className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-semibold hover:bg-[#5c2899] transition-colors"
           >
             Contact Support
           </a>
@@ -193,7 +193,7 @@ export default function FAQPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-4">
         <div className="max-w-[1400px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
     </IntranetLayout>

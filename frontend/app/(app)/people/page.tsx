@@ -10,6 +10,7 @@ import Avatar from "@/components/ui/Avatar";
 import FormSelect from "@/components/forms/FormSelect";
 import { useEmployees } from "@/lib/modules/employees/hooks";
 import { useDepartments } from "@/lib/modules/setups";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 const PAGE_SIZE = 12;
 
@@ -42,7 +43,6 @@ export default function PeoplePage() {
       <IntranetPageHero
         title="Employee Directory"
         subtitle="Find your colleagues — names, roles, departments and contact info."
-        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/Portland-gas-29-scaled-1.png"
       />
 
       {/* ── Body ─────────────────────────────────────────────────────────── */}
@@ -62,7 +62,7 @@ export default function PeoplePage() {
             />
           </div>
           {!isLoading && (
-            <span className="text-sm font-semibold text-[#1C043B] shrink-0">
+            <span className="text-sm font-semibold text-[var(--brand-secondary)] shrink-0">
               {filtered.length} {filtered.length === 1 ? "person" : "people"}
             </span>
           )}
@@ -73,7 +73,7 @@ export default function PeoplePage() {
               value={q}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Search by name or role…"
-              className="py-2 w-72 pl-9 pr-5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[#7234BD]/20 focus:border-[#7234BD]/40 transition-all"
+              className="py-2 w-72 pl-9 pr-5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]/40 transition-all"
             />
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function PeoplePage() {
             {(q || dept) && (
               <button
                 onClick={() => { setQ(""); setDept(""); setPage(1); }}
-                className="mt-3 text-xs text-[#7234BD] font-semibold hover:underline"
+                className="mt-3 text-xs text-[var(--brand-primary)] font-semibold hover:underline"
               >
                 Clear filters
               </button>
@@ -121,9 +121,9 @@ export default function PeoplePage() {
                     name={fullName}
                     src={emp.user?.profile_picture_url}
                     size="lg"
-                    className="ring-4 ring-gray-100 group-hover:ring-[#7234BD]/20 transition-all mb-4"
+                    className="ring-4 ring-gray-100 group-hover:ring-[var(--brand-primary)]/20 transition-all mb-4"
                   />
-                  <h3 className="font-bold text-sm text-[#1C043B] leading-snug mb-0.5 group-hover:text-[#7234BD] transition-colors">
+                  <h3 className="font-bold text-sm text-[var(--brand-secondary)] leading-snug mb-0.5 group-hover:text-[var(--brand-primary)] transition-colors">
                     {fullName}
                   </h3>
                   <p className="text-xs text-gray-500 mb-2 line-clamp-1">{emp.job_title ?? "—"}</p>
@@ -131,7 +131,7 @@ export default function PeoplePage() {
                   {/* Dept + employment type */}
                   <div className="flex flex-wrap items-center justify-center gap-1.5 mb-4">
                     {emp.department && (
-                      <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F3EEFF] text-[#7234BD]">
+                      <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[var(--brand-primary-faint)] text-[var(--brand-primary)]">
                         {emp.department}
                       </span>
                     )}

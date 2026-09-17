@@ -648,7 +648,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               <>
                 <FormInput label="First Name" required placeholder="First name" value={empForm.firstName ?? ""} onChange={(e) => ue("firstName", e.target.value)} />
                 <FormInput label="Last Name"  required placeholder="Last name"  value={empForm.lastName  ?? ""} onChange={(e) => ue("lastName",  e.target.value)} />
-                <FormInput label="Email" required type="email" placeholder="email@portlandgas.com" value={empForm.email ?? ""} onChange={(e) => ue("email", e.target.value)} />
+                <FormInput label="Email" required type="email" placeholder="email@company.com" value={empForm.email ?? ""} onChange={(e) => ue("email", e.target.value)} />
                 <FormDatePicker label="Birthday" value={empForm.birthday ?? ""} onValueChange={(v) => ue("birthday", v)} />
               </>
             ) : (

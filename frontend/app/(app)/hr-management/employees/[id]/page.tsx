@@ -22,6 +22,7 @@ import {
   type EmployeeRecord,
 } from "../../_components/_data";
 import { useDepartments } from "@/lib/modules/setups";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 
 const YEAR = new Date().getFullYear();
 
@@ -175,7 +176,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(13);
     pdf.setTextColor(255, 255, 255);
-    pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+    pdf.text(`${getStoredCompanyBranding().name.toUpperCase()} OPERATIONS`, 20, 11);
     pdf.setTextColor(30, 30, 30);
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "bold");
@@ -197,7 +198,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(13);
     pdf.setTextColor(255, 255, 255);
-    pdf.text("PORTLAND GAS OPERATIONS", 20, 11);
+    pdf.text(`${getStoredCompanyBranding().name.toUpperCase()} OPERATIONS`, 20, 11);
     pdf.setTextColor(30, 30, 30);
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "bold");
@@ -293,7 +294,7 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                     value={empForm.firstName ?? ""} onChange={(e) => ue("firstName", e.target.value)} />
                   <FormInput label="Last Name" required placeholder="Last name"
                     value={empForm.lastName ?? ""} onChange={(e) => ue("lastName", e.target.value)} />
-                  <FormInput label="Email" required type="email" placeholder="email@portlandgas.com"
+                  <FormInput label="Email" required type="email" placeholder="email@company.com"
                     value={empForm.email ?? ""} onChange={(e) => ue("email", e.target.value)} />
                   <FormDatePicker label="Birthday"
                     value={empForm.birthday ?? ""} onValueChange={(v) => ue("birthday", v)} />

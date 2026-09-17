@@ -3,6 +3,7 @@ import { Inter, Mulish } from "next/font/google";
 import { Toaster } from "sonner";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,9 +19,9 @@ export const mulish = Mulish({
 });
 
 export const metadata: Metadata = {
-  title: "Portland Gas Operations",
-  description: "Internal ERP platform for Portland Gas Limited",
-  applicationName: "Portland Gas Operations",
+  title: "Operations Platform",
+  description: "Internal operations platform",
+  applicationName: "Operations Platform",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -47,7 +48,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-brand-bg antialiased" suppressHydrationWarning>
         <ServiceWorkerRegistration />
         <PWAInstallPrompt />
-        {children}
+        <Providers>{children}</Providers>
         <Toaster
           position="top-right"
           richColors
