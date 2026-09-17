@@ -110,6 +110,7 @@ export default function EditProductPage() {
           onCancel={() => router.push(PRODUCT_ROUTES.detail(id))}
           submitLabel="Save Changes"
           submitLoadingLabel="Saving…"
+          lockInventoryFields={product.hasInventory}
         />
       </FormSection>
     </AppLayout>

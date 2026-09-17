@@ -50,6 +50,7 @@ export interface Product {
   tagPrefix?: string;
 
   description?: string;
+  hasInventory:boolean;
 
   inventoryTracking: InventoryTracking;
 

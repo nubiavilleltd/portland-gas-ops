@@ -37,6 +37,7 @@ interface BackendProduct {
   code: string | null;
   tag_prefix: string | null;
   description: string | null;
+  has_inventory:boolean
 
   inventory_tracking: string;
 
@@ -191,6 +192,7 @@ export function adaptProduct(raw: BackendProduct): Product {
     description: raw.description ?? undefined,
 
     inventoryTracking: mapInventoryTracking(raw.inventory_tracking),
+    hasInventory:raw.has_inventory,
 
     categoryId: raw.category_id,
     unitId: raw.unit_id,

@@ -194,6 +194,8 @@ export default function ProductForm({
       </div>
 
       {/* Inventory Tracking */}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
       <Controller
         control={control}
         name="inventoryTracking"
@@ -218,8 +220,10 @@ export default function ProductForm({
         )}
       />
 
-      {/* Tag Prefix — only for Individual Items */}
-      {isIndividualItems && (
+            {/* Tag Prefix — only for Individual Items */}
+
+
+         {isIndividualItems && (
         <FormInput
           label="Tag Prefix"
           required
@@ -234,6 +238,9 @@ export default function ProductForm({
           {...register("tagPrefix")}
         />
       )}
+      </div>
+
+
 
       {/* Default Unit Price */}
       <FormCurrencyInput
