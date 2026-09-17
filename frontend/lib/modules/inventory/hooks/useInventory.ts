@@ -1,11 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+
 import { InventoryService } from "../services/inventory.service";
 import { parseError } from "@/lib/errors";
 import { INVENTORY_KEYS } from "../constants/inventory-query-keys";
 
 import {
+  getDefaultLocation,
+  getLocationById,
   getItemById,
   getItemByTag,
   getItemsByProduct,
@@ -18,13 +21,9 @@ import {
   getConsumableStockLevel,
   getMovementsByProduct,
   getMovementsByItem,
-  getDefaultLocation,
-  getLocationById,
-  getTrackedInventoryKPIs,
-  getConsumableInventoryKPIs,
 } from "../selectors/inventory.selectors";
-import { ConsumableInventoryKPIs, TrackedInventoryKPIs } from "../types/inventory.types";
-import { useProducts } from "../../products/hooks/useProducts";
+
+import type { InventoryItemStatus } from "../types/inventory.types";
 
 // ── LOCATIONS ────────────────────────────────────────────
 
@@ -63,7 +62,51 @@ export function useLocationById(id: string) {
   };
 }
 
-// ── TRACKED ITEMS ────────────────────────────────────────
+// ── OVERVIEW ─────────────────────────────────────────────
+
+export function useInventoryOverview(filters?: {
+  search?: string;
+  inventoryTracking?: "INDIVIDUAL_ITEMS" | "STOCK_QUANTITY";
+  categoryId?: string;
+  stockStatus?: "ok" | "low" | "out";
+  page?: number;
+  pageSize?: number;
+}) {
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.overview(filters),
+    queryFn: () => InventoryService.getOverview(filters),
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    items: query.data?.items ?? [],
+    total: query.data?.total ?? 0,
+    page: query.data?.page ?? 1,
+    pageSize: query.data?.pageSize ?? 50,
+    hasNext: query.data?.hasNext ?? false,
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
+export function useProductAvailability(productId: string) {
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.productAvailability(productId),
+    queryFn: () => InventoryService.getProductAvailability(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    availability: query.data,
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
+// ── INDIVIDUAL ITEMS ─────────────────────────────────────
 
 export function useInventoryItems() {
   const query = useQuery({
@@ -102,13 +145,18 @@ export function useInventoryItemByTag(tagNumber: string) {
 }
 
 export function useInventoryItemsByProduct(productId: string) {
-  const { items, isLoading, error, refetch } = useInventoryItems();
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.itemsByProduct(productId),
+    queryFn: () => InventoryService.getItemsForProduct(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
 
   return {
-    items: getItemsByProduct(items, productId),
-    isLoading,
-    error,
-    refetch,
+    items: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
   };
 }
 
@@ -155,7 +203,7 @@ export function useInventoryItemsByOrder(orderId: string) {
   };
 }
 
-// ── CONSUMABLE STOCK ─────────────────────────────────────
+// ── STOCK QUANTITY ───────────────────────────────────────
 
 export function useConsumableStock() {
   const query = useQuery({
@@ -189,14 +237,35 @@ export function useConsumableStockDetail(id: string) {
 }
 
 export function useConsumableStockByProduct(productId: string) {
-  const { stock, isLoading, error, refetch } = useConsumableStock();
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.consumableStockByProduct(productId),
+    queryFn: () =>
+      InventoryService.getConsumableStockForProduct(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
 
   return {
-    stock: getConsumableStockByProduct(stock, productId),
-    quantity: getConsumableStockLevel(stock, productId),
-    isLoading,
-    error,
-    refetch,
+    stock: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
+export function useConsumableLocations(productId: string) {
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.consumableLocations(productId),
+    queryFn: () => InventoryService.getConsumableLocations(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    locations: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
   };
 }
 
@@ -218,12 +287,18 @@ export function useStockMovements() {
 }
 
 export function useStockMovementsByProduct(productId: string) {
-  const { movements, isLoading, error } = useStockMovements();
+  const query = useQuery({
+    queryKey: INVENTORY_KEYS.movementsByProduct(productId),
+    queryFn: () => InventoryService.getMovementsForProduct(productId),
+    enabled: !!productId,
+    staleTime: 60 * 1000,
+  });
 
   return {
-    movements: getMovementsByProduct(movements, productId),
-    isLoading,
-    error,
+    movements: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
   };
 }
 
@@ -236,103 +311,3 @@ export function useStockMovementsByItem(itemId: string) {
     error,
   };
 }
-
-// ── KPIs ─────────────────────────────────────────────────
-
-const EMPTY_TRACKED_KPIS: TrackedInventoryKPIs = {
-  totalTrackedItems: 0,
-  availableItems: 0,
-  reservedItems: 0,
-  checkedOutItems: 0,
-  // withCustomerItems: 0,
-  // maintenanceItems: 0,
-  // retiredItems: 0,
-};
-
-const EMPTY_CONSUMABLE_KPIS: ConsumableInventoryKPIs = {
-  totalProducts: 0,
-  totalQuantity: 0,
-  lowStockProducts: 0,
-  outOfStockProducts: 0,
-  // outOfStockItems: 0,
-};
-
-
-
-export function useTrackedInventoryKPIs() {
-  const { items, isLoading, error, refetch } = useInventoryItems();
-
-  const kpis = isLoading
-    ? EMPTY_TRACKED_KPIS
-    : getTrackedInventoryKPIs(items);
-
-  return {
-    kpis,
-    isLoading,
-    error,
-    refetch,
-  };
-}
-
-
-export function useConsumableInventoryKPIs() {
-  const {
-    stock,
-    isLoading: stockLoading,
-    error: stockError,
-    refetch: refetchStock,
-  } = useConsumableStock();
-
-  const {
-    products,
-    isLoading: productsLoading,
-    error: productsError,
-    refetch: refetchProducts,
-  } = useProducts();
-
-  const isLoading = stockLoading || productsLoading;
-
-  const kpis = isLoading
-    ? EMPTY_CONSUMABLE_KPIS
-    : getConsumableInventoryKPIs(stock, products);
-
-  return {
-    kpis,
-    isLoading,
-    error: stockError ?? productsError,
-    refetch: async () => {
-      await Promise.all([
-        refetchStock(),
-        refetchProducts(),
-      ]);
-    },
-  };
-}
-
-
-export function useConsumableLocations(productId: string) {
-  const query = useQuery({
-    queryKey: INVENTORY_KEYS.consumableLocations(productId),
-    queryFn: () => InventoryService.getConsumableLocations(productId),
-    enabled: !!productId,
-    staleTime: 60 * 1000,
-  });
-
-  return {
-    locations: query.data ?? [],
-    isLoading: query.isLoading,
-    error: query.error ? parseError(query.error) : null,
-    refetch: query.refetch,
-  };
-}
-
-
-
-
-
-
-
-
-
-
-

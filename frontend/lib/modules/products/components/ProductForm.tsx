@@ -2,33 +2,33 @@
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 
 import FormInput from "@/components/forms/FormInput";
 import FormSelect from "@/components/forms/FormSelect";
 import FormTextarea from "@/components/forms/FormTextarea";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import Button from "@/components/ui/Button";
+import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 import {
   createProductSchema,
   type CreateProductFormInput,
   type CreateProductFormOutput,
 } from "@/lib/modules/products/schemas/product.schema";
+
 import type {
   Product,
-  ProductImage,
   ProductFormImage,
-  ProductUnit,
 } from "@/lib/modules/products/types/product.types";
-import { FormCurrencyInput } from "@/components/forms/FormCurrencyInput";
-import ImageUpload from "@/components/ui/ImageUpload";
-import { useState } from "react";
-import {
-  PRODUCT_TYPE_OPTIONS,
-  UNIT_OPTIONS,
-} from "../constants/product.constants";
+
+import { INVENTORY_TRACKING_OPTIONS } from "../constants/product.constants";
+
+import { useCategories, useUnits } from "../hooks/useProducts";
 
 // ── Props ──────────────────────────────────────────────────
+
 interface ProductFormProps {
   initial?: Product;
   onSubmit: (
@@ -38,25 +38,32 @@ interface ProductFormProps {
   onCancel: () => void;
   submitLabel?: string;
   submitLoadingLabel?: string;
+  /** When true, tag prefix and inventory tracking are locked. */
+  lockInventoryFields?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────
+
 export default function ProductForm({
   initial,
   onSubmit,
   onCancel,
   submitLabel = "Create Product",
   submitLoadingLabel = "Creating…",
+  lockInventoryFields = false,
 }: ProductFormProps) {
   const MAX_FILES = 3;
   const MAX_SIZE_MB = 5;
+
+  const { categories, isLoading: categoriesLoading } = useCategories();
+  const { units, isLoading: unitsLoading } = useUnits();
+
   const {
     register,
     control,
     handleSubmit,
     watch,
     setError,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateProductFormInput, unknown, CreateProductFormOutput>({
     resolver: zodResolver(createProductSchema),
@@ -64,33 +71,31 @@ export default function ProductForm({
     defaultValues: initial
       ? {
           name: initial.name,
-          unit: initial.unit,
-          code: initial.code,
+          categoryId: initial.categoryId,
+          unitId: initial.unitId,
+          inventoryTracking: initial.inventoryTracking,
+          tagPrefix: initial.tagPrefix ?? "",
+          code: initial.code ?? "",
           defaultUnitPrice: String(initial.defaultUnitPrice),
           description: initial.description ?? "",
-          productType: initial.productType,
           minimumStock: initial.minimumStock
             ? String(initial.minimumStock)
             : "",
         }
       : {
           name: "",
-          unit: "kg",
+          categoryId: "",
+          unitId: "",
+          inventoryTracking: "INDIVIDUAL_ITEMS",
+          tagPrefix: "",
           code: "",
           defaultUnitPrice: "",
           description: "",
-          productType: "consumable",
           minimumStock: "",
         },
   });
 
-  const productType = watch("productType");
-
-  // const [imageFiles, setImageFiles] = useState<File[]>([]);
-
-  // const [keptImages, setKeptImages] = useState<ProductImage[]>(
-  //   initial?.images ?? [],
-  // );
+  const inventoryTracking = watch("inventoryTracking");
 
   const [images, setImages] = useState<ProductFormImage[]>(() =>
     (initial?.images ?? []).map((image) => ({
@@ -99,18 +104,29 @@ export default function ProductForm({
     })),
   );
 
+  const categoryOptions = categories.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+
+  const unitOptions = units.map((u) => ({
+    value: u.id,
+    label: `${u.label} (${u.code})`,
+  }));
+
   async function handleFormSubmit(data: CreateProductFormOutput) {
     try {
       await onSubmit(data, images);
     } catch (err) {
-      // Re-throw so the page/modal can also handle it if needed,
-      // but also set the root error so ErrorBanner renders
       const message =
         err instanceof Error ? err.message : "An unexpected error occurred.";
       setError("root", { message });
       throw err;
     }
   }
+
+  const isIndividualItems = inventoryTracking === "INDIVIDUAL_ITEMS";
+  const isStockQuantity = inventoryTracking === "STOCK_QUANTITY";
 
   return (
     <form
@@ -123,94 +139,129 @@ export default function ProductForm({
         <FormInput
           label="Product Name"
           required
-          placeholder="e.g. CNG, LNG, LPG"
-          hint="The name users see when selecting a product on an order."
+          placeholder="e.g. MacBook Pro 2021"
+          hint="The name users see when selecting a product."
           error={errors.name?.message}
           {...register("name")}
         />
 
+        {/* SKU — optional */}
+        <FormInput
+          label="SKU"
+          placeholder="e.g. MBP-2021"
+          hint="Optional. A unique business code for this product."
+          error={errors.code?.message}
+          {...register("code")}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Category */}
         <Controller
           control={control}
-          name="productType"
+          name="categoryId"
           render={({ field }) => (
             <FormSelect
-              label="Product Type"
+              label="Category"
               required
-              options={PRODUCT_TYPE_OPTIONS}
+              options={categoryOptions}
               value={field.value}
-              // onValueChange={field.onChange}
-              onValueChange={(v) => {
-                field.onChange(v);
-                if (v === "tracked") {
-                  setValue("unit", "unit");
-                } else {
-                  setValue("unit", "kg"); // ← reset to default when switching back
-                }
-              }}
-              error={errors.productType?.message}
-              hint="Consumables are quantity-based. Tracked assets are individually tagged."
+              onValueChange={field.onChange}
+              error={errors.categoryId?.message}
+              hint="Groups this product for filtering and reporting."
+              disabled={categoriesLoading}
+            />
+          )}
+        />
+
+        {/* Unit */}
+        <Controller
+          control={control}
+          name="unitId"
+          render={({ field }) => (
+            <FormSelect
+              label="Unit of Measurement"
+              required
+              options={unitOptions}
+              value={field.value}
+              onValueChange={field.onChange}
+              error={errors.unitId?.message}
+              hint="What one unit of this product represents."
+              disabled={unitsLoading}
             />
           )}
         />
       </div>
 
-      {/* Unit + Price side by side */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {productType === "tracked" && (
-          <FormInput
-            label="Product Code / Tag Prefix"
+      {/* Inventory Tracking */}
+      <Controller
+        control={control}
+        name="inventoryTracking"
+        render={({ field }) => (
+          <FormSelect
+            label="Inventory Tracking"
             required
-            placeholder="e.g. CYL12, GEN50, REG"
-            hint="Used as prefix for inventory tag numbers e.g. CYL12-20260601-001"
-            error={errors.code?.message}
-            {...register("code")}
+            options={INVENTORY_TRACKING_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+            }))}
+            value={field.value}
+            onValueChange={field.onChange}
+            error={errors.inventoryTracking?.message}
+            hint={
+              lockInventoryFields
+                ? "Locked — this product already has inventory."
+                : "Determines how received stock for this product is represented."
+            }
+            disabled={lockInventoryFields}
           />
         )}
+      />
 
-        {productType === "consumable" && (
-          <Controller
-            control={control}
-            name="unit"
-            render={({ field }) => (
-              <FormSelect
-                label="Unit of Measurement"
-                required
-                options={UNIT_OPTIONS}
-                value={field.value}
-                onValueChange={(v) => field.onChange(v as ProductUnit)}
-                error={errors.unit?.message}
-                hint="How quantities of this product are measured."
-              />
-            )}
-          />
-        )}
-
-        {productType === "consumable" && (
-          <FormInput
-            label="Minimum Stock Threshold"
-            type="text"
-            inputMode="numeric"
-            placeholder="e.g. 10,000"
-            hint="Alert when stock falls at or below this level. Leave blank for no alert."
-            error={errors.minimumStock?.message}
-            {...register("minimumStock")}
-          />
-        )}
-
-        <FormCurrencyInput
-          control={control}
-          name="defaultUnitPrice"
-          label="Default Unit Price (₦)"
-          error={errors.defaultUnitPrice?.message}
+      {/* Tag Prefix — only for Individual Items */}
+      {isIndividualItems && (
+        <FormInput
+          label="Tag Prefix"
           required
+          placeholder="e.g. MBP, CYL12, REG"
+          hint={
+            lockInventoryFields
+              ? "Locked — this product already has inventory."
+              : "Used as a prefix for inventory tags, e.g. MBP-000001."
+          }
+          error={errors.tagPrefix?.message}
+          disabled={lockInventoryFields}
+          {...register("tagPrefix")}
         />
-      </div>
+      )}
+
+      {/* Default Unit Price */}
+      <FormCurrencyInput
+        control={control}
+        name="defaultUnitPrice"
+        label="Default Unit Price (₦)"
+        error={errors.defaultUnitPrice?.message}
+        required
+      />
+
+      {/* Minimum Stock Threshold — only meaningful for stock quantity */}
+      {isStockQuantity && (
+        <FormInput
+          label="Minimum Stock Threshold"
+          type="text"
+          inputMode="numeric"
+          placeholder="e.g. 100"
+          hint="Alert when available stock falls at or below this level. Leave blank for no alert."
+          error={errors.minimumStock?.message}
+          {...register("minimumStock")}
+        />
+      )}
 
       {/* Description */}
       <FormTextarea
         label="Description"
         placeholder="Optional notes about this product for internal reference."
-        hint="Not shown to customers. For internal reference only."
+        hint="Not shown to customers."
         error={errors.description?.message}
         {...register("description")}
       />
@@ -223,10 +274,9 @@ export default function ProductForm({
         maxSizeMB={MAX_SIZE_MB}
         hint="Up to 3 images. First image is used as the primary display image."
       />
-      {/* Root error */}
+
       <ErrorBanner message={errors.root?.message} />
 
-      {/* Actions */}
       <div className="mt-4">
         <Button
           type="submit"

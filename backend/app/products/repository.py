@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -35,11 +33,19 @@ class ProductRepository:
             .first()
         )
 
+    def get_by_tag_prefix(self, db: Session, tag_prefix: str) -> Product | None:
+        return (
+            db.query(Product)
+            .filter(func.upper(Product.tag_prefix) == tag_prefix.upper().strip())
+            .first()
+        )
+
     def list(
         self,
         db: Session,
         search: str | None = None,
-        product_type: str | None = None,
+        inventory_tracking: str | None = None,
+        category_id: str | None = None,
         status: str | None = None,
         page: int = 1,
         page_size: int = 50,
@@ -54,11 +60,15 @@ class ProductRepository:
                     Product.name.ilike(term),
                     Product.description.ilike(term),
                     Product.code.ilike(term),
+                    Product.tag_prefix.ilike(term),
                 )
             )
 
-        if product_type:
-            q = q.filter(Product.product_type == product_type)
+        if inventory_tracking:
+            q = q.filter(Product.inventory_tracking == inventory_tracking)
+
+        if category_id:
+            q = q.filter(Product.category_id == category_id)
 
         if status:
             q = q.filter(Product.status == status)
@@ -76,7 +86,7 @@ class ProductRepository:
         )
 
         return items, total
-
+    
     def create(
         self,
         db: Session,

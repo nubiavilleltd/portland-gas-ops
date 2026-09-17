@@ -3,11 +3,12 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import func, exists
+from sqlalchemy import func, exists, or_
 from sqlalchemy.orm import Session, joinedload
+
 from app.shared.utils.number_generator import generate_entity_no
 
-from app.inventory.enums import InventoryItemStatus, MovementType, DispositionStatus
+from app.inventory.enums import InventoryItemStatus, DispositionStatus
 from app.inventory.model import (
     ConsumableStock,
     InventoryItem,
@@ -18,8 +19,8 @@ from app.inventory.model import (
 )
 
 from app.orders.model import Order, OrderItem
-from app.payments.enums import PaymentStatus
 from app.inventory import utils
+from app.products.model import Product
 
 
 class InventoryRepository:
@@ -28,38 +29,32 @@ class InventoryRepository:
     # Warehouse Locations
     # -------------------------------------------------------------------------
 
-    def generate_location_no(
-        self,
-        db: Session,
-    ) -> str:
+    def generate_location_no(self, db: Session) -> str:
         return generate_entity_no(
             db=db,
             model=WarehouseLocation,
             field_name="location_no",
             prefix="LOC",
         )
-    
-    def generate_movement_no(
-        self,
-        db: Session,
-    ) -> str:
+
+    def generate_movement_no(self, db: Session) -> str:
         return generate_entity_no(
             db=db,
             model=StockMovement,
             field_name="movement_no",
             prefix="MOV",
         )
-    
+
     def generate_tag_number(
         self,
         db: Session,
-        product_code: str,
+        tag_prefix: str,
     ) -> str:
         return generate_entity_no(
             db=db,
             model=InventoryItem,
             field_name="tag_number",
-            prefix=product_code,
+            prefix=tag_prefix,
         )
 
     def list_locations(self, db: Session) -> List[WarehouseLocation]:
@@ -124,18 +119,15 @@ class InventoryRepository:
             .filter(InventoryItem.id == item_id)
             .first()
         )
-    
+
     def get_inventory_items(
         self,
         db: Session,
         item_ids: list[str],
     ) -> list[InventoryItem]:
-
         return (
             db.query(InventoryItem)
-            .filter(
-                InventoryItem.id.in_(item_ids),
-            )
+            .filter(InventoryItem.id.in_(item_ids))
             .all()
         )
 
@@ -163,6 +155,7 @@ class InventoryRepository:
         product_id: Optional[str] = None,
         status: Optional[InventoryItemStatus] = None,
         location_id: Optional[str] = None,
+        search: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ) -> Tuple[List[InventoryItem], int]:
@@ -187,20 +180,25 @@ class InventoryRepository:
         if location_id:
             q = q.filter(InventoryItem.location_id == location_id)
 
+        if search:
+            term = f"%{search.strip()}%"
+            q = q.filter(
+                or_(
+                    InventoryItem.tag_number.ilike(term),
+                    InventoryItem.serial_number.ilike(term),
+                )
+            )
+
         total = q.with_entities(func.count(InventoryItem.id)).scalar() or 0
 
         items = (
-            q.order_by(
-                InventoryItem.received_into_inventory_at.desc(),
-                # InventoryItem.tag_number.desc(),
-            )
+            q.order_by(InventoryItem.received_into_inventory_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
             .all()
         )
 
         return items, total
-
     def create_inventory_item(
         self,
         db: Session,
@@ -217,7 +215,6 @@ class InventoryRepository:
         item: InventoryItem,
         **fields,
     ) -> InventoryItem:
-
         for key, value in fields.items():
             setattr(item, key, value)
 
@@ -230,7 +227,6 @@ class InventoryRepository:
         product_id: str,
         limit: int,
     ) -> List[InventoryItem]:
-
         return (
             db.query(InventoryItem)
             .filter(
@@ -285,7 +281,6 @@ class InventoryRepository:
         db: Session,
         inventory_item_id: str,
     ) -> None:
-
         (
             db.query(OrderItemInventory)
             .filter(
@@ -305,7 +300,6 @@ class InventoryRepository:
         db: Session,
         order_item_id: int,
     ) -> List[OrderItemInventory]:
-
         return (
             db.query(OrderItemInventory)
             .options(joinedload(OrderItemInventory.inventory_item))
@@ -315,18 +309,18 @@ class InventoryRepository:
             )
             .all()
         )
-    
+
     def get_allocated_inventory_for_trip(
         self,
         db: Session,
         trip_id: str,
     ) -> List[InventoryItem]:
-
         return (
             db.query(InventoryItem)
             .filter(InventoryItem.trip_id == trip_id)
             .all()
         )
+
     # -------------------------------------------------------------------------
     # Inventory Status Updates
     # -------------------------------------------------------------------------
@@ -338,54 +332,21 @@ class InventoryRepository:
         *,
         order_id: str,
         trip_id: str,
-        disposition: DispositionStatus,
+        disposition: Optional[DispositionStatus] = None,
     ) -> None:
 
         item.status = InventoryItemStatus.reserved
         item.order_id = order_id
         item.trip_id = trip_id
-        item.disposition = disposition
-
-        db.flush()
-    
-    def deduct_consumable_stock(
-        self,
-        db: Session,
-        *,
-        product_id: str,
-        location_id: str,
-        quantity: Decimal,
-    ) -> ConsumableStock:
-
-        stock = self.get_consumable_stock(
-            db=db,
-            product_id=product_id,
-            location_id=location_id,
-        )
-
-        if stock is None:
-            raise ValueError(
-                "Consumable stock not found."
-            )
-
-        if stock.quantity < quantity:
-            raise ValueError(
-                f"Insufficient stock. Available {stock.quantity}, required {quantity}."
-            )
-
-        stock.quantity -= quantity
+        item.disposition = disposition or DispositionStatus.sold
 
         db.flush()
 
-        return stock
-    
-    
     def release_inventory_item(
         self,
         db: Session,
         item: InventoryItem,
     ) -> None:
-
         item.status = InventoryItemStatus.available
         db.flush()
 
@@ -394,12 +355,11 @@ class InventoryRepository:
         db: Session,
         item: InventoryItem,
     ) -> None:
-
         item.status = InventoryItemStatus.checked_out
         db.flush()
 
     # -------------------------------------------------------------------------
-    # Consumable Stock
+    # Stock Quantity
     # -------------------------------------------------------------------------
 
     def get_consumable_stock(
@@ -408,9 +368,7 @@ class InventoryRepository:
         product_id: str,
         location_id: str,
     ) -> Optional[ConsumableStock]:
-
-     
-        stock = (
+        return (
             db.query(ConsumableStock)
             .filter(
                 ConsumableStock.product_id == product_id,
@@ -419,45 +377,20 @@ class InventoryRepository:
             .first()
         )
 
-     
-
-        rows = (
-            db.query(ConsumableStock)
-            .filter(
-                ConsumableStock.product_id == product_id
-            )
-            .all()
-        )
-
-
-
-        for row in rows:
-            print(
-                row.location_id,
-                row.quantity,
-            )
-
-        return stock
-    
-
     def get_consumable_stock_by_id(
         self,
         db: Session,
         stock_id: str,
     ) -> Optional[ConsumableStock]:
-
         return (
             db.query(ConsumableStock)
             .options(
-                joinedload(ConsumableStock.product),
+                joinedload(ConsumableStock.product).joinedload(Product.unit),
                 joinedload(ConsumableStock.location),
             )
-            .filter(
-                ConsumableStock.id == stock_id,
-            )
+            .filter(ConsumableStock.id == stock_id)
             .first()
         )
-
 
     def get_available_consumable_locations(
         self,
@@ -466,15 +399,10 @@ class InventoryRepository:
     ):
         return (
             db.query(ConsumableStock)
-            .options(
-                joinedload(ConsumableStock.location),
-            )
+            .options(joinedload(ConsumableStock.location))
             .filter(
                 ConsumableStock.product_id == product_id,
-                ConsumableStock.quantity > 0,
-            )
-            .order_by(
-                ConsumableStock.location.has(),
+                (ConsumableStock.quantity - ConsumableStock.reserved_quantity) > 0,
             )
             .all()
         )
@@ -482,16 +410,21 @@ class InventoryRepository:
     def list_consumable_stock(
         self,
         db: Session,
+        product_id: Optional[str] = None,
     ) -> List[ConsumableStock]:
 
-        return (
+        q = (
             db.query(ConsumableStock)
             .options(
-                joinedload(ConsumableStock.product),
+                joinedload(ConsumableStock.product).joinedload(Product.unit),
                 joinedload(ConsumableStock.location),
             )
-            .all()
         )
+
+        if product_id:
+            q = q.filter(ConsumableStock.product_id == product_id)
+
+        return q.all()
 
     def increase_stock(
         self,
@@ -522,10 +455,8 @@ class InventoryRepository:
         stock: ConsumableStock,
         quantity: Decimal,
     ) -> ConsumableStock:
-
         stock.quantity -= quantity
         db.flush()
-
         return stock
 
     def restore_consumable_stock(
@@ -549,9 +480,130 @@ class InventoryRepository:
             )
 
         stock.quantity += quantity
-
         db.flush()
+        return stock
 
+    def reserve_consumable_stock(
+        self,
+        db: Session,
+        *,
+        product_id: str,
+        location_id: str,
+        quantity: Decimal,
+    ) -> ConsumableStock:
+
+        stock = self.get_consumable_stock(
+            db=db,
+            product_id=product_id,
+            location_id=location_id,
+        )
+        if stock is None:
+            raise ValueError("Consumable stock not found.")
+
+        available = stock.quantity - stock.reserved_quantity
+        if available < quantity:
+            raise ValueError(
+                f"Insufficient available stock. Available {available}, "
+                f"required {quantity}."
+            )
+
+        stock.reserved_quantity += quantity
+        db.flush()
+        return stock
+
+    def release_consumable_reservation(
+        self,
+        db: Session,
+        *,
+        product_id: str,
+        location_id: str,
+        quantity: Decimal,
+    ) -> Optional[ConsumableStock]:
+
+        stock = self.get_consumable_stock(
+            db=db,
+            product_id=product_id,
+            location_id=location_id,
+        )
+
+        if stock is None:
+            # Nothing to release — no stock record for this product/location.
+            return None
+
+        if stock.reserved_quantity <= 0:
+            # No reservation exists to release. Cancellation is idempotent.
+            return stock
+
+        # Cap the release at what's actually reserved rather than raising.
+        to_release = min(quantity, stock.reserved_quantity)
+        stock.reserved_quantity -= to_release
+        db.flush()
+        return stock
+
+    def dispatch_consumable_stock(
+        self,
+        db: Session,
+        *,
+        product_id: str,
+        location_id: str,
+        quantity: Decimal,
+    ) -> ConsumableStock:
+
+        stock = self.get_consumable_stock(
+            db=db,
+            product_id=product_id,
+            location_id=location_id,
+        )
+        if stock is None:
+            raise ValueError("Consumable stock not found.")
+
+        if stock.quantity < quantity:
+            raise ValueError(
+                f"Cannot dispatch more than on-hand. "
+                f"Quantity {stock.quantity}, requested dispatch {quantity}."
+            )
+        if stock.reserved_quantity < quantity:
+            raise ValueError(
+                f"Cannot dispatch more than reserved. "
+                f"Reserved {stock.reserved_quantity}, requested dispatch {quantity}."
+            )
+
+        stock.quantity -= quantity
+        stock.reserved_quantity -= quantity
+        stock.sold_quantity += quantity
+        db.flush()
+        return stock
+
+    def restore_dispatched_consumable_stock(
+        self,
+        db: Session,
+        *,
+        product_id: str,
+        location_id: str,
+        quantity: Decimal,
+    ) -> ConsumableStock:
+        """
+        Reverses a dispatch. Used when a trip is cancelled after stock
+        was dispatched.
+        """
+
+        stock = self.get_consumable_stock(
+            db=db,
+            product_id=product_id,
+            location_id=location_id,
+        )
+        if stock is None:
+            raise ValueError("Consumable stock not found.")
+
+        if stock.sold_quantity < quantity:
+            raise ValueError(
+                f"Cannot restore more than sold. "
+                f"Sold {stock.sold_quantity}, requested restore {quantity}."
+            )
+
+        stock.quantity += quantity
+        stock.sold_quantity -= quantity
+        db.flush()
         return stock
 
     # -------------------------------------------------------------------------
@@ -563,11 +615,9 @@ class InventoryRepository:
         db: Session,
         **fields,
     ) -> StockMovement:
-
         movement = StockMovement(**fields)
         db.add(movement)
         db.flush()
-
         return movement
 
     def add_stock_movement_items(
@@ -576,7 +626,6 @@ class InventoryRepository:
         movement_id: str,
         inventory_item_ids: List[str],
     ) -> None:
-
         db.add_all(
             [
                 StockMovementItem(
@@ -610,17 +659,13 @@ class InventoryRepository:
         if location_id:
             q = q.filter(StockMovement.location_id == location_id)
 
-        return (
-            q.order_by(StockMovement.created_at.desc())
-            .all()
-        )
+        return q.order_by(StockMovement.created_at.desc()).all()
 
     def list_stock_movements_for_item(
         self,
         db: Session,
         inventory_item_id: str,
     ) -> List[StockMovement]:
-
         return (
             db.query(StockMovement)
             .join(
@@ -631,9 +676,7 @@ class InventoryRepository:
                 joinedload(StockMovement.product),
                 joinedload(StockMovement.location),
             )
-            .filter(
-                StockMovementItem.inventory_item_id == inventory_item_id,
-            )
+            .filter(StockMovementItem.inventory_item_id == inventory_item_id)
             .order_by(StockMovement.created_at.desc())
             .all()
         )
@@ -668,10 +711,10 @@ class InventoryRepository:
             "with_customer_items": counts.get(InventoryItemStatus.with_customer, 0),
             "maintenance_items": counts.get(InventoryItemStatus.maintenance, 0),
         }
-    
 
-
-
+    # -------------------------------------------------------------------------
+    # Availability helpers
+    # -------------------------------------------------------------------------
 
     def is_inventory_item_assigned(
         self,
@@ -684,7 +727,162 @@ class InventoryRepository:
                 OrderItemInventory.released_at.is_(None),
             )
         ).scalar()
-    
+
+    def get_overview_aggregates(
+        self,
+        db: Session,
+        product_ids: list[str],
+    ) -> dict:
+        """
+        Return aggregate availability data for a set of products.
+
+        Two queries, one per tracking mode, regardless of how many
+        products are requested. No N+1.
+
+        Returns:
+            {
+              "individual_item_counts": {product_id: {status: count}},
+              "stock_quantity_totals":  {product_id: {quantity, reserved, sold}},
+            }
+        """
+
+        individual_item_counts: dict[str, dict] = {}
+        stock_quantity_totals: dict[str, dict] = {}
+
+        if not product_ids:
+            return {
+                "individual_item_counts": individual_item_counts,
+                "stock_quantity_totals": stock_quantity_totals,
+            }
+
+        # Query A — individual item status counts
+        item_rows = (
+            db.query(
+                InventoryItem.product_id,
+                InventoryItem.status,
+                func.count(InventoryItem.id),
+            )
+            .filter(InventoryItem.product_id.in_(product_ids))
+            .group_by(InventoryItem.product_id, InventoryItem.status)
+            .all()
+        )
+
+        for product_id, status, count in item_rows:
+            individual_item_counts.setdefault(product_id, {})[status] = count
+
+        # Query B — stock quantity totals
+        stock_rows = (
+            db.query(
+                ConsumableStock.product_id,
+                func.coalesce(func.sum(ConsumableStock.quantity), 0),
+                func.coalesce(func.sum(ConsumableStock.reserved_quantity), 0),
+                func.coalesce(func.sum(ConsumableStock.sold_quantity), 0),
+            )
+            .filter(ConsumableStock.product_id.in_(product_ids))
+            .group_by(ConsumableStock.product_id)
+            .all()
+        )
+
+        for product_id, qty, res, sold in stock_rows:
+            stock_quantity_totals[product_id] = {
+                "quantity": Decimal(qty or 0),
+                "reserved": Decimal(res or 0),
+                "sold": Decimal(sold or 0),
+            }
+
+        return {
+            "individual_item_counts": individual_item_counts,
+            "stock_quantity_totals": stock_quantity_totals,
+        }
+
+    def get_individual_item_counts(
+        self,
+        db: Session,
+        product_id: str,
+    ) -> dict[str, int]:
+        """
+        Returns counts by status for all individual items of a product.
+
+        Example:
+            {"available": 15, "reserved": 3, "sold": 5}
+        """
+        rows = (
+            db.query(
+                InventoryItem.status,
+                func.count(InventoryItem.id),
+            )
+            .filter(InventoryItem.product_id == product_id)
+            .group_by(InventoryItem.status)
+            .all()
+        )
+        return {status: count for status, count in rows}
+
+    def get_stock_quantity_totals(
+        self,
+        db: Session,
+        product_id: str,
+    ) -> dict[str, Decimal]:
+        """
+        Returns aggregated stock quantity totals for a product across
+        all locations.
+
+        Keys:
+            quantity   - physical on-hand (includes reserved)
+            reserved   - subset of quantity allocated to orders
+            sold       - cumulative quantity that has been dispatched
+        """
+        row = (
+            db.query(
+                func.coalesce(func.sum(ConsumableStock.quantity), 0),
+                func.coalesce(func.sum(ConsumableStock.reserved_quantity), 0),
+                func.coalesce(func.sum(ConsumableStock.sold_quantity), 0),
+            )
+            .filter(ConsumableStock.product_id == product_id)
+            .one()
+        )
+
+        return {
+            "quantity": Decimal(row[0] or 0),
+            "reserved": Decimal(row[1] or 0),
+            "sold": Decimal(row[2] or 0),
+        }
+
+    # NOTE: the following methods are retained for now but are either
+    # superseded by the above or no longer used. They will be removed in
+    # a later step once the service layer stops calling them.
+    #
+    # - deduct_consumable_stock     (superseded by reserve/dispatch methods)
+    # - count_available_inventory_items (superseded by get_individual_item_counts)
+    # - get_total_available_consumable_stock (superseded by get_stock_quantity_totals)
+    # - get_committed_quantity      (superseded by the reservation model)
+
+    def deduct_consumable_stock(
+        self,
+        db: Session,
+        *,
+        product_id: str,
+        location_id: str,
+        quantity: Decimal,
+    ) -> ConsumableStock:
+
+        stock = self.get_consumable_stock(
+            db=db,
+            product_id=product_id,
+            location_id=location_id,
+        )
+
+        if stock is None:
+            raise ValueError("Consumable stock not found.")
+
+        if stock.quantity < quantity:
+            raise ValueError(
+                f"Insufficient stock. Available {stock.quantity}, required {quantity}."
+            )
+
+        stock.quantity -= quantity
+        db.flush()
+        return stock
+
     def count_available_inventory_items(
         self,
         db: Session,
@@ -704,15 +902,11 @@ class InventoryRepository:
         db: Session,
         product_id: str,
     ) -> Decimal:
-
         quantity = (
             db.query(func.sum(ConsumableStock.quantity))
-            .filter(
-                ConsumableStock.product_id == product_id,
-            )
+            .filter(ConsumableStock.product_id == product_id)
             .scalar()
         )
-
         return quantity or Decimal("0")
 
     def get_committed_quantity(
@@ -721,22 +915,17 @@ class InventoryRepository:
         product_id: str,
     ) -> Decimal:
         """
+        DEPRECATED — retained temporarily; will be removed once the
+        service layer stops calling it.
+
         Returns the total quantity of a product that has already been
         committed by orders with any payment received.
         """
-
         query = (
             db.query(func.sum(OrderItem.quantity))
-            .join(
-                Order,
-                Order.id == OrderItem.order_id,
-            )
-            .filter(
-                OrderItem.product_id == product_id,
-            )
+            .join(Order, Order.id == OrderItem.order_id)
+            .filter(OrderItem.product_id == product_id)
         )
-
         query = utils.committed_order_filters(query)
         quantity = query.scalar()
-
         return quantity or Decimal("0")

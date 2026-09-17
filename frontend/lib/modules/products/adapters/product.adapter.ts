@@ -9,16 +9,15 @@
 
 import type {
   CreateProductInput,
+  InventoryTracking,
   Product,
+  ProductCategory,
   ProductImage,
+  ProductPickerProduct,
   ProductStatus,
-  ProductType,
   ProductUnit,
   UpdateProductInput,
-  ProductPickerProduct
 } from "../types/product.types";
-
-
 
 // ─────────────────────────────────────────────────────────────
 // Backend response shapes
@@ -36,14 +35,15 @@ interface BackendProduct {
 
   name: string;
   code: string | null;
+  tag_prefix: string | null;
   description: string | null;
 
-  product_type: string;
+  inventory_tracking: string;
 
-  unit: string;
+  category_id: string;
+  unit_id: string;
 
   default_unit_price: string | number;
-
   minimum_stock: string | number | null;
 
   status: string;
@@ -55,9 +55,10 @@ interface BackendProduct {
 }
 
 interface BackendProductPicker extends BackendProduct {
-  physical_quantity: string | number;
-  committed_quantity: string | number;
-  available_quantity: string | number;
+  total: string | number;
+  available: string | number;
+  reserved: string | number;
+  sold: string | number;
   is_orderable: boolean;
 }
 
@@ -69,29 +70,54 @@ interface BackendProductList {
   has_next: boolean;
 }
 
+interface BackendProductCategory {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  is_active: boolean;
+}
+
+interface BackendProductUnit {
+  id: string;
+  code: string;
+  label: string;
+  category: string | null;
+  is_system: boolean;
+  is_active: boolean;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Backend request shapes
 // ─────────────────────────────────────────────────────────────
 
 export interface BackendCreateProductInput {
   name: string;
-  product_type: ProductType;
-  unit: ProductUnit;
+  category_id: string;
+  unit_id: string;
+  inventory_tracking: InventoryTracking;
+
   default_unit_price: number;
-  code?: string;
-  description?: string;
   minimum_stock?: number;
-  status?: ProductStatus;
+
+  code?: string;
+  tag_prefix?: string;
+
+  description?: string;
 }
 
 export interface BackendUpdateProductInput {
   name?: string;
-  product_type?: ProductType;
-  unit?: ProductUnit;
+  category_id?: string;
+  unit_id?: string;
+  inventory_tracking?: InventoryTracking;
+
   default_unit_price?: number;
-  code?: string;
-  description?: string;
   minimum_stock?: number;
+
+  code?: string;
+  tag_prefix?: string;
+
+  description?: string;
   status?: ProductStatus;
 }
 
@@ -99,36 +125,14 @@ export interface BackendUpdateProductInput {
 // Enum mapping
 // ─────────────────────────────────────────────────────────────
 
-function mapProductType(value: string): ProductType {
-  switch (value) {
-    case "tracked":
-      return "tracked";
-    default:
-      return "consumable";
-  }
+function mapInventoryTracking(value: string): InventoryTracking {
+  return value === "INDIVIDUAL_ITEMS"
+    ? "INDIVIDUAL_ITEMS"
+    : "STOCK_QUANTITY";
 }
 
 function mapProductStatus(value: string): ProductStatus {
-  switch (value) {
-    case "inactive":
-      return "inactive";
-    default:
-      return "active";
-  }
-}
-
-function mapProductUnit(value: string): ProductUnit {
-  switch (value) {
-    case "kg":
-    case "litre":
-    case "m3":
-    case "tonne":
-    case "unit":
-      return value;
-
-    default:
-      return "unit";
-  }
+  return value === "inactive" ? "inactive" : "active";
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -144,29 +148,57 @@ function mapImage(raw: BackendProductImage): ProductImage {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Reference table mapping
+// ─────────────────────────────────────────────────────────────
+
+export function adaptProductCategory(
+  raw: BackendProductCategory,
+): ProductCategory {
+  return {
+    id: raw.id,
+    name: raw.name,
+    parentId: raw.parent_id ?? undefined,
+    isActive: raw.is_active,
+  };
+}
+
+export function adaptProductUnit(
+  raw: BackendProductUnit,
+): ProductUnit {
+  return {
+    id: raw.id,
+    code: raw.code,
+    label: raw.label,
+    category: raw.category ?? undefined,
+    isSystem: raw.is_system,
+    isActive: raw.is_active,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // Backend → Frontend
 // ─────────────────────────────────────────────────────────────
 
 export function adaptProduct(raw: BackendProduct): Product {
   return {
     id: raw.id,
-
     productNo: raw.product_no,
-
     name: raw.name,
+
     code: raw.code ?? undefined,
+    tagPrefix: raw.tag_prefix ?? undefined,
+
     description: raw.description ?? undefined,
 
-    productType: mapProductType(raw.product_type),
+    inventoryTracking: mapInventoryTracking(raw.inventory_tracking),
 
-    unit: mapProductUnit(raw.unit),
+    categoryId: raw.category_id,
+    unitId: raw.unit_id,
 
     defaultUnitPrice: Number(raw.default_unit_price),
 
     minimumStock:
-      raw.minimum_stock != null
-        ? Number(raw.minimum_stock)
-        : undefined,
+      raw.minimum_stock != null ? Number(raw.minimum_stock) : undefined,
 
     status: mapProductStatus(raw.status),
 
@@ -181,60 +213,58 @@ export function adaptProductList(raw: BackendProductList): Product[] {
   return raw.items.map(adaptProduct);
 }
 
-// ─────────────────────────────────────────────────────────────
-// Frontend → Backend
-// ─────────────────────────────────────────────────────────────
-
-export function adaptCreateProductInput(
-  input: CreateProductInput
-): BackendCreateProductInput {
-  return {
-    name: input.name,
-    product_type: input.productType,
-    unit: input.unit,
-    default_unit_price: input.defaultUnitPrice,
-    code: input.code,
-    description: input.description,
-    minimum_stock: input.minimumStock,
-    status: input.status,
-  };
-}
-
-export function adaptUpdateProductInput(
-  input: UpdateProductInput
-): BackendUpdateProductInput {
-  return {
-    name: input.name,
-    product_type: input.productType,
-    unit: input.unit,
-    default_unit_price: input.defaultUnitPrice,
-    code: input.code,
-    description: input.description,
-    minimum_stock: input.minimumStock,
-    status: input.status,
-  };
-}
-
-
-
-
 export function adaptProductPicker(
   raw: BackendProductPicker,
 ): ProductPickerProduct {
   return {
     ...adaptProduct(raw),
-
-    physicalQuantity: Number(raw.physical_quantity),
-    committedQuantity: Number(raw.committed_quantity),
-    availableQuantity: Number(raw.available_quantity),
+    total: Number(raw.total),
+    available: Number(raw.available),
+    reserved: Number(raw.reserved),
+    sold: Number(raw.sold),
     isOrderable: raw.is_orderable,
   };
 }
 
-export function adaptProductPickerList(
-  raw: {
-    items: BackendProductPicker[];
-  },
-): ProductPickerProduct[] {
+export function adaptProductPickerList(raw: {
+  items: BackendProductPicker[];
+}): ProductPickerProduct[] {
   return raw.items.map(adaptProductPicker);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Frontend → Backend
+// ─────────────────────────────────────────────────────────────
+
+export function adaptCreateProductInput(
+  input: CreateProductInput,
+): BackendCreateProductInput {
+  return {
+    name: input.name,
+    category_id: input.categoryId,
+    unit_id: input.unitId,
+    inventory_tracking: input.inventoryTracking,
+    default_unit_price: input.defaultUnitPrice,
+    minimum_stock: input.minimumStock,
+    code: input.code,
+    tag_prefix: input.tagPrefix,
+    description: input.description,
+  };
+}
+
+export function adaptUpdateProductInput(
+  input: UpdateProductInput,
+): BackendUpdateProductInput {
+  return {
+    name: input.name,
+    category_id: input.categoryId,
+    unit_id: input.unitId,
+    inventory_tracking: input.inventoryTracking,
+    default_unit_price: input.defaultUnitPrice,
+    minimum_stock: input.minimumStock,
+    code: input.code,
+    tag_prefix: input.tagPrefix,
+    description: input.description,
+    status: input.status,
+  };
 }

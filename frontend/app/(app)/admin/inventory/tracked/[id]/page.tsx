@@ -1,51 +1,48 @@
 "use client";
 
-import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Info } from "lucide-react";
 
 import AppLayout from "@/components/layout/AppLayout";
-import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import QrCode from "@/components/ui/QrCode";
+import PageHeader from "@/components/ui/PageHeader";
 
 import {
   useInventoryItemById,
   useStockMovementsByItem,
 } from "@/lib/modules/inventory/hooks/useInventory";
 import { useProducts } from "@/lib/modules/products/hooks/useProducts";
-
 import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 import { canReturn } from "@/lib/modules/inventory/guards/inventory.guards";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
 import { formatDate, buildFrontendUrl } from "@/lib/utils";
 
-import type { InventoryItem } from "@/lib/modules/inventory/types/inventory.types";
-import { BadgeVariant } from "@/config/badge.config";
+import type { InventoryItem, InventoryItemStatus } from "@/lib/modules/inventory/types/inventory.types";
+import type { BadgeVariant } from "@/config/badge.config";
 import { useOrderById } from "@/lib/modules/orders/hooks/useOrders";
 import InventoryItemDetailSkeleton from "@/lib/modules/inventory/components/InventoryItemDetailSkeleton";
 import PrintableQrLabel from "@/components/ui/PrintableQrLabel";
 
-// ── Status config ─────────────────────────────────────────
-const STATUS_VARIANT: Record<InventoryItem["status"], BadgeVariant> = {
+const STATUS_VARIANT: Record<InventoryItemStatus, BadgeVariant> = {
   available: "success",
   reserved: "warning",
   checked_out: "info",
   with_customer: "cyan",
   maintenance: "orange",
+  sold: "neutral",
   retired: "neutral",
-  returned: "neutral",
 };
 
-const STATUS_LABEL: Record<InventoryItem["status"], string> = {
+const STATUS_LABEL: Record<InventoryItemStatus, string> = {
   available: "Available",
   reserved: "Reserved",
   checked_out: "Checked Out",
   with_customer: "With Customer",
   maintenance: "Maintenance",
+  sold: "Sold",
   retired: "Retired",
-  returned: "Returned",
 };
 
 const CONDITION_VARIANT: Record<InventoryItem["condition"], BadgeVariant> = {
@@ -55,11 +52,10 @@ const CONDITION_VARIANT: Record<InventoryItem["condition"], BadgeVariant> = {
   damaged: "danger",
 };
 
-// ── Info row ──────────────────────────────────────────────
 function InfoRow({
   label,
   value,
-  toolTip
+  toolTip,
 }: {
   label: string;
   value: React.ReactNode;
@@ -68,37 +64,48 @@ function InfoRow({
   return (
     <div>
       {toolTip ? (
-        <div className="flex items-center gap-2 text-xs text-brand-text-secondary cursor-pointer" title={toolTip}>
+        <div
+          className="flex items-center gap-2 text-xs text-brand-text-secondary cursor-pointer"
+          title={toolTip}
+        >
           {label}
           <Info size={12} />
         </div>
-      ) : <p className="text-xs text-brand-text-secondary">{label}</p>}
+      ) : (
+        <p className="text-xs text-brand-text-secondary">{label}</p>
+      )}
 
       <div className="font-medium mt-0.5 text-sm">{value ?? "—"}</div>
     </div>
   );
 }
 
-// ── Movement type label ───────────────────────────────────
-const MOVEMENT_LABELS: Record<string, { label: string; variant: BadgeVariant }> = {
+const MOVEMENT_LABELS: Record<
+  string,
+  { label: string; variant: BadgeVariant }
+> = {
   check_in: { label: "Check In", variant: "success" },
   check_out: { label: "Check Out", variant: "info" },
   reservation: { label: "Reserved", variant: "warning" },
+  reservation_release: { label: "Reservation Released", variant: "neutral" },
   return: { label: "Return", variant: "cyan" },
   adjustment: { label: "Adjustment", variant: "neutral" },
 };
 
-// ── Page ──────────────────────────────────────────────────
 export default function InventoryItemDetailPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
 
   const { item, isLoading: itemLoading } = useInventoryItemById(id);
-  const { movements, isLoading: movementsLoading } = useStockMovementsByItem(id);
+  const { movements, isLoading: movementsLoading } =
+    useStockMovementsByItem(id);
   const { products, isLoading: productsLoading } = useProducts();
-  const { order, isLoading: orderLoading } = useOrderById(item?.order_id as string)
+  const { order, isLoading: orderLoading } = useOrderById(
+    item?.order_id as string,
+  );
 
-  const isLoading = itemLoading || movementsLoading || productsLoading || orderLoading;
+  const isLoading =
+    itemLoading || movementsLoading || productsLoading || orderLoading;
 
   const handlePrint = () => window.print();
 
@@ -115,7 +122,9 @@ export default function InventoryItemDetailPage() {
   }
 
   const product = getProductById(products, item.product_id);
-  const itemUrl = buildFrontendUrl(INVENTORY_ROUTES.publicTrackedDetail(item.id));
+  const itemUrl = buildFrontendUrl(
+    INVENTORY_ROUTES.publicTrackedDetail(item.id),
+  );
 
   return (
     <AppLayout pageTitle={item.tag_number}>
@@ -125,7 +134,7 @@ export default function InventoryItemDetailPage() {
           className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
         >
           <ArrowLeft size={14} />
-          Back to Inventory
+          Back
         </button>
 
         <PageHeader
@@ -142,8 +151,6 @@ export default function InventoryItemDetailPage() {
         />
 
         <div className="space-y-6">
-
-          {/* ── ITEM DETAILS ───────────────────────────────── */}
           <div className="bg-white border border-brand-border rounded-2xl">
             <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
               <h2 className="text-sm font-semibold text-brand-text-primary">
@@ -151,52 +158,67 @@ export default function InventoryItemDetailPage() {
               </h2>
             </div>
 
-            {/* 3-column grid: 2 cols for details, 1 col for QR */}
             <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-              {/* ── Details: span 2 columns ── */}
               <div className="lg:col-span-2 grid grid-cols-2 gap-5">
-                <InfoRow label="Tag Number" value={<span className="font-mono">{item.tag_number}</span>} />
+                <InfoRow
+                  label="Tag Number"
+                  value={<span className="font-mono">{item.tag_number}</span>}
+                />
                 <InfoRow label="Product" value={product?.name} />
-                <InfoRow label="Status" value={<Badge variant={STATUS_VARIANT[item.status]} label={STATUS_LABEL[item.status]} />} />
-                <InfoRow label="Condition" value={<Badge variant={CONDITION_VARIANT[item.condition]} label={item.condition} />} />
-                <InfoRow label="Disposition" value={item.disposition ?? "—"} toolTip="The mode of check-out e.g sold or loaned" />
+                <InfoRow
+                  label="Status"
+                  value={
+                    <Badge
+                      variant={STATUS_VARIANT[item.status]}
+                      label={STATUS_LABEL[item.status]}
+                    />
+                  }
+                />
+                <InfoRow
+                  label="Condition"
+                  value={
+                    <Badge
+                      variant={CONDITION_VARIANT[item.condition]}
+                      label={item.condition}
+                    />
+                  }
+                />
+                <InfoRow
+                  label="Disposition"
+                  value={item.disposition ?? "—"}
+                  toolTip="The mode of check-out e.g sold or loaned"
+                />
                 <InfoRow label="Location" value={item.location_name} />
-                <InfoRow label="Received" value={formatDate(item.received_at)} />
+                <InfoRow
+                  label="Received"
+                  value={formatDate(item.received_into_inventory_at)}
+                />
                 {item.checked_out_at && (
-                  <InfoRow label="Checked Out" value={formatDate(item.checked_out_at)} />
+                  <InfoRow
+                    label="Checked Out"
+                    value={formatDate(item.checked_out_at)}
+                  />
                 )}
                 {item.expected_return_date && (
-                  <InfoRow label="Expected Return" value={formatDate(item.expected_return_date)} />
+                  <InfoRow
+                    label="Expected Return"
+                    value={formatDate(item.expected_return_date)}
+                  />
                 )}
               </div>
 
-              {/* ── QR: 1 column ── */}
               <div className="flex flex-col items-center gap-3">
                 <div className="p-3 bg-white border border-brand-border rounded-xl">
                   <QrCode value={itemUrl} size={120} />
                 </div>
 
-
-                {/* <p className="text-xs text-brand-text-secondary text-center max-w-[140px]">
-                  Scan to open this item's details.
-                </p> */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrint}
-                // className="w-[120px]"
-                >
+                <Button variant="outline" size="sm" onClick={handlePrint}>
                   Print QR Code
                 </Button>
               </div>
-
             </div>
           </div>
 
-
-
-          {/* ── CUSTOMER / ORDER INFO (if out) ─────────────── */}
           {(item.order_id || item.customer_id) && (
             <div className="bg-white border border-brand-border rounded-2xl">
               <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
@@ -207,29 +229,24 @@ export default function InventoryItemDetailPage() {
               <div className="p-6 grid grid-cols-2 gap-5">
                 {item.order_id && (
                   <InfoRow
-                    label="Order"
+                    label="Order Reference"
                     value={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        href={`/orders/${order?.id}`}
-                      >
-                        View Order
-                      </Button>
+                      <span className="font-mono">
+                        {item.order_no ?? order?.id ?? item.order_id}
+                      </span>
                     }
                   />
                 )}
                 {item.customer_id && (
                   <InfoRow
-                    label="Customer"
-                    value={order?.customerName}
+                    label="Assigned To"
+                    value={item.customer_name ?? order?.customerName ?? "—"}
                   />
                 )}
               </div>
             </div>
           )}
 
-          {/* ── MOVEMENT HISTORY ───────────────────────────── */}
           <div className="bg-white border border-brand-border rounded-2xl">
             <div className="px-6 py-4 border-b border-brand-border bg-gray-50/50 rounded-t-2xl">
               <h2 className="text-sm font-semibold text-brand-text-primary">
@@ -247,12 +264,13 @@ export default function InventoryItemDetailPage() {
                   .sort(
                     (a, b) =>
                       new Date(b.created_at).getTime() -
-                      new Date(a.created_at).getTime()
+                      new Date(a.created_at).getTime(),
                   )
                   .map((movement) => {
-                    const config =
-                      MOVEMENT_LABELS[movement.movement_type] ??
-                      { label: movement.movement_type, variant: "neutral" as BadgeVariant };
+                    const config = MOVEMENT_LABELS[movement.movement_type] ?? {
+                      label: movement.movement_type,
+                      variant: "neutral" as BadgeVariant,
+                    };
 
                     return (
                       <div
@@ -289,7 +307,6 @@ export default function InventoryItemDetailPage() {
               </div>
             )}
           </div>
-
         </div>
       </div>
 

@@ -12,6 +12,7 @@ from app.orders.service import OrderService
 from app.fleet.drivers.service import DriverService
 from app.fleet.vehicles.service import VehicleService
 from app.fleet.trips.service import TripService
+from app.fleet.trips.enums import TripStatus
 
 
 class CancelTripWorkflow:
@@ -47,6 +48,19 @@ class CancelTripWorkflow:
         order_ids = self.trip_service.get_order_ids(
             db=db,
             trip_id=trip.id,
+        )
+
+        was_reserved_or_dispatched = trip.status in (
+            TripStatus.ready_for_dispatch,
+            TripStatus.dispatched,
+            TripStatus.in_transit,
+            TripStatus.completed,
+        )
+
+        was_dispatched = trip.status in (
+            TripStatus.dispatched,
+            TripStatus.in_transit,
+            TripStatus.completed,
         )
 
         #
@@ -119,10 +133,20 @@ class CancelTripWorkflow:
         #
         # Return checked-out inventory
         #
-        self.inventory_service.release_trip_inventory(
-            db=db,
-            trip_id=trip.id,
-        )
+        # self.inventory_service.release_trip_inventory(
+        #     db=db,
+        #     trip_id=trip.id,
+        # )
+
+                #
+        # Return checked-out / reserved inventory (only if there was any)
+        #
+        if was_reserved_or_dispatched:
+            self.inventory_service.release_trip_inventory(
+                db=db,
+                trip_id=trip.id,
+                was_dispatched=was_dispatched,
+            )
 
         #
         # Audit Trip

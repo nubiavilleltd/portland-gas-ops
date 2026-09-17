@@ -1,19 +1,19 @@
 import { InventoryService } from "../services/inventory.service";
 import type {
-  CheckInTrackedInput,
-  CheckInConsumableInput,
+  CheckInIndividualItemsInput,
+  CheckInStockQuantityInput,
   InventoryItem,
   ConsumableStock,
 } from "../types/inventory.types";
 
-export async function checkInTrackedWorkflow(
-  input: CheckInTrackedInput
+export async function checkInIndividualItemsWorkflow(
+  input: CheckInIndividualItemsInput,
 ): Promise<InventoryItem[]> {
-  return InventoryService.checkInTracked(input);
+  return InventoryService.checkInIndividualItems(input);
 }
 
-export async function checkInConsumableWorkflow(
-  input: CheckInConsumableInput
+export async function checkInStockQuantityWorkflow(
+  input: CheckInStockQuantityInput,
 ): Promise<ConsumableStock> {
-  return InventoryService.checkInConsumable(input);
+  return InventoryService.checkInStockQuantity(input);
 }

@@ -36,7 +36,7 @@ import type { OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import SimpleTable, { SimpleTableColumn } from "@/components/ui/SimpleTable";
 import { BackButton } from "@/components/ui/BackButton";
 
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { useProducts, useUnits } from "@/lib/modules/products/hooks/useProducts";
 import AuditTimeline from "@/lib/modules/audit/components/AuditTimeline";
 import { useAuditByEntity } from "@/lib/modules/audit/hooks/useAudit";
 import { Invoice } from "@/lib/modules/invoices/types/invoice.types";
@@ -67,6 +67,9 @@ export default function OrderDetailPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [confirmDeliveryOpen, setConfirmDeliveryOpen] = useState(false);
   const { user: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+
+  const { units } = useUnits();
+  const unitLabelById = new Map(units.map((u) => [u.id, u.label]));
 
   const { invoice, isFetching: isFetchingInvoice } = useInvoiceByOrderId(id);
   const { summary: paymentSummary, isFetching: isFetchingPayment } =
@@ -128,15 +131,16 @@ export default function OrderDetailPage() {
       label: "Product",
       render: (item) => <span className="font-medium">{item.productName}</span>,
     },
-    {
-      label: "Quantity",
-      render: (item) => {
-        const unit = productMap.get(item.productId)?.unit ?? "unit";
-        // const formattedUnit = unit === "unit" ? pluralizeNumber(item.quantity, unit) : unit;
-        return `${item.quantity.toLocaleString()} ${unit}`;
-        // return `${item.quantity.toLocaleString()} ${unit}`;
-      },
-    },
+ {
+  label: "Quantity",
+  render: (item) => {
+    const product = productMap.get(item.productId);
+    const unitLabel = product
+      ? unitLabelById.get(product.unitId) ?? ""
+      : "";
+    return `${item.quantity.toLocaleString()} ${unitLabel}`.trim();
+  },
+},
     {
       label: "Unit Price",
       render: (item) => formatCurrency(item.unitPrice),

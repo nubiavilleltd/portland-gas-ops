@@ -4,89 +4,63 @@ import { Package, Check } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import PickerModal from "@/components/ui/PickerModal";
 import type { Product, ProductPickerProduct } from "@/lib/modules/products/types/product.types";
-import type { InventoryItem, ConsumableStock } from "@/lib/modules/inventory/types/inventory.types";
-import { getAvailableCount, getConsumableStockLevel } from "@/lib/modules/inventory/selectors/inventory.selectors";
-import { isTracked } from "@/lib/modules/products/types/product.types";
+import { useUnits } from "@/lib/modules/products/hooks/useProducts";
+import { isIndividualItems } from "@/lib/modules/products/types/product.types";
 
 interface ProductPickerModalProps {
   open: boolean;
   onClose: () => void;
   onSelect: (product: Product) => void;
   products: ProductPickerProduct[];
-  // inventoryItems: InventoryItem[];
-  // consumableStock: ConsumableStock[];
   selectedProductIds?: string[];
 }
 
 function ProductCard({
   product,
   isSelected,
+  unitLabel,
 }: {
   product: ProductPickerProduct;
   isSelected: boolean;
+  unitLabel?: string;
 }) {
   const primaryImage = product.images?.[0];
-
-
-
-  // const tracked = isTracked(product);
-
-  // const availableCount = getAvailableCount(inventoryItems, product.id);
-
-  // const consumableQty = getConsumableStockLevel(
-  //   consumableStock,
-  //   product.id,
-  // );
-
-  // const hasInventory = tracked
-  //   ? availableCount > 0
-  //   : consumableQty > 0;
-
   const hasInventory = product.isOrderable;
 
-  const stockLabel = isTracked(product)
-  ? hasInventory
-    ? `✓ ${product.availableQuantity} inventory item(s) available`
-    : "⚠ No inventory available"
-  : hasInventory
-    ? `✓ ${product.availableQuantity.toLocaleString()} ${product.unit} available`
-    : "⚠ No stock available";
+  const isIndividual = isIndividualItems(product);
 
-  // const stockLabel = tracked
-  //   ? hasInventory
-  //     ? `✓ ${availableCount} inventory item(s) available`
-  //     : "⚠ No inventory available"
-  //   : hasInventory
-  //     ? `✓ ${consumableQty.toLocaleString()} ${product.unit} available`
-  //     : "⚠ No stock available";
+  const stockLabel = hasInventory
+    ? isIndividual
+      ? `✓ ${product.available.toLocaleString()} items available`
+      : `✓ ${product.available.toLocaleString()} ${unitLabel ?? ""} available`.trim()
+    : isIndividual
+      ? "⚠ No inventory available"
+      : "⚠ No stock available";
 
-
-  // const helperText = tracked
-  //   ? !hasInventory
-  //     ? "Order can still be created. Dispatch will not be possible until inventory is checked in."
-  //     : undefined
-  //   : !hasInventory
-  //     ? "Order can still be created. Warehouse must receive stock before dispatch."
-  //     : undefined;
+  const trackingLabel = isIndividual ? "Individual Items" : "Stock Quantity";
 
   return (
     <div className="flex items-center gap-4 px-4 py-3">
-      {/* Image */}
       <div className="w-14 h-14 rounded-xl overflow-hidden border border-brand-border bg-gray-50 shrink-0 flex items-center justify-center">
         {primaryImage ? (
-          <img src={primaryImage.url} alt={product.name} className="w-full h-full object-cover" />
+          <img
+            src={primaryImage.url}
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
         ) : (
           <Package size={22} className="text-gray-300" />
         )}
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className={cn(
-            "text-sm font-medium truncate",
-            isSelected ? "text-brand-purple" : "text-brand-text-primary"
-          )}>
+          <p
+            className={cn(
+              "text-sm font-medium truncate",
+              isSelected ? "text-brand-purple" : "text-brand-text-primary",
+            )}
+          >
             {product.name}
           </p>
           {isSelected && (
@@ -96,37 +70,34 @@ function ProductCard({
           )}
         </div>
         <p className="text-xs text-brand-text-secondary mt-0.5">
-          {isTracked(product) ? "Tracked Inventory" : "Consumable Stock"} · {product.unit}
+          {trackingLabel}
+          {unitLabel ? ` · ${unitLabel}` : ""}
         </p>
         <div className="mt-1">
           <span
             className={cn(
               "text-xs font-medium",
-              hasInventory
-                ? "text-green-700"
-                : "text-amber-700"
+              hasInventory ? "text-green-700" : "text-amber-700",
             )}
           >
             {stockLabel}
           </span>
 
-          {/* {helperText && (
-            <p className="mt-1 text-xs text-brand-text-secondary">
-              {helperText}
-            </p>
-          )} */}
-
           <p className="mt-1 text-xs text-brand-text-secondary">
-            {formatCurrency(product.defaultUnitPrice)} / {product.unit}
+            {formatCurrency(product.defaultUnitPrice)}
+            {unitLabel ? ` / ${unitLabel}` : ""}
           </p>
         </div>
       </div>
 
-      {/* Check */}
-      <div className={cn(
-        "w-6 h-6 rounded-full shrink-0 flex items-center justify-center border-2 transition-colors",
-        isSelected ? "bg-brand-purple border-brand-purple" : "border-brand-border"
-      )}>
+      <div
+        className={cn(
+          "w-6 h-6 rounded-full shrink-0 flex items-center justify-center border-2 transition-colors",
+          isSelected
+            ? "bg-brand-purple border-brand-purple"
+            : "border-brand-border",
+        )}
+      >
         {isSelected && <Check size={12} className="text-white" />}
       </div>
     </div>
@@ -134,10 +105,16 @@ function ProductCard({
 }
 
 export default function ProductPickerModal({
-  open, onClose, onSelect,
+  open,
+  onClose,
+  onSelect,
   products,
   selectedProductIds = [],
 }: ProductPickerModalProps) {
+  const { units } = useUnits();
+
+  const unitLabelById = new Map(units.map((u) => [u.id, u.label]));
+
   return (
     <PickerModal<ProductPickerProduct>
       open={open}
@@ -152,33 +129,12 @@ export default function ProductPickerModal({
       getKey={(p) => p.id}
       emptyIcon={<Package size={32} />}
       emptyMessage="No products in catalogue"
-      isSelectable={(product) => {
-        // const tracked = isTracked(product);
-
-        // const availableCount = getAvailableCount(
-        //   inventoryItems,
-        //   product.id,
-        // );
-
-        // const consumableQty = getConsumableStockLevel(
-        //   consumableStock,
-        //   product.id,
-        // );
-
-        // const selectable = tracked
-        //   ? availableCount > 0
-        //   : consumableQty > 0;
-
-
-
-        // return selectable;
-
-        return product.isOrderable;
-      }}
+      isSelectable={(product) => product.isOrderable}
       renderCard={(product, isSelected) => (
         <ProductCard
           product={product}
           isSelected={isSelected}
+          unitLabel={unitLabelById.get(product.unitId)}
         />
       )}
     />

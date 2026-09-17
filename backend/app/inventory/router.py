@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import List, Optional
@@ -12,8 +11,8 @@ from app.shared.models.user import User
 
 from app.inventory.service import InventoryService
 from app.inventory.schema import (
-    CheckInTrackedInput,
-    CheckInConsumableInput,
+    CheckInIndividualItemsInput,
+    CheckInStockQuantityInput,
     ReturnItemInput,
     InventoryItemResponse,
     ConsumableStockResponse,
@@ -22,7 +21,9 @@ from app.inventory.schema import (
     LocationResponse,
     InventoryKPIResponse,
     ConsumableStockDetailResponse,
-    AvailableConsumableLocationResponse
+    AvailableStockQuantityLocationResponse,
+    InventoryOverviewListResponse,
+    ProductAvailabilityResponse
 )
 
 from app.audit.schema import AuditLogResponse, AuditEntityType
@@ -32,7 +33,7 @@ from app.inventory.mapper import (
     inventory_item_to_response,
     consumable_stock_to_response,
     stock_movement_to_response,
-    consumable_stock_detail_to_response
+    consumable_stock_detail_to_response,
 )
 
 router = APIRouter()
@@ -50,10 +51,8 @@ def list_locations(
 ):
     return service.get_locations(db)
 
-@router.post(
-    "/locations",
-    response_model=LocationResponse,
-)
+
+@router.post("/locations", response_model=LocationResponse)
 def create_location(
     data: CreateLocationInput,
     db: Session = Depends(get_db),
@@ -71,6 +70,7 @@ def create_location(
 
     return location
 
+
 # -------------------------------------------------------------------------
 # Dashboard
 # -------------------------------------------------------------------------
@@ -83,6 +83,58 @@ def get_kpis(
     return service.get_kpis(db)
 
 
+
+# -------------------------------------------------------------------------
+# Inventory Overview
+# -------------------------------------------------------------------------
+
+@router.get(
+    "/overview",
+    response_model=InventoryOverviewListResponse,
+)
+def get_inventory_overview(
+    search: Optional[str] = Query(None),
+    inventory_tracking: Optional[InventoryTracking] = Query(None),
+    category_id: Optional[str] = Query(None),
+    stock_status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items, total = service.get_inventory_overview(
+        db=db,
+        search=search,
+        inventory_tracking=inventory_tracking,
+        category_id=category_id,
+        stock_status=stock_status,
+        page=page,
+        page_size=page_size,
+    )
+
+    return InventoryOverviewListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_next=(page * page_size) < total,
+    )
+
+
+@router.get(
+    "/products/{product_id}/availability",
+    response_model=ProductAvailabilityResponse,
+)
+def get_product_availability(
+    product_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.products.service import ProductService
+    product = ProductService().get_or_raise(db, product_id)
+    return service.get_product_availability(db=db, product=product)
+
+
 # -------------------------------------------------------------------------
 # Inventory Items
 # -------------------------------------------------------------------------
@@ -91,6 +143,10 @@ def get_kpis(
 def list_inventory_items(
     product_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    location_id: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -98,9 +154,11 @@ def list_inventory_items(
         db,
         product_id=product_id,
         status=status,
+        location_id=location_id,
+        search=search,
+        page=page,
+        page_size=page_size,
     )
-
-
     return [inventory_item_to_response(item) for item in items]
 
 
@@ -114,10 +172,7 @@ def get_inventory_item(
     return inventory_item_to_response(item)
 
 
-@router.post(
-    "/items/{item_id}/return",
-    response_model=InventoryItemResponse,
-)
+@router.post("/items/{item_id}/return", response_model=InventoryItemResponse)
 def return_inventory_item(
     item_id: int,
     data: ReturnItemInput,
@@ -139,29 +194,19 @@ def return_inventory_item(
 
 
 # -------------------------------------------------------------------------
-# Consumable Stock
+# Stock Quantity
 # -------------------------------------------------------------------------
 
-@router.get(
-    "/stock",
-    response_model=List[ConsumableStockResponse],
-)
+@router.get("/stock", response_model=List[ConsumableStockResponse])
 def list_consumable_stock(
+    product_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    stock = service.list_stock(db)
+    stock = service.list_stock(db, product_id=product_id)
+    return [consumable_stock_to_response(item) for item in stock]
 
-    return [
-        consumable_stock_to_response(item)
-        for item in stock
-    ]
-
-
-@router.get(
-    "/stock/{stock_id}",
-    response_model=ConsumableStockDetailResponse,
-)
+@router.get("/stock/{stock_id}", response_model=ConsumableStockDetailResponse)
 def get_consumable_stock(
     stock_id: str,
     db: Session = Depends(get_db),
@@ -171,15 +216,12 @@ def get_consumable_stock(
         db=db,
         stock_id=stock_id,
     )
+    return consumable_stock_detail_to_response(stock, movements)
 
-    return consumable_stock_detail_to_response(
-        stock,
-        movements,
-    )
 
 @router.get(
     "/products/{product_id}/available-locations",
-    response_model=list[AvailableConsumableLocationResponse],
+    response_model=list[AvailableStockQuantityLocationResponse],
 )
 def get_available_locations(
     product_id: str,
@@ -195,10 +237,7 @@ def get_available_locations(
 # Stock Movements
 # -------------------------------------------------------------------------
 
-@router.get(
-    "/movements",
-    response_model=List[StockMovementResponse],
-)
+@router.get("/movements", response_model=List[StockMovementResponse])
 def list_stock_movements(
     product_id: Optional[str] = Query(None),
     item_id: Optional[int] = Query(None),
@@ -210,7 +249,6 @@ def list_stock_movements(
         product_id=product_id,
         item_id=item_id,
     )
-
     return [stock_movement_to_response(m) for m in movements]
 
 
@@ -219,15 +257,15 @@ def list_stock_movements(
 # -------------------------------------------------------------------------
 
 @router.post(
-    "/check-in/tracked",
+    "/check-in/individual-items",
     response_model=List[InventoryItemResponse],
 )
-def check_in_tracked_items(
-    data: CheckInTrackedInput,
+def check_in_individual_items(
+    data: CheckInIndividualItemsInput,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
-    items = service.check_in_tracked(
+    items = service.check_in_individual_items(
         db,
         data,
         recorded_by=current_user.id,
@@ -244,15 +282,15 @@ def check_in_tracked_items(
 
 
 @router.post(
-    "/check-in/consumable",
+    "/check-in/stock-quantity",
     response_model=ConsumableStockResponse,
 )
-def check_in_consumable_stock(
-    data: CheckInConsumableInput,
+def check_in_stock_quantity(
+    data: CheckInStockQuantityInput,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
-    stock = service.check_in_consumable(
+    stock = service.check_in_stock_quantity(
         db,
         data,
         recorded_by=current_user.id,

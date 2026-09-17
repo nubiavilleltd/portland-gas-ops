@@ -6,14 +6,14 @@ export const PRODUCT_ERROR_MESSAGES = {
     "A product with this name already exists.",
 
   PRODUCT_CODE_ALREADY_EXISTS:
-    "A product with this code already exists.",
+    "A product with this SKU already exists.",
+
+  PRODUCT_TAG_PREFIX_ALREADY_EXISTS:
+    "This tag prefix is already in use by another product.",
 
   PRODUCT_ALREADY_ACTIVE:
     "This product is already active.",
 
   PRODUCT_ALREADY_INACTIVE:
     "This product is already inactive.",
-
-  INVALID_PRODUCT_TYPE:
-    "The selected product type is invalid.",
 } as const;
