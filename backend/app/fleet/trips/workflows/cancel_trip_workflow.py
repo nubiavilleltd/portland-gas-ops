@@ -30,7 +30,8 @@ class CancelTripWorkflow:
         db: Session,
         trip_id: str,
         reason: str | None,
-        actor_employee_id:str,
+        actor_user_id: str,
+        actor_employee_id: str,
         actor_name: str,
     ):
 
@@ -130,15 +131,6 @@ class CancelTripWorkflow:
                     actor_name=None,
                 )
 
-        #
-        # Return checked-out inventory
-        #
-        # self.inventory_service.release_trip_inventory(
-        #     db=db,
-        #     trip_id=trip.id,
-        # )
-
-                #
         # Return checked-out / reserved inventory (only if there was any)
         #
         if was_reserved_or_dispatched:
@@ -146,6 +138,8 @@ class CancelTripWorkflow:
                 db=db,
                 trip_id=trip.id,
                 was_dispatched=was_dispatched,
+                actor_user_id=actor_user_id,
+                actor_name=actor_name,
             )
 
         #

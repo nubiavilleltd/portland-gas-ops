@@ -648,12 +648,14 @@ class InventoryService:
         trip_id: str,
         *,
         was_dispatched: bool = False,
+        actor_user_id: str | None = None,
+        actor_name: str | None = None,
     ) -> None:
         """
         Releases inventory associated with a trip.
 
         Individual items:
-            reserved / checked_out → available
+            reserved / checked_out / sold → available
 
         Stock quantity:
             if the trip has not been dispatched, release the reservation
@@ -664,19 +666,23 @@ class InventoryService:
         from app.fleet.trips.service import TripService
         from app.orders.service import OrderService
         from app.products.service import ProductService
-        from app.fleet.trips.enums import TripStatus
 
         trip_service = TripService()
         order_service = OrderService()
         product_service = ProductService()
 
-     
+        # Fallbacks for when no actor is supplied (e.g. system-triggered).
+        recorded_by = actor_user_id or "system"
+        recorded_by_name = actor_name or "System"
 
         # ------------------------------------------------------------------
         # Individual items
         # ------------------------------------------------------------------
 
-        items = self.repo.get_allocated_inventory_for_trip(db=db, trip_id=trip_id)
+        items = self.repo.get_allocated_inventory_for_trip(
+            db=db,
+            trip_id=trip_id,
+        )
 
         for item in items:
 
@@ -704,6 +710,30 @@ class InventoryService:
                 expected_return_date=None,
             )
 
+            # Audit: record the release movement for this item.
+            movement = self.repo.create_stock_movement(
+                db=db,
+                movement_no=self.repo.generate_movement_no(db),
+                product_id=item.product_id,
+                movement_type=MovementType.reservation_release,
+                quantity=Decimal("1"),
+                location_id=item.location_id,
+                recorded_by=recorded_by,
+                recorded_by_name=recorded_by_name,
+                reference_type=ReferenceType.trip,
+                reference_id=str(trip_id),
+                notes=(
+                    f"Released reservation for item {item.tag_number} "
+                    f"on cancelled trip."
+                ),
+            )
+
+            self.repo.add_stock_movement_items(
+                db=db,
+                movement_id=movement.id,
+                inventory_item_ids=[item.id],
+            )
+
         # ------------------------------------------------------------------
         # Stock quantity
         # ------------------------------------------------------------------
@@ -712,7 +742,10 @@ class InventoryService:
 
         for order_id in order_ids:
 
-            order_items = order_service.get_order_items(db=db, order_id=order_id)
+            order_items = order_service.get_order_items(
+                db=db,
+                order_id=order_id,
+            )
 
             for order_item in order_items:
 
@@ -744,12 +777,21 @@ class InventoryService:
                             location_id=order_item.location_id,
                             quantity=quantity,
                         )
+                        movement_type = MovementType.adjustment
+                        movement_notes = (
+                            f"Restored dispatched stock for trip "
+                            f"{order_item.order_id}."
+                        )
                     else:
                         self.repo.release_consumable_reservation(
                             db=db,
                             product_id=order_item.product_id,
                             location_id=order_item.location_id,
                             quantity=quantity,
+                        )
+                        movement_type = MovementType.reservation_release
+                        movement_notes = (
+                            f"Released stock reservation for cancelled trip."
                         )
                 except ValueError as exc:
                     raise AppException(
@@ -758,6 +800,20 @@ class InventoryService:
                         message=str(exc),
                     )
 
+                # Audit: record the release / restore movement.
+                self.repo.create_stock_movement(
+                    db=db,
+                    movement_no=self.repo.generate_movement_no(db),
+                    product_id=order_item.product_id,
+                    movement_type=movement_type,
+                    quantity=quantity,
+                    location_id=order_item.location_id,
+                    recorded_by=recorded_by,
+                    recorded_by_name=recorded_by_name,
+                    reference_type=ReferenceType.trip,
+                    reference_id=str(trip_id),
+                    notes=movement_notes,
+                )
     # -------------------------------------------------------------------------
     # Availability
     # -------------------------------------------------------------------------

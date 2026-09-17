@@ -183,7 +183,7 @@ def return_inventory_item(
         db,
         item_id,
         data,
-        recorded_by=current_user.employee.id,
+        recorded_by=current_user.id,
         recorded_by_name=current_user.full_name,
     )
 

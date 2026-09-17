@@ -355,6 +355,7 @@ def cancel_trip(
         db=db,
         trip_id=trip_id,
         reason=data.reason,
+        actor_user_id=current_user.id,
         actor_employee_id=current_user.employee.id,
         actor_name=current_user.full_name,
     )
