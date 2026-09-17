@@ -9,11 +9,12 @@ import Pagination from "@/components/ui/Pagination";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { cn } from "@/lib/utils";
 import { useIntranetEventsPublished } from "@/lib/modules/intranet/queries";
+import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 const PAGE_SIZE = 6;
 
 const TYPE_STYLES: Record<string, string> = {
-  "Town Hall": "bg-[#F3EEFF] text-[#7234BD]",
+  "Town Hall": "bg-[var(--brand-primary-faint)] text-[var(--brand-primary)]",
   "Training":  "bg-[#F0FDF4] text-[#166534]",
   "Deadline":  "bg-red-50 text-red-700",
   "Workshop":  "bg-[#EFF6FF] text-[#1E40AF]",
@@ -63,7 +64,6 @@ export default function EventsPage() {
       <IntranetPageHero
         title="Upcoming Events"
         subtitle="Townhalls, training sessions, workshops and more — all in one place."
-        imageSrc="https://portlandgasltd.com/wp-content/uploads/2026/03/NASENI-PORTLAND-GAS-LAUNCH-4-scaled-1.jpg"
       />
 
       {/* ── Grid ─────────────────────────────────────────────────────────── */}
@@ -77,7 +77,7 @@ export default function EventsPage() {
               onClick={() => handleType(t)}
               className={cn(
                 "shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all",
-                type === t ? "bg-[#7234BD] text-white shadow-sm" : "bg-white text-gray-500 border border-gray-200 hover:text-[#7234BD] hover:border-[#7234BD]/30"
+                type === t ? "bg-[var(--brand-primary)] text-white shadow-sm" : "bg-white text-gray-500 border border-gray-200 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
               )}
             >
               {t}
@@ -90,7 +90,7 @@ export default function EventsPage() {
               value={q}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Search events…"
-              className="py-2 w-72 pl-9 pr-5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[#7234BD]/20 focus:border-[#7234BD]/40 transition-all"
+              className="py-2 w-72 pl-9 pr-5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]/40 transition-all"
             />
           </div>
         </div>
@@ -140,7 +140,7 @@ export default function EventsPage() {
 
                         {/* Content */}
                         <div className="p-5 flex flex-col flex-1">
-                          <h3 className="text-sm font-bold text-[#1C043B] group-hover:text-[#7234BD] transition-colors leading-snug mb-2 line-clamp-2">
+                          <h3 className="text-sm font-bold text-[var(--brand-secondary)] group-hover:text-[var(--brand-primary)] transition-colors leading-snug mb-2 line-clamp-2">
                             {ev.title}
                           </h3>
                           <div className="flex items-center gap-1.5 mb-3">
@@ -150,7 +150,7 @@ export default function EventsPage() {
                           {ev.description && (
                             <p className="text-xs text-gray-500 leading-relaxed line-clamp-3 flex-1">{ev.description}</p>
                           )}
-                          <div className="mt-4 flex items-center gap-1 text-[#7234BD] text-xs font-semibold">
+                          <div className="mt-4 flex items-center gap-1 text-[var(--brand-primary)] text-xs font-semibold">
                             View details <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
                           </div>
                         </div>
@@ -168,7 +168,7 @@ export default function EventsPage() {
 
       <footer className="border-t border-gray-100 bg-white py-5 px-4 lg:px-8 mt-8">
         <div className="max-w-[1400px] mx-auto">
-          <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Portland Gas Limited · Internal use only</p>
+          <CompanyCopyright />
         </div>
       </footer>
     </IntranetLayout>

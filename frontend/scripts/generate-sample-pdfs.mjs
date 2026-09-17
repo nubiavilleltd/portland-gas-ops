@@ -17,7 +17,7 @@ function makePdf(title, subtitle, fields, footer) {
   // Subtitle
   sc += `/F1 12 Tf\n1 0 0 1 72 714 Tm\n(${esc(subtitle)}) Tj\n`;
   // Divider hint
-  sc += `/F1 10 Tf\n1 0 0 1 72 698 Tm\n(Portland Gas Company Ltd   -   Confidential HR Record) Tj\n`;
+  sc += `/F1 10 Tf\n1 0 0 1 72 698 Tm\n(Company Name Ltd   -   Confidential HR Record) Tj\n`;
 
   let y = 655;
   for (const [label, value] of fields) {
@@ -78,7 +78,7 @@ const docs = [
       ["Issued By",       "HR Admin"],
       ["Issue Date",      "10 January 2025"],
     ],
-    footer: "Portland Gas Company Ltd  |  Human Resources Department  |  Lagos, Nigeria",
+    footer: "Company Name Ltd  |  Human Resources Department  |  Lagos, Nigeria",
   },
   {
     file: "Sowemimo_NIN.pdf",
@@ -93,7 +93,7 @@ const docs = [
       ["Verified By",     "HR Admin"],
       ["Verification Date", "15 February 2025"],
     ],
-    footer: "Portland Gas Company Ltd  |  Human Resources Department  |  Lagos, Nigeria",
+    footer: "Company Name Ltd  |  Human Resources Department  |  Lagos, Nigeria",
   },
   {
     file: "Chika_MBA_Cert.pdf",
@@ -109,7 +109,7 @@ const docs = [
       ["Uploaded By",      "Joseph Chika"],
       ["Upload Date",      "3 March 2026"],
     ],
-    footer: "Portland Gas Company Ltd  |  Human Resources Department  |  Lagos, Nigeria",
+    footer: "Company Name Ltd  |  Human Resources Department  |  Lagos, Nigeria",
   },
   {
     file: "Ohemu_Contract_2026.pdf",
@@ -126,7 +126,7 @@ const docs = [
       ["Issued By",      "HR Admin"],
       ["Issue Date",     "15 April 2026"],
     ],
-    footer: "Portland Gas Company Ltd  |  Human Resources Department  |  Lagos, Nigeria",
+    footer: "Company Name Ltd  |  Human Resources Department  |  Lagos, Nigeria",
   },
   {
     file: "Okeke_HSE_Cert.pdf",
@@ -142,7 +142,7 @@ const docs = [
       ["Expiry Date",     "19 April 2029"],
       ["Uploaded By",     "David Okeke"],
     ],
-    footer: "Portland Gas Company Ltd  |  Human Resources Department  |  Lagos, Nigeria",
+    footer: "Company Name Ltd  |  Human Resources Department  |  Lagos, Nigeria",
   },
 ];
 

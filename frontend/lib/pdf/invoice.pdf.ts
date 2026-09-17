@@ -17,6 +17,7 @@ import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import type { Order, OrderLineItem } from "@/lib/modules/orders/types/orders.types";
 import type { Payment } from "@/lib/modules/payments/types/payments.types";
 import { COMPANY_BANK_DETAILS } from "@/config/company.config";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 import { toTitleCase } from "../utils";
 
 export interface GenerateInvoicePdfInput {
@@ -30,6 +31,7 @@ export interface GenerateInvoicePdfInput {
 
 export async function generateInvoicePdf(input: GenerateInvoicePdfInput): Promise<void> {
   const { invoice, order, customer, payments, amountPaid, productUnitMap } = input;
+  const branding = getStoredCompanyBranding();
   const { marginLeft: ml, marginRight: mr } = PAGE;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -209,7 +211,7 @@ y += 12;
   // ── Footer ────────────────────────────────────────────────
   drawFooter(
     doc,
-    "This is a computer-generated invoice. Portland Gas Limited — Internal Operations Platform."
+    `This is a computer-generated invoice. ${branding.name} — Internal Operations Platform.`
   );
 
   doc.save(`${invoice.invoice_number}.pdf`);

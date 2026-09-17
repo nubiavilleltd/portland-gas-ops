@@ -14,7 +14,7 @@ import type {
   WorkInitiationRequest,
 } from "@/types/safety";
 
-const STORAGE_KEY = "portland-gas-ops.safety-demo.v7";
+const STORAGE_KEY = "safety-demo.v8";
 const CHANGE_EVENT = "safety-demo-data-changed";
 
 export interface SafetyDemoData {

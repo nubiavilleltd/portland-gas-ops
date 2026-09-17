@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Download, RefreshCw, Share2, X } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { useCompanyBranding } from "@/lib/company-branding";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -34,6 +35,7 @@ function getIsStandalone() {
 const getServerSnapshot = () => false;
 
 export default function PWAInstallPrompt() {
+  const { name } = useCompanyBranding();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updatePending, setUpdatePending] = useState(false);
@@ -107,7 +109,7 @@ export default function PWAInstallPrompt() {
         <RefreshCw size={22} className="shrink-0 text-brand-purple" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-brand-text-primary">New version available</p>
-          <p className="mt-1 text-xs text-brand-text-secondary">Refresh to use the latest version of Portland Gas Operations.</p>
+          <p className="mt-1 text-xs text-brand-text-secondary">Refresh to use the latest version of {name} Operations.</p>
         </div>
         <Button size="sm" onClick={updateApp} loading={updatePending} loadingText="Updating" leftIcon={<RefreshCw size={14} />}>
           Update
@@ -160,7 +162,7 @@ export default function PWAInstallPrompt() {
     >
       <Download size={22} className="shrink-0 text-brand-purple" aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-brand-text-primary">Install Portland Gas Operations</p>
+        <p className="text-sm font-semibold text-brand-text-primary">Install {name} Operations</p>
         <p className="mt-1 text-xs text-brand-text-secondary">Add the app to your device for quicker access.</p>
       </div>
       <Button size="sm" onClick={installApp} leftIcon={<Download size={14} />}>

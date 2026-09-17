@@ -10,6 +10,7 @@ import FormInput from "@/components/forms/FormInput";
 import AuthBrand from "@/components/auth/AuthBrand";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
+import CompanyFooter from "@/components/branding/CompanyFooter";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -69,7 +70,7 @@ function LoginContent() {
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <FormInput label="Email address" type="email" placeholder="you@portlandgas.com" required autoComplete="email" error={errors.email?.message} {...register("email")} />
+            <FormInput label="Email address" type="email" placeholder="you@company.com" required autoComplete="email" error={errors.email?.message} {...register("email")} />
             <FormInput label="Password" type="password" placeholder="••••••••" required autoComplete="current-password" error={errors.password?.message} {...register("password")} />
 
             <div className="flex items-center justify-between">
@@ -91,9 +92,7 @@ function LoginContent() {
 
         </div>
 
-        <p className="text-center text-xs text-brand-text-secondary mt-6">
-          Portland Gas Limited &mdash; Internal Platform
-        </p>
+        <CompanyFooter />
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ endobj
 <</Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold>>
 endobj
 6 0 obj
-<</Length 1084>>
+<</Length 1068>>
 stream
 BT
 /F2 20 Tf
@@ -28,7 +28,7 @@ BT
 (National Identity Number \(NIN\) Slip) Tj
 /F1 10 Tf
 1 0 0 1 72 698 Tm
-(Portland Gas Company Ltd   -   Confidential HR Record) Tj
+(Company Name Ltd   -   Confidential HR Record) Tj
 /F2 10 Tf
 1 0 0 1 72 655 Tm
 (Employee Name:) Tj
@@ -73,7 +73,7 @@ BT
 (15 February 2025) Tj
 /F1 9 Tf
 1 0 0 1 72 60 Tm
-(Portland Gas Company Ltd  |  Human Resources Department  |  Lagos, Nigeria) Tj
+(Company Name Ltd  |  Human Resources Department  |  Lagos, Nigeria) Tj
 1 0 0 1 72 46 Tm
 (This document is a sample generated for demonstration purposes only.) Tj
 ET
@@ -91,5 +91,5 @@ xref
 trailer
 <</Size 7 /Root 1 0 R>>
 startxref
-1519
+1503
 %%EOF

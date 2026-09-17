@@ -4,6 +4,7 @@ import type {
   WorkAuthorizationRequester,
   WorkInitiationRequest,
 } from "@/types/safety";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 
 export const mockWorkInitiationRequester: WorkAuthorizationRequester = {
   name: "Felix Ohemu",
@@ -77,7 +78,7 @@ const baseAssetDetails = {
   assetReference: "VEH-204",
   vehiclePlateNumber: "ABC-234PG",
   vin: "LGS123456789",
-  clientCompany: "Portland Gas",
+  clientCompany: getStoredCompanyBranding().name,
 };
 
 const baseAssignment = {

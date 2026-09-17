@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
@@ -34,11 +33,11 @@ import { useSubmitFeedback } from "@/lib/modules/intranet/mutations";
 import PushManager from "./PushManager";
 import { useToast } from "@/hooks/useToast";
 import NotificationToaster from "./NotificationToaster";
+import CompanyLogo from "@/components/branding/CompanyLogo";
+import { useCompanyBranding } from "@/lib/company-branding";
 
 type FeedbackCategory = "General" | "IT" | "HR" | "Suggestion" | "Complaint";
 const FEEDBACK_CATEGORIES: FeedbackCategory[] = ["General", "IT", "HR", "Suggestion", "Complaint"];
-
-const DEMO_NAME = "Portland Gas";
 
 const NAV_LINKS = [
   { label: "Home",    href: "/" },
@@ -72,7 +71,7 @@ const TYPE_META: Record<NotificationType, { icon: React.ElementType; color: stri
   approved:          { icon: CheckSquare, color: "#166534", bg: "#F0FDF4" },
   rejected:          { icon: AlertCircle, color: "#991B1B", bg: "#FEF2F2" },
   returned:          { icon: RotateCcw,   color: "#1E40AF", bg: "#EFF6FF" },
-  info:              { icon: Info,        color: "#7234BD", bg: "#F3EEFF" },
+  info:              { icon: Info,        color: "var(--brand-primary)", bg: "var(--brand-primary-faint)" },
 };
 
 // Birthday wishes look nicer with a cake icon
@@ -102,6 +101,7 @@ export default function IntranetLayout({ children }: Props) {
   const router = useRouter();
   const { user } = useCurrentUser();
   const { logout } = useAuth();
+  const { name: companyName } = useCompanyBranding();
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen,   setNotifOpen]   = useState(false);
@@ -174,8 +174,8 @@ export default function IntranetLayout({ children }: Props) {
   }, []);
 
   const displayName = user
-    ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.name || DEMO_NAME
-    : DEMO_NAME;
+    ? `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.name || companyName
+    : companyName;
   const firstName = displayName.split(" ")[0];
 
   // Close dropdowns on outside click
@@ -211,21 +211,13 @@ export default function IntranetLayout({ children }: Props) {
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
         pathname === "/" && !scrolled
           ? "bg-transparent border-b border-transparent"
-          : "bg-[#1C043B] border-b border-white/10 shadow-lg"
+          : "bg-[var(--brand-secondary)] border-b border-white/10 shadow-lg"
       )}>
         <div className="max-w-[1400px] mx-auto px-4 lg:px-8 h-16 flex items-center gap-6">
 
           {/* Logo */}
           <Link href="/" className="shrink-0">
-            <Image
-              src="https://portlandgasltd.com/wp-content/uploads/2024/06/Portland-gas-42.png"
-              alt="Portland Gas"
-              width={130}
-              height={34}
-              className="h-7 w-auto object-contain brightness-0 invert"
-              style={{ width: "auto" }}
-              priority
-            />
+            <CompanyLogo size={32} className="h-7 w-7 rounded-md" />
           </Link>
 
           {/* Desktop nav — centred */}
@@ -255,7 +247,7 @@ export default function IntranetLayout({ children }: Props) {
             {/* ── Workflow CTA ── */}
             <Link
               href="/home"
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#7234BD] text-[#c084fc] text-xs font-semibold hover:bg-[#7234BD] hover:text-white transition-all duration-150 btn-press"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[var(--brand-primary)] text-brand-purple-light text-xs font-semibold hover:bg-[var(--brand-primary)] hover:text-white transition-all duration-150 btn-press"
             >
               <LayoutDashboard size={13} />
               Workflow
@@ -278,7 +270,7 @@ export default function IntranetLayout({ children }: Props) {
               >
                 <Bell size={17} />
                 {unread > 0 && (
-                  <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-[#FFBC00] flex items-center justify-center text-[9px] font-extrabold text-[#1C043B]">
+                  <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-[#FFBC00] flex items-center justify-center text-[9px] font-extrabold text-[var(--brand-secondary)]">
                     {unread > 9 ? "9+" : unread}
                   </span>
                 )}
@@ -287,9 +279,9 @@ export default function IntranetLayout({ children }: Props) {
               {notifOpen && (
                 <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-[68px] sm:top-full sm:mt-2 w-auto sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-fade-up">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-bold text-[#1C043B]">Notifications</p>
+                    <p className="text-sm font-bold text-[var(--brand-secondary)]">Notifications</p>
                     {unread > 0 && (
-                      <span className="text-[10px] text-[#7234BD] font-semibold bg-[#F3EEFF] px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] text-[var(--brand-primary)] font-semibold bg-[var(--brand-primary-faint)] px-2 py-0.5 rounded-full">
                         {unread} new
                       </span>
                     )}
@@ -310,7 +302,7 @@ export default function IntranetLayout({ children }: Props) {
                           onClick={() => handleNotifClick(n)}
                           className={cn(
                             "w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left",
-                            !n.is_read && "bg-[#F3EEFF]/40"
+                            !n.is_read && "bg-[var(--brand-primary-faint)]/40"
                           )}
                         >
                           <div
@@ -320,13 +312,13 @@ export default function IntranetLayout({ children }: Props) {
                             <Icon size={15} style={{ color: meta.color }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={cn("text-sm leading-snug", !n.is_read ? "font-semibold text-[#1C043B]" : "font-medium text-gray-700")}>
+                            <p className={cn("text-sm leading-snug", !n.is_read ? "font-semibold text-[var(--brand-secondary)]" : "font-medium text-gray-700")}>
                               {n.title}
                             </p>
                             <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
                             <p className="text-[10px] text-gray-300 mt-1">{timeAgo(n.created_at)}</p>
                           </div>
-                          {!n.is_read && <span className="h-2 w-2 rounded-full bg-[#7234BD] shrink-0 mt-2" />}
+                          {!n.is_read && <span className="h-2 w-2 rounded-full bg-[var(--brand-primary)] shrink-0 mt-2" />}
                         </button>
                       );
                     })}
@@ -337,7 +329,7 @@ export default function IntranetLayout({ children }: Props) {
                       <button
                         onClick={() => markAllRead.mutate()}
                         disabled={unread === 0 || markAllRead.isPending}
-                        className="text-xs text-[#7234BD] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
+                        className="text-xs text-[var(--brand-primary)] font-semibold hover:underline disabled:opacity-40 disabled:no-underline"
                       >
                         {markAllRead.isPending ? "Marking…" : "Mark all as read"}
                       </button>
@@ -398,7 +390,7 @@ export default function IntranetLayout({ children }: Props) {
         {/* Mobile nav */}
         <div
           className={cn(
-            "lg:hidden bg-[#1C043B] px-4 overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out",
+            "lg:hidden bg-[var(--brand-secondary)] px-4 overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out",
             mobileOpen
               ? "max-h-[calc(100dvh-4rem)] opacity-100 py-3 border-t border-white/10"
               : "max-h-0 opacity-0 py-0 border-t-0"
@@ -421,7 +413,7 @@ export default function IntranetLayout({ children }: Props) {
                 {link.label}
               </Link>
             ))}
-            <Link href="/home" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#c084fc] font-semibold">
+            <Link href="/home" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-brand-purple-light font-semibold">
               <LayoutDashboard size={14} /> Workflow Portal
             </Link>
             <button

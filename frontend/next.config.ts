@@ -11,10 +11,6 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "portlandgasltd.com",
-      },
-      {
-        protocol: "https",
         hostname: "i.pravatar.cc",
       },
     ],

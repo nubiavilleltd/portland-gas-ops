@@ -167,7 +167,7 @@ export default function NewAccountPage() {
               onChange={(e) => f("last_name", e.target.value)}
             />
             <FormInput
-              label="Email" required type="email" placeholder="email@portlandgas.com"
+              label="Email" required type="email" placeholder="email@company.com"
               value={form.email ?? ""}
               onChange={(e) => f("email", e.target.value)}
             />

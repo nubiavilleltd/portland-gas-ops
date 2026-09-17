@@ -23,7 +23,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pr
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-[#7234BD] hover:border-[#7234BD]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronLeft size={15} />
       </button>
@@ -40,8 +40,8 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pr
             className={cn(
               "h-9 w-9 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors",
               p === currentPage
-                ? "bg-[#7234BD] text-white shadow-sm"
-                : "border border-gray-200 text-gray-500 hover:text-[#7234BD] hover:border-[#7234BD]/30"
+                ? "bg-[var(--brand-primary)] text-white shadow-sm"
+                : "border border-gray-200 text-gray-500 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
             )}
           >
             {p}
@@ -52,7 +52,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pr
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-[#7234BD] hover:border-[#7234BD]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronRight size={15} />
       </button>

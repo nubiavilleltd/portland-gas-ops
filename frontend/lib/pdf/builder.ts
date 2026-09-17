@@ -1,4 +1,4 @@
-import { COMPANY_INFO } from "@/config/company.config";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 import jsPDF from "jspdf";
 
 // ── Shared color palette ─────────────────────────────────
@@ -72,8 +72,11 @@ export async function loadImageAsBase64(
 
 // ── Document header (logo + company info) ───────────────
 export async function drawHeader(doc: jsPDF): Promise<void> {
-  const { marginLeft: ml, marginRight: mr } = PAGE;
-  const logoDataUrl = await loadImageAsBase64(COMPANY_INFO.logoPath);
+  const { marginLeft: ml } = PAGE;
+  const branding = getStoredCompanyBranding();
+  const logoDataUrl = branding.logoDataUrl
+    ? await loadImageAsBase64(branding.logoDataUrl)
+    : null;
 
   if (logoDataUrl) {
     const logoH = 15;
@@ -83,19 +86,13 @@ export async function drawHeader(doc: jsPDF): Promise<void> {
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...COLORS.darkText);
-    doc.text(COMPANY_INFO.name, ml, 20);
+    doc.text(branding.name, ml, 20);
   }
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...COLORS.mutedText);
-  doc.text(COMPANY_INFO.tagline, ml, 28);
-
-  doc.setFontSize(7.5);
-  doc.setTextColor(...COLORS.mutedText);
-  doc.text(COMPANY_INFO.address, mr, 14, { align: "right" });
-  doc.text(`Tel: ${COMPANY_INFO.phone}  |  ${COMPANY_INFO.email}`, mr, 19, { align: "right" });
-  doc.text(COMPANY_INFO.website, mr, 24, { align: "right" });
+  doc.text("Operations Platform", ml, 28);
 
   drawDivider(doc, 33);
 }

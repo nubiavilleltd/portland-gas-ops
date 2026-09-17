@@ -1,5 +1,5 @@
 /**
- * Portland Gas Ops — Web Push Service Worker
+ * Operations Platform — Web Push Service Worker
  *
  * Handles push events while the tab is closed/backgrounded.
  * Clicking the notification navigates to the deep-link URL passed in the payload.
@@ -26,15 +26,15 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data.json();
   } catch {
-    data = { title: "Portland Gas Ops", body: event.data.text(), url: "/" };
+    data = { title: "Operations Platform", body: event.data.text(), url: "/" };
   }
 
-  const title   = data.title || "Portland Gas Ops";
+  const title   = data.title || "Operations Platform";
   const options = {
     body:    data.body  || "",
     icon:    data.icon  || "/icons/icon-192.png",
     badge:   "/icons/icon-192.png",
-    tag:     data.tag   || "portlandgas-notif",
+    tag:     data.tag   || "operations-notif",
     data:    { url: data.url || "/" },
     // Reuse an existing notification with the same tag instead of stacking
     renotify: false,

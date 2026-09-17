@@ -14,6 +14,7 @@ import {
 import type { Payment } from "@/lib/modules/payments/types/payments.types";
 import type { Invoice } from "@/lib/modules/invoices/types/invoice.types";
 import { formatPaymentMethodLabel } from "@/lib/modules/payments/utils";
+import { getStoredCompanyBranding } from "@/lib/company-branding";
 
 export interface GenerateReceiptPdfInput {
   payment: Payment;
@@ -24,6 +25,7 @@ export interface GenerateReceiptPdfInput {
 
 export async function generateReceiptPdf(input: GenerateReceiptPdfInput): Promise<void> {
   const { payment, invoice, customer, allInvoicePayments } = input;
+  const branding = getStoredCompanyBranding();
   const { marginLeft: ml, marginRight: mr } = PAGE;
 
   // ── Calculate cumulative amounts up to and including this payment ──
@@ -219,7 +221,7 @@ export async function generateReceiptPdf(input: GenerateReceiptPdfInput): Promis
   // ── Footer ────────────────────────────────────────────────
   drawFooter(
     doc,
-    "This is a computer-generated payment receipt. Portland Gas Limited — Internal Operations Platform."
+    `This is a computer-generated payment receipt. ${branding.name} — Internal Operations Platform.`
   );
 
   doc.save(`receipt-${payment.reference}.pdf`);

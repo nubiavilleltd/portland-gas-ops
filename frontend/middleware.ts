@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/verify-otp", "/reset-password"];
 
 // These are public regardless of auth state — never redirect away from them
-const ALWAYS_PUBLIC_PATHS = ["/setup-account", "/inventory",];
+const ALWAYS_PUBLIC_PATHS = ["/setup-account", "/inventory", "/onboarding"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -40,7 +40,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   // Match all routes except API proxy, Next.js internals, and static assets.
   //
-  // Files in public/ are served from the URL root (/Portland-gas-logo.png), never
+  // Files in public/ are served from the URL root, never
   // under /public/, so they have to be excluded by extension — otherwise they get
   // redirected to /login. That breaks anything fetched without a session cookie:
   // the logo in outgoing emails, the manifest, and the /sw.js service worker registration.
