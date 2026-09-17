@@ -177,7 +177,9 @@ class InventoryItem(Base):
 
 class ConsumableStock(Base):
     """
-    Quantity of consumable inventory at a warehouse location.
+    Quantity stock at a warehouse location.
+
+    Used for products with InventoryTracking.STOCK_QUANTITY.
     """
 
     __tablename__ = "consumable_stock"
@@ -214,6 +216,18 @@ class ConsumableStock(Base):
         default=0,
     )
 
+    reserved_quantity = Column(
+        Numeric(15, 3),
+        nullable=False,
+        default=0,
+    )
+
+    sold_quantity = Column(
+        Numeric(15, 3),
+        nullable=False,
+        default=0,
+    )
+
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -226,8 +240,6 @@ class ConsumableStock(Base):
         "WarehouseLocation",
         back_populates="consumable_stock",
     )
-
-
 class StockMovement(Base):
     """
     Inventory audit trail.

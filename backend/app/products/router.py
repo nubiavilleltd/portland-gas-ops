@@ -1,43 +1,56 @@
 from __future__ import annotations
 
-
-from io import BytesIO
-from PIL import Image
-
-from app.products.model import Product
-from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, status
-from sqlalchemy.orm import Session
-from typing import Optional, List
 import json
+from io import BytesIO
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, status
+from PIL import Image
+from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
-from app.shared.dependencies import require_roles
-from app.products.service import ProductService
-from app.products.schema import (
-    ProductCreate, ProductUpdate, ProductFilters,
-    ProductResponse, ProductListResponse, ProductPickerListResponse
-)
-from app.products.enums import ProductType, ProductStatus
-from app.shared.models.user import User
 from app.core.exceptions import AppException, ErrorCode
-from pydantic import ValidationError
 from app.products.constants import (
     ALLOWED_IMAGE_TYPES,
     MAX_IMAGE_SIZE_MB,
     MAX_IMAGES,
 )
-
-
-from app.core.exceptions import AppException
+from app.products.enums import InventoryTracking, ProductStatus
 from app.products.error_codes import ProductErrorCode
+from app.products.model import Product
+from app.products.schema import (
+    ProductCreate,
+    ProductFilters,
+    ProductListResponse,
+    ProductPickerListResponse,
+    ProductResponse,
+    ProductUpdate,
+    ProductCategoryResponse,
+    ProductUnitResponse,
+)
+from app.products.service import ProductService
+from app.shared.dependencies import require_roles
+from app.shared.models.user import User
 
-router  = APIRouter()
+
+router = APIRouter()
 service = ProductService()
+
 
 def _to_response(db: Session, product: Product) -> ProductResponse:
     response = ProductResponse.model_validate(product)
     response.images = service.get_images(db, product)
+
+    from app.inventory.service import InventoryService
+    response.has_inventory = InventoryService().has_inventory(
+        db=db,
+        product_id=product.id,
+    )
+
     return response
+
+
 def _uploaded_by(user: User) -> str | None:
     return (
         user.employee.id
@@ -76,7 +89,6 @@ def _validate_images(files: List[UploadFile]) -> List[tuple]:
                 message=f"Image '{file.filename}' exceeds the {MAX_IMAGE_SIZE_MB} MB limit.",
             )
 
-        # Verify the uploaded bytes are actually a valid image
         try:
             Image.open(BytesIO(file_bytes)).verify()
         except Exception:
@@ -97,53 +109,66 @@ def _validate_images(files: List[UploadFile]) -> List[tuple]:
 
     return validated_images
 
+
+def _parse_json(data: str):
+    try:
+        return json.loads(data)
+    except json.JSONDecodeError as exc:
+        raise AppException(
+            status_code=422,
+            error_code=ErrorCode.VALIDATION_ERROR,
+            message="Invalid JSON in request body",
+            details={"error": str(exc)},
+        )
+
+
 @router.get("", response_model=ProductListResponse)
 def list_products(
-    search:       Optional[str]           = Query(None),
-    product_type: Optional[ProductType]   = Query(None),
-    status:       Optional[ProductStatus] = Query(None),
-    page:         int                     = Query(1, ge=1),
-    page_size:    int                     = Query(50, ge=1, le=200),
-    db:           Session                 = Depends(get_db),
-    current_user: User                    = Depends(get_current_user),
+    search: Optional[str] = Query(None),
+    inventory_tracking: Optional[InventoryTracking] = Query(None),
+    status: Optional[ProductStatus] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     filters = ProductFilters(
-        search=search, product_type=product_type,
-        status=status, page=page, page_size=page_size,
+        search=search,
+        inventory_tracking=inventory_tracking,
+        status=status,
+        page=page,
+        page_size=page_size,
     )
     items, total = service.list(db, filters)
 
     response_items = []
     for product in items:
-        images = service.get_images(db, product)
-        data   = ProductResponse.model_validate(product)
-        data.images = images
-        response_items.append(data)
+        response_items.append(_to_response(db, product))
 
     return ProductListResponse(
-        items     = response_items,
-        total     = total,
-        page      = page,
-        page_size = page_size,
-        has_next  = (page * page_size) < total,
+        items=response_items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_next=(page * page_size) < total,
     )
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
-    data:         str               = Form(...),
-    images:       List[UploadFile]  = File(default=[]),
-    db:           Session           = Depends(get_db),
-    current_user: User              = Depends(require_roles("super_admin", "admin")),
+    data: str = Form(...),
+    images: List[UploadFile] = File(default=[]),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
     try:
-        payload = ProductCreate.model_validate(json.loads(data))
+        payload = ProductCreate.model_validate(_parse_json(data))
     except ValidationError as exc:
         raise AppException(
             status_code=422,
             error_code=ErrorCode.VALIDATION_ERROR,
             message="Invalid product data",
-            details={"error": str(exc)},
+            details={"error": exc.errors()},
         )
 
     image_files = _validate_images(images)
@@ -155,23 +180,54 @@ async def create_product(
     return _to_response(db, product)
 
 
-# ── Read: _no lookup (must come before /{product_id}) ──────────────
+
+@router.get(
+    "/categories",
+    response_model=list[ProductCategoryResponse],
+)
+def list_product_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.products.model import ProductCategory
+    return (
+        db.query(ProductCategory)
+        .filter(ProductCategory.is_active.is_(True))
+        .order_by(ProductCategory.name.asc())
+        .all()
+    )
+
+
+@router.get(
+    "/units",
+    response_model=list[ProductUnitResponse],
+)
+def list_product_units(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.products.model import ProductUnit
+    return (
+        db.query(ProductUnit)
+        .filter(ProductUnit.is_active.is_(True))
+        .order_by(ProductUnit.category.asc(), ProductUnit.label.asc())
+        .all()
+    )
+
 @router.get("/by-no/{product_no}", response_model=ProductResponse)
 def get_product_by_no(
-    product_no:   str,
-    db:           Session = Depends(get_db),
-    current_user: User    = Depends(get_current_user),
+    product_no: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     product = service.get_by_no_or_raise(db, product_no)
     return _to_response(db, product)
 
-@router.get(
-    "/picker",
-    response_model=ProductPickerListResponse,
-)
+
+@router.get("/picker", response_model=ProductPickerListResponse)
 def list_products_for_picker(
     search: Optional[str] = Query(None),
-    product_type: Optional[ProductType] = Query(None),
+    inventory_tracking: Optional[InventoryTracking] = Query(None),
     status: Optional[ProductStatus] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -180,16 +236,13 @@ def list_products_for_picker(
 ):
     filters = ProductFilters(
         search=search,
-        product_type=product_type,
+        inventory_tracking=inventory_tracking,
         status=status,
         page=page,
         page_size=page_size,
     )
 
-    items, total = service.list_for_picker(
-        db=db,
-        filters=filters,
-    )
+    items, total = service.list_for_picker(db=db, filters=filters)
 
     return ProductPickerListResponse(
         items=items,
@@ -200,30 +253,28 @@ def list_products_for_picker(
     )
 
 
-# ── Read: primary, id-based ─────────────────────────────────────────
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(
-    product_id:   str,
-    db:           Session = Depends(get_db),
-    current_user: User    = Depends(get_current_user),
+    product_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     product = service.get_or_raise(db, product_id)
-
     return _to_response(db, product)
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
-    product_id:     str,
-    data:           str              = Form(...),
-    images:         List[UploadFile] = File(default=[]),
-    kept_image_ids: str              = Form(default="[]"),
+    product_id: str,
+    data: str = Form(...),
+    images: List[UploadFile] = File(default=[]),
+    kept_image_ids: str = Form(default="[]"),
     primary_image_id: str | None = Form(default=None),
-    db:             Session          = Depends(get_db),
-    current_user:   User             = Depends(require_roles("super_admin", "admin")),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
     try:
-        payload  = ProductUpdate.model_validate(json.loads(data))
+        payload = ProductUpdate.model_validate(_parse_json(data))
         kept_ids = json.loads(kept_image_ids)
         primary_image_id = (
             int(primary_image_id)
@@ -235,17 +286,20 @@ async def update_product(
             status_code=422,
             error_code=ErrorCode.VALIDATION_ERROR,
             message="Invalid product data",
-            details={"error": str(exc)},
+            details={"error": exc.errors()},
         )
 
     image_files = _validate_images(images)
     uploaded_by = _uploaded_by(current_user)
+
     product = service.update(
-        db, product_id, payload,
-        new_images     = image_files,
-        kept_image_ids = kept_ids,
+        db,
+        product_id,
+        payload,
+        new_images=image_files,
+        kept_image_ids=kept_ids,
         primary_image_id=primary_image_id,
-        uploaded_by    = uploaded_by,
+        uploaded_by=uploaded_by,
     )
     db.commit()
     db.refresh(product)
@@ -254,9 +308,9 @@ async def update_product(
 
 @router.post("/{product_id}/deactivate", response_model=ProductResponse)
 def deactivate_product(
-    product_id:   str,
-    db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
+    product_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
     product = service.deactivate(db, product_id)
     db.commit()
@@ -266,12 +320,11 @@ def deactivate_product(
 
 @router.post("/{product_id}/activate", response_model=ProductResponse)
 def activate_product(
-    product_id:   str,
-    db:           Session = Depends(get_db),
-    current_user: User    = Depends(require_roles("super_admin", "admin")),
+    product_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
     product = service.activate(db, product_id)
     db.commit()
     db.refresh(product)
     return _to_response(db, product)
-

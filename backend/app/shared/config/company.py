@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from app.core.config import settings
 
+from app.core.config import settings
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,7 @@ class CompanyInfo:
     email: str
     website: str
     logo_url: str
+    currency_code: str
 
 
 @dataclass(frozen=True)
@@ -21,7 +22,6 @@ class CompanyBankDetails:
     bank_name: str
     account_name: str
     account_number: str
-
 
 
 COMPANY_INFO = CompanyInfo(
@@ -32,6 +32,7 @@ COMPANY_INFO = CompanyInfo(
     email="info@portlandgasltd.com",
     website="www.portlandgasltd.com",
     logo_url=settings.LOGO_URL,
+    currency_code="NGN",
 )
 
 COMPANY_BANK_DETAILS = CompanyBankDetails(

@@ -26,25 +26,23 @@ import {
   saveDraftSchema,
   SaveDraftPayload,
 } from "@/lib/modules/orders/schemas/create-order.schema";
-import { useActiveProducts, useProductPicker } from "@/lib/modules/products/hooks/useProducts";
 import {
-  getActiveProducts,
+  useProductPicker,
+  useUnits,
+} from "@/lib/modules/products/hooks/useProducts";
+import {
   getAvailableQuantity,
   getProductById,
 } from "@/lib/modules/products/selectors/products.selectors";
-import { getUnitLabel } from "@/lib/modules/products/types/product.types";
 import { toast } from "sonner";
 import FormSection from "@/components/ui/FormSection";
 import {
-  useConsumableStock,
   useInventoryItems,
 } from "../../inventory/hooks/useInventory";
 
 import { useState } from "react";
 import { useCustomerSelectOptions } from "../hooks/useOrders";
 import { useCustomers } from "../../crm";
-
- 
 
 // ── Props ─────────────────────────────────────────────────
 interface OrderFormProps {
@@ -82,6 +80,9 @@ export default function OrderForm({
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
+  const { units } = useUnits();
+  const unitLabelById = new Map(units.map((u) => [u.id, u.label]));
+
   const {
     control,
     register,
@@ -94,27 +95,16 @@ export default function OrderForm({
   } = form;
 
   // ── Data ────────────────────────────────────────────────
-  
+  const { data: customers = [], isLoading: customersLoading } = useCustomers();
 
- 
-const { data: customers = [], isLoading:customersLoading } = useCustomers();
- 
+  const { options: customerOptions } = useCustomerSelectOptions(customers);
 
-  const { options:customerOptions} =
-    useCustomerSelectOptions(customers);
-  // const { products: activeProducts, isLoading: productsLoading } =
-  //   useActiveProducts();
   const { items: inventoryItems, isLoading: inventoryLoading } =
     useInventoryItems();
-  // const { stock: consumableStock, isLoading: consumableStockLoading } =
-  //   useConsumableStock();
 
-const {
-    products,
-    isLoading: productsLoading,
-} = useProductPicker();
+  const { products, isLoading: productsLoading } = useProductPicker();
 
-  const productsReady = !productsLoading
+  const productsReady = !productsLoading;
 
   // ── Field array ─────────────────────────────────────────
   const { append, remove } = useFieldArray({
@@ -125,44 +115,39 @@ const {
   const rowErrors: Record<number, Record<string, string>> = {};
   Array.isArray(errors.orderItems)
     ? errors.orderItems?.forEach?.((itemError, index) => {
-      if (!itemError) return;
-      const fieldErrors: Record<string, string> = {};
-      if (itemError.productId?.message)
-        fieldErrors.productId = itemError.productId.message;
-      if (itemError.quantity?.message)
-        fieldErrors.quantity = itemError.quantity.message;
-      if (Object.keys(fieldErrors).length) rowErrors[index] = fieldErrors;
-    })
+        if (!itemError) return;
+        const fieldErrors: Record<string, string> = {};
+        if (itemError.productId?.message)
+          fieldErrors.productId = itemError.productId.message;
+        if (itemError.quantity?.message)
+          fieldErrors.quantity = itemError.quantity.message;
+        if (Object.keys(fieldErrors).length) rowErrors[index] = fieldErrors;
+      })
     : undefined;
 
   const orderItems = watch("orderItems") ?? [];
   const discountType = watch("discountType");
 
+  // ── Subtotal ─────────────────────────────────────────────
+  const subtotal = orderItems.reduce((sum, item) => {
+    const product = getProductById(products, item.productId);
 
-// ── Subtotal ─────────────────────────────────────────────
-const subtotal = orderItems.reduce((sum, item) => {
-  const product = getProductById(products, item.productId);
+    return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
+  }, 0);
 
-  return sum + (item.quantity || 0) * (product?.defaultUnitPrice || 0);
-}, 0);
+  // ── Check if we can add more products ────────────────────
+  const selectedProductIds = orderItems
+    .map((i) => i.productId)
+    .filter(Boolean);
 
-// ── Check if we can add more products ────────────────────
-// Get all product IDs that are actually selected (non-empty)
-const selectedProductIds = orderItems
-  .map(i => i.productId)
-  .filter(Boolean);
+  const hasEmptyRows = orderItems.some(
+    (item) => !item.productId || item.productId.trim() === "",
+  );
 
-// Check if there are any empty rows (rows without a product selected)
-const hasEmptyRows = orderItems.some(item => !item.productId || item.productId.trim() === "");
+  const canAddMore =
+    !hasEmptyRows && selectedProductIds.length < products.length;
 
-// Only allow adding if:
-// 1. There are NO empty rows already
-// 2. We haven't used all available products yet
-const canAddMore = !hasEmptyRows && selectedProductIds.length < products.length;
-
-const discountValue = watch("discountValue") ?? 0;
-
-
+  const discountValue = watch("discountValue") ?? 0;
 
   const discountAmount =
     discountType === "percentage"
@@ -223,31 +208,15 @@ const discountValue = watch("discountValue") ?? 0;
       width: "130px",
       renderCell: (row, index, onChange, cellError) => {
         const product = getProductById(products, row.productId);
-        const unitLabel = product ? getUnitLabel(product) : "";
+        const unitLabel = product
+          ? unitLabelById.get(product.unitId) ?? ""
+          : "";
 
         const hasProduct = !!product;
 
-        // const availableQuantity = !hasProduct
-        //   ? 0
-        //   : product.productType === "consumable"
-        //     ? (
-        //       consumableStock.find(s => s.product_id === product.id)?.quantity ?? 0
-        //     )
-        //     : inventoryItems.filter(
-        //       item =>
-        //         item.product_id === product.id &&
-        //         item.status === "available",
-        //     ).length;
+        const availableQuantity = getAvailableQuantity(product);
+        const exceedsAvailable = row.quantity > availableQuantity;
 
-    //     const availableQuantity =
-    // product?.availableQuantity ?? 0;
-
-    //     const exceedsAvailable =
-    //       hasProduct &&
-    //       row.quantity > availableQuantity;
-
-    const availableQuantity = getAvailableQuantity(product);
-const exceedsAvailable = row.quantity > availableQuantity;
         return (
           <div>
             <div className="flex items-center gap-1">
@@ -264,7 +233,7 @@ const exceedsAvailable = row.quantity > availableQuantity;
                 className={cn(
                   "w-full text-sm outline-none bg-transparent border border-brand-border focus:border-brand-primary transition-colors p-0.5",
                   (cellError || (hasProduct && exceedsAvailable)) &&
-                  "text-red-600 border-red-500",
+                    "text-red-600 border-red-500",
                 )}
               />
               {unitLabel && (
@@ -273,9 +242,7 @@ const exceedsAvailable = row.quantity > availableQuantity;
                 </span>
               )}
             </div>
-            {/* <p className={cn("text-xs text-brand-text-secondary mt-1", exceedsAvailable && "text-red-600")}>
-              Available: {availableQuantity.toLocaleString()} {unitLabel}
-            </p> */}
+
             {hasProduct && (
               <p
                 className={cn(
@@ -289,11 +256,6 @@ const exceedsAvailable = row.quantity > availableQuantity;
               </p>
             )}
 
-            {/* {exceedsAvailable && (
-  <p className="text-xs text-red-600 mt-1">
-    Only {availableQuantity.toLocaleString()} {unitLabel} available.
-  </p>
-)} */}
             {cellError && (
               <p className="text-xs text-red-600 mt-0.5">{cellError}</p>
             )}
@@ -407,7 +369,6 @@ const exceedsAvailable = row.quantity > availableQuantity;
       return;
     }
 
-    // 6. Save the draft
     try {
       setIsSavingDraft(true);
       await onSaveDraft?.(result.data);
@@ -419,16 +380,6 @@ const exceedsAvailable = row.quantity > availableQuantity;
       setIsSavingDraft(false);
     }
   }
-
-  //  const isLoadingDependencies =
-  //   customersLoading ||
-  //   productsLoading ||
-  //   inventoryLoading ||
-  //   consumableStockLoading;
-
-  // if (isLoadingDependencies) {
-  //   return <OrderFormSkeleton />;
-  // }
 
   return (
     <form
@@ -456,11 +407,8 @@ const exceedsAvailable = row.quantity > availableQuantity;
                 options={customerOptions}
                 error={errors.customerId?.message}
                 value={field.value}
-                // onValueChange={field.onChange}
-
                 onValueChange={(value) => {
                   field.onChange(value);
-                  // Clear the error when a value is selected
                   form.clearErrors("customerId");
                 }}
               />
@@ -488,7 +436,6 @@ const exceedsAvailable = row.quantity > availableQuantity;
               { shouldValidate: true },
             );
           }}
-          // addLabel={canAddMore ? "Add Product" : "All Products Added"}
           addLabel={canAddMore ? "Add Product" : ""}
           totals={totals}
           minRows={1}
@@ -503,7 +450,6 @@ const exceedsAvailable = row.quantity > availableQuantity;
         description="Review calculated totals before submitting the order"
       >
         <div className="space-y-4 max-w-sm">
-          {/* Discount controls — Step 5.8 */}
           <div className="grid grid-cols-2 gap-3">
             <Controller
               control={control}
@@ -519,8 +465,6 @@ const exceedsAvailable = row.quantity > availableQuantity;
                   value={field.value ?? "none"}
                   onValueChange={(value) => {
                     field.onChange(value);
-                    // Reset the value on any type change — a percentage figure
-                    // shouldn't silently carry over as a fixed-amount figure, or vice versa.
                     setValue("discountValue", 0, { shouldValidate: true });
                   }}
                   error={errors.discountType?.message}
@@ -561,10 +505,7 @@ const exceedsAvailable = row.quantity > availableQuantity;
             />
           </div>
 
-          <SummaryRow
-            label="Subtotal"
-            value={formatCurrency(subtotal)}
-          />
+          <SummaryRow label="Subtotal" value={formatCurrency(subtotal)} />
 
           {discountAmount > 0 && (
             <SummaryRow
@@ -649,17 +590,17 @@ const exceedsAvailable = row.quantity > availableQuantity;
           {submitLabel}
         </Button>
       </div>
-{/* 
+
       <ProductPickerModal
         open={pickerIndex !== null}
         onClose={() => setPickerIndex(null)}
         onSelect={(product) => {
           if (pickerIndex === null) return;
 
-          // Uniqueness check
           const isDuplicate = orderItems.some(
             (item, i) => i !== pickerIndex && item.productId === product.id,
           );
+
           if (isDuplicate) {
             toast.error(
               "This product is already in the order. Update the quantity instead.",
@@ -667,45 +608,15 @@ const exceedsAvailable = row.quantity > availableQuantity;
             return;
           }
 
-          // Set product and auto-fill price
           setValue(`orderItems.${pickerIndex}.productId`, product.id, {
             shouldValidate: true,
           });
+
           setPickerIndex(null);
         }}
-        products={activeProducts}
-        inventoryItems={inventoryItems}
-        consumableStock={consumableStock}
+        products={products}
         selectedProductIds={selectedProductIds}
-      /> */}
-
-
-      <ProductPickerModal
-  open={pickerIndex !== null}
-  onClose={() => setPickerIndex(null)}
-  onSelect={(product) => {
-    if (pickerIndex === null) return;
-
-    const isDuplicate = orderItems.some(
-      (item, i) => i !== pickerIndex && item.productId === product.id,
-    );
-
-    if (isDuplicate) {
-      toast.error(
-        "This product is already in the order. Update the quantity instead.",
-      );
-      return;
-    }
-
-    setValue(`orderItems.${pickerIndex}.productId`, product.id, {
-      shouldValidate: true,
-    });
-
-    setPickerIndex(null);
-  }}
-  products={products}
-  selectedProductIds={selectedProductIds}
-/>
+      />
     </form>
   );
 }

@@ -7,11 +7,22 @@ import { parseError } from "@/lib/errors";
 import { ProductsService } from "@/lib/modules/products/services/products.service";
 
 import { PRODUCT_KEYS } from "../constants/query-keys";
+import type {
+  InventoryTracking,
+  ProductStatus,
+} from "../types/product.types";
 
-export function useProducts() {
+// ── Products ──────────────────────────────────────────────
+
+export function useProducts(filters?: {
+  search?: string;
+  status?: ProductStatus;
+  inventoryTracking?: InventoryTracking;
+  categoryId?: string;
+}) {
   const query = useQuery({
-    queryKey: PRODUCT_KEYS.lists(),
-    queryFn: () => ProductsService.getProducts(),
+    queryKey: PRODUCT_KEYS.list(filters),
+    queryFn: () => ProductsService.getProducts(filters),
     staleTime: 60 * 1000,
   });
 
@@ -45,9 +56,7 @@ export function useActiveProducts() {
   const { products, ...query } = useProducts();
 
   return {
-    products: products.filter(
-      (product) => product.status === "active",
-    ),
+    products: products.filter((product) => product.status === "active"),
     ...query,
   };
 }
@@ -64,7 +73,7 @@ export function useProductSelectOptions() {
   };
 }
 
-
+// ── Picker ────────────────────────────────────────────────
 
 export function useProductPicker() {
   const query = useQuery({
@@ -77,6 +86,38 @@ export function useProductPicker() {
     products: query.data ?? [],
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
+// ── Reference tables ──────────────────────────────────────
+
+export function useCategories() {
+  const query = useQuery({
+    queryKey: PRODUCT_KEYS.categories(),
+    queryFn: () => ProductsService.getCategories(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return {
+    categories: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? parseError(query.error) : null,
+    refetch: query.refetch,
+  };
+}
+
+export function useUnits() {
+  const query = useQuery({
+    queryKey: PRODUCT_KEYS.units(),
+    queryFn: () => ProductsService.getUnits(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return {
+    units: query.data ?? [],
+    isLoading: query.isLoading,
     error: query.error ? parseError(query.error) : null,
     refetch: query.refetch,
   };

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.inventory.schema import (
     InventoryItemResponse,
     ConsumableStockResponse,
@@ -6,17 +8,46 @@ from app.inventory.schema import (
 )
 
 
+def _product_fields(product) -> dict:
+    """
+    Product fields common to inventory items and stock records.
+    """
+    if not product:
+        return {
+            "product_no": None,
+            "product_name": None,
+            "sku": None,
+            "tag_prefix": None,
+        }
+    return {
+        "product_no": product.product_no,
+        "product_name": product.name,
+        "sku": product.code,
+        "tag_prefix": product.tag_prefix,
+    }
+
+
+def _product_fields_with_unit(product) -> dict:
+    """
+    Product fields including the unit, for stock-quantity responses.
+    """
+    fields = _product_fields(product)
+    if not product:
+        fields["unit_label"] = None
+        fields["unit_code"] = None
+        return fields
+
+    unit = getattr(product, "unit", None)
+    fields["unit_label"] = unit.label if unit else None
+    fields["unit_code"] = unit.code if unit else None
+    return fields
+
 
 def inventory_item_to_response(item) -> InventoryItemResponse:
     response = InventoryItemResponse.model_validate(item)
 
-    response.product_name = (
-        item.product.name if item.product else None
-    )
-
-    response.product_code = (
-        item.product.code if item.product else None
-    )
+    for key, value in _product_fields(item.product).items():
+        setattr(response, key, value)
 
     response.location_name = (
         item.location.name if item.location else None
@@ -37,27 +68,20 @@ def inventory_item_to_response(item) -> InventoryItemResponse:
     return response
 
 
-
 def consumable_stock_to_response(
     stock,
 ) -> ConsumableStockResponse:
 
     response = ConsumableStockResponse.model_validate(stock)
 
-    response.product_name = (
-        stock.product.name if stock.product else None
-    )
-
-    response.product_code = (
-        stock.product.code if stock.product else None
-    )
+    for key, value in _product_fields_with_unit(stock.product).items():
+        setattr(response, key, value)
 
     response.location_name = (
         stock.location.name if stock.location else None
     )
 
     return response
-
 
 
 def stock_movement_to_response(
@@ -85,7 +109,6 @@ def stock_movement_to_response(
     )
 
     return response
-
 
 
 def consumable_stock_detail_to_response(

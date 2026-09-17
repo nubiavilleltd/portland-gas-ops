@@ -1,18 +1,21 @@
 import { z } from "zod";
 
-export const PRODUCT_UNITS = ["kg", "litre", "m3", "unit", "tonne"] as const;
+export const INVENTORY_TRACKING = [
+  "INDIVIDUAL_ITEMS",
+  "STOCK_QUANTITY",
+] as const;
+
 export const PRODUCT_STATUS = ["active", "inactive"] as const;
-export const PRODUCT_TYPES = ["consumable", "tracked"] as const;
 
 const productSchemaBase = z.object({
   name: z.string().trim().min(1, "Product name is required"),
 
-  productType: z.enum(PRODUCT_TYPES, {
-    message: "Select a product type",
-  }),
+  categoryId: z.string().min(1, "Select a category"),
 
-  unit: z.enum(PRODUCT_UNITS, {
-    message: "Select a unit of measurement",
+  unitId: z.string().min(1, "Select a unit of measurement"),
+
+  inventoryTracking: z.enum(INVENTORY_TRACKING, {
+    message: "Select an inventory tracking mode",
   }),
 
   defaultUnitPrice: z
@@ -25,26 +28,48 @@ const productSchemaBase = z.object({
 
   description: z.string().trim().optional(),
 
+  // SKU — optional
   code: z.string().trim().optional(),
+
+  // Tag prefix — required for INDIVIDUAL_ITEMS, must be empty for STOCK_QUANTITY
+  tagPrefix: z
+    .string()
+    .trim()
+    .transform((v) => v.toUpperCase())
+    .optional(),
 
   minimumStock: z
     .string()
     .optional()
     .transform((v) => (v ? Number(v.replace(/,/g, "")) : undefined))
     .pipe(
-      z.number().nonnegative("Minimum stock cannot be negative").optional()
+      z.number().nonnegative("Minimum stock cannot be negative").optional(),
     ),
 });
 
-export const createProductSchema = productSchemaBase.superRefine((data, ctx) => {
-  if (data.productType === "tracked" && !data.code?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Product code is required for tracked assets",
-      path: ["code"],
-    });
-  }
-});
+export const createProductSchema = productSchemaBase.superRefine(
+  (data, ctx) => {
+    if (data.inventoryTracking === "INDIVIDUAL_ITEMS") {
+      if (!data.tagPrefix || data.tagPrefix.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "Tag prefix is required for individually-tracked products",
+          path: ["tagPrefix"],
+        });
+      }
+    } else {
+      if (data.tagPrefix && data.tagPrefix.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "Tag prefix must not be set for stock-quantity products",
+          path: ["tagPrefix"],
+        });
+      }
+    }
+  },
+);
 
 export const updateProductSchema = productSchemaBase.partial();
 

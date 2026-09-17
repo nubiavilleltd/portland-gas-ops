@@ -8,69 +8,70 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import Badge from "@/components/ui/Badge";
 import FormSelect from "@/components/forms/FormSelect";
 
-import {
-  useStockMovements,
-} from "@/lib/modules/inventory/hooks/useInventory";
-import { useProducts } from "@/lib/modules/products/hooks/useProducts";
+import { useStockMovements } from "@/lib/modules/inventory/hooks/useInventory";
+import { useProducts, useUnits } from "@/lib/modules/products/hooks/useProducts";
 
 import { getProductById } from "@/lib/modules/products/selectors/products.selectors";
 import { getMovementsByProduct } from "@/lib/modules/inventory/selectors/inventory.selectors";
 import { formatDate } from "@/lib/utils";
 
 import type { StockMovement } from "@/lib/modules/inventory/types/inventory.types";
-import { BadgeVariant } from "@/config/badge.config";
+import type { BadgeVariant } from "@/config/badge.config";
 
-// ── Movement config ───────────────────────────────────────
-const MOVEMENT_VARIANT: Record<StockMovement["movement_type"], BadgeVariant> = {
-  check_in:    "success",
-  check_out:   "info",
+const MOVEMENT_VARIANT: Record<
+  StockMovement["movement_type"],
+  BadgeVariant
+> = {
+  check_in: "success",
+  check_out: "info",
   reservation: "warning",
-  return:      "cyan",
-  adjustment:  "neutral",
+  reservation_release: "neutral",
+  return: "cyan",
+  adjustment: "neutral",
 };
 
 const MOVEMENT_LABEL: Record<StockMovement["movement_type"], string> = {
-  check_in:    "Check In",
-  check_out:   "Check Out",
+  check_in: "Check In",
+  check_out: "Check Out",
   reservation: "Reservation",
-  return:      "Return",
-  adjustment:  "Adjustment",
+  reservation_release: "Reservation Released",
+  return: "Return",
+  adjustment: "Adjustment",
 };
 
 const REFERENCE_LABEL: Record<string, string> = {
-  order:          "Order",
-  trip:           "Trip",
+  order: "Order",
+  trip: "Trip",
   purchase_order: "Purchase Order",
-  manual:         "Manual",
+  manual: "Manual",
 };
 
-// ── Page ──────────────────────────────────────────────────
 export default function MovementsPage() {
   const [productFilter, setProductFilter] = useState<string>("");
 
   const { movements, isLoading: movementsLoading } = useStockMovements();
-  const { products,  isLoading: productsLoading  } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts();
+  const { units, isLoading: unitsLoading } = useUnits();
 
-  const isLoading = movementsLoading || productsLoading;
+  const isLoading =
+    movementsLoading || productsLoading || unitsLoading;
 
-  // ── Filter ────────────────────────────────────────────────
   const filtered = productFilter
     ? getMovementsByProduct(movements, productFilter)
     : movements;
 
-  // Sort newest first
   const sorted = [...filtered].sort(
     (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
-  // ── Product filter options ────────────────────────────────
   const productOptions = [
     { value: "", label: "All Products" },
     ...products.map((p) => ({ value: p.id, label: p.name })),
   ];
 
-  // ── Columns ───────────────────────────────────────────────
+  const unitLabelById = new Map(units.map((u) => [u.id, u.label]));
+
   const columns: Column<StockMovement>[] = [
     {
       key: "created_at",
@@ -83,10 +84,7 @@ export default function MovementsPage() {
       render: (value) => {
         const v = value as StockMovement["movement_type"];
         return (
-          <Badge
-            variant={MOVEMENT_VARIANT[v]}
-            label={MOVEMENT_LABEL[v]}
-          />
+          <Badge variant={MOVEMENT_VARIANT[v]} label={MOVEMENT_LABEL[v]} />
         );
       },
     },
@@ -100,10 +98,12 @@ export default function MovementsPage() {
       key: "quantity",
       label: "Quantity",
       render: (value, row) => {
-        const product  = getProductById(products, row.product_id);
-        const qty      = value as number;
-        const unit     = product?.unit ?? "";
-        const isOut    =
+        const product = getProductById(products, row.product_id);
+        const unit = product
+          ? unitLabelById.get(product.unitId) ?? ""
+          : "";
+        const qty = value as number;
+        const isOut =
           row.movement_type === "check_out" ||
           row.movement_type === "reservation";
 
@@ -115,7 +115,8 @@ export default function MovementsPage() {
                 : "text-green-700 font-medium"
             }
           >
-            {isOut ? "−" : "+"}{qty.toLocaleString()} {unit}
+            {isOut ? "−" : "+"}
+            {qty.toLocaleString()} {unit}
           </span>
         );
       },
@@ -138,7 +139,7 @@ export default function MovementsPage() {
       label: "Reference",
       render: (value, row) => {
         if (!value) return "—";
-        const type  = value as string;
+        const type = value as string;
         const label = REFERENCE_LABEL[type] ?? type;
         return row.reference_id ? (
           <div className="text-sm">
@@ -164,9 +165,7 @@ export default function MovementsPage() {
     {
       key: "recorded_by_name",
       label: "Recorded By",
-      render: (value) => (
-        <span className="text-sm">{value as string}</span>
-      ),
+      render: (value) => <span className="text-sm">{value as string}</span>,
     },
   ];
 
@@ -174,11 +173,10 @@ export default function MovementsPage() {
     <AppLayout pageTitle="Stock Movements">
       <PageHeader
         title="Stock Movements"
-        description="Full audit trail of all inventory check-ins, check-outs, reservations and returns"
+        description="Full audit trail of inventory check-ins, check-outs, reservations, and returns"
         className="mb-6"
       />
 
-      {/* Filter */}
       <div className="mb-5 max-w-xs">
         <FormSelect
           label=""
@@ -190,7 +188,6 @@ export default function MovementsPage() {
         />
       </div>
 
-      {/* Summary strip */}
       {!isLoading && (
         <div className="flex items-center gap-6 mb-5 text-sm text-brand-text-secondary">
           <span>
@@ -200,7 +197,8 @@ export default function MovementsPage() {
             movement{sorted.length !== 1 ? "s" : ""}
             {productFilter && (
               <>
-                {" "}for{" "}
+                {" "}
+                for{" "}
                 <strong className="text-brand-text-primary">
                   {getProductById(products, productFilter)?.name}
                 </strong>

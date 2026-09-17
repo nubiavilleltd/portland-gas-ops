@@ -1,7 +1,7 @@
 /**
  * Products API layer
  * Uses multipart/form-data for create/update because images are included.
- * List, get, activate, deactivate use standard JSON.
+ * List, get, activate, deactivate, categories, units use standard JSON.
  */
 
 import api from "@/lib/api";
@@ -14,7 +14,8 @@ export const productsApi = {
   list: async (
     params: {
       search?: string;
-      product_type?: string;
+      inventory_tracking?: string;
+      category_id?: string;
       status?: string;
       page?: number;
       page_size?: number;
@@ -83,6 +84,16 @@ export const productsApi = {
 
   picker: async () => {
     const { data } = await api.get("/api/products/picker");
+    return data;
+  },
+
+  categories: async () => {
+    const { data } = await api.get("/api/products/categories");
+    return data;
+  },
+
+  units: async () => {
+    const { data } = await api.get("/api/products/units");
     return data;
   },
 };

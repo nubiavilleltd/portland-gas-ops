@@ -167,23 +167,26 @@ class PdfBuilder:
             )
 
         #
-        # Company information
+        # Company tagline (optional)
         #
 
-        self.canvas.setFillColor(MUTED_TEXT)
+        if COMPANY_INFO.tagline:
+            self.canvas.setFillColor(MUTED_TEXT)
+            self.canvas.setFont("Helvetica", 7.5)
+            self.canvas.drawString(
+                self.margin_left,
+                PAGE_HEIGHT - 30 * mm,
+                COMPANY_INFO.tagline,
+            )
 
-        self.canvas.setFont(
-            "Helvetica",
-            7.5,
-        )
-
-        self.canvas.drawString(
-            self.margin_left,
-            PAGE_HEIGHT - 30 * mm,
-            COMPANY_INFO.tagline,
-        )
+        #
+        # Company contact information (right side)
+        #
 
         right_x = self.margin_right
+
+        self.canvas.setFillColor(MUTED_TEXT)
+        self.canvas.setFont("Helvetica", 7.5)
 
         self.canvas.drawRightString(
             right_x,
@@ -202,11 +205,12 @@ class PdfBuilder:
             PAGE_HEIGHT - 26 * mm,
             COMPANY_INFO.website,
         )
+
         self.draw_divider(
             PAGE_HEIGHT - 33 * mm,
         )
+
         self.cursor_y = PAGE_HEIGHT - 42 * mm
-    
 
     def draw_title(
         self,

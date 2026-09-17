@@ -6,37 +6,43 @@ import { ReactNode, useState } from "react";
 
 import AppLayout from "@/components/layout/AppLayout";
 import Button from "@/components/ui/Button";
-import ErrorBanner from "@/components/ui/ErrorBanner";
+import Badge from "@/components/ui/Badge";
+import FormSection from "@/components/ui/FormSection";
+import PageErrorState from "@/components/ui/PageError";
 
-import { useProductById } from "@/lib/modules/products/hooks/useProducts";
-import { ProductsService } from "@/lib/modules/products/services/products.service";
+import {
+  useProductById,
+  useCategories,
+  useUnits,
+} from "@/lib/modules/products/hooks/useProducts";
 import { PRODUCT_ROUTES } from "@/lib/modules/products/constants/routes";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
-import Link from "next/link";
-import FormSection from "@/components/ui/FormSection";
 import { useToggleProductStatus } from "@/lib/modules/products/hooks/useProductMutations";
-import { Product, ProductImage } from "@/lib/modules/products/types/product.types";
 import {
-  useConsumableStockByProduct,
-} from "@/lib/modules/inventory/hooks/useInventory";
-import Badge from "@/components/ui/Badge";
-import { isConsumable } from "@/lib/modules/products/types/product.types";
-import { getStockStatus } from "@/lib/modules/products/selectors/products.selectors";
-import PageErrorState from "@/components/ui/PageError";
+  type Product,
+  type ProductImage,
+  type InventoryTracking,
+} from "@/lib/modules/products/types/product.types";
 import ProductDetailsSkeleton from "@/lib/modules/products/components/ProductDetailsSkeleton";
 import { parseError } from "@/lib/errors";
 import { INVENTORY_ROUTES } from "@/lib/modules/inventory/constants/routes";
+
+const TRACKING_LABEL: Record<InventoryTracking, string> = {
+  INDIVIDUAL_ITEMS: "Individual Items",
+  STOCK_QUANTITY: "Stock Quantity",
+};
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+
   const { product, isLoading, error } = useProductById(id);
-  const { stock, quantity } = useConsumableStockByProduct(id);
+  const { categories } = useCategories();
+  const { units } = useUnits();
 
-
-  const isActive = product?.status == "active";
+  const isActive = product?.status === "active";
   const { mutate: toggleStatus, isPending: isToggling } =
     useToggleProductStatus(id);
 
@@ -47,7 +53,6 @@ export default function ProductDetailPage() {
       </AppLayout>
     );
   }
-
 
   if (error || !product) {
     return (
@@ -67,12 +72,15 @@ export default function ProductDetailPage() {
     );
   }
 
-const isLow = getStockStatus(product, quantity);
-
+  const categoryName =
+    categories.find((c) => c.id === product.categoryId)?.name ?? "—";
+  const unitLabel =
+    units.find((u) => u.id === product.unitId)?.label ?? "—";
+  const unitCode =
+    units.find((u) => u.id === product.unitId)?.code ?? "";
 
   return (
     <AppLayout pageTitle={product.name}>
-      {/* Back */}
       <button
         onClick={() => router.push(PRODUCT_ROUTES.list())}
         className="flex items-center gap-2 text-sm text-brand-text-secondary hover:text-brand-text-primary mb-5 transition-colors"
@@ -81,7 +89,6 @@ const isLow = getStockStatus(product, quantity);
         Back to Products
       </button>
 
-      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-brand-text-primary">
@@ -101,22 +108,17 @@ const isLow = getStockStatus(product, quantity);
             Edit
           </Button>
 
-
           <Button
             variant={isActive ? "danger" : "primary"}
             loading={isToggling}
-            loadingText={
-              isActive
-                ? "Deactivating…"
-                : "Activating…"
-            }
+            loadingText={isActive ? "Deactivating…" : "Activating…"}
             onClick={() =>
               toggleStatus(isActive ?? false, {
                 onSuccess: () => {
                   toast.success(
                     isActive
                       ? "Product deactivated successfully."
-                      : "Product activated successfully."
+                      : "Product activated successfully.",
                   );
                 },
                 onError: (err) => {
@@ -125,9 +127,7 @@ const isLow = getStockStatus(product, quantity);
               })
             }
             leftIcon={
-              isActive
-                ? <PowerOff size={14} />
-                : <Power size={14} />
+              isActive ? <PowerOff size={14} /> : <Power size={14} />
             }
           >
             {isActive ? "Deactivate" : "Activate"}
@@ -135,9 +135,6 @@ const isLow = getStockStatus(product, quantity);
         </div>
       </div>
 
-      {/* <ErrorBanner message={actionError} className="mb-4" /> */}
-
-      {/* Details card */}
       <FormSection
         title="Product Details"
         className="mb-4"
@@ -159,12 +156,55 @@ const isLow = getStockStatus(product, quantity);
             }
           />
           <InfoRow
-            label="Unit of Measurement"
-            value={product.unit}
+            label="Inventory Tracking"
+            value={
+              <Badge
+                variant={
+                  product.inventoryTracking === "INDIVIDUAL_ITEMS"
+                    ? "info"
+                    : "neutral"
+                }
+                label={TRACKING_LABEL[product.inventoryTracking]}
+              />
+            }
+          />
+          <InfoRow label="Category" value={categoryName} />
+          <InfoRow
+            label="SKU"
+            value={
+              product.code ? (
+                <span className="font-mono">{product.code}</span>
+              ) : (
+                "—"
+              )
+            }
           />
           <InfoRow
+            label="Product Number"
+            value={<span className="font-mono">{product.productNo}</span>}
+          />
+          <InfoRow
+            label="Tag Prefix"
+            value={
+              product.tagPrefix ? (
+                <span className="font-mono">{product.tagPrefix}</span>
+              ) : (
+                "—"
+              )
+            }
+          />
+          <InfoRow label="Unit of Measurement" value={`${unitLabel} (${unitCode})`} />
+          <InfoRow
             label="Default Unit Price"
-            value={`${formatCurrency(product.defaultUnitPrice)} / ${product.unit}`}
+            value={`${formatCurrency(product.defaultUnitPrice)} / ${unitCode}`}
+          />
+          <InfoRow
+            label="Minimum Stock Threshold"
+            value={
+              product.minimumStock
+                ? product.minimumStock.toLocaleString()
+                : "Not set"
+            }
           />
           <InfoRow
             label="Description"
@@ -174,60 +214,29 @@ const isLow = getStockStatus(product, quantity);
       </FormSection>
 
       <FormSection
+        title="Inventory"
+        description="Stock levels and movements for this product"
+        className="mb-4"
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-brand-text-secondary">
+            View the current inventory for this product, broken down by status.
+          </p>
+          <Button
+            size="sm"
+            href={INVENTORY_ROUTES.productDetail(id)}
+          >
+            View Inventory →
+          </Button>
+        </div>
+      </FormSection>
+
+      <FormSection
         title="Product Images"
         description="Images uploaded for this product"
       >
         <ProductImageGallery images={product.images ?? []} />
       </FormSection>
-
-      {isConsumable(product) && (
-        <FormSection
-          title="Stock Level"
-          description="Current inventory level for this product"
-          className="mt-4"
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div className="grid grid-cols-3 gap-5 flex-1">
-              <InfoRow
-                label="Current Stock"
-                value={`${quantity.toLocaleString()} ${product.unit}`}
-              />
-              <InfoRow
-                label="Minimum Threshold"
-                value={
-                  product?.minimumStock
-                    ? `${product.minimumStock.toLocaleString()} ${product.unit}`
-                    : "Not set"
-                }
-              />
-              <InfoRow
-                label="Status"
-                value={
-                  <Badge
-                    variant={isLow ? "danger" : "success"}
-                    label={isLow ? "Low Stock" : "OK"}
-                  />
-                }
-              />
-            </div>
-            {stock ? (
-              <Button
-                size="sm"
-                href={INVENTORY_ROUTES.stockDetail(stock.id)}
-              >
-                View Stock →
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                href={INVENTORY_ROUTES.checkIn()}
-              >
-                Check In Stock →
-              </Button>
-            )}
-          </div>
-        </FormSection>
-      )}
     </AppLayout>
   );
 }
@@ -242,7 +251,6 @@ function InfoRow({
   return (
     <div>
       <p className="text-xs text-brand-text-secondary">{label}</p>
-
       <p className="mt-1 font-medium">{value}</p>
     </div>
   );
@@ -261,7 +269,6 @@ function ProductImageGallery({ images }: { images: ProductImage[] }) {
 
   return (
     <div className="space-y-2">
-      {/* Hero */}
       <div className="relative w-full aspect-16/7 rounded-xl overflow-hidden border border-brand-border bg-gray-50">
         <img
           src={images[activeIndex].url}
@@ -275,7 +282,6 @@ function ProductImageGallery({ images }: { images: ProductImage[] }) {
         )}
       </div>
 
-      {/* Thumbnail strip */}
       {images.length > 1 && (
         <div className="flex items-center gap-2">
           {images.map((img, i) => (
