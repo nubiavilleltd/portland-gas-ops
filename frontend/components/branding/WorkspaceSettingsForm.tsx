@@ -4,7 +4,19 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { Check, ImagePlus, X } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
-import { useCompanyBranding } from "@/lib/company-branding";
+import {
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SECONDARY_COLOR,
+  normalizeHexColor,
+  useCompanyBranding,
+} from "@/lib/company-branding";
+import BrandColorFields from "@/components/branding/BrandColorFields";
+import {
+  dataUrlToLogoFile,
+  toCompanyBranding,
+  updateWorkspaceBranding,
+  uploadWorkspaceLogo,
+} from "@/lib/workspace-branding-api";
 import {
   DEFAULT_ENABLED_FEATURES,
   WORKSPACE_AUTOMATIONS,
@@ -60,7 +72,7 @@ function OptionCard({
 export default function WorkspaceSettingsForm() {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const { name, logoDataUrl, setBranding } = useCompanyBranding();
+  const { name, logoDataUrl, primaryColor, secondaryColor, setBranding } = useCompanyBranding();
   const {
     enabledFeatures,
     enabledAutomations,
@@ -68,7 +80,10 @@ export default function WorkspaceSettingsForm() {
   } = useWorkspacePreferences();
   const [companyName, setCompanyName] = useState(name);
   const [companyLogo, setCompanyLogo] = useState<string | null>(logoDataUrl);
+  const [appPrimaryColor, setAppPrimaryColor] = useState(primaryColor);
+  const [appSecondaryColor, setAppSecondaryColor] = useState(secondaryColor);
   const [logoFileName, setLogoFileName] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<FeatureId[]>(
     enabledFeatures.length ? enabledFeatures : DEFAULT_ENABLED_FEATURES,
   );
@@ -92,6 +107,7 @@ export default function WorkspaceSettingsForm() {
     reader.onload = () => {
       setCompanyLogo(String(reader.result));
       setLogoFileName(file.name);
+      setLogoFile(file);
     };
     reader.onerror = () => setError("We could not read that logo. Please try again.");
     reader.readAsDataURL(file);
@@ -100,6 +116,7 @@ export default function WorkspaceSettingsForm() {
   function clearLogo() {
     setCompanyLogo(null);
     setLogoFileName("");
+    setLogoFile(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -121,14 +138,17 @@ export default function WorkspaceSettingsForm() {
   function resetForm() {
     setCompanyName(name);
     setCompanyLogo(logoDataUrl);
+    setAppPrimaryColor(primaryColor);
+    setAppSecondaryColor(secondaryColor);
     setLogoFileName("");
+    setLogoFile(null);
     setSelectedFeatures(enabledFeatures.length ? enabledFeatures : DEFAULT_ENABLED_FEATURES);
     setSelectedAutomations(enabledAutomations);
     setError(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function saveSettings(event: React.FormEvent<HTMLFormElement>) {
+  async function saveSettings(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedName = companyName.trim();
     if (!trimmedName) {
@@ -144,15 +164,48 @@ export default function WorkspaceSettingsForm() {
       return;
     }
 
+    const localBranding = {
+      name: trimmedName,
+      logoDataUrl: companyLogo,
+      primaryColor: normalizeHexColor(appPrimaryColor, DEFAULT_PRIMARY_COLOR),
+      secondaryColor: normalizeHexColor(appSecondaryColor, DEFAULT_SECONDARY_COLOR),
+    };
+
     setIsSaving(true);
-    setBranding({ name: trimmedName, logoDataUrl: companyLogo });
     setPreferences({
       enabledFeatures: selectedFeatures,
       enabledAutomations: selectedAutomations,
     });
-    setError(null);
-    setIsSaving(false);
-    toast.success("Workspace settings saved.");
+
+    try {
+      let logoUrl = companyLogo.startsWith("https://") ? companyLogo : undefined;
+      const fileToUpload = logoFile ?? (
+        companyLogo.startsWith("data:")
+          ? await dataUrlToLogoFile(companyLogo)
+          : null
+      );
+      if (fileToUpload) {
+        logoUrl = (await uploadWorkspaceLogo(fileToUpload)).logo_url;
+      }
+
+      const workspace = await updateWorkspaceBranding({
+        name: localBranding.name,
+        primaryColor: localBranding.primaryColor,
+        secondaryColor: localBranding.secondaryColor,
+        logoUrl,
+      });
+      setBranding(toCompanyBranding(workspace));
+      setCompanyLogo(workspace.logo_url);
+      setLogoFile(null);
+      setLogoFileName("");
+      toast.success("Workspace settings saved for everyone.");
+    } catch {
+      setBranding(localBranding);
+      toast.warning("Settings were saved on this device, but workspace sync is unavailable.");
+    } finally {
+      setError(null);
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -209,6 +262,13 @@ export default function WorkspaceSettingsForm() {
         </div>
       </section>
 
+      <BrandColorFields
+        primaryColor={appPrimaryColor}
+        secondaryColor={appSecondaryColor}
+        onPrimaryChange={setAppPrimaryColor}
+        onSecondaryChange={setAppSecondaryColor}
+      />
+
       <section>
         <h3 className="text-sm font-semibold text-brand-text-primary">Workspace features</h3>
         <p className="mt-1 text-xs text-brand-text-secondary">Choose which module areas appear on the user home page.</p>
@@ -227,8 +287,8 @@ export default function WorkspaceSettingsForm() {
       </section>
 
       <section>
-        <h3 className="text-sm font-semibold text-brand-text-primary">Automations</h3>
-        <p className="mt-1 text-xs text-brand-text-secondary">Choose the reminders and notifications your team wants prepared.</p>
+        <h3 className="text-sm font-semibold text-brand-text-primary">Notifications and reminders</h3>
+        <p className="mt-1 text-xs text-brand-text-secondary">Choose the notifications and reminders your team wants prepared.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {WORKSPACE_AUTOMATIONS.map((automation) => (
             <OptionCard
@@ -241,7 +301,7 @@ export default function WorkspaceSettingsForm() {
             />
           ))}
         </div>
-        <p className="mt-3 text-xs text-brand-text-secondary">Automation execution will be connected when the backend automation service is enabled.</p>
+        <p className="mt-3 text-xs text-brand-text-secondary">Delivery will be connected when the backend notification service is enabled.</p>
       </section>
 
       {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

@@ -10,7 +10,20 @@ import {
   ImagePlus,
   X,
 } from "lucide-react";
-import { useCompanyBranding } from "@/lib/company-branding";
+import {
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SECONDARY_COLOR,
+  normalizeHexColor,
+  useCompanyBranding,
+} from "@/lib/company-branding";
+import BrandColorFields from "@/components/branding/BrandColorFields";
+import { useToast } from "@/hooks/useToast";
+import {
+  dataUrlToLogoFile,
+  toCompanyBranding,
+  updateWorkspaceBranding,
+  uploadWorkspaceLogo,
+} from "@/lib/workspace-branding-api";
 import {
   DEFAULT_ENABLED_AUTOMATIONS,
   DEFAULT_ENABLED_FEATURES,
@@ -23,15 +36,22 @@ import {
 
 const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-const STEPS = ["Company details", "Choose features", "Choose automations"];
+const STEPS = ["Company details", "Choose features", "Notifications and reminders"];
 
 type OnboardingStep = 1 | 2 | 3;
 
 function OnboardingContent() {
   const router = useRouter();
   const params = useSearchParams();
+  const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const { name: storedName, logoDataUrl: storedLogo, setBranding } = useCompanyBranding();
+  const {
+    name: storedName,
+    logoDataUrl: storedLogo,
+    primaryColor: storedPrimaryColor,
+    secondaryColor: storedSecondaryColor,
+    setBranding,
+  } = useCompanyBranding();
   const {
     enabledFeatures: storedFeatures,
     enabledAutomations: storedAutomations,
@@ -40,7 +60,10 @@ function OnboardingContent() {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [name, setName] = useState(storedName === "Your Company" ? "" : storedName);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(storedLogo);
+  const [primaryColor, setPrimaryColor] = useState(storedPrimaryColor);
+  const [secondaryColor, setSecondaryColor] = useState(storedSecondaryColor);
   const [logoName, setLogoName] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<FeatureId[]>(
     storedFeatures.length ? storedFeatures : DEFAULT_ENABLED_FEATURES,
   );
@@ -66,6 +89,7 @@ function OnboardingContent() {
     reader.onload = () => {
       setLogoDataUrl(String(reader.result));
       setLogoName(file.name);
+      setLogoFile(file);
     };
     reader.onerror = () => setError("We could not read that logo. Please try again.");
     reader.readAsDataURL(file);
@@ -74,6 +98,7 @@ function OnboardingContent() {
   function clearLogo() {
     setLogoDataUrl(null);
     setLogoName("");
+    setLogoFile(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -113,7 +138,7 @@ function OnboardingContent() {
     setStep((current) => (current + 1) as OnboardingStep);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (step !== 3) {
       continueToNextStep();
@@ -126,12 +151,42 @@ function OnboardingContent() {
       return;
     }
 
+    const localBranding = {
+      name: name.trim(),
+      logoDataUrl,
+      primaryColor: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
+      secondaryColor: normalizeHexColor(secondaryColor, DEFAULT_SECONDARY_COLOR),
+    };
+
     setIsSaving(true);
-    setBranding({ name: name.trim(), logoDataUrl });
     setPreferences({
       enabledFeatures: selectedFeatures,
       enabledAutomations: selectedAutomations,
     });
+
+    try {
+      let logoUrl = logoDataUrl.startsWith("https://") ? logoDataUrl : undefined;
+      const fileToUpload = logoFile ?? (
+        logoDataUrl.startsWith("data:")
+          ? await dataUrlToLogoFile(logoDataUrl)
+          : null
+      );
+      if (fileToUpload) {
+        logoUrl = (await uploadWorkspaceLogo(fileToUpload)).logo_url;
+      }
+
+      const workspace = await updateWorkspaceBranding({
+        name: localBranding.name,
+        primaryColor: localBranding.primaryColor,
+        secondaryColor: localBranding.secondaryColor,
+        logoUrl,
+      });
+      setBranding(toCompanyBranding(workspace));
+    } catch {
+      setBranding(localBranding);
+      toast.warning("Workspace setup was saved on this device, but server sync is unavailable.");
+    }
+
     const next = params.get("next");
     router.replace(next?.startsWith("/") ? next : "/home");
   }
@@ -150,7 +205,7 @@ function OnboardingContent() {
             Set up your workspace
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-brand-text-secondary">
-            Add your company details, then choose the features and automations your team needs.
+            Add your company details, then choose the features, notifications, and reminders your team needs.
           </p>
         </div>
 
@@ -243,6 +298,13 @@ function OnboardingContent() {
                   </div>
                 </div>
               </div>
+
+              <BrandColorFields
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                onPrimaryChange={setPrimaryColor}
+                onSecondaryChange={setSecondaryColor}
+              />
             </div>
           )}
 
@@ -290,8 +352,8 @@ function OnboardingContent() {
           {step === 3 && (
             <div>
               <div className="mb-5">
-                <h2 className="text-lg font-semibold text-brand-text-primary">Which automations should we prepare?</h2>
-                <p className="mt-1 text-sm text-brand-text-secondary">Choose helpful notifications and reminders. These selections will be ready for the automation service when it is connected.</p>
+                <h2 className="text-lg font-semibold text-brand-text-primary">Which notifications and reminders should we prepare?</h2>
+                <p className="mt-1 text-sm text-brand-text-secondary">Choose the notifications and reminders your team needs. These selections will be ready when the delivery service is connected.</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {WORKSPACE_AUTOMATIONS.map((automation) => {
@@ -325,7 +387,7 @@ function OnboardingContent() {
                   );
                 })}
               </div>
-              <p className="mt-4 text-xs text-brand-text-secondary">Automations are optional. You can continue without selecting any.</p>
+              <p className="mt-4 text-xs text-brand-text-secondary">Notifications and reminders are optional. You can continue without selecting any.</p>
             </div>
           )}
 

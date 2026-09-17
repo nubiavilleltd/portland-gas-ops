@@ -17,9 +17,9 @@ const PAGE_SIZE = 6;
 
 // Tailwind-safe badge classes by color key
 const COLOR_BADGE_CLASS: Record<NewsCategoryColor, string> = {
-  purple: "bg-[#7234BD] text-white",
-  yellow: "bg-[#FFBC00] text-[#1C043B]",
-  gray:   "bg-gray-100 text-[#1C043B]",
+  purple: "bg-[var(--brand-primary)] text-white",
+  yellow: "bg-[#FFBC00] text-[var(--brand-secondary)]",
+  gray:   "bg-gray-100 text-[var(--brand-secondary)]",
   red:    "bg-red-500 text-white",
   blue:   "bg-blue-100 text-blue-700",
   green:  "bg-green-100 text-green-700",
@@ -44,7 +44,7 @@ export default function NewsPage() {
   const NEWS = rawNews.map((n) => ({
     id:          n.id,
     category:    n.category,
-    badge:       COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[#1C043B]",
+    badge:       COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[var(--brand-secondary)]",
     title:       n.title,
     bodyHtml:    n.body,
     excerptText: n.body.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(),
@@ -91,7 +91,7 @@ export default function NewsPage() {
               onClick={() => handleTabChange(t)}
               className={cn(
                 "shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all",
-                tab === t ? "bg-[#7234BD] text-white shadow-sm" : "bg-white text-gray-500 border border-gray-200 hover:text-[#7234BD] hover:border-[#7234BD]/30"
+                tab === t ? "bg-[var(--brand-primary)] text-white shadow-sm" : "bg-white text-gray-500 border border-gray-200 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)]/30"
               )}
             >
               {t}
@@ -105,7 +105,7 @@ export default function NewsPage() {
               value={q}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Search news…"
-              className="py-2 w-72 pl-9 pr-5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[#7234BD]/20 focus:border-[#7234BD]/40 transition-all"
+              className="py-2 w-72 pl-9 pr-5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]/40 transition-all"
             />
           </div>
         </div>
@@ -147,7 +147,7 @@ export default function NewsPage() {
                     </span>
                   </div>
                   <div className="p-5">
-                    <h3 className="font-bold text-[#1C043B] text-sm leading-snug mb-2 group-hover:text-[#7234BD] transition-colors line-clamp-2">
+                    <h3 className="font-bold text-[var(--brand-secondary)] text-sm leading-snug mb-2 group-hover:text-[var(--brand-primary)] transition-colors line-clamp-2">
                       {item.title}
                     </h3>
                     <div
@@ -156,7 +156,7 @@ export default function NewsPage() {
                     />
                     <div className="flex items-center justify-between text-[11px] text-gray-400">
                       <span>{item.author}</span>
-                      <span className="flex items-center gap-1 text-[#7234BD] font-semibold">
+                      <span className="flex items-center gap-1 text-[var(--brand-primary)] font-semibold">
                         Read more <ArrowRight size={11} />
                       </span>
                     </div>

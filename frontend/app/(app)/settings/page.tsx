@@ -172,7 +172,7 @@ export default function SettingsPage() {
           <SettingRow
             icon={Building2}
             title="Workspace branding & setup"
-            description="Change your company identity, features, and automations."
+            description="Change your company identity, app colors, features, notifications, and reminders."
             expanded={openSection === "workspace"}
             onToggle={() => toggle("workspace")}
           >

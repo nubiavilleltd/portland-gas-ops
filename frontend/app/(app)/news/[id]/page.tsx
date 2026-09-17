@@ -11,9 +11,9 @@ import { useCompanyBranding } from "@/lib/company-branding";
 import CompanyCopyright from "@/components/branding/CompanyCopyright";
 
 const COLOR_BADGE_CLASS: Record<NewsCategoryColor, string> = {
-  purple: "bg-[#7234BD] text-white",
-  yellow: "bg-[#FFBC00] text-[#1C043B]",
-  gray:   "bg-gray-100 text-[#1C043B]",
+  purple: "bg-[var(--brand-primary)] text-white",
+  yellow: "bg-[#FFBC00] text-[var(--brand-secondary)]",
+  gray:   "bg-gray-100 text-[var(--brand-secondary)]",
   red:    "bg-red-500 text-white",
   blue:   "bg-blue-100 text-blue-700",
   green:  "bg-green-100 text-green-700",
@@ -31,14 +31,14 @@ export default function NewsDetailPage() {
   const { data: categories = [] }          = useIntranetNewsCategories();
 
   const colorByName = Object.fromEntries(categories.map((c) => [c.name, c.color as NewsCategoryColor]));
-  const badge = item ? (COLOR_BADGE_CLASS[colorByName[item.category] ?? "gray"] ?? "bg-gray-100 text-[#1C043B]") : "";
+  const badge = item ? (COLOR_BADGE_CLASS[colorByName[item.category] ?? "gray"] ?? "bg-gray-100 text-[var(--brand-secondary)]") : "";
 
   const related = allNews
     .filter((n) => n.id !== id)
     .slice(0, 3)
     .map((n) => ({
       ...n,
-      badge: COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[#1C043B]",
+      badge: COLOR_BADGE_CLASS[colorByName[n.category] ?? "gray"] ?? "bg-gray-100 text-[var(--brand-secondary)]",
       date:  n.published_at
         ? new Date(n.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
         : "",
@@ -68,7 +68,7 @@ export default function NewsDetailPage() {
       <IntranetLayout>
         <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-20 text-center">
           <p className="text-gray-400 text-sm">Article not found.</p>
-          <button onClick={() => router.back()} className="mt-4 text-[#7234BD] text-sm hover:underline">
+          <button onClick={() => router.back()} className="mt-4 text-[var(--brand-primary)] text-sm hover:underline">
             Go back
           </button>
         </div>
@@ -91,9 +91,9 @@ export default function NewsDetailPage() {
             priority
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1C043B] to-[#7234BD]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--brand-secondary)] to-[var(--brand-primary)]" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#1C043B]/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--brand-secondary)]/80 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 px-4 lg:px-8 pb-6">
           <div className="max-w-[860px] mx-auto">
             <span className={`inline-block text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-3 ${badge}`}>
@@ -115,7 +115,7 @@ export default function NewsDetailPage() {
         {/* Back */}
         <Link
           href="/news"
-          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#7234BD] transition-colors mb-6"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[var(--brand-primary)] transition-colors mb-6"
         >
           <ArrowLeft size={14} /> Back to News
         </Link>
@@ -157,10 +157,10 @@ export default function NewsDetailPage() {
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#1C043B] to-[#7234BD]" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-[var(--brand-secondary)] to-[var(--brand-primary)]" />
                     )}
                   </div>
-                  <p className="text-sm font-semibold text-[#1C043B] group-hover:text-[#7234BD] transition-colors line-clamp-2 leading-snug">
+                  <p className="text-sm font-semibold text-[var(--brand-secondary)] group-hover:text-[var(--brand-primary)] transition-colors line-clamp-2 leading-snug">
                     {r.title}
                   </p>
                   <p className="text-[11px] text-gray-400">{r.date}</p>

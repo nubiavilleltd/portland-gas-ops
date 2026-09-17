@@ -43,6 +43,7 @@ from app.fleet.trips.model import Trip, TripOrder  # noqa: F401
 from app.intranet import models as _intranet_models  # noqa: F401
 from app.setups import models as _setups_models  # noqa: F401
 from app.shared.models import push as _push_models  # noqa: F401
+from app.workspaces import models as _workspace_models  # noqa: F401
 
 
 
@@ -71,6 +72,7 @@ from app.setups.router import router as setups_router
 from app.push.router import router as push_router
 from app.crm.router import router as crm_router
 from app.crm.activity.router import router as crm_activity_router
+from app.workspaces.router import router as workspaces_router
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -162,6 +164,7 @@ app.include_router(intranet_router, prefix="/api/intranet", tags=["Intranet"])
 app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(push_router,          prefix="/api/push",          tags=["Push"])
 app.include_router(setups_router, prefix="/api/setups", tags=["Setups"])
+app.include_router(workspaces_router, prefix="/api/workspaces", tags=["Workspaces"])
 app.include_router(crm_router, prefix="/api/crm", tags=["CRM"])
 app.include_router(
     crm_activity_router,

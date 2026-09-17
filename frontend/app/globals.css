@@ -4,13 +4,27 @@
 
 @theme {
   /* Brand palette */
-  --color-brand-purple: #7c3aed;
-  --color-brand-purple-light: #8b5cf6;
-  --color-brand-purple-dark: #5b21b6;
-  --color-brand-purple-faint: #f5f3ff;
-  --color-brand-purple-mid: #ede9fe;
-  --color-brand-dark: #0d0d12;
-  --color-brand-dark-purple: #1a0f2e;
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-foreground: var(--brand-primary-foreground);
+  --color-brand-primary-light: var(--brand-primary-light);
+  --color-brand-primary-dark: var(--brand-primary-dark);
+  --color-brand-primary-faint: var(--brand-primary-faint);
+  --color-brand-primary-mid: var(--brand-primary-mid);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-secondary-foreground: var(--brand-secondary-foreground);
+  --color-brand-secondary-light: var(--brand-secondary-light);
+  --color-brand-secondary-dark: var(--brand-secondary-dark);
+  --color-brand-secondary-faint: var(--brand-secondary-faint);
+  --color-brand-secondary-mid: var(--brand-secondary-mid);
+
+  /* Legacy aliases kept so existing module screens inherit the theme. */
+  --color-brand-purple: var(--brand-primary);
+  --color-brand-purple-light: var(--brand-primary-light);
+  --color-brand-purple-dark: var(--brand-primary-dark);
+  --color-brand-purple-faint: var(--brand-primary-faint);
+  --color-brand-purple-mid: var(--brand-primary-mid);
+  --color-brand-dark: var(--brand-secondary);
+  --color-brand-dark-purple: var(--brand-secondary);
   --color-brand-bg: #f6f5f7;
   --color-brand-card: #ffffff;
   --color-brand-text-primary: #111118;
@@ -23,6 +37,18 @@
 }
 
 :root {
+  --brand-primary: #7234bd;
+  --brand-primary-foreground: #ffffff;
+  --brand-primary-light: #8a5ac8;
+  --brand-primary-dark: #59298f;
+  --brand-primary-faint: #f4eef9;
+  --brand-primary-mid: #dfcdec;
+  --brand-secondary: #1c043b;
+  --brand-secondary-foreground: #ffffff;
+  --brand-secondary-light: #4b3a62;
+  --brand-secondary-dark: #160331;
+  --brand-secondary-faint: #eeeaf1;
+  --brand-secondary-mid: #d2cbd9;
   --background: #f6f5f7;
   --foreground: #111118;
 }
@@ -45,7 +71,7 @@ button:disabled,
 
 /* ── Rich-text renderer (TipTap HTML output) ──────────────────────────────── */
 .rich-text {
-  color: #374151;
+  color: var(--color-brand-text-secondary);
   line-height: 1.75;
   font-size: 0.9375rem;
 }
@@ -62,12 +88,12 @@ button:disabled,
 .rich-text em,
 .rich-text i              { font-style: italic; }
 .rich-text u              { text-decoration: underline; }
-.rich-text h1             { font-size: 1.5rem;   font-weight: 700; color: #1C043B; line-height: 1.3; margin: 1.4em 0 0.5em; }
-.rich-text h2             { font-size: 1.25rem;  font-weight: 700; color: #1C043B; line-height: 1.3; margin: 1.2em 0 0.4em; }
-.rich-text h3             { font-size: 1.05rem;  font-weight: 700; color: #1C043B; line-height: 1.3; margin: 1em 0 0.4em; }
-.rich-text a              { color: #7234BD; text-decoration: underline; }
+.rich-text h1             { font-size: 1.5rem;   font-weight: 700; color: var(--brand-secondary); line-height: 1.3; margin: 1.4em 0 0.5em; }
+.rich-text h2             { font-size: 1.25rem;  font-weight: 700; color: var(--brand-secondary); line-height: 1.3; margin: 1.2em 0 0.4em; }
+.rich-text h3             { font-size: 1.05rem;  font-weight: 700; color: var(--brand-secondary); line-height: 1.3; margin: 1em 0 0.4em; }
+.rich-text a              { color: var(--brand-primary); text-decoration: underline; }
 .rich-text a:hover        { opacity: 0.8; }
-.rich-text blockquote     { border-left: 3px solid #7234BD; padding-left: 1rem; color: #6b7280; font-style: italic; margin: 1em 0; }
+.rich-text blockquote     { border-left: 3px solid var(--brand-primary); padding-left: 1rem; color: #6b7280; font-style: italic; margin: 1em 0; }
 .rich-text code           { background: #f3f4f6; padding: 0.1em 0.35em; border-radius: 0.25em; font-size: 0.875em; font-family: monospace; }
 .rich-text pre            { background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1em 0; }
 .rich-text pre code       { background: none; padding: 0; }
@@ -77,7 +103,7 @@ button:disabled,
 .rich-text-preview {
   font-size: 0.8125rem;
   line-height: 1.55;
-  color: #6b7280;
+  color: var(--color-brand-text-secondary);
 }
 .rich-text-preview p,
 .rich-text-preview ul,
@@ -134,6 +160,4 @@ button:disabled,
     display: none !important;
   }
 }
-
-
 

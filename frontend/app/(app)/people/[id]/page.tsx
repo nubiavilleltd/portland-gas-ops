@@ -14,7 +14,7 @@ import { useEmployee } from "@/lib/modules/employees/hooks";
 const TYPE_STYLE: Record<string, { bg: string; text: string }> = {
   "Full-time": { bg: "#DCFCE7", text: "#166534" },
   "Part-time": { bg: "#FEF9C3", text: "#854D0E" },
-  "Contract":  { bg: "#F3EEFF", text: "#7234BD" },
+  "Contract":  { bg: "var(--brand-primary-faint)", text: "var(--brand-primary)" },
   "Intern":    { bg: "#FEE2E2", text: "#991B1B" },
 };
 
@@ -47,12 +47,12 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         @keyframes pg-rise  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
-      <section className="relative bg-[#1C043B] overflow-hidden" style={{ minHeight: 300 }}>
+      <section className="relative bg-[var(--brand-secondary)] overflow-hidden" style={{ minHeight: 300 }}>
 
         {/* Blobs */}
-        <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full blur-3xl pointer-events-none" style={{ backgroundColor:"#7234BD", opacity:0.35, animation:"pg-blob 9s ease-in-out infinite" }} />
+        <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full blur-3xl pointer-events-none" style={{ backgroundColor:"var(--brand-primary)", opacity:0.35, animation:"pg-blob 9s ease-in-out infinite" }} />
         <div className="absolute -bottom-10 left-[25%] w-72 h-72 rounded-full blur-3xl pointer-events-none" style={{ backgroundColor:"#FFBC00", opacity:0.09, animation:"pg-blob2 12s ease-in-out infinite" }} />
-        <div className="absolute top-1/2 right-[15%] w-56 h-56 rounded-full blur-2xl pointer-events-none" style={{ backgroundColor:"#7234BD", opacity:0.18, animation:"pg-blob 14s ease-in-out infinite reverse" }} />
+        <div className="absolute top-1/2 right-[15%] w-56 h-56 rounded-full blur-2xl pointer-events-none" style={{ backgroundColor:"var(--brand-primary)", opacity:0.18, animation:"pg-blob 14s ease-in-out infinite reverse" }} />
 
         {/* Dot grid */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true" style={{ opacity:0.06 }}>
@@ -90,22 +90,22 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
               {/* Avatar — large with layered rings */}
               <div className="relative shrink-0">
-                <div className="absolute inset-0 rounded-full opacity-30 blur-xl scale-110" style={{ backgroundColor:"#7234BD" }} />
+                <div className="absolute inset-0 rounded-full opacity-30 blur-xl scale-110" style={{ backgroundColor:"var(--brand-primary)" }} />
                 <div className="relative">
                   {emp.user?.profile_picture_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={emp.user.profile_picture_url}
                       alt={fullName}
-                      className="w-28 h-28 rounded-full object-cover ring-4 ring-white/20 ring-offset-4 ring-offset-[#1C043B]"
+                      className="w-28 h-28 rounded-full object-cover ring-4 ring-white/20 ring-offset-4 ring-offset-[var(--brand-secondary)]"
                     />
                   ) : (
-                    <div className="w-28 h-28 rounded-full bg-[#7234BD] ring-4 ring-white/20 ring-offset-4 ring-offset-[#1C043B] flex items-center justify-center text-3xl font-extrabold text-white">
+                    <div className="w-28 h-28 rounded-full bg-[var(--brand-primary)] ring-4 ring-white/20 ring-offset-4 ring-offset-[var(--brand-secondary)] flex items-center justify-center text-3xl font-extrabold text-white">
                       {initials || "?"}
                     </div>
                   )}
                   {/* Online dot */}
-                  <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-green-400 ring-2 ring-[#1C043B]" />
+                  <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-green-400 ring-2 ring-[var(--brand-secondary)]" />
                 </div>
               </div>
 
@@ -135,7 +135,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               {emp.user?.email && (
                 <a
                   href={`mailto:${emp.user.email}`}
-                  className="shrink-0 flex items-center gap-2 bg-white/10 hover:bg-[#FFBC00] hover:text-[#1C043B] border border-white/15 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200"
+                  className="shrink-0 flex items-center gap-2 bg-white/10 hover:bg-[#FFBC00] hover:text-[var(--brand-secondary)] border border-white/15 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200"
                 >
                   <Mail size={14} />
                   Send Email
@@ -176,9 +176,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
             {/* Contact */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #7234BD, #FFBC00)" }} />
+              <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, var(--brand-primary), #FFBC00)" }} />
               <div className="p-6">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#7234BD] mb-5">Contact</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--brand-primary)] mb-5">Contact</p>
                 <div className="space-y-4">
                   <InfoItem icon={Mail}  label="Work Email" value={emp.user?.email} href={emp.user?.email ? `mailto:${emp.user.email}` : undefined} />
                   <InfoItem icon={Phone} label="Phone"      value={emp.phone}       href={emp.phone ? `tel:${emp.phone}` : undefined} />
@@ -188,9 +188,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
             {/* Employment */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #FFBC00, #7234BD)" }} />
+              <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #FFBC00, var(--brand-primary))" }} />
               <div className="p-6">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#7234BD] mb-5">Employment</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--brand-primary)] mb-5">Employment</p>
                 <div className="space-y-4">
                   <InfoItem icon={Briefcase}    label="Job Title"        value={emp.job_title} />
                   <InfoItem icon={Building2}    label="Department"       value={emp.department} />
@@ -202,9 +202,9 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
             {/* Personal */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #7234BD 0%, #FFBC00 50%, #7234BD 100%)" }} />
+              <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, var(--brand-primary) 0%, #FFBC00 50%, var(--brand-primary) 100%)" }} />
               <div className="p-6">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#7234BD] mb-5">Personal</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--brand-primary)] mb-5">Personal</p>
                 <div className="space-y-4">
                   <InfoItem icon={Cake}          label="Birthday"    value={birthday} />
                   <InfoItem icon={Hash}          label="Employee No" value={emp.employee_no} />
@@ -223,15 +223,15 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 function InfoItem({ icon: Icon, label, value, href }: { icon: React.ElementType; label: string; value: string | null | undefined; href?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="h-8 w-8 rounded-lg bg-[#F3EEFF] flex items-center justify-center shrink-0 mt-0.5">
-        <Icon size={13} className="text-[#7234BD]" />
+      <div className="h-8 w-8 rounded-lg bg-[var(--brand-primary-faint)] flex items-center justify-center shrink-0 mt-0.5">
+        <Icon size={13} className="text-[var(--brand-primary)]" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400 mb-0.5">{label}</p>
         {href && value ? (
-          <a href={href} className="text-sm font-semibold text-[#7234BD] hover:underline break-words leading-snug">{value}</a>
+          <a href={href} className="text-sm font-semibold text-[var(--brand-primary)] hover:underline break-words leading-snug">{value}</a>
         ) : (
-          <p className="text-sm font-semibold text-[#1C043B] break-words leading-snug">{value || "—"}</p>
+          <p className="text-sm font-semibold text-[var(--brand-secondary)] break-words leading-snug">{value || "—"}</p>
         )}
       </div>
     </div>

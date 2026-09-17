@@ -49,7 +49,7 @@ export default function PodcastPlayerPage() {
       <IntranetLayout>
         <div className="max-w-[1280px] mx-auto px-4 lg:px-8 py-20 text-center">
           <p className="text-gray-400 text-sm">Episode not found.</p>
-          <button onClick={() => router.back()} className="mt-4 text-[#7234BD] text-sm hover:underline">Go back</button>
+          <button onClick={() => router.back()} className="mt-4 text-[var(--brand-primary)] text-sm hover:underline">Go back</button>
         </div>
       </IntranetLayout>
     );
@@ -69,7 +69,7 @@ export default function PodcastPlayerPage() {
         {/* Back */}
         <Link
           href="/podcast"
-          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#7234BD] transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[var(--brand-primary)] transition-colors mb-8"
         >
           <ArrowLeft size={14} /> All Episodes
         </Link>
@@ -93,7 +93,7 @@ export default function PodcastPlayerPage() {
               </div>
             ) : (
               /* Cover art + native player or placeholder */
-              <div className="relative rounded-2xl overflow-hidden bg-[#1C043B] aspect-video flex items-center justify-center">
+              <div className="relative rounded-2xl overflow-hidden bg-[var(--brand-secondary)] aspect-video flex items-center justify-center">
                 {ep.cover_image_url ? (
                   <img
                     src={ep.cover_image_url}
@@ -134,8 +134,8 @@ export default function PodcastPlayerPage() {
                         className="h-14 w-14 rounded-full bg-[#FFBC00] flex items-center justify-center hover:scale-110 transition-transform shadow-xl"
                       >
                         {playing
-                          ? <Pause size={20} className="text-[#1C043B] fill-[#1C043B]" />
-                          : <Play  size={20} className="text-[#1C043B] ml-1 fill-[#1C043B]" />
+                          ? <Pause size={20} className="text-[var(--brand-secondary)] fill-[var(--brand-secondary)]" />
+                          : <Play  size={20} className="text-[var(--brand-secondary)] ml-1 fill-[var(--brand-secondary)]" />
                         }
                       </button>
                       <div className="flex items-center gap-2 text-white/40 text-xs">
@@ -151,7 +151,7 @@ export default function PodcastPlayerPage() {
             {/* Episode metadata */}
             <div className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#7234BD] bg-[#7234BD]/10 px-2.5 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-primary)] bg-[var(--brand-primary)]/10 px-2.5 py-1 rounded-full">
                   EP. {ep.episode_number}
                 </span>
                 {ep.is_featured && (
@@ -163,7 +163,7 @@ export default function PodcastPlayerPage() {
                   {ep.media_type === "video" ? "Video Podcast" : "Audio Podcast"}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-[#1C043B] leading-snug" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
+              <h3 className="text-lg font-bold text-[var(--brand-secondary)] leading-snug" style={{ fontFamily: "var(--font-mulish, sans-serif)" }}>
                 {ep.title}
               </h3>
               {ep.guest_name && (
@@ -193,22 +193,22 @@ export default function PodcastPlayerPage() {
                     onClick={() => setActiveEp(listEp)}
                     className={`w-full text-left flex items-start gap-3 p-4 rounded-xl border transition-all ${
                       isActive
-                        ? "border-[#7234BD]/30 bg-[#7234BD]/5"
-                        : "border-gray-100 bg-white hover:border-[#7234BD]/20 hover:bg-gray-50"
+                        ? "border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/5"
+                        : "border-gray-100 bg-white hover:border-[var(--brand-primary)]/20 hover:bg-gray-50"
                     }`}
                   >
                     {/* Mini cover */}
-                    <div className="h-11 w-11 rounded-lg bg-[#1C043B] flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="h-11 w-11 rounded-lg bg-[var(--brand-secondary)] flex items-center justify-center shrink-0 overflow-hidden">
                       {listEp.cover_image_url
                         ? <img src={listEp.cover_image_url} alt="" className="w-full h-full object-cover" />
                         : <Mic2 size={14} className="text-[#FFBC00]/50" />
                       }
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className={`text-[10px] font-bold mb-0.5 ${isActive ? "text-[#7234BD]" : "text-gray-400"}`}>
+                      <p className={`text-[10px] font-bold mb-0.5 ${isActive ? "text-[var(--brand-primary)]" : "text-gray-400"}`}>
                         EP. {listEp.episode_number}
                       </p>
-                      <p className={`text-xs font-semibold leading-snug line-clamp-2 ${isActive ? "text-[#1C043B]" : "text-gray-700"}`}>
+                      <p className={`text-xs font-semibold leading-snug line-clamp-2 ${isActive ? "text-[var(--brand-secondary)]" : "text-gray-700"}`}>
                         {listEp.title}
                       </p>
                       {listEp.duration && (
@@ -218,7 +218,7 @@ export default function PodcastPlayerPage() {
                       )}
                     </div>
                     {isActive && (
-                      <div className="h-6 w-6 rounded-full bg-[#7234BD] flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="h-6 w-6 rounded-full bg-[var(--brand-primary)] flex items-center justify-center shrink-0 mt-0.5">
                         <Play size={9} className="text-white ml-0.5 fill-white" />
                       </div>
                     )}

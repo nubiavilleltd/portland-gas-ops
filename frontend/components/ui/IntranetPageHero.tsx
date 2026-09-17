@@ -28,7 +28,7 @@ export default function IntranetPageHero({ label, title, subtitle, imageSrc }: P
   const resolvedLabel = label ?? `${name} Intranet`;
 
   return (
-    <div className="relative bg-[#1C043B] pt-12 pb-10 px-4 lg:px-8 overflow-hidden">
+    <div className="relative bg-[var(--brand-secondary)] pt-12 pb-10 px-4 lg:px-8 overflow-hidden">
 
       {/* ── Keyframe animations ──────────────────────────────────────────── */}
       <style>{`
@@ -80,7 +80,7 @@ export default function IntranetPageHero({ label, title, subtitle, imageSrc }: P
       <div
         className="absolute -top-16 -right-16 w-80 h-80 rounded-full blur-3xl pointer-events-none"
         style={{
-          backgroundColor: "#7234BD",
+          backgroundColor: "var(--brand-primary)",
           opacity: 0.35,
           animation: "pg-blob 9s ease-in-out infinite",
         }}
@@ -96,7 +96,7 @@ export default function IntranetPageHero({ label, title, subtitle, imageSrc }: P
       <div
         className="absolute top-1/2 right-[20%] w-48 h-48 rounded-full blur-2xl pointer-events-none"
         style={{
-          backgroundColor: "#7234BD",
+          backgroundColor: "var(--brand-primary)",
           opacity: 0.18,
           animation: "pg-blob 13s ease-in-out infinite reverse",
         }}

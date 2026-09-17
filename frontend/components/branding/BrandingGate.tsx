@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCompanyBranding } from "@/lib/company-branding";
+import { useAuthStore } from "@/store/authStore";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -21,12 +22,13 @@ function isPublicPath(pathname: string) {
 export default function BrandingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { hasHydrated, isConfigured } = useCompanyBranding();
+  const { hasHydrated, hasResolvedWorkspace, isConfigured } = useCompanyBranding();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const isOnboarding = pathname === "/onboarding";
   const isProtectedPath = !isPublicPath(pathname);
 
   useEffect(() => {
-    if (!hasHydrated) return;
+    if (!hasHydrated || !accessToken || !hasResolvedWorkspace) return;
 
     if (isProtectedPath && !isConfigured) {
       router.replace(`/onboarding?next=${encodeURIComponent(pathname)}`);
@@ -36,8 +38,8 @@ export default function BrandingGate({ children }: { children: React.ReactNode }
     if (isOnboarding && isConfigured) {
       router.replace("/home");
     }
-  }, [hasHydrated, isConfigured, isOnboarding, isProtectedPath, pathname, router]);
+  }, [accessToken, hasHydrated, hasResolvedWorkspace, isConfigured, isOnboarding, isProtectedPath, pathname, router]);
 
-  if (hasHydrated && isProtectedPath && !isConfigured) return null;
+  if (isProtectedPath && accessToken && (!hasHydrated || !hasResolvedWorkspace || !isConfigured)) return null;
   return <>{children}</>;
 }
