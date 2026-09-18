@@ -66,6 +66,7 @@ def update_branding(
 
     workspace.name = payload.name
     workspace.logo_url = logo_url
+    workspace.logo_background = payload.logo_background
     workspace.primary_color = payload.primary_color
     workspace.secondary_color = payload.secondary_color
     workspace.onboarding_completed_at = workspace.onboarding_completed_at or datetime.now(timezone.utc)

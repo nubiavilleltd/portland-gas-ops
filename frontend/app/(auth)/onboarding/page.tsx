@@ -15,8 +15,13 @@ import {
   DEFAULT_SECONDARY_COLOR,
   normalizeHexColor,
   useCompanyBranding,
+  type LogoBackground,
 } from "@/lib/company-branding";
 import BrandColorFields from "@/components/branding/BrandColorFields";
+import BrandingPreview from "@/components/branding/BrandingPreview";
+import LogoBackgroundPicker from "@/components/branding/LogoBackgroundPicker";
+import LogoEditor from "@/components/branding/LogoEditor";
+import { getLogoWarnings, inspectLogoFile, type LogoInspection } from "@/lib/branding-quality";
 import {
   dataUrlToLogoFile,
   toCompanyBranding,
@@ -46,6 +51,7 @@ function OnboardingContent() {
   const {
     name: storedName,
     logoDataUrl: storedLogo,
+    logoBackground: storedLogoBackground,
     primaryColor: storedPrimaryColor,
     secondaryColor: storedSecondaryColor,
     setBranding,
@@ -58,10 +64,14 @@ function OnboardingContent() {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [name, setName] = useState(storedName === "Your Company" ? "" : storedName);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(storedLogo);
+  const [logoBackground, setLogoBackground] = useState<LogoBackground>(storedLogoBackground);
   const [primaryColor, setPrimaryColor] = useState(storedPrimaryColor);
   const [secondaryColor, setSecondaryColor] = useState(storedSecondaryColor);
   const [logoName, setLogoName] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoInspection, setLogoInspection] = useState<LogoInspection | null>(null);
+  const [showLogoEditor, setShowLogoEditor] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [selectedFeatures, setSelectedFeatures] = useState<FeatureId[]>(
     storedFeatures.length ? storedFeatures : DEFAULT_ENABLED_FEATURES,
   );
@@ -88,6 +98,7 @@ function OnboardingContent() {
       setLogoDataUrl(String(reader.result));
       setLogoName(file.name);
       setLogoFile(file);
+      void inspectLogoFile(file).then(setLogoInspection).catch(() => setLogoInspection(null));
     };
     reader.onerror = () => setError("We could not read that logo. Please try again.");
     reader.readAsDataURL(file);
@@ -97,6 +108,8 @@ function OnboardingContent() {
     setLogoDataUrl(null);
     setLogoName("");
     setLogoFile(null);
+    setLogoInspection(null);
+    setShowLogoEditor(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -171,6 +184,7 @@ function OnboardingContent() {
 
       const workspace = await updateWorkspaceBranding({
         name: localBranding.name,
+        logoBackground,
         primaryColor: localBranding.primaryColor,
         secondaryColor: localBranding.secondaryColor,
         logoUrl,
@@ -283,11 +297,21 @@ function OnboardingContent() {
                         {logoDataUrl ? "Replace logo" : "Choose logo"}
                       </button>
                       {logoDataUrl && (
-                        <button type="button" onClick={clearLogo} className="inline-flex items-center gap-1 text-sm text-brand-text-secondary hover:text-red-600">
-                          <X size={14} /> Remove
-                        </button>
+                        <>
+                          <button type="button" onClick={() => setShowLogoEditor(true)} className="inline-flex items-center gap-1 text-sm text-brand-purple hover:text-brand-purple-dark">
+                            Adjust crop
+                          </button>
+                          <button type="button" onClick={clearLogo} className="inline-flex items-center gap-1 text-sm text-brand-text-secondary hover:text-red-600">
+                            <X size={14} /> Remove
+                          </button>
+                        </>
                       )}
                     </div>
+                    {logoInspection && getLogoWarnings(logoInspection).length > 0 && (
+                      <div className="mt-3 space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        {getLogoWarnings(logoInspection).map((warning) => <p key={warning}>{warning}</p>)}
+                      </div>
+                    )}
                     <input
                       ref={inputRef}
                       type="file"
@@ -305,6 +329,23 @@ function OnboardingContent() {
                 onPrimaryChange={setPrimaryColor}
                 onSecondaryChange={setSecondaryColor}
               />
+              <LogoBackgroundPicker value={logoBackground} onChange={setLogoBackground} />
+              <button
+                type="button"
+                onClick={() => setShowPreview((current) => !current)}
+                className="w-fit rounded-lg border border-brand-border px-3 py-2 text-sm font-medium text-brand-purple transition hover:border-brand-purple hover:bg-brand-purple/5"
+              >
+                {showPreview ? "Hide workspace preview" : "Preview workspace branding"}
+              </button>
+              {showPreview && (
+                <BrandingPreview
+                  companyName={name}
+                  logoUrl={logoDataUrl}
+                  logoBackground={logoBackground}
+                  primaryColor={normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR)}
+                  secondaryColor={normalizeHexColor(secondaryColor, DEFAULT_SECONDARY_COLOR)}
+                />
+              )}
             </div>
           )}
 
@@ -416,6 +457,19 @@ function OnboardingContent() {
           </div>
         </form>
       </div>
+      {showLogoEditor && logoDataUrl && (
+        <LogoEditor
+          src={logoDataUrl}
+          onClose={() => setShowLogoEditor(false)}
+          onApply={(file, previewUrl) => {
+            setLogoDataUrl(previewUrl);
+            setLogoFile(file);
+            setLogoName("Adjusted logo");
+            void inspectLogoFile(file).then(setLogoInspection).catch(() => setLogoInspection(null));
+            setShowLogoEditor(false);
+          }}
+        />
+      )}
     </main>
   );
 }

@@ -5,6 +5,8 @@ export const BRANDING_STORAGE_KEY = "company-branding";
 export const DEFAULT_COMPANY_NAME = "Your Company";
 export const DEFAULT_PRIMARY_COLOR = "#7234BD";
 export const DEFAULT_SECONDARY_COLOR = "#1C043B";
+export type LogoBackground = "light" | "dark" | "none";
+export const DEFAULT_LOGO_BACKGROUND: LogoBackground = "light";
 
 export function normalizeHexColor(value: string | null | undefined, fallback: string): string {
   const candidate = value?.trim() ?? "";
@@ -20,7 +22,7 @@ function hexToRgb(hex: string) {
   };
 }
 
-function mixHex(color: string, mixWith: string, amount: number) {
+export function mixHex(color: string, mixWith: string, amount: number) {
   const source = hexToRgb(color);
   const target = hexToRgb(mixWith);
   const channel = (value: number, targetValue: number) =>
@@ -52,6 +54,14 @@ export function getContrastTextColor(color: string): "#FFFFFF" | "#111118" {
   return whiteContrast >= darkContrast ? "#FFFFFF" : "#111118";
 }
 
+export function getContrastRatio(first: string, second: string): number {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  const lighter = Math.max(firstLuminance, secondLuminance);
+  const darker = Math.min(firstLuminance, secondLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 export function getBrandThemeVariables(primaryColor: string, secondaryColor: string) {
   const primary = normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR);
   const secondary = normalizeHexColor(secondaryColor, DEFAULT_SECONDARY_COLOR);
@@ -75,6 +85,7 @@ export function getBrandThemeVariables(primaryColor: string, secondaryColor: str
 export interface CompanyBranding {
   name: string;
   logoDataUrl: string | null;
+  logoBackground: LogoBackground;
   primaryColor: string;
   secondaryColor: string;
 }
@@ -93,15 +104,17 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
     (set) => ({
       name: DEFAULT_COMPANY_NAME,
       logoDataUrl: null,
+      logoBackground: DEFAULT_LOGO_BACKGROUND,
       primaryColor: DEFAULT_PRIMARY_COLOR,
       secondaryColor: DEFAULT_SECONDARY_COLOR,
       isConfigured: false,
       hasHydrated: false,
       hasResolvedWorkspace: false,
-      setBranding: ({ name, logoDataUrl, primaryColor, secondaryColor }) =>
+      setBranding: ({ name, logoDataUrl, logoBackground, primaryColor, secondaryColor }) =>
         set({
           name: name.trim(),
           logoDataUrl,
+          logoBackground: logoBackground === "dark" || logoBackground === "none" ? logoBackground : DEFAULT_LOGO_BACKGROUND,
           primaryColor: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
           secondaryColor: normalizeHexColor(secondaryColor, DEFAULT_SECONDARY_COLOR),
           isConfigured: true,
@@ -111,6 +124,7 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
         set({
           name: DEFAULT_COMPANY_NAME,
           logoDataUrl: null,
+          logoBackground: DEFAULT_LOGO_BACKGROUND,
           primaryColor: DEFAULT_PRIMARY_COLOR,
           secondaryColor: DEFAULT_SECONDARY_COLOR,
           isConfigured: false,
@@ -120,9 +134,10 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
       name: BRANDING_STORAGE_KEY,
       storage: createJSONStorage(() => window.localStorage),
       skipHydration: true,
-      partialize: ({ name, logoDataUrl, primaryColor, secondaryColor, isConfigured }) => ({
+      partialize: ({ name, logoDataUrl, logoBackground, primaryColor, secondaryColor, isConfigured }) => ({
         name,
         logoDataUrl,
+        logoBackground,
         primaryColor,
         secondaryColor,
         isConfigured,
@@ -139,6 +154,7 @@ export function getStoredCompanyBranding(): CompanyBranding {
     return {
       name: DEFAULT_COMPANY_NAME,
       logoDataUrl: null,
+      logoBackground: DEFAULT_LOGO_BACKGROUND,
       primaryColor: DEFAULT_PRIMARY_COLOR,
       secondaryColor: DEFAULT_SECONDARY_COLOR,
     };
@@ -150,6 +166,7 @@ export function getStoredCompanyBranding(): CompanyBranding {
       return {
         name: DEFAULT_COMPANY_NAME,
         logoDataUrl: null,
+        logoBackground: DEFAULT_LOGO_BACKGROUND,
         primaryColor: DEFAULT_PRIMARY_COLOR,
         secondaryColor: DEFAULT_SECONDARY_COLOR,
       };
@@ -159,10 +176,14 @@ export function getStoredCompanyBranding(): CompanyBranding {
       state?: Partial<CompanyBrandingState>;
     };
     const name = parsed.state?.name?.trim();
+    const storedLogoBackground = parsed.state?.logoBackground;
 
     return {
       name: name || DEFAULT_COMPANY_NAME,
       logoDataUrl: parsed.state?.logoDataUrl ?? null,
+      logoBackground: storedLogoBackground === "dark" || storedLogoBackground === "none"
+        ? storedLogoBackground
+        : DEFAULT_LOGO_BACKGROUND,
       primaryColor: normalizeHexColor(parsed.state?.primaryColor, DEFAULT_PRIMARY_COLOR),
       secondaryColor: normalizeHexColor(parsed.state?.secondaryColor, DEFAULT_SECONDARY_COLOR),
     };
@@ -170,6 +191,7 @@ export function getStoredCompanyBranding(): CompanyBranding {
     return {
       name: DEFAULT_COMPANY_NAME,
       logoDataUrl: null,
+      logoBackground: DEFAULT_LOGO_BACKGROUND,
       primaryColor: DEFAULT_PRIMARY_COLOR,
       secondaryColor: DEFAULT_SECONDARY_COLOR,
     };

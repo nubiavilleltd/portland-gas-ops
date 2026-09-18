@@ -12,18 +12,32 @@ interface Props {
 }
 
 export default function CompanyLogo({ size = 40, className, iconClassName }: Props) {
-  const { name, logoDataUrl } = useCompanyBranding();
+  const { name, logoDataUrl, logoBackground, secondaryColor } = useCompanyBranding();
+  const hasDimensionClass = /\b[hw]-/.test(className ?? "");
+  const logoSurface = logoBackground === "dark"
+    ? secondaryColor
+    : logoBackground === "light"
+      ? "#FFFFFF"
+      : "transparent";
 
   if (logoDataUrl) {
     return (
-      <Image
-        src={logoDataUrl}
-        alt={`${name} logo`}
-        width={size}
-        height={size}
-        unoptimized
-        className={cn("shrink-0 object-contain", className)}
-      />
+      <span
+        className={cn("relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl p-1", className)}
+        style={{
+          ...(hasDimensionClass ? {} : { width: size, height: size }),
+          backgroundColor: logoSurface,
+        }}
+      >
+        <Image
+          src={logoDataUrl}
+          alt={`${name} logo`}
+          width={size}
+          height={size}
+          unoptimized
+          className="h-full w-full object-contain"
+        />
+      </span>
     );
   }
 

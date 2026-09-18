@@ -1,11 +1,12 @@
 import { get, patch, postForm } from "@/lib/api";
-import type { CompanyBranding } from "@/lib/company-branding";
+import type { CompanyBranding, LogoBackground } from "@/lib/company-branding";
 
 export interface WorkspaceBrandingResponse {
   id: string;
   membership_id: string;
   name: string;
   logo_url: string | null;
+  logo_background: LogoBackground;
   primary_color: string;
   secondary_color: string;
   is_configured: boolean;
@@ -14,6 +15,7 @@ export interface WorkspaceBrandingResponse {
 
 interface WorkspaceBrandingUpdate {
   name: string;
+  logoBackground: LogoBackground;
   primaryColor: string;
   secondaryColor: string;
   logoUrl?: string;
@@ -27,6 +29,7 @@ export function toCompanyBranding(workspace: WorkspaceBrandingResponse): Company
   return {
     name: workspace.name,
     logoDataUrl: workspace.logo_url,
+    logoBackground: workspace.logo_background,
     primaryColor: workspace.primary_color,
     secondaryColor: workspace.secondary_color,
   };
@@ -44,12 +47,14 @@ export async function uploadWorkspaceLogo(file: File): Promise<WorkspaceLogoUplo
 
 export function updateWorkspaceBranding({
   name,
+  logoBackground,
   primaryColor,
   secondaryColor,
   logoUrl,
 }: WorkspaceBrandingUpdate): Promise<WorkspaceBrandingResponse> {
   return patch<WorkspaceBrandingResponse>("/api/workspaces/current/branding", {
     name,
+    logo_background: logoBackground,
     primary_color: primaryColor,
     secondary_color: secondaryColor,
     logo_url: logoUrl,

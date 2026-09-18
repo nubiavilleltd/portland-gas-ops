@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, field_validator
 
@@ -10,6 +10,7 @@ HEX_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 class WorkspaceBrandingUpdate(BaseModel):
     name: str
+    logo_background: Literal["light", "dark", "none"] = "light"
     primary_color: str
     secondary_color: str
     logo_url: Optional[str] = None
@@ -54,6 +55,7 @@ class WorkspaceResponse(BaseModel):
     membership_id: str
     name: str
     logo_url: Optional[str]
+    logo_background: Literal["light", "dark", "none"]
     primary_color: str
     secondary_color: str
     is_configured: bool

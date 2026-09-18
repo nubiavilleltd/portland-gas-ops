@@ -28,6 +28,7 @@ def _serialize_workspace(membership_id: str, workspace) -> WorkspaceResponse:
         membership_id=membership_id,
         name=workspace.name,
         logo_url=workspace.logo_url,
+        logo_background=workspace.logo_background,
         primary_color=workspace.primary_color,
         secondary_color=workspace.secondary_color,
         is_configured=workspace.onboarding_completed_at is not None,
