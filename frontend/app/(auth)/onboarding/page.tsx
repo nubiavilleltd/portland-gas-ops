@@ -17,7 +17,6 @@ import {
   useCompanyBranding,
 } from "@/lib/company-branding";
 import BrandColorFields from "@/components/branding/BrandColorFields";
-import { useToast } from "@/hooks/useToast";
 import {
   dataUrlToLogoFile,
   toCompanyBranding,
@@ -43,7 +42,6 @@ type OnboardingStep = 1 | 2 | 3;
 function OnboardingContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const {
     name: storedName,
@@ -159,10 +157,6 @@ function OnboardingContent() {
     };
 
     setIsSaving(true);
-    setPreferences({
-      enabledFeatures: selectedFeatures,
-      enabledAutomations: selectedAutomations,
-    });
 
     try {
       let logoUrl = logoDataUrl.startsWith("https://") ? logoDataUrl : undefined;
@@ -182,9 +176,15 @@ function OnboardingContent() {
         logoUrl,
       });
       setBranding(toCompanyBranding(workspace));
+      setPreferences({
+        enabledFeatures: selectedFeatures,
+        enabledAutomations: selectedAutomations,
+      });
     } catch {
-      setBranding(localBranding);
-      toast.warning("Workspace setup was saved on this device, but server sync is unavailable.");
+      setError("Workspace setup could not be saved. Check your connection and try again.");
+      return;
+    } finally {
+      setIsSaving(false);
     }
 
     const next = params.get("next");

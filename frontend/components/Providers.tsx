@@ -83,12 +83,22 @@ function BrandingRestore() {
 
     fetchCurrentWorkspace()
       .then((workspace) => {
-        if (!cancelled && workspace.is_configured) {
+        if (cancelled) return;
+
+        if (workspace.is_configured) {
           useCompanyBranding.getState().setBranding(toCompanyBranding(workspace));
+        } else {
+          // An authenticated workspace response is authoritative. Do not keep
+          // branding cached from another account or an earlier workspace.
+          useCompanyBranding.getState().resetBranding();
         }
       })
       .catch(() => {
-        // Keep the existing local branding as a backwards-compatible fallback.
+        if (!cancelled) {
+          // A failed workspace lookup must not make stale local branding look
+          // like the current server workspace.
+          useCompanyBranding.getState().resetBranding();
+        }
       })
       .finally(() => {
         if (!cancelled) {
