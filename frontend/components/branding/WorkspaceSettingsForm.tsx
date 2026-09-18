@@ -171,6 +171,7 @@ export default function WorkspaceSettingsForm() {
       secondaryColor: normalizeHexColor(appSecondaryColor, DEFAULT_SECONDARY_COLOR),
     };
 
+    setError(null);
     setIsSaving(true);
     setPreferences({
       enabledFeatures: selectedFeatures,
@@ -200,10 +201,8 @@ export default function WorkspaceSettingsForm() {
       setLogoFileName("");
       toast.success("Workspace settings saved for everyone.");
     } catch {
-      setBranding(localBranding);
-      toast.warning("Settings were saved on this device, but workspace sync is unavailable.");
+      setError("Workspace settings could not be saved. Check your connection and try again.");
     } finally {
-      setError(null);
       setIsSaving(false);
     }
   }
