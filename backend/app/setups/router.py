@@ -24,6 +24,7 @@ from app.core.database import get_db
 from app.shared.dependencies import get_current_user, require_admin, require_roles
 from app.shared.models.user import User
 from app.employees.service import get_employee_by_user_id
+from app.workspaces.context import WorkspaceContext, get_workspace_context
 from app.setups import service
 from app.setups.schemas import (
     DepartmentCreate, DepartmentUpdate, DepartmentListItem, DepartmentDetail,
@@ -43,18 +44,18 @@ _user      = Depends(get_current_user)
 def list_departments(
     active_only: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = _user,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.list_departments(db, active_only=active_only)
+    return service.list_departments(db, context.workspace.id, active_only=active_only)
 
 
 @router.get("/departments/{dept_id}", response_model=DepartmentDetail)
 def get_department(
     dept_id: str,
     db: Session = Depends(get_db),
-    current_user: User = _user,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.get_department(dept_id, db)
+    return service.get_department(dept_id, db, context.workspace.id)
 
 
 @router.post("/departments", response_model=DepartmentDetail, status_code=201)
@@ -62,8 +63,9 @@ def create_department(
     data: DepartmentCreate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.create_department(data, db)
+    return service.create_department(data, db, context.workspace.id)
 
 
 @router.patch("/departments/{dept_id}", response_model=DepartmentDetail)
@@ -72,8 +74,9 @@ def update_department(
     data: DepartmentUpdate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.update_department(dept_id, data, db)
+    return service.update_department(dept_id, data, db, context.workspace.id)
 
 
 @router.delete("/departments/{dept_id}", status_code=204)
@@ -81,8 +84,9 @@ def delete_department(
     dept_id: str,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    service.delete_department(dept_id, db)
+    service.delete_department(dept_id, db, context.workspace.id)
 
 
 # ── Groups ─────────────────────────────────────────────────────────────────────

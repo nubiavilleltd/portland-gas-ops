@@ -29,10 +29,11 @@ from app.core.config import settings
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def _next_employee_no(db: Session) -> str:
+def _next_employee_no(db: Session, workspace_id: str) -> str:
     """Auto-generate the next PG-EMP-XXXX number."""
     last = (
         db.query(Employee.employee_no)
+        .filter(Employee.workspace_id == workspace_id)
         .order_by(Employee.created_at.desc())
         .first()
     )
@@ -59,10 +60,22 @@ def _generate_setup_token() -> str:
 
 # ─── Create Employee (IT admin) ───────────────────────────────────────────────
 
-def create_employee(data: EmployeeCreate, db: Session) -> Employee:
+def create_employee(data: EmployeeCreate, db: Session, workspace_id: str) -> Employee:
     # 1. Check email not already taken
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="Email is already registered.")
+
+    if data.department_id and not db.query(DepartmentModel.id).filter(
+        DepartmentModel.id == data.department_id,
+        DepartmentModel.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Department is not in this workspace.")
+
+    if data.operating_manager_id and not db.query(Employee.id).filter(
+        Employee.id == data.operating_manager_id,
+        Employee.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Operating manager is not in this workspace.")
 
     # 2. Create user (account_status=pending, is_verified=True since IT controls the email)
     try:
@@ -83,8 +96,9 @@ def create_employee(data: EmployeeCreate, db: Session) -> Employee:
     db.flush()   # get user.id without committing
 
     # 3. Create employee record
-    employee_no = _next_employee_no(db)
+    employee_no = _next_employee_no(db, workspace_id)
     employee = Employee(
+        workspace_id    = workspace_id,
         user_id         = user.id,
         employee_no     = employee_no,
         job_title       = data.job_title,
@@ -129,7 +143,7 @@ def create_employee(data: EmployeeCreate, db: Session) -> Employee:
             joinedload(Employee.user).joinedload(User.profile_picture),
             joinedload(Employee.operating_manager).joinedload(Employee.user).joinedload(User.profile_picture),
         )
-        .filter(Employee.id == employee.id)
+        .filter(Employee.id == employee.id, Employee.workspace_id == workspace_id)
         .first()
     )
 
@@ -142,11 +156,14 @@ def list_employees(
     limit: int = 50,
     search: str = "",
     department: str = "",
+    workspace_id: str | None = None,
 ) -> list[Employee]:
     q = db.query(Employee).options(
         joinedload(Employee.user),
         joinedload(Employee.operating_manager).joinedload(Employee.user),
     )
+    if workspace_id:
+        q = q.filter(Employee.workspace_id == workspace_id)
 
     if search:
         like = f"%{search}%"
@@ -160,7 +177,8 @@ def list_employees(
 
     if department:
         q = q.join(DepartmentModel, Employee.department_id == DepartmentModel.id).filter(
-            DepartmentModel.name == department
+            DepartmentModel.name == department,
+            DepartmentModel.workspace_id == workspace_id if workspace_id else True,
         )
 
     employees = q.order_by(Employee.created_at.desc()).offset(skip).limit(limit).all()
@@ -172,7 +190,11 @@ def list_employees(
     return employees
 
 
-def list_employee_directory(db: Session, search: str = "") -> list[Employee]:
+def list_employee_directory(
+    db: Session,
+    search: str = "",
+    workspace_id: str | None = None,
+) -> list[Employee]:
     """Lightweight, payroll-free listing of every employee, ordered by name.
     Used by the reliever/approver pickers (open to any authenticated user), so it
     deliberately skips the loan-outstanding attachment the admin list does."""
@@ -180,6 +202,9 @@ def list_employee_directory(db: Session, search: str = "") -> list[Employee]:
         joinedload(Employee.user),
         joinedload(Employee.operating_manager).joinedload(Employee.user),
     ).join(Employee.user)
+
+    if workspace_id:
+        q = q.filter(Employee.workspace_id == workspace_id)
 
     if search:
         like = f"%{search}%"
@@ -193,8 +218,15 @@ def list_employee_directory(db: Session, search: str = "") -> list[Employee]:
     return q.order_by(User.first_name.asc(), User.last_name.asc()).all()
 
 
-def count_employees(db: Session, search: str = "", department: str = "") -> int:
+def count_employees(
+    db: Session,
+    search: str = "",
+    department: str = "",
+    workspace_id: str | None = None,
+) -> int:
     q = db.query(func.count(Employee.id))
+    if workspace_id:
+        q = q.filter(Employee.workspace_id == workspace_id)
     if search:
         like = f"%{search}%"
         q = q.join(Employee.user).filter(
@@ -205,21 +237,25 @@ def count_employees(db: Session, search: str = "", department: str = "") -> int:
         )
     if department:
         q = q.join(DepartmentModel, Employee.department_id == DepartmentModel.id).filter(
-            DepartmentModel.name == department
+            DepartmentModel.name == department,
+            DepartmentModel.workspace_id == workspace_id if workspace_id else True,
         )
     return q.scalar()
 
 
 # ─── Get single employee ──────────────────────────────────────────────────────
 
-def get_employee(employee_id: str, db: Session) -> Employee:
+def get_employee(employee_id: str, db: Session, workspace_id: str | None = None) -> Employee:
     emp = (
         db.query(Employee)
         .options(
             joinedload(Employee.user).joinedload(User.profile_picture),
             joinedload(Employee.operating_manager).joinedload(Employee.user).joinedload(User.profile_picture),
         )
-        .filter(Employee.id == employee_id)
+        .filter(
+            Employee.id == employee_id,
+            Employee.workspace_id == workspace_id if workspace_id else True,
+        )
         .first()
     )
     if not emp:
@@ -227,14 +263,21 @@ def get_employee(employee_id: str, db: Session) -> Employee:
     return emp
 
 
-def get_employee_by_user_id(user_id: str, db: Session) -> Employee:
+def get_employee_by_user_id(
+    user_id: str,
+    db: Session,
+    workspace_id: str | None = None,
+) -> Employee:
     emp = (
         db.query(Employee)
         .options(
             joinedload(Employee.user).joinedload(User.profile_picture),
             joinedload(Employee.operating_manager).joinedload(Employee.user).joinedload(User.profile_picture),
         )
-        .filter(Employee.user_id == user_id)
+        .filter(
+            Employee.user_id == user_id,
+            Employee.workspace_id == workspace_id if workspace_id else True,
+        )
         .first()
     )
     if not emp:
@@ -244,10 +287,30 @@ def get_employee_by_user_id(user_id: str, db: Session) -> Employee:
 
 # ─── Update Employee (admin) ──────────────────────────────────────────────────
 
-def update_employee(employee_id: str, data: EmployeeUpdate, db: Session) -> Employee:
-    emp = get_employee(employee_id, db)
+def update_employee(
+    employee_id: str,
+    data: EmployeeUpdate,
+    db: Session,
+    workspace_id: str | None = None,
+) -> Employee:
+    emp = get_employee(employee_id, db, workspace_id)
+    changes = data.model_dump(exclude_unset=True)
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    department_id = changes.get("department_id", emp.department_id)
+    if department_id and workspace_id and not db.query(DepartmentModel.id).filter(
+        DepartmentModel.id == department_id,
+        DepartmentModel.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Department is not in this workspace.")
+
+    manager_id = changes.get("operating_manager_id", emp.operating_manager_id)
+    if manager_id and workspace_id and not db.query(Employee.id).filter(
+        Employee.id == manager_id,
+        Employee.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Operating manager is not in this workspace.")
+
+    for field, value in changes.items():
         # first_name / last_name go on the User record
         if field in ("first_name", "last_name"):
             setattr(emp.user, field, value)
@@ -295,7 +358,13 @@ def _get_employee_folder(employee_no: str, db: Session) -> Document:
 
 # ─── Profile picture upload ───────────────────────────────────────────────────
 
-def update_profile_picture(employee_id: str, user_id: str, file: UploadFile, db: Session) -> Employee:
+def update_profile_picture(
+    employee_id: str,
+    user_id: str,
+    file: UploadFile,
+    db: Session,
+    workspace_id: str | None = None,
+) -> Employee:
     ALLOWED = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     if file.content_type not in ALLOWED:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP or GIF images are allowed.")
@@ -304,7 +373,7 @@ def update_profile_picture(employee_id: str, user_id: str, file: UploadFile, db:
     if len(file_bytes) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image must be under 5 MB.")
 
-    emp = get_employee(employee_id, db)
+    emp = get_employee(employee_id, db, workspace_id)
 
     url = upload(file_bytes, public_id=f"profile_{user_id}", folder="portland-gas/profile-pictures", resource_type="image")
 
@@ -331,8 +400,13 @@ def update_profile_picture(employee_id: str, user_id: str, file: UploadFile, db:
 
 # ─── Self-update (employee) ───────────────────────────────────────────────────
 
-def update_own_profile(employee_id: str, data: EmployeeProfileUpdate, db: Session) -> Employee:
-    emp = get_employee(employee_id, db)
+def update_own_profile(
+    employee_id: str,
+    data: EmployeeProfileUpdate,
+    db: Session,
+    workspace_id: str | None = None,
+) -> Employee:
+    emp = get_employee(employee_id, db, workspace_id)
     if data.phone is not None:
         emp.phone = data.phone
     if data.profile_picture_id is not None:
@@ -346,12 +420,17 @@ def update_own_profile(employee_id: str, data: EmployeeProfileUpdate, db: Sessio
 
 # ─── Change Role ──────────────────────────────────────────────────────────────
 
-def change_employee_role(employee_id: str, role: str, db: Session) -> Employee:
+def change_employee_role(
+    employee_id: str,
+    role: str,
+    db: Session,
+    workspace_id: str | None = None,
+) -> Employee:
     try:
         new_role = UserRole(role)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
-    emp = get_employee(employee_id, db)
+    emp = get_employee(employee_id, db, workspace_id)
     emp.user.role = new_role
     db.commit()
     db.refresh(emp)
@@ -360,15 +439,15 @@ def change_employee_role(employee_id: str, role: str, db: Session) -> Employee:
 
 # ─── Deactivate / Reactivate ──────────────────────────────────────────────────
 
-def deactivate_employee(employee_id: str, db: Session) -> dict:
-    emp = get_employee(employee_id, db)
+def deactivate_employee(employee_id: str, db: Session, workspace_id: str | None = None) -> dict:
+    emp = get_employee(employee_id, db, workspace_id)
     emp.user.account_status = AccountStatus.deactivated
     db.commit()
     return {"message": f"{emp.user.full_name}'s account has been deactivated."}
 
 
-def reactivate_employee(employee_id: str, db: Session) -> dict:
-    emp = get_employee(employee_id, db)
+def reactivate_employee(employee_id: str, db: Session, workspace_id: str | None = None) -> dict:
+    emp = get_employee(employee_id, db, workspace_id)
     emp.user.account_status = AccountStatus.active
     db.commit()
     return {"message": f"{emp.user.full_name}'s account has been reactivated."}
@@ -376,8 +455,8 @@ def reactivate_employee(employee_id: str, db: Session) -> dict:
 
 # ─── Resend setup email ───────────────────────────────────────────────────────
 
-def resend_setup_email(employee_id: str, db: Session) -> dict:
-    emp = get_employee(employee_id, db)
+def resend_setup_email(employee_id: str, db: Session, workspace_id: str | None = None) -> dict:
+    emp = get_employee(employee_id, db, workspace_id)
 
     if emp.user.account_status != AccountStatus.pending:
         raise HTTPException(status_code=400, detail="Account is already active.")
@@ -402,9 +481,13 @@ def resend_setup_email(employee_id: str, db: Session) -> dict:
 
 # ─── Employee Documents ───────────────────────────────────────────────────────
 
-def list_employee_documents(employee_id: str, db: Session) -> list[Document]:
+def list_employee_documents(
+    employee_id: str,
+    db: Session,
+    workspace_id: str | None = None,
+) -> list[Document]:
     """Return all (non-profile) files inside this employee's document folder."""
-    emp = get_employee(employee_id, db)
+    emp = get_employee(employee_id, db, workspace_id)
 
     employees_root = (
         db.query(Document)
@@ -444,6 +527,7 @@ def upload_employee_document(
     file: UploadFile,
     doc_type: str,
     db: Session,
+    workspace_id: str | None = None,
 ) -> Document:
     """Upload a file to Cloudinary, store it in the employee's document folder."""
     ALLOWED_MIME = {
@@ -459,7 +543,7 @@ def upload_employee_document(
     if len(file_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File must be under 10 MB.")
 
-    emp = get_employee(employee_id, db)
+    emp = get_employee(employee_id, db, workspace_id)
     folder = _get_employee_folder(emp.employee_no, db)
 
     import time
@@ -482,9 +566,14 @@ def upload_employee_document(
     return doc
 
 
-def delete_employee_document(employee_id: str, doc_id: int, db: Session) -> dict:
+def delete_employee_document(
+    employee_id: str,
+    doc_id: int,
+    db: Session,
+    workspace_id: str | None = None,
+) -> dict:
     """Remove a document from the employee's folder."""
-    emp = get_employee(employee_id, db)
+    emp = get_employee(employee_id, db, workspace_id)
     doc = db.query(Document).filter(Document.id == doc_id, Document.type == "file").first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found.")
@@ -495,7 +584,7 @@ def delete_employee_document(employee_id: str, doc_id: int, db: Session) -> dict
 
 # ── Birthday week query ────────────────────────────────────────────────────────
 
-def get_week_birthdays(db: Session) -> list[dict]:
+def get_week_birthdays(db: Session, workspace_id: str | None = None) -> list[dict]:
     """
     Returns employees whose birthday (month + day) falls within today through
     today + 6 days. Handles year-end wrap-around correctly.
@@ -518,6 +607,7 @@ def get_week_birthdays(db: Session) -> list[dict]:
         .options(joinedload(Employee.user).joinedload(User.profile_picture))
         .filter(
             Employee.birthday.isnot(None),
+            Employee.workspace_id == workspace_id if workspace_id else True,
             User.account_status.in_([AccountStatus.active, AccountStatus.pending]),
             or_(*conditions),
         )

@@ -3,7 +3,7 @@ Setups models — Departments, Groups, and GroupMembers.
 """
 
 import uuid
-from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -13,10 +13,20 @@ from app.core.database import Base
 
 class Department(Base):
     __tablename__ = "departments"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "name", name="uq_departments_workspace_name"),
+        UniqueConstraint("workspace_id", "code", name="uq_departments_workspace_code"),
+    )
 
     id             = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name           = Column(String(150), nullable=False, unique=True)   # display name, e.g. "HSE"
-    code           = Column(String(50),  nullable=False, unique=True)   # stable key, e.g. "safety"
+    workspace_id   = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name           = Column(String(150), nullable=False)   # display name, e.g. "HSE"
+    code           = Column(String(50),  nullable=False)   # stable key, e.g. "safety"
     is_active      = Column(Boolean, default=True, nullable=False)
     hod_id         = Column(CHAR(36), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
     parent_dept_id = Column(CHAR(36), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)

@@ -7,6 +7,7 @@ export const DEFAULT_PRIMARY_COLOR = "#7234BD";
 export const DEFAULT_SECONDARY_COLOR = "#1C043B";
 export type LogoBackground = "light" | "dark" | "none";
 export const DEFAULT_LOGO_BACKGROUND: LogoBackground = "light";
+export type WorkspaceStatus = "unknown" | "pending_setup" | "active" | "suspended" | "closed";
 
 export function normalizeHexColor(value: string | null | undefined, fallback: string): string {
   const candidate = value?.trim() ?? "";
@@ -94,7 +95,10 @@ interface CompanyBrandingState extends CompanyBranding {
   isConfigured: boolean;
   hasHydrated: boolean;
   hasResolvedWorkspace: boolean;
+  workspaceStatus: WorkspaceStatus;
+  canCompleteOnboarding: boolean;
   setBranding: (branding: CompanyBranding) => void;
+  setWorkspaceLifecycle: (status: WorkspaceStatus, canCompleteOnboarding: boolean) => void;
   setWorkspaceResolved: (resolved: boolean) => void;
   resetBranding: () => void;
 }
@@ -110,6 +114,8 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
       isConfigured: false,
       hasHydrated: false,
       hasResolvedWorkspace: false,
+      workspaceStatus: "unknown",
+      canCompleteOnboarding: false,
       setBranding: ({ name, logoDataUrl, logoBackground, primaryColor, secondaryColor }) =>
         set({
           name: name.trim(),
@@ -119,6 +125,8 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
           secondaryColor: normalizeHexColor(secondaryColor, DEFAULT_SECONDARY_COLOR),
           isConfigured: true,
         }),
+      setWorkspaceLifecycle: (workspaceStatus, canCompleteOnboarding) =>
+        set({ workspaceStatus, canCompleteOnboarding }),
       setWorkspaceResolved: (hasResolvedWorkspace) => set({ hasResolvedWorkspace }),
       resetBranding: () =>
         set({
@@ -128,6 +136,8 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
           primaryColor: DEFAULT_PRIMARY_COLOR,
           secondaryColor: DEFAULT_SECONDARY_COLOR,
           isConfigured: false,
+          workspaceStatus: "unknown",
+          canCompleteOnboarding: false,
         }),
     }),
     {

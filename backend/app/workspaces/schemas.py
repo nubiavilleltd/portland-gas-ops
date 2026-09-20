@@ -50,6 +50,20 @@ class WorkspaceLogoUploadResponse(BaseModel):
     logo_url: str
 
 
+class WorkspaceSetupClaimRequest(BaseModel):
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Setup code is required")
+        if len(normalized) > 100:
+            raise ValueError("Setup code is invalid")
+        return normalized
+
+
 class WorkspaceResponse(BaseModel):
     id: str
     membership_id: str
@@ -58,5 +72,7 @@ class WorkspaceResponse(BaseModel):
     logo_background: Literal["light", "dark", "none"]
     primary_color: str
     secondary_color: str
+    status: Literal["pending_setup", "active", "suspended", "closed"]
     is_configured: bool
+    can_complete_onboarding: bool
     onboarding_completed_at: Optional[datetime]

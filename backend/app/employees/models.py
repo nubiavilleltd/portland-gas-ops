@@ -21,6 +21,12 @@ class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     user_id = Column(CHAR(36), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     employee_no = Column(String(20), unique=True, nullable=False, index=True)  # e.g. PG-EMP-0001
 

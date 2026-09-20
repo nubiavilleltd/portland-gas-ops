@@ -17,14 +17,19 @@ from app.setups.schemas import (
 
 # ── Departments ────────────────────────────────────────────────────────────────
 
-def list_departments(db: Session, active_only: bool = False) -> list[dict]:
+def list_departments(db: Session, workspace_id: str, active_only: bool = False) -> list[dict]:
     from app.shared.models.user import User
     # Alias Employee so the hod join doesn't clash with the employee_count join
     HodEmployee = db.query(Employee).subquery()
 
     q = (
         db.query(Department, func.count(Employee.id).label("employee_count"))
-        .outerjoin(Employee, Employee.department_id == Department.id)
+        .outerjoin(
+            Employee,
+            (Employee.department_id == Department.id)
+            & (Employee.workspace_id == workspace_id),
+        )
+        .filter(Department.workspace_id == workspace_id)
         .group_by(Department.id)
     )
     if active_only:
@@ -39,7 +44,10 @@ def list_departments(db: Session, active_only: bool = False) -> list[dict]:
         hod_rows = (
             db.query(Employee.id, User.first_name, User.last_name)
             .join(User, User.id == Employee.user_id)
-            .filter(Employee.id.in_(hod_ids))
+            .filter(
+                Employee.id.in_(hod_ids),
+                Employee.workspace_id == workspace_id,
+            )
             .all()
         )
         hod_name_map = {
@@ -64,18 +72,26 @@ def list_departments(db: Session, active_only: bool = False) -> list[dict]:
     ]
 
 
-def get_department(dept_id: str, db: Session) -> Department:
-    dept = db.query(Department).filter(Department.id == dept_id).first()
+def get_department(dept_id: str, db: Session, workspace_id: str) -> Department:
+    dept = db.query(Department).filter(
+        Department.id == dept_id,
+        Department.workspace_id == workspace_id,
+    ).first()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
     return dept
 
 
-def create_department(data: DepartmentCreate, db: Session) -> Department:
-    if db.query(Department).filter(Department.code == data.code).first():
+def create_department(data: DepartmentCreate, db: Session, workspace_id: str) -> Department:
+    if db.query(Department).filter(
+        Department.workspace_id == workspace_id,
+        (Department.code == data.code) | (Department.name == data.name),
+    ).first():
         raise HTTPException(status_code=409, detail="A department with this code already exists")
+    _validate_department_links(data.hod_id, data.parent_dept_id, workspace_id, db)
     dept = Department(
         id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
         name=data.name,
         code=data.code,
         hod_id=data.hod_id,
@@ -87,20 +103,39 @@ def create_department(data: DepartmentCreate, db: Session) -> Department:
     return dept
 
 
-def update_department(dept_id: str, data: DepartmentUpdate, db: Session) -> Department:
-    dept = get_department(dept_id, db)
-    for field, value in data.model_dump(exclude_unset=True).items():
+def update_department(dept_id: str, data: DepartmentUpdate, db: Session, workspace_id: str) -> Department:
+    dept = get_department(dept_id, db, workspace_id)
+    changes = data.model_dump(exclude_unset=True)
+    if "name" in changes or "code" in changes:
+        duplicate = db.query(Department).filter(
+            Department.workspace_id == workspace_id,
+            Department.id != dept_id,
+            ((Department.code == changes.get("code", dept.code)) |
+             (Department.name == changes.get("name", dept.name))),
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=409, detail="A department with this name or code already exists")
+    _validate_department_links(
+        changes.get("hod_id", dept.hod_id),
+        changes.get("parent_dept_id", dept.parent_dept_id),
+        workspace_id,
+        db,
+    )
+    for field, value in changes.items():
         setattr(dept, field, value)
     db.commit()
     db.refresh(dept)
     return dept
 
 
-def delete_department(dept_id: str, db: Session) -> None:
-    dept = get_department(dept_id, db)
+def delete_department(dept_id: str, db: Session, workspace_id: str) -> None:
+    dept = get_department(dept_id, db, workspace_id)
     employee_count = (
         db.query(func.count(Employee.id))
-        .filter(Employee.department_id == dept_id)
+        .filter(
+            Employee.department_id == dept_id,
+            Employee.workspace_id == workspace_id,
+        )
         .scalar()
     ) or 0
     if employee_count > 0:
@@ -110,6 +145,25 @@ def delete_department(dept_id: str, db: Session) -> None:
         )
     db.delete(dept)
     db.commit()
+
+
+def _validate_department_links(
+    hod_id: str | None,
+    parent_dept_id: str | None,
+    workspace_id: str,
+    db: Session,
+) -> None:
+    """Prevent a department from referencing records in another workspace."""
+    if hod_id and not db.query(Employee.id).filter(
+        Employee.id == hod_id,
+        Employee.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Head of department is not in this workspace")
+    if parent_dept_id and not db.query(Department.id).filter(
+        Department.id == parent_dept_id,
+        Department.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Parent department is not in this workspace")
 
 
 # ── Groups ─────────────────────────────────────────────────────────────────────

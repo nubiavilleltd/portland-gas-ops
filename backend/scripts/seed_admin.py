@@ -22,11 +22,17 @@ from app.employees import models as _employee_models  # noqa: F401
 from app.vendors import models as _vendor_models  # noqa: F401
 from app.shared.models.user import User, UserRole, AccountStatus
 from app.employees.models import Employee
+from app.workspaces.models import Workspace, WorkspaceMembership
 from app.core.security import hash_password
 
 
-def _next_employee_no(db) -> str:
-    last = db.query(Employee.employee_no).order_by(Employee.created_at.desc()).first()
+def _next_employee_no(db, workspace_id: str) -> str:
+    last = (
+        db.query(Employee.employee_no)
+        .filter(Employee.workspace_id == workspace_id)
+        .order_by(Employee.created_at.desc())
+        .first()
+    )
     if last:
         try:
             num = int(last[0].split("-")[-1]) + 1
@@ -57,6 +63,10 @@ def main():
 
     db = SessionLocal()
     try:
+        workspace = db.query(Workspace).order_by(Workspace.created_at.asc()).first()
+        if not workspace:
+            raise RuntimeError("No workspace exists. Run the workspace setup/migrations first.")
+
         existing = db.query(User).filter(User.email == email).first()
         if existing:
             print(f"\n⚠  Account already exists for {email}")
@@ -64,15 +74,26 @@ def main():
 
             # Check if employee record exists, create if missing
             emp = db.query(Employee).filter(Employee.user_id == existing.id).first()
+            employee_created = False
             if not emp:
-                employee_no = _next_employee_no(db)
+                employee_no = _next_employee_no(db, workspace.id)
                 emp = Employee(
+                    workspace_id=workspace.id,
                     user_id    = existing.id,
                     employee_no= employee_no,
                     job_title  = job,
                 )
                 db.add(emp)
-                db.commit()
+                employee_created = True
+            if not db.query(WorkspaceMembership).filter(
+                WorkspaceMembership.workspace_id == workspace.id,
+                WorkspaceMembership.user_id == existing.id,
+            ).first():
+                db.add(WorkspaceMembership(workspace_id=workspace.id, user_id=existing.id))
+            if not emp.workspace_id:
+                emp.workspace_id = workspace.id
+            db.commit()
+            if employee_created:
                 print(f"   ✅  Employee record created: {employee_no}")
             else:
                 print(f"   Employee record already exists: {emp.employee_no}")
@@ -90,13 +111,15 @@ def main():
         db.add(usr)
         db.flush()
 
-        employee_no = _next_employee_no(db)
+        employee_no = _next_employee_no(db, workspace.id)
         emp = Employee(
+            workspace_id=workspace.id,
             user_id    = usr.id,
             employee_no= employee_no,
             job_title  = job,
         )
         db.add(emp)
+        db.add(WorkspaceMembership(workspace_id=workspace.id, user_id=usr.id))
         db.commit()
 
         print(f"\n✅  Superadmin created!")

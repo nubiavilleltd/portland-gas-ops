@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
     ENVIRONMENT: str = "development"
 
+    # Temporary workspace setup claim configuration. Override these values in
+    # the environment before using the flow outside the controlled demo.
+    WORKSPACE_SETUP_EMAIL: str = "felix_ohemu@nubiaville.onmicrosoft.com"
+    WORKSPACE_SETUP_CODE: str = "NUBIAVILLE-SETUP"
+
     # Postmark — optional until server token is provided
     POSTMARK_SERVER_TOKEN: Optional[str] = None
     POSTMARK_FROM_EMAIL: str = "appnotice@nubiaville.com"

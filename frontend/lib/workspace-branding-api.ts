@@ -1,5 +1,5 @@
-import { get, patch, postForm } from "@/lib/api";
-import type { CompanyBranding, LogoBackground } from "@/lib/company-branding";
+import { get, patch, post, postForm } from "@/lib/api";
+import type { CompanyBranding, LogoBackground, WorkspaceStatus } from "@/lib/company-branding";
 
 export interface WorkspaceBrandingResponse {
   id: string;
@@ -9,7 +9,9 @@ export interface WorkspaceBrandingResponse {
   logo_background: LogoBackground;
   primary_color: string;
   secondary_color: string;
+  status: Exclude<WorkspaceStatus, "unknown">;
   is_configured: boolean;
+  can_complete_onboarding: boolean;
   onboarding_completed_at: string | null;
 }
 
@@ -37,6 +39,10 @@ export function toCompanyBranding(workspace: WorkspaceBrandingResponse): Company
 
 export function fetchCurrentWorkspace(): Promise<WorkspaceBrandingResponse> {
   return get<WorkspaceBrandingResponse>("/api/workspaces/current");
+}
+
+export function claimWorkspaceSetup(code: string): Promise<WorkspaceBrandingResponse> {
+  return post<WorkspaceBrandingResponse>("/api/workspaces/current/claim-setup", { code });
 }
 
 export async function uploadWorkspaceLogo(file: File): Promise<WorkspaceLogoUploadResponse> {

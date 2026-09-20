@@ -85,6 +85,14 @@ function BrandingRestore() {
       .then((workspace) => {
         if (cancelled) return;
 
+        console.log("[workspace] resolved after login", {
+          workspaceId: workspace.id,
+          membershipId: workspace.membership_id,
+          source: "workspace_memberships via GET /api/workspaces/current",
+          status: workspace.status,
+          configured: workspace.is_configured,
+        });
+
         if (workspace.is_configured) {
           useCompanyBranding.getState().setBranding(toCompanyBranding(workspace));
         } else {
@@ -92,6 +100,10 @@ function BrandingRestore() {
           // branding cached from another account or an earlier workspace.
           useCompanyBranding.getState().resetBranding();
         }
+        useCompanyBranding.getState().setWorkspaceLifecycle(
+          workspace.status,
+          workspace.can_complete_onboarding,
+        );
       })
       .catch(() => {
         if (!cancelled) {

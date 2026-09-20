@@ -5,7 +5,8 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.shared.models.user import User
-from app.shared.dependencies import get_current_user, require_roles
+from app.shared.dependencies import require_roles
+from app.workspaces.context import WorkspaceContext, get_workspace_context
 from app.employees.schemas import (
     EmployeeCreate,
     EmployeeUpdate,
@@ -34,9 +35,17 @@ def list_employees(
     search: str = Query(""),
     department: str = Query(""),
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin", "staff")),
 ):
-    return employee_service.list_employees(db, skip=skip, limit=limit, search=search, department=department)
+    return employee_service.list_employees(
+        db,
+        skip=skip,
+        limit=limit,
+        search=search,
+        department=department,
+        workspace_id=context.workspace.id,
+    )
 
 
 @router.get("/count")
@@ -44,9 +53,15 @@ def count_employees(
     search: str = Query(""),
     department: str = Query(""),
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return {"count": employee_service.count_employees(db, search=search, department=department)}
+    return {"count": employee_service.count_employees(
+        db,
+        search=search,
+        department=department,
+        workspace_id=context.workspace.id,
+    )}
 
 
 # ── Create ────────────────────────────────────────────────────────────────────
@@ -55,9 +70,10 @@ def count_employees(
 def create_employee(
     data: EmployeeCreate,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.create_employee(data, db)
+    return employee_service.create_employee(data, db, context.workspace.id)
 
 
 # ── Single employee ───────────────────────────────────────────────────────────
@@ -65,9 +81,9 @@ def create_employee(
 @router.get("/me", response_model=EmployeeResponse)
 def get_my_profile(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    emp = employee_service.get_employee_by_user_id(current_user.id, db)
+    emp = employee_service.get_employee_by_user_id(context.user.id, db, context.workspace.id)
     # Pydantic will auto-serialize from_attributes=True using the SQLAlchemy model
     # The key: ensure User relationship is eagerly loaded (it is in get_employee_by_user_id)
     return emp
@@ -78,31 +94,36 @@ def get_my_profile(
 def list_employee_directory(
     search: str = Query(""),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Payroll-free employee directory for any authenticated user. Powers the
     reliever/approver pickers so non-admins can choose a colleague. Returns no
     compensation fields (that stays on the admin-only list endpoint)."""
-    return employee_service.list_employee_directory(db, search=search)
+    return employee_service.list_employee_directory(
+        db,
+        search=search,
+        workspace_id=context.workspace.id,
+    )
 
 
 # Must come before /{employee_id} to avoid "birthdays" being captured as an ID
 @router.get("/birthdays/week", response_model=List[BirthdayResponse])
 def get_week_birthdays(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Returns employees with birthdays today through the next 6 days."""
-    return employee_service.get_week_birthdays(db)
+    return employee_service.get_week_birthdays(db, context.workspace.id)
 
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)
 def get_employee(
     employee_id: str,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.get_employee(employee_id, db)
+    return employee_service.get_employee(employee_id, db, context.workspace.id)
 
 
 # ── Update ────────────────────────────────────────────────────────────────────
@@ -112,19 +133,20 @@ def update_employee(
     employee_id: str,
     data: EmployeeUpdate,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.update_employee(employee_id, data, db)
+    return employee_service.update_employee(employee_id, data, db, context.workspace.id)
 
 
 @router.patch("/me/profile", response_model=EmployeeResponse)
 def update_own_profile(
     data: EmployeeProfileUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    emp = employee_service.get_employee_by_user_id(current_user.id, db)
-    return employee_service.update_own_profile(emp.id, data, db)
+    emp = employee_service.get_employee_by_user_id(context.user.id, db, context.workspace.id)
+    return employee_service.update_own_profile(emp.id, data, db, context.workspace.id)
 
 
 # ── Role ──────────────────────────────────────────────────────────────────────
@@ -134,9 +156,10 @@ def change_role(
     employee_id: str,
     body: RoleUpdate,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.change_employee_role(employee_id, body.role, db)
+    return employee_service.change_employee_role(employee_id, body.role, db, context.workspace.id)
 
 
 # ── Profile picture ────────────────────────────────────────────────────────────
@@ -145,10 +168,12 @@ def change_role(
 def upload_profile_picture(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    emp = employee_service.get_employee_by_user_id(current_user.id, db)
-    return employee_service.update_profile_picture(emp.id, current_user.id, file, db)
+    emp = employee_service.get_employee_by_user_id(context.user.id, db, context.workspace.id)
+    return employee_service.update_profile_picture(
+        emp.id, context.user.id, file, db, context.workspace.id
+    )
 
 
 # ── Status ────────────────────────────────────────────────────────────────────
@@ -157,27 +182,30 @@ def upload_profile_picture(
 def deactivate_employee(
     employee_id: str,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.deactivate_employee(employee_id, db)
+    return employee_service.deactivate_employee(employee_id, db, context.workspace.id)
 
 
 @router.post("/{employee_id}/reactivate")
 def reactivate_employee(
     employee_id: str,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.reactivate_employee(employee_id, db)
+    return employee_service.reactivate_employee(employee_id, db, context.workspace.id)
 
 
 @router.post("/{employee_id}/resend-setup")
 def resend_setup_email(
     employee_id: str,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.resend_setup_email(employee_id, db)
+    return employee_service.resend_setup_email(employee_id, db, context.workspace.id)
 
 
 # ── Employee Documents ────────────────────────────────────────────────────────
@@ -186,9 +214,10 @@ def resend_setup_email(
 def list_documents(
     employee_id: str,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.list_employee_documents(employee_id, db)
+    return employee_service.list_employee_documents(employee_id, db, context.workspace.id)
 
 
 @router.post("/{employee_id}/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -197,10 +226,15 @@ def upload_document(
     doc_type: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     current_user: User = Depends(require_roles("super_admin", "admin")),
 ):
-    uploader_emp = employee_service.get_employee_by_user_id(current_user.id, db)
-    return employee_service.upload_employee_document(employee_id, uploader_emp.id, file, doc_type, db)
+    uploader_emp = employee_service.get_employee_by_user_id(
+        context.user.id, db, context.workspace.id
+    )
+    return employee_service.upload_employee_document(
+        employee_id, uploader_emp.id, file, doc_type, db, context.workspace.id
+    )
 
 
 @router.delete("/{employee_id}/documents/{doc_id}", status_code=status.HTTP_200_OK)
@@ -208,6 +242,9 @@ def delete_document(
     employee_id: str,
     doc_id: int,
     db: Session = Depends(get_db),
+    context: WorkspaceContext = Depends(get_workspace_context),
     _: User = Depends(require_roles("super_admin", "admin")),
 ):
-    return employee_service.delete_employee_document(employee_id, doc_id, db)
+    return employee_service.delete_employee_document(
+        employee_id, doc_id, db, context.workspace.id
+    )

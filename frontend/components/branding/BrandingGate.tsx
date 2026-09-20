@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/setup-account",
   "/onboarding",
+  "/workspace-pending",
 ];
 
 function isPublicPath(pathname: string) {
@@ -22,7 +23,12 @@ function isPublicPath(pathname: string) {
 export default function BrandingGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { hasHydrated, hasResolvedWorkspace, isConfigured } = useCompanyBranding();
+  const {
+    hasHydrated,
+    hasResolvedWorkspace,
+    isConfigured,
+    canCompleteOnboarding,
+  } = useCompanyBranding();
   const accessToken = useAuthStore((state) => state.accessToken);
   const isOnboarding = pathname === "/onboarding";
   const isProtectedPath = !isPublicPath(pathname);
@@ -30,15 +36,33 @@ export default function BrandingGate({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!hasHydrated || !accessToken || !hasResolvedWorkspace) return;
 
+    if (pathname === "/") {
+      if (!isConfigured) {
+        router.replace(
+          canCompleteOnboarding ? "/onboarding" : "/workspace-pending",
+        );
+      }
+      return;
+    }
+
     if (isProtectedPath && !isConfigured) {
-      router.replace(`/onboarding?next=${encodeURIComponent(pathname)}`);
+      router.replace(
+        canCompleteOnboarding
+          ? `/onboarding?next=${encodeURIComponent(pathname)}`
+          : "/workspace-pending",
+      );
       return;
     }
 
     if (isOnboarding && isConfigured) {
-      router.replace("/home");
+      router.replace("/");
+      return;
     }
-  }, [accessToken, hasHydrated, hasResolvedWorkspace, isConfigured, isOnboarding, isProtectedPath, pathname, router]);
+
+    if (isOnboarding && !isConfigured && !canCompleteOnboarding) {
+      router.replace("/workspace-pending");
+    }
+  }, [accessToken, canCompleteOnboarding, hasHydrated, hasResolvedWorkspace, isConfigured, isOnboarding, isProtectedPath, pathname, router]);
 
   if (isProtectedPath && accessToken && (!hasHydrated || !hasResolvedWorkspace || !isConfigured)) return null;
   return <>{children}</>;
