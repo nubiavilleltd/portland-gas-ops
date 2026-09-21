@@ -168,20 +168,24 @@ def _validate_department_links(
 
 # ── Groups ─────────────────────────────────────────────────────────────────────
 
-def _get_group_or_404(group_id: str, db: Session) -> Group:
-    g = db.query(Group).filter(Group.id == group_id).first()
+def _get_group_or_404(group_id: str, db: Session, workspace_id: str) -> Group:
+    g = db.query(Group).filter(
+        Group.id == group_id,
+        Group.workspace_id == workspace_id,
+    ).first()
     if not g:
         raise HTTPException(404, "Group not found")
     return g
 
 
-def list_groups(db: Session) -> list:
+def list_groups(db: Session, workspace_id: str) -> list:
     rows = (
         db.query(
             Group,
             func.count(GroupMember.id).label("member_count"),
         )
         .outerjoin(GroupMember, GroupMember.group_id == Group.id)
+        .filter(Group.workspace_id == workspace_id)
         .group_by(Group.id)
         .order_by(Group.name)
         .all()
@@ -200,9 +204,27 @@ def list_groups(db: Session) -> list:
     ]
 
 
-def create_group(data: GroupCreate, actor_employee_id: str, db: Session) -> Group:
+def create_group(
+    data: GroupCreate,
+    actor_employee_id: str,
+    db: Session,
+    workspace_id: str,
+) -> Group:
+    if db.query(Group.id).filter(
+        Group.workspace_id == workspace_id,
+        Group.name == data.name,
+    ).first():
+        raise HTTPException(status_code=409, detail="A group with this name already exists in this workspace")
+
+    if not db.query(Employee.id).filter(
+        Employee.id == actor_employee_id,
+        Employee.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Group creator is not in this workspace")
+
     g = Group(
         id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
         name=data.name,
         description=data.description,
         group_type=data.group_type,
@@ -212,7 +234,7 @@ def create_group(data: GroupCreate, actor_employee_id: str, db: Session) -> Grou
     return g
 
 
-def get_group(group_id: str, db: Session) -> dict:
+def get_group(group_id: str, db: Session, workspace_id: str) -> dict:
     g = (
         db.query(Group)
         .options(
@@ -223,7 +245,10 @@ def get_group(group_id: str, db: Session) -> dict:
             .joinedload(GroupMember.employee)
             .joinedload(Employee.department_rel),
         )
-        .filter(Group.id == group_id)
+        .filter(
+            Group.id == group_id,
+            Group.workspace_id == workspace_id,
+        )
         .first()
     )
     if not g:
@@ -232,7 +257,7 @@ def get_group(group_id: str, db: Session) -> dict:
     members = []
     for m in g.members:
         emp = m.employee
-        if not emp:
+        if not emp or emp.workspace_id != workspace_id:
             continue
         name = (
             emp.user.full_name
@@ -259,8 +284,14 @@ def get_group(group_id: str, db: Session) -> dict:
     }
 
 
-def update_group(group_id: str, data: GroupUpdate, db: Session) -> Group:
-    g = _get_group_or_404(group_id, db)
+def update_group(group_id: str, data: GroupUpdate, db: Session, workspace_id: str) -> Group:
+    g = _get_group_or_404(group_id, db, workspace_id)
+    if data.name is not None and db.query(Group.id).filter(
+        Group.workspace_id == workspace_id,
+        Group.name == data.name,
+        Group.id != group_id,
+    ).first():
+        raise HTTPException(status_code=409, detail="A group with this name already exists in this workspace")
     if data.name        is not None: g.name        = data.name
     if data.description is not None: g.description = data.description
     if data.group_type  is not None: g.group_type  = data.group_type
@@ -268,15 +299,16 @@ def update_group(group_id: str, data: GroupUpdate, db: Session) -> Group:
     return g
 
 
-def add_group_member(group_id: str, data: AddMember, db: Session) -> dict:
-    _get_group_or_404(group_id, db)
+def add_group_member(group_id: str, data: AddMember, db: Session, workspace_id: str) -> dict:
+    _get_group_or_404(group_id, db, workspace_id)
 
     # Accept employee_id (UUID) or employee_no
     emp = (
         db.query(Employee)
         .filter(
             (Employee.id == data.employee_id)
-            | (Employee.employee_no == data.employee_id)
+            | (Employee.employee_no == data.employee_id),
+            Employee.workspace_id == workspace_id,
         )
         .options(joinedload(Employee.user), joinedload(Employee.department_rel))
         .first()
@@ -318,7 +350,8 @@ def add_group_member(group_id: str, data: AddMember, db: Session) -> dict:
     }
 
 
-def remove_group_member(group_id: str, member_id: str, db: Session) -> None:
+def remove_group_member(group_id: str, member_id: str, db: Session, workspace_id: str) -> None:
+    _get_group_or_404(group_id, db, workspace_id)
     member = (
         db.query(GroupMember)
         .filter(GroupMember.id == member_id, GroupMember.group_id == group_id)

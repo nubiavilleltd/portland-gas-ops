@@ -43,6 +43,12 @@ class Group(Base):
     __tablename__ = "org_groups"
 
     id          = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name        = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     group_type  = Column(String(50), nullable=False, default="general")
