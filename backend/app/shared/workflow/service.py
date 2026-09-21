@@ -16,6 +16,7 @@ from app.shared.models.approval import (
     WorkflowAssignment,
 )
 from app.employees.models import Employee
+from app.setups.models import Group
 from app.shared.models.user import User
 from app.shared.workflow.schemas import (
     WorkflowCreate, WorkflowUpdate,
@@ -26,17 +27,26 @@ from app.shared.workflow.schemas import (
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _get_workflow_or_404(workflow_id: str, db: Session) -> ApprovalWorkflow:
-    wf = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
+def _get_workflow_or_404(workflow_id: str, db: Session, workspace_id: str) -> ApprovalWorkflow:
+    wf = (
+        db.query(ApprovalWorkflow)
+        .filter(
+            ApprovalWorkflow.id == workflow_id,
+            ApprovalWorkflow.workspace_id == workspace_id,
+        )
+        .first()
+    )
     if not wf:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return wf
 
 
-def _get_step_or_404(workflow_id: str, step_id: str, db: Session) -> WorkflowStep:
+def _get_step_or_404(workflow_id: str, step_id: str, db: Session, workspace_id: str) -> WorkflowStep:
     step = (
         db.query(WorkflowStep)
+        .join(ApprovalWorkflow, WorkflowStep.workflow_id == ApprovalWorkflow.id)
         .filter(WorkflowStep.id == step_id, WorkflowStep.workflow_id == workflow_id)
+        .filter(ApprovalWorkflow.workspace_id == workspace_id)
         .first()
     )
     if not step:
@@ -44,10 +54,13 @@ def _get_step_or_404(workflow_id: str, step_id: str, db: Session) -> WorkflowSte
     return step
 
 
-def _count_assignments(workflow_id: str, db: Session) -> int:
+def _count_assignments(workflow_id: str, db: Session, workspace_id: str) -> int:
     return (
         db.query(WorkflowAssignment)
-        .filter(WorkflowAssignment.workflow_id == workflow_id)
+        .filter(
+            WorkflowAssignment.workflow_id == workflow_id,
+            WorkflowAssignment.workspace_id == workspace_id,
+        )
         .count()
     )
 
@@ -64,12 +77,12 @@ def _renumber_steps(workflow_id: str, db: Session) -> None:
         step.step_number = i
 
 
-def _validate_role_uniqueness(role: str, db: Session) -> None:
+def _validate_role_uniqueness(role: str, db: Session, workspace_id: str) -> None:
     """Warn admin if a role value resolves to more than one active employee."""
     count = (
         db.query(func.count(Employee.id))
         .join(Employee.user)
-        .filter(User.role == role)
+        .filter(User.role == role, Employee.workspace_id == workspace_id)
         .scalar()
     )
     if count and count > 1:
@@ -106,9 +119,10 @@ def _build_step_out(step: WorkflowStep) -> dict:
 
 # ── Workflows ──────────────────────────────────────────────────────────────────
 
-def list_workflows(db: Session) -> list:
+def list_workflows(db: Session, workspace_id: str) -> list:
     workflows = (
         db.query(ApprovalWorkflow)
+        .filter(ApprovalWorkflow.workspace_id == workspace_id)
         .order_by(ApprovalWorkflow.created_at.desc())
         .all()
     )
@@ -121,15 +135,27 @@ def list_workflows(db: Session) -> list:
             "is_active":        wf.is_active,
             "reset_on_return":  wf.reset_on_return,
             "step_count":       len(wf.steps),
-            "assignment_count": _count_assignments(wf.id, db),
+            "assignment_count": _count_assignments(wf.id, db, workspace_id),
             "created_at":       wf.created_at,
         })
     return result
 
 
-def create_workflow(data: WorkflowCreate, db: Session) -> ApprovalWorkflow:
+def create_workflow(data: WorkflowCreate, db: Session, workspace_id: str) -> ApprovalWorkflow:
+    duplicate = (
+        db.query(ApprovalWorkflow.id)
+        .filter(
+            ApprovalWorkflow.workspace_id == workspace_id,
+            ApprovalWorkflow.name == data.name,
+        )
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="A workflow with this name already exists in this workspace")
+
     wf = ApprovalWorkflow(
         id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
         name=data.name,
         description=data.description,
         is_active=True,
@@ -139,7 +165,7 @@ def create_workflow(data: WorkflowCreate, db: Session) -> ApprovalWorkflow:
     return wf
 
 
-def get_workflow(workflow_id: str, db: Session) -> dict:
+def get_workflow(workflow_id: str, db: Session, workspace_id: str) -> dict:
     wf = (
         db.query(ApprovalWorkflow)
         .options(
@@ -149,7 +175,10 @@ def get_workflow(workflow_id: str, db: Session) -> dict:
             joinedload(ApprovalWorkflow.steps)
             .joinedload(WorkflowStep.group),
         )
-        .filter(ApprovalWorkflow.id == workflow_id)
+        .filter(
+            ApprovalWorkflow.id == workflow_id,
+            ApprovalWorkflow.workspace_id == workspace_id,
+        )
         .first()
     )
     if not wf:
@@ -163,14 +192,25 @@ def get_workflow(workflow_id: str, db: Session) -> dict:
         "is_active":        wf.is_active,
         "reset_on_return":  wf.reset_on_return,
         "created_at":       wf.created_at,
-        "assignment_count": _count_assignments(wf.id, db),
+        "assignment_count": _count_assignments(wf.id, db, workspace_id),
         "steps":            [_build_step_out(s) for s in sorted_steps],
     }
 
 
-def update_workflow(workflow_id: str, data: WorkflowUpdate, db: Session) -> ApprovalWorkflow:
-    wf = _get_workflow_or_404(workflow_id, db)
+def update_workflow(workflow_id: str, data: WorkflowUpdate, db: Session, workspace_id: str) -> ApprovalWorkflow:
+    wf = _get_workflow_or_404(workflow_id, db, workspace_id)
     if data.name is not None:
+        duplicate = (
+            db.query(ApprovalWorkflow.id)
+            .filter(
+                ApprovalWorkflow.workspace_id == workspace_id,
+                ApprovalWorkflow.name == data.name,
+                ApprovalWorkflow.id != workflow_id,
+            )
+            .first()
+        )
+        if duplicate:
+            raise HTTPException(status_code=409, detail="A workflow with this name already exists in this workspace")
         wf.name = data.name
     if data.description is not None:
         wf.description = data.description
@@ -181,9 +221,9 @@ def update_workflow(workflow_id: str, data: WorkflowUpdate, db: Session) -> Appr
     return wf
 
 
-def delete_workflow(workflow_id: str, db: Session) -> None:
-    wf = _get_workflow_or_404(workflow_id, db)
-    if _count_assignments(workflow_id, db) > 0:
+def delete_workflow(workflow_id: str, db: Session, workspace_id: str) -> None:
+    wf = _get_workflow_or_404(workflow_id, db, workspace_id)
+    if _count_assignments(workflow_id, db, workspace_id) > 0:
         raise HTTPException(
             status_code=409,
             detail="Cannot delete a workflow that is assigned to a request type. Remove the assignment first.",
@@ -193,12 +233,29 @@ def delete_workflow(workflow_id: str, db: Session) -> None:
 
 # ── Steps ─────────────────────────────────────────────────────────────────────
 
-def add_step(workflow_id: str, data: StepCreate, db: Session) -> dict:
-    _get_workflow_or_404(workflow_id, db)
+def add_step(workflow_id: str, data: StepCreate, db: Session, workspace_id: str) -> dict:
+    _get_workflow_or_404(workflow_id, db, workspace_id)
 
     # Validate role uniqueness
     if data.assignee_type.value == "role" and data.role:
-        _validate_role_uniqueness(data.role, db)
+        _validate_role_uniqueness(data.role, db, workspace_id)
+
+    if data.assignee_type.value == "specific":
+        employee = (
+            db.query(Employee.id)
+            .filter(Employee.id == data.employee_id, Employee.workspace_id == workspace_id)
+            .first()
+        )
+        if not employee:
+            raise HTTPException(status_code=422, detail="The selected employee is not in this workspace")
+    if data.assignee_type.value == "requester_pick":
+        group = (
+            db.query(Group.id)
+            .filter(Group.id == data.group_id, Group.workspace_id == workspace_id)
+            .first()
+        )
+        if not group:
+            raise HTTPException(status_code=422, detail="The selected approver group is not in this workspace")
 
     # Auto-number: max existing + 1
     max_num = (
@@ -228,8 +285,8 @@ def add_step(workflow_id: str, data: StepCreate, db: Session) -> dict:
     return _build_step_out(step)
 
 
-def update_step(workflow_id: str, step_id: str, data: StepUpdate, db: Session) -> dict:
-    step = _get_step_or_404(workflow_id, step_id, db)
+def update_step(workflow_id: str, step_id: str, data: StepUpdate, db: Session, workspace_id: str) -> dict:
+    step = _get_step_or_404(workflow_id, step_id, db, workspace_id)
 
     if data.assignee_type is not None:
         step.assignee_type = data.assignee_type
@@ -240,13 +297,27 @@ def update_step(workflow_id: str, step_id: str, data: StepUpdate, db: Session) -
 
     if data.role is not None:
         if data.assignee_type and data.assignee_type.value == "role":
-            _validate_role_uniqueness(data.role, db)
+            _validate_role_uniqueness(data.role, db, workspace_id)
         step.role = data.role
 
     if data.employee_id is not None:
+        employee = (
+            db.query(Employee.id)
+            .filter(Employee.id == data.employee_id, Employee.workspace_id == workspace_id)
+            .first()
+        )
+        if not employee:
+            raise HTTPException(status_code=422, detail="The selected employee is not in this workspace")
         step.employee_id = data.employee_id
 
     if data.group_id is not None:
+        group = (
+            db.query(Group.id)
+            .filter(Group.id == data.group_id, Group.workspace_id == workspace_id)
+            .first()
+        )
+        if not group:
+            raise HTTPException(status_code=422, detail="The selected approver group is not in this workspace")
         step.group_id = data.group_id
 
     if data.step_name is not None:
@@ -264,15 +335,15 @@ def update_step(workflow_id: str, step_id: str, data: StepUpdate, db: Session) -
     return _build_step_out(step)
 
 
-def delete_step(workflow_id: str, step_id: str, db: Session) -> None:
-    step = _get_step_or_404(workflow_id, step_id, db)
+def delete_step(workflow_id: str, step_id: str, db: Session, workspace_id: str) -> None:
+    step = _get_step_or_404(workflow_id, step_id, db, workspace_id)
     db.delete(step)
     db.flush()
     _renumber_steps(workflow_id, db)
 
 
-def reorder_steps(workflow_id: str, data: ReorderSteps, db: Session) -> list:
-    _get_workflow_or_404(workflow_id, db)
+def reorder_steps(workflow_id: str, data: ReorderSteps, db: Session, workspace_id: str) -> list:
+    _get_workflow_or_404(workflow_id, db, workspace_id)
 
     steps = (
         db.query(WorkflowStep)
@@ -298,10 +369,11 @@ def reorder_steps(workflow_id: str, data: ReorderSteps, db: Session) -> list:
 
 # ── Workflow Assignments ───────────────────────────────────────────────────────
 
-def list_assignments(db: Session) -> list:
+def list_assignments(db: Session, workspace_id: str) -> list:
     assignments = (
         db.query(WorkflowAssignment)
         .options(joinedload(WorkflowAssignment.workflow))
+        .filter(WorkflowAssignment.workspace_id == workspace_id)
         .all()
     )
     return [
@@ -317,11 +389,12 @@ def list_assignments(db: Session) -> list:
     ]
 
 
-def set_assignment(data: AssignmentSet, actor_employee_id: str, db: Session) -> dict:
+def set_assignment(data: AssignmentSet, actor_employee_id: str, db: Session, workspace_id: str) -> dict:
     # Validate workflow exists and is active
     wf = db.query(ApprovalWorkflow).filter(
         ApprovalWorkflow.id == data.workflow_id,
         ApprovalWorkflow.is_active == True,  # noqa: E712
+        ApprovalWorkflow.workspace_id == workspace_id,
     ).first()
     if not wf:
         raise HTTPException(status_code=404, detail="Workflow not found or is inactive")
@@ -329,7 +402,10 @@ def set_assignment(data: AssignmentSet, actor_employee_id: str, db: Session) -> 
     # Upsert
     existing = (
         db.query(WorkflowAssignment)
-        .filter(WorkflowAssignment.request_type == data.request_type)
+        .filter(
+            WorkflowAssignment.request_type == data.request_type,
+            WorkflowAssignment.workspace_id == workspace_id,
+        )
         .first()
     )
     if existing:
@@ -339,6 +415,7 @@ def set_assignment(data: AssignmentSet, actor_employee_id: str, db: Session) -> 
     else:
         a = WorkflowAssignment(
             id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
             request_type=data.request_type,
             workflow_id=data.workflow_id,
             is_active=True,

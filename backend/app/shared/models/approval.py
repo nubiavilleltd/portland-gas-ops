@@ -22,7 +22,7 @@ import enum
 
 from sqlalchemy import (
     Column, String, Integer, Boolean, Text, DateTime, Enum as SAEnum, ForeignKey,
-    quoted_name,
+    quoted_name, UniqueConstraint,
 )
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.orm import relationship
@@ -90,6 +90,7 @@ class ApprovalWorkflow(Base):
     __tablename__ = "approval_workflows"
 
     id             = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id   = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     name           = Column(String(100), nullable=False)
     description    = Column(Text, nullable=True)
     is_active      = Column(Boolean, nullable=False, default=True)
@@ -130,9 +131,16 @@ class WorkflowStep(Base):
 
 class WorkflowAssignment(Base):
     __tablename__ = "workflow_assignments"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id", "request_type",
+            name="uq_workflow_assignments_workspace_request_type",
+        ),
+    )
 
     id           = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    request_type = Column(String(50), nullable=False, unique=True)  # procurement | asset
+    workspace_id = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    request_type = Column(String(50), nullable=False)  # procurement | asset
     workflow_id  = Column(CHAR(36), ForeignKey("approval_workflows.id", ondelete="RESTRICT"), nullable=False)
     is_active    = Column(Boolean, nullable=False, default=True)
     updated_by   = Column(CHAR(36), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)

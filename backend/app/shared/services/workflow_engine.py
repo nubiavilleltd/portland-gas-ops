@@ -66,10 +66,21 @@ def _resolve_assignee(
     Raises HTTP 422 if the assignee cannot be resolved.
     """
     atype = step.assignee_type
+    workspace_id = requester.workspace_id
 
     if atype == AssigneeType.specific:
         if not step.employee_id:
             raise HTTPException(422, f"Step '{step.step_name}': no specific employee configured")
+        employee = (
+            db.query(Employee.id)
+            .filter(
+                Employee.id == step.employee_id,
+                Employee.workspace_id == workspace_id,
+            )
+            .first()
+        )
+        if not employee:
+            raise HTTPException(422, f"Step '{step.step_name}': selected employee is not in this workspace")
         return step.employee_id
 
     if atype == AssigneeType.role:
@@ -79,7 +90,7 @@ def _resolve_assignee(
         emp = (
             db.query(Employee)
             .join(Employee.user)
-            .filter(User.role == step.role)
+            .filter(User.role == step.role, Employee.workspace_id == workspace_id)
             .first()
         )
         if not emp:
@@ -92,6 +103,16 @@ def _resolve_assignee(
 
     if atype == AssigneeType.requester_pick:
         if picked_approvers and step.step_number in picked_approvers:
+            selected = (
+                db.query(Employee.id)
+                .filter(
+                    Employee.id == picked_approvers[step.step_number],
+                    Employee.workspace_id == workspace_id,
+                )
+                .first()
+            )
+            if not selected:
+                raise HTTPException(422, f"Step '{step.step_name}': selected approver is not in this workspace")
             return picked_approvers[step.step_number]
         raise HTTPException(
             422,
@@ -105,12 +126,25 @@ def _resolve_assignee(
                 422,
                 "You do not have an operations manager assigned. Contact HR before submitting.",
             )
+        manager = (
+            db.query(Employee.id)
+            .filter(
+                Employee.id == requester.operating_manager_id,
+                Employee.workspace_id == workspace_id,
+            )
+            .first()
+        )
+        if not manager:
+            raise HTTPException(422, "Your operations manager is not in this workspace. Contact HR.")
         return requester.operating_manager_id
 
     if atype == AssigneeType.requester_skip_level:
         if not requester.operating_manager_id:
             raise HTTPException(422, "You do not have an operations manager assigned. Contact HR.")
-        mgr = db.query(Employee).filter(Employee.id == requester.operating_manager_id).first()
+        mgr = db.query(Employee).filter(
+            Employee.id == requester.operating_manager_id,
+            Employee.workspace_id == workspace_id,
+        ).first()
         if not mgr or not mgr.operating_manager_id:
             raise HTTPException(
                 422,
@@ -127,7 +161,10 @@ def _resolve_assignee(
         seen: set[str] = set()
         while current_id and current_id not in seen:
             seen.add(current_id)
-            mgr = db.query(Employee).filter(Employee.id == current_id).first()
+            mgr = db.query(Employee).filter(
+                Employee.id == current_id,
+                Employee.workspace_id == workspace_id,
+            ).first()
             if not mgr:
                 break
             if mgr.operating_manager_id:
@@ -188,10 +225,13 @@ class WorkflowEngine:
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 
-    def _get_active_workflow(self, request_type: str) -> ApprovalWorkflow:
+    def _get_active_workflow(self, request_type: str, workspace_id: str | None = None) -> ApprovalWorkflow:
+        assignment_filters = [WorkflowAssignment.request_type == request_type]
+        if workspace_id:
+            assignment_filters.append(WorkflowAssignment.workspace_id == workspace_id)
         assignment = (
             self.db.query(WorkflowAssignment)
-            .filter(WorkflowAssignment.request_type == request_type)
+            .filter(*assignment_filters)
             .first()
         )
         if not assignment:
@@ -200,13 +240,16 @@ class WorkflowEngine:
                 f"No workflow is assigned for '{request_type}' requests. "
                 "Ask an admin to configure it under Workflow Assignments.",
             )
+        workflow_filters = [
+            ApprovalWorkflow.id == assignment.workflow_id,
+            ApprovalWorkflow.is_active == True,  # noqa: E712
+        ]
+        if workspace_id:
+            workflow_filters.append(ApprovalWorkflow.workspace_id == workspace_id)
         wf = (
             self.db.query(ApprovalWorkflow)
             .options(joinedload(ApprovalWorkflow.steps))
-            .filter(
-                ApprovalWorkflow.id == assignment.workflow_id,
-                ApprovalWorkflow.is_active == True,  # noqa: E712
-            )
+            .filter(*workflow_filters)
             .first()
         )
         if not wf:
@@ -321,7 +364,7 @@ class WorkflowEngine:
         picked_approvers: {step_number: employee_id} — required for any
         steps whose assignee_type is 'requester_pick'.
         """
-        wf = self._get_active_workflow(request_type)
+        wf = self._get_active_workflow(request_type, requester.workspace_id)
         sorted_steps = sorted(wf.steps, key=lambda s: s.step_number)
         first_step = sorted_steps[0]
 
