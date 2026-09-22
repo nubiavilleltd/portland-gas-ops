@@ -51,6 +51,12 @@ class SafetyWorkCloseOut(Base):
     __tablename__ = "safety_work_closeouts"
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     reference = Column(String(50), unique=True, nullable=False, index=True)
 
     status = Column(
@@ -130,6 +136,12 @@ class SafetyCloseOutReview(Base):
     )
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     work_closeout_id = Column(
         CHAR(36),
         ForeignKey("safety_work_closeouts.id"),

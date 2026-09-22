@@ -16,4 +16,4 @@ def read_safety_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_safety_dashboard(db)
+    return get_safety_dashboard(db, current_user)

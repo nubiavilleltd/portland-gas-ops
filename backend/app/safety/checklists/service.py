@@ -13,6 +13,10 @@ from app.safety.checklists.models import (
     SafetyChecklistTemplate,
 )
 from app.safety.checklists.schemas import ChecklistAnswerCreate, ChecklistResponsesCreate
+from app.safety.incidents.models import SafetyIncidentHseReview, SafetyIncidentReport
+from app.safety.work_authorizations.models import SafetyWorkAuthorization
+from app.safety.work_closeouts.models import SafetyCloseOutReview, SafetyWorkCloseOut
+from app.safety.work_initiations.models import SafetyWorkInitiation
 from app.shared.models.user import User
 
 
@@ -44,12 +48,14 @@ def list_parent_responses(
     db: Session,
     parent_type: SafetyChecklistParentType,
     parent_id: str,
+    workspace_id: str,
 ) -> list[SafetyChecklistResponse]:
     return (
         db.query(SafetyChecklistResponse)
         .filter(
             SafetyChecklistResponse.parent_type == parent_type,
             SafetyChecklistResponse.parent_id == parent_id,
+            SafetyChecklistResponse.workspace_id == workspace_id,
         )
         .order_by(
             SafetyChecklistResponse.stage_snapshot.asc(),
@@ -84,6 +90,7 @@ def create_parent_responses(
         db=db,
         data=data,
         answered_by=employee.id,
+        workspace_id=employee.workspace_id,
     )
     db.commit()
 
@@ -91,6 +98,7 @@ def create_parent_responses(
         db=db,
         parent_type=data.parent_type,
         parent_id=data.parent_id,
+        workspace_id=employee.workspace_id,
     )
 
 
@@ -98,7 +106,31 @@ def add_parent_responses(
     db: Session,
     data: ChecklistResponsesCreate,
     answered_by: str,
+    workspace_id: str,
 ) -> list[SafetyChecklistResponse]:
+    parent_models = {
+        SafetyChecklistParentType.work_authorization: SafetyWorkAuthorization,
+        SafetyChecklistParentType.work_closeout: SafetyWorkCloseOut,
+        SafetyChecklistParentType.closeout_review: SafetyCloseOutReview,
+        SafetyChecklistParentType.incident_hse_review: SafetyIncidentHseReview,
+        SafetyChecklistParentType.work_initiation: SafetyWorkInitiation,
+        SafetyChecklistParentType.incident_report: SafetyIncidentReport,
+    }
+    parent_model = parent_models[data.parent_type]
+    parent_exists = (
+        db.query(parent_model.id)
+        .filter(
+            parent_model.id == data.parent_id,
+            parent_model.workspace_id == workspace_id,
+        )
+        .first()
+    )
+    if not parent_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Safety record not found in the current workspace.",
+        )
+
     item_ids = [answer.item_id for answer in data.answers]
     items = (
         db.query(SafetyChecklistItem)
@@ -127,6 +159,7 @@ def add_parent_responses(
 
         responses.append(
             SafetyChecklistResponse(
+                workspace_id=workspace_id,
                 template_id=template.id,
                 template_code_snapshot=template.code,
                 template_name_snapshot=template.name,

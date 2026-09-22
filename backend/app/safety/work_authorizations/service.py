@@ -140,10 +140,12 @@ def create_work_authorization(
     work_initiation = get_work_initiation_for_authorization(
         db,
         data.work_initiation_id,
+        workspace_id=requester.workspace_id,
     )
     validate_work_authorization_create_rules(db, work_initiation, requester)
 
     record = SafetyWorkAuthorization(
+        workspace_id=requester.workspace_id,
         reference=reserve_work_authorization_reference(db),
         status=WorkAuthorizationStatus.submitted,
         requester_id=requester.id,
@@ -328,6 +330,7 @@ def get_existing_active_authorization_for_work_initiation(
 def get_work_initiation_for_authorization(
     db: Session,
     work_initiation_id: str,
+    workspace_id: Optional[str] = None,
 ) -> SafetyWorkInitiation:
     work_initiation = (
         db.query(SafetyWorkInitiation)
@@ -340,10 +343,18 @@ def get_work_initiation_for_authorization(
         )
         .filter(
             SafetyWorkInitiation.id == work_initiation_id,
+            *([
+                SafetyWorkInitiation.workspace_id == workspace_id
+            ] if workspace_id else []),
         )
         .first()
     )
     if not work_initiation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work initiation not found.",
+        )
+    if workspace_id and work_initiation.workspace_id != workspace_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Work initiation not found.",
@@ -374,6 +385,7 @@ def list_eligible_work_initiations_for_authorization(
         )
         .filter(
             SafetyWorkInitiation.is_active == True,
+            SafetyWorkInitiation.workspace_id == requester.workspace_id,
             SafetyWorkInitiation.status == WorkInitiationStatus.approved,
             ~active_authorization_exists,
             or_(
@@ -425,7 +437,10 @@ def list_work_authorizations(
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(SafetyWorkAuthorization.is_active == True)
+        .filter(
+            SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.workspace_id == employee.workspace_id,
+        )
     )
 
     if not is_safety_hse_employee(employee):
@@ -500,6 +515,9 @@ def can_view_work_authorization(
     record: SafetyWorkAuthorization,
     employee: Employee,
 ) -> bool:
+    if record.workspace_id != employee.workspace_id:
+        return False
+
     if is_safety_hse_employee(employee):
         return True
     if record.requester_id == employee.id:
@@ -690,6 +708,11 @@ def create_hse_review(
     hse_evidence: Optional[list[tuple[bytes, str, str, int]]] = None,
 ) -> tuple[SafetyWorkAuthorization, str]:
     record = get_work_authorization(db, work_authorization_id)
+    if record.workspace_id != inspector.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work authorization not found.",
+        )
     hse_evidence = hse_evidence or []
 
     if record.status != WorkAuthorizationStatus.submitted:

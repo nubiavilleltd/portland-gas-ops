@@ -4,6 +4,8 @@ from typing import Optional
 from sqlalchemy.orm import Session, joinedload
 
 from app.employees.models import Employee
+from app.safety.dependencies import get_employee_for_user
+from app.shared.models.user import User
 from app.safety.incidents.models import (
     IncidentReportStatus,
     SafetyIncidentReport,
@@ -51,11 +53,12 @@ FINAL_CLOSEOUT_STATUSES = {
 }
 
 
-def get_safety_dashboard(db: Session) -> SafetyDashboardResponse:
-    incidents = list_incidents(db)
-    authorizations = list_work_authorizations(db)
-    closeouts = list_work_closeouts(db)
-    initiations = list_work_initiations(db)
+def get_safety_dashboard(db: Session, current_user: User) -> SafetyDashboardResponse:
+    employee = get_employee_for_user(db, current_user)
+    incidents = list_incidents(db, employee.workspace_id)
+    authorizations = list_work_authorizations(db, employee.workspace_id)
+    closeouts = list_work_closeouts(db, employee.workspace_id)
+    initiations = list_work_initiations(db, employee.workspace_id)
 
     pending_hse_queue = build_pending_hse_queue(
         incidents=incidents,
@@ -138,16 +141,19 @@ def get_safety_dashboard(db: Session) -> SafetyDashboardResponse:
     )
 
 
-def list_incidents(db: Session) -> list[SafetyIncidentReport]:
+def list_incidents(db: Session, workspace_id: str) -> list[SafetyIncidentReport]:
     return (
         db.query(SafetyIncidentReport)
         .options(joinedload(SafetyIncidentReport.hse_review))
-        .filter(SafetyIncidentReport.is_active == True)
+        .filter(
+            SafetyIncidentReport.is_active == True,
+            SafetyIncidentReport.workspace_id == workspace_id,
+        )
         .all()
     )
 
 
-def list_work_authorizations(db: Session) -> list[SafetyWorkAuthorization]:
+def list_work_authorizations(db: Session, workspace_id: str) -> list[SafetyWorkAuthorization]:
     return (
         db.query(SafetyWorkAuthorization)
         .options(
@@ -159,12 +165,15 @@ def list_work_authorizations(db: Session) -> list[SafetyWorkAuthorization]:
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(SafetyWorkAuthorization.is_active == True)
+        .filter(
+            SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.workspace_id == workspace_id,
+        )
         .all()
     )
 
 
-def list_work_closeouts(db: Session) -> list[SafetyWorkCloseOut]:
+def list_work_closeouts(db: Session, workspace_id: str) -> list[SafetyWorkCloseOut]:
     return (
         db.query(SafetyWorkCloseOut)
         .options(
@@ -181,12 +190,15 @@ def list_work_closeouts(db: Session) -> list[SafetyWorkCloseOut]:
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(SafetyWorkCloseOut.is_active == True)
+        .filter(
+            SafetyWorkCloseOut.is_active == True,
+            SafetyWorkCloseOut.workspace_id == workspace_id,
+        )
         .all()
     )
 
 
-def list_work_initiations(db: Session) -> list[SafetyWorkInitiation]:
+def list_work_initiations(db: Session, workspace_id: str) -> list[SafetyWorkInitiation]:
     return (
         db.query(SafetyWorkInitiation)
         .options(
@@ -196,7 +208,10 @@ def list_work_initiations(db: Session) -> list[SafetyWorkInitiation]:
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(SafetyWorkInitiation.is_active == True)
+        .filter(
+            SafetyWorkInitiation.is_active == True,
+            SafetyWorkInitiation.workspace_id == workspace_id,
+        )
         .all()
     )
 

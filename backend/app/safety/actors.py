@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.employees.models import Employee
 from app.setups.models import Department as DepartmentModel
+from app.safety.dependencies import get_employee_for_user
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import AccountStatus, User
 
@@ -34,11 +35,16 @@ def list_safety_departments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    employee = get_employee_for_user(db, current_user)
     rows = (
         db.query(DepartmentModel.name, func.count(Employee.id).label("employee_count"))
         .join(Employee, Employee.department_id == DepartmentModel.id)
         .join(Employee.user)
-        .filter(User.account_status != AccountStatus.deactivated)
+        .filter(
+            User.account_status != AccountStatus.deactivated,
+            Employee.workspace_id == employee.workspace_id,
+            DepartmentModel.workspace_id == employee.workspace_id,
+        )
         .group_by(DepartmentModel.id, DepartmentModel.name)
         .order_by(DepartmentModel.name.asc())
         .all()
@@ -61,10 +67,12 @@ def list_safety_actors(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    employee = get_employee_for_user(db, current_user)
     query = (
         db.query(Employee)
         .options(joinedload(Employee.user), joinedload(Employee.department_rel))
         .join(Employee.user)
+        .filter(Employee.workspace_id == employee.workspace_id)
     )
 
     if department:

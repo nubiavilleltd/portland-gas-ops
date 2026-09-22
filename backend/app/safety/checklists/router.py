@@ -13,6 +13,7 @@ from app.safety.checklists.schemas import (
 )
 from app.shared.dependencies import get_current_user
 from app.shared.models.user import User
+from app.safety.dependencies import get_employee_for_user
 
 
 router = APIRouter(prefix="/checklists", tags=["Safety Checklists"])
@@ -40,10 +41,12 @@ def list_checklist_responses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    employee = get_employee_for_user(db, current_user)
     return checklist_service.list_parent_responses(
         db=db,
         parent_type=parent_type,
         parent_id=parent_id,
+        workspace_id=employee.workspace_id,
     )
 
 
