@@ -6,6 +6,7 @@ from datetime import date
 
 from app.core.database import get_db
 from app.shared.dependencies import get_current_user, require_roles
+from app.workspaces.context import WorkspaceContext, get_workspace_context
 from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
@@ -875,13 +876,14 @@ def approve_leave_request(
     body: LeaveActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Approve a leave step, then notify the employee it was raised for."""
     from app.shared.workflow.router import approve_request as _shared_approve, ActionRequest
     from app.hr import leave_notifications
 
     ctx = _leave_stage_context(db, approval_request_id)
-    result = _shared_approve(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+    result = _shared_approve(approval_request_id, ActionRequest(comment=body.comment), db, current_user, context)
 
     # Shared endpoint has committed by this point — safe to notify.
     if ctx.get("request_type") == "leave_request":
@@ -906,13 +908,14 @@ def reject_leave_request(
     body: LeaveActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Deny a leave request, then notify the employee it was raised for."""
     from app.shared.workflow.router import reject_request as _shared_reject, ActionRequest
     from app.hr import leave_notifications
 
     ctx = _leave_stage_context(db, approval_request_id)
-    result = _shared_reject(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+    result = _shared_reject(approval_request_id, ActionRequest(comment=body.comment), db, current_user, context)
 
     if ctx.get("request_type") == "leave_request":
         actor = get_employee_by_user_id(current_user.id, db)
@@ -929,13 +932,14 @@ def return_leave_request(
     body: LeaveActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Return a leave request for revision, then notify the employee."""
     from app.shared.workflow.router import return_request as _shared_return, ActionRequest
     from app.hr import leave_notifications
 
     ctx = _leave_stage_context(db, approval_request_id)
-    result = _shared_return(approval_request_id, ActionRequest(comment=body.comment), db, current_user)
+    result = _shared_return(approval_request_id, ActionRequest(comment=body.comment), db, current_user, context)
 
     if ctx.get("request_type") == "leave_request":
         actor = get_employee_by_user_id(current_user.id, db)
