@@ -156,6 +156,7 @@ class ApprovalRequest(Base):
     __tablename__ = "approval_requests"
 
     id                  = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id        = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     workflow_id         = Column(CHAR(36), ForeignKey("approval_workflows.id", ondelete="RESTRICT"), nullable=False)
     request_type        = Column(String(50), nullable=False)   # procurement | asset
     request_id          = Column(String(36), nullable=False)   # UUID of the source request row
@@ -176,6 +177,7 @@ class ApprovalStepAssignment(Base):
     __tablename__ = "approval_step_assignments"
 
     id                  = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id        = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     approval_request_id = Column(CHAR(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False)
     step_number         = Column(Integer, nullable=False)
     assigned_to         = Column(CHAR(36), ForeignKey("employees.id", ondelete="RESTRICT"), nullable=False)
@@ -189,6 +191,7 @@ class ApprovalHistory(Base):
     __tablename__ = "approval_history"
 
     id                  = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id        = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     approval_request_id = Column(CHAR(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False)
     step_number         = Column(Integer, nullable=False)
     actor_id            = Column(CHAR(36), ForeignKey("employees.id", ondelete="RESTRICT"), nullable=False)
@@ -204,6 +207,7 @@ class WorkflowAuditTrail(Base):
     __tablename__ = "workflow_audit_trail"
 
     id           = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     workflow_id  = Column(CHAR(36), ForeignKey("approval_workflows.id", ondelete="SET NULL"), nullable=True)
     request_id   = Column(String(36), nullable=False)   # UUID of the source request row
     request_type = Column(String(50), nullable=False)
@@ -223,6 +227,7 @@ class AllRequest(Base):
     __tablename__ = "all_requests"
 
     id                  = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id        = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     reference           = Column(String(20), nullable=False, unique=True)
     request_type        = Column(String(50), nullable=False)   # procurement | asset
     request_id          = Column(String(36), nullable=False)   # UUID of the source row
@@ -244,6 +249,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id             = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id   = Column(CHAR(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     recipient_id   = Column(CHAR(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
     type           = Column(SAEnum(NotificationType), nullable=False)
     title          = Column(String(200), nullable=False)

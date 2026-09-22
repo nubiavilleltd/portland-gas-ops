@@ -201,8 +201,9 @@ def _next_all_request_reference(request_type: str, db: Session) -> str:
 # ── WorkflowEngine ─────────────────────────────────────────────────────────────
 
 class WorkflowEngine:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, workspace_id: str | None = None):
         self.db = db
+        self.workspace_id = workspace_id
 
     def _queue_email(self, fn: Callable[["Session"], None]) -> None:
         """
@@ -258,22 +259,34 @@ class WorkflowEngine:
             raise HTTPException(422, "The assigned workflow has no steps. Ask an admin to add steps.")
         return wf
 
-    def _get_approval_request(self, approval_request_id: str) -> ApprovalRequest:
+    def _get_approval_request(
+        self,
+        approval_request_id: str,
+        workspace_id: str | None = None,
+    ) -> ApprovalRequest:
+        workspace_id = workspace_id or self.workspace_id
+        filters = [ApprovalRequest.id == approval_request_id]
+        if workspace_id:
+            filters.append(ApprovalRequest.workspace_id == workspace_id)
         req = (
             self.db.query(ApprovalRequest)
             .options(
                 joinedload(ApprovalRequest.workflow).joinedload(ApprovalWorkflow.steps)
             )
-            .filter(ApprovalRequest.id == approval_request_id)
+            .filter(*filters)
             .first()
         )
         if not req:
             raise HTTPException(404, "Approval request not found")
         return req
 
-    def get_approval_request(self, approval_request_id: str) -> ApprovalRequest:
+    def get_approval_request(
+        self,
+        approval_request_id: str,
+        workspace_id: str | None = None,
+    ) -> ApprovalRequest:
         """Public accessor used by router endpoints."""
-        return self._get_approval_request(approval_request_id)
+        return self._get_approval_request(approval_request_id, workspace_id)
 
     def _current_step(self, approval_req: ApprovalRequest) -> WorkflowStep | None:
         return next(
@@ -282,10 +295,15 @@ class WorkflowEngine:
         )
 
     def _create_step_assignment(
-        self, approval_request_id: str, step_number: int, assignee_id: str
+        self,
+        approval_request_id: str,
+        step_number: int,
+        assignee_id: str,
+        workspace_id: str,
     ) -> None:
         self.db.add(ApprovalStepAssignment(
             id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
             approval_request_id=approval_request_id,
             step_number=step_number,
             assigned_to=assignee_id,
@@ -299,11 +317,13 @@ class WorkflowEngine:
         actor_id: str,
         actor_role: str | None,
         action: AuditAction,
+        workspace_id: str,
         step_number: int | None = None,
         comment: str | None = None,
     ) -> None:
         self.db.add(WorkflowAuditTrail(
             id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
             workflow_id=workflow_id,
             request_id=request_id,
             request_type=request_type,
@@ -322,6 +342,7 @@ class WorkflowEngine:
             .filter(
                 ApprovalStepAssignment.approval_request_id == approval_req.id,
                 ApprovalStepAssignment.step_number == approval_req.current_step_number,
+                ApprovalStepAssignment.workspace_id == actor.workspace_id,
             )
             .first()
         )
@@ -330,13 +351,18 @@ class WorkflowEngine:
         return assignment
 
     def _update_all_requests_status(
-        self, request_type: str, request_id: str, status: AllRequestStatus
+        self,
+        request_type: str,
+        request_id: str,
+        status: AllRequestStatus,
+        workspace_id: str,
     ) -> None:
         row = (
             self.db.query(AllRequest)
             .filter(
                 AllRequest.request_type == request_type,
                 AllRequest.request_id == request_id,
+                AllRequest.workspace_id == workspace_id,
             )
             .first()
         )
@@ -365,6 +391,7 @@ class WorkflowEngine:
         steps whose assignee_type is 'requester_pick'.
         """
         wf = self._get_active_workflow(request_type, requester.workspace_id)
+        workspace_id = requester.workspace_id
         sorted_steps = sorted(wf.steps, key=lambda s: s.step_number)
         first_step = sorted_steps[0]
 
@@ -376,6 +403,7 @@ class WorkflowEngine:
             .filter(
                 AllRequest.request_type == request_type,
                 AllRequest.request_id == request_id,
+                AllRequest.workspace_id == workspace_id,
             )
             .first()
         )
@@ -385,6 +413,7 @@ class WorkflowEngine:
             reference = _next_all_request_reference(request_type, self.db)
             all_req = AllRequest(
                 id=str(uuid.uuid4()),
+                workspace_id=workspace_id,
                 reference=reference,
                 request_type=request_type,
                 request_id=request_id,
@@ -401,6 +430,7 @@ class WorkflowEngine:
             .filter(
                 ApprovalRequest.request_type == request_type,
                 ApprovalRequest.request_id == request_id,
+                ApprovalRequest.workspace_id == workspace_id,
             )
             .order_by(ApprovalRequest.attempt_number.desc())
             .first()
@@ -409,6 +439,7 @@ class WorkflowEngine:
 
         approval_req = ApprovalRequest(
             id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
             workflow_id=wf.id,
             request_type=request_type,
             request_id=request_id,
@@ -422,7 +453,12 @@ class WorkflowEngine:
 
         all_req.approval_request_id = approval_req.id
 
-        self._create_step_assignment(approval_req.id, first_step.step_number, assignee_id)
+        self._create_step_assignment(
+            approval_req.id,
+            first_step.step_number,
+            assignee_id,
+            workspace_id,
+        )
 
         # Pre-create assignments for any requester_pick steps beyond step 1.
         # These are picked by the requester at submission and must be stored now
@@ -432,7 +468,25 @@ class WorkflowEngine:
                 if step.assignee_type == AssigneeType.requester_pick:
                     pid = picked_approvers.get(step.step_number)
                     if pid:
-                        self._create_step_assignment(approval_req.id, step.step_number, pid)
+                        selected = (
+                            self.db.query(Employee.id)
+                            .filter(
+                                Employee.id == pid,
+                                Employee.workspace_id == workspace_id,
+                            )
+                            .first()
+                        )
+                        if not selected:
+                            raise HTTPException(
+                                422,
+                                f"Step '{step.step_name}': selected approver is not in this workspace",
+                            )
+                        self._create_step_assignment(
+                            approval_req.id,
+                            step.step_number,
+                            pid,
+                            workspace_id,
+                        )
 
         notification_service.create_notification(
             db=self.db,
@@ -446,6 +500,7 @@ class WorkflowEngine:
             ),
             reference_type=request_type,
             reference_id=request_id,
+            workspace_id=workspace_id,
         )
 
         # Notify the requester that their submission is now in the approval queue
@@ -460,6 +515,7 @@ class WorkflowEngine:
             ),
             reference_type=request_type,
             reference_id=request_id,
+            workspace_id=workspace_id,
         )
 
         self._audit(
@@ -469,6 +525,7 @@ class WorkflowEngine:
             actor_id=requester.id,
             actor_role="requester",
             action=AuditAction.submitted,
+            workspace_id=workspace_id,
         )
 
         # Queue emails to fire only after the transaction commits successfully.
@@ -494,7 +551,8 @@ class WorkflowEngine:
 
         on_final_approval: callback for the source module to update its own status field.
         """
-        approval_req = self._get_approval_request(approval_request_id)
+        workspace_id = actor.workspace_id
+        approval_req = self._get_approval_request(approval_request_id, workspace_id)
 
         if approval_req.overall_status != ApprovalOverallStatus.pending:
             raise HTTPException(409, f"This request is already {approval_req.overall_status.value}")
@@ -506,6 +564,7 @@ class WorkflowEngine:
 
         self.db.add(ApprovalHistory(
             id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
             approval_request_id=approval_req.id,
             step_number=approval_req.current_step_number,
             actor_id=actor.id,
@@ -519,6 +578,7 @@ class WorkflowEngine:
             actor_id=actor.id,
             actor_role=current_step.step_name,
             action=AuditAction.approved,
+            workspace_id=workspace_id,
             step_number=approval_req.current_step_number,
             comment=comment,
         )
@@ -537,6 +597,7 @@ class WorkflowEngine:
                 .filter(
                     ApprovalStepAssignment.approval_request_id == approval_req.id,
                     ApprovalStepAssignment.step_number == next_step.step_number,
+                    ApprovalStepAssignment.workspace_id == workspace_id,
                 )
                 .first()
             )
@@ -545,7 +606,10 @@ class WorkflowEngine:
             else:
                 requester = (
                     self.db.query(Employee)
-                    .filter(Employee.id == approval_req.submitted_by)
+                    .filter(
+                        Employee.id == approval_req.submitted_by,
+                        Employee.workspace_id == workspace_id,
+                    )
                     .first()
                 )
                 if not requester:
@@ -554,7 +618,12 @@ class WorkflowEngine:
                         detail="Cannot advance workflow: the requester's employee record no longer exists.",
                     )
                 next_assignee_id = _resolve_assignee(next_step, requester, self.db)
-                self._create_step_assignment(approval_req.id, next_step.step_number, next_assignee_id)
+                self._create_step_assignment(
+                    approval_req.id,
+                    next_step.step_number,
+                    next_assignee_id,
+                    workspace_id,
+                )
 
             notification_service.create_notification(
                 db=self.db,
@@ -568,12 +637,16 @@ class WorkflowEngine:
                 ),
                 reference_type=approval_req.request_type,
                 reference_id=approval_req.request_id,
+                workspace_id=workspace_id,
             )
 
             # Notify the requester of mid-flow progress
             requester_emp_mid = (
                 self.db.query(Employee)
-                .filter(Employee.id == approval_req.submitted_by)
+                .filter(
+                    Employee.id == approval_req.submitted_by,
+                    Employee.workspace_id == workspace_id,
+                )
                 .first()
             )
             if requester_emp_mid:
@@ -589,6 +662,7 @@ class WorkflowEngine:
                     ),
                     reference_type=approval_req.request_type,
                     reference_id=approval_req.request_id,
+                    workspace_id=workspace_id,
                 )
 
             # Queue emails — fire only after successful commit
@@ -601,12 +675,18 @@ class WorkflowEngine:
             # Final step approved — workflow complete
             approval_req.overall_status = ApprovalOverallStatus.approved
             self._update_all_requests_status(
-                approval_req.request_type, approval_req.request_id, AllRequestStatus.approved
+                approval_req.request_type,
+                approval_req.request_id,
+                AllRequestStatus.approved,
+                workspace_id,
             )
 
             requester_emp = (
                 self.db.query(Employee)
-                .filter(Employee.id == approval_req.submitted_by)
+                .filter(
+                    Employee.id == approval_req.submitted_by,
+                    Employee.workspace_id == workspace_id,
+                )
                 .first()
             )
             if requester_emp:
@@ -618,6 +698,7 @@ class WorkflowEngine:
                     message=f"Your {approval_req.request_type} request has been fully approved.",
                     reference_type=approval_req.request_type,
                     reference_id=approval_req.request_id,
+                    workspace_id=workspace_id,
                 )
 
             if on_final_approval:
@@ -648,7 +729,8 @@ class WorkflowEngine:
         Notifies the requester. Calls on_rejected() so the source module
         can update its own status field.
         """
-        approval_req = self._get_approval_request(approval_request_id)
+        workspace_id = actor.workspace_id
+        approval_req = self._get_approval_request(approval_request_id, workspace_id)
 
         if approval_req.overall_status != ApprovalOverallStatus.pending:
             raise HTTPException(409, f"This request is already {approval_req.overall_status.value}")
@@ -660,6 +742,7 @@ class WorkflowEngine:
 
         self.db.add(ApprovalHistory(
             id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
             approval_request_id=approval_req.id,
             step_number=approval_req.current_step_number,
             actor_id=actor.id,
@@ -673,18 +756,25 @@ class WorkflowEngine:
             actor_id=actor.id,
             actor_role=current_step.step_name,
             action=AuditAction.rejected,
+            workspace_id=workspace_id,
             step_number=approval_req.current_step_number,
             comment=comment,
         )
 
         approval_req.overall_status = ApprovalOverallStatus.rejected
         self._update_all_requests_status(
-            approval_req.request_type, approval_req.request_id, AllRequestStatus.rejected
+            approval_req.request_type,
+            approval_req.request_id,
+            AllRequestStatus.rejected,
+            workspace_id,
         )
 
         requester_emp = (
             self.db.query(Employee)
-            .filter(Employee.id == approval_req.submitted_by)
+            .filter(
+                Employee.id == approval_req.submitted_by,
+                Employee.workspace_id == workspace_id,
+            )
             .first()
         )
         if requester_emp:
@@ -699,6 +789,7 @@ class WorkflowEngine:
                 ),
                 reference_type=approval_req.request_type,
                 reference_id=approval_req.request_id,
+                workspace_id=workspace_id,
             )
 
         if on_rejected:
@@ -730,7 +821,8 @@ class WorkflowEngine:
         with attempt_number+1). All prior rows are kept for history.
         Calls on_returned() so the source module can update its own status field.
         """
-        approval_req = self._get_approval_request(approval_request_id)
+        workspace_id = actor.workspace_id
+        approval_req = self._get_approval_request(approval_request_id, workspace_id)
 
         if approval_req.overall_status != ApprovalOverallStatus.pending:
             raise HTTPException(409, f"This request is already {approval_req.overall_status.value}")
@@ -742,6 +834,7 @@ class WorkflowEngine:
 
         self.db.add(ApprovalHistory(
             id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
             approval_request_id=approval_req.id,
             step_number=approval_req.current_step_number,
             actor_id=actor.id,
@@ -755,18 +848,25 @@ class WorkflowEngine:
             actor_id=actor.id,
             actor_role=current_step.step_name,
             action=AuditAction.returned,
+            workspace_id=workspace_id,
             step_number=approval_req.current_step_number,
             comment=comment,
         )
 
         approval_req.overall_status = ApprovalOverallStatus.returned
         self._update_all_requests_status(
-            approval_req.request_type, approval_req.request_id, AllRequestStatus.returned
+            approval_req.request_type,
+            approval_req.request_id,
+            AllRequestStatus.returned,
+            workspace_id,
         )
 
         requester_emp = (
             self.db.query(Employee)
-            .filter(Employee.id == approval_req.submitted_by)
+            .filter(
+                Employee.id == approval_req.submitted_by,
+                Employee.workspace_id == workspace_id,
+            )
             .first()
         )
         if requester_emp:
@@ -782,6 +882,7 @@ class WorkflowEngine:
                 ),
                 reference_type=approval_req.request_type,
                 reference_id=approval_req.request_id,
+                workspace_id=workspace_id,
             )
 
         if on_returned:
@@ -802,7 +903,7 @@ class WorkflowEngine:
 
     # ── Query helpers (used by /my-approvals and /my-requests endpoints) ──────
 
-    def my_approvals(self, employee_id: str) -> list[dict]:
+    def my_approvals(self, employee_id: str, workspace_id: str) -> list[dict]:
         """
         Returns all approval_requests where the current step is assigned to
         this employee and the overall status is still pending.
@@ -819,6 +920,8 @@ class WorkflowEngine:
             .options(joinedload(ApprovalRequest.submitter).joinedload(Employee.user))
             .filter(
                 ApprovalStepAssignment.assigned_to == employee_id,
+                ApprovalStepAssignment.workspace_id == workspace_id,
+                ApprovalRequest.workspace_id == workspace_id,
                 ApprovalRequest.overall_status == ApprovalOverallStatus.pending,
                 ApprovalRequest.current_step_number == ApprovalStepAssignment.step_number,
             )
@@ -845,7 +948,10 @@ class WorkflowEngine:
             (row.request_type, row.request_id): row
             for row in (
                 self.db.query(AllRequest)
-                .filter(AllRequest.request_id.in_(request_ids))
+                .filter(
+                    AllRequest.request_id.in_(request_ids),
+                    AllRequest.workspace_id == workspace_id,
+                )
                 .all()
             )
         }
@@ -880,7 +986,7 @@ class WorkflowEngine:
             })
         return result
 
-    def my_requests(self, employee_id: str) -> list[dict]:
+    def my_requests(self, employee_id: str, workspace_id: str) -> list[dict]:
         """
         Returns all all_requests rows raised by this employee, newest first.
         """
@@ -892,7 +998,10 @@ class WorkflowEngine:
                 .joinedload(ApprovalStepAssignment.assignee)
                 .joinedload(Employee.user),
             )
-            .filter(AllRequest.raised_by == employee_id)
+            .filter(
+                AllRequest.raised_by == employee_id,
+                AllRequest.workspace_id == workspace_id,
+            )
             .order_by(AllRequest.created_at.desc())
             .all()
         )
@@ -939,7 +1048,7 @@ class WorkflowEngine:
             })
         return result
 
-    def my_acted_approvals(self, employee_id: str) -> list[dict]:
+    def my_acted_approvals(self, employee_id: str, workspace_id: str) -> list[dict]:
         """
         Returns all requests where this employee has taken an approval action
         (approved, rejected, or returned), sorted by most recent action first.
@@ -951,6 +1060,7 @@ class WorkflowEngine:
             self.db.query(WorkflowAuditTrail)
             .filter(
                 WorkflowAuditTrail.actor_id == employee_id,
+                WorkflowAuditTrail.workspace_id == workspace_id,
                 WorkflowAuditTrail.action.in_(approver_actions),
             )
             .order_by(WorkflowAuditTrail.acted_at.desc())
@@ -967,7 +1077,8 @@ class WorkflowEngine:
             all_reqs = (
                 self.db.query(AllRequest)
                 .filter(
-                    tuple_(AllRequest.request_type, AllRequest.request_id).in_(request_keys)
+                    tuple_(AllRequest.request_type, AllRequest.request_id).in_(request_keys),
+                    AllRequest.workspace_id == workspace_id,
                 )
                 .all()
             )
@@ -992,13 +1103,14 @@ class WorkflowEngine:
 
     def all_requests_admin(
         self,
+        workspace_id: str,
         skip: int = 0,
         limit: int = 50,
         request_type: str | None = None,
         status: str | None = None,
     ) -> list[dict]:
         """Admin view: all requests across all modules."""
-        q = self.db.query(AllRequest)
+        q = self.db.query(AllRequest).filter(AllRequest.workspace_id == workspace_id)
         if request_type:
             q = q.filter(AllRequest.request_type == request_type)
         if status:
@@ -1023,13 +1135,14 @@ class WorkflowEngine:
             })
         return result
 
-    def audit_trail(self, request_type: str, request_id: str) -> list[dict]:
+    def audit_trail(self, request_type: str, request_id: str, workspace_id: str) -> list[dict]:
         """Return the full audit trail for a specific source request."""
         rows = (
             self.db.query(WorkflowAuditTrail)
             .filter(
                 WorkflowAuditTrail.request_type == request_type,
                 WorkflowAuditTrail.request_id == request_id,
+                WorkflowAuditTrail.workspace_id == workspace_id,
             )
             .order_by(WorkflowAuditTrail.acted_at.asc())
             .all()

@@ -11,6 +11,7 @@ from app.shared.models.approval import Notification, NotificationType
 from app.shared.dependencies import get_current_user
 from app.shared.services import notification_service
 from app.employees import service as employee_service
+from app.workspaces.context import WorkspaceContext, get_workspace_context
 
 router = APIRouter()
 
@@ -28,10 +29,10 @@ class NotificationResponse(BaseModel):
     created_at: datetime
 
 
-def _get_employee(current_user: User, db: Session):
+def _get_employee(current_user: User, db: Session, workspace_id: str):
     """Returns current user's employee record or raises 404."""
     try:
-        return employee_service.get_employee_by_user_id(current_user.id, db)
+        return employee_service.get_employee_by_user_id(current_user.id, db, workspace_id)
     except HTTPException:
         raise HTTPException(status_code=404, detail="No employee profile found for this user.")
 
@@ -45,16 +46,20 @@ def list_notifications(
     limit: int = Query(30, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Returns the current user's notifications, newest first."""
     try:
-        emp = employee_service.get_employee_by_user_id(current_user.id, db)
+        emp = employee_service.get_employee_by_user_id(current_user.id, db, context.workspace.id)
     except HTTPException:
         return []  # No employee record — return empty list gracefully
 
     return (
         db.query(Notification)
-        .filter(Notification.recipient_id == emp.id)
+        .filter(
+            Notification.recipient_id == emp.id,
+            Notification.workspace_id == context.workspace.id,
+        )
         .order_by(Notification.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -68,9 +73,10 @@ def list_notifications(
 def unread_count(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     try:
-        emp = employee_service.get_employee_by_user_id(current_user.id, db)
+        emp = employee_service.get_employee_by_user_id(current_user.id, db, context.workspace.id)
     except HTTPException:
         return {"count": 0}
 
@@ -78,6 +84,7 @@ def unread_count(
         db.query(Notification)
         .filter(
             Notification.recipient_id == emp.id,
+            Notification.workspace_id == context.workspace.id,
             Notification.is_read == False,  # noqa: E712
         )
         .count()
@@ -92,9 +99,10 @@ def mark_read(
     notification_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    emp = _get_employee(current_user, db)
-    ok = notification_service.mark_as_read(db, notification_id, emp.id)
+    emp = _get_employee(current_user, db, context.workspace.id)
+    ok = notification_service.mark_as_read(db, notification_id, emp.id, context.workspace.id)
     if not ok:
         raise HTTPException(status_code=404, detail="Notification not found.")
     db.commit()
@@ -107,9 +115,10 @@ def mark_read(
 def mark_all_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    emp = _get_employee(current_user, db)
-    updated = notification_service.mark_all_read(db, emp.id)
+    emp = _get_employee(current_user, db, context.workspace.id)
+    updated = notification_service.mark_all_read(db, emp.id, context.workspace.id)
     db.commit()
     return {"updated": updated}
 
@@ -121,8 +130,11 @@ def send_birthday_wishes(
     employee_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Creates a birthday wish notification for the target employee."""
+    # Do not allow a user to send notifications across workspace boundaries.
+    employee_service.get_employee(employee_id, db, context.workspace.id)
     sender_name = (
         f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
         or "A colleague"
@@ -134,6 +146,7 @@ def send_birthday_wishes(
         type=NotificationType.info,
         title="🎂 Birthday Wishes!",
         message=f"{sender_name} wished you a Happy Birthday! 🎉",
+        workspace_id=context.workspace.id,
     )
     db.commit()
     return {"success": True, "notification_id": notif.id}

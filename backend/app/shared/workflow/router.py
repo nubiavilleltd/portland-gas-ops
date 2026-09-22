@@ -162,6 +162,7 @@ def get_requester_picks(
         .filter(
             ApprovalRequest.request_type == request_type,
             ApprovalRequest.request_id  == request_id,
+            ApprovalRequest.workspace_id == context.workspace.id,
         )
         .order_by(ApprovalRequest.attempt_number.desc())
         .first()
@@ -192,6 +193,7 @@ def get_requester_picks(
         db.query(ApprovalStepAssignment)
         .filter(
             ApprovalStepAssignment.approval_request_id == ar.id,
+            ApprovalStepAssignment.workspace_id == context.workspace.id,
             ApprovalStepAssignment.step_number.in_(pick_step_numbers),
         )
         .all()
@@ -305,9 +307,16 @@ def admin_all_requests(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    engine = WorkflowEngine(db)
-    return engine.all_requests_admin(skip=skip, limit=limit, request_type=request_type, status=status)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.all_requests_admin(
+        context.workspace.id,
+        skip=skip,
+        limit=limit,
+        request_type=request_type,
+        status=status,
+    )
 
 
 # ── 5. Employee: my approvals & my requests (literal — before /{workflow_id}) ─
@@ -316,31 +325,34 @@ def admin_all_requests(
 def my_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    return engine.my_approvals(employee.id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.my_approvals(employee.id, context.workspace.id)
 
 
 @router.get("/my-requests")
 def my_requests(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    return engine.my_requests(employee.id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.my_requests(employee.id, context.workspace.id)
 
 
 @router.get("/my-acted-approvals")
 def my_acted_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Returns all requests this employee has acted on (approved/rejected/returned)."""
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    return engine.my_acted_approvals(employee.id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.my_acted_approvals(employee.id, context.workspace.id)
 
 
 # ── 6. Approval actions (literal prefix — before /{workflow_id}) ─────────────
@@ -417,10 +429,11 @@ def approve_request(
     body: ActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    ar = engine.get_approval_request(approval_request_id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    ar = engine.get_approval_request(approval_request_id, context.workspace.id)
 
     # Capture before engine mutates the approval request
     _request_type = ar.request_type
@@ -464,10 +477,11 @@ def reject_request(
     body: ActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    ar = engine.get_approval_request(approval_request_id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    ar = engine.get_approval_request(approval_request_id, context.workspace.id)
 
     def on_rejected():
         _update_source_status(ar.request_type, ar.request_id, "rejected", db)
@@ -483,10 +497,11 @@ def return_request(
     body: ActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    ar = engine.get_approval_request(approval_request_id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    ar = engine.get_approval_request(approval_request_id, context.workspace.id)
 
     # Asset requests have no return-for-revision path — only Approve or Deny
     if ar.request_type == "asset":
@@ -511,9 +526,10 @@ def get_audit_trail(
     request_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    engine = WorkflowEngine(db)
-    return engine.audit_trail(request_type, request_id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.audit_trail(request_type, request_id, context.workspace.id)
 
 
 # ── 8. Workflow detail routes (path param — after ALL literals) ───────────────

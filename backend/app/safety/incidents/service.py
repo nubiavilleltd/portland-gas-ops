@@ -88,6 +88,7 @@ def add_incident_audit_event(
     db.add(
         WorkflowAuditTrail(
             id=str(uuid.uuid4()),
+            workspace_id=actor.workspace_id,
             workflow_id=None,
             request_id=report.id,
             request_type=INCIDENT_AUDIT_REQUEST_TYPE,

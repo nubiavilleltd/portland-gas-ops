@@ -1173,6 +1173,7 @@ def move_linked_incident_to_hse_verification(
     db.add(
         WorkflowAuditTrail(
             id=str(uuid.uuid4()),
+            workspace_id=actor.workspace_id,
             workflow_id=None,
             request_id=incident.id,
             request_type="incident_report",
