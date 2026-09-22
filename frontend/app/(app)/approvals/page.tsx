@@ -87,9 +87,16 @@ const pendingColumns: Column<ApprovalRow>[] = [
   {
     key: "action_needed",
     label: "Action Needed",
-    render: (_, row) => (
-      <ApprovalBadge status={row.current_step_number === 4 ? "awaiting_confirmation" : "pending_approval"} />
-    ),
+    render: (_, row) =>
+      // An invoice's LAST step settles (mark as paid) rather than approves, so
+      // "Pending Approval" misstates what is actually being waited on there.
+      // is_final_step is derived server-side from the workflow, so this holds
+      // however many approval steps the invoice workflow has.
+      row.request_type === "invoice" && row.is_final_step ? (
+        <ApprovalBadge status="awaiting_payment" />
+      ) : (
+        <ApprovalBadge status={row.current_step_number === 4 ? "awaiting_confirmation" : "pending_approval"} />
+      ),
   },
 ];
 
@@ -146,7 +153,7 @@ const actedColumns: Column<ActedRow>[] = [
     render: (v) => {
       if (!v) return <span className="text-brand-text-secondary">—</span>;
       const status = String(v);
-      const statusClass = status === "approved" ? "bg-green-50 text-green-700"
+      const statusClass = status === "approved" || status === "paid" ? "bg-green-50 text-green-700"
         : status === "rejected" ? "bg-red-50 text-red-700"
         : status === "pending" ? "bg-amber-50 text-amber-700"
         : "bg-gray-100 text-gray-600";
