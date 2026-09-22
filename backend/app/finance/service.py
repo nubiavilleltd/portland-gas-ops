@@ -589,6 +589,13 @@ def mark_invoice_paid(
         actor,
         payment_notes or "Marked as paid",
         on_final_approval=on_final_approval,
+        # The final step pays rather than approves, so the requester should be
+        # told the invoice is paid — not that it was "fully approved".
+        completion_notification=(
+            "Invoice Paid",
+            f"Your invoice \"{inv.title}\" has been marked as paid."
+            + (f" Payment reference: {payment_reference}." if payment_reference else ""),
+        ),
     )
 
     if inv.status != InvoiceProcessingStatus.paid:
@@ -629,7 +636,17 @@ def cancel_invoice(
         inv.cancellation_reason = reason.strip()
 
     engine = WorkflowEngine(db)
-    engine.reject(approval_req.id, actor, reason.strip(), on_rejected=on_rejected)
+    engine.reject(
+        approval_req.id,
+        actor,
+        reason.strip(),
+        on_rejected=on_rejected,
+        rejection_notification=(
+            "Invoice Cancelled",
+            f"Your invoice \"{inv.title}\" has been cancelled and will not be paid."
+            f" Reason: {reason.strip()}",
+        ),
+    )
 
     db.flush()
     return inv

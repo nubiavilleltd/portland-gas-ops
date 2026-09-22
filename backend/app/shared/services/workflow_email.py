@@ -51,6 +51,7 @@ _CONTENT_REGISTRY: dict[str, str] = {
     "work_initiation":   "app.safety.work_initiations.email_content",
     "work_authorization": "app.safety.work_authorizations.email_content",
     "work_closeout":     "app.safety.work_closeouts.email_content",
+    "invoice":           "app.finance.invoice_email_content",
     # Uncomment as each module creates its content file:
     # "leave": "app.leave.email_content",
 }
