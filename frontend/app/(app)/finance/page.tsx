@@ -4,6 +4,7 @@ import { Banknote, FileText } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import ModuleCard from "@/components/ui/ModuleCard";
+import FinanceOverview from "./_components/FinanceOverview";
 
 const MODULES = [
   {
@@ -28,6 +29,9 @@ export default function FinancePage() {
         description="Manage cash requests, supplier invoices, and payment approvals"
         className="mb-6"
       />
+      <FinanceOverview />
+
+      <h2 className="text-sm font-semibold text-brand-text-primary mb-3">Modules</h2>
       <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
         {MODULES.map((mod) => (
           <ModuleCard

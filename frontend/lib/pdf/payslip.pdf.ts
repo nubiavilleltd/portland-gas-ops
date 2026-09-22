@@ -33,6 +33,16 @@ export interface PayslipPdfInput {
   loan_description?: string | null;
   loan_total?: number | null;
   loan_outstanding?: number | null;
+
+  /** The PAYE working, when the payslip carries one. */
+  tax_config_name?: string | null;
+  annual_gross?: number | null;
+  annual_pension?: number | null;
+  annual_nhf?: number | null;
+  consolidated_relief?: number | null;
+  taxable_income?: number | null;
+  annual_tax?: number | null;
+  tax_bands?: { sequence: number; rate: number; amount_taxed: number; tax: number }[] | null;
 }
 
 type AmountRow = { label: string; value: number };

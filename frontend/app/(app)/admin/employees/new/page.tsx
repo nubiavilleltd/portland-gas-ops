@@ -21,34 +21,10 @@ import {
   type EmployeeRecord,
 } from "../../_components/_data";
 import { useDepartments } from "@/lib/modules/setups";
+import { useDeductionPreview } from "@/lib/modules/hr/tax-config";
 
 type EmployeeFormState = Partial<Employee>;
 
-function calcDeductions(basic = 0, housing = 0, transport = 0, meal = 0) {
-  const pension = Math.round(0.08 * (basic + housing + transport));
-  const nhf     = Math.round(0.025 * basic);
-  const annualGross   = (basic + housing + transport + meal) * 12;
-  const annualPension = pension * 12;
-  const annualNhf     = nhf * 12;
-  const cra = Math.max(200_000, 0.01 * annualGross) + 0.2 * annualGross;
-  const taxable = Math.max(0, annualGross - annualPension - annualNhf - cra);
-  const bands: [number, number][] = [
-    [300_000,   0.07],
-    [300_000,   0.11],
-    [500_000,   0.15],
-    [500_000,   0.19],
-    [1_600_000, 0.21],
-    [Infinity,  0.24],
-  ];
-  let rem = taxable, annualTax = 0;
-  for (const [cap, rate] of bands) {
-    const slice = Math.min(rem, cap);
-    annualTax += slice * rate;
-    rem -= slice;
-    if (rem <= 0) break;
-  }
-  return { pension, nhf, paye: Math.round(annualTax / 12) };
-}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -74,12 +50,17 @@ export default function NewEmployeePage() {
   const un = (k: keyof Employee, v: string) =>
     setEmpForm((p) => ({ ...p, [k]: v === "" ? undefined : Number(v) }));
 
-  const computed = calcDeductions(
-    empForm.basicSalary,
-    empForm.housingAllowance,
-    empForm.transportAllowance,
-    empForm.mealAllowance,
-  );
+  const { data: preview } = useDeductionPreview({
+    basic: Number(empForm.basicSalary) || 0,
+    housing: Number(empForm.housingAllowance) || 0,
+    transport: Number(empForm.transportAllowance) || 0,
+    meal: Number(empForm.mealAllowance) || 0,
+  });
+  const computed = {
+    paye: preview?.paye ?? 0,
+    pension: preview?.pension ?? 0,
+    nhf: preview?.nhf ?? 0,
+  };
 
   const managerOptions = EMPLOYEE_STORE.map((e) => ({
     value: e.email,
